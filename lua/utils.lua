@@ -85,6 +85,21 @@ function layers.inclusive_inf(start, stop, layer_count)
   end
 end
 
+-- Returns evenly-spaced layer depths, excluding both endpoints and with `INF`
+-- on one side.
+function layers.exclusive_centered(center, half_range, cut_count)
+  if cut_count == 0 then
+    return {}
+  elseif cut_count == 1 then
+    return {center}
+  else
+    local half_layer_height = half_range / (cut_count + 1)
+    local outermost_cut = center + half_range - half_layer_height
+    local innermost_cut = center - half_range + half_layer_height
+    return layers.inclusive(outermost_cut, innermost_cut, cut_count-1)
+  end
+end
+
 function unpack_named(env, elements)
   for k,v in ipairs(elements) do
     env[tostring(v.name)] = v

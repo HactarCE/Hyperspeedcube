@@ -23,6 +23,14 @@ function shallow_ft_dodecahedron_cut_depths(layers)
   end
 end
 
+local function curvy_starminx_cut_depths(size)
+  assert(size >= 1)
+
+  local mid_depth = 1/3
+  local half_range = sqrt(5) - 2 - 1/3 + 0.15
+  return utils.concatseq({1}, utils.layers.exclusive_centered(mid_depth, half_range, size))
+end
+
 local function pentultimate_cut_depths(size)
   assert(size >= 2)
 
@@ -387,89 +395,21 @@ puzzles:add{
   },
 }
 
--- Curvy Starminx
--- puzzles:add{
---   id = 'curvy_starminx',
---   version = '1.0.0',
---   name = 'Curvy Starminx',
---   aliases = { "Litestarminx" }, -- museum = 11394
---   ndim = 3,
---   colors = 'dodecahedron',
---   build = function(self)
---     local depth = 1/3
---     local cut_depths = {1, depth, -depth, -1}
---     local shape = construct_ft_dodecahedron(self, cut_depths)
-
---     -- Mark piece types
---     utils.unpack_named(_ENV, self.axes)
---     self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
---     self:mark_piece(BR(2) & BL(2) & R(1) & L(1), 'edge', "Edge")
---     self:mark_piece(F(2) & R(1) & BR(1) & BL(1) & L(1), 'x_center', "X-center")
---     self:mark_piece(F(1) & R(1) & BR(1) & BL(1) & L(1), 'center', "Center")
---     self:unify_piece_types(shape.sym.chiral)
---   end,
-
---   tags = {
---     builtin = '2.0.0',
---     external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
-
---     author = "Milo Jacquet",
---     inventor = "Mr. Fok",
-
---     'type/puzzle',
---     'shape/3d/platonic/dodecahedron',
---     algebraic = {
---       'doctrinaire', 'pseudo/doctrinaire',
---       '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
---     },
---     axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
---     colors = { '!multi_per_facet', '!multi_facet_per' },
---     completeness = { '!super', '!real', '!laminated', '!complex' },
---     cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
---     turns_by = { 'face', 'facet' },
---     '!experimental',
---     '!canonical',
---     '!family',
---     '!variant',
---     '!meme',
---     '!shapeshifting',
---   },
--- }
-
+-- N-Layer Curvy Starminx generator
 puzzle_generators:add{
   id = 'curvy_starminx',
   version = '0.1.0',
   name = "N-Layer Curvy Starminx",
-
   params = {
     { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
   },
-
   gen = function(params)
     local size = params[1]
-
     return {
       name = size .. "-Layer Curvy Starminx",
-
       colors = 'dodecahedron',
-
       ndim = 3,
       build = function(self)
-        local mid_depth = 1/3
-        local half_range = sqrt(5) - 2 - 1/3 + 0.15
-        function curvy_starminx_cut_depths(layers)
-          if layers == 0 then
-            return {}
-          elseif layers == 1 then
-            return {1, mid_depth}
-          else
-            local layer_height = 2 * half_range / (layers + 1)
-            local outermost_cut = mid_depth + half_range - layer_height / 2
-            local innermost_cut = mid_depth - half_range + layer_height / 2
-            return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, innermost_cut, layers-1))
-          end
-        end
-        -- local cut_depths = {1, depth, -depth, -1}
         local cut_depths = curvy_starminx_cut_depths(size)
         local shape = construct_ft_dodecahedron(self, cut_depths)
 
@@ -519,18 +459,19 @@ puzzle_generators:add{
         -- Corner
         self:mark_piece(~L('*') & ~BR('*') & ~DR('*') & U(1), 'corner', "Corner")
 
-
         self:unify_piece_types(shape.sym.chiral)
-      end
+      end,
+
+      tags = { 'type/puzzle' }
     }
   end,
 
   examples = {
-    { 
-      params = {1}, 
+    {
+      params = {1},
       name = "Curvy Starminx",
       aliases = { "Litestarminx" }, -- museum = 11394
-      tags = { 
+      tags = {
         external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
         inventor = "Mr. Fok",
       }
@@ -542,7 +483,6 @@ puzzle_generators:add{
 
     author = { "Milo Jacquet", "Luna Harran" },
 
-    'type/puzzle',
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
@@ -551,9 +491,9 @@ puzzle_generators:add{
     axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = { 'face', 'facet' },
-    '!experimental',
+    'experimental', -- needs piece type bikeshedding + testing
     '!canonical',
     '!family',
     '!variant',
@@ -633,7 +573,9 @@ puzzle_generators:add{
         do -- Mark piece types
           self:add_piece_type('center', "Center")
 
-          -- Middle center
+          local center_layer = ceil((size+1)/2)
+
+          -- Middle centers
           local middle_center_region = F(1) & R(1) & BR(1) & BL(1) & L(1)
           if size >= 3 then
             self:add_piece_type('edge', "Edge")
@@ -644,10 +586,7 @@ puzzle_generators:add{
 
           -- X-centers
           for i = 1, size-2 do
-            local prefix
-            if i < (size-1)/2 then prefix = "Inner" end
-            if i > (size-1)/2 then prefix = "Outer" end
-            if i == (size-1)/2 then prefix = "Middle" end
+            local prefix = lib.piece_types.inner_outer_prefix(i, (size-1)/2)
             local name = string.format('center/0_%d', i)
             local display = string.format("%s X-center (%d)", prefix, i)
             self:mark_piece(DR(size-i) & L(1) & BR(1), name, display)

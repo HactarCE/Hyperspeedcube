@@ -1,74 +1,27 @@
 local utils = lib.utils
 
+local function shallow_ft_octahedron_cut_depths(layers)
+  assert(layers >= 1)
+
+  -- These are not realistic for large layer counts but it is usable.
+  local center = 1/2
+  local half_range = 1/6
+  return utils.concatseq({1}, utils.layers.exclusive_centered(center, half_range, layers))
+end
+
+-- N-Layer Face-Turning Octahedron generator
 puzzle_generators:add{
   id = 'ft_octahedron',
   version = '0.1.0',
-
   name = "N-Layer Face-Turning Octahedron",
-
-  tags = {
-    builtin = '2.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
-
-    author = { "Andrew Farkas", "Milo Jacquet" },
-    '!inventor',
-
-    'shape/3d/platonic/octahedron',
-    algebraic = {
-      'doctrinaire', 'pseudo/doctrinaire',
-      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
-    },
-    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
-    colors = { '!multi_per_facet', '!multi_facet_per' },
-    completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!stored', '!wedge' },
-    turns_by = { 'face', 'facet' },
-    '!experimental',
-    '!canonical',
-    '!family',
-    '!variant',
-    '!meme',
-    '!shapeshifting',
-  },
-
   params = {
     { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
   },
-
-  examples = {
-    { params = {1}, name = "Octahedron" },
-    { params = {2}, name = "Skewb Diamond" },
-    { params = {3}, name = "Face-Turning Octahedron" },
-    { params = {4}, name = "Master Face-Turning Octahedron" },
-  },
-
   gen = function(params)
     local size = params[1]
-
     return {
       name = size .. "-Layer Face-Turning Octahedron",
-
       colors = 'octahedron',
-
-      tags = {
-        algebraic = {
-          abelian = size == 1,
-          trivial = size == 1,
-        },
-        canonical = size == 2 or size == 3,
-        completeness = {
-          complex = size == 1,
-          laminated = size == 1,
-          real = size <= 2,
-          super = size == 1,
-        },
-        ['cuts/depth/shallow'] = size == 3,
-        ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
-        ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
-        ['cuts/depth/half'] = size % 2 == 0,
-        meme = size == 1,
-      },
-
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
@@ -85,68 +38,43 @@ puzzle_generators:add{
 
         local center_layer = ceil(size/2)
         local precenter_layer = floor(size/2)
-        local R = self.axes.R
-        local L = self.axes.L
-        local U = self.axes.U
-        local F = self.axes.F
-        local BD = self.axes.BD
+
+        lib.utils.unpack_named(_ENV, self.axes)
 
         if size == 1 then
-          self:mark_piece(
-            REGION_ALL,
-            'core',   
-            "Core"
-        )
+          lbi.piece_types.mark_everything_core(self)
         else
           -- Centers
           if size == 2 then
-            self:mark_piece(
-              U(1) & F(2) & R(1) & L(1),
-              'center',
-              "Center"
-          )
+            local region = U(1) & F(2) & R(1) & L(1)
+            self:mark_piece(region, 'center', "Center")
           elseif size == 3 then
-            self:mark_piece(
-              U(1) & F(2) & R(1) & L(1),
-              'triangle',
-              "Triangle"
-            )
+            local region = U(1) & F(2) & R(1) & L(1)
+            self:mark_piece(region, 'triangle', "Triangle")
           else
-            self:add_piece_type( 'center', "Center" )
-            self:add_piece_type( 'center/outer', "Outer triangle" )
+            self:add_piece_type('center', "Center")
+            self:add_piece_type('center/outer', "Outer triangle")
             if size >= 3 then
-              self:mark_piece(
-                U(1) & F(2) & R(1) & L(1),
-                'center/outer/x',
-                "Outer X-triangle"
-              )
+              local region = U(1) & F(2) & R(1) & L(1)
+              self:mark_piece(region, 'center/outer/x', "Outer X-triangle")
             end
             if size >= 4 and size % 2 == 0 then
-              self:mark_piece(
-                U(1) & R(1) & L(center_layer) & F(center_layer+1),
-                'center/outer/t',
-                "Outer T-triangle"
-              )
+              local region = U(1) & R(1) & L(center_layer) & F(center_layer+1)
+              self:mark_piece(region, 'center/outer/t', "Outer T-triangle")
             end
             for i = 2, center_layer-1 do
               local name, display = string.fmt2('center/outer/oblique_%d', "Outer oblique (%d)", i-1)
               self:add_piece_type(name, display)
-              self:mark_piece(
-                U(1) & R(1) & L(i) & F(i+1),
-                name .. '/left',
-                display .. ' (left)'
-              )
-              self:mark_piece(
-                U(1) & R(1) & L(i+1) & F(i),
-                name .. '/right',
-                display .. ' (right)'
-              )
+              local left_region = U(1) & R(1) & L(i) & F(i+1)
+              local right_region = U(1) & R(1) & L(i+1) & F(i)
+              self:mark_piece(left_region, name .. '/left', display .. ' (left)')
+              self:mark_piece(right_region, name .. '/right', display .. ' (right)')
             end
 
             if size >= 5 then
-              self:add_piece_type( 'center/thin', "Thin triangle" )
+              self:add_piece_type('center/thin', "Thin triangle")
             end
-            self:add_piece_type( 'center/thick', "Thick triangle" )
+            self:add_piece_type('center/thick', "Thick triangle")
             for i = 2, size-1 do
               for j = 2, size-1 do
                 local k = size + 1 - i - j
@@ -250,21 +178,75 @@ puzzle_generators:add{
         end
 
       end,
+
+      tags = {
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        canonical = size == 2 or size == 3,
+        completeness = {
+          complex = size == 1,
+          laminated = size == 1,
+          real = size <= 2,
+          super = size == 1,
+        },
+        ['cuts/depth/shallow'] = size == 3,
+        ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
+        ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
     }
-  end
-}
+  end,
 
-puzzle_generators:add{
-  id = 'ft_octahedron_shallow',
-  version = '0.1.0',
-
-  name = "N-Layer Face-Turning Octahedron (Shallow)",
+  examples = {
+    { params = {1}, name = "Octahedron" },
+    {
+      params = {2},
+      name = "Skewb Diamond",
+      tags = {
+        inventor = "Tony Fisher",
+        external = { gelatinbrain = '4.1.1', museum = 393 },
+      },
+    },
+    {
+      params = {3},
+      name = "Face-Turning Octahedron",
+      tags = {
+        inventor = "David Pitcher",
+        external = { gelatinbrain = '4.1.2', museum = 1663 },
+      },
+    },
+    {
+      params = {4},
+      name = "Master Face-Turning Octahedron",
+      tags = {
+        inventor = "Timur Evbatyrov",
+        external = { gelatinbrain = '4.1.5', museum = 1729 },
+      },
+    },
+    {
+      params = {5},
+      tags = {
+        inventor = "Seth Holiday",
+        external = { gelatinbrain = '4.1.8', museum = 9865 },
+      },
+    },
+    {
+      params = {6},
+      tags = {
+        inventor = "Seth Holiday",
+        external = { museum = 9807 },
+      },
+    },
+  },
 
   tags = {
     builtin = '2.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
-    author = { "Andrew Farkas", "Milo Jacquet", "Luna Harran" },
+    author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
 
     'shape/3d/platonic/octahedron',
@@ -277,49 +259,28 @@ puzzle_generators:add{
     completeness = { '!super', '!real', '!laminated', '!complex' },
     cuts = { '!stored', '!wedge' },
     turns_by = { 'face', 'facet' },
-    '!experimental',
+    'experimental', -- needs piece type bikeshedding + testing
     '!canonical',
     '!family',
     '!variant',
     '!meme',
     '!shapeshifting',
   },
+}
 
+-- N-Layer Face-Turning Octahedron (Shallow) generator
+puzzle_generators:add{
+  id = 'ft_octahedron_shallow',
+  version = '0.1.0',
+  name = "N-Layer Face-Turning Octahedron (Shallow)",
   params = {
     { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
   },
-
-  examples = {
-    { params = {1}, name = "Dino Octa" },
-  },
-
   gen = function(params)
     local size = params[1]
-
     return {
       name = size .. "-Layer Face-Turning Octahedron (Shallow)",
-
       colors = 'octahedron',
-
-      -- tags = {
-      --   algebraic = {
-      --     abelian = size == 1,
-      --     trivial = size == 1,
-      --   },
-      --   canonical = size == 2 or size == 3,
-      --   completeness = {
-      --     complex = size == 1,
-      --     laminated = size == 1,
-      --     real = size <= 2,
-      --     super = size == 1,
-      --   },
-      --   ['cuts/depth/shallow'] = size == 3,
-      --   ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
-      --   ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
-      --   ['cuts/depth/half'] = size % 2 == 0,
-      --   meme = size == 1,
-      -- },
-
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
@@ -327,21 +288,6 @@ puzzle_generators:add{
         self:carve(shape:iter_poles())
 
         -- Define axes and slices
-        local SHALLOW_FTO_DEPTH = 1/2
-        local SHALLOW_FTO_CUT_RANGE = 1/3
-        function shallow_ft_octahedron_cut_depths(layers)
-          if layers == 0 then
-            return {}
-          elseif layers == 1 then
-            return {1, SHALLOW_FTO_DEPTH}
-          else
-            local layer_height = SHALLOW_FTO_CUT_RANGE / (layers + 1)
-            local outermost_cut = SHALLOW_FTO_DEPTH + SHALLOW_FTO_CUT_RANGE / 2 - layer_height / 2
-            local innermost_cut = SHALLOW_FTO_DEPTH - SHALLOW_FTO_CUT_RANGE / 2 + layer_height / 2
-            return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, innermost_cut, layers-1))
-          end
-        end
-
         self.axes:add(shape:iter_poles(), shallow_ft_octahedron_cut_depths(size))
 
         -- Define twists
@@ -349,16 +295,7 @@ puzzle_generators:add{
           self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
         end
 
-        -- local center_layer = ceil(size/2)
-        -- local precenter_layer = floor(size/2)
-        local R = self.axes.R
-        local L = self.axes.L
-        local U = self.axes.U
-        local F = self.axes.F
-        local D = self.axes.D
-        local BD = self.axes.BD
-        local BL = self.axes.BL
-        local BR = self.axes.BR
+        lib.utils.unpack_named(_ENV, self.axes)
 
         self:add_piece_type('center', "Center")
         self:add_piece_type('edge', "Edge")
@@ -381,7 +318,7 @@ puzzle_generators:add{
         for i = 1, size-1 do
           local region = F(1) & D(size-i+1) & ~FD_adj
           self:mark_piece(region, string.fmt2('center/ce_%d', "CE (%d)", i))
-          for j=1, size-1 do 
+          for j=1, size-1 do
             local region = F(1) & D(size-i+1) & R(size-j+1)
             self:mark_piece(region, string.fmt2('center/cep_%d_%d', "CEP (%d, %d)", i, j))
           end
@@ -408,6 +345,61 @@ puzzle_generators:add{
 
         self:unify_piece_types(shape.sym.chiral)
       end,
+
+      tags = {
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        canonical = size == 2 or size == 3,
+        completeness = {
+          complex = size == 1,
+          laminated = size == 1,
+          real = size <= 2,
+          super = size == 1,
+        },
+        ['cuts/depth/shallow'] = size == 3,
+        ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
+        ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
     }
-  end
+  end,
+
+  examples = {
+    {
+      params = {1},
+      name = "Dino Octa",
+      tags = {
+        inventor = "Katsuhiko Okamoto",
+        external = { gelatinbrain = '4.1.3', museum = 2673 },
+      },
+    },
+  },
+
+  tags = {
+    builtin = '2.0.0',
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = { "Andrew Farkas", "Milo Jacquet", "Luna Harran" },
+    '!inventor',
+
+    'shape/3d/platonic/octahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    'experimental', -- needs piece type bikeshedding + testing
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
 }

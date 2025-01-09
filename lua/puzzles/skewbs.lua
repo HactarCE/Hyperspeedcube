@@ -75,7 +75,31 @@ puzzle_generators:add{
             self:mark_piece(U(i+1) & L(1) & R(1), name, display)
           end
 
-          lib.piece_types.unknown_vt_guys.mark_diamond_pieces(self, size, F(1), L, R)
+          -- T-centers and obliques
+          for i = 1, size-3 do
+            for j = 1, size-i-2 do
+              local region = F(1) & L(size-j) & R(i+1)
+              if i == j then
+                puzzle:mark_piece(region, string.fmt2('center/%d_%d', "T-center (%d, %d)", i, j))
+              else
+                lib.piece_types.mark_left_right(puzzle, region, 'center/%d_%d', "oblique (%d, %d)", i, j)
+              end
+            end
+          end
+
+          -- Edges and wings
+          if size % 2 == 1 then
+            local region = F(1) & L(center_layer) & R(center_layer)
+            if size > 3 then
+              puzzle:mark_piece(region, 'edge/middle', "Middle edge")
+            else
+              puzzle:mark_piece(region, 'edge')
+            end
+          end
+          for i = 1, center_layer-2 do
+            local region = F(1) & L(center_layer-i) & R(center_layer-i)
+            puzzle:mark_piece(region, string.fmt2('edge/%d', "Wing (%d)", i))
+          end
 
           -- Corners
           self:mark_piece(L(1) & R(1) & BD(1), 'corner', "Corner")

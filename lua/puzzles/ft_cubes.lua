@@ -76,7 +76,7 @@ puzzle_generators:add{
   end,
 
   examples = {
-    { params = {1}, tags = { 'algebraic/trivial', 'meme' } },
+    { params = {1}, tags = { 'meme' } },
     {
       params = {2},
       aliases = { "Pocket Cube" },
