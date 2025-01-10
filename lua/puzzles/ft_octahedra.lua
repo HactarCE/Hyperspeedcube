@@ -15,17 +15,18 @@ puzzle_generators:add{
   version = '0.1.0',
   name = "N-Layer Face-Turning Octahedron",
   params = {
-    { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
+    { name = "Layers", type = 'int', default = 1, min = 0, max = 13 },
   },
   gen = function(params)
     local size = params[1]
+    if size == 0 then return 'octahedron' end
     return {
       name = size .. "-Layer Face-Turning Octahedron",
       colors = 'octahedron',
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
-        local shape = lib.symmetries.octahedral.octahedron()
+        local shape = lib.symmetries.bc3.octahedron()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices
@@ -42,7 +43,7 @@ puzzle_generators:add{
         lib.utils.unpack_named(_ENV, self.axes)
 
         if size == 1 then
-          lbi.piece_types.mark_everything_core(self)
+          lib.piece_types.mark_everything_core(self)
         else
           -- Centers
           if size == 2 then
@@ -274,17 +275,18 @@ puzzle_generators:add{
   version = '0.1.0',
   name = "N-Layer Face-Turning Octahedron (Shallow)",
   params = {
-    { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
+    { name = "Layers", type = 'int', default = 1, min = 0, max = 13 },
   },
   gen = function(params)
     local size = params[1]
+    if size == 0 then return 'octahedron' end
     return {
       name = size .. "-Layer Face-Turning Octahedron (Shallow)",
       colors = 'octahedron',
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
-        local shape = lib.symmetries.octahedral.octahedron()
+        local shape = lib.symmetries.bc3.octahedron()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices

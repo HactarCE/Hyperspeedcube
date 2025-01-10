@@ -111,7 +111,7 @@ puzzle_generators:add{
       ndim = 3,
       build = function(self)
         local inner_layer_height = carve_cuboid(self, sizes)
-        self.axes:add(lib.symmetries.cubic.cube():iter_poles())
+        self.axes:add(lib.symmetries.bc3.cube():iter_poles())
         -- Add layers
         slice_cuboid(self, sizes, inner_layer_height)
 
@@ -163,6 +163,11 @@ puzzle_generators:add{
     { name = "D", type = 'int', default = 6, min = 1, max = 49 },
   },
   gen = function(params)
+    -- Redirect to hypercube if possible
+    if params[1] == params[2] and params[2] == params[3] and params[3] == params[4] then
+      return 'ft_cube', {params[1]}
+    end
+
     -- Canonicalize parameter order
     local new_params = canonicalize_cuboid_params(params)
     if new_params then
@@ -174,12 +179,14 @@ puzzle_generators:add{
       name = cuboid_name(sizes) .. " Cuboid",
       ndim = 4,
       build = function(self)
-        local shape = lib.symmetries.hypercubic.hypercube()
+        local shape = lib.symmetries.bc4.hypercube()
         lib.utils.cut_ft_shape(self, shape)
         self.axes:add(shape:iter_poles())
 
+        local inner_layer_height -- TODO: compute this
+
         -- Add layers
-        slice_cuboid(self, sizes)
+        slice_cuboid(self, sizes, inner_layer_height)
       end,
     }
   end,

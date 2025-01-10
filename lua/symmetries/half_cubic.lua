@@ -1,6 +1,6 @@
 color_systems:add{
-  id = 'half_cube',
-  name = "Half-cube",
+  id = 'hemicube',
+  name = "Hemicube",
 
   colors = {
     { name = 'X', display = "Right/Left", default = "Red" },

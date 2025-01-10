@@ -2,7 +2,7 @@ local utils = lib.utils
 local polygonal = lib.symmetries.polygonal
 local linear = lib.symmetries.linear
 
-local dodecahedral = lib.symmetries.dodecahedral
+local dodecahedral = lib.symmetries.h3
 local ft_dodecahedra = lib.puzzles.ft_dodecahedra
 
 -- TODO: variant of duoprism with factor of `polygon_edge_length(m)/2` and `polygon_edge_length(n)/2`
@@ -22,7 +22,7 @@ PARAMS = {
 FACET_GIZMO_EDGE_FACTOR = 2/3
 RIDGE_GIZMO_FACTOR = 1/2
 
-local function get_default_color(color)
+function get_default_color(color)
   local t = {
     -- 3D
     U = "Mono Dyad [1]",
@@ -36,7 +36,7 @@ local function get_default_color(color)
   return t[color.name.canonical:sub(1, 1)]
 end
 
-local function facet_order(color_or_axis)
+function facet_order(color_or_axis)
   local s = color_or_axis.name.canonical
   if s == 'U' then
     return -2
@@ -59,16 +59,13 @@ function ft_prism_name(n, width, height, cut_type)
 end
 
 function ft_duoprism_name(n, m, n_size, m_size, n_cut_type, m_cut_type)
-  local name = string.format("{%d}x{%d} Duoprism", n, m)
-  if n_size > 1 or m_size > 1 then
-    name = string.format("Facet-Turning %s (", name)
-    if m_cut_type == nil or n_cut_type == m_cut_type then
-      name = name .. string.format("%s %dx%d", n_cut_type, n_size, m_size)
-    else
-      name = name .. string.format("%s %d x %s %d", n_cut_type, n_size, m_cut_type, m_size)
-    end
-    name = name .. ")"
+  local name = string.format("Facet-Turning {%d}x{%d} Duoprism (", n, m)
+  if m_cut_type == nil or n_cut_type == m_cut_type then
+    name = name .. string.format("%s %dx%d", n_cut_type, n_size, m_size)
+  else
+    name = name .. string.format("%s %d x %s %d", n_cut_type, n_size, m_cut_type, m_size)
   end
+  name = name .. ")"
   return name
 end
 
@@ -352,7 +349,7 @@ puzzle_generators:add{
 -- MEGAMINX PRISM GENERATOR
 
 DODECAHEDRAL_PRISM_FACET_COLORS = {}
-for k, v in pairs(dodecahedral.FACE_COLORS) do
+for k, v in pairs(dodecahedral.DODECAHEDRON_FACE_COLORS) do
   DODECAHEDRAL_PRISM_FACET_COLORS[k] = v
 end
 table.insert(DODECAHEDRAL_PRISM_FACET_COLORS, {
@@ -414,12 +411,13 @@ puzzle_generators:add{
       colors = 'dodecahedron_prism',
       ndim = 4,
       build = function(self)
-        local dodeca = ft_dodecahedra.shallow_ft_dodecahedron(self, dodecahedron_size)
+        local dodeca = dodecahedral.dodecahedron()
+        local dodeca_cuts = ft_dodecahedra.shallow_ft_dodecahedron_cut_depths(dodecahedron_size)
 
         local line = linear.line(1, 'w')
         local line_cuts = utils.layers.inclusive(1, -1, prism_size)
 
-        local dodeca_colors, dodeca_axes = dodeca.colors, dodeca.axes
+        local dodeca_colors, dodeca_axes = utils.cut_ft_shape(self, dodeca, dodeca_cuts)
         local base_colors, base_axes = utils.cut_ft_shape(self, line, line_cuts, 'O', 'I')
 
         local sym = cd{5, 3, 2}
@@ -439,14 +437,14 @@ puzzle_generators:add{
         for t in sym.chiral:orbit(sym.oxox) do
           self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(1, 3)), {
             name = t:transform(dodeca1).name .. t:transform(dodeca2).name,
-            gizmo_pole_distance = 1.08,
+            gizmo_pole_distance = 1.08, -- TODO: correct number
           })
         end
 
         for t in sym.chiral:orbit(sym.xoox) do
           self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(2, 3)), {
             name = t:transform(dodeca1).name .. t:transform(dodeca2).name .. t:transform(dodeca3).name,
-            gizmo_pole_distance = 1.12,
+            gizmo_pole_distance = 1.12, -- TODO: correct number
           })
         end
 

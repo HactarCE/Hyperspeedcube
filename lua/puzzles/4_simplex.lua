@@ -13,7 +13,7 @@ function def_simplex(letter, depths)
     colors = '4_simplex',
     build = function(self)
       local sym = cd'a4'
-      local shape = lib.symmetries['4_simplex'].simplex_4d()
+      local shape = lib.symmetries.a4.simplex_4d()
       self:carve(shape:iter_poles())
 
       local ooox = sym.ooox.unit

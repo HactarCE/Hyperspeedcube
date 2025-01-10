@@ -16,7 +16,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -89,12 +89,12 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    
+
     local galaxy = sqrt((6/(47+(21*sqrt(5))))+(((3*sqrt(3))-sqrt(15))/2)^2)
 
     self.axes:add(shape:iter_poles(), {1, galaxy, radio7, -radio7, -galaxy, -1})
@@ -162,7 +162,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -225,7 +225,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -289,7 +289,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -351,7 +351,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -414,7 +414,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -478,7 +478,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -541,7 +541,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -606,7 +606,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -672,7 +672,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -737,7 +737,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -803,7 +803,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -866,7 +866,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -933,7 +933,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -998,7 +998,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -1065,7 +1065,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -1131,7 +1131,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 
@@ -1197,7 +1197,7 @@ puzzles:add{
   colors = 'icosahedron',
   build = function(self)
     local sym = cd'h3'
-    local shape = lib.symmetries.icosahedral.icosahedron()
+    local shape = lib.symmetries.h3.icosahedron()
 
     self:carve(shape:iter_poles())
 

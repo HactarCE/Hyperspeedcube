@@ -14,6 +14,25 @@ pub(super) fn unpack_tags_table(lua: &Lua, table: Option<LuaTable>) -> LuaResult
     Ok(tags)
 }
 
+pub(super) fn tags_table_to_lua(lua: &Lua, tags: &TagSet) -> LuaResult<LuaTable> {
+    let t = lua.create_table()?;
+    for (k, v) in &tags.0 {
+        let value = match v {
+            TagValue::False => false.into_lua(lua)?,
+            TagValue::True => true.into_lua(lua)?,
+            TagValue::Inherited => continue,
+            TagValue::Int(i) => i.into_lua(lua)?,
+            TagValue::Str(s) => s.clone().into_lua(lua)?,
+            TagValue::StrList(vec) => lua
+                .create_sequence_from(vec.iter().cloned())?
+                .into_lua(lua)?,
+            TagValue::Puzzle(p) => p.clone().into_lua(lua)?,
+        };
+        t.raw_set(k.to_string(), value)?;
+    }
+    Ok(t)
+}
+
 pub(super) fn merge_tag_sets(mut higher_priority: TagSet, lower_priority: TagSet) -> TagSet {
     for (tag_name, tag_value) in lower_priority.0 {
         if matches!(tag_value, TagValue::Inherited) {

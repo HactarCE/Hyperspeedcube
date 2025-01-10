@@ -124,5 +124,18 @@ pub(super) fn init_lua_environment(lua: &Lua, env: &LuaTable, loader: LuaLoader)
     seal_table(lua, &names_table)?;
     env.raw_set("names", names_table)?;
 
+    // Tag utilities
+    env.raw_set(
+        "merge_tags",
+        lua.create_function(|lua, tables: LuaMultiValue| {
+            tables
+                .into_iter()
+                .map(|t| super::tags::unpack_tags_table(lua, <Option<LuaTable>>::from_lua(t, lua)?))
+                .reduce(|a, b| Ok(crate::lua::tags::merge_tag_sets(a?, b?)))
+                .unwrap_or(Ok(crate::TagSet::new()))
+                .map(|tag_set| super::tags::tags_table_to_lua(lua, &tag_set))
+        })?,
+    )?;
+
     Ok(())
 }

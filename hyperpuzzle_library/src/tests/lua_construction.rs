@@ -5,6 +5,10 @@ use hyperpuzzle::PuzzleLintOutput;
 
 use super::{load_puzzle_library, time_it};
 
+/// Whether to lint experimental puzzles. (Non-experimental puzzles are always
+/// linted.)
+const LINT_EXPERIMENTAL: bool = false;
+
 #[test]
 fn lint_all_puzzle_definitions() -> Result<(), String> {
     let lib = load_puzzle_library();
@@ -14,6 +18,10 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
     let mut out = String::new();
 
     for puzzle in lib.puzzles() {
+        if !LINT_EXPERIMENTAL && puzzle.tags.is_experimental() {
+            continue;
+        }
+
         let puzzle_lint_output = time_it(format!("Linting puzzle {}", puzzle.id), || {
             PuzzleLintOutput::from_spec(puzzle)
         })

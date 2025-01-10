@@ -76,7 +76,9 @@ local function def_ft_24_cell(id, name, depths, piece_types_fn)
         })
       end
 
-      piece_types_fn(p)
+      if piece_types_fn then
+        piece_types_fn(p)
+      end
     end,
 
     tags = {

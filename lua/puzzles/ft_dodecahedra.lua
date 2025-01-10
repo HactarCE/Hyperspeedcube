@@ -47,7 +47,7 @@ end
 
 -- Cut shape and add twists
 function construct_ft_dodecahedron(puzzle, cut_depths, scale, basis)
-  local shape = lib.symmetries.dodecahedral.dodecahedron(scale, basis)
+  local shape = lib.symmetries.h3.dodecahedron(scale, basis)
 
   local colors, axes = utils.cut_ft_shape(puzzle, shape, cut_depths)
 
@@ -62,10 +62,10 @@ function construct_ft_dodecahedron(puzzle, cut_depths, scale, basis)
 end
 
 local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
-  { params = {0}, name = "Dodecahedron" },
   { params = {1}, name = "Megaminx",
     aliases = { "Hungarian Supernova" },
     tags = {
+      'canonical',
       external = {
         gelatinbrain = '1.1.1',
         museum = 650,
@@ -164,7 +164,7 @@ puzzle_generators:add{
   },
   gen = function(params)
     local size = params[1]
-
+    if size == 0 then return 'dodecahedron' end
     return {
       name = size .. "-Layer Face-Turning Dodecahedron",
       ndim = 3,
@@ -183,20 +183,10 @@ puzzle_generators:add{
       end,
 
       tags = {
-        ['type/shape'] = size == 0,
-        ['type/puzzle'] = size ~= 0,
-        algebraic = {
-          abelian = size == 0,
-          trivial = size == 0,
-        },
-        canonical = size == 1,
+        'type/puzzle',
         completeness = {
-          complex = size == 0,
-          laminated = size == 0,
           real = size <= 1,
-          super = size == 0,
         },
-        meme = size == 0,
       },
     }
   end,
@@ -213,13 +203,15 @@ puzzle_generators:add{
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
-      '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+      '!abelian', '!trivial', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
     },
     axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
     colors = { '!multi_facet_per', '!multi_per_facet' },
+    completeness = { '!complex', '!laminated', '!super' },
     cuts = { depth = { 'shallow' }, '!stored', '!wedge' },
     turns_by = { 'face', 'facet' },
     '!experimental',
+    '!canonical',
     '!family',
     '!variant',
     '!meme',
@@ -238,7 +230,6 @@ puzzle_generators:add{
   },
   gen = function(params)
     local size = params[1]
-
     return {
       ndim = 3,
 

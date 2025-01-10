@@ -23,7 +23,7 @@ end
 function cut_ft_shape(puzzle, shape, cut_depths, ...)
   local poles = shape:iter_poles(...)
   local colors = puzzle:carve(poles)
-  local axes = cut_depths and puzzle.axes:add(poles, cut_depths)
+  local axes = puzzle.axes:add(poles, cut_depths)
   return colors, axes
 end
 

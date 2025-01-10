@@ -10,9 +10,12 @@ color_systems:add{
         { name = 'L', display = "Left", default = "Blue" },
     },
 }
-  
+
   function tetrahedron(scale, basis)
     return {
+      name = "Tetrahedron",
+      aliases = {"Simplex", "4-Simplex"},
+      face_colors = 'tetrahedron',
       sym = cd('a3', basis),
       iter_poles = function(self, prefix)
         return self.sym:orbit(self.sym.oox.unit * (scale or 1)):named({
@@ -24,7 +27,7 @@ color_systems:add{
       end,
       iter_vertices = function(self, prefix)
         return self.sym:orbit(self.sym.xoo.unit * (scale or 1)):named({ -- labelled based on opposite face? lowercase ok?
-          l= {},
+          l = {},
           r = {1, 'l'},
           u = {2, 'r'},
           f = {3, 'u'},
@@ -32,4 +35,3 @@ color_systems:add{
       end,
     }
   end
-  

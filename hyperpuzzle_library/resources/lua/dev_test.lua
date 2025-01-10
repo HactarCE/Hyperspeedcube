@@ -12,10 +12,10 @@ puzzles:add{
   name = "Opposite colors are the same",
   version = '0.1.0',
   ndim = 3,
-  colors = 'half_cube',
+  colors = 'hemicube',
   build = function(self)
     local sym = cd'bc3'
-    local shape = symmetries.cubic.cube()
+    local shape = lib.symmetries.bc3.cube()
     self:carve(shape:iter_poles(), {
       stickers = {
         R = 'X', L = 'X',
@@ -25,7 +25,7 @@ puzzles:add{
     })
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers.inclusive(1, -1, 3))
+    self.axes:add(shape:iter_poles(), lib.utils.layers.inclusive(1, -1, 3))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do

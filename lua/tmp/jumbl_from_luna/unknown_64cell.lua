@@ -10,7 +10,6 @@ puzzles:add({
 
     -- Build shape
     p:carve(sym:orbit(xoox))
-    -- p.colors:set_defaults(hypercubic.FACE_COLORS)
 
     -- -- Define axes and slices
     p.axes:add(sym:orbit(xoox), {INF, 6/7})

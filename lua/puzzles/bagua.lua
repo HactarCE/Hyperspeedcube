@@ -11,7 +11,7 @@ puzzles:add{
   build = function(self)
     local d = 1/2
 
-    local shape = lib.symmetries.cubic.cube()
+    local shape = lib.symmetries.bc3.cube()
     lib.utils.cut_ft_shape(self, shape, {INF, d})
 
     lib.utils.unpack_named(_ENV, self.axes)
@@ -74,7 +74,7 @@ puzzles:add{
   build = function(self)
     local d = 1/5 * (-5 + 4 * sqrt(5))
 
-    local shape = lib.symmetries.dodecahedral.dodecahedron()
+    local shape = lib.symmetries.h3.dodecahedron()
     lib.utils.cut_ft_shape(self, shape, {INF, d})
 
     lib.utils.unpack_named(_ENV, self.axes)

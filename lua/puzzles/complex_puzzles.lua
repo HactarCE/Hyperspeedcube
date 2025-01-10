@@ -7,7 +7,7 @@ puzzles:add{
   remove_internals = false,
   build = function(self)
     local sym = cd'bc3'
-    local shape = lib.symmetries.cubic.cube()
+    local shape = lib.symmetries.bc3.cube()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices

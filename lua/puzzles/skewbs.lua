@@ -16,8 +16,8 @@ local function skewb_cut_depths(size)
 end
 
 local function construct_vt_cube(puzzle, cut_depths)
-  local cube = lib.symmetries.cubic.cube()
-  local octahedron = lib.symmetries.octahedral.octahedron()
+  local cube = lib.symmetries.bc3.cube()
+  local octahedron = lib.symmetries.bc3.octahedron()
 
   puzzle:carve(cube:iter_poles())
 
@@ -80,9 +80,9 @@ puzzle_generators:add{
             for j = 1, size-i-2 do
               local region = F(1) & L(size-j) & R(i+1)
               if i == j then
-                puzzle:mark_piece(region, string.fmt2('center/%d_%d', "T-center (%d, %d)", i, j))
+                self:mark_piece(region, string.fmt2('center/%d_%d', "T-center (%d, %d)", i, j))
               else
-                lib.piece_types.mark_left_right(puzzle, region, 'center/%d_%d', "oblique (%d, %d)", i, j)
+                lib.piece_types.mark_left_right(self, region, 'center/%d_%d', "oblique (%d, %d)", i, j)
               end
             end
           end
@@ -91,14 +91,14 @@ puzzle_generators:add{
           if size % 2 == 1 then
             local region = F(1) & L(center_layer) & R(center_layer)
             if size > 3 then
-              puzzle:mark_piece(region, 'edge/middle', "Middle edge")
+              self:mark_piece(region, 'edge/middle', "Middle edge")
             else
-              puzzle:mark_piece(region, 'edge')
+              self:mark_piece(region, 'edge')
             end
           end
           for i = 1, center_layer-2 do
             local region = F(1) & L(center_layer-i) & R(center_layer-i)
-            puzzle:mark_piece(region, string.fmt2('edge/%d', "Wing (%d)", i))
+            self:mark_piece(region, string.fmt2('edge/%d', "Wing (%d)", i))
           end
 
           -- Corners
@@ -181,12 +181,8 @@ puzzles:add{
   ndim = 3,
   colors = 'cube',
   build = function(self)
-    local _cube, octahedron = construct_vt_cube(puzzle, {INF, 1/sqrt(3), -1/sqrt(3), -INF})
-
-    -- Define twists
-    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
-      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
-    end
+    local _cube, octahedron = construct_vt_cube(self, {INF, 1/sqrt(3), -1/sqrt(3), -INF})
+    local sym = octahedron.sym
 
     -- Mark piece types
     utils.unpack_named(_ENV, self.axes)
@@ -275,11 +271,11 @@ puzzles:add{
   colors = 'cube',
   build = function(self)
     local sym = cd'bc3'
-    local shape = lib.symmetries.cubic.cube()
+    local shape = lib.symmetries.bc3.cube()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {INF, 0.82})
+    self.axes:add(lib.symmetries.bc3.octahedron():iter_poles(), {INF, 0.82})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
