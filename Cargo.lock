@@ -1479,8 +1479,7 @@ dependencies = [
 [[package]]
 name = "ecolor"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d72e9c39f6e11a2e922d04a34ec5e7ef522ea3f5a1acfca7a19d16ad5fe50f5"
+source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1526,8 +1525,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "252d52224d35be1535d7fd1d6139ce071fb42c9097773e79f7665604f5596b5e"
+source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
 dependencies = [
  "ahash 0.8.11",
  "emath",
@@ -1628,8 +1626,7 @@ checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 [[package]]
 name = "emath"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4fe73c1207b864ee40aa0b0c038d6092af1030744678c60188a05c28553515d"
+source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
 dependencies = [
  "bytemuck",
 ]
@@ -1723,8 +1720,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5666f8d25236293c966fbb3635eac18b04ad1914e3bab55bc7d44b9980cafcac"
+source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
 dependencies = [
  "ab_glyph",
  "ahash 0.8.11",
@@ -1741,8 +1737,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66f6ddac3e6ac6fd4c3d48bb8b1943472f8da0f43a4303bcd8a18aa594401c80"
+source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
 
 [[package]]
 name = "equivalent"
