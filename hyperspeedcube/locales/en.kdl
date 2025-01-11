@@ -750,7 +750,7 @@ eula r#"
 
   ---
 
-  Please **do not** solve puzzles, because the log files may become readable, and we will Soon™ have an automatic leaderboard that solves will be optionally uploaded to.
+  Please **do not** solve puzzles, because the log files may become unreadable, and we will Soon™ have an automatic leaderboard that solves will be optionally uploaded to.
 
   We will **NOT** be accepting speedsolves done using a prerelease version of HSC2, for several reasons:
 
