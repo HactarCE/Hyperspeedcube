@@ -402,7 +402,7 @@ impl PuzzleWidget {
                 // Adjust camera zoom using scroll wheel.
                 let cam = &mut view.camera;
                 cam.zoom *= (scroll_delta.y / 500.0).exp2();
-                cam.zoom = cam.zoom.clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
+                cam.zoom = cam.zoom.clamp(2.0_f32.powi(-6), 2.0_f32.powi(8));
             }
         }
 

@@ -51,9 +51,9 @@ pub mod interpolation {
 
                 Self::Circular => {
                     if t < 0.5 {
-                        (1.0 - (1.0 - (2.0 * t).powf(2.0)).sqrt()) * 0.5
+                        (1.0 - (1.0 - (2.0 * t).powi(2)).sqrt()) * 0.5
                     } else {
-                        (1.0 + (1.0 - (-2.0 * t + 2.0).powf(2.0)).sqrt()) * 0.5
+                        (1.0 + (1.0 - (-2.0 * t + 2.0).powi(2)).sqrt()) * 0.5
                     }
                 }
 
@@ -79,7 +79,7 @@ pub mod interpolation {
                     // https://easings.net/#easeOutBack
                     let c1 = 1.70158;
                     let c3 = c1 + 1.0;
-                    1.0 + c3 * (t - 1.0).powf(3.0) + c1 * (t - 1.0).powf(2.0)
+                    1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
                 }
                 Self::Underdamped => {
                     // https://easings.net/#easeOutElastic

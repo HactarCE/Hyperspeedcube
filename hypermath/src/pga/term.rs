@@ -273,7 +273,7 @@ mod tests {
                 let lc = term.left_complement(ndim);
                 let rc = term.right_complement(ndim);
 
-                let expected_sign = (-1.0 as Float).powf((grade * term.antigrade(ndim)) as _);
+                let expected_sign = (-1.0 as Float).powi((grade * term.antigrade(ndim)) as i32);
 
                 // Complements are the inverse of term
                 assert_eq!(term * rc, Some(pss));
