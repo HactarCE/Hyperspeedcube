@@ -247,6 +247,7 @@ impl<'a, T> PrefsUi<'a, T> {
                         let rgb = color.to_string();
                         L.styles.color_mode_reset.fixed.with(&rgb).into()
                     }
+                    StyleColorMode::Rainbow => L.styles.color_mode_reset.rainbow.into(),
                 },
                 None => L.styles.color_mode_reset.default.into(),
             }),
@@ -277,6 +278,9 @@ impl<'a, T> PrefsUi<'a, T> {
                             let color = value.and_then(|v| v.fixed_color()).unwrap_or_default();
                             let option = Some(StyleColorMode::FixedColor { color });
                             options.push((option, l.fixed.into()));
+
+                            let option = Some(StyleColorMode::Rainbow);
+                            options.push((option, l.rainbow.into()));
                         }
 
                         let r = ui.add(crate::gui::components::FancyComboBox {

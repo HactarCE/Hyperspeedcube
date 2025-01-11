@@ -14,6 +14,9 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 /// Color ID for background.
 const COLOR_BACKGROUND: u32 = 0u;
 
+/// Color ID for rainbow.
+const COLOR_RAINBOW: u32 = 2u;
+
 
 
 /*
@@ -85,6 +88,10 @@ struct DrawParams {
     camera_4d_w: f32,
 
     first_gizmo_vertex_index: i32,
+
+    rainbow_offset: f32,
+    _padding: i32,
+    _padding2: vec2<i32>,
 }
 
 
@@ -437,7 +444,7 @@ fn transform_screen_space_to_world_ray(screen_space_xy: vec2<f32>) -> Ray {
 }
 
 /// Returns a color by ID, with premultiplied alpha.
-fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
+fn get_color(color_id: u32, lighting: f32, screen_space_xy: vec2<f32>) -> vec4<f32> {
     var light_value = lighting;
 
     // Override light_value if highest bit is set.
@@ -447,7 +454,12 @@ fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
 
     let index = color_id & 0x7FFFFFFFu;
 
-    let color = textureLoad(color_palette_texture, index, 0);
+    var color: vec4<f32>;
+    if index == COLOR_RAINBOW {
+        color = sinebow((screen_space_xy.x - screen_space_xy.y) - draw_params.rainbow_offset);
+    } else {
+        color = textureLoad(color_palette_texture, index, 0);
+    }
     // Premultiply alpha.
     return vec4(color.rgb * light_value, 1.0) * color.a;
 }
@@ -829,7 +841,7 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
     let color_id = tex_value.r;
     if color_id == COLOR_BACKGROUND { // TODO: is this special case beneficial?
         out.plane.v = vec4(0.0, 0.0, 1.0, draw_params.pre.f);
-        out.color = get_color(COLOR_BACKGROUND, 1.0);
+        out.color = get_color(COLOR_BACKGROUND, 1.0, screen_space);
         out.point = vec3(screen_space * z_divisor(draw_params.pre.f), draw_params.pre.f);
         return out;
     }
@@ -840,7 +852,7 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
     );
 
     let lighting = compute_lighting(polygon_normal, draw_params.face_light_intensity);
-    out.color = get_color(color_id, lighting);
+    out.color = get_color(color_id, lighting, screen_space);
 
     return out;
 }
@@ -945,7 +957,7 @@ fn get_edge_pixel(ray: Ray, polygon: PolygonPixel, screen_space: vec2<f32>, tex_
     // Compute lighting.
     let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment), draw_params.outline_light_intensity);
 
-    out.color = get_color(outline_color_ids[edge_id], lighting) * saturate(edge_coverage);
+    out.color = get_color(outline_color_ids[edge_id], lighting, screen_space) * saturate(edge_coverage);
     out.depth = edge_depth;
 
     return out;
@@ -1092,6 +1104,20 @@ fn plane_plane_intersect_to_line(p1: Plane, p2: Plane) -> Line2D {
     var out: Line2D;
     out.v = vec3(a, b, c);
     return out;
+}
+
+
+
+// Sinebow https://observablehq.com/@mbostock/sinebow
+fn sinebow(t: f32) -> vec4<f32> {
+    let x = 0.5 - t;
+    const PI: f32 = radians(180.0);
+    return vec4(
+        pow(sin(PI * (x + 0.0 / 3.0)), 2.0),
+        pow(sin(PI * (x + 1.0 / 3.0)), 2.0),
+        pow(sin(PI * (x + 2.0 / 3.0)), 2.0),
+        1.0,
+    );
 }
 
 

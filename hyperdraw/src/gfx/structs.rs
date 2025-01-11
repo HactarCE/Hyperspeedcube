@@ -157,4 +157,10 @@ pub struct GfxDrawParams {
 
     /// Index of the first twist gizmo vertex.
     pub first_gizmo_vertex_index: i32,
+
+    /// Rainbow time offset.
+    pub rainbow_offset: f32,
+
+    pub padding: i32,
+    pub padding2: [i32; 2],
 }

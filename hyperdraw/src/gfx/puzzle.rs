@@ -20,6 +20,7 @@ use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
+use web_time::Instant;
 
 use super::bindings::WgpuPassExt;
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
@@ -40,8 +41,10 @@ const Z_EPSILON: f32 = 0.01;
 const BACKGROUND_COLOR_ID: u32 = 0;
 /// Color ID for the internals.
 const INTERNALS_COLOR_ID: u32 = 1;
+/// Color ID for rainbow.
+const RAINBOW_COLOR_ID: u32 = 2;
 /// First color ID for stickers.
-const FACES_BASE_COLOR_ID: u32 = 2;
+const FACES_BASE_COLOR_ID: u32 = 3;
 
 /// How much to scale outline radius values compared to size of one 3D unit.
 const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
@@ -132,6 +135,8 @@ pub struct PuzzleRenderer {
 
     polygon_texture_needs_clear: bool,
     edge_ids_texture_needs_clear: bool,
+
+    init_time: Instant,
 }
 
 impl Clone for PuzzleRenderer {
@@ -155,6 +160,8 @@ impl Clone for PuzzleRenderer {
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
+
+            init_time: self.init_time,
         }
     }
 }
@@ -202,6 +209,8 @@ impl PuzzleRenderer {
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
+
+            init_time: Instant::now(),
         }
     }
 
@@ -339,6 +348,7 @@ impl PuzzleRenderer {
 
         let needs_redraw = self.puzzle_vertex_3d_positions.changed
             || self.gizmo_vertex_3d_positions.changed
+            || draw_params.any_animated()
             || self.last_draw_params.as_ref() != Some(draw_params);
 
         if needs_redraw {
@@ -461,6 +471,11 @@ impl PuzzleRenderer {
                 camera_4d_w: draw_params.cam.camera_4d_w(),
 
                 first_gizmo_vertex_index: self.model.first_gizmo_vertex_index as i32,
+
+                rainbow_offset: self.init_time.elapsed().subsec_nanos() as f32 / 1_000_000_000.0,
+
+                padding: 0,
+                padding2: [0; 2],
             };
             self.gfx
                 .queue
@@ -512,11 +527,13 @@ impl PuzzleRenderer {
         }
 
         // Assign each unique color an identifying index.
-        // 0 = background
+        // 0 = background (ignored)
         // 1 = internals
-        // 2+N = sticker color N
+        // 2 = rainbow (ignored)
+        // 3+N = sticker color N
         // others = other colors (such as outlines)
-        let mut color_palette = vec![[0; 4], rgb_to_rgba(draw_params.internals_color)];
+        let mut color_palette = vec![[0; 4]; FACES_BASE_COLOR_ID as usize];
+        color_palette[INTERNALS_COLOR_ID as usize] = rgb_to_rgba(draw_params.internals_color);
         color_palette.extend(
             draw_params
                 .sticker_colors
@@ -602,6 +619,7 @@ impl PuzzleRenderer {
                 let face_color_id = match face_color_mode {
                     StyleColorMode::FromSticker => sticker_color,
                     StyleColorMode::FixedColor { color } => color_ids[&color],
+                    StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
                 };
                 let polygon_range = &self.model.sticker_polygon_ranges[sticker];
                 polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
@@ -610,6 +628,7 @@ impl PuzzleRenderer {
                 let mut outline_color_id = match outline_color_mode {
                     StyleColorMode::FromSticker => sticker_color,
                     StyleColorMode::FixedColor { color } => color_ids[&color],
+                    StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
                 };
                 if !style.outline_lighting {
                     // Disable lighting by setting highest bit
@@ -626,6 +645,7 @@ impl PuzzleRenderer {
             let face_color_id = match face_color_mode {
                 StyleColorMode::FromSticker => INTERNALS_COLOR_ID,
                 StyleColorMode::FixedColor { color } => color_ids[&color],
+                StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
             };
             let polygon_range = &self.model.piece_internals_polygon_ranges[piece];
             polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
@@ -634,6 +654,7 @@ impl PuzzleRenderer {
             let mut outline_color_id = match outline_color_mode {
                 StyleColorMode::FromSticker => INTERNALS_COLOR_ID,
                 StyleColorMode::FixedColor { color } => color_ids[&color],
+                StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
             };
             if !style.outline_lighting {
                 // Disable lighting by setting highest bit

@@ -6,7 +6,7 @@ use egui::Widget;
 use eyre::{bail, OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
+use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet, StyleColorMode};
 use hyperpuzzle::{
     GizmoFace, LayerMask, Puzzle, PuzzleBuildStatus, PuzzleResult, ScrambleProgress,
 };
@@ -545,6 +545,10 @@ impl PuzzleWidget {
                     transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim())
                 }),
         };
+
+        if draw_params.any_animated() {
+            ui.ctx().request_repaint();
+        }
 
         // Draw puzzle.
         let painter = ui.painter_at(r.rect);

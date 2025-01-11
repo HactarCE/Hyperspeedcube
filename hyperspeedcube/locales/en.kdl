@@ -525,11 +525,13 @@ styles {
     default "Default color"
     sticker "Sticker color"
     fixed "Fixed color"
+    rainbow "Gay"
   }
   color_mode_reset {
     default "default color"
     sticker "sticker color"
     fixed "fixed color {{color}}"
+    rainbow "gay"
   }
 }
 

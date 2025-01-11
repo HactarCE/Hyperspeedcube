@@ -79,6 +79,13 @@ impl DrawParams {
             * Vector3::unit_z()
     }
 
+    /// Returns whether there is any animated style.
+    pub fn any_animated(&self) -> bool {
+        self.piece_styles.iter().any(|(style_values, _piece_set)| {
+            style_values.face_color.is_animated() || style_values.outline_color.is_animated()
+        })
+    }
+
     pub(super) fn puzzle_geometry_cache_key(&self) -> PuzzleGeometryCacheKey {
         let prefs = &self.cam.prefs();
 

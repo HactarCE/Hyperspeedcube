@@ -28,4 +28,5 @@ itertools = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
+web-time = { workspace = true }
 wgpu = { workspace = true }

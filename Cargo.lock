@@ -2347,6 +2347,7 @@ dependencies = [
  "log",
  "parking_lot",
  "smallvec",
+ "web-time",
  "wgpu",
 ]
 

@@ -50,6 +50,8 @@ pub enum StyleColorMode {
         #[serde(default)]
         color: Rgb,
     },
+    #[serde(rename = "rainbow")]
+    Rainbow,
 }
 impl StyleColorMode {
     /// Modifies the color mode as needed to ensure that all stickers have the
@@ -66,6 +68,7 @@ impl StyleColorMode {
         match self {
             StyleColorMode::FromSticker => !bld,
             StyleColorMode::FixedColor { .. } => true,
+            StyleColorMode::Rainbow => true,
         }
     }
 
@@ -75,6 +78,7 @@ impl StyleColorMode {
         match self {
             StyleColorMode::FromSticker => None,
             StyleColorMode::FixedColor { color } => Some(color),
+            StyleColorMode::Rainbow => None,
         }
     }
 
@@ -84,5 +88,13 @@ impl StyleColorMode {
             *color = f(*color);
         }
         self
+    }
+
+    /// Returns whether the style is animated.
+    pub fn is_animated(self) -> bool {
+        match self {
+            StyleColorMode::FromSticker | StyleColorMode::FixedColor { .. } => false,
+            StyleColorMode::Rainbow => true,
+        }
     }
 }
