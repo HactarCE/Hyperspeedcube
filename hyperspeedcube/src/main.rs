@@ -69,7 +69,7 @@ fn main() -> eframe::Result<()> {
         })();
         let msg = match fs_result {
             Ok(filename) => format!("Crash report saved to {}", filename.to_string_lossy()),
-            Err(_) => format!("Error saving crash report to file\n\n{contents}"),
+            Err(e) => format!("Error saving crash report to file: {e}\n\n{contents}"),
         };
         let description = "Please send this file to the developer along with \
                            a description of what you did to cause the crash";
