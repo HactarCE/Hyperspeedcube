@@ -221,7 +221,42 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                                 );
                                             }
                                         });
-                                        ui.add(text_edit);
+                                        let r = ui.add(text_edit);
+                                        if r.hovered() {
+                                            app.active_puzzle.with_view(|view| {
+                                                if Arc::ptr_eq(&view.puzzle(), &puz) {
+                                                    let orig_color = view
+                                                        .get_rgb_color(*color, &app.prefs)
+                                                        .unwrap_or_default();
+                                                    let t = hyperpuzzle::Timestamp::now()
+                                                        .subsec_nanos()
+                                                        as f32
+                                                        / 1_000_000_000.0;
+                                                    let contrasting =
+                                                        crate::util::contrasting_text_color(
+                                                            orig_color.into(),
+                                                        )
+                                                        .into();
+
+                                                    // let color = puz.colors.list[*color];
+                                                    view.temp_colors
+                                                        .get_or_insert_with(|| {
+                                                            view.colors.value.clone()
+                                                        })
+                                                        .insert(
+                                                            puz.colors.list[*color].name.clone(),
+                                                            hyperpuzzle::DefaultColor::HexCode {
+                                                                rgb: hyperpuzzle::Rgb::mix(
+                                                                    contrasting,
+                                                                    orig_color,
+                                                                    (0.5 - t).abs(),
+                                                                ),
+                                                            },
+                                                        );
+                                                    ui.ctx().request_repaint();
+                                                }
+                                            });
+                                        }
                                     });
                                 }
 

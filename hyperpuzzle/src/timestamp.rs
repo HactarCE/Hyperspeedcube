@@ -24,4 +24,9 @@ impl Timestamp {
     pub fn now() -> Self {
         Self(chrono::Utc::now().trunc_subsecs(3))
     }
+
+    /// Returns the number of nanoseconds since the start of the current second.
+    pub fn subsec_nanos(self) -> u32 {
+        self.0.timestamp_subsec_nanos()
+    }
 }

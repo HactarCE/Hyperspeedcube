@@ -46,6 +46,19 @@ impl Rgb {
     pub const BLACK: Rgb = Rgb { rgb: [0; 3] };
     /// Pure white
     pub const WHITE: Rgb = Rgb { rgb: [255; 3] };
+
+    /// Evaluates [sinebow](https://observablehq.com/@mbostock/sinebow) at `t`
+    /// from 0 to 1.
+    pub fn sinebow(t: f32) -> Rgb {
+        let x = 0.5 - t;
+        Rgb {
+            rgb: [
+                (255.0 * (std::f32::consts::PI * (x + 0.0 / 3.0)).sin().powi(2)) as u8,
+                (255.0 * (std::f32::consts::PI * (x + 1.0 / 3.0)).sin().powi(2)) as u8,
+                (255.0 * (std::f32::consts::PI * (x + 2.0 / 3.0)).sin().powi(2)) as u8,
+            ],
+        }
+    }
 }
 
 /// Serializes a color to a hex string like `#ff00ff`.
