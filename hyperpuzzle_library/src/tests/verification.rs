@@ -2,9 +2,8 @@ use hyperpuzzle::chrono::TimeDelta;
 use hyperpuzzle::{ScrambleParams, ScrambleType};
 use hyperpuzzle_log::{LogEvent, LogFile, Puzzle};
 
-use crate::SolveVerification;
-
 use super::time_it;
+use crate::SolveVerification;
 
 #[test]
 fn test_solve_verification() {

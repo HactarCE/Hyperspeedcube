@@ -4,7 +4,8 @@ use hyperpuzzle_library::SolveVerification;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperstats::NewPbs;
 
-use crate::gui::{util::EguiTempValue, App};
+use crate::gui::util::EguiTempValue;
+use crate::gui::App;
 
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {

@@ -1,4 +1,5 @@
-use std::{fmt, io::Write};
+use std::fmt;
+use std::io::Write;
 
 use hyperpuzzle::Library;
 

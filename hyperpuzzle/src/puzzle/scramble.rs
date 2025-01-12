@@ -2,9 +2,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32};
 
 use rand::Rng;
 
-use crate::Timestamp;
-
 use super::{LayeredTwist, PuzzleState};
+use crate::Timestamp;
 
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.

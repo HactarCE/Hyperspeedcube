@@ -11,9 +11,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tinyset::Set64;
 
-use crate::Rgb;
-
 use super::LayerMask;
+use crate::Rgb;
 
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves

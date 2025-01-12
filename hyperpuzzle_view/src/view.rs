@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
-use hyperdraw::Camera;
-use hyperdraw::GraphicsState;
-use hyperdraw::PuzzleRenderer;
+use hyperdraw::{Camera, GraphicsState, PuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{
