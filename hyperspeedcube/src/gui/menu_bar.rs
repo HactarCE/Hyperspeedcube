@@ -185,7 +185,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
+            if ui.button(L.menu.puzzles.extract_lua).clicked() {
                 ui.close_menu();
                 if let Some(mut dir_path) = rfd::FileDialog::new()
                     .set_title(L.menu.puzzles.extract_lua)
