@@ -608,8 +608,7 @@ impl PuzzleRenderer {
 
             // Should the faces/outlines use the sticker color?
             let face_color_mode = style.face_color;
-            let mut outline_color_mode = style.outline_color;
-            outline_color_mode.make_same_if(!draw_params.outlines_may_use_sticker_color());
+            let outline_color_mode = style.outline_color;
 
             for &sticker in stickers {
                 let sticker_color =

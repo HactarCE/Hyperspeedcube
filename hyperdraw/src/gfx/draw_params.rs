@@ -153,17 +153,4 @@ impl DrawParams {
             self.cam.prefs().sticker_shrink
         }
     }
-    /// Returns whether outlines are allowed to use the sticker color.
-    ///
-    /// In the future, this may be limited to cases where sticker outlines are
-    /// unlikely to overlap.
-    pub fn outlines_may_use_sticker_color(&self) -> bool {
-        // always allow
-        true
-
-        // // allow if non-overlapping
-        // !self.show_internals()
-        //     && self.cam.prefs().facet_shrink > 0.0
-        //     && (self.cam.prefs().sticker_shrink > 0.0 || self.cam.prefs().piece_explode > 0.0)
-    }
 }
