@@ -1,4 +1,4 @@
-use eyre::{bail, ensure, Result};
+use eyre::{bail, Result};
 use hypermath::pga::{self, Blade, Motor};
 use hypermath::{vector, Float, Vector, VectorRef};
 

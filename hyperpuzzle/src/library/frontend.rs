@@ -208,11 +208,19 @@ impl Library {
     }
 }
 
+/// Result when trying to fetch a puzzle.
 pub enum PuzzleResult {
+    /// The puzzle has been built successfully.
     Ok(Arc<Puzzle>),
+    /// The puzzle has been requested but is not yet built.
     Building {
+        /// Handle that can be used to block the thread until the puzzle
+        /// construction is complete.
         waiter: Waiter,
+        /// Progress while building the puzzle. If this is `None`, then the Lua
+        /// thread is busy with other tasks.
         status: Option<PuzzleBuildStatus>,
     },
+    /// The puzzle could not be built due to an error.
     Err,
 }

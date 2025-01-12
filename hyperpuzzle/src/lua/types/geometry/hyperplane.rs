@@ -80,7 +80,7 @@ impl IntoLua for LuaHyperplane {
 }
 
 impl LuaTypeName for LuaHyperplane {
-    fn type_name(lua: &Lua) -> LuaResult<&'static str> {
+    fn type_name(_lua: &Lua) -> LuaResult<&'static str> {
         Ok("hyperplane")
     }
 }

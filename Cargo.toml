@@ -124,7 +124,6 @@ eframe = { version = "0.30.0", default-features = false, features = ["default_fo
 ecolor = { version = "0.30.0" }
 egui = { version = "0.30.0" }
 egui_dock = { version = "0.15.0" }
-egui_extras = { version = "0.30.0", features = ["svg"] }
 winit = { version = "0.30.5", features = ["serde"] } # must match eframe
 wgpu = { version = "23.0.0", features = ["webgl"] } # must match egui-wgpu
 

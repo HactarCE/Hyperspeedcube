@@ -32,7 +32,6 @@ comrak = { workspace = true }
 eframe = { workspace = true }
 egui = { workspace = true }
 egui_dock = { workspace = true }
-egui_extras = { workspace = true }
 empfindung = { workspace = true }
 env_logger = { workspace = true }
 eyre = { workspace = true }
