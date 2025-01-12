@@ -33,12 +33,7 @@ function build_sq1(n)
       cuts = {1, 2, 3, 4, 5}
     end
     for _, i in ipairs(cuts) do
-      local t = ident()
-      for _ = 1, i do
-        t = t * sym:thru(1,2)
-      end
-      -- self:slice((sym:thru(1,2)^i):transform(plane{normal = R.vector, distance = 0}), {region=U(1)|D(1)})
-      self:slice(t:transform(plane{normal = R.vector, distance = 0}), {region=U(1)|D(1)})
+      self:slice((sym:thru(1,2)^i):transform(plane{normal = R.vector, distance = 0}), {region=U(1)|D(1)})
     end
 
     -- Piece types

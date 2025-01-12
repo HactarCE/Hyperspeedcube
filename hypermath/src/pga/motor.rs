@@ -279,6 +279,24 @@ impl Motor {
     pub fn is_self_reverse(&self) -> bool {
         self.is_equivalent_to(&self.reverse())
     }
+    /// Takes the corresponding power of the motor. If the exponent is negative,
+    /// it uses the inverse.
+    pub fn powi(&self, other: i64) -> Motor {
+        // By repeated squaring
+        if other == 0 {
+            Self::ident(0)
+        } else if other < 0 {
+            self.reverse().powi(-other)
+        } else {
+            let init = self.powi(other >> 1);
+            let squared = init.clone() * init;
+            if other % 2 == 0 {
+                squared
+            } else {
+                squared * self
+            }
+        }
+    }
 
     /// Normalizes the motor so that the magnitude is `1`, or returns `None` if
     /// the motor is zero.
