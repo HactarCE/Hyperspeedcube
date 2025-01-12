@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
-use crate::{LibraryDb, Puzzle, TagSet, TagValue};
+use crate::{LibraryDb, Puzzle, PuzzleBuildTask, TagSet, TagValue};
 
 /// Specification for a puzzle.
 #[derive(Debug)]
@@ -122,6 +122,16 @@ impl FromLua for PuzzleSpec {
 impl PuzzleSpec {
     /// Runs initial setup, user Lua code, and final construction for a puzzle.
     pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
+        let cache_entry = Arc::clone(
+            LibraryDb::get(lua)
+                .lock()
+                .puzzle_cache
+                .get_mut(&self.id)
+                .ok_or_else(|| LuaError::external("puzzle has no cache entry"))?,
+        );
+
+        cache_entry.lock().set_task(PuzzleBuildTask::Initializing);
+
         let LuaNdim(ndim) = self.ndim;
         let id = self.id.clone();
         let version = self.version;
@@ -144,11 +154,15 @@ impl PuzzleSpec {
         }
         let space = puzzle_builder.lock().space();
 
+        cache_entry.lock().set_task(PuzzleBuildTask::Building);
+
         let () = LuaSpace(space).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction>(&self.user_build_fn)?
                 .call(LuaPuzzleBuilder(Arc::clone(&puzzle_builder)))
                 .context("error executing puzzle definition")
         })?;
+
+        cache_entry.lock().set_task(PuzzleBuildTask::Finalizing);
 
         let mut puzzle_builder = puzzle_builder.lock();
 

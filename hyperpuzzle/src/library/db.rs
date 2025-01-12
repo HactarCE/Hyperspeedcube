@@ -86,10 +86,11 @@ impl LibraryDb {
                 // The puzzle was requested but has not started being built.
                 PuzzleCacheEntry::Building { notify: _, status } if status.is_none() => {
                     // Mark that this puzzle is being built.
-                    *status = Some(PuzzleBuildStatus {});
+                    *status = Some(PuzzleBuildStatus::default());
                     // Unlock the mutex before running Lua code.
                     drop(cache_entry_guard);
                     // Get the puzzle spec, which may involve running Lua code.
+                    cache_entry.lock().set_task(PuzzleBuildTask::GeneratingSpec);
                     let generator_output = match crate::parse_generated_puzzle_id(&id) {
                         None => match db_guard.puzzles.get(&id).cloned() {
                             None => Err(format!("no puzzle with ID {id:?}")),
@@ -228,7 +229,7 @@ impl LibraryDb {
 }
 
 #[derive(Debug)]
-pub enum PuzzleCacheEntry {
+pub(crate) enum PuzzleCacheEntry {
     Redirect(String),
     Building {
         notify: NotifyWhenDropped,
@@ -247,6 +248,11 @@ impl Default for PuzzleCacheEntry {
     }
 }
 impl PuzzleCacheEntry {
+    pub(crate) fn set_task(&mut self, task: PuzzleBuildTask) {
+        if let Some(status) = self.build_status_mut() {
+            status.task = task;
+        }
+    }
     fn build_status_mut(&mut self) -> Option<&mut PuzzleBuildStatus> {
         match self {
             PuzzleCacheEntry::Building { status, .. } => status.as_mut(),
@@ -255,8 +261,36 @@ impl PuzzleCacheEntry {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PuzzleBuildStatus {}
+/// Status while building a puzzle.
+#[derive(Debug, Default, Clone)]
+pub struct PuzzleBuildStatus {
+    /// Current task.
+    pub task: PuzzleBuildTask,
+}
+
+/// Current task while building a puzzle.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub enum PuzzleBuildTask {
+    /// Initializing data structures for the puzzle.
+    #[default]
+    Initializing,
+    /// Generating the puzzle spec (may include running user Lua code).
+    GeneratingSpec,
+    /// Building the puzzle (running Lua code).
+    Building,
+    /// Finalizing the puzzle (postprocessing).
+    Finalizing,
+}
+impl fmt::Display for PuzzleBuildTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PuzzleBuildTask::Initializing => write!(f, "Initializing"),
+            PuzzleBuildTask::GeneratingSpec => write!(f, "Generating spec"),
+            PuzzleBuildTask::Building => write!(f, "Building puzzle"),
+            PuzzleBuildTask::Finalizing => write!(f, "Finalizing puzzle"),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct NotifyWhenDropped(Arc<(Mutex<bool>, Condvar)>);
