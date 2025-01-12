@@ -54,7 +54,8 @@ impl LibraryDb {
         )
     }
 
-    /// Deletes everything from the library except for the files and their contents.
+    /// Deletes everything from the library except for the files and their
+    /// contents.
     pub fn reset(&mut self) {
         *self = Self::default();
     }

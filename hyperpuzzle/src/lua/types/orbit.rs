@@ -43,10 +43,6 @@ impl LuaUserData for LuaOrbit {
                     .collect::<LuaResult<Vec<_>>>()?,
             )
         });
-
-        // fields.add_field_method_get("names", |lua, this| {
-        //     lua.create_sequence_from(this.cosets.iter().map(|elem| elem.name.clone()))
-        // });
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {

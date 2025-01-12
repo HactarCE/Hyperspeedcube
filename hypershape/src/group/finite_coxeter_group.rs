@@ -67,7 +67,7 @@ impl FiniteCoxeterGroup {
             // Linear diagrams
             FiniteCoxeterGroup::A(_) if j == 1 => 3, // (i, j) = (0, 1)
             FiniteCoxeterGroup::B(_) if j == 1 => 4, // (i, j) = (0, 1)
-            FiniteCoxeterGroup::H2 | FiniteCoxeterGroup::H3 | FiniteCoxeterGroup::H4 if j == 1 => 5, // (i, j) = (0, 1)
+            FiniteCoxeterGroup::H2 | FiniteCoxeterGroup::H3 | FiniteCoxeterGroup::H4 if j == 1 => 5, /* (i, j) = (0, 1) */
 
             // Branched diagrams
             FiniteCoxeterGroup::D(_) if i == 0 && j == 2 => 3,

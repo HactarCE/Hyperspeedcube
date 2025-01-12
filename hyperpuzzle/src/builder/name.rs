@@ -103,8 +103,8 @@ enum AstNode {
     /// Ordered sequence. All components must be present in the string (in
     /// order) to match.
     Seq(Vec<AstNode>),
-    /// Unordered set. All components must be present in the string (in any order) to
-    /// match.
+    /// Unordered set. All components must be present in the string (in any
+    /// order) to match.
     Set(Vec<AstNode>),
 }
 impl<T: Clone + Into<AstNode>> From<&T> for AstNode {

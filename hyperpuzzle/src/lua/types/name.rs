@@ -17,7 +17,8 @@ impl FromLua for LuaNameSet {
                 } else if let Ok(this) = userdata.get("name") {
                     Ok(this)
                 } else {
-                    cast_userdata(lua, &value) // easy way to get a good error message
+                    // easy way to get a good error message
+                    cast_userdata(lua, &value)
                 }
             }
             _ => cast_userdata(lua, &value), // easy way to get a good error message

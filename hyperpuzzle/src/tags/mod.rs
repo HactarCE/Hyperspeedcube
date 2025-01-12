@@ -165,7 +165,8 @@ pub enum TagMenuNode {
         expected: bool,
         /// Whether this tag should be hidden in the tag menu.
         hidden: bool,
-        /// Whether this tag should display a list of all possible values in the menu.
+        /// Whether this tag should display a list of all possible values in the
+        /// menu.
         list: bool,
     },
 }

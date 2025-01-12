@@ -117,7 +117,10 @@ impl FilterExpr {
             match e.simplify() {
                 Self::Nothing => return Self::Nothing,
                 Self::Everything => (),
-                Self::And(args) => operands.extend(args), // does not contain `Nothing` or `Everything`
+
+                // does not contain `Nothing` or `Everything`
+                Self::And(args) => operands.extend(args),
+
                 other => operands.push(other),
             }
         }
@@ -134,7 +137,10 @@ impl FilterExpr {
             match e.simplify() {
                 Self::Nothing => (),
                 Self::Everything => return Self::Everything,
-                Self::Or(args) => operands.extend(args), // does not contain `Nothing` or `Everything`
+
+                // does not contain `Nothing` or `Everything`
+                Self::Or(args) => operands.extend(args),
+
                 other => operands.push(other),
             }
         }

@@ -59,7 +59,8 @@ hypermath::idx_struct! {
 }
 
 impl Surface {
-    /// Surface ID for pieces that are not on a external surface, such as internals.
+    /// Surface ID for pieces that are not on a external surface, such as
+    /// internals.
     pub const NONE: Surface = Surface::MAX;
 }
 impl Color {
@@ -323,7 +324,7 @@ impl fmt::Display for DefaultColor {
             DefaultColor::Unknown => write!(f, "(unknown)"),
             DefaultColor::HexCode { rgb } => write!(f, "{rgb}"),
             DefaultColor::Single { name } => write!(f, "{name}"),
-            DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), // 1-indexed
+            DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), /* 1-indexed */
             DefaultColor::Gradient {
                 gradient_name,
                 index: numerator,
@@ -333,7 +334,7 @@ impl fmt::Display for DefaultColor {
                 "{gradient_name} [{}/{}]",
                 numerator.saturating_add(1),
                 denominator,
-            ), // 1-indexed
+            ), /* 1-indexed */
         }
     }
 }

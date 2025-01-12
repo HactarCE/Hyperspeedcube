@@ -39,7 +39,8 @@ impl LuaUserData for LuaPuzzleBuilder {
         });
 
         methods.add_method("carve", |lua, this, (cuts, args)| {
-            // TODO: allow assigning face name when carving a single face (i.e., not using orbits)
+            // TODO: allow assigning face name when carving a single face (i.e., not using
+            // orbits)
             this.cut(lua, cuts, CutMode::Carve, args, StickerMode::NewColor)
         });
         methods.add_method("slice", |lua, this, (cuts, args)| {

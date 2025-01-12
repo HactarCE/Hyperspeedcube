@@ -19,8 +19,8 @@ impl std::str::FromStr for Timestamp {
     }
 }
 impl Timestamp {
-    /// Returns the UTC timestamp for the present moment, according to the system
-    /// clock.
+    /// Returns the UTC timestamp for the present moment, according to the
+    /// system clock.
     pub fn now() -> Self {
         Self(chrono::Utc::now().trunc_subsecs(3))
     }

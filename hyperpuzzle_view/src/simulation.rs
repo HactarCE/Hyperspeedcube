@@ -53,7 +53,8 @@ pub struct PuzzleSimulation {
     /// Whether the solve is single-session.
     is_single_session: bool,
 
-    /// Time of last frame, or `None` if we are not in the middle of an animation.
+    /// Time of last frame, or `None` if we are not in the middle of an
+    /// animation.
     last_frame_time: Option<Instant>,
     /// Twist animation state.
     twist_anim: TwistAnimationState,
@@ -467,7 +468,8 @@ impl PuzzleSimulation {
         // if !self.view_angle.is_frozen {
         //     let offset = &mut self.view_angle.current;
 
-        //     let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
+        //     let decay_multiplier =
+        // VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
         //     let new_offset = Quaternion::one().slerp(*offset, decay_multiplier);
         //     if offset.s == new_offset.s {
         //         // Stop the animation once we're not making any more progress.

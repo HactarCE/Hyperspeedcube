@@ -51,7 +51,8 @@ pub struct PuzzleView {
     /// What puzzle geometry the cursor is hovering over. This is frozen during
     /// a drag.
     puzzle_hover_state: Option<PuzzleHoverState>,
-    /// What twist gizmo the cursor is hovering over. This is frozen during a drag.
+    /// What twist gizmo the cursor is hovering over. This is frozen during a
+    /// drag.
     gizmo_hover_state: Option<GizmoHoverState>,
     /// Axis whose twist gizmo should be highlighted for only the current frame.
     pub temp_gizmo_highlight: Option<Axis>,

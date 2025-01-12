@@ -286,7 +286,7 @@ impl PuzzleWidget {
                             Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
                             Err(mpsc::TryRecvError::Empty) => (), // keep waiting
                             Ok(Err(e)) => self.loading = None,    // TODO: report error
-                            Err(mpsc::TryRecvError::Disconnected) => self.loading = None, // TODO: report error
+                            Err(mpsc::TryRecvError::Disconnected) => self.loading = None, /* TODO: report error */
                         }
                     }
                 }
@@ -639,8 +639,8 @@ impl PuzzleWidget {
         // for mirror in group.mirrors() {
         //     let pole = mirror.hyperplane().unwrap().pole();
         //     let basis =
-        //         pga::Blade::from_hyperplane(puzzle.ndim(), &mirror.hyperplane().unwrap()).basis();
-        //     basis[0]
+        //         pga::Blade::from_hyperplane(puzzle.ndim(),
+        // &mirror.hyperplane().unwrap()).basis();     basis[0]
         // }
 
         // (|| {

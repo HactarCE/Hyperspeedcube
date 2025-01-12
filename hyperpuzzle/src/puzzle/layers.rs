@@ -163,7 +163,8 @@ impl LayerMask {
         hypermath::util::iter_ones(self.0).map(|i| Layer(i as _))
     }
 
-    /// Returns whether the layer mask is the default, which contains only the outermost layer.
+    /// Returns whether the layer mask is the default, which contains only the
+    /// outermost layer.
     pub fn is_default(self) -> bool {
         self == Self::default()
     }

@@ -72,7 +72,8 @@ where
     pub fn is_dragging(&self) -> bool {
         self.payload.get().is_some()
     }
-    /// Disables the UI if anything is being dragged in this drag-and-drop scope.
+    /// Disables the UI if anything is being dragged in this drag-and-drop
+    /// scope.
     pub fn disable_ui_if_dragging(&self, ui: &mut egui::Ui) {
         if self.is_dragging() {
             ui.disable();

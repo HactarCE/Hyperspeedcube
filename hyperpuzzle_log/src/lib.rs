@@ -101,9 +101,8 @@ pub struct Program {
     /// Version number.
     ///
     /// - There should be no leading `v`.
-    /// - The version number should ideally follow [Semantic
-    ///   Versioning](https://semver.org/) with respect to the contents of the
-    ///   log file.
+    /// - The version number should ideally follow [Semantic Versioning](https://semver.org/)
+    ///   with respect to the contents of the log file.
     #[kdl(property("version"), optional)]
     pub version: Option<String>,
 }
@@ -162,9 +161,8 @@ pub struct Puzzle {
     /// Puzzle version number.
     ///
     /// - There should be no leading `v`.
-    /// - The version number should ideally follow [Semantic
-    ///   Versioning](https://semver.org/) with respect to the contents of the
-    ///   log file.
+    /// - The version number should ideally follow [Semantic Versioning](https://semver.org/)
+    ///   with respect to the contents of the log file.
     #[kdl(property("version"))]
     pub version: String,
 }

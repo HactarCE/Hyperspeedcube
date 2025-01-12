@@ -166,7 +166,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
 
         comrak::nodes::NodeValue::FrontMatter(_) => (),
 
-        comrak::nodes::NodeValue::BlockQuote => not_implemented_label(ui, "BlockQuote"), // not implemented
+        comrak::nodes::NodeValue::BlockQuote => not_implemented_label(ui, "BlockQuote"), /* not implemented */
 
         comrak::nodes::NodeValue::List(list) => {
             let id = ui.next_auto_id();

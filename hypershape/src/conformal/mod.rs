@@ -691,10 +691,10 @@ impl Space {
         // `polytope ∩ boundary(cut)`.
         let mut intersection = None;
         // There are two cases in which `intersection` should be nonempty:
-        // - `intersection_boundary` is nonempty, so `intersection` should
-        //   obviously be nonempty.
-        // - The polytope completely contains the manifold, so `intersection`
-        //   should be the entirety of `intersection_manifold` with no boundary.
+        // - `intersection_boundary` is nonempty, so `intersection` should obviously be
+        //   nonempty.
+        // - The polytope completely contains the manifold, so `intersection` should be
+        //   the entirety of `intersection_manifold` with no boundary.
         if !intersection_boundary.is_empty()
             || self.polytope_completely_contains_manifold(polytope, intersection_manifold.id)?
         {
@@ -788,9 +788,9 @@ impl Space {
             //
             // See `manifold_which_side_demo.js` for an interactive ganja.js demo.
 
-            // 1. Compute the dual of the intersection of `target` and `cut`. I
-            //    think this represents a bundle of all the manifolds that are
-            //    perpendicular to `target` and `cut`.
+            // 1. Compute the dual of the intersection of `target` and `cut`. I think this
+            //    represents a bundle of all the manifolds that are perpendicular to
+            //    `target` and `cut`.
             let perpendicular_bundle = &target_ipns ^ &cut_ipns;
 
             if perpendicular_bundle.is_zero() {
@@ -798,12 +798,12 @@ impl Space {
             }
 
             // 2. Wedge with an arbitrary point to select one of those possible
-            //    perpendicular manifolds. The only restriction here is that we
-            //    don't want the wedge product to be zero.
+            //    perpendicular manifolds. The only restriction here is that we don't want
+            //    the wedge product to be zero.
             let perpendicular_manifold = nonzero_wedge_with_arbitrary_point(&perpendicular_bundle)?;
 
-            // 3. Intersect that perpendicular manifold with `target` to get two
-            //    points on `target`.
+            // 3. Intersect that perpendicular manifold with `target` to get two points on
+            //    `target`.
             (target_ipns ^ perpendicular_manifold.opns_to_ipns_in_space(&space.blade))
                 .ipns_to_opns_in_space(&space.blade)
 
@@ -945,8 +945,8 @@ impl Space {
             match self.try_union_intervals(space, -existing_interval, -new_interval)? {
                 IntervalUnion::Union(union) => new_interval = -union,
 
-                IntervalUnion::WholeSpace => return Ok(None), // whole space is excluded; there's nothing left
-
+                IntervalUnion::WholeSpace => return Ok(None), /* whole space is excluded; */
+                // there's nothing left
                 IntervalUnion::Disconnected => {
                     simplified.insert(existing_interval);
                 }
@@ -1040,9 +1040,9 @@ impl Space {
     /// manifold of `polytope`) is completely inside `polytope`.
     ///
     /// To be considered "completely inside," `manifold` may only touch the
-    /// boundary of `polytope` at finitely many points. In other words, it can be
-    /// tangent to the boundary of `polytope` but not flush with a boundary
-    /// element.
+    /// boundary of `polytope` at finitely many points. In other words, it can
+    /// be tangent to the boundary of `polytope` but not flush with a
+    /// boundary element.
     #[tracing::instrument(skip(self))]
     fn polytope_completely_contains_manifold(
         &self,
