@@ -142,7 +142,9 @@ puzzle_generators:add{
           end
 
           -- Edges
-          self:add_piece_type( 'edge', "Edge" )
+          if size > 2 then
+            self:add_piece_type( 'edge', "Edge" )
+          end
           for i = 2, precenter_layer do
             local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
             self:mark_piece(
