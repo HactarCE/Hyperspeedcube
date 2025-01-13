@@ -222,8 +222,7 @@ impl Preferences {
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
 
-                // There's nothing we can do about it if this fails
-                let _ = persist::backup_prefs_file();
+                persist::backup_prefs_file();
 
                 // Try backup
                 backup

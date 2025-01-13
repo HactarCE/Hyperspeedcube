@@ -259,6 +259,7 @@ impl GlobalColorPalette {
         changed
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn groups_of_sets(
         &self,
         get_group_name: impl Fn(usize) -> String,

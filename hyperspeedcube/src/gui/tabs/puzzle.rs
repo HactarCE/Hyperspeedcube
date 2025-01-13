@@ -28,6 +28,10 @@ use crate::L;
 /// even when not necessary.
 const SEND_CURSOR_POS: bool = false;
 
+/// Whether to show the 3D mouse drag vector on the puzzle. This is useful for
+/// debugging purposes.
+const SHOW_DRAG_VECTOR: bool = false;
+
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
     let (r, changed);
     {
@@ -199,7 +203,7 @@ impl PuzzleWidget {
         }
     }
     fn set_sim(&mut self, sim: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) {
-        self.contents = PuzzleWidgetContents::Puzzle(PuzzleView::new(&self.gfx, &sim, prefs));
+        self.contents = PuzzleWidgetContents::Puzzle(PuzzleView::new(&self.gfx, sim, prefs));
         self.loading = None;
         self.puzzle_changed = true;
     }
@@ -267,7 +271,7 @@ impl PuzzleWidget {
                 ui.disable();
                 ui.multiply_opacity(0.5);
             }
-            self.show_puzzle_view(ui, prefs, animation)
+            self.show_puzzle_view(ui, prefs, animation);
         });
 
         let mut loading_header = None;
@@ -592,17 +596,15 @@ impl PuzzleWidget {
             return;
         };
 
-        self.queued_arrows.extend(view.drag_delta_3d());
+        if SHOW_DRAG_VECTOR {
+            self.queued_arrows.extend(view.drag_delta_3d());
+        }
 
         let project_point = |p: &Vector| {
             let ndc = view.camera.project_point_to_ndc(p)?;
             let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
             Some(r.rect.lerp_inside(egui_pos))
         };
-        // TODO: proper overlay system
-        if cfg!(not(debug_assertions)) || true {
-            self.queued_arrows.clear();
-        }
         for [start, end] in std::mem::take(&mut self.queued_arrows) {
             (|| {
                 let start = project_point(&start)?;

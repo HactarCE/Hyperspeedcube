@@ -153,7 +153,7 @@ impl AppUi {
 
         if let Some((_rect, Tab::Puzzle(p))) = self.dock_state.find_active_focused() {
             if !self.app.active_puzzle.contains(p) {
-                self.app.update_active_puzzle(&p);
+                self.app.update_active_puzzle(p);
             }
         }
 

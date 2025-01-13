@@ -9,7 +9,6 @@ use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
 use parking_lot::Mutex;
-use rand::Rng;
 
 use crate::gui::PuzzleWidget;
 use crate::L;

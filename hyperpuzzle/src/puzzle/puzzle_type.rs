@@ -224,11 +224,6 @@ impl Puzzle {
         })
     }
 
-    /// Returns a twist that recenters the given twist axis.
-    pub fn make_recenter_twist(&self, _twist_axis: String) -> Result<(Twist, LayerMask), ()> {
-        todo!()
-    }
-
     /// Returns whether the puzzle can be scrambled.
     pub fn can_scramble(&self) -> bool {
         !self.scramble_twists.is_empty()

@@ -1,17 +1,13 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
 use hypermath::collections::GenericVec;
 use hypermath::idx_struct;
 use hypermath::prelude::*;
-use hypershape::VertexId;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{
-    Axis, AxisInfo, LayerMask, LayeredTwist, PerAxis, PerLayer, PerPiece, Piece, PieceMask, Puzzle,
-};
+use crate::{Axis, AxisInfo, LayerMask, LayeredTwist, PerAxis, PerPiece, Piece, PieceMask, Puzzle};
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
 idx_struct! {
@@ -51,8 +47,6 @@ pub struct PuzzleState {
     /// Cached set of possible attitudes of pieces.
     cached_transforms: Arc<Mutex<PerCachedTransform<CachedTransformData>>>,
     cached_transform_by_motor: Arc<Mutex<ApproxHashMap<pga::Motor, CachedTransform>>>,
-    cached_which_side_results:
-        Arc<Mutex<PerAxis<PerLayer<(HashMap<VertexId, WhichSide>, HashMap<VertexId, WhichSide>)>>>>,
 }
 impl PuzzleState {
     /// Constructs a new instance of a puzzle.
@@ -68,19 +62,11 @@ impl PuzzleState {
         by_motor.insert(ident, CachedTransform(0));
         let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
 
-        let cached_which_side_results =
-            Arc::new(Mutex::new(puzzle_type.axes.map_ref(|_, axis_info| {
-                axis_info
-                    .layers
-                    .map_ref(|_, _| (HashMap::new(), HashMap::new()))
-            })));
-
         PuzzleState {
             puzzle_type,
             piece_transforms,
             cached_transforms,
             cached_transform_by_motor,
-            cached_which_side_results,
         }
     }
     /// Returns the puzzle type
@@ -145,7 +131,6 @@ impl PuzzleState {
             piece_transforms,
             cached_transforms: Arc::clone(&self.cached_transforms),
             cached_transform_by_motor: Arc::clone(&self.cached_transform_by_motor),
-            cached_which_side_results: Arc::clone(&self.cached_which_side_results),
         })
     }
 

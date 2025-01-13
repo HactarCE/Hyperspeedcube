@@ -1,7 +1,7 @@
 #![allow(missing_docs)] // TODO: remove this and rework the whole crate
 
 use hyperpuzzle::chrono::Duration;
-use hyperpuzzle::{LayeredTwist, Library, Timestamp, TwistMetric};
+use hyperpuzzle::{LayeredTwist, Library, PuzzleBuildFailed, Timestamp, TwistMetric};
 use hyperpuzzle_log::{LogEvent, Solve};
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -86,7 +86,7 @@ fn verify_internal(solve: &Solve, check_solution: bool) -> Option<SolveVerificat
     log::info!("building puzzle {} for verification", solve.puzzle.id);
     let puzzle = match LIBRARY.with(|lib| lib.build_puzzle_blocking(&solve.puzzle.id)) {
         Ok(p) => p,
-        Err(()) => {
+        Err(PuzzleBuildFailed) => {
             log::error!("error building puzzle {}", solve.puzzle.id);
             return None;
         }

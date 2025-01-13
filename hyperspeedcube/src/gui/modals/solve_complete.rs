@@ -52,26 +52,28 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             if popup.saved {
                 ui.label(format!("Saved to {}", popup.file_name));
-            } else {
-                if ui.button("Save this solve").clicked() {
+            } else if ui.button("Save this solve").clicked() {
+                // Save log file
+                if let Some(p) = popup.file_path.parent() {
+                    std::fs::create_dir_all(p);
+                }
+                // TODO: handle error
+                if let Ok(()) = std::fs::write(
+                    &popup.file_path,
+                    LogFile {
+                        program: Some(crate::PROGRAM.clone()),
+                        solves: vec![popup.solve.clone()],
+                    }
+                    .serialize(),
+                ) {
+                    popup.saved = true;
+                    solve_complete_popup.set(Some(Some(popup.clone())));
+
+                    // Save PBs
                     if popup.new_pbs.any() {
                         app.stats
                             .record_new_pb(&popup.verification, &popup.file_name);
                         hyperstats::save(&app.stats);
-                        if let Some(p) = popup.file_path.parent() {
-                            std::fs::create_dir_all(p);
-                        }
-                        if let Ok(()) = std::fs::write(
-                            &popup.file_path,
-                            LogFile {
-                                program: Some(crate::PROGRAM.clone()),
-                                solves: vec![popup.solve.clone()],
-                            }
-                            .serialize(),
-                        ) {
-                            popup.saved = true;
-                            solve_complete_popup.set(Some(Some(popup.clone())));
-                        }
                     }
                 }
             }

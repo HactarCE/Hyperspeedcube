@@ -31,12 +31,12 @@ pub fn load() -> StatsDb {
                 for warning in warnings {
                     log::warn!("warning loading stats: {warning}");
                 }
-                hyperpaths::move_to_backup_file(&path);
+                hyperpaths::move_to_backup_file(path);
                 Some(stats)
             }
             Err(e) => {
                 log::error!("error loading stats: {e}");
-                hyperpaths::move_to_backup_file(&path);
+                hyperpaths::move_to_backup_file(path);
                 None
             }
         }
@@ -54,7 +54,7 @@ impl StatsDb {
         doc.set_leading("// Hyperspeedcube PB database\n");
 
         for (puzzle_id, pbs) in &self.0 {
-            doc.nodes_mut().push(pbs.to_kdl_node_with_name(&puzzle_id));
+            doc.nodes_mut().push(pbs.to_kdl_node_with_name(puzzle_id));
         }
 
         doc.to_string()
@@ -76,7 +76,7 @@ impl StatsDb {
 
     /// Records a solve and updates the PB database.
     pub fn record_new_pb(&mut self, verification: &SolveVerification, filename: &str) {
-        let new_pbs @ NewPbs { fmc, speed, blind } = self.check_new_pb(&verification);
+        let new_pbs @ NewPbs { fmc, speed, blind } = self.check_new_pb(verification);
 
         if !new_pbs.any() {
             return;

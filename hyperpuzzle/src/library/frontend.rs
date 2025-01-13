@@ -183,12 +183,12 @@ impl Library {
     }
 
     /// Requests a puzzle and blocks until it is ready, then returns it.
-    pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, ()> {
+    pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, PuzzleBuildFailed> {
         loop {
             match self.build_puzzle(id) {
                 PuzzleResult::Ok(puzzle) => return Ok(puzzle),
                 PuzzleResult::Building { waiter, .. } => waiter.wait(),
-                PuzzleResult::Err => return Err(()),
+                PuzzleResult::Err => return Err(PuzzleBuildFailed),
             }
         }
     }
@@ -224,3 +224,7 @@ pub enum PuzzleResult {
     /// The puzzle could not be built due to an error.
     Err,
 }
+
+/// Error when a puzzle could not be built.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct PuzzleBuildFailed;

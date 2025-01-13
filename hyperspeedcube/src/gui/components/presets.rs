@@ -16,6 +16,8 @@ use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
+pub type NameValidationResult<'a> = Result<(), Cow<'a, str>>;
+
 pub struct PresetsUi<'a, T: PresetData + Default> {
     /// Unique widget ID.
     pub id: egui::Id,
@@ -40,7 +42,7 @@ pub struct PresetsUi<'a, T: PresetData + Default> {
     ///
     /// This can't be a `Box<dyn FnOnce>` because then the lifetime would be
     /// invariant.
-    pub extra_validation: Option<fn(&PresetsUi<'_, T>, &str) -> Result<(), Cow<'a, str>>>,
+    pub extra_validation: Option<fn(&PresetsUi<'_, T>, &str) -> NameValidationResult<'a>>,
 }
 impl<'a, T: PresetData> PresetsUi<'a, T>
 where

@@ -667,10 +667,13 @@ impl PuzzleSimulation {
             log,
         } = solve;
 
+        log::trace!("Loading file ...");
+
         let mut ret = Self::new(puzzle);
         for event in log {
             match event {
                 hyperpuzzle_log::LogEvent::Scramble => {
+                    log::trace!("Applying scramble {scramble:?}");
                     ret.reset();
                     ret.scramble = scramble.clone();
                     ret.replay_event(ReplayEvent::Scramble);
@@ -697,6 +700,7 @@ impl PuzzleSimulation {
                     ) {
                         // TODO: handle errors
                         let group = group.into_iter().filter_map(Result::ok).collect();
+                        log::trace!("Applying twist group {group:?} from {twists_str:?}");
                         ret.replay_event(ReplayEvent::Twists(group));
                     }
                 }
