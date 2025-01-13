@@ -173,12 +173,19 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                 });
             } else {
                 ui.columns(2, |uis| {
-                    let r = uis[0].button("Copy Lua code");
+                    let r = uis[0].menu_button("Copy Lua code", |ui| {
+                        let r = ui.button("Compact");
+                        let text_to_copy = r
+                            .clicked()
+                            .then(|| state.loaded_orbit.lua_code(&state.names_and_order, true));
+                        crate::gui::components::copy_on_click(ui, &r, text_to_copy);
 
-                    let text_to_copy = r
-                        .clicked()
-                        .then(|| state.loaded_orbit.lua_code(&state.names_and_order));
-                    crate::gui::components::copy_on_click(&mut uis[0], &r, text_to_copy);
+                        let r = ui.button("Expanded");
+                        let text_to_copy = r
+                            .clicked()
+                            .then(|| state.loaded_orbit.lua_code(&state.names_and_order, false));
+                        crate::gui::components::copy_on_click(ui, &r, text_to_copy);
+                    });
 
                     if uis[1].button("Clear orbit").clicked() {
                         *state = Default::default();

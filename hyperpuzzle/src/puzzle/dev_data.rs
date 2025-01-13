@@ -87,7 +87,7 @@ impl<T: Copy + Eq + Hash> DevOrbit<T> {
     }
 
     /// Returns the Lua source code to generate the given naming and ordering.
-    pub fn lua_code(&self, new_names_and_order: &[(usize, String)]) -> String {
+    pub fn lua_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
         let mut new_element_names = vec![None; self.elements.len()];
         for (i, new_name) in new_names_and_order {
             if *i < new_element_names.len() {
@@ -113,9 +113,11 @@ impl<T: Copy + Eq + Hash> DevOrbit<T> {
                 }
                 let Some(next) = gen_seq.end else { break };
                 elem_index = next;
-                if let Some(Some(other_name)) = new_element_names.get(elem_index) {
-                    s += &format!(", {}", crate::util::lua_string_literal(other_name));
-                    break;
+                if compact {
+                    if let Some(Some(other_name)) = new_element_names.get(elem_index) {
+                        s += &format!(", {}", crate::util::lua_string_literal(other_name));
+                        break;
+                    }
                 }
             }
             s += "},\n";
