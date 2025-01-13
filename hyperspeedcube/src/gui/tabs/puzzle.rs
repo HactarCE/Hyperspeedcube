@@ -1,5 +1,6 @@
 use std::fmt;
 use std::sync::{mpsc, Arc};
+use std::thread::JoinHandle;
 
 use egui::mutex::RwLock;
 use egui::Widget;
@@ -165,11 +166,13 @@ impl PuzzleWidget {
         match hyperpuzzle_library::LIBRARY.with(|lib| lib.build_puzzle(&puzzle_id)) {
             PuzzleResult::Ok(puzzle) => match solve {
                 Some(solve) => {
-                    let (tx, rx) = mpsc::sync_channel(0);
-                    std::thread::spawn(move || {
-                        tx.send(Ok(PuzzleSimulation::deserialize(&puzzle, &solve)))
+                    let thread_handle = std::thread::spawn(move || {
+                        Ok(PuzzleSimulation::deserialize(&puzzle, &solve))
                     });
-                    self.loading = Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, rx });
+                    self.loading = Some(PuzzleWidgetLoading::LoadingFile {
+                        puzzle_id,
+                        thread_handle,
+                    });
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
             },
@@ -177,7 +180,7 @@ impl PuzzleWidget {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                     puzzle_id,
                     status,
-                    solve_to_load: None,
+                    solve_to_load: solve,
                 });
             }
             PuzzleResult::Err => {
@@ -290,13 +293,27 @@ impl PuzzleWidget {
                         self.load(puzzle_id, solve_to_load, prefs);
                         ui.ctx().request_repaint_after_secs(0.2); // try again soon
                     }
-                    PuzzleWidgetLoading::LoadingFile { puzzle_id, rx } => {
+                    PuzzleWidgetLoading::LoadingFile {
+                        puzzle_id,
+                        thread_handle,
+                    } => {
                         loading_header = Some(L.puzzle_view.loading_log);
-                        match rx.try_recv() {
-                            Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
-                            Err(mpsc::TryRecvError::Empty) => (), // keep waiting
-                            Ok(Err(e)) => self.loading = None,    // TODO: report error
-                            Err(mpsc::TryRecvError::Disconnected) => self.loading = None, /* TODO: report error */
+                        match thread_handle.is_finished() {
+                            true => {
+                                match thread_handle.join() {
+                                    Ok(result) => match result {
+                                        Ok(sim) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                                        Err(e) => self.loading = None, // TODO: report error
+                                    },
+                                    Err(e) => self.loading = None, // TODO: report error
+                                }
+                            }
+                            false => {
+                                self.loading = Some(PuzzleWidgetLoading::LoadingFile {
+                                    puzzle_id,
+                                    thread_handle,
+                                });
+                            }
                         }
                     }
                 }
@@ -815,6 +832,6 @@ pub enum PuzzleWidgetLoading {
     /// Waiting for a log file to load.
     LoadingFile {
         puzzle_id: String,
-        rx: mpsc::Receiver<Result<PuzzleSimulation, ()>>,
+        thread_handle: JoinHandle<Result<PuzzleSimulation, ()>>,
     },
 }
