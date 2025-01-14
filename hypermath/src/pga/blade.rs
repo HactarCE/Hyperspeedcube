@@ -1,7 +1,8 @@
 use std::fmt;
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign};
 
 use float_ord::FloatOrd;
+use itertools::Itertools;
 
 use super::{Axes, Term};
 use crate::{approx_eq, is_approx_nonzero, Float, Hyperplane, Vector, VectorRef};
@@ -332,6 +333,33 @@ impl Blade {
         }
         ret
     }
+    /// Returns the projection of the product of the blades to the specified grade.
+    pub fn multi_product_grade(blades: impl IntoIterator<Item = Blade>, grade: u8) -> Self {
+        let blades = blades.into_iter().collect_vec();
+        let ndim = blades.iter().map(|b| b.ndim).max().unwrap_or(0);
+
+        let mut ret = Self::zero(ndim, grade);
+
+        'a: for terms in blades
+            .into_iter()
+            .map(|b| b.terms().collect_vec())
+            .multi_cartesian_product()
+        {
+            let mut term = Term::scalar(1.0);
+            for t in terms {
+                if let Some(tt) = Term::geometric_product(term, t) {
+                    term = tt
+                } else {
+                    continue 'a;
+                }
+            }
+            if term.grade() == grade {
+                ret += term;
+            }
+        }
+
+        ret
+    }
 
     /// Returns the [exterior product] between `lhs` and `rhs`, or `None` if the
     /// result is zero because the grade of the result would exceed the number
@@ -540,16 +568,8 @@ impl Blade {
                 // Compute (root1 + wedge * 0.5) / self
                 // 1/self = (self * m(self^2)) / (self^2 * m(self^2)) where m(grade0) = grade0 and m(grade4) = -grade4
                 // it is of grade 2
-                let selfi_2 =
-                    (self * coeff1 - Self::product_grade(self, &wedge, 2)) * (1.0 / discrim);
-                let selfi_4 = (-Self::product_grade(self, &wedge, 4)) * (1.0 / discrim); // this term should be 0 in 4d
-                dbg!(coeff1, discrim, root1, root2);
-                dbg!(self, &selfi_2, &selfi_4);
-                dbg!(
-                    Self::product_grade(&selfi_2, self, 0) + Self::product_grade(&selfi_4, self, 0),
-                    Self::product_grade(&selfi_2, self, 4) + Self::product_grade(&selfi_4, self, 4)
-                );
-                // let b1 = (root1 + wedge * 0.5) / self;
+                let selfi_2 = (self * coeff1 - Self::product_grade(self, &wedge, 2)) / discrim;
+                let selfi_4 = (-Self::product_grade(self, &wedge, 4)) / discrim; // this term should be 0 in 4d
                 let b1 = selfi_2.clone() * root1
                     + (Self::product_grade(&wedge, &selfi_2, 2)
                         + Self::product_grade(&wedge, &selfi_4, 2))
@@ -570,11 +590,47 @@ impl Blade {
     /// Returns the exponential of a bivector, or
     /// `None` if the input is not a bivector.
     pub fn exp(&self) -> Option<crate::pga::Motor> {
-        if self.grade != 2 {
-            return None;
+        use crate::pga::Motor;
+        let decomposition = self.decompose_bivector()?;
+
+        let mut ret = Motor::ident(self.ndim);
+        // the bivs commute
+        for (mult, biv) in decomposition {
+            let norm2 = Float::max(0.0, Self::dot(&biv, &biv)?) / (mult as Float);
+            let norm = norm2.sqrt();
+            let cos = norm.cos(); // we want the sign flip of dot
+            let sin = (1.0 - cos.powi(2)).sqrt();
+            let biv1 = biv / norm;
+            let motor;
+            if mult == 1 {
+                motor = (Motor::ident(self.ndim) * cos) + (biv1 * sin);
+            } else {
+                // if biv = b1 + b2 + ..., then biv2 = b1 b2 + ...
+                let biv2 = Self::product_grade(&biv1, &biv1, 4) / 2.0;
+                dbg!(norm, cos, sin, &biv1, &biv2);
+
+                if mult == 2 {
+                    motor =
+                        (Motor::ident(self.ndim) * cos * cos) + biv1 * cos * sin + biv2 * sin * sin;
+                } else {
+                    // if biv = b1 + b2 + b3 + ..., then biv3 = b1 b2 b3 + ...
+                    let biv3 =
+                        Self::multi_product_grade([biv1.clone(), biv1.clone(), biv1.clone()], 6)
+                            / 6.0;
+                    if mult == 3 {
+                        motor = (Motor::ident(self.ndim) * cos * cos * cos)
+                            + biv1 * cos * cos * sin
+                            + biv2 * cos * sin * sin
+                            + biv3 * sin * sin * sin;
+                    } else {
+                        return None; // TODO: blow up if this happens? (only dimension 8+)
+                    }
+                }
+            }
+            ret *= motor;
         }
 
-        todo!()
+        Some(ret)
     }
 }
 
@@ -686,6 +742,23 @@ impl Mul<Float> for &Blade {
         self.clone() * rhs
     }
 }
+impl Div<Float> for Blade {
+    type Output = Blade;
+
+    fn div(mut self, rhs: Float) -> Self::Output {
+        for coef in self.coefficients.as_mut() {
+            *coef /= rhs;
+        }
+        self
+    }
+}
+impl Div<Float> for &Blade {
+    type Output = Blade;
+
+    fn div(self, rhs: Float) -> Self::Output {
+        self.clone() / rhs
+    }
+}
 
 /// Returns the minimum number of dimensions containing two blades.
 fn common_ndim(m1: &Blade, m2: &Blade) -> u8 {
@@ -733,13 +806,6 @@ mod tests {
             * 2.0;
         let bivector = b1o.clone() + b2o.clone();
 
-        // dbg!(
-        //     &bivector,
-        //     &b1o,
-        //     &b2o,
-        //     Blade::dot(&b1o, &b1o),
-        //     Blade::dot(&b2o, &b2o)
-        // );
         let out = bivector.decompose_bivector().unwrap();
         assert!(out.len() == 2);
         let b1 = &out[0].1;
@@ -748,17 +814,16 @@ mod tests {
         assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
     }
 
-    #[ignore]
     #[test]
     fn test_bivector_decomposition() {
         let b1o = Blade::wedge(
-            &Blade::from_vector(5, vector![1.0, 2.0, 0.0, 0.0, 6.0]),
-            &Blade::from_vector(5, vector![1.0, 2.0, 0.0, 0.0, -6.0]),
+            &Blade::from_vector(5, vector![1.0, 0.0, 0.0, 0.0, 6.0]),
+            &Blade::from_vector(5, vector![-1.0, 0.0, 0.0, 0.0, 6.0]),
         )
         .unwrap();
         let b2o = Blade::wedge(
-            &Blade::from_vector(5, vector![0.0, 0.0, 3.0, -5.0, 0.0]),
-            &Blade::from_vector(5, vector![0.0, 0.0, 3.0, 5.0, 0.0]),
+            &Blade::from_vector(5, vector![0.0, 2.0, 3.0, 5.0, 0.0]),
+            &Blade::from_vector(5, vector![0.0, -2.0, 3.0, 5.0, 0.0]),
         )
         .unwrap();
         let bivector = b1o.clone() + b2o.clone();
@@ -770,5 +835,30 @@ mod tests {
         let b2 = &out[1].1;
         assert_approx_eq!(b1.clone() + b2.clone(), bivector);
         assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_exp_rational() {
+        let b1o = Blade::wedge(
+            &Blade::from_vector(4, vector![1.0, 0.0, 0.0, 0.0]),
+            &Blade::from_vector(4, vector![0.0, 1.0, 0.0, 0.0]),
+        )
+        .unwrap();
+        let b2o = Blade::wedge(
+            &Blade::from_vector(4, vector![0.0, 0.0, 1.0, 0.0]),
+            &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]),
+        )
+        .unwrap();
+        let bivector = b1o.clone() + b2o.clone();
+        assert_approx_eq!(
+            (bivector.clone() * std::f64::consts::PI).exp().unwrap(),
+            crate::pga::Motor::ident(4)
+        );
+        let clifford_45 = (bivector * std::f64::consts::PI / 4.0).exp().unwrap();
+        dbg!(&clifford_45);
+        assert_approx_eq!(
+            clifford_45.powi(4).canonicalize_up_to_180().unwrap(),
+            crate::pga::Motor::ident(4)
+        )
     }
 }
