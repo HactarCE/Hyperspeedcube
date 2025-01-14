@@ -607,8 +607,6 @@ impl Blade {
             } else {
                 // if biv = b1 + b2 + ..., then biv2 = b1 b2 + ...
                 let biv2 = Self::product_grade(&biv1, &biv1, 4) / 2.0;
-                dbg!(norm, cos, sin, &biv1, &biv2);
-
                 if mult == 2 {
                     motor =
                         (Motor::ident(self.ndim) * cos * cos) + biv1 * cos * sin + biv2 * sin * sin;
