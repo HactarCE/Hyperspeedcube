@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{AddAssign, Mul, MulAssign, Neg, SubAssign};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use super::{Axes, Blade, Term};
 use crate::{
@@ -127,7 +127,7 @@ impl Motor {
     }
 
     /// Constructs a new zero motor which can then be filled with coefficients.
-    fn zero(ndim: u8, is_reflection: bool) -> Self {
+    pub(crate) fn zero(ndim: u8, is_reflection: bool) -> Self {
         Self {
             ndim,
             is_reflection,
@@ -458,9 +458,55 @@ impl AddAssign<Term> for Motor {
         self.set(rhs.axes, self.get(rhs.axes) + rhs.coef);
     }
 }
+impl Add<Term> for Motor {
+    type Output = Motor;
+    fn add(self, rhs: Term) -> Motor {
+        let mut ret = self.clone();
+        ret += rhs;
+        ret
+    }
+}
+impl AddAssign<Blade> for Motor {
+    fn add_assign(&mut self, rhs: Blade) {
+        for term in rhs.terms() {
+            *self += term
+        }
+    }
+}
+impl Add<Blade> for Motor {
+    type Output = Motor;
+    fn add(self, rhs: Blade) -> Motor {
+        let mut ret = self.clone();
+        ret += rhs;
+        ret
+    }
+}
 impl SubAssign<Term> for Motor {
     fn sub_assign(&mut self, rhs: Term) {
         self.set(rhs.axes, self.get(rhs.axes) - rhs.coef);
+    }
+}
+impl Sub<Term> for Motor {
+    type Output = Motor;
+    fn sub(self, rhs: Term) -> Motor {
+        let mut ret = self.clone();
+        ret -= rhs;
+        ret
+    }
+}
+impl SubAssign<Blade> for Motor {
+    fn sub_assign(&mut self, rhs: Blade) {
+        for term in rhs.terms() {
+            *self -= term
+        }
+    }
+}
+impl Sub<Blade> for Motor {
+    type Output = Motor;
+    fn sub(self, rhs: Blade) -> Motor {
+        let mut ret = self.clone();
+        ret -= rhs;
+        ret
     }
 }
 
