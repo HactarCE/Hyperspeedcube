@@ -126,6 +126,10 @@ impl Blade {
     pub fn is_vector(&self) -> bool {
         self.grade == 1 && approx_eq(&self[Axes::E0], &0.0)
     }
+    /// Extracts the scalar represented by a blade.
+    pub fn to_scalar(&self) -> Option<Float> {
+        (self.grade == 0).then(|| self.coefficients[0])
+    }
 
     /// Constructs a blade from a hyperplane.
     pub fn from_hyperplane(ndim: u8, h: &Hyperplane) -> Self {
@@ -311,6 +315,24 @@ impl Blade {
         }
     }
 
+    /// Returns the projection of the product of the blades to the specified grade.
+    pub fn product_grade(lhs: &Self, rhs: &Self, grade: u8) -> Self {
+        let ndim = std::cmp::max(lhs.ndim, rhs.ndim);
+
+        let mut ret = Self::zero(ndim, grade);
+        for l in lhs.terms() {
+            for r in rhs.terms() {
+                let Some(term) = Term::geometric_product(l, r) else {
+                    continue;
+                };
+                if term.grade() == grade {
+                    ret += term;
+                }
+            }
+        }
+        ret
+    }
+
     /// Returns the [exterior product] between `lhs` and `rhs`, or `None` if the
     /// result is zero because the grade of the result would exceed the number
     /// of dimensions.
@@ -490,6 +512,70 @@ impl Blade {
         }
         ret
     }
+
+    /// Decompose bivector into a sum of commuting simple bivectors, or
+    /// `None` if the input is not a bivector. Some terms may contain multiple bivectors of the same magnitude.
+    /// https://arxiv.org/abs/2107.03771
+    fn decompose_bivector(&self) -> Option<Vec<(u8, Self)>> {
+        if self.grade != 2 {
+            return None;
+        }
+
+        if self.ndim < 4 {
+            // All bivectors are simple
+            Some(vec![(1, self.clone())])
+        } else if self.ndim < 6 {
+            // Section 6.1
+            let coeff1 = Self::product_grade(self, self, 0).to_scalar()?;
+            let wedge = Self::product_grade(self, self, 4);
+            let wedge2 = Self::product_grade(&wedge, &wedge, 0).to_scalar()?; // square of wedge
+            let discrim = coeff1.powi(2) - wedge2;
+            if approx_eq(&discrim, &0.0) {
+                Some(vec![(2, self.clone())])
+            } else if discrim < 0.0 {
+                None // impossible, i think
+            } else {
+                let root1 = (coeff1 + discrim.sqrt()) / 2.0;
+                let root2 = (coeff1 - discrim.sqrt()) / 2.0;
+                // Compute (root1 + wedge * 0.5) / self
+                // 1/self = (self * m(self^2)) / (self^2 * m(self^2)) where m(grade0) = grade0 and m(grade4) = -grade4
+                // it is of grade 2
+                let selfi_2 =
+                    (self * coeff1 - Self::product_grade(self, &wedge, 2)) * (1.0 / discrim);
+                let selfi_4 = (-Self::product_grade(self, &wedge, 4)) * (1.0 / discrim); // this term should be 0 in 4d
+                dbg!(coeff1, discrim, root1, root2);
+                dbg!(self, &selfi_2, &selfi_4);
+                dbg!(
+                    Self::product_grade(&selfi_2, self, 0) + Self::product_grade(&selfi_4, self, 0),
+                    Self::product_grade(&selfi_2, self, 4) + Self::product_grade(&selfi_4, self, 4)
+                );
+                // let b1 = (root1 + wedge * 0.5) / self;
+                let b1 = selfi_2.clone() * root1
+                    + (Self::product_grade(&wedge, &selfi_2, 2)
+                        + Self::product_grade(&wedge, &selfi_4, 2))
+                        * 0.5;
+                let b2 = selfi_2.clone() * root2
+                    + (Self::product_grade(&wedge, &selfi_2, 2)
+                        + Self::product_grade(&wedge, &selfi_4, 2))
+                        * 0.5;
+                Some(vec![(1, b1), (1, b2)])
+            }
+        } else if self.ndim < 8 {
+            return None; // TODO: scary
+        } else {
+            return None; // TODO: blow up if this happens?
+        }
+    }
+
+    /// Returns the exponential of a bivector, or
+    /// `None` if the input is not a bivector.
+    pub fn exp(&self) -> Option<crate::pga::Motor> {
+        if self.grade != 2 {
+            return None;
+        }
+
+        todo!()
+    }
 }
 
 impl Neg for Blade {
@@ -630,5 +716,59 @@ mod tests {
 
             assert_approx_eq!(new_a, vector![0.0, -1.0, 1.0, 0.0] * 0.5);
         }
+    }
+
+    #[test]
+    fn test_bivector_decomposition_s() {
+        let b1o = Blade::wedge(
+            &Blade::from_vector(4, vector![1.0, 0.0, 0.0, 0.0]),
+            &Blade::from_vector(4, vector![0.0, 1.0, 0.0, 0.0]),
+        )
+        .unwrap();
+        let b2o = Blade::wedge(
+            &Blade::from_vector(4, vector![0.0, 0.0, 1.0, 0.0]),
+            &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]),
+        )
+        .unwrap()
+            * 2.0;
+        let bivector = b1o.clone() + b2o.clone();
+
+        // dbg!(
+        //     &bivector,
+        //     &b1o,
+        //     &b2o,
+        //     Blade::dot(&b1o, &b1o),
+        //     Blade::dot(&b2o, &b2o)
+        // );
+        let out = bivector.decompose_bivector().unwrap();
+        assert!(out.len() == 2);
+        let b1 = &out[0].1;
+        let b2 = &out[1].1;
+        assert_approx_eq!(b1.clone() + b2.clone(), bivector);
+        assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
+    }
+
+    #[ignore]
+    #[test]
+    fn test_bivector_decomposition() {
+        let b1o = Blade::wedge(
+            &Blade::from_vector(5, vector![1.0, 2.0, 0.0, 0.0, 6.0]),
+            &Blade::from_vector(5, vector![1.0, 2.0, 0.0, 0.0, -6.0]),
+        )
+        .unwrap();
+        let b2o = Blade::wedge(
+            &Blade::from_vector(5, vector![0.0, 0.0, 3.0, -5.0, 0.0]),
+            &Blade::from_vector(5, vector![0.0, 0.0, 3.0, 5.0, 0.0]),
+        )
+        .unwrap();
+        let bivector = b1o.clone() + b2o.clone();
+
+        dbg!(&bivector, Blade::dot(&b1o, &b1o), Blade::dot(&b2o, &b2o));
+        let out = bivector.decompose_bivector().unwrap();
+        assert!(out.len() == 2);
+        let b1 = &out[0].1;
+        let b2 = &out[1].1;
+        assert_approx_eq!(b1.clone() + b2.clone(), bivector);
+        assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
     }
 }
