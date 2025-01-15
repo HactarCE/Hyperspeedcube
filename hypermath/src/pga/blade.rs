@@ -793,7 +793,6 @@ impl BivectorDecomposition {
                     }
                 }
             }
-            dbg!(mult, biv, &motor);
             ret *= motor;
         }
 
@@ -813,10 +812,7 @@ impl BivectorDecomposition {
         for (mult, biv) in &self.decomposition {
             let norm2 = Float::max(0.0, Blade::dot(&biv, &biv)?) / (*mult as Float);
             let norm = norm2.sqrt();
-            // //dbg!(biv, norm2, Blade::dot(&biv, &biv));
             let biv1 = biv / norm;
-            //decomposition.push((*mult, biv1 / (norm2 + 1.0).sqrt()))
-            //decomposition.push((*mult, biv.clone()))
             decomposition.push((*mult, biv1 * norm.atan()))
         }
         Some(BivectorDecomposition {
