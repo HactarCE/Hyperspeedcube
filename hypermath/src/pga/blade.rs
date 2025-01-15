@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use float_ord::FloatOrd;
 use itertools::Itertools;
@@ -544,14 +544,17 @@ impl Blade {
     /// Decompose bivector into a sum of commuting simple bivectors, or
     /// `None` if the input is not a bivector. Some terms may contain multiple bivectors of the same magnitude.
     /// https://arxiv.org/abs/2107.03771
-    fn decompose_bivector(&self) -> Option<Vec<(u8, Self)>> {
+    pub(crate) fn decompose_bivector(&self) -> Option<BivectorDecomposition> {
         if self.grade != 2 {
             return None;
         }
 
-        if self.ndim < 4 {
+        let mut ret = if self.ndim < 4 {
             // All bivectors are simple
-            Some(vec![(1, self.clone())])
+            Some(BivectorDecomposition {
+                ndim: self.ndim,
+                decomposition: vec![(1, self.clone())],
+            })
         } else if self.ndim < 6 {
             // Section 6.1
             let coeff1 = Self::product_grade(self, self, 0).to_scalar()?;
@@ -559,7 +562,10 @@ impl Blade {
             let wedge2 = Self::product_grade(&wedge, &wedge, 0).to_scalar()?; // square of wedge
             let discrim = coeff1.powi(2) - wedge2;
             if approx_eq(&discrim, &0.0) {
-                Some(vec![(2, self.clone())])
+                Some(BivectorDecomposition {
+                    ndim: self.ndim,
+                    decomposition: vec![(2, self.clone())],
+                })
             } else if discrim < 0.0 {
                 None // impossible, i think
             } else {
@@ -578,57 +584,33 @@ impl Blade {
                     + (Self::product_grade(&wedge, &selfi_2, 2)
                         + Self::product_grade(&wedge, &selfi_4, 2))
                         * 0.5;
-                Some(vec![(1, b1), (1, b2)])
+                Some(BivectorDecomposition {
+                    ndim: self.ndim,
+                    decomposition: vec![(1, b1), (1, b2)],
+                })
             }
         } else if self.ndim < 8 {
             return None; // TODO: scary
         } else {
             return None; // TODO: blow up if this happens?
-        }
+        };
+
+        ret.as_mut().map(|r| r.remove_zeros());
+        ret
     }
 
     /// Returns the exponential of a bivector, or
     /// `None` if the input is not a bivector.
     pub fn exp(&self) -> Option<crate::pga::Motor> {
-        use crate::pga::Motor;
         let decomposition = self.decompose_bivector()?;
+        decomposition.exp()
+    }
 
-        let mut ret = Motor::ident(self.ndim);
-        // the bivs commute
-        for (mult, biv) in decomposition {
-            let norm2 = Float::max(0.0, Self::dot(&biv, &biv)?) / (mult as Float);
-            let norm = norm2.sqrt();
-            let cos = norm.cos(); // we want the sign flip of dot
-            let sin = (1.0 - cos.powi(2)).sqrt();
-            let biv1 = biv / norm;
-            let motor;
-            if mult == 1 {
-                motor = (Motor::ident(self.ndim) * cos) + (biv1 * sin);
-            } else {
-                // if biv = b1 + b2 + ..., then biv2 = b1 b2 + ...
-                let biv2 = Self::product_grade(&biv1, &biv1, 4) / 2.0;
-                if mult == 2 {
-                    motor =
-                        (Motor::ident(self.ndim) * cos * cos) + biv1 * cos * sin + biv2 * sin * sin;
-                } else {
-                    // if biv = b1 + b2 + b3 + ..., then biv3 = b1 b2 b3 + ...
-                    let biv3 =
-                        Self::multi_product_grade([biv1.clone(), biv1.clone(), biv1.clone()], 6)
-                            / 6.0;
-                    if mult == 3 {
-                        motor = (Motor::ident(self.ndim) * cos * cos * cos)
-                            + biv1 * cos * cos * sin
-                            + biv2 * cos * sin * sin
-                            + biv3 * sin * sin * sin;
-                    } else {
-                        return None; // TODO: blow up if this happens? (only dimension 8+)
-                    }
-                }
-            }
-            ret *= motor;
-        }
-
-        Some(ret)
+    /// Returns the arctangent of a bivector, or
+    /// `None` if the input is not a bivector.
+    /// https://arxiv.org/abs/2107.03771
+    pub fn atan(&self) -> Option<Self> {
+        Some(self.decompose_bivector()?.atan()?.to_bivector())
     }
 }
 
@@ -763,6 +745,95 @@ fn common_ndim(m1: &Blade, m2: &Blade) -> u8 {
     std::cmp::max(m1.ndim, m2.ndim)
 }
 
+#[derive(Debug)]
+pub(crate) struct BivectorDecomposition {
+    ndim: u8,
+    decomposition: Vec<(u8, Blade)>,
+}
+
+impl BivectorDecomposition {
+    fn remove_zeros(&mut self) {
+        self.decomposition.retain(|(_mult, biv)| !biv.is_zero())
+    }
+
+    pub(crate) fn exp(&self) -> Option<crate::pga::Motor> {
+        use crate::pga::Motor;
+
+        let mut ret = Motor::ident(self.ndim);
+        // the bivs commute
+        for (mult, biv) in &self.decomposition {
+            let norm2 = Float::max(0.0, Blade::dot(&biv, &biv)?) / (*mult as Float);
+            let norm = norm2.sqrt();
+            let cos = norm.cos(); // we want the sign flip of dot
+            let sin = (1.0 - cos.powi(2)).sqrt();
+            let biv1 = biv / norm;
+            let motor;
+            if biv.is_zero() {
+                motor = Motor::ident(self.ndim);
+            } else if *mult == 1 {
+                motor = (Motor::ident(self.ndim) * cos) + (biv1 * sin);
+            } else {
+                // if biv = b1 + b2 + ..., then biv2 = b1 b2 + ...
+                let biv2 = Blade::product_grade(&biv1, &biv1, 4) / 2.0;
+                if *mult == 2 {
+                    motor =
+                        (Motor::ident(self.ndim) * cos * cos) + biv1 * cos * sin + biv2 * sin * sin;
+                } else {
+                    // if biv = b1 + b2 + b3 + ..., then biv3 = b1 b2 b3 + ...
+                    let biv3 =
+                        Blade::multi_product_grade([biv1.clone(), biv1.clone(), biv1.clone()], 6)
+                            / 6.0;
+                    if *mult == 3 {
+                        motor = (Motor::ident(self.ndim) * cos * cos * cos)
+                            + biv1 * cos * cos * sin
+                            + biv2 * cos * sin * sin
+                            + biv3 * sin * sin * sin;
+                    } else {
+                        return None; // TODO: blow up if this happens? (only dimension 8+)
+                    }
+                }
+            }
+            dbg!(mult, biv, &motor);
+            ret *= motor;
+        }
+
+        Some(ret)
+    }
+
+    fn to_bivector(&self) -> Blade {
+        let mut ret = Blade::zero(self.ndim, 2);
+        for (_mult, biv) in &self.decomposition {
+            ret += biv;
+        }
+        ret
+    }
+
+    pub(crate) fn atan(&self) -> Option<Self> {
+        let mut decomposition = Vec::new();
+        for (mult, biv) in &self.decomposition {
+            let norm2 = Float::max(0.0, Blade::dot(&biv, &biv)?) / (*mult as Float);
+            let norm = norm2.sqrt();
+            // //dbg!(biv, norm2, Blade::dot(&biv, &biv));
+            let biv1 = biv / norm;
+            //decomposition.push((*mult, biv1 / (norm2 + 1.0).sqrt()))
+            //decomposition.push((*mult, biv.clone()))
+            decomposition.push((*mult, biv1 * norm.atan()))
+        }
+        Some(BivectorDecomposition {
+            ndim: self.ndim,
+            decomposition,
+        })
+    }
+}
+
+impl MulAssign<Float> for BivectorDecomposition {
+    fn mul_assign(&mut self, rhs: Float) {
+        for (_mult, biv) in &mut self.decomposition {
+            *biv = biv.clone() * rhs;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -805,9 +876,9 @@ mod tests {
         let bivector = b1o.clone() + b2o.clone();
 
         let out = bivector.decompose_bivector().unwrap();
-        assert!(out.len() == 2);
-        let b1 = &out[0].1;
-        let b2 = &out[1].1;
+        assert!(out.decomposition.len() == 2);
+        let b1 = &out.decomposition[0].1;
+        let b2 = &out.decomposition[1].1;
         assert_approx_eq!(b1.clone() + b2.clone(), bivector);
         assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
     }
@@ -828,9 +899,9 @@ mod tests {
 
         dbg!(&bivector, Blade::dot(&b1o, &b1o), Blade::dot(&b2o, &b2o));
         let out = bivector.decompose_bivector().unwrap();
-        assert!(out.len() == 2);
-        let b1 = &out[0].1;
-        let b2 = &out[1].1;
+        assert!(out.decomposition.len() == 2);
+        let b1 = &out.decomposition[0].1;
+        let b2 = &out.decomposition[1].1;
         assert_approx_eq!(b1.clone() + b2.clone(), bivector);
         assert_approx_eq!(Blade::dot(&b1, &b2).unwrap(), 0.0);
     }
