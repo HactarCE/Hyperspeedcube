@@ -618,7 +618,6 @@ impl Blade {
                 let p = (3.0 * coeff1 - coeff2 * coeff2) / 3.0;
                 let q = (2.0 * coeff2.powi(3) - 9.0 * coeff2 * coeff1 + 27.0 * coeff0) / 27.0;
 
-                dbg!(coeff2, coeff1, coeff0, p, q, 4.0 * p * p * p + 27.0 * q * q);
                 // There should be 3 real roots
                 if approx_eq(&p, &0.0) {
                     // In this case q should also be zero, so the roots are all the same
@@ -633,7 +632,6 @@ impl Blade {
                     })
                 }
             };
-            dbg!(roots);
 
             let unique_root: Option<Option<usize>>;
             if approx_eq(&roots[0], &roots[1]) {
@@ -668,8 +666,6 @@ impl Blade {
                     }
                 }
 
-                dbg!(unique_root, &single_roots);
-
                 let mut decomposition = Vec::new();
                 for root in single_roots {
                     // Take the inverse of root + wedge / 2.0
@@ -677,9 +673,7 @@ impl Blade {
                         grade0: root,
                         grade4: wedge.clone() / 2.0,
                     };
-                    dbg!(&den);
                     let deni = den.recip()?;
-                    dbg!(&deni);
 
                     // Multiply self * root + wedge3 / 6.0 by that inverse
                     let biv = self * root * deni.grade0
@@ -978,7 +972,6 @@ impl Multivector04 {
         for n in 1..=4 {
             let matrix =
                 crate::Matrix::from_fn(n, |i, j| pows[i as usize + 1].dot(&pows[j as usize + 1]));
-            dbg!(&pows, &matrix);
 
             // matrix is only 4x4 so inverting it is fine
             if approx_eq(&matrix.determinant(), &0.0) {
@@ -997,7 +990,6 @@ impl Multivector04 {
                 test_recip = test_recip + &(pows[i as usize].clone() * result_vec_entry);
             }
 
-            dbg!(minv, &test_recip, test_recip.clone() * self);
             if approx_eq(&(test_recip.clone() * self), &Self::one(self.ndim())) {
                 return Some(test_recip);
             }
