@@ -2,6 +2,8 @@
 
 use std::ops::*;
 
+use itertools::Itertools;
+
 use super::{permutations, Float, Vector, VectorRef};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
