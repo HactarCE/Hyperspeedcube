@@ -358,11 +358,7 @@ impl Blade {
 
         let mut ret = Self::zero(ndim, grade);
 
-        'a: for terms in blades
-            .into_iter()
-            .map(|b| b.terms().collect_vec())
-            .multi_cartesian_product()
-        {
+        'a: for terms in blades.iter().map(|b| b.terms()).multi_cartesian_product() {
             let mut term = Term::scalar(1.0);
             for t in terms {
                 if let Some(tt) = Term::geometric_product(term, t) {
