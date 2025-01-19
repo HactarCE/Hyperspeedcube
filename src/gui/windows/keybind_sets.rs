@@ -8,7 +8,7 @@ pub(crate) const KEYBIND_SETS: Window = Window {
     ..Window::DEFAULT
 };
 
-const HIDDEN_PREFIX_CHAR: char = '^';
+pub(crate) const HIDDEN_PREFIX_CHAR: char = '^';
 
 fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_keybinds = &mut app.prefs.puzzle_keybinds[app.puzzle.ty()];
