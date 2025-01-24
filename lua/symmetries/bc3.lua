@@ -1,7 +1,7 @@
 function cube(scale, basis)
   return {
     name = "Cube",
-    aliases = { "4-Cube", "Hexahedron", "1x1x1" },
+    aliases = { "3-Cube", "Hexahedron", "1x1x1" },
     face_colors = 'cube',
     sym = cd('bc3', basis),
     iter_poles = function(self, prefix)
