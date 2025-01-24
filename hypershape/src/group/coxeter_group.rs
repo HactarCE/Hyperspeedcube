@@ -1,4 +1,4 @@
-use core::fmt;
+use std::fmt;
 
 use hypermath::collections::approx_hashmap::ApproxHashMapKey;
 use hypermath::prelude::*;
