@@ -1,4 +1,4 @@
-use hyperpuzzle::{LayerMask, LayeredTwist, Timestamp, Twist};
+use hyperpuzzle_core::{LayerMask, LayeredTwist, Timestamp, Twist};
 use smallvec::SmallVec;
 
 /// Event that is part of a replay.

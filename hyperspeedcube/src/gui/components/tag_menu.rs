@@ -30,7 +30,7 @@ impl TagMenu {
         for (state, tag) in specified_tags {
             // Mark the ancestor tags as mixed unless they are explicitly
             // specified as well.
-            for parent in hyperpuzzle::TAGS.ancestors(&tag) {
+            for parent in hyperpuzzle_core::TAGS.ancestors(&tag) {
                 tag_states
                     .entry(parent.to_owned())
                     .or_insert(TagFilterState::Mixed);
@@ -53,7 +53,7 @@ impl TagMenu {
     #[must_use]
     pub fn show(self, ui: &mut egui::Ui) -> egui::InnerResponse<Option<TagFilterAction>> {
         ui.scope(|ui| {
-            let tags = hyperpuzzle::TAGS.menu();
+            let tags = hyperpuzzle_core::TAGS.menu();
             egui::ScrollArea::vertical()
                 .show(ui, |ui| self.show_tag_menu_node(ui, tags))
                 .inner
@@ -64,20 +64,20 @@ impl TagMenu {
     fn show_tag_menu_node(
         &self,
         ui: &mut egui::Ui,
-        node: &hyperpuzzle::TagMenuNode,
+        node: &hyperpuzzle_core::TagMenuNode,
     ) -> Option<TagFilterAction> {
         match node {
-            hyperpuzzle::TagMenuNode::Heading(heading_text) => {
+            hyperpuzzle_core::TagMenuNode::Heading(heading_text) => {
                 ui.strong(&**heading_text);
                 None
             }
 
-            hyperpuzzle::TagMenuNode::Separator => {
+            hyperpuzzle_core::TagMenuNode::Separator => {
                 ui.separator();
                 None
             }
 
-            hyperpuzzle::TagMenuNode::Tag {
+            hyperpuzzle_core::TagMenuNode::Tag {
                 name,
                 ty: _,
                 display,
@@ -100,44 +100,47 @@ impl TagMenu {
                     if *list {
                         let name = name.as_deref().unwrap_or("");
 
-                        hyperpuzzle_library::LIBRARY.with(|lib| {
-                            if name == "colors/system" {
-                                lib.color_systems()
-                                    .iter()
-                                    // Sort by name (could sort by ID instead)
-                                    .sorted_unstable_by(|a, b| {
-                                        Ord::cmp(a.display_name(), b.display_name())
-                                    })
-                                    .map(|color_system| {
-                                        let name = color_system.display_name();
-                                        self.tag_checkbox(ui, name, Some(&color_system.id), name)
-                                    })
-                                    .reduce(Option::or)
-                                    .flatten()
-                            } else {
-                                itertools::chain(
-                                    lib.puzzles().iter().map(|p| &p.tags),
-                                    lib.puzzle_generators().iter().map(|g| &g.tags),
-                                )
-                                .filter_map(|tags| tags.get(name))
-                                .flat_map(|tag_value| tag_value.to_strings())
-                                .unique()
-                                .sorted()
-                                .map(|tag_value| {
-                                    self.tag_checkbox(ui, name, Some(tag_value), tag_value)
+                        if name == "colors/system" {
+                            hyperpuzzle::catalog()
+                                .color_systems()
+                                .iter()
+                                // Sort by name (could sort by ID instead)
+                                .sorted_unstable_by(|a, b| {
+                                    hyperpuzzle_core::compare_ids(&a.id, &b.id)
+                                })
+                                .map(|color_system| {
+                                    let name = &color_system.name;
+                                    self.tag_checkbox(ui, name, Some(&color_system.id), name)
                                 })
                                 .reduce(Option::or)
                                 .flatten()
-                            }
-                        })
+                        } else {
+                            // TODO: factor this `chain` out somehow
+                            let all_puzzles =
+                                hyperpuzzle::catalog().puzzles_and_generator_examples();
+                            let all_generators = hyperpuzzle::catalog().puzzle_generators();
+                            itertools::chain(
+                                all_puzzles.iter().map(|p| &p.meta.tags),
+                                all_generators.iter().map(|g| &g.meta.tags),
+                            )
+                            .filter_map(|tags| tags.get(name))
+                            .flat_map(|tag_value| tag_value.to_strings())
+                            .unique()
+                            .sorted()
+                            .map(|tag_value| {
+                                self.tag_checkbox(ui, name, Some(tag_value), tag_value)
+                            })
+                            .reduce(Option::or)
+                            .flatten()
+                        }
                     } else {
                         self.show_tag_menu_nodes(ui, subtags)
                     }
                 };
 
                 match display {
-                    hyperpuzzle::TagDisplay::Inline => self.show_tag_menu_nodes(ui, subtags),
-                    hyperpuzzle::TagDisplay::Submenu(label) => {
+                    hyperpuzzle_core::TagDisplay::Inline => self.show_tag_menu_nodes(ui, subtags),
+                    hyperpuzzle_core::TagDisplay::Submenu(label) => {
                         if subtags.is_empty() && !*list {
                             if let Some(name) = name {
                                 self.tag_checkbox(ui, name, None, label)
@@ -159,7 +162,7 @@ impl TagMenu {
     fn show_tag_menu_nodes(
         &self,
         ui: &mut egui::Ui,
-        nodes: &[hyperpuzzle::TagMenuNode],
+        nodes: &[hyperpuzzle_core::TagMenuNode],
     ) -> Option<TagFilterAction> {
         nodes
             .iter()

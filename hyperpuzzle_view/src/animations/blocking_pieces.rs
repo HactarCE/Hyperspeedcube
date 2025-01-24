@@ -1,5 +1,5 @@
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle::Piece;
+use hyperpuzzle_core::Piece;
 use web_time::Instant;
 
 /// State of the animation that indicates which pieces are blocking a turn.

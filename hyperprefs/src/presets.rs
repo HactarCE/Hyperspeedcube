@@ -126,7 +126,7 @@ macro_rules! impl_preset_data_with_empty_tombstone {
         }
     };
 }
-impl_preset_data_with_empty_tombstone!(hyperpuzzle::Rgb);
+impl_preset_data_with_empty_tombstone!(hyperpuzzle_core::Rgb);
 impl_preset_data_with_empty_tombstone!(super::AnimationPreferences);
 impl_preset_data_with_empty_tombstone!(super::ColorScheme);
 impl_preset_data_with_empty_tombstone!(super::FilterPreset);

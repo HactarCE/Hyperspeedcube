@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use builder::Nameable;
-use hyperpuzzle::*;
+use hyperpuzzle_core::*;
 use itertools::{Itertools, PutBack};
 use regex::Regex;
 
@@ -375,7 +374,7 @@ mod parser {
 
 #[cfg(test)]
 mod tests {
-    use hyperpuzzle::*;
+    use hyperpuzzle_core::*;
 
     use crate::filters::*;
 

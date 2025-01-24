@@ -5,7 +5,7 @@ use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle::{
+use hyperpuzzle_core::{
     Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleParams,
     ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
 };
@@ -645,8 +645,8 @@ impl PuzzleSimulation {
 
         hyperpuzzle_log::Solve {
             puzzle: hyperpuzzle_log::Puzzle {
-                id: puz.id.clone(),
-                version: puz.version.to_string(),
+                id: puz.meta.id.clone(),
+                version: puz.meta.version.to_string(),
             },
             solved: self
                 .undo_stack

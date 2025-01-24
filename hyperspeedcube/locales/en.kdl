@@ -1,7 +1,7 @@
 tabs {
   menu {
     puzzle "New puzzle view"
-    puzzle_library "Puzzle library"
+    puzzle_catalog "Puzzle catalog"
     puzzle_info "Puzzle info"
     keybinds_reference "Keybinds reference"
     about "About"
@@ -37,7 +37,7 @@ tabs {
       loading "Loading {{id}}"
       error "Error loading {{id}}"
     }
-    puzzle_library "Puzzle Library"
+    puzzle_catalog "Puzzle Catalog"
     puzzle_info "Puzzle Info"
     keybinds_reference "Keybinds Reference"
     about "About"
@@ -567,7 +567,7 @@ image_generator {
   select_output_dir "Select image output directory"
 }
 
-library {
+catalog {
   refresh "Refresh"
   filter_by_tag "Filter by tag"
   generate_puzzle "Generate puzzle"
@@ -602,7 +602,8 @@ puzzle_view {
 
   initializing "Initializing"
   generating_spec "Generating puzzle specification"
-  building "Building puzzle"
+  building_colors "Building color system"
+  building_puzzle "Building puzzle"
   finalizing "Finalizing puzzle"
 
   loading_log "Loading log file"

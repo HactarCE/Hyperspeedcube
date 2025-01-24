@@ -8,9 +8,8 @@ use eyre::{bail, OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet, StyleColorMode};
-use hyperpuzzle::{
-    GizmoFace, LayerMask, Puzzle, PuzzleBuildStatus, PuzzleBuildTask, PuzzleResult,
-    ScrambleProgress,
+use hyperpuzzle_core::{
+    BuildTask, GizmoFace, LayerMask, Progress, Puzzle, Redirectable, ScrambleProgress,
 };
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
@@ -167,9 +166,33 @@ impl PuzzleWidget {
         self.load(id, Some(solve), prefs);
     }
     fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
-        match hyperpuzzle_library::LIBRARY.with(|lib| lib.build_puzzle(&puzzle_id)) {
-            PuzzleResult::Ok(puzzle) => match solve {
+        let cache_entry = hyperpuzzle::catalog().build_puzzle(&puzzle_id);
+        let cache_entry_guard = cache_entry.lock();
+        match &*cache_entry_guard {
+            hyperpuzzle_core::CacheEntry::NotStarted => {
+                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
+                    puzzle_id,
+                    progress: None,
+                    solve_to_load: solve,
+                });
+            }
+            hyperpuzzle_core::CacheEntry::Building { progress, .. } => {
+                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
+                    puzzle_id,
+                    progress: Some(Arc::clone(progress)),
+                    solve_to_load: solve,
+                });
+            }
+            hyperpuzzle_core::CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
+                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
+                    puzzle_id: new_id.clone(),
+                    progress: None,
+                    solve_to_load: solve,
+                });
+            }
+            hyperpuzzle_core::CacheEntry::Ok(Redirectable::Direct(puzzle)) => match solve {
                 Some(solve) => {
+                    let puzzle = Arc::clone(puzzle);
                     let thread_handle = std::thread::spawn(move || {
                         Ok(PuzzleSimulation::deserialize(&puzzle, &solve))
                     });
@@ -180,18 +203,11 @@ impl PuzzleWidget {
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
             },
-            PuzzleResult::Building { waiter, status } => {
-                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                    puzzle_id,
-                    status,
-                    solve_to_load: solve,
-                });
-            }
-            PuzzleResult::Err => {
+            hyperpuzzle_core::CacheEntry::Err(e) => {
                 if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
                     let gfx = &self.gfx;
                     let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
-                        &hyperpuzzle::PLACEHOLDER_PUZZLE,
+                        &hyperpuzzle_core::PLACEHOLDER_PUZZLE,
                     )));
                     self.contents = PuzzleWidgetContents::Placeholder {
                         puzzle_id: puzzle_id.to_string(),
@@ -216,7 +232,7 @@ impl PuzzleWidget {
             }
             None => match &self.contents {
                 PuzzleWidgetContents::None => L.tabs.titles.puzzle.empty.to_string(),
-                PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().name.clone(),
+                PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().meta.name.clone(),
                 PuzzleWidgetContents::Placeholder { puzzle_id, .. } => {
                     L.tabs.titles.puzzle.error.with(puzzle_id)
                 }
@@ -248,7 +264,8 @@ impl PuzzleWidget {
     /// Reloads all files and the current puzzle.
     pub fn reload(&mut self, prefs: &mut Preferences) {
         // TODO: keybind should be global, not just in puzzle view
-        hyperpuzzle_library::load_puzzles();
+        // TODO: make sure that the old catalog actually gets dropped
+        hyperpuzzle::load_global_catalog();
         if let Some(id) = self.contents.puzzle_id() {
             self.load_puzzle(&id, prefs);
         }
@@ -281,18 +298,19 @@ impl PuzzleWidget {
                 match loading {
                     PuzzleWidgetLoading::BuildingPuzzle {
                         puzzle_id,
-                        status,
+                        progress: status,
                         solve_to_load,
                     } => {
                         let task = match status {
-                            Some(s) => s.task,
+                            Some(s) => s.lock().task,
                             None => Default::default(),
                         };
                         loading_header = Some(match task {
-                            PuzzleBuildTask::Initializing => L.puzzle_view.initializing,
-                            PuzzleBuildTask::GeneratingSpec => L.puzzle_view.generating_spec,
-                            PuzzleBuildTask::Building => L.puzzle_view.building,
-                            PuzzleBuildTask::Finalizing => L.puzzle_view.finalizing,
+                            BuildTask::Initializing => L.puzzle_view.initializing,
+                            BuildTask::GeneratingSpec => L.puzzle_view.generating_spec,
+                            BuildTask::BuildingColors => L.puzzle_view.building_colors,
+                            BuildTask::BuildingPuzzle => L.puzzle_view.building_puzzle,
+                            BuildTask::Finalizing => L.puzzle_view.finalizing,
                         });
                         self.load(puzzle_id, solve_to_load, prefs);
                         ui.ctx().request_repaint_after_secs(0.2); // try again soon
@@ -817,7 +835,7 @@ impl PuzzleWidgetContents {
     fn puzzle_id(&self) -> Option<String> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Puzzle(view) => Some(view.puzzle().id.clone()),
+            PuzzleWidgetContents::Puzzle(view) => Some(view.puzzle().meta.id.clone()),
             PuzzleWidgetContents::Placeholder { puzzle_id, .. } => Some(puzzle_id.clone()),
         }
     }
@@ -828,7 +846,7 @@ pub enum PuzzleWidgetLoading {
     /// Waiting for a puzzle to build.
     BuildingPuzzle {
         puzzle_id: String,
-        status: Option<PuzzleBuildStatus>,
+        progress: Option<Arc<Mutex<Progress>>>,
         solve_to_load: Option<Arc<Solve>>,
     },
     /// Waiting for a log file to load.

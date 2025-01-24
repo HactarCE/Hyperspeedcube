@@ -7,8 +7,9 @@ members = [
     "hyperpaths",
     "hyperprefs",
     "hyperpuzzle",
-    "hyperpuzzle_library",
+    "hyperpuzzle_core",
     "hyperpuzzle_log",
+    "hyperpuzzle_lua",
     "hyperpuzzle_view",
     "hypershape",
     "hyperspeedcube",
@@ -63,11 +64,11 @@ hypermath = { path = "hypermath" }
 hyperpaths = { path = "hyperpaths" }
 hyperprefs = { path = "hyperprefs" }
 hyperpuzzle = { path = "hyperpuzzle" }
-hyperpuzzle_library = { path = "hyperpuzzle_library" }
+hyperpuzzle_core = { path = "hyperpuzzle_core" }
 hyperpuzzle_log = { path = "hyperpuzzle_log" }
+hyperpuzzle_lua = { path = "hyperpuzzle_lua" }
 hyperpuzzle_view = { path = "hyperpuzzle_view" }
 hypershape = { path = "hypershape" }
-hyperspeedcube = { path = "hyperspeedcube" }
 hyperstats = { path = "hyperstats" }
 hyperstrings = { path = "hyperstrings" }
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
@@ -97,6 +98,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 walkdir = { version = "2.4.0" }
 
 # String manipulation
+human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 regex = { version = "1.11.1" }
 sublime_fuzzy = { version = "0.7.0" }

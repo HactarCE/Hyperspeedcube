@@ -16,10 +16,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         // TODO: rework this UI
 
-        ui.label(format!("ID: {}", puz.id));
-        ui.label(format!("Version: {}", puz.version));
-        ui.label(format!("Name: {}", puz.name));
-        ui.label(format!("Aliases: {:?}", puz.aliases));
+        ui.label(format!("ID: {}", puz.meta.id));
+        ui.label(format!("Version: {}", puz.meta.version));
+        ui.label(format!("Name: {}", puz.meta.name));
+        ui.label(format!("Aliases: {:?}", puz.meta.aliases));
         ui.label(format!("Piece count: {}", puz.pieces.len()));
         ui.label(format!("Sticker count: {}", puz.stickers.len()));
         ui.label(format!("Color count: {}", puz.colors.list.len()));
@@ -62,21 +62,22 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         };
 
         let markdown_text = puz
+            .meta
             .tags
             .iter()
             .sorted_by_key(|(tag, _value)| *tag)
             .filter_map(|(tag, value)| match value {
-                hyperpuzzle::TagValue::False => show_excluded.then(|| format!("!{tag}")),
-                hyperpuzzle::TagValue::True => Some(tag.to_string()),
-                hyperpuzzle::TagValue::Inherited => show_inherited.then(|| format!("({tag})")),
-                hyperpuzzle::TagValue::Int(i) => Some(format!("{tag} = {i}")),
-                hyperpuzzle::TagValue::Str(s) => {
+                hyperpuzzle_core::TagValue::False => show_excluded.then(|| format!("!{tag}")),
+                hyperpuzzle_core::TagValue::True => Some(tag.to_string()),
+                hyperpuzzle_core::TagValue::Inherited => show_inherited.then(|| format!("({tag})")),
+                hyperpuzzle_core::TagValue::Int(i) => Some(format!("{tag} = {i}")),
+                hyperpuzzle_core::TagValue::Str(s) => {
                     Some(format!("{tag} = {}", md_escape(&format!("{s:?}"))))
                 }
-                hyperpuzzle::TagValue::StrList(vec) => {
+                hyperpuzzle_core::TagValue::StrList(vec) => {
                     Some(format!("{tag} = {}", md_escape(&format!("{vec:?}"))))
                 }
-                hyperpuzzle::TagValue::Puzzle(puz) => Some(format!("{tag} = {puz}")),
+                hyperpuzzle_core::TagValue::Puzzle(puz) => Some(format!("{tag} = {puz}")),
             })
             .map(|s| format!("- {s}\n"))
             .join("");

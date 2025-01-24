@@ -8,12 +8,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
-use std::sync::Arc;
-
-use gui::AppUi;
-pub use hyperpaths::IS_OFFICIAL_BUILD;
-use hyperpuzzle::Library;
-use parking_lot::Mutex;
 
 #[macro_use]
 mod debug;
@@ -121,11 +115,11 @@ async fn run() -> eframe::Result<()> {
     eframe::run_native(
         TITLE,
         native_options,
-        Box::new(|cc| Ok(Box::new(AppUi::new(cc)))),
+        Box::new(|cc| Ok(Box::new(gui::AppUi::new(cc)))),
     )
 }
 
-impl eframe::App for AppUi {
+impl eframe::App for gui::AppUi {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Build all the UI.
         self.build(ctx);
@@ -192,10 +186,10 @@ fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
         return wgpu_options;
     };
 
-    let old_device_descriptor_fn = Arc::clone(device_descriptor);
+    let old_device_descriptor_fn = std::sync::Arc::clone(device_descriptor);
 
     // Request WGPU features.
-    *device_descriptor = Arc::new(move |adapter| {
+    *device_descriptor = std::sync::Arc::new(move |adapter| {
         let mut device_descriptor = old_device_descriptor_fn(adapter);
         device_descriptor.required_features |= wgpu::Features::CLEAR_TEXTURE;
 

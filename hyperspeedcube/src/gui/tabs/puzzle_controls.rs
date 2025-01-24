@@ -1,4 +1,4 @@
-use hyperpuzzle::{LayerMask, LayeredTwist};
+use hyperpuzzle_core::{LayerMask, LayeredTwist};
 use hyperpuzzle_view::ReplayEvent;
 use smallvec::smallvec;
 

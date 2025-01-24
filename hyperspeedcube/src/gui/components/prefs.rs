@@ -5,7 +5,7 @@ use hyperprefs::{
     AnimationPreferences, InteractionPreferences, InterpolateFn, PuzzleViewPreferencesSet,
     StyleColorMode, ViewPreferences,
 };
-use hyperpuzzle::Rgb;
+use hyperpuzzle_core::Rgb;
 use strum::VariantArray;
 
 use crate::gui::components::WidgetWithReset;

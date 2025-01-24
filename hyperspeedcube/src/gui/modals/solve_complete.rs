@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use hyperpuzzle_library::SolveVerification;
+use hyperpuzzle_log::verify::SolveVerification;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperstats::NewPbs;
 
@@ -89,7 +89,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         app.active_puzzle.with_sim(|sim| {
             if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
                 let solve = sim.serialize();
-                let verification = hyperpuzzle_library::verify_without_checking_solution(&solve)?;
+                let verification = hyperpuzzle_log::verify::verify_without_checking_solution(
+                    &hyperpuzzle::catalog(),
+                    &solve,
+                )?;
                 let (file_path, file_name) = hyperpaths::solve_autosave_file(
                     &solve.puzzle.id,
                     &verification.time_completed.to_string(),
@@ -100,7 +103,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                 solve_complete_popup.set(Some(Some(SolveCompletePopup {
                     solve,
-                    puzzle_name: sim.puzzle_type().name.clone(),
+                    puzzle_name: sim.puzzle_type().meta.name.clone(),
                     file_path,
                     file_name,
                     new_pbs,

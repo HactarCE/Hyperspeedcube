@@ -1,0 +1,50 @@
+[package]
+name = "hyperpuzzle_lua"
+description = "Lua puzzle simulator backend for Hyperspeedcube"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["algorithms", "mathematics", "simulation"]
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[dependencies]
+hypermath = { workspace = true }
+hyperpaths = { workspace = true, optional = true }
+hyperpuzzle_core = { workspace = true }
+hypershape = { workspace = true }
+
+chrono = { workspace = true }
+disjoint = { workspace = true }
+eyre = { workspace = true }
+float-ord = { workspace = true }
+hex = { workspace = true }
+include_dir = { workspace = true }
+indexmap = { workspace = true }
+itertools = { workspace = true }
+kdl = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+mlua = { workspace = true }
+parking_lot = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+smallvec = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tinyset = { workspace = true }
+walkdir = { workspace = true }
+
+# Color conversions
+ecolor = { workspace = true, optional = true }
+oklab = { workspace = true, optional = true }

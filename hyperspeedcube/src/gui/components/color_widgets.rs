@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
 use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
-use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
+use hyperpuzzle_core::{ColorSystem, DefaultColor, Rgb};
 use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
 
@@ -759,7 +759,7 @@ pub fn color_assignment_popup(
     ui: &mut egui::Ui,
     puzzle_view: &mut PuzzleView,
     color_palette: &GlobalColorPalette,
-    editing_color: Option<hyperpuzzle::Color>,
+    editing_color: Option<hyperpuzzle_core::Color>,
 ) {
     let puzzle = puzzle_view.puzzle();
 

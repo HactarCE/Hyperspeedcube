@@ -1,4 +1,4 @@
-use hyperpuzzle::TwistMetric;
+use hyperpuzzle_core::TwistMetric;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

@@ -37,8 +37,8 @@ impl AppUi {
         let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
         let mut app = App::new(cc, initial_file);
 
-        // Initialize puzzle library.
-        hyperpuzzle_library::load_puzzles();
+        // Initialize puzzle catalog.
+        hyperpuzzle::load_global_catalog();
 
         // Override UI style.
         cc.egui_ctx.style_mut(|style| {
@@ -53,7 +53,7 @@ impl AppUi {
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
         let [main, left] =
-            surface.split_left(main, 0.15, vec![Tab::PuzzleLibrary, Tab::PuzzleControls]);
+            surface.split_left(main, 0.15, vec![Tab::PuzzleCatalog, Tab::PuzzleControls]);
         surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
         let [_main, right] = surface.split_right(
             main,

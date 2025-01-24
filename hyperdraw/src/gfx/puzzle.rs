@@ -15,7 +15,7 @@ use std::sync::{mpsc, Arc};
 use eyre::{bail, OptionExt, Result};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
+use hyperpuzzle_core::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
 use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -118,7 +118,7 @@ pub struct PuzzleRenderer {
     /// Stickers that are part of each piece.
     puzzle_pieces: PerPiece<SmallVec<[Sticker; 8]>>,
     /// Color for each sticker.
-    puzzle_sticker_colors: PerSticker<hyperpuzzle::Color>,
+    puzzle_sticker_colors: PerSticker<hyperpuzzle_core::Color>,
     is_placeholder_model: bool,
 
     /// Puzzle vertex positions in homogeneous 3D space.
@@ -178,7 +178,7 @@ impl PuzzleRenderer {
             Cow::Borrowed(&puzzle.mesh)
         };
 
-        let puzzle_name = puzzle.name.clone();
+        let puzzle_name = puzzle.meta.name.clone();
         let puzzle_pieces = if is_empty_model {
             super::placeholder::pieces()
         } else {

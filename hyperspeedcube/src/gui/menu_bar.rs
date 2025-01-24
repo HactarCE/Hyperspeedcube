@@ -1,4 +1,4 @@
-use hyperpuzzle::ScrambleType;
+use hyperpuzzle_core::ScrambleType;
 use hyperpuzzle_view::ReplayEvent;
 
 use super::{AppUi, Tab};
@@ -166,7 +166,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
     ui.menu_button(L.menu.puzzles.title, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::PuzzleLibrary);
+        show_tab_toggle(ui, app_ui, Tab::PuzzleCatalog);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
         ui.separator();
@@ -192,7 +192,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                     .pick_folder()
                 {
                     dir_path.push("lua");
-                    match hyperpuzzle_library::LUA_BUILTIN_DIR.extract(&dir_path) {
+                    match hyperpuzzle_lua::extract_builtin_files(&dir_path) {
                         Ok(()) => crate::open_dir(&dir_path),
                         Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
                     }

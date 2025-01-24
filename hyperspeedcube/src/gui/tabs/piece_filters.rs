@@ -6,7 +6,7 @@ use hyperprefs::{
     FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
     PuzzleFilterPreferences,
 };
-use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
+use hyperpuzzle_core::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use hyperpuzzle_view::{PuzzleFiltersState, PuzzleView};
 use itertools::Itertools;
 
@@ -150,7 +150,7 @@ fn show_filter_presets_list_ui_contents(
     ui.horizontal(|ui| {
         ui.strong(l.saved_presets);
         if let Some(puz) = puzzle_type {
-            ui.label(format!("({})", puz.name));
+            ui.label(format!("({})", puz.meta.name));
         }
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
@@ -964,10 +964,10 @@ fn show_piece_type_hierarchy(
         for (k, node) in &hierarchy.nodes {
             let name = node.display.as_ref().unwrap_or(k);
             match &node.contents {
-                hyperpuzzle::PieceTypeHierarchyNodeContents::Category(cat) => {
+                hyperpuzzle_core::PieceTypeHierarchyNodeContents::Category(cat) => {
                     show_piece_type_hierarchy(id, ui, name, cat, filter_states, false, changed);
                 }
-                hyperpuzzle::PieceTypeHierarchyNodeContents::Type(ty) => {
+                hyperpuzzle_core::PieceTypeHierarchyNodeContents::Type(ty) => {
                     let r = &ui.add(
                         FilterCheckbox::new(
                             FilterCheckboxAllowedStates::NeutralHide,

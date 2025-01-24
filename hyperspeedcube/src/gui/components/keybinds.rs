@@ -1,8 +1,10 @@
-use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::hash::Hash;
+
+use hyperpuzzle_core::*;
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use crate::app::App;
@@ -17,7 +19,6 @@ use crate::gui::components::{
 use crate::gui::ext::*;
 use crate::gui::key_combo_popup;
 use crate::preferences::{Keybind, KeybindSet, Preferences};
-use crate::puzzle::*;
 
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 
@@ -66,12 +67,12 @@ impl egui::Widget for KeybindSetsList<'_> {
                         // if puzzle_keybinds.active == set.preset_name {
                         //     let visuals = ui.visuals_mut();
                         //     visuals.widgets.hovered = visuals.widgets.active;
-                        //     visuals.widgets.inactive = visuals.widgets.active;
-                        // }
+                        //     visuals.widgets.inactive =
+                        // visuals.widgets.active; }
 
                         // if ui
-                        //     .add(egui::Button::new(&set.preset_name).frame(false))
-                        //     .clicked()
+                        //     .add(egui::Button::new(&set.preset_name).
+                        // frame(false))     .clicked()
                         // {
                         //     changed = true;
                         //     puzzle_keybinds.active = set.preset_name.clone();

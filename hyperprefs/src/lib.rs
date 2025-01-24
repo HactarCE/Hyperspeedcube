@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use bitvec::vec::BitVec;
 use eyre::{eyre, OptionExt};
-use hyperpuzzle::{Puzzle, Rgb};
+use hyperpuzzle_core::{Puzzle, Rgb};
 use serde::{Deserialize, Serialize};
 
 mod animations;
@@ -273,7 +273,7 @@ impl Preferences {
     }
 
     pub fn filters_mut(&mut self, puzzle: &Puzzle) -> &mut PuzzleFilterPreferences {
-        self.filters.entry(puzzle.id.clone()).or_default()
+        self.filters.entry(puzzle.meta.id.clone()).or_default()
     }
 
     pub fn background_color(&self, dark_mode: bool) -> Rgb {

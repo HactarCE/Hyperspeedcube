@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 hypermath = { workspace = true }
 hyperpaths = { workspace = true }
-hyperpuzzle = { workspace = true, features = ["ecolor"] }
+hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
 
 bitvec = { workspace = true }
 colorous = { workspace = true }

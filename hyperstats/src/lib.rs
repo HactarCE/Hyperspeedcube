@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use eyre::Result;
 use hyperkdl::{NodeContentsSchema, Warning};
-use hyperpuzzle_library::SolveVerification;
+use hyperpuzzle_log::verify::SolveVerification;
 use kdl::{KdlDocument, KdlError};
 
 /// Saves the statistics file, overwriting the existing one.

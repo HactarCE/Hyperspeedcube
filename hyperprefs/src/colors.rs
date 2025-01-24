@@ -1,6 +1,6 @@
 use std::collections::{btree_map, BTreeMap};
 
-use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
+use hyperpuzzle_core::{ColorSystem, DefaultColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
@@ -101,15 +101,15 @@ impl DefaultColorGradient {
 
             Self::LightRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle::Rgb::mix(Rgb::WHITE, rainbow, 0.9)
+                hyperpuzzle_core::Rgb::mix(Rgb::WHITE, rainbow, 0.9)
             }
             Self::DarkRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle::Rgb::mix(Rgb::BLACK, rainbow, 0.4)
+                hyperpuzzle_core::Rgb::mix(Rgb::BLACK, rainbow, 0.4)
             }
             Self::DarkerRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle::Rgb::mix(Rgb::BLACK, rainbow, 0.2)
+                hyperpuzzle_core::Rgb::mix(Rgb::BLACK, rainbow, 0.2)
             }
         }
     }
@@ -254,7 +254,8 @@ impl GlobalColorPalette {
                 .collect();
         }
 
-        changed |= hyperpuzzle::ensure_color_scheme_is_valid(scheme.values_mut(), |c| self.has(c));
+        changed |=
+            hyperpuzzle_core::ensure_color_scheme_is_valid(scheme.values_mut(), |c| self.has(c));
 
         changed
     }

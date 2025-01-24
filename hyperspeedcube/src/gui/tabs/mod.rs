@@ -19,9 +19,9 @@ mod mousebinds;
 mod move_input;
 mod piece_filters;
 mod puzzle;
+mod puzzle_catalog;
 mod puzzle_controls;
 mod puzzle_info;
-mod puzzle_library;
 mod scrambler;
 mod styles;
 mod timeline;
@@ -36,7 +36,7 @@ use crate::L;
 #[derive(Debug, Clone)]
 pub enum Tab {
     Puzzle(Arc<Mutex<PuzzleWidget>>),
-    PuzzleLibrary,
+    PuzzleCatalog,
     PuzzleInfo,
     KeybindsReference,
     About,
@@ -82,7 +82,7 @@ impl Tab {
         let l = &L.tabs.menu;
         match self {
             Tab::Puzzle(_) => l.puzzle,
-            Tab::PuzzleLibrary => l.puzzle_library,
+            Tab::PuzzleCatalog => l.puzzle_catalog,
             Tab::PuzzleInfo => l.puzzle_info,
             Tab::KeybindsReference => l.keybinds_reference,
             Tab::About => l.about,
@@ -118,7 +118,7 @@ impl Tab {
         let l = &L.tabs.titles;
         match self {
             Tab::Puzzle(puzzle_widget) => puzzle_widget.lock().title().into(),
-            Tab::PuzzleLibrary => l.puzzle_library.into(),
+            Tab::PuzzleCatalog => l.puzzle_catalog.into(),
             Tab::PuzzleInfo => l.puzzle_info.into(),
             Tab::KeybindsReference => l.keybinds_reference.into(),
             Tab::About => l.about.into(),
@@ -153,7 +153,7 @@ impl Tab {
     pub fn ui(&mut self, ui: &mut egui::Ui, app: &mut App) {
         match self {
             Tab::Puzzle(puzzle_widget) => puzzle::show(ui, app, puzzle_widget),
-            Tab::PuzzleLibrary => puzzle_library::show(ui, app),
+            Tab::PuzzleCatalog => puzzle_catalog::show(ui, app),
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
             Tab::KeybindsReference => keybinds_reference::show(ui, app),
             Tab::About => about::show(ui, app),

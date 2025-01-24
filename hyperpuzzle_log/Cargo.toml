@@ -15,11 +15,12 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 hyperkdl = { workspace = true }
 hyperkdl_derive = { workspace = true }
-hyperpuzzle = { workspace = true }
+hyperpuzzle_core = { workspace = true }
 
 itertools = { workspace = true }
 kdl = { workspace = true }
 lazy_static = { workspace = true }
+log = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }

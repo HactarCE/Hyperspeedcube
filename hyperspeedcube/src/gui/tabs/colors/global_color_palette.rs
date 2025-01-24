@@ -1,7 +1,7 @@
 use egui::Widget;
 use float_ord::FloatOrd;
 use hyperprefs::{GlobalColorPalette, PrefsConvert, DEFAULT_PREFS};
-use hyperpuzzle::Rgb;
+use hyperpuzzle_core::Rgb;
 use itertools::Itertools;
 use rand::Rng;
 use strum::{EnumIter, IntoEnumIterator};

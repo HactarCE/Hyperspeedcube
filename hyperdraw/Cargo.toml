@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 hypermath = { workspace = true }
 hyperprefs = { workspace = true }
-hyperpuzzle = { workspace = true }
+hyperpuzzle_core = { workspace = true }
 
 bytemuck = { workspace = true }
 cgmath = { workspace = true }

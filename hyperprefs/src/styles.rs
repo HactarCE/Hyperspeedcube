@@ -1,4 +1,4 @@
-use hyperpuzzle::Rgb;
+use hyperpuzzle_core::Rgb;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

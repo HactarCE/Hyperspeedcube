@@ -31,12 +31,12 @@ pub fn funny_autonames() -> impl Iterator<Item = String> {
     })
 }
 fn gen_adjective() -> String {
-    hyperpuzzle::util::titlecase(
+    hyperpuzzle_core::util::titlecase(
         names::ADJECTIVES
             .choose(&mut rand::rng())
             .unwrap_or(&"adjectivish"),
     )
 }
 fn gen_noun() -> String {
-    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::rng()).unwrap_or(&"noun"))
+    hyperpuzzle_core::util::titlecase(names::NOUNS.choose(&mut rand::rng()).unwrap_or(&"noun"))
 }

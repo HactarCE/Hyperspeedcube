@@ -7,10 +7,11 @@ extern crate lazy_static;
 use std::str::FromStr;
 
 use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
-use hyperpuzzle::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
+use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 
 pub mod notation;
+pub mod verify;
 
 /// Log file version. This **MUST** be incremented whenever breaking changes are
 /// made to the log file format.

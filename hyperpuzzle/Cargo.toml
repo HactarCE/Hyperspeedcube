@@ -1,6 +1,6 @@
 [package]
 name = "hyperpuzzle"
-description = "Multidimensional twisty puzzle generator and simulator backend for Hyperspeedcube"
+description = "Puzzle API for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -9,39 +9,23 @@ homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "4d"]
-categories = ["algorithms", "mathematics", "simulation"]
-license = "GPL-3.0-or-later"
+categories = ["simulation"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+hyperpuzzle_core = { workspace = true }
+hyperpuzzle_log = { workspace = true }
+hyperpuzzle_lua = { workspace = true }
+
+include_dir = { workspace = true }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+smallvec = { workspace = true }
+
+[dev-dependencies]
+eyre = { workspace = true }
 
 [lints]
 workspace = true
-
-[dependencies]
-hypermath = { workspace = true }
-hypershape = { workspace = true }
-
-chrono = { workspace = true }
-disjoint = { workspace = true }
-eyre = { workspace = true }
-float-ord = { workspace = true }
-hex = { workspace = true }
-indexmap = { workspace = true }
-itertools = { workspace = true }
-kdl = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-mlua = { workspace = true }
-parking_lot = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
-regex = { workspace = true }
-serde = { workspace = true }
-sha2 = { workspace = true }
-smallvec = { workspace = true }
-strum = { workspace = true }
-thiserror = { workspace = true }
-tinyset = { workspace = true }
-walkdir = { workspace = true }
-
-# Color conversions
-ecolor = { workspace = true, optional = true }
-oklab = { workspace = true, optional = true }

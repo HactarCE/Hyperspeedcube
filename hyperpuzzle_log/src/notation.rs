@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use hyperpuzzle::{LayerMask, LayeredTwist, PerTwist, Twist, TwistInfo};
+use hyperpuzzle_core::{LayerMask, LayeredTwist, PerTwist, Twist, TwistInfo};
 use itertools::Itertools;
 use regex::Regex;
 use smallvec::{smallvec, SmallVec};

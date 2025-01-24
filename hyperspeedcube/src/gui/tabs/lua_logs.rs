@@ -1,16 +1,16 @@
-use hyperpuzzle::lua::LuaLogLevel;
-use hyperpuzzle::LuaLogLine;
+// TODO: this isn't just Lua
+
+use hyperpuzzle_core::LogLine;
+use log::Level;
 
 use crate::app::App;
 use crate::L;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
-    let mut log_lines = hyperpuzzle_library::LIBRARY_LOG_LINES.lock();
+    let logger = hyperpuzzle::catalog().logger().clone();
     if ui.button(L.dev.logs.clear).clicked() {
-        log_lines.clear();
+        logger.clear();
     }
-
-    hyperpuzzle_library::LIBRARY.with(|lib| log_lines.extend(lib.pending_log_lines()));
 
     let filter_string_id = unique_id!();
     let mut filter_string: String =
@@ -29,7 +29,8 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
             ui.with_layout(ui.layout().with_main_wrap(false), |ui| {
                 let mut is_first = true;
                 let mut last_file = &None;
-                for line in log_lines
+                for line in logger
+                    .lines()
                     .iter()
                     .filter(|line| line.matches_filter_string(&filter_string))
                 {
@@ -57,20 +58,20 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
         });
 }
 
-fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
+fn colored_log_line(ui: &mut egui::Ui, line: &LogLine) {
     let text = egui::RichText::new(&line.msg).monospace();
     let text = match ui.visuals().dark_mode {
         true => match line.level {
-            LuaLogLevel::Info => text.color(egui::Color32::LIGHT_BLUE),
-            LuaLogLevel::Warn => text.color(egui::Color32::GOLD),
-            LuaLogLevel::Error => text.color(egui::Color32::LIGHT_RED),
+            Level::Error => text.color(egui::Color32::LIGHT_RED),
+            Level::Warn => text.color(egui::Color32::GOLD),
+            Level::Info | Level::Debug | Level::Trace => text.color(egui::Color32::LIGHT_BLUE),
         },
         false => match line.level {
-            LuaLogLevel::Info => text.color(egui::Color32::BLUE),
-            LuaLogLevel::Warn => text.color(egui::Color32::DARK_RED),
-            LuaLogLevel::Error => text
+            Level::Error => text
                 .color(egui::Color32::DARK_RED)
                 .background_color(egui::Color32::from_rgb(255, 223, 223)),
+            Level::Warn => text.color(egui::Color32::DARK_RED),
+            Level::Info | Level::Debug | Level::Trace => text.color(egui::Color32::BLUE),
         },
     };
     let label = egui::Label::new(text);

@@ -2,7 +2,7 @@
 
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
-use hyperpuzzle::*;
+use hyperpuzzle_core::*;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hyperprefs::Preferences;
-use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
+use hyperpuzzle_core::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
@@ -235,7 +235,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                                     let orig_color = view
                                                         .get_rgb_color(*color, &app.prefs)
                                                         .unwrap_or_default();
-                                                    let t = hyperpuzzle::Timestamp::now()
+                                                    let t = hyperpuzzle_core::Timestamp::now()
                                                         .subsec_nanos()
                                                         as f32
                                                         / 1_000_000_000.0;
@@ -252,8 +252,8 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                                         })
                                                         .insert(
                                                             puz.colors.list[*color].name.clone(),
-                                                            hyperpuzzle::DefaultColor::HexCode {
-                                                                rgb: hyperpuzzle::Rgb::mix(
+                                                            hyperpuzzle_core::DefaultColor::HexCode {
+                                                                rgb: hyperpuzzle_core::Rgb::mix(
                                                                     contrasting,
                                                                     orig_color,
                                                                     (0.5 - t).abs(),
@@ -315,11 +315,11 @@ fn puzzle_color_edit_button(
 
 fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
     use hyperprefs::MODIFIED_SUFFIX;
-    use hyperpuzzle::util::{escape_lua_table_key, lua_string_literal};
+    use hyperpuzzle_core::util::{escape_lua_table_key, lua_string_literal};
 
     let id_string_literal = lua_string_literal(&color_system.id);
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
-    let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
+    let mut default_scheme = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
     let mut schemes = color_system.schemes.clone();
     if let Some(custom_schemes) = prefs.color_schemes.get(color_system) {
@@ -346,7 +346,7 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     let has_default_colors = schemes.len() == 1;
 
     let color_name_kv_pairs = pad_to_common_length(color_system.list.iter_values().map(|info| {
-        let string_literal = hyperpuzzle::util::lua_string_literal(&info.name);
+        let string_literal = hyperpuzzle_core::util::lua_string_literal(&info.name);
         format!(" name = {string_literal},")
     }));
     let color_display_kv_pairs =
@@ -420,13 +420,12 @@ fn pad_to_common_length(strings: impl IntoIterator<Item = String>) -> Vec<String
 fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.horizontal(|ui| {
         if ui.button("Lint all puzzles").clicked() {
-            state.lint_results = hyperpuzzle_library::LIBRARY.with(|lib| {
-                lib.puzzles()
-                    .iter()
-                    .map(|puz| PuzzleLintOutput::from_spec(Arc::clone(puz)))
-                    .filter(|lint| !lint.all_good())
-                    .collect()
-            });
+            state.lint_results = hyperpuzzle::catalog()
+                .puzzles_and_generator_examples()
+                .into_iter()
+                .map(|puz| PuzzleLintOutput::from_spec(&puz))
+                .filter(|lint| !lint.all_good())
+                .collect();
         }
     });
 
@@ -455,12 +454,12 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.separator();
 
     for lint in &state.lint_results {
-        if !show_experimental && lint.puzzle.tags.is_experimental() {
+        if !show_experimental && lint.puzzle.meta.tags.is_experimental() {
             continue;
         }
 
-        egui::CollapsingHeader::new(lint.puzzle.display_name())
-            .id_salt(&lint.puzzle.id)
+        egui::CollapsingHeader::new(&lint.puzzle.meta.name)
+            .id_salt(&lint.puzzle.meta.id)
             .default_open(false)
             .open(override_state)
             .show_background(true)
@@ -484,7 +483,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                         ui.ctx().copy_text(text);
                     }
                     egui::CollapsingHeader::new("Missing tags")
-                        .id_salt((&lint.puzzle.id, "missing_tags"))
+                        .id_salt((&lint.puzzle.meta.id, "missing_tags"))
                         .default_open(true)
                         .show(ui, |ui| {
                             let markdown_text = missing_tags

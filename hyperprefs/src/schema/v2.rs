@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use hyperpuzzle::{DefaultColor, Rgb};
+use hyperpuzzle_core::{DefaultColor, Rgb};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 

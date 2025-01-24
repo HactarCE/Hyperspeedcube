@@ -11,7 +11,7 @@ use hyperprefs::{
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
     PuzzleViewPreferencesSet,
 };
-use hyperpuzzle::{
+use hyperpuzzle_core::{
     Axis, GizmoFace, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle, Sticker,
 };
 use parking_lot::Mutex;
@@ -614,9 +614,9 @@ impl PuzzleView {
     /// per-frame overrides.
     pub fn get_rgb_color(
         &self,
-        color: hyperpuzzle::Color,
+        color: hyperpuzzle_core::Color,
         prefs: &Preferences,
-    ) -> Option<hyperpuzzle::Rgb> {
+    ) -> Option<hyperpuzzle_core::Rgb> {
         let default_color = self.colors.value.get_index(color.0 as usize)?.1;
         prefs.color_palette.get(default_color)
     }

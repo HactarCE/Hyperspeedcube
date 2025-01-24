@@ -1,4 +1,4 @@
-use hyperpuzzle::{LayeredTwist, Timestamp};
+use hyperpuzzle_core::{LayeredTwist, Timestamp};
 use smallvec::SmallVec;
 
 /// Action on a puzzle that is tracked in the undo/redo history.
