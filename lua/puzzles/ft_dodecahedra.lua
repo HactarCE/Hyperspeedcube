@@ -231,8 +231,8 @@ puzzle_generators:add{
   gen = function(params)
     local size = params[1]
     return {
+      name = size .. "-Layer Kilominx",
       ndim = 3,
-
       build = function(self)
         local cut_depths = shallow_ft_dodecahedron_cut_depths(size)
         local shape = construct_ft_dodecahedron(self, cut_depths)
