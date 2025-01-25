@@ -44,7 +44,7 @@ fn verify_internal(
         notation::parse_twists(&puzzle.twist_by_name, &scramble.twists)
             .try_collect()
             .ok()?;
-    let expected_scrambled_puzzle = puzzle.new_scrambled(scramble_params); // TODO: this may be very slow
+    let expected_scrambled_puzzle = puzzle.new_scrambled(scramble_params.clone()); // TODO: this may be very slow
     let is_scramble_correct = expected_scrambled_puzzle.twists == scramble_twists;
 
     let mut log = solve.log.iter();

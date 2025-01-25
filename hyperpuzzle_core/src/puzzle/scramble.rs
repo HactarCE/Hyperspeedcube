@@ -7,23 +7,23 @@ use crate::Timestamp;
 
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScrambleParams {
     /// Type of scramble to generate.
     pub ty: ScrambleType,
     /// Timestamp when the scramble was requested.
     pub time: Timestamp,
-    /// Random seed, probably sourced from a "true" RNG provided by the OS.
-    pub seed: u32,
+    /// Random seed, probably sourced from a "true" RNG provided by the OS or by
+    /// the leaderboard server.
+    pub seed: String,
 }
 impl ScrambleParams {
     /// Generates a new random scramble based on the current time.
     pub fn new(ty: ScrambleType) -> Self {
-        Self {
-            ty,
-            time: Timestamp::now(),
-            seed: rand::rng().random(),
-        }
+        let time = Timestamp::now();
+        let random_u64: u64 = rand::rng().random();
+        let seed = format!("{time}_{random_u64}");
+        Self { ty, time, seed }
     }
 }
 
@@ -85,13 +85,6 @@ impl ScrambleProgress {
         self.cancel_requested
             .load(std::sync::atomic::Ordering::Relaxed)
     }
-
-    // pub(super) fn set_output(&self, output: (Vec<LayeredTwist>, PuzzleState)) {
-    //     *self.output.lock() = Some(output);
-    // }
-    // pub fn try_take_output(&self) -> Option<(Vec<LayeredTwist>, PuzzleState)> {
-    //     self.output.lock().take()
-    // }
 }
 
 /// Output of scrambling a puzzle.

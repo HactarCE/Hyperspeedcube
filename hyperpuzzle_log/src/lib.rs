@@ -183,7 +183,7 @@ pub struct Scramble {
     /// If this is not present, then the scramble is assumed to have been
     /// generated nondeterministically.
     #[kdl(property("seed"), optional)]
-    pub seed: Option<u32>,
+    pub seed: Option<String>,
     /// Twist sequence to apply to the puzzle, using standard notation.
     #[kdl(child("twists"))]
     pub twists: String,
@@ -197,7 +197,7 @@ impl Scramble {
         Some(ScrambleParams {
             ty: self.ty,
             time: self.time?,
-            seed: self.seed?,
+            seed: self.seed.clone()?,
         })
     }
     /// Constructs a scramble from scramble parameters and a twist sequence.
@@ -351,7 +351,7 @@ mod tests {
                 scramble: Some(Scramble {
                     ty: ScrambleType::Partial(3),
                     time: Some(Timestamp::now()),
-                    seed: Some(42),
+                    seed: Some("abc".to_string()),
                     twists: "R U L'".to_string(),
                 }),
                 log: vec![

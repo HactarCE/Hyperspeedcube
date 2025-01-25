@@ -109,7 +109,7 @@ impl Eq for Puzzle {}
 /// Compare by metadata.
 impl PartialOrd for Puzzle {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.meta.partial_cmp(&other.meta)
+        Some(self.cmp(other))
     }
 }
 /// Compare by metadata.
@@ -142,11 +142,12 @@ impl Puzzle {
         params: ScrambleParams,
         progress: Option<Arc<ScrambleProgress>>,
     ) -> Option<ScrambledPuzzle> {
-        let ScrambleParams { ty, time, seed } = params;
+        let ScrambleParams { ty, time, seed } = &params;
 
         let mut sha256 = sha2::Sha256::new();
         sha256.write_all(time.to_string().as_bytes()).unwrap();
-        sha256.write_all(&seed.to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
+        sha256.write_all(&seed.len().to_le_bytes()).unwrap();
+        sha256.write_all(seed.as_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
         let digest = sha256.finalize();
 
         let mut rng =
@@ -154,7 +155,7 @@ impl Puzzle {
 
         let scramble_length = match ty {
             ScrambleType::Full => self.full_scramble_length,
-            ScrambleType::Partial(n) => n,
+            ScrambleType::Partial(n) => *n,
         };
 
         if let Some(progress) = &progress {
