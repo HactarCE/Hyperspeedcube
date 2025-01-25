@@ -58,7 +58,7 @@ impl LuaLoader {
         lua.set_app_data::<Catalog>(this.catalog.clone());
 
         super::env::monkeypatch_lua_environment(&lua)?;
-        super::env::set_logger(&lua, logger)?;
+        super::env::try_set_logger(&lua, logger)?;
 
         for (module_name, module_source) in LUA_MODULES {
             log::info!("Loading Lua module {module_name:?}");

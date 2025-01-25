@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io::Write;
 
-use hyperpuzzle_core::{Catalog, Logger};
+use hyperpuzzle_core::Catalog;
 
 mod lua_construction;
 mod verification;

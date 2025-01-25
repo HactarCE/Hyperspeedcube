@@ -1,38 +1,19 @@
-use std::collections::{hash_map, BTreeMap, BTreeSet, HashMap};
+use std::collections::{hash_map, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use itertools::Itertools;
 use parking_lot::Mutex;
 
+mod db;
 mod entry;
-mod generators;
+mod params;
 mod specs;
 
+use db::*;
 pub use entry::*;
-pub use generators::*;
+pub use params::*;
 pub use specs::*;
 
 use crate::{ColorSystem, LogLine, Logger, Puzzle};
-
-#[derive(Default)]
-struct Db {
-    /// Loaded puzzles by ID.
-    puzzles: BTreeMap<String, Arc<PuzzleSpec>>,
-    /// Loaded puzzle generators by ID.
-    puzzle_generators: BTreeMap<String, Arc<PuzzleSpecGenerator>>,
-    /// Cache of constructed puzzles.
-    puzzle_cache: HashMap<String, Arc<Mutex<CacheEntry<Puzzle>>>>,
-
-    /// Loaded color systems by ID.
-    color_systems: BTreeMap<String, Arc<ColorSystem>>,
-    /// Loaded color system generators by ID.
-    color_system_generators: BTreeMap<String, Arc<ColorSystemGenerator>>,
-    /// Cache of generated color systems.
-    color_system_cache: HashMap<String, Arc<Mutex<CacheEntry<ColorSystem>>>>,
-
-    /// Sorted list of all puzzle definition authors.
-    authors: BTreeSet<String>,
-}
 
 /// Catalog of shapes, puzzles, twist systems, etc.
 ///
@@ -40,63 +21,64 @@ struct Db {
 #[derive(Default, Clone)]
 pub struct Catalog {
     db: Arc<Mutex<Db>>,
-    logger: Logger,
+    // TODO: consider removing the logger here
+    default_logger: Logger,
 }
 impl Catalog {
+    /// Constructs a new empty catalog.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn logger(&self) -> &Logger {
-        &self.logger
+    /// Returns the default logger for the catalog.
+    pub fn default_logger(&self) -> &Logger {
+        &self.default_logger
     }
 
-    pub fn puzzles_and_generator_examples(&self) -> Vec<Arc<PuzzleSpec>> {
-        let db = self.db.lock();
-        itertools::chain(
-            db.puzzles.values(),
-            db.puzzle_generators
+    /// Returns a snapshot of the current puzzle catalog.
+    ///
+    /// This is slightly expensive, so don't call it in a hot loop.
+    pub fn puzzles(&self) -> PuzzleCatalog {
+        self.subcatalog()
+    }
+    /// Returns a snapshot of the current color system catalog.
+    ///
+    /// This is slightly expensive, so don't call it in a hot loop.
+    pub fn color_systems(&self) -> ColorSystemCatalog {
+        self.subcatalog()
+    }
+    fn subcatalog<T: CatalogObject>(&self) -> SubCatalog<T> {
+        let mut db = self.db.lock();
+        SubCatalog {
+            generators: T::get_generators(&mut db).clone(),
+            generated_examples: T::get_generators(&mut db)
                 .values()
-                .flat_map(|g| g.examples.values()),
-        )
-        .map(Arc::clone)
-        .collect()
+                .filter_map(|g| T::get_generator_examples(g))
+                .flatten()
+                .map(|(k, v)| (k.clone(), Arc::clone(v)))
+                .collect(),
+            non_generated: T::get_specs(&mut db).clone(),
+        }
     }
-    pub fn puzzle_generators(&self) -> Vec<Arc<PuzzleSpecGenerator>> {
-        self.db
-            .lock()
-            .puzzle_generators
-            .values()
-            .map(Arc::clone)
-            .collect()
-    }
-    pub fn color_systems(&self) -> Vec<Arc<ColorSystem>> {
-        self.db
-            .lock()
-            .color_systems
-            .values()
-            .map(Arc::clone)
-            .collect_vec()
-    }
+
+    /// Returns a sorted list of all puzzle authors.
     pub fn authors(&self) -> Vec<String> {
         self.db.lock().authors.iter().cloned().collect()
     }
 
-    pub fn get_puzzle_generator(&self, id: &str) -> Option<Arc<PuzzleSpecGenerator>> {
-        self.db.lock().puzzle_generators.get(id).map(Arc::clone)
-    }
-
+    /// Adds a puzzle to the catalog.
     pub fn add_puzzle(&self, spec: Arc<PuzzleSpec>) {
         let mut db = self.db.lock();
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         db.puzzles.insert(spec.meta.id.clone(), spec);
     }
+    /// Adds a puzzle generator to the catalog.
     pub fn add_puzzle_generator(&self, spec: Arc<PuzzleSpecGenerator>) {
         let mut db = self.db.lock();
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         db.puzzle_generators.insert(spec.meta.id.clone(), spec);
     }
-
+    /// Adds a color system to the catalog.
     pub fn add_color_system(&self, colors: Arc<ColorSystem>) {
         self.db
             .lock()
@@ -108,6 +90,7 @@ impl Catalog {
             Arc::new(Mutex::new(CacheEntry::Ok(Redirectable::Direct(colors)))),
         );
     }
+    /// Adds a color system generator to the catalog.
     pub fn add_color_system_generator(&self, colors_generator: Arc<ColorSystemGenerator>) {
         self.db
             .lock()
@@ -115,25 +98,33 @@ impl Catalog {
             .insert(colors_generator.id.clone(), colors_generator);
     }
 
+    /// Requests a puzzle to be built if it has not been built already, and then
+    /// returns the cache entry for the puzzle.
+    ///
+    /// It may take time for the puzzle to build. If you want to block the
+    /// current thread, see [`Self::build_puzzle_blocking()`].
     pub fn build_puzzle(&self, id: &str) -> Arc<Mutex<CacheEntry<Puzzle>>> {
         self.build_generic(id)
     }
+    /// Builds a puzzle and blocks the current thread until it is complete.
     pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, String> {
         self.build_generic_blocking(id)
     }
 
+    /// Requests a color system to be built if it has not been built already,
+    /// and then returns the cache entry for the color system.
+    ///
+    /// It may take time for the color system to build. If you want to block the
+    /// current thread, see [`Self::build_color_system_blocking()`].
     pub fn build_color_system(&self, id: &str) -> Arc<Mutex<CacheEntry<ColorSystem>>> {
         self.build_generic(id)
     }
+    /// Builds a puzzle and blocks the current thread until it is complete.
     pub fn build_color_system_blocking(&self, id: &str) -> Result<Arc<ColorSystem>, String> {
         self.build_generic_blocking(id)
     }
 
-    pub fn clear_cache(&self) {
-        self.db.lock().puzzle_cache.clear();
-        self.db.lock().color_system_cache.clear();
-    }
-
+    /// Builds an object and blocks the current thread until it is complete.
     fn build_generic<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T>>> {
         let id = id.to_owned();
         let mut db_guard = self.db.lock();
@@ -150,6 +141,9 @@ impl Catalog {
             }
         }
     }
+    /// Builds an object on the current thread, or returns early if the object
+    /// is already being constructed on another thread. This may or may not
+    /// block the current thread.
     fn build_generic_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
         let mut id = id.to_owned();
         let mut redirect_sequence = vec![];
@@ -203,7 +197,7 @@ impl Catalog {
                                 Some(generator) => {
                                     drop(db_guard); // unlock mutex before running Lua code
                                     file = T::get_generator_filename(&generator);
-                                    let ctx = BuildCtx::new(&self.logger, &progress);
+                                    let ctx = BuildCtx::new(&self.default_logger, &progress);
                                     T::generate_spec(ctx, &generator, params)
                                 }
                             }
@@ -212,7 +206,7 @@ impl Catalog {
                     // Build the object, which may be expensive.
                     let cache_entry_value = match generator_output {
                         Ok(Redirectable::Direct(object_spec)) => {
-                            let ctx = BuildCtx::new(&self.logger, &progress);
+                            let ctx = BuildCtx::new(&self.default_logger, &progress);
                             CacheEntry::from(T::build_object_from_spec(ctx, &object_spec))
                         }
                         Ok(Redirectable::Redirect(new_id)) => {
@@ -220,7 +214,7 @@ impl Catalog {
                         }
                         Err(e) => {
                             let msg = format!("error building {id}: {e}");
-                            self.logger.log(LogLine {
+                            self.default_logger.log(LogLine {
                                 level: log::Level::Error,
                                 file,
                                 msg,
@@ -261,126 +255,45 @@ impl Catalog {
         }
 
         let msg = format!("too many ID redirects: {redirect_sequence:?}");
-        self.logger.error(&msg);
+        self.default_logger.error(&msg);
 
         Err(msg)
     }
 }
 
-/// Object with an ID (such as a puzzle or color system) that can be stored in
-/// the catalog.
-trait CatalogObject: Sized {
-    type Spec;
-    type SpecGenerator;
+/// List of all puzzles and puzzle generators in a catalog.
+pub type PuzzleCatalog = SubCatalog<Puzzle>;
 
-    const NAME: &str;
+/// List of all color systems and color system generators in a catalog.
+pub type ColorSystemCatalog = SubCatalog<ColorSystem>;
 
-    fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>>;
-    fn get_specs(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::Spec>>;
-    fn get_generators(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::SpecGenerator>>;
-
-    fn get_spec_filename(spec: &Self::Spec) -> Option<String>;
-    fn get_generator_filename(generator: &Self::SpecGenerator) -> Option<String>;
-
-    fn build_object_from_spec(
-        ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String>;
-    fn generate_spec(
-        ctx: BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String>;
+/// List of all objects and generators for a specific kind of catalog object.
+pub struct SubCatalog<T: CatalogObject> {
+    /// List of generators.
+    pub generators: HashMap<String, Arc<T::SpecGenerator>>,
+    /// List of examples for generators.
+    pub generated_examples: HashMap<String, Arc<T::Spec>>,
+    /// List of non-generated objects, in an unspecified order.
+    pub non_generated: HashMap<String, Arc<T::Spec>>,
 }
-
-impl CatalogObject for Puzzle {
-    type Spec = PuzzleSpec;
-    type SpecGenerator = PuzzleSpecGenerator;
-
-    const NAME: &str = "puzzle";
-
-    fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>> {
-        &mut db.puzzle_cache
-    }
-    fn get_specs(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::Spec>> {
-        &mut db.puzzles
-    }
-    fn get_generators(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::SpecGenerator>> {
-        &mut db.puzzle_generators
-    }
-
-    fn get_spec_filename(spec: &Self::Spec) -> Option<String> {
-        spec.meta.tags.filename().map(str::to_owned)
-    }
-    fn get_generator_filename(generator: &Self::SpecGenerator) -> Option<String> {
-        generator.meta.tags.filename().map(str::to_owned)
-    }
-
-    fn build_object_from_spec(
-        ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String> {
-        (spec.build)(ctx).map_err(|e| format!("{e:#}"))
-    }
-    fn generate_spec(
-        ctx: BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String> {
-        (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
+impl<T: CatalogObject> SubCatalog<T> {
+    /// Returns a list of objects, including generator examples, in an
+    /// unspecified order.
+    pub fn objects(&self) -> impl Iterator<Item = &Arc<T::Spec>> {
+        itertools::chain(
+            self.non_generated.values(),
+            self.generated_examples.values(),
+        )
     }
 }
-
-impl CatalogObject for ColorSystem {
-    type Spec = ColorSystem;
-    type SpecGenerator = ColorSystemGenerator;
-
-    const NAME: &str = "color system";
-
-    fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>> {
-        &mut db.color_system_cache
+impl PuzzleCatalog {
+    /// Returns all entries that might show in the puzzle list, in an
+    /// unspecified order: non-generated puzzles, example puzzles, and
+    /// puzzle generators.
+    pub fn puzzle_list_entries(&self) -> impl Iterator<Item = &PuzzleListMetadata> {
+        itertools::chain(
+            self.generators.values().map(|g| &g.meta),
+            self.objects().map(|o| &o.meta),
+        )
     }
-    fn get_specs(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::Spec>> {
-        &mut db.color_systems
-    }
-    fn get_generators(db: &mut Db) -> &mut BTreeMap<String, Arc<Self::SpecGenerator>> {
-        &mut db.color_system_generators
-    }
-
-    fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
-        None
-    }
-    fn get_generator_filename(_generator: &Self::SpecGenerator) -> Option<String> {
-        None
-    }
-
-    fn build_object_from_spec(
-        _ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String> {
-        Ok(Redirectable::Direct(Arc::clone(spec)))
-    }
-    fn generate_spec(
-        ctx: BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String> {
-        (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
-    }
-}
-
-/// Possible ID redirect.
-#[derive(Debug, Clone)]
-pub enum Redirectable<T> {
-    /// Thing directly generated.
-    Direct(T),
-    /// Redirect to a different ID.
-    Redirect(String),
-}
-
-pub enum IdError {
-    NoPuzzle,
-    NoGenerator,
-    BadParams, // TODO: more detail
-    TooManyRedirects(Vec<String>),
 }

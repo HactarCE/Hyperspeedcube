@@ -21,7 +21,6 @@ hypershape = { workspace = true }
 
 chrono = { workspace = true }
 eyre = { workspace = true }
-float-ord = { workspace = true }
 hex = { workspace = true }
 human-sort = { workspace = true }
 indexmap = { workspace = true }

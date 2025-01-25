@@ -69,6 +69,10 @@ pub fn generated_id(generator_id: &str, params: impl IntoIterator<Item = impl To
     ret
 }
 
+/// Compares IDs of objects in a [`Catalog`].
+///
+/// Currently this uses [`human_sort`], a string comparison algorithm that is
+/// handles numbers in a human-friendly way.
 pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     human_sort::compare(a, b)
 }

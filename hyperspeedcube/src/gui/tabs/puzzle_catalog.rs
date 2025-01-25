@@ -28,6 +28,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let stored_search_query_string = EguiTempValue::new(ui);
     let mut search_query_string: String = stored_search_query_string.get().unwrap_or_default();
 
+    let puzzle_catalog = hyperpuzzle::catalog().puzzles();
+
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hyperpaths::lua_dir().is_ok() {
@@ -169,22 +171,18 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 .iter()
                                 .any(|(tag, _value)| *tag == "experimental");
 
-                        let all_puzzles = hyperpuzzle::catalog().puzzles_and_generator_examples();
-                        let all_generators = hyperpuzzle::catalog().puzzle_generators();
-                        let query_results = itertools::chain(
-                            all_puzzles.iter().map(|p| &p.meta),
-                            all_generators.iter().map(|g| &g.meta),
-                        )
-                        .filter(|entry| show_experimental || !entry.tags.is_experimental())
-                        .filter_map(|entry| query.try_match(entry))
-                        .sorted_unstable_by(|a, b| {
-                            Ord::cmp(&(-a.score, &a.object), &(-b.score, &b.object))
-                        });
+                        let query_results = puzzle_catalog
+                            .puzzle_list_entries()
+                            .filter(|entry| show_experimental || !entry.tags.is_experimental())
+                            .filter_map(|entry| query.try_match(entry))
+                            .sorted_unstable_by(|a, b| {
+                                Ord::cmp(&(-a.score, &a.object), &(-b.score, &b.object))
+                            });
 
                         for query_result in query_results {
                             let obj = query_result.object.clone();
                             let r = ui.add(query_result);
-                            match hyperpuzzle::catalog().get_puzzle_generator(&obj.id) {
+                            match puzzle_catalog.generators.get(&obj.id) {
                                 None => {
                                     if r.clicked() {
                                         app.load_puzzle(&obj.id);

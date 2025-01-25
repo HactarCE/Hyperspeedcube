@@ -421,8 +421,8 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.horizontal(|ui| {
         if ui.button("Lint all puzzles").clicked() {
             state.lint_results = hyperpuzzle::catalog()
-                .puzzles_and_generator_examples()
-                .into_iter()
+                .puzzles()
+                .objects()
                 .map(|puz| PuzzleLintOutput::from_spec(&puz))
                 .filter(|lint| !lint.all_good())
                 .collect();

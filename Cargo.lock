@@ -2367,12 +2367,8 @@ dependencies = [
  "hyperpuzzle_core",
  "hyperpuzzle_log",
  "hyperpuzzle_lua",
- "include_dir",
- "itertools 0.13.0",
  "lazy_static",
- "log",
  "parking_lot",
- "smallvec",
 ]
 
 [[package]]
@@ -2382,7 +2378,6 @@ dependencies = [
  "chrono",
  "ecolor",
  "eyre",
- "float-ord",
  "hex",
  "human-sort",
  "hypermath",
@@ -2424,12 +2419,10 @@ dependencies = [
 name = "hyperpuzzle_lua"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "disjoint",
  "ecolor",
  "eyre",
  "float-ord",
- "hex",
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
@@ -2437,21 +2430,13 @@ dependencies = [
  "include_dir",
  "indexmap 2.7.0",
  "itertools 0.13.0",
- "kdl",
- "lazy_static",
  "log",
  "mlua",
  "oklab",
  "parking_lot",
- "rand 0.9.0-beta.1",
- "rand_chacha 0.9.0-beta.1",
  "regex",
- "serde",
- "sha2",
  "smallvec",
- "strum",
  "thiserror 2.0.6",
- "tinyset",
  "walkdir",
 ]
 
@@ -2559,7 +2544,6 @@ dependencies = [
  "hyperkdl",
  "hyperkdl_derive",
  "hyperpaths",
- "hyperpuzzle_core",
  "hyperpuzzle_log",
  "kdl",
  "log",

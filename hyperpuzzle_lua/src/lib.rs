@@ -4,9 +4,6 @@
 
 use std::path::Path;
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod builder;
 pub mod lua;
 
@@ -76,6 +73,7 @@ pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_co
     loader.load_all_files(logger);
 }
 
+/// Extracts the built-in Lua files to the specified path.
 pub fn extract_builtin_files(base_path: &Path) -> std::io::Result<()> {
     LUA_BUILTIN_DIR.extract(base_path)
 }

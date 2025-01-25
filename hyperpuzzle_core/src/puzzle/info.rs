@@ -146,6 +146,7 @@ impl AsRef<str> for AxisInfo {
     }
 }
 
+/// Layers of an axis.
 #[derive(Debug, Default, PartialEq)]
 pub struct AxisLayers(pub PerLayer<LayerInfo>);
 impl fmt::Display for AxisLayers {

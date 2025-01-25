@@ -31,8 +31,19 @@ pub struct LuaPuzzleSpec {
 
 impl FromLua for LuaPuzzleSpec {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
-        let table: LuaTable = lua.unpack(value)?;
+        let ret = LuaPuzzleSpec::from_lua_table(lua, lua.unpack(value)?)?;
+        crate::validate_id_str(&ret.meta.id).into_lua_err()?;
+        Ok(ret)
+    }
+}
 
+impl LuaPuzzleSpec {
+    pub(crate) fn from_generated_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<Self> {
+        // don't validate ID
+        Self::from_lua_table(lua, table)
+    }
+
+    fn from_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<Self> {
         let id: String;
         let version: LuaVersion;
         let name: Option<String>;
@@ -56,7 +67,6 @@ impl FromLua for LuaPuzzleSpec {
             scramble,
         }));
 
-        let id = crate::validate_id(id).into_lua_err()?;
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
         if let Some(color_system_id) = colors.clone() {
@@ -96,9 +106,8 @@ impl FromLua for LuaPuzzleSpec {
             full_scramble_length: scramble,
         })
     }
-}
 
-impl LuaPuzzleSpec {
+    /// Converts to a [`PuzzleSpec`].
     pub fn into_puzzle_spec(self, lua: &Lua) -> PuzzleSpec {
         let lua = lua.clone();
         PuzzleSpec {

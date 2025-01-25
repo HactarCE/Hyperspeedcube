@@ -17,7 +17,7 @@ lazy_static! {
         this: Weak::clone(this),
         meta: PuzzleListMetadata {
             id: "~placeholder".to_string(),
-            version: Version::ZERO,
+            version: Version::PLACEHOLDER,
             name: "🤔".to_string(),
             aliases: vec![],
             tags: TagSet::new(),

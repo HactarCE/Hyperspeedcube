@@ -177,6 +177,7 @@ impl Mesh {
 
         Ok(vertex_id)
     }
+    /// Adds a gizmo vertex to the mesh and returns the vertex ID.
     pub fn add_gizmo_vertex(&mut self, pos: impl VectorRef, surface_id: u32) -> Result<u32> {
         let ndim = self.ndim;
         let vertex_id = self.vertex_count() as u32;

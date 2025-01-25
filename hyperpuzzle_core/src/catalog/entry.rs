@@ -1,19 +1,29 @@
-use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::{Condvar, Mutex};
 
 use super::Redirectable;
 
+/// Entry in the catalog.
+///
+/// If this is present, then some worker thread is working on building the
+/// object.
 #[derive(Debug)]
 pub enum CacheEntry<T> {
+    /// There is a thread responsible for building the object, but it hasn't
+    /// started yet. (It may be waiting on a mutex to unlock, for example.)
     NotStarted,
+    /// The object is currently being build.
     Building {
+        /// Progress on building the object.
         progress: Arc<Mutex<Progress>>,
+        /// Flag to wake waiting threads when the object is built.
         notify: NotifyWhenDropped,
     },
+    /// The object has been built.
     Ok(Redirectable<Arc<T>>),
-    Err(String), // TODO: what?
+    /// The object could not be built due to an error.
+    Err(String),
 }
 impl<T> Default for CacheEntry<T> {
     fn default() -> Self {
@@ -29,12 +39,31 @@ impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
     }
 }
 
+/// Flag that wakes waiting threads when it is dropped.
+///
+/// # Example
+///
+/// ```rust
+/// let notify_when_dropped = NotifyWhenDropped::new();
+///
+/// let waiter = notify_when_dropped.waiter();
+///
+/// std::thread::spawn(move || {
+///     waiter.wait();
+///     println!("2");
+/// });
+///
+/// println!("1")
+/// drop(notify_when_dropped);
+/// ```
 #[derive(Debug, Default)]
 pub struct NotifyWhenDropped(Arc<(Mutex<bool>, Condvar)>);
 impl NotifyWhenDropped {
+    /// Constructs a new notify-when-dropped flag.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Returns a handle to the flag that can be waited on.
     pub fn waiter(&self) -> Waiter {
         Waiter(Arc::clone(&self.0))
     }
@@ -47,17 +76,21 @@ impl Drop for NotifyWhenDropped {
     }
 }
 
+/// Handle to a [`NotifyWhenDropped`] flag.
 #[derive(Debug, Clone)]
 pub struct Waiter(Arc<(Mutex<bool>, Condvar)>);
 impl Waiter {
+    /// Waits until the flag is set.
     pub fn wait(self) {
         let (mutex, condvar) = &*self.0;
         condvar.wait_while(&mut mutex.lock(), |is_done| !*is_done);
     }
 }
 
+/// Progress on building an object in the catalog.
 #[derive(Debug, Default, Clone)]
 pub struct Progress {
+    /// Current task.
     pub task: BuildTask,
 }
 
@@ -75,15 +108,4 @@ pub enum BuildTask {
     BuildingPuzzle,
     /// Finalizing the object.
     Finalizing,
-}
-impl fmt::Display for BuildTask {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BuildTask::Initializing => write!(f, "Initializing"),
-            BuildTask::GeneratingSpec => write!(f, "Generating spec"),
-            BuildTask::BuildingColors => write!(f, "Building color system"),
-            BuildTask::BuildingPuzzle => write!(f, "Building"),
-            BuildTask::Finalizing => write!(f, "Finalizing"),
-        }
-    }
 }

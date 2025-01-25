@@ -21,7 +21,8 @@ impl fmt::Display for Version {
     }
 }
 impl Version {
-    pub const ZERO: Version = Version {
+    /// Placeholder version `0.0.0`
+    pub const PLACEHOLDER: Version = Version {
         major: 0,
         minor: 0,
         patch: 0,

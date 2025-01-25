@@ -21,28 +21,18 @@ hyperpaths = { workspace = true, optional = true }
 hyperpuzzle_core = { workspace = true }
 hypershape = { workspace = true }
 
-chrono = { workspace = true }
 disjoint = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
-hex = { workspace = true }
 include_dir = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
-kdl = { workspace = true }
-lazy_static = { workspace = true }
 log = { workspace = true }
 mlua = { workspace = true }
 parking_lot = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
 regex = { workspace = true }
-serde = { workspace = true }
-sha2 = { workspace = true }
 smallvec = { workspace = true }
-strum = { workspace = true }
 thiserror = { workspace = true }
-tinyset = { workspace = true }
 walkdir = { workspace = true }
 
 # Color conversions

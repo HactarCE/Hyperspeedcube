@@ -1,6 +1,6 @@
 use std::fmt;
 
-/// Parameter for a generated puzzle.
+/// Parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratorParam {
     /// Human-friendly name.
@@ -63,10 +63,13 @@ impl fmt::Display for GeneratorParamValue {
     }
 }
 
+/// Error encountered when parsing a generator parameter.
 #[derive(Debug, Clone)]
 pub struct GeneratorParamError {
-    expected: GeneratorParam,
-    got: String,
+    /// Parameter requirements.
+    pub expected: GeneratorParam,
+    /// Value supplied.
+    pub got: String,
 }
 impl fmt::Display for GeneratorParamError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

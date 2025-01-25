@@ -76,7 +76,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
         crate::lua::protect_with_local_env(lua, &gen)?;
 
         let name = name.unwrap_or_else(|| {
-            lua.warning(format!("missing `name` for puzzle `{id}`"), false);
+            lua.warning(format!("missing `name` for puzzle generator `{id}`"), false);
             id.clone()
         });
 
@@ -127,6 +127,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
 }
 
 impl LuaPuzzleGeneratorSpec {
+    /// Converts to a [`PuzzleSpecGenerator`].
     pub fn into_puzzle_spec_generator(self, lua: &Lua) -> PuzzleSpecGenerator {
         let lua = lua.clone();
         PuzzleSpecGenerator {
@@ -217,11 +218,11 @@ impl LuaPuzzleGeneratorSpec {
         // Inherit defaults from generator.
         let puzzle_spec_table = crate::lua::deep_copy_table(lua, generated_spec.clone())?;
         {
-            // Set dummy ID (can't use the real ID because it isn't a valid ID).
+            // Set puzzle ID.
             if puzzle_spec_table.contains_key("id")? {
                 lua.warning("overwriting `id` outputted by puzzle generator", false);
             }
-            puzzle_spec_table.raw_set("id", "_")?;
+            puzzle_spec_table.raw_set("id", id)?;
 
             // Set version.
             if puzzle_spec_table.contains_key("version")? {
@@ -236,12 +237,9 @@ impl LuaPuzzleGeneratorSpec {
         }
 
         // Generate the puzzle spec.
-        let mut puzzle_spec = LuaPuzzleSpec::from_lua(puzzle_spec_table.into_lua(lua)?, lua)?;
+        let mut puzzle_spec = LuaPuzzleSpec::from_generated_lua_table(lua, puzzle_spec_table)?;
 
         let meta = &mut puzzle_spec.meta;
-
-        // Now we can manually overwrite the ID.
-        meta.id = id;
 
         // Add data from the matching example.
         if let Some(overrides) = overrides {
@@ -360,14 +358,6 @@ impl FromLua for PuzzleGeneratorOverrides {
             tags,
         })
     }
-}
-
-/// Output of a puzzle generator.
-pub enum PuzzleGeneratorOutput {
-    /// Puzzle parameters.
-    Puzzle(Arc<LuaPuzzleSpec>),
-    /// Redirect to a different puzzle ID.
-    Redirect(String),
 }
 
 fn param_value_into_lua(lua: &Lua, value: &GeneratorParamValue) -> LuaResult<LuaValue> {

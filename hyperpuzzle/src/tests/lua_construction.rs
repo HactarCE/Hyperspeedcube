@@ -17,7 +17,7 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
     let mut out = String::new();
 
-    for puzzle in catalog.puzzles_and_generator_examples() {
+    for puzzle in catalog.puzzles().objects() {
         if !LINT_EXPERIMENTAL && puzzle.meta.tags.is_experimental() {
             continue;
         }
@@ -65,11 +65,12 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
 #[test]
 fn build_all_puzzles() -> Result<(), String> {
-    let lib = load_new_catalog();
+    let catalog = load_new_catalog();
     let mut failed = vec![];
     let mut times = vec![];
     let t1 = std::time::Instant::now();
-    for puzzle in lib.puzzles_and_generator_examples() {
+    let puzzle_catalog = catalog.puzzles();
+    for puzzle in puzzle_catalog.objects() {
         if puzzle.meta.tags.get("big").is_some_and(|v| v.is_present()) {
             println!(
                 "Skipping big puzzle {} ({})",
@@ -80,7 +81,7 @@ fn build_all_puzzles() -> Result<(), String> {
 
         let (result, time) = time_it(
             format!("Building puzzle {} ({})", puzzle.meta.name, puzzle.meta.id),
-            || lib.build_puzzle_blocking(&puzzle.meta.id),
+            || catalog.build_puzzle_blocking(&puzzle.meta.id),
         );
         match result {
             Ok(_) => {

@@ -14,17 +14,14 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 hyperpuzzle_core = { workspace = true }
-hyperpuzzle_log = { workspace = true }
 hyperpuzzle_lua = { workspace = true }
 
-include_dir = { workspace = true }
-itertools = { workspace = true }
 lazy_static = { workspace = true }
-log = { workspace = true }
 parking_lot = { workspace = true }
-smallvec = { workspace = true }
 
 [dev-dependencies]
+hyperpuzzle_log = { workspace = true }
+
 eyre = { workspace = true }
 
 [lints]

@@ -15,6 +15,8 @@ enum TagFilterState {
 pub struct TagMenu {
     tag_states: HashMap<String, TagFilterState>,
     show_experimental: bool,
+    puzzle_catalog: hyperpuzzle_core::PuzzleCatalog,
+    color_system_catalog: hyperpuzzle_core::ColorSystemCatalog,
 }
 impl TagMenu {
     pub fn new(
@@ -42,6 +44,8 @@ impl TagMenu {
         Self {
             tag_states,
             show_experimental: true,
+            puzzle_catalog: hyperpuzzle::catalog().puzzles(),
+            color_system_catalog: hyperpuzzle::catalog().color_systems(),
         }
     }
 
@@ -101,9 +105,8 @@ impl TagMenu {
                         let name = name.as_deref().unwrap_or("");
 
                         if name == "colors/system" {
-                            hyperpuzzle::catalog()
-                                .color_systems()
-                                .iter()
+                            self.color_system_catalog
+                                .objects()
                                 // Sort by name (could sort by ID instead)
                                 .sorted_unstable_by(|a, b| {
                                     hyperpuzzle_core::compare_ids(&a.id, &b.id)
@@ -115,23 +118,17 @@ impl TagMenu {
                                 .reduce(Option::or)
                                 .flatten()
                         } else {
-                            // TODO: factor this `chain` out somehow
-                            let all_puzzles =
-                                hyperpuzzle::catalog().puzzles_and_generator_examples();
-                            let all_generators = hyperpuzzle::catalog().puzzle_generators();
-                            itertools::chain(
-                                all_puzzles.iter().map(|p| &p.meta.tags),
-                                all_generators.iter().map(|g| &g.meta.tags),
-                            )
-                            .filter_map(|tags| tags.get(name))
-                            .flat_map(|tag_value| tag_value.to_strings())
-                            .unique()
-                            .sorted()
-                            .map(|tag_value| {
-                                self.tag_checkbox(ui, name, Some(tag_value), tag_value)
-                            })
-                            .reduce(Option::or)
-                            .flatten()
+                            self.puzzle_catalog
+                                .puzzle_list_entries()
+                                .filter_map(|meta| meta.tags.get(name))
+                                .flat_map(|tag_value| tag_value.to_strings())
+                                .unique()
+                                .sorted()
+                                .map(|tag_value| {
+                                    self.tag_checkbox(ui, name, Some(tag_value), tag_value)
+                                })
+                                .reduce(Option::or)
+                                .flatten()
                         }
                     } else {
                         self.show_tag_menu_nodes(ui, subtags)

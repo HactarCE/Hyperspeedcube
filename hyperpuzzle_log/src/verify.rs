@@ -1,13 +1,18 @@
+//! Functions for verifying log files.
+
 use hyperpuzzle_core::{chrono, Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
 
+/// Verifies a solve.
 pub fn verify(catalog: &Catalog, solve: &Solve) -> Option<SolveVerification> {
     verify_internal(catalog, solve, true)
 }
 
+/// Verifies a log file without constructing the puzzle or evaluating the
+/// solution.
 pub fn verify_without_checking_solution(
     catalog: &Catalog,
     solve: &Solve,
@@ -118,20 +123,40 @@ fn verify_internal(
     })
 }
 
+/// Fact learned from verifying a log file.
 pub enum Fact {
+    /// A puzzle has been scrambled and then completely solved.
     Solve(SolveVerification),
 }
 
+/// Info about a scramble & solve of a puzzle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SolveVerification {
+    /// Puzzle that was solved.
     pub puzzle: Puzzle,
+    /// Parameters used to determine the scramble.
     pub scramble: ScrambleParams,
+    /// Whether the scramble matches the one specified by the parameters.
     pub is_scramble_correct: bool,
-    /// Number of twists in [Slice Turn Metric](https://hypercubing.xyz/notation/#turn-metrics).
+    /// Number of twists in the solution, measured using [Slice Turn
+    /// Metric](https://hypercubing.xyz/notation/#turn-metrics).
     pub solution_stm_count: u64,
+    /// Whether the solve was completed within a single session.
     pub single_session: bool,
+    /// Whether any macros were used in the solution.
     pub used_macros: bool,
+    /// Duration of the solve measured as a speedsolve, or `None` if it was not
+    /// a valid speedsolve.
+    ///
+    /// The timer starts on the first move and ends when the puzzle is visible &
+    /// solved.
     pub speedsolve_duration: Option<chrono::Duration>,
+    /// Duration of the solve measured as a blindsolve, or `None` if it was not
+    /// a valid blindsolve.
+    ///
+    /// The timer starts when the puzzle has been scrambled and ends when the
+    /// puzzle is visible & solved.
     pub blindsolve_duration: Option<chrono::Duration>,
+    /// Timestamp when the solve was completed.
     pub time_completed: Timestamp,
 }

@@ -138,7 +138,12 @@ pub(super) fn init_lua_environment(loader: &LuaLoader, env: &LuaTable) -> LuaRes
     Ok(())
 }
 
-pub(super) fn set_logger(lua: &Lua, logger: &Logger) -> LuaResult<()> {
+pub(super) fn set_logger(lua: &Lua, logger: &Logger) {
+    if let Err(e) = try_set_logger(lua, logger) {
+        log::error!("error setting Lua logger: {e}");
+    }
+}
+pub(super) fn try_set_logger(lua: &Lua, logger: &Logger) -> LuaResult<()> {
     if !crate::CAPTURE_LUA_OUTPUT {
         return Ok(());
     }

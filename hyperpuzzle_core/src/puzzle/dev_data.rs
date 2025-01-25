@@ -59,6 +59,7 @@ impl<T> Default for DevOrbit<T> {
     }
 }
 impl<T: Copy + Eq + Hash> DevOrbit<T> {
+    /// Applies a function to every element in the orbit.
     #[must_use]
     pub fn map<U>(&self, mut f: impl FnMut(T) -> Option<U>) -> DevOrbit<U> {
         DevOrbit {
