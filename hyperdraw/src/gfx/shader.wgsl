@@ -195,11 +195,17 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
         surface_idx++;
         piece_idx++;
     }
-    var old_pos = new_pos;
-    var old_normal = new_normal;
+    var old_pos = array<f32, NDIM>();
+    var old_normal = array<f32, NDIM>();
     var old_u: array<f32, NDIM>;
     var old_v: array<f32, NDIM>;
     var i: i32;
+
+    for (var j = 0; j < NDIM; j++) {
+        old_pos[j] = new_pos[j];
+        old_normal[j] = new_normal[j];
+    }
+
     if is_puzzle_vertex {
         // Apply piece transform.
         new_pos = array<f32, NDIM>();
