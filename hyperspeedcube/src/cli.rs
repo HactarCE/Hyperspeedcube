@@ -24,20 +24,20 @@ pub(crate) struct Args {
 pub(crate) enum Subcommand {
     /// Outputs program info and credits in Markdown.
     About,
-    /// Outputs JSON information about a puzzle or generator.
+    /// Outputs information about a puzzle or generator as JSON.
     Puzzle {
-        /// Puzzle ID (such as `ft_cube:3`) or generator ID (such as `ft_cube`)
+        /// Puzzle or generator ID(s) (such as `ft_cube` or `ft_cube:3`)
         ids: Vec<String>,
     },
-    /// Outputs all puzzle and puzzle generator IDs.
+    /// Outputs all non-experimental puzzle and puzzle generator IDs.
     Puzzles {
         /// List only non-generated puzzles.
         #[arg(short, long)]
         puzzles: bool,
-        /// List only generators IDs instead.
+        /// List only generators.
         #[arg(short, long)]
         generators: bool,
-        /// List only generator examples instead.
+        /// List only generator examples.
         #[arg(short, long)]
         examples: bool,
 
@@ -45,12 +45,12 @@ pub(crate) enum Subcommand {
         #[arg(short = 'x', long)]
         experimental: bool,
 
-        /// Query expression to search for.
-        query: Option<String>,
+        /// Query expression(s) to search for.
+        query: Vec<String>,
     },
-    /// Outputs all known tags.
+    /// Outputs all tags.
     Tags,
-    /// Verifies a log file and outputs JSON.
+    /// Verifies a log file and outputs info about it as JSON.
     Verify {
         /// Log file to verify, use '-' for stdin.
         #[arg(value_parser)]
@@ -120,8 +120,9 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 .filter(|meta| experimental || !meta.tags.is_experimental());
 
             // Filter by query
-            let ids = if let Some(q) = query {
-                let query = crate::gui::Query::from_str(&q);
+            let query_str = query.join(" ");
+            let ids = if !query_str.is_empty() {
+                let query = crate::gui::Query::from_str(&query_str);
                 entries
                     .filter_map(|entry| query.try_match(entry))
                     .sorted_unstable()
