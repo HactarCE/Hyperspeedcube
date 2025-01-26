@@ -8,10 +8,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
-
 #[macro_use]
 mod debug;
 mod app;
+mod cli;
 mod commands;
 mod gui;
 mod locales;
@@ -42,7 +42,17 @@ const TWIST_DRAG_THRESHOLD: f32 = 5.0;
 pub const DEFAULT_STYLE_NAME: &str = "Default";
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> eframe::Result<()> {
+fn main() -> eyre::Result<()> {
+    use clap::Parser;
+
+    let mut args = cli::Args::parse();
+
+    if let Some(subcommand) = args.subcommand {
+        color_eyre::install().expect("error initializing panic handler");
+        cli::exec(subcommand)?;
+        return Ok(());
+    }
+
     // Initialize logging.
     env_logger::builder().init();
 
@@ -57,8 +67,9 @@ fn main() -> eframe::Result<()> {
         let fs_result = (|| {
             let dir = hyperpaths::crash_report_dir()?;
             std::fs::create_dir_all(dir)?;
-            let filename =
-                dir.join(format!("crash_{}.log", hyperpuzzle_core::Timestamp::now()).replace(':', "_"));
+            let filename = dir.join(
+                format!("crash_{}.log", hyperpuzzle_core::Timestamp::now()).replace(':', "_"),
+            );
             std::fs::write(&filename, &contents)?;
             eyre::Ok(filename)
         })();
@@ -79,7 +90,7 @@ fn main() -> eframe::Result<()> {
     #[cfg(feature = "deadlock_detection")]
     init_deadlock_detection();
 
-    pollster::block_on(run())
+    Ok(pollster::block_on(run())?)
 }
 
 #[cfg(target_arch = "wasm32")]
