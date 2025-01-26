@@ -1,13 +1,12 @@
 //! Common mathematical utility functions that didn't fit anywhere else.
 
+pub use std::f64::consts::PI;
 use std::ops::{Add, BitXorAssign, Mul};
 
 use itertools::Itertools;
 use num_traits::{CheckedShl, PrimInt, Unsigned};
 
 use crate::Float;
-
-pub const PI: Float = std::f64::consts::PI;
 
 /// Linearly interpolates (unclamped) between two values.
 pub fn lerp<A, T>(a: A, b: A, t: T) -> <A::Output as Add>::Output
