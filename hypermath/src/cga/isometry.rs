@@ -337,7 +337,7 @@ impl From<Isometry> for Multivector {
 }
 
 /// Compose versors.
-impl<'a> Mul for &'a Isometry {
+impl Mul for &Isometry {
     type Output = Isometry;
 
     fn mul(self, rhs: Self) -> Self::Output {

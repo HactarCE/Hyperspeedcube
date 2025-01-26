@@ -317,7 +317,8 @@ impl Blade {
         }
     }
 
-    /// Returns the projection of the product of the blades to the specified grade.
+    /// Returns the projection of the product of the blades to the specified
+    /// grade.
     pub fn product_grade(lhs: &Self, rhs: &Self, grade: u8) -> Self {
         let ndim = std::cmp::max(lhs.ndim, rhs.ndim);
 
@@ -335,8 +336,8 @@ impl Blade {
         ret
     }
 
-    /// Returns the projection of the product of the blades to the grade 0.
-    /// May differ from dot by a sign.
+    /// Returns the projection of the product of the blades to the grade 0. May
+    /// differ from dot by a sign.
     pub fn product_scalar(lhs: &Self, rhs: &Self) -> Float {
         let mut ret = 0.0;
         for l in lhs.terms() {
@@ -351,7 +352,8 @@ impl Blade {
         }
         ret
     }
-    /// Returns the projection of the product of the blades to the specified grade.
+    /// Returns the projection of the product of the blades to the specified
+    /// grade.
     pub fn multi_product_grade(blades: impl IntoIterator<Item = Self>, grade: u8) -> Self {
         let blades = blades.into_iter().collect_vec();
         let ndim = blades.iter().map(|b| b.ndim).max().unwrap_or(0);
@@ -362,7 +364,7 @@ impl Blade {
             let mut term = Term::scalar(1.0);
             for t in terms {
                 if let Some(tt) = Term::geometric_product(term, t) {
-                    term = tt
+                    term = tt;
                 } else {
                     continue 'a;
                 }
@@ -375,7 +377,8 @@ impl Blade {
         ret
     }
 
-    /// Returns the projection of the `pow`-th power of the blade to the specified grade.
+    /// Returns the projection of the `pow`-th power of the blade to the
+    /// specified grade.
     pub fn power_grade(blade: &Self, pow: u32, grade: u8) -> Self {
         let blades = vec![blade.clone(); pow as usize];
         Self::multi_product_grade(blades, grade)
@@ -561,9 +564,9 @@ impl Blade {
         ret
     }
 
-    /// Decompose bivector into a sum of commuting simple bivectors, or
-    /// `None` if the input is not a bivector. Some terms may contain multiple bivectors of the same magnitude.
-    /// https://arxiv.org/abs/2107.03771
+    /// Decompose bivector into a sum of commuting simple bivectors, or `None`
+    /// if the input is not a bivector. Some terms may contain multiple
+    /// bivectors of the same magnitude. <https://arxiv.org/abs/2107.03771>
     pub(crate) fn decompose_bivector(&self) -> Option<BivectorDecomposition> {
         if self.grade != 2 {
             return None;
@@ -586,8 +589,8 @@ impl Blade {
                 let root1 = (coeff1 + discrim.sqrt()) / 2.0;
                 let root2 = (coeff1 - discrim.sqrt()) / 2.0;
                 // Compute (root1 + wedge * 0.5) / self
-                // 1/self = (self * m(self^2)) / (self^2 * m(self^2)) where m(grade0) = grade0 and m(grade4) = -grade4
-                // it is of grade 2
+                // 1/self = (self * m(self^2)) / (self^2 * m(self^2)) where m(grade0) = grade0
+                // and m(grade4) = -grade4 it is of grade 2
                 let selfi_2 = (self * coeff1 - Self::product_grade(self, &wedge, 2)) / discrim;
                 let selfi_4 = (-Self::product_grade(self, &wedge, 4)) / discrim; // this term should be 0 in 4d
                 let b1 = selfi_2.clone() * root1
@@ -605,7 +608,7 @@ impl Blade {
             let coeff2 = -Self::product_scalar(self, self);
             let wedge = Self::product_grade(self, self, 4);
             let coeff1 = Self::product_scalar(&wedge, &wedge) / 4.0;
-            let wedge3 = Self::power_grade(&self, 3, 6);
+            let wedge3 = Self::power_grade(self, 3, 6);
             let coeff0 = -Self::product_scalar(&wedge3, &wedge3) / 36.0;
 
             let roots = {
@@ -650,17 +653,12 @@ impl Blade {
                     break 'dec Some(vec![(3, self.clone())]);
                 };
 
-                let single_roots;
-                match unique_root {
-                    Some(i) => {
-                        // Root i is distinct from the other two, which are equal
-                        single_roots = vec![roots[i]];
-                    }
-                    None => {
-                        // All three roots are different
-                        single_roots = roots.to_vec();
-                    }
-                }
+                let single_roots = match unique_root {
+                    // Root i is distinct from the other two, which are equal
+                    Some(i) => vec![roots[i]],
+                    // All three roots are different
+                    None => roots.to_vec(),
+                };
 
                 let mut decomposition = Vec::new();
                 for root in single_roots {
@@ -685,28 +683,27 @@ impl Blade {
                 Some(decomposition)
             }
         } else {
-            return None; // TODO: blow up if this happens?
+            log::error!("cannot decompose 8D+ bivector");
+            return None;
         };
 
-        let mut ret = decomposition.map(|decomposition| BivectorDecomposition {
+        let ret = decomposition.map(|decomposition| BivectorDecomposition {
             ndim: self.ndim,
             decomposition,
         });
 
-        ret.as_mut().map(|r| r.remove_zeros());
-        ret
+        ret.map(|r| r.remove_zeros())
     }
 
-    /// Returns the exponential of a bivector, or
-    /// `None` if the input is not a bivector.
+    /// Returns the exponential of a bivector, or `None` if the input is not a
+    /// bivector.
     pub fn exp(&self) -> Option<crate::pga::Motor> {
         let decomposition = self.decompose_bivector()?;
         decomposition.exp()
     }
 
-    /// Returns the arctangent of a bivector, or
-    /// `None` if the input is not a bivector.
-    /// https://arxiv.org/abs/2107.03771
+    /// Returns the arctangent of a bivector, or `None` if the input is not a
+    /// bivector. <https://arxiv.org/abs/2107.03771>
     pub fn atan(&self) -> Option<Self> {
         Some(self.decompose_bivector()?.atan()?.to_bivector())
     }
@@ -850,8 +847,9 @@ pub(crate) struct BivectorDecomposition {
 }
 
 impl BivectorDecomposition {
-    fn remove_zeros(&mut self) {
-        self.decomposition.retain(|(_mult, biv)| !biv.is_zero())
+    fn remove_zeros(mut self) -> Self {
+        self.decomposition.retain(|(_mult, biv)| !biv.is_zero());
+        self
     }
 
     pub(crate) fn exp(&self) -> Option<crate::pga::Motor> {
@@ -860,7 +858,7 @@ impl BivectorDecomposition {
         let mut ret = Motor::ident(self.ndim);
         // the bivs commute
         for (mult, biv) in &self.decomposition {
-            let norm2 = Float::max(0.0, Blade::dot(&biv, &biv)?) / (*mult as Float);
+            let norm2 = Float::max(0.0, Blade::dot(biv, biv)?) / (*mult as Float);
             let norm = norm2.sqrt();
             let cos = norm.cos(); // we want the sign flip of dot
             let sin = (1.0 - cos.powi(2)).sqrt();
@@ -887,7 +885,8 @@ impl BivectorDecomposition {
                             + biv2 * cos * sin * sin
                             + biv3 * sin * sin * sin;
                     } else {
-                        return None; // TODO: blow up if this happens? (only dimension 8+)
+                        log::error!("cannot exponentiate 8D+ bivector");
+                        return None;
                     }
                 }
             }
@@ -908,10 +907,10 @@ impl BivectorDecomposition {
     pub(crate) fn atan(&self) -> Option<Self> {
         let mut decomposition = Vec::new();
         for (mult, biv) in &self.decomposition {
-            let norm2 = Float::max(0.0, Blade::dot(&biv, &biv)?) / (*mult as Float);
+            let norm2 = Float::max(0.0, Blade::dot(biv, biv)?) / (*mult as Float);
             let norm = norm2.sqrt();
             let biv1 = biv / norm;
-            decomposition.push((*mult, biv1 * norm.atan()))
+            decomposition.push((*mult, biv1 * norm.atan()));
         }
         Some(BivectorDecomposition {
             ndim: self.ndim,
@@ -928,8 +927,8 @@ impl MulAssign<Float> for BivectorDecomposition {
     }
 }
 
-/// Multivector with grade 0 and 4 components.
-/// Should be closed under multiplication.
+/// Multivector with grade 0 and 4 components. Should be closed under
+/// multiplication.
 #[derive(Debug, Clone, PartialEq)]
 struct Multivector04 {
     grade0: Float,

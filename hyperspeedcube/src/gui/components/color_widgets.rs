@@ -732,15 +732,13 @@ pub fn color_edit(
             })
             .0
     });
+    #[allow(clippy::collapsible_match)]
     if let Some(r) = popup_response.filter(|_| !reopen.get()) {
-        match r {
-            TextEditPopupResponse::Confirm(new_hex_string) => {
-                if let Ok(new_color) = new_hex_string.parse() {
-                    *color = new_color;
-                    changed = true;
-                }
+        if let TextEditPopupResponse::Confirm(new_hex_string) = r {
+            if let Ok(new_color) = new_hex_string.parse() {
+                *color = new_color;
+                changed = true;
             }
-            _ => (),
         }
     }
 

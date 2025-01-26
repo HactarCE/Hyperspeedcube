@@ -100,7 +100,7 @@ impl AsMultivector for Blade {
 }
 
 /// Negation of a blade.
-impl<'a> Neg for &'a Blade {
+impl Neg for &Blade {
     type Output = Blade;
 
     fn neg(self) -> Self::Output {
@@ -116,7 +116,7 @@ impl Neg for Blade {
 }
 
 /// Scaling a blade by a number.
-impl<'a> Mul<Float> for &'a Blade {
+impl Mul<Float> for &Blade {
     type Output = Blade;
 
     fn mul(self, rhs: Float) -> Self::Output {
@@ -142,7 +142,7 @@ impl MulAssign<Float> for Blade {
 ///
 /// See [Geometric algebra - Extensions of the inner and exterior
 /// products](https://w.wiki/6L8p).
-impl<'a> BitXor<Term> for &'a Blade {
+impl BitXor<Term> for &Blade {
     type Output = Blade;
 
     fn bitxor(self, rhs: Term) -> Self::Output {
@@ -162,10 +162,10 @@ impl BitXor<Term> for Blade {
 ///
 /// See [Geometric algebra - Extensions of the inner and exterior
 /// products](https://w.wiki/6L8p).
-impl<'a> BitXor<&'a Blade> for Term {
+impl BitXor<&Blade> for Term {
     type Output = Blade;
 
-    fn bitxor(self, rhs: &'a Blade) -> Self::Output {
+    fn bitxor(self, rhs: &Blade) -> Self::Output {
         let grade = self.grade() + rhs.grade();
         Blade::grade_project_from(self ^ &rhs.0, grade)
     }
@@ -182,10 +182,10 @@ impl BitXor<Blade> for Term {
 /// Left contraction of a term and a blade.
 ///
 /// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
-impl<'a> Shl<&'a Blade> for Term {
+impl Shl<&Blade> for Term {
     type Output = Blade;
 
-    fn shl(self, rhs: &'a Blade) -> Self::Output {
+    fn shl(self, rhs: &Blade) -> Self::Output {
         let grade = rhs.grade().saturating_sub(self.grade());
         Blade::grade_project_from(self << &rhs.0, grade)
     }
@@ -204,7 +204,7 @@ impl Shl<Blade> for Term {
 /// Intuitively, this constructs the object passing through both objects. For
 /// example, the outer product of a point and a circle is the sphere tangent to
 /// both. If the objects already intersect, then the result is zero.
-impl<'a> BitXor for &'a Blade {
+impl BitXor for &Blade {
     type Output = Blade;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -219,7 +219,7 @@ impl_forward_bin_ops_to_ref! {
 /// Left contraction of two blades.
 ///
 /// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
-impl<'a> Shl for &'a Blade {
+impl Shl for &Blade {
     type Output = Blade;
 
     fn shl(self, rhs: Self) -> Self::Output {

@@ -259,44 +259,37 @@ impl PuzzleView {
 
                 // Initialize partial twist state.
                 DragState::PreTwist => {
-                    if exceeded_twist_drag_threshold {
-                        match ndim {
-                            3 => {
-                                let mut sim = self.sim.lock();
-                                let puzzle = sim.puzzle();
-                                // IIFE to mimic try_block
-                                let best_grip = (|| {
-                                    let hov = self.puzzle_hover_state()?;
-                                    let parallel_drag_delta = self.parallel_drag_delta()?;
-                                    let target =
-                                        hov.normal_3d().cross_product_3d(&parallel_drag_delta);
-                                    puzzle
-                                        .ty()
-                                        .axes
-                                        .iter()
-                                        .filter_map(|(axis, info)| {
-                                            // TODO: canoncalize axis based on layer mask
-                                            let layers =
-                                                puzzle.min_drag_layer_mask(axis, hov.piece)?;
-                                            let score = target.dot(info.vector.normalize()?).abs();
-                                            if !is_approx_positive(&score) {
-                                                return None;
-                                            }
-                                            Some((axis, layers, score))
-                                        })
-                                        // TODO: handle multiple good matches, maybe?
-                                        .max_by_key(|(_, _, score)| FloatOrd(*score))
-                                        .map(|(axis, layers, _)| (axis, layers))
-                                })();
-                                if let Some((axis, layers)) = best_grip {
-                                    sim.begin_partial_twist(axis, layers);
-                                    self.drag_state = Some(DragState::Twist);
-                                } else {
-                                    log::trace!("canceling partial twist");
-                                    self.drag_state = Some(DragState::Canceled);
-                                }
-                            }
-                            _ => (),
+                    if exceeded_twist_drag_threshold && ndim == 3 {
+                        let mut sim = self.sim.lock();
+                        let puzzle = sim.puzzle();
+                        // IIFE to mimic try_block
+                        let best_grip = (|| {
+                            let hov = self.puzzle_hover_state()?;
+                            let parallel_drag_delta = self.parallel_drag_delta()?;
+                            let target = hov.normal_3d().cross_product_3d(&parallel_drag_delta);
+                            puzzle
+                                .ty()
+                                .axes
+                                .iter()
+                                .filter_map(|(axis, info)| {
+                                    // TODO: canoncalize axis based on layer mask
+                                    let layers = puzzle.min_drag_layer_mask(axis, hov.piece)?;
+                                    let score = target.dot(info.vector.normalize()?).abs();
+                                    if !is_approx_positive(&score) {
+                                        return None;
+                                    }
+                                    Some((axis, layers, score))
+                                })
+                                // TODO: handle multiple good matches, maybe?
+                                .max_by_key(|(_, _, score)| FloatOrd(*score))
+                                .map(|(axis, layers, _)| (axis, layers))
+                        })();
+                        if let Some((axis, layers)) = best_grip {
+                            sim.begin_partial_twist(axis, layers);
+                            self.drag_state = Some(DragState::Twist);
+                        } else {
+                            log::trace!("canceling partial twist");
+                            self.drag_state = Some(DragState::Canceled);
                         }
                     }
                 }

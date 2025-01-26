@@ -374,7 +374,7 @@ impl approx::AbsDiffEq for MatrixRow<'_> {
 impl_vector_ops!(impl for MatrixCol<'_, >);
 impl_vector_ops!(impl for MatrixRow<'_, >);
 
-impl<'a> Mul for &'a Matrix {
+impl Mul for &Matrix {
     type Output = Matrix;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -395,7 +395,7 @@ impl<'a> Mul for &'a Matrix {
         new_matrix
     }
 }
-impl<'a> Add for &'a Matrix {
+impl Add for &Matrix {
     type Output = Matrix;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -403,7 +403,7 @@ impl<'a> Add for &'a Matrix {
         Matrix::from_fn(new_ndim, |i, j| self.get(i, j) + rhs.get(i, j))
     }
 }
-impl<'a> Sub for &'a Matrix {
+impl Sub for &Matrix {
     type Output = Matrix;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -440,7 +440,7 @@ impl Mul<Float> for Matrix {
         self
     }
 }
-impl<'a> Mul<Float> for &'a Matrix {
+impl Mul<Float> for &Matrix {
     type Output = Matrix;
 
     fn mul(self, rhs: Float) -> Self::Output {
@@ -455,7 +455,7 @@ impl Div<Float> for Matrix {
         self * (1.0 / rhs)
     }
 }
-impl<'a> Div<Float> for &'a Matrix {
+impl Div<Float> for &Matrix {
     type Output = Matrix;
 
     fn div(self, rhs: Float) -> Self::Output {
@@ -470,7 +470,7 @@ impl<V: VectorRef> Mul<V> for Matrix {
         &self * rhs
     }
 }
-impl<'a, V: VectorRef> Mul<V> for &'a Matrix {
+impl<V: VectorRef> Mul<V> for &Matrix {
     type Output = Vector;
 
     fn mul(self, rhs: V) -> Self::Output {

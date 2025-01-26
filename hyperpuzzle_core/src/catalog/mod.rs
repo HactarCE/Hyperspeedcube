@@ -134,7 +134,7 @@ impl Catalog {
                 let this = self.clone();
                 std::thread::spawn(move || {
                     if let Err(e) = this.build_generic_blocking::<T>(&id) {
-                        log::error!("error building {id:?}: {e}")
+                        log::error!("error building {id:?}: {e}");
                     }
                 });
                 Arc::clone(e.insert(Arc::new(Mutex::new(CacheEntry::NotStarted))))

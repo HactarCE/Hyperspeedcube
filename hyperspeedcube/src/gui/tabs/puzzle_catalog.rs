@@ -195,7 +195,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                     if r.clicked() {
                                         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
                                         generator_popup_data =
-                                            Some(PuzzleGeneratorPopupData::new(&puzzle_generator));
+                                            Some(PuzzleGeneratorPopupData::new(puzzle_generator));
                                     }
 
                                     let close_behavior =
@@ -213,7 +213,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                 show_puzzle_generator_ui(
                                                     ui,
                                                     app,
-                                                    &puzzle_generator,
+                                                    puzzle_generator,
                                                     popup_data,
                                                 );
                                             },
@@ -607,7 +607,7 @@ struct AdditionalFuzzyQueryMatch {
     penalty: isize,
 }
 
-impl<'a> egui::Widget for FuzzyQueryMatch<'a> {
+impl egui::Widget for FuzzyQueryMatch<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let name = &self.object.name;
         let mut job = egui::text::LayoutJob::default();
@@ -660,7 +660,7 @@ impl<'a> egui::Widget for FuzzyQueryMatch<'a> {
 
             let aliases = &self.object.aliases;
             if !aliases.is_empty() {
-                md(ui, format!("**Aliases:** {}", comma_list(&aliases)));
+                md(ui, format!("**Aliases:** {}", comma_list(aliases)));
             }
 
             if let Some(url) = self.object.tags.wca_url() {

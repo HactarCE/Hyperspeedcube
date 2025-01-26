@@ -62,6 +62,7 @@ impl fmt::Display for Langs {
     }
 }
 
+#[allow(clippy::nonminimal_bool)]
 pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: impl AsRef<Path>) {
     // Sanity-check file extension to ensure that we don't accidentally
     // overwrite a KDL file.
@@ -97,7 +98,8 @@ pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: im
         if file_path == config_file_path {
             continue;
         }
-        if !file_path.extension().is_some_and(|ext| ext == "kdl") {
+        let is_kdl_file = file_path.extension().is_some_and(|ext| ext == "kdl");
+        if !is_kdl_file {
             let file_path = file_path.to_string_lossy();
             warn(&format!("ignoring file {}", file_path.blue().bold()));
             continue;

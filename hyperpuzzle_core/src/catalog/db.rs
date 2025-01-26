@@ -40,15 +40,12 @@ pub trait CatalogObject: Sized {
         generator: &Self::SpecGenerator,
     ) -> Option<&HashMap<String, Arc<Self::Spec>>>;
 
-    fn build_object_from_spec(
-        ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String>;
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String>;
     fn generate_spec(
         ctx: BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String>;
+    ) -> BuildResult<Self::Spec, String>;
 }
 
 impl CatalogObject for Puzzle {
@@ -79,17 +76,14 @@ impl CatalogObject for Puzzle {
         Some(&generator.examples)
     }
 
-    fn build_object_from_spec(
-        ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String> {
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
         (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
         ctx: BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String> {
+    ) -> BuildResult<Self::Spec, String> {
         (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }
@@ -122,17 +116,14 @@ impl CatalogObject for ColorSystem {
         None
     }
 
-    fn build_object_from_spec(
-        _ctx: BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> Result<Redirectable<Arc<Self>>, String> {
+    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
         Ok(Redirectable::Direct(Arc::clone(spec)))
     }
     fn generate_spec(
         ctx: BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
-    ) -> Result<Redirectable<Arc<Self::Spec>>, String> {
+    ) -> BuildResult<Self::Spec, String> {
         (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }

@@ -7,7 +7,7 @@ pub struct LayerMaskEdit<'a> {
     pub id: egui::Id,
     pub layers: &'a mut LayerMaskDesc,
 }
-impl<'a> egui::Widget for LayerMaskEdit<'a> {
+impl egui::Widget for LayerMaskEdit<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
         let mut r = ui

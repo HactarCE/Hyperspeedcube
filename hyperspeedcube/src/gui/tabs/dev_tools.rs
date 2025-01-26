@@ -423,7 +423,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
             state.lint_results = hyperpuzzle::catalog()
                 .puzzles()
                 .objects()
-                .map(|puz| PuzzleLintOutput::from_spec(&puz))
+                .map(PuzzleLintOutput::from_spec)
                 .filter(|lint| !lint.all_good())
                 .collect();
         }

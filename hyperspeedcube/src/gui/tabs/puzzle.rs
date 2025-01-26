@@ -201,7 +201,7 @@ impl PuzzleWidget {
                         thread_handle,
                     });
                 }
-                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
+                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))), prefs),
             },
             hyperpuzzle_core::CacheEntry::Err(e) => {
                 if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {

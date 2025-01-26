@@ -8,10 +8,11 @@ use super::Redirectable;
 ///
 /// If this is present, then some worker thread is working on building the
 /// object.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum CacheEntry<T> {
     /// There is a thread responsible for building the object, but it hasn't
     /// started yet. (It may be waiting on a mutex to unlock, for example.)
+    #[default]
     NotStarted,
     /// The object is currently being build.
     Building {
@@ -24,11 +25,6 @@ pub enum CacheEntry<T> {
     Ok(Redirectable<Arc<T>>),
     /// The object could not be built due to an error.
     Err(String),
-}
-impl<T> Default for CacheEntry<T> {
-    fn default() -> Self {
-        CacheEntry::NotStarted
-    }
 }
 impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
     fn from(value: Result<Redirectable<Arc<T>>, String>) -> Self {

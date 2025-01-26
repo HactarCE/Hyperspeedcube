@@ -42,7 +42,7 @@ pub struct PrefsUi<'a, T> {
     pub defaults: Option<&'a T>,
     pub changed: &'a mut bool,
 }
-impl<'a, T> PrefsUi<'a, T> {
+impl<T> PrefsUi<'_, T> {
     fn get_default<U: Clone>(&self, access: &Access<T, U>) -> Option<U> {
         Some(access.get(self.defaults.as_ref()?).clone())
     }

@@ -125,7 +125,7 @@ impl Index<Axes> for Multivector {
 }
 
 /// Negation of multivector.
-impl<'a> Neg for &'a Multivector {
+impl Neg for &Multivector {
     type Output = Multivector;
 
     fn neg(self) -> Self::Output {
@@ -144,7 +144,7 @@ impl Neg for Multivector {
 }
 
 /// Scaling a multivector by a number.
-impl<'a> Mul<Float> for &'a Multivector {
+impl Mul<Float> for &Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: Float) -> Self::Output {
@@ -168,7 +168,7 @@ impl MulAssign<Float> for Multivector {
 }
 
 /// Sum of multivector and term.
-impl<'a> Add<Term> for &'a Multivector {
+impl Add<Term> for &Multivector {
     type Output = Multivector;
 
     fn add(self, rhs: Term) -> Self::Output {
@@ -199,7 +199,7 @@ impl AddAssign<Term> for Multivector {
 }
 
 /// Difference of multivector and term.
-impl<'a> Sub<Term> for &'a Multivector {
+impl Sub<Term> for &Multivector {
     type Output = Multivector;
 
     fn sub(self, rhs: Term) -> Self::Output {
@@ -221,7 +221,7 @@ impl SubAssign<Term> for Multivector {
 }
 
 /// Geometric product of multivector and term.
-impl<'a> Mul<Term> for &'a Multivector {
+impl Mul<Term> for &Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: Term) -> Self::Output {
@@ -249,7 +249,7 @@ impl MulAssign<Term> for Multivector {
 ///
 /// See [Geometric algebra - Extensions of the inner and exterior
 /// products](https://w.wiki/6L8p).
-impl<'a> BitXor<Term> for &'a Multivector {
+impl BitXor<Term> for &Multivector {
     type Output = Multivector;
 
     fn bitxor(self, rhs: Term) -> Self::Output {
@@ -267,10 +267,10 @@ impl BitXor<Term> for Multivector {
 ///
 /// See [Geometric algebra - Extensions of the inner and exterior
 /// products](https://w.wiki/6L8p).
-impl<'a> BitXor<&'a Multivector> for Term {
+impl BitXor<&Multivector> for Term {
     type Output = Multivector;
 
-    fn bitxor(self, rhs: &'a Multivector) -> Self::Output {
+    fn bitxor(self, rhs: &Multivector) -> Self::Output {
         rhs.0.iter().flat_map(|&term| self ^ term).sum()
     }
 }
@@ -285,10 +285,10 @@ impl BitXor<Multivector> for Term {
 /// Left contraction of a term and a multivector.
 ///
 /// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
-impl<'a> Shl<&'a Multivector> for Term {
+impl Shl<&Multivector> for Term {
     type Output = Multivector;
 
-    fn shl(self, rhs: &'a Multivector) -> Self::Output {
+    fn shl(self, rhs: &Multivector) -> Self::Output {
         rhs.0.iter().flat_map(|&term| self << term).sum()
     }
 }
@@ -301,7 +301,7 @@ impl Shl<Multivector> for Term {
 }
 
 /// Sum of two multivectors.
-impl<'a> Add for &'a Multivector {
+impl Add for &Multivector {
     type Output = Multivector;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -315,8 +315,8 @@ impl<'a> Add for &'a Multivector {
 impl_forward_bin_ops_to_ref! {
     impl Add for Multivector { fn add() }
 }
-impl<'a> AddAssign<&'a Multivector> for Multivector {
-    fn add_assign(&mut self, rhs: &'a Multivector) {
+impl AddAssign<&Multivector> for Multivector {
+    fn add_assign(&mut self, rhs: &Multivector) {
         for &term in &rhs.0 {
             *self += term;
         }
@@ -329,7 +329,7 @@ impl AddAssign for Multivector {
 }
 
 /// Difference of two multivectors.
-impl<'a> Sub for &'a Multivector {
+impl Sub for &Multivector {
     type Output = Multivector;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -343,8 +343,8 @@ impl<'a> Sub for &'a Multivector {
 impl_forward_bin_ops_to_ref! {
     impl Sub for Multivector { fn sub() }
 }
-impl<'a> SubAssign<&'a Multivector> for Multivector {
-    fn sub_assign(&mut self, rhs: &'a Multivector) {
+impl SubAssign<&Multivector> for Multivector {
+    fn sub_assign(&mut self, rhs: &Multivector) {
         for &term in &rhs.0 {
             *self -= term;
         }
@@ -357,7 +357,7 @@ impl SubAssign for Multivector {
 }
 
 /// Geometric product of two multivectors.
-impl<'a> Mul for &'a Multivector {
+impl Mul for &Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -381,7 +381,7 @@ impl_forward_assign_ops_to_owned! {
 ///
 /// See [Geometric algebra - Extensions of the inner and exterior
 /// products](https://w.wiki/6L8p).
-impl<'a> BitXor for &'a Multivector {
+impl BitXor for &Multivector {
     type Output = Multivector;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -409,7 +409,7 @@ impl_forward_assign_ops_to_owned! {
 /// Left contraction of two multivectors.
 ///
 /// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
-impl<'a> Shl for &'a Multivector {
+impl Shl for &Multivector {
     type Output = Multivector;
 
     fn shl(self, rhs: Self) -> Self::Output {

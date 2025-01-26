@@ -1265,9 +1265,7 @@ impl DynamicPuzzleBuffers {
 
 fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
     const WORKGROUP_SIZE: u32 = 64;
-    // Divide, rounding up
-    let group_count = (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
-    compute_pass.dispatch_workgroups(group_count, 1, 1);
+    compute_pass.dispatch_workgroups(count.div_ceil(WORKGROUP_SIZE), 1, 1);
 }
 
 #[derive(Debug, Clone, PartialEq)]

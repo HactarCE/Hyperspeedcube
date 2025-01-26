@@ -453,8 +453,8 @@ impl Motor {
         (0..self.ndim).map(|i| self.transform_vector(Vector::unit(i)))
     }
 
-    /// Returns the tangent of the logarithm of a motor. Returns None if the motor is a reflection.
-    /// https://arxiv.org/abs/2107.03771
+    /// Returns the tangent of the logarithm of a motor. Returns None if the
+    /// motor is a reflection. <https://arxiv.org/abs/2107.03771>
     pub fn tan_bivector_log(&self) -> Option<Blade> {
         if self.is_reflection {
             return None;
@@ -462,15 +462,15 @@ impl Motor {
         Some(self.grade_project(2) / self.grade_project(0).to_scalar()?)
     }
 
-    /// Returns the logarithm of a motor. Returns None if the motor is a reflection or TODO:.
-    /// https://arxiv.org/abs/2107.03771
+    /// Returns the logarithm of a motor. Returns None if the motor is a
+    /// reflection or decomposition fails. <https://arxiv.org/abs/2107.03771>
     pub(crate) fn log_as_decomposition(&self) -> Option<BivectorDecomposition> {
         let tan_log = self.tan_bivector_log()?;
         tan_log.decompose_bivector()?.atan()
     }
 
-    /// Returns the logarithm of a motor. Returns None if the motor is a reflection or TODO:.
-    /// https://arxiv.org/abs/2107.03771
+    /// Returns the logarithm of a motor. Returns None if the motor is a
+    /// reflection or the computation fails. <https://arxiv.org/abs/2107.03771>
     pub fn log(&self) -> Option<Blade> {
         let tan_log = self.tan_bivector_log()?;
 
@@ -501,7 +501,7 @@ impl Add<Term> for Motor {
 impl AddAssign<Blade> for Motor {
     fn add_assign(&mut self, rhs: Blade) {
         for term in rhs.terms() {
-            *self += term
+            *self += term;
         }
     }
 }
@@ -516,7 +516,7 @@ impl Add<Blade> for Motor {
 impl AddAssign<Motor> for Motor {
     fn add_assign(&mut self, rhs: Motor) {
         for term in rhs.terms() {
-            *self += term
+            *self += term;
         }
     }
 }
@@ -544,7 +544,7 @@ impl Sub<Term> for Motor {
 impl SubAssign<Blade> for Motor {
     fn sub_assign(&mut self, rhs: Blade) {
         for term in rhs.terms() {
-            *self -= term
+            *self -= term;
         }
     }
 }
@@ -559,7 +559,7 @@ impl Sub<Blade> for Motor {
 impl SubAssign<Motor> for Motor {
     fn sub_assign(&mut self, rhs: Motor) {
         for term in rhs.terms() {
-            *self -= term
+            *self -= term;
         }
     }
 }

@@ -124,13 +124,13 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
             .which_side_has_polytope(divider, self.as_element().id)
     }
 }
-impl<'a, I: ToElementId> ToElementId for SpaceRef<'a, I> {
+impl<I: ToElementId> ToElementId for SpaceRef<'_, I> {
     fn to_element_id(&self, space: &Space) -> ElementId {
         space.ensure_same_as(self.space).expect("different space");
         self.id.to_element_id(space)
     }
 }
-impl<'a, I: 'a + Fits64> SpaceRef<'a, Set64<I>> {
+impl<'a, I: Fits64> SpaceRef<'a, Set64<I>> {
     /// Returns whether the set is empty.
     pub fn is_empty(&self) -> bool {
         self.id.is_empty()
@@ -353,7 +353,7 @@ impl<'a> From<Vertex<'a>> for Element<'a> {
         Element::new(value.space, value.space.vertex_to_polytope(value.id))
     }
 }
-impl<'a> Vertex<'a> {
+impl Vertex<'_> {
     /// Returns the position of the vertex.
     pub fn pos(self) -> Vector {
         self.space.vertices.lock()[self.id].clone()
