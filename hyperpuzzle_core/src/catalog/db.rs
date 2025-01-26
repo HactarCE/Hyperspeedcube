@@ -7,6 +7,8 @@ pub struct Db {
     pub(super) puzzle_generators: HashMap<String, Arc<PuzzleSpecGenerator>>,
     /// Loaded puzzles by ID.
     pub(super) puzzles: HashMap<String, Arc<PuzzleSpec>>,
+    /// Cache of puzzle specs.
+    pub(super) puzzle_spec_cache: HashMap<String, Arc<Mutex<CacheEntry<PuzzleSpec>>>>,
     /// Cache of constructed puzzles.
     pub(super) puzzle_cache: HashMap<String, Arc<Mutex<CacheEntry<Puzzle>>>>,
 
@@ -31,9 +33,11 @@ pub trait CatalogObject: Sized {
     const NAME: &str;
 
     fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>>;
+    fn get_spec_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self::Spec>>>>;
     fn get_specs(db: &mut Db) -> &mut HashMap<String, Arc<Self::Spec>>;
     fn get_generators(db: &mut Db) -> &mut HashMap<String, Arc<Self::SpecGenerator>>;
 
+    fn get_spec_id(spec: &Self::Spec) -> &str;
     fn get_spec_filename(spec: &Self::Spec) -> Option<String>;
     fn get_generator_filename(generator: &Self::SpecGenerator) -> Option<String>;
     fn get_generator_examples(
@@ -57,6 +61,9 @@ impl CatalogObject for Puzzle {
     fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>> {
         &mut db.puzzle_cache
     }
+    fn get_spec_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self::Spec>>>> {
+        &mut db.puzzle_spec_cache
+    }
     fn get_specs(db: &mut Db) -> &mut HashMap<String, Arc<Self::Spec>> {
         &mut db.puzzles
     }
@@ -64,6 +71,9 @@ impl CatalogObject for Puzzle {
         &mut db.puzzle_generators
     }
 
+    fn get_spec_id(spec: &Self::Spec) -> &str {
+        &spec.meta.id
+    }
     fn get_spec_filename(spec: &Self::Spec) -> Option<String> {
         spec.meta.tags.filename().map(str::to_owned)
     }
@@ -97,6 +107,9 @@ impl CatalogObject for ColorSystem {
     fn get_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self>>>> {
         &mut db.color_system_cache
     }
+    fn get_spec_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self::Spec>>>> {
+        &mut db.color_system_cache // same cache
+    }
     fn get_specs(db: &mut Db) -> &mut HashMap<String, Arc<Self::Spec>> {
         &mut db.color_systems
     }
@@ -104,6 +117,9 @@ impl CatalogObject for ColorSystem {
         &mut db.color_system_generators
     }
 
+    fn get_spec_id(spec: &Self::Spec) -> &str {
+        &spec.id
+    }
     fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
         None
     }

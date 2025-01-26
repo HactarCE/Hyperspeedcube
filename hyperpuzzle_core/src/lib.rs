@@ -47,7 +47,7 @@ pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
 pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 
 /// Maximum number of ID redirects.
-const MAX_ID_REDIRECTS: usize = 20;
+const MAX_ID_REDIRECTS: usize = 5;
 
 /// Parses the ID of a generated object into its components: the generator ID,
 /// and the parameters. Returns `None` if the ID is not a valid ID for a

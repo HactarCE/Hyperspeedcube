@@ -1,7 +1,7 @@
 use std::collections::{hash_map, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 
 mod db;
 mod entry;
@@ -104,11 +104,24 @@ impl Catalog {
     /// It may take time for the puzzle to build. If you want to block the
     /// current thread, see [`Self::build_puzzle_blocking()`].
     pub fn build_puzzle(&self, id: &str) -> Arc<Mutex<CacheEntry<Puzzle>>> {
-        self.build_generic(id)
+        self.build_object_generic(id)
     }
     /// Builds a puzzle and blocks the current thread until it is complete.
     pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, String> {
-        self.build_generic_blocking(id)
+        self.build_object_generic_blocking(id)
+    }
+
+    /// Requests a puzzle to be built if it has not been built already, and then
+    /// returns the cache entry for the puzzle.
+    ///
+    /// It may take time for the puzzle to build. If you want to block the
+    /// current thread, see [`Self::build_puzzle_spec_blocking()`].
+    pub fn build_puzzle_spec(&self, id: &str) -> Arc<Mutex<CacheEntry<PuzzleSpec>>> {
+        self.build_spec_generic::<Puzzle>(id)
+    }
+    /// Builds a puzzle spec and blocks the current thread until it is complete.
+    pub fn build_puzzle_spec_blocking(&self, id: &str) -> Result<Arc<PuzzleSpec>, String> {
+        self.build_spec_generic_blocking::<Puzzle>(id)
     }
 
     /// Requests a color system to be built if it has not been built already,
@@ -117,23 +130,46 @@ impl Catalog {
     /// It may take time for the color system to build. If you want to block the
     /// current thread, see [`Self::build_color_system_blocking()`].
     pub fn build_color_system(&self, id: &str) -> Arc<Mutex<CacheEntry<ColorSystem>>> {
-        self.build_generic(id)
+        self.build_object_generic::<ColorSystem>(id)
     }
     /// Builds a puzzle and blocks the current thread until it is complete.
     pub fn build_color_system_blocking(&self, id: &str) -> Result<Arc<ColorSystem>, String> {
-        self.build_generic_blocking(id)
+        self.build_object_generic_blocking::<ColorSystem>(id)
     }
 
-    /// Builds an object and blocks the current thread until it is complete.
-    fn build_generic<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T>>> {
+    /// Starts building an object spec on another thread and returns
+    /// immediately.
+    fn build_spec_generic<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T::Spec>>> {
         let id = id.to_owned();
-        let mut db_guard = self.db.lock();
-        match T::get_cache(&mut db_guard).entry(id.clone()) {
+        self.build_non_blocking(
+            id.clone(),
+            T::get_spec_cache(&mut self.db.lock()).entry(id.clone()),
+            move |this| this.build_spec_generic_blocking::<T>(&id),
+        )
+    }
+
+    /// Starts building an object on another thread and returns immediately.
+    fn build_object_generic<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T>>> {
+        let id = id.to_owned();
+        self.build_non_blocking(
+            id.clone(),
+            T::get_cache(&mut self.db.lock()).entry(id.clone()),
+            move |this| this.build_object_generic_blocking::<T>(&id),
+        )
+    }
+
+    fn build_non_blocking<T>(
+        &self,
+        id: String,
+        entry: hash_map::Entry<'_, String, Arc<Mutex<CacheEntry<T>>>>,
+        build_fn: impl 'static + Send + FnOnce(Self) -> Result<Arc<T>, String>,
+    ) -> Arc<Mutex<CacheEntry<T>>> {
+        match entry {
             hash_map::Entry::Occupied(e) => Arc::clone(e.get()),
             hash_map::Entry::Vacant(e) => {
                 let this = self.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = this.build_generic_blocking::<T>(&id) {
+                    if let Err(e) = build_fn(this) {
                         log::error!("error building {id:?}: {e}");
                     }
                 });
@@ -141,123 +177,166 @@ impl Catalog {
             }
         }
     }
-    /// Builds an object on the current thread, or returns early if the object
-    /// is already being constructed on another thread. This may or may not
-    /// block the current thread.
-    fn build_generic_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
-        let mut id = id.to_owned();
-        let mut redirect_sequence = vec![];
 
-        for _ in 0..crate::MAX_ID_REDIRECTS {
-            redirect_sequence.push(id.clone());
+    fn build_spec_generic_blocking<T: CatalogObject>(
+        &self,
+        initial_id: &str,
+    ) -> Result<Arc<T::Spec>, String> {
+        let get_cache_entry_fn = |id: &str| {
+            Arc::clone(
+                T::get_spec_cache(&mut self.db.lock())
+                    .entry(id.to_owned())
+                    .or_default(),
+            )
+        };
 
+        let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
             let mut db_guard = self.db.lock();
-
             let mut file = None;
-
-            let cache_entry =
-                Arc::clone(T::get_cache(&mut db_guard).entry(id.clone()).or_default());
-            let mut cache_entry_guard = cache_entry.lock();
-
-            // If another thread is building the object, then wait for that.
-            while let CacheEntry::Building { notify, .. } = &*cache_entry_guard {
-                log::trace!("waiting for another thread to build {id:?}");
-                let waiter = notify.waiter();
-                drop(cache_entry_guard);
-                waiter.wait();
-                cache_entry_guard = cache_entry.lock();
-                log::trace!("done waiting on {id:?}");
-            }
-
-            match &mut *cache_entry_guard {
-                // The object was requested but has not started being built.
-                CacheEntry::NotStarted => {
-                    // Mark that this object is being built.
-                    let progress = Arc::new(Mutex::new(Progress::default()));
-                    *cache_entry_guard = CacheEntry::Building {
-                        progress: Arc::clone(&progress),
-                        notify: NotifyWhenDropped::new(),
-                    };
-                    // Unlock the mutex before any expensive object generation.
-                    drop(cache_entry_guard);
-                    // Get the object spec, which may be expensive.
-                    progress.lock().task = BuildTask::GeneratingSpec;
-                    let generator_output = match crate::parse_generated_id(&id) {
-                        None => match T::get_specs(&mut db_guard).get(&id).cloned() {
-                            None => Err(format!("no {} with ID {id:?}", T::NAME)),
-                            Some(spec) => {
-                                drop(db_guard);
-                                file = T::get_spec_filename(&spec);
-                                Ok(Redirectable::Direct(spec))
-                            }
-                        },
-                        Some((generator_id, params)) => {
-                            match T::get_generators(&mut db_guard).get(generator_id).cloned() {
-                                None => Err(format!("no generator with ID {generator_id:?}")),
-                                Some(generator) => {
-                                    drop(db_guard); // unlock mutex before running Lua code
-                                    file = T::get_generator_filename(&generator);
-                                    let ctx = BuildCtx::new(&self.default_logger, &progress);
-                                    T::generate_spec(ctx, &generator, params)
-                                }
-                            }
+            // Get the object spec, which may be expensive.
+            progress.lock().task = BuildTask::GeneratingSpec;
+            let generator_output = match crate::parse_generated_id(id) {
+                None => match T::get_specs(&mut db_guard).get(id).cloned() {
+                    None => Err(format!("no {} with ID {id:?}", T::NAME)),
+                    Some(spec) => {
+                        drop(db_guard);
+                        file = T::get_spec_filename(&spec);
+                        Ok(Redirectable::Direct(spec))
+                    }
+                },
+                Some((generator_id, params)) => {
+                    match T::get_generators(&mut db_guard).get(generator_id).cloned() {
+                        None => Err(format!("no generator with ID {generator_id:?}")),
+                        Some(generator) => {
+                            drop(db_guard); // unlock mutex before running Lua code
+                            file = T::get_generator_filename(&generator);
+                            let ctx = BuildCtx::new(&self.default_logger, progress);
+                            T::generate_spec(ctx, &generator, params)
                         }
-                    };
-                    // Build the object, which may be expensive.
-                    let cache_entry_value = match generator_output {
-                        Ok(Redirectable::Direct(object_spec)) => {
-                            let ctx = BuildCtx::new(&self.default_logger, &progress);
-                            CacheEntry::from(T::build_object_from_spec(ctx, &object_spec))
-                        }
-                        Ok(Redirectable::Redirect(new_id)) => {
-                            CacheEntry::Ok(Redirectable::Redirect(new_id))
-                        }
-                        Err(e) => {
-                            let msg = format!("error building {id}: {e}");
-                            self.default_logger.log(LogLine {
-                                level: log::Level::Error,
-                                file,
-                                msg,
-                                traceback: None,
-                            });
-                            CacheEntry::Err(e)
-                        }
-                    };
-                    let mut cache_entry_guard = cache_entry.lock();
-                    *cache_entry_guard = cache_entry_value;
-                    match &*cache_entry_guard {
-                        CacheEntry::NotStarted => {
-                            return Err("internal error: object did not start building".to_owned());
-                        }
-                        CacheEntry::Building { notify, .. } => {
-                            let waiter = notify.waiter();
-                            drop(cache_entry_guard);
-                            waiter.wait();
-                        }
-                        CacheEntry::Ok(Redirectable::Direct(output)) => {
-                            return Ok(Arc::clone(output));
-                        }
-                        CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
-                            id = new_id.clone();
-                        }
-                        CacheEntry::Err(e) => return Err(e.clone()),
                     }
                 }
-
-                // The object has already been built.
-                CacheEntry::Ok(Redirectable::Redirect(new_id)) => id = new_id.clone(),
-                CacheEntry::Ok(Redirectable::Direct(output)) => return Ok(Arc::clone(output)),
-                CacheEntry::Err(e) => return Err(e.clone()),
-
-                // The object has already been built or is being built.
-                CacheEntry::Building { .. } => return Err("unexpected Building entry".to_owned()),
+            };
+            match generator_output {
+                Ok(ok) => CacheEntry::Ok(ok),
+                Err(e) => {
+                    let msg = format!("error building {id}: {e}");
+                    self.default_logger.log(LogLine {
+                        level: log::Level::Error,
+                        file,
+                        msg,
+                        traceback: None,
+                    });
+                    CacheEntry::Err(e)
+                }
             }
+        };
+
+        self.build_generic_with_redirect_handling(
+            initial_id.to_owned(),
+            &mut vec![],
+            &get_cache_entry_fn,
+            &build_fn,
+        )
+    }
+
+    fn build_object_generic_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
+        let get_cache_entry_fn = |id: &str| {
+            Arc::clone(
+                T::get_cache(&mut self.db.lock())
+                    .entry(id.to_owned())
+                    .or_default(),
+            )
+        };
+
+        let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
+            // Get the object spec, which may be expensive.
+            progress.lock().task = BuildTask::GeneratingSpec;
+            let spec = match self.build_spec_generic_blocking::<T>(&id) {
+                Ok(spec) => spec,
+                Err(e) => return CacheEntry::Err(e),
+            };
+            // Redirect if necessary.
+            let new_id = T::get_spec_id(&spec);
+            if new_id != id {
+                return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
+            }
+            // Build the object, which may be expensive.
+            let ctx = BuildCtx::new(&self.default_logger, &progress);
+            CacheEntry::from(T::build_object_from_spec(ctx, &spec))
+        };
+
+        self.build_generic_with_redirect_handling(
+            id.to_owned(),
+            &mut vec![],
+            &get_cache_entry_fn,
+            &build_fn,
+        )
+    }
+
+    fn build_generic_with_redirect_handling<T>(
+        &self,
+        id: String,
+        redirect_sequence: &mut Vec<String>,
+        get_cache_entry_fn: &impl Fn(&str) -> Arc<Mutex<CacheEntry<T>>>,
+        build_fn: &impl Fn(&str, &Arc<Mutex<Progress>>) -> CacheEntry<T>,
+    ) -> Result<Arc<T>, String> {
+        redirect_sequence.push(id.clone());
+        if redirect_sequence.len() > crate::MAX_ID_REDIRECTS {
+            let msg = format!("too many ID redirects: {redirect_sequence:?}");
+            self.default_logger.error(&msg);
+            return Err(msg);
         }
 
-        let msg = format!("too many ID redirects: {redirect_sequence:?}");
-        self.default_logger.error(&msg);
+        let cache_entry = get_cache_entry_fn(&id);
+        let mut cache_entry_guard = cache_entry.lock();
 
-        Err(msg)
+        if let CacheEntry::NotStarted = &*cache_entry_guard {
+            // Mark that this object is being built.
+            let progress = Arc::new(Mutex::new(Progress::default()));
+            *cache_entry_guard = CacheEntry::Building {
+                progress: Arc::clone(&progress),
+                notify: NotifyWhenDropped::new(),
+            };
+            // Unlock the mutex before during expensive object generation.
+            let cache_entry_value =
+                MutexGuard::unlocked(&mut cache_entry_guard, || build_fn(&id, &progress));
+            // Store the result.
+            *cache_entry_guard = cache_entry_value;
+        };
+
+        // If another thread is building the object, then wait for that.
+        if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
+            log::trace!("waiting for another thread to build {id:?}");
+            let waiter = notify.waiter();
+            MutexGuard::unlocked(&mut cache_entry_guard, || {
+                waiter.wait();
+            });
+            log::trace!("done waiting on {id:?}");
+        }
+
+        match &*cache_entry_guard {
+            // The object was requested but has not started being built.
+            CacheEntry::NotStarted => {
+                Err("internal error: object did not start building".to_owned())
+            }
+
+            // The object has already been built.
+            CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
+                let new_id = new_id.clone();
+                drop(cache_entry_guard);
+                self.build_generic_with_redirect_handling::<T>(
+                    new_id,
+                    redirect_sequence,
+                    get_cache_entry_fn,
+                    build_fn,
+                )
+            }
+            CacheEntry::Ok(Redirectable::Direct(output)) => Ok(Arc::clone(output)),
+            CacheEntry::Err(e) => Err(e.clone()),
+
+            // The object has already been built or is being built.
+            CacheEntry::Building { .. } => Err("unexpected Building entry".to_owned()),
+        }
     }
 }
 
