@@ -164,77 +164,76 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
 
     let base_idx = NDIM * vertex_index;
 
-    var new_pos = array<f32, NDIM>();
-    var new_normal = array<f32, NDIM>();
+    var init_pos = array<f32, NDIM>();
+    var init_normal = array<f32, NDIM>();
     var vert_idx = base_idx;
     var surface_idx = NDIM * surface;
     var piece_idx = NDIM * piece;
     for (var i = 0; i < NDIM; i++) {
-        new_pos[i] = vertex_positions[vert_idx];
-        new_normal[i] = surface_normals[surface_idx];
+        init_pos[i] = vertex_positions[vert_idx];
+        init_normal[i] = surface_normals[surface_idx];
         if is_puzzle_vertex {
             // Apply sticker shrink.
-            new_pos[i] += sticker_shrink_vectors[vert_idx] * draw_params.sticker_shrink;
+            init_pos[i] += sticker_shrink_vectors[vert_idx] * draw_params.sticker_shrink;
         }
         // Apply facet shrink.
-        new_pos[i] -= surface_centroids[surface_idx];
+        init_pos[i] -= surface_centroids[surface_idx];
         if is_puzzle_vertex {
-            new_pos[i] *= draw_params.facet_scale;
+            init_pos[i] *= draw_params.facet_scale;
         } else {
-            new_pos[i] *= draw_params.gizmo_scale;
+            init_pos[i] *= draw_params.gizmo_scale;
         }
-        new_pos[i] += surface_centroids[surface_idx];
+        init_pos[i] += surface_centroids[surface_idx];
         // Apply piece explode.
         if is_puzzle_vertex {
-            new_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
+            init_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
         } else {
-            new_pos[i] *= 1.0 + draw_params.piece_explode;
+            init_pos[i] *= 1.0 + draw_params.piece_explode;
         }
 
         vert_idx++;
         surface_idx++;
         piece_idx++;
     }
-    var old_pos = new_pos;
-    var old_normal = new_normal;
-    var old_u: array<f32, NDIM>;
-    var old_v: array<f32, NDIM>;
-    var i: i32;
+    var pos: array<f32, NDIM>;
+    var normal: array<f32, NDIM>;
+    var u: array<f32, NDIM>;
+    var v: array<f32, NDIM>;
     if is_puzzle_vertex {
         // Apply piece transform.
-        new_pos = array<f32, NDIM>();
-        new_normal = array<f32, NDIM>();
-        var new_u = array<f32, NDIM>();
-        var new_v = array<f32, NDIM>();
+        pos = array<f32, NDIM>();
+        normal = array<f32, NDIM>();
+        u = array<f32, NDIM>();
+        v = array<f32, NDIM>();
         vert_idx = base_idx;
-        i = NDIM * NDIM * piece;
+        var i = NDIM * NDIM * piece;
         for (var col = 0; col < NDIM; col++) {
             for (var row = 0; row < NDIM; row++) {
-                new_pos[row] += piece_transforms[i] * old_pos[col];
-                new_normal[row] += piece_transforms[i] * old_normal[col];
-                new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
-                new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
+                pos[row] += piece_transforms[i] * init_pos[col];
+                normal[row] += piece_transforms[i] * init_normal[col];
+                u[row] += piece_transforms[i] * u_tangents[vert_idx];
+                v[row] += piece_transforms[i] * v_tangents[vert_idx];
                 i++;
             }
             vert_idx++;
         }
-        old_pos = new_pos;
-        old_normal = new_normal;
-        old_u = new_u;
-        old_v = new_v;
+    } else {
+        for (var i = 0; i < NDIM; i++) {
+            pos[i] = init_pos[i];
+            normal[i] = init_normal[i];
+        }
     }
 
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
     var normal_4d = vec4<f32>();
-    var u = vec4<f32>();
-    var v = vec4<f32>();
-    i = 0;
+    var u_4d = vec4<f32>();
+    var v_4d = vec4<f32>();
     for (var col = 0; col < NDIM; col++) {
-        point_4d += puzzle_transform[col] * old_pos[col];
-        normal_4d += puzzle_transform[col] * old_normal[col];
-        u += puzzle_transform[col] * old_u[col];
-        v += puzzle_transform[col] * old_v[col];
+        point_4d += puzzle_transform[col] * pos[col];
+        normal_4d += puzzle_transform[col] * normal[col];
+        u_4d += puzzle_transform[col] * u[col];
+        v_4d += puzzle_transform[col] * v[col];
     }
 
     // Clip 4D backfaces.
@@ -246,7 +245,7 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
         // Add extra dimensions into the dot product.
         for (var i = 4; i < NDIM; i++) {
             // The puzzle transform doesn't apply to dimensions higher than 4D.
-            dot_product_result += old_normal[i] * old_pos[i];
+            dot_product_result += normal[i] * pos[i];
         }
         let show = dot_product_result == 0.0
             || (dot_product_result > 0.0 && draw_params.show_frontfaces != 0)
@@ -285,8 +284,8 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
     //
     // Take the Jacobian of this transformation and multiply each tangent
     // vector by it.
-    let u_3d = (u.xyz + vertex_3d_position * u.w * draw_params.w_factor_4d) * recip_w_divisor;
-    let v_3d = (v.xyz + vertex_3d_position * v.w * draw_params.w_factor_4d) * recip_w_divisor;
+    let u_3d = (u_4d.xyz + vertex_3d_position * u_4d.w * draw_params.w_factor_4d) * recip_w_divisor;
+    let v_3d = (v_4d.xyz + vertex_3d_position * v_4d.w * draw_params.w_factor_4d) * recip_w_divisor;
     // Do the same thing to project from 3D to 2D.
     let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * draw_params.w_factor_3d) * recip_z_divisor;
     let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * draw_params.w_factor_3d) * recip_z_divisor;
