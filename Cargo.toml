@@ -84,7 +84,7 @@ slab = { version = "0.4.9" }
 tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
-comrak = { version = "0.31.0" }
+comrak = { version = "0.31.0", default-features = false }
 config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
 directories = { version = "5.0.1" }
 hex = { version = "0.4.3" }
@@ -93,6 +93,7 @@ include_dir = { version = "0.7.4" }
 kdl = { version = "4.7.0" }
 miette = { version = "7.4.0" } # must match kdl
 serde = { version = "1.0.216", features = ["derive"] }
+serde_json = { version = "1.0.137" }
 serde_yml = { version = "0.0.12" }
 strum = { version = "0.26.3", features = ["derive"] }
 walkdir = { version = "2.4.0" }
@@ -120,6 +121,10 @@ tracing = { version = "0.1.41" }
 tracing-error = { version = "0.2.1" }
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }
 # color-eyre defined at the bottom of the file
+
+# Command-line interface
+clap = { version = "4.5.27" }
+clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
 eframe = { version = "0.30.0", default-features = false, features = ["default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] } # TODO: add `accesskit` back when https://github.com/Adanos020/egui_dock/issues/257 is resolved
@@ -159,7 +164,7 @@ syn = { version = "2.0.90" }
 
 # Other dependencies
 bytemuck = { version = "1.20.0", features = ["derive"] }
-chrono = { version = "0.4.39" }
+chrono = { version = "0.4.39", features = ["serde"] }
 itertools = { version = "0.13.0" }
 lazy_static = { version = "1.5.0" }
 names = { version = "0.14.0", default-features = false }
