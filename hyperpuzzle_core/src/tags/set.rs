@@ -1,6 +1,9 @@
 use std::collections::{hash_map, HashMap};
 use std::sync::Arc;
 
+use serde::ser::SerializeMap;
+use serde::Serialize;
+
 use super::menu::UnknownTag;
 use super::{TagData, TagValue};
 
@@ -85,5 +88,34 @@ impl TagSet {
         tag_name: &str,
     ) -> Result<hash_map::Entry<'_, Arc<str>, TagValue>, UnknownTag> {
         Ok(self.entry(crate::TAGS.get(tag_name)?))
+    }
+}
+
+impl Serialize for TagSet {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(
+            self.0
+                .values()
+                .filter(|v| !matches!(v, TagValue::Inherited))
+                .count(),
+        ))?;
+
+        for (k, v) in &self.0 {
+            let k = &**k;
+            match v {
+                TagValue::False => map.serialize_entry(k, &false)?,
+                TagValue::True => map.serialize_entry(k, &true)?,
+                TagValue::Inherited => (),
+                TagValue::Int(i) => map.serialize_entry(k, i)?,
+                TagValue::Str(s) => map.serialize_entry(k, s)?,
+                TagValue::StrList(vec) => map.serialize_entry(k, vec)?,
+                TagValue::Puzzle(s) => map.serialize_entry(k, s)?,
+            }
+        }
+
+        map.end()
     }
 }

@@ -5,6 +5,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use serde::Serialize;
 
 use super::{GeneratorParam, Progress};
 use crate::{ColorSystem, Logger, Puzzle, TagSet, Version};
@@ -103,7 +104,7 @@ impl fmt::Debug for ColorSystemGenerator {
 /// Common metadata about a puzzle or puzzle generator.
 ///
 /// This is a particularly useful abstraction for displaying the puzzle list.
-#[derive(Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct PuzzleListMetadata {
     /// Internal ID.
     pub id: String,

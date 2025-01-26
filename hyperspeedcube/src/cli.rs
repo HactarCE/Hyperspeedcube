@@ -1,7 +1,8 @@
 use std::io::{Read, Write};
 
-use eyre::Context;
+use eyre::{eyre, Context, Result};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 // TODO: specify log file via CLI
 
@@ -20,6 +21,11 @@ pub(crate) struct Args {
 
 #[derive(clap::Subcommand, Debug)]
 pub(crate) enum Subcommand {
+    /// Outputs information about a puzzle.
+    Puzzle {
+        /// Puzzle ID, such as `ft_cube:3`
+        puzzle_id: String,
+    },
     /// Verifies a log file and outputs JSON.
     Verify {
         /// Log file to verify, use '-' for stdin.
@@ -32,8 +38,16 @@ pub(crate) enum Subcommand {
     },
 }
 
-pub(crate) fn exec(subcommand: Subcommand) -> eyre::Result<()> {
+pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
     match subcommand {
+        Subcommand::Puzzle { puzzle_id } => {
+            hyperpuzzle::load_global_catalog();
+            let puzzle = hyperpuzzle::catalog()
+                .build_puzzle_spec_blocking(&puzzle_id)
+                .map_err(|e| eyre!("error building puzzle: {e}"))?;
+            write_json_output(&puzzle.meta)
+        }
+
         Subcommand::Verify {
             mut log_file,
             skip_simulation,
@@ -61,10 +75,12 @@ pub(crate) fn exec(subcommand: Subcommand) -> eyre::Result<()> {
                 })
                 .collect_vec();
 
-            serde_json::to_writer_pretty(std::io::stdout(), &facts)
-                .context("error writing verification to output")?;
-
-            Ok(())
+            write_json_output(&facts)
         }
     }
+}
+
+fn write_json_output<T: Serialize>(value: &T) -> Result<()> {
+    serde_json::to_writer_pretty(std::io::stdout(), value)
+        .context("error writing verification to output")
 }
