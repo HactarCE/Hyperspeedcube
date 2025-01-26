@@ -1,13 +1,14 @@
 use std::sync::atomic::{AtomicBool, AtomicU32};
 
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 use super::{LayeredTwist, PuzzleState};
 use crate::Timestamp;
 
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ScrambleParams {
     /// Type of scramble to generate.
     pub ty: ScrambleType,
@@ -28,7 +29,8 @@ impl ScrambleParams {
 }
 
 /// Type of scramble to generate.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum ScrambleType {
     /// Full scramble.
     Full,

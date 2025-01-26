@@ -2,6 +2,7 @@
 
 use hyperpuzzle_core::{chrono, Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use super::*;
@@ -130,7 +131,7 @@ pub enum Fact {
 }
 
 /// Info about a scramble & solve of a puzzle.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SolveVerification {
     /// Puzzle that was solved.
     pub puzzle: Puzzle,

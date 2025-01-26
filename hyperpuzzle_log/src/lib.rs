@@ -9,6 +9,7 @@ use std::str::FromStr;
 use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
 use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
+use serde::{Deserialize, Serialize};
 
 pub mod notation;
 pub mod verify;
@@ -154,7 +155,7 @@ pub struct Solve {
     pub log: Vec<LogEvent>,
 }
 /// Puzzle info.
-#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct Puzzle {
     /// Puzzle ID.
     #[kdl(property("id"))]
@@ -169,7 +170,7 @@ pub struct Puzzle {
 }
 
 /// Scramble info.
-#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct Scramble {
     /// Scramble type selected by the user.
     #[kdl(argument, proxy = KdlProxy)]
