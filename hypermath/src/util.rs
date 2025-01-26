@@ -1,5 +1,6 @@
 //! Common mathematical utility functions that didn't fit anywhere else.
 
+pub use std::f64::consts::PI;
 use std::ops::{Add, BitXorAssign, Mul};
 
 use itertools::Itertools;

@@ -51,10 +51,11 @@ impl LuaUserData for LuaTransform {
         methods.add_meta_method(LuaMetaMethod::Pow, |_lua, Self(this), rhs: LuaValue| {
             if let LuaValue::Integer(rhs) = rhs {
                 Ok(Self(this.powi(rhs)))
-            } else if let LuaValue::Number(_rhs) = rhs {
-                Err(LuaError::external(
-                    "cannot raise transform to non-integer power",
-                ))
+            } else if let LuaValue::Number(rhs) = rhs {
+                let pow = this.powf(rhs).ok_or(LuaError::external(
+                    "error raising transform to non-integer power",
+                ))?;
+                Ok(Self(pow))
             } else {
                 Err(LuaError::external(format!(
                     "cannot raise transform to power of type {}",
