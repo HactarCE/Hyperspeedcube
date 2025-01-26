@@ -22,14 +22,14 @@ pub(crate) struct Args {
 
 #[derive(clap::Subcommand, Debug)]
 pub(crate) enum Subcommand {
-    /// Outputs program info and credits in Markdown.
+    /// Print program info and credits in Markdown.
     About,
-    /// Outputs information about a puzzle or generator as JSON.
+    /// Print information about a puzzle or generator as JSON.
     Puzzle {
         /// Puzzle or generator ID(s) (such as `ft_cube` or `ft_cube:3`)
         ids: Vec<String>,
     },
-    /// Outputs all non-experimental puzzle and puzzle generator IDs.
+    /// Print all non-experimental puzzle and puzzle generator IDs.
     Puzzles {
         /// List only non-generated puzzles.
         #[arg(short, long)]
@@ -48,9 +48,9 @@ pub(crate) enum Subcommand {
         /// Query expression(s) to search for.
         query: Vec<String>,
     },
-    /// Outputs all tags.
+    /// Print all tags.
     Tags,
-    /// Verifies a log file and outputs info about it as JSON.
+    /// Verify a log file and print info about it as JSON.
     Verify {
         /// Log file to verify, use '-' for stdin.
         #[arg(value_parser)]
@@ -184,7 +184,7 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
 
 fn write_json_output<T: Serialize>(value: &T) -> Result<()> {
     serde_json::to_writer_pretty(std::io::stdout(), value)
-        .context("error writing verification to output")?;
+        .context("error serializing data and writing to stdout")?;
     println!();
     Ok(())
 }
