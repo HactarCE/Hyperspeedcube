@@ -20,7 +20,7 @@ mod menu_bar;
 mod modals;
 mod tabs;
 
-pub use tabs::{PuzzleWidget, Tab};
+pub use tabs::{about_text, PuzzleWidget, Query, Tab};
 use util::{EguiTempFlag, EguiTempValue};
 
 pub use crate::app::App;

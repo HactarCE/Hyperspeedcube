@@ -28,7 +28,9 @@ mod timeline;
 mod timer;
 mod view;
 
+pub use about::about_text;
 pub use puzzle::PuzzleWidget;
+pub use puzzle_catalog::Query;
 
 use super::App;
 use crate::L;

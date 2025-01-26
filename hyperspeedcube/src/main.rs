@@ -17,6 +17,8 @@ mod gui;
 mod locales;
 mod util;
 
+pub use gui::about_text;
+
 /// Strings for the current locale.
 ///
 /// This can be made customizable in the future using the crate `atomic`.

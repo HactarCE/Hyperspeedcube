@@ -4,8 +4,8 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use hyperpuzzle_core::{
-    GeneratorParamType, GeneratorParamValue, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator,
-    TagSet,
+    GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
+    PuzzleSpecGenerator, TagSet,
 };
 use itertools::Itertools;
 use regex::Regex;
@@ -175,9 +175,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             .puzzle_list_entries()
                             .filter(|entry| show_experimental || !entry.tags.is_experimental())
                             .filter_map(|entry| query.try_match(entry))
-                            .sorted_unstable_by(|a, b| {
-                                Ord::cmp(&(-a.score, &a.object), &(-b.score, &b.object))
-                            });
+                            .sorted_unstable();
 
                         for query_result in query_results {
                             let obj = query_result.object.clone();
@@ -320,7 +318,7 @@ impl<'a> QuerySegment<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Query<'a> {
+pub struct Query<'a> {
     /// Parsed segments of the query string.
     segments: Vec<QuerySegment<'a>>,
 
@@ -340,7 +338,7 @@ impl fmt::Display for Query<'_> {
     }
 }
 impl<'a> Query<'a> {
-    fn from_str(s: &'a str) -> Self {
+    pub fn from_str(s: &'a str) -> Self {
         lazy_static! {
             static ref SEGMENT_REGEX: Regex =
                 Regex::new(r#"\s+|([^"\s]|"([^"]*|\\")"?)+"#).expect("bad regex");
@@ -469,7 +467,7 @@ impl<'a> Query<'a> {
         ui.fonts(|fonts| fonts.layout_job(job))
     }
 
-    fn try_match<'b>(&self, object: &'b PuzzleListMetadata) -> Option<FuzzyQueryMatch<'b>> {
+    pub fn try_match<'b>(&self, object: &'b PuzzleListMetadata) -> Option<FuzzyQueryMatch<'b>> {
         let tags = &object.tags;
         let mut include = self.included_tags.iter();
         let mut exclude = self.excluded_tags.iter();
@@ -566,9 +564,9 @@ impl egui::Widget for SubstringQueryMatch<'_> {
     }
 }
 
-struct FuzzyQueryMatch<'a> {
+pub struct FuzzyQueryMatch<'a> {
     /// Matched object.
-    object: &'a PuzzleListMetadata,
+    pub object: &'a PuzzleListMetadata,
     /// Info about the fuzzy match for the display name, or `None` if the text
     /// portion of the query is empty.
     name_match: Option<sublime_fuzzy::Match>,
