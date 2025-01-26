@@ -67,5 +67,4 @@ pub(crate) fn exec(subcommand: Subcommand) -> eyre::Result<()> {
             Ok(())
         }
     }
-    // if args.verify {}
 }
