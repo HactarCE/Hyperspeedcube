@@ -4,20 +4,22 @@ use crate::gui::ext::ResponseExt;
 
 use super::Window;
 
-// TODO: resizing of timer text (eg keybind reference)
+// TODO: move blind mode toggle to settings
 // TODO: should Timer/Stopwatch be in components?
+// TODO: use linear approximation in keybind references too
 
 pub(crate) const TIMER: Window = Window {
     name: "Timer",
     build: |ui, app| {
-        ui.add(egui::Button::new(
-            egui::RichText::new(match app.timer.stopwatch {
+        ui.add(egui::Button::new(autosize_button_text(
+            ui,
+            &match app.timer.stopwatch {
                 Stopwatch::NotStarted => "Ready".into(),
                 Stopwatch::Running(start) => duration_to_str(start.elapsed()),
                 Stopwatch::Stopped(duration) => duration_to_str(duration),
-            })
-            .size(20.0),
-        ));
+            },
+            ui.available_width() - ui.spacing().button_padding.x * 2.0,
+        )));
         if ui
             .selectable_label(app.timer.is_blind, "Blind mode")
             .on_hover_explanation(
@@ -33,6 +35,40 @@ pub(crate) const TIMER: Window = Window {
     },
     ..Window::DEFAULT
 };
+
+fn text_and_width_of_font_size(
+    ui: &egui::Ui,
+    mut text: egui::RichText,
+    font_size: f32,
+) -> (egui::RichText, f32) {
+    // i hate this function signature but idk how else to use text.size without cloning
+    text = text.size(font_size);
+    let text_size = egui::WidgetText::RichText(text.clone())
+        .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
+        .size();
+    (text, text_size.x)
+}
+
+/// returns a RichText whose width is close to but no larger than the target width
+fn autosize_button_text(ui: &egui::Ui, text: &str, target_width: f32) -> egui::RichText {
+    // use that width of text is ~linear in font size to generate an initial guess then fix it
+    let mut text = egui::RichText::new(text);
+    let initial_font_size = 100.0;
+    let initial_width;
+    (text, initial_width) = text_and_width_of_font_size(ui, text, initial_font_size);
+    let font_size_per_width = initial_font_size / initial_width;
+    let mut font_size = (target_width * font_size_per_width).max(2.0);
+    let mut width;
+    (text, width) = text_and_width_of_font_size(ui, text, font_size);
+    // this should only run at most 4 times, typically 0 or 1
+    while width > target_width && font_size > 2.0 {
+        // point sizes have a resolution of ~0.5
+        font_size = (font_size - 0.5).max(2.0);
+        (text, width) = text_and_width_of_font_size(ui, text, font_size);
+    }
+    debug_assert!(width <= target_width);
+    text
+}
 
 #[derive(Debug)]
 pub(crate) enum Stopwatch {
@@ -75,6 +111,10 @@ impl Timer {
             stopwatch: Stopwatch::NotStarted,
             is_blind: false,
         }
+    }
+
+    pub(crate) fn on_puzzle_reset(&mut self) {
+        self.stopwatch.reset();
     }
 
     pub(crate) fn on_scramble(&mut self) {

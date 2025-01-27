@@ -198,6 +198,7 @@ impl App {
                         self.puzzle.reset();
                         self.reset_active_keybind_set();
                         self.set_status_ok("Reset");
+                        self.timer.on_puzzle_reset();
                     }
                 }
 
@@ -227,6 +228,7 @@ impl App {
                         self.puzzle = PuzzleController::new(puzzle_type);
                         self.reset_active_keybind_set();
                         self.set_status_ok(format!("Loaded {}", puzzle_type));
+                        self.timer.on_puzzle_reset();
                     }
                 }
 
