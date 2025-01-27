@@ -1,7 +1,5 @@
 use instant::{Duration, Instant};
 
-use crate::gui::ext::ResponseExt;
-
 use super::Window;
 
 // TODO: move blind mode toggle to settings
@@ -20,18 +18,6 @@ pub(crate) const TIMER: Window = Window {
             },
             ui.available_width() - ui.spacing().button_padding.x * 2.0,
         )));
-        if ui
-            .selectable_label(app.timer.is_blind, "Blind mode")
-            .on_hover_explanation(
-                "normal mode : blind mode",
-                "start on (first twist : scramble)\nstop on (solved : blindfold off)\ntoggling will reset the timer and puzzle",
-            )
-            .clicked()
-        {
-            app.timer.is_blind ^= true;
-            app.timer.stopwatch.reset();
-            app.puzzle.reset();
-        }
     },
     ..Window::DEFAULT
 };
@@ -41,7 +27,7 @@ fn text_and_width_of_font_size(
     mut text: egui::RichText,
     font_size: f32,
 ) -> (egui::RichText, f32) {
-    // i hate this function signature but idk how else to use text.size without cloning
+    // this function signature is annoying but idk how else to use text.size without cloning
     text = text.size(font_size);
     let text_size = egui::WidgetText::RichText(text.clone())
         .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
@@ -103,13 +89,11 @@ impl Stopwatch {
 #[derive(Debug)]
 pub(crate) struct Timer {
     stopwatch: Stopwatch,
-    is_blind: bool,
 }
 impl Timer {
     pub(crate) fn new() -> Self {
         Self {
             stopwatch: Stopwatch::NotStarted,
-            is_blind: false,
         }
     }
 
@@ -117,28 +101,28 @@ impl Timer {
         self.stopwatch.reset();
     }
 
-    pub(crate) fn on_scramble(&mut self) {
+    pub(crate) fn on_scramble(&mut self, is_blind: bool) {
         self.stopwatch.reset();
-        if self.is_blind {
+        if is_blind {
             self.stopwatch.start();
         }
     }
 
-    pub(crate) fn on_non_rotation_twist(&mut self) {
+    pub(crate) fn on_non_rotation_twist(&mut self, is_blind: bool) {
         // check if the twist is the first one
-        if !self.is_blind && matches!(self.stopwatch, Stopwatch::NotStarted) {
+        if !is_blind && matches!(self.stopwatch, Stopwatch::NotStarted) {
             self.stopwatch.start();
         }
     }
 
-    pub(crate) fn on_solve(&mut self) {
-        if !self.is_blind {
+    pub(crate) fn on_solve(&mut self, is_blind: bool) {
+        if !is_blind {
             self.stopwatch.stop();
         }
     }
 
-    pub(crate) fn on_blindfold_off(&mut self) {
-        if self.is_blind {
+    pub(crate) fn on_blindfold_off(&mut self, is_blind: bool) {
+        if is_blind {
             self.stopwatch.stop();
         }
     }

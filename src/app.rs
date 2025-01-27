@@ -211,7 +211,8 @@ impl App {
                             n,
                             if n == 1 { "move" } else { "moves" }
                         ));
-                        self.timer.on_scramble();
+                        self.timer
+                            .on_scramble(self.prefs.interaction.timer_blind_mode);
                     }
                 }
                 Command::ScrambleFull => {
@@ -219,7 +220,8 @@ impl App {
                         self.puzzle.scramble_full()?;
                         self.reset_active_keybind_set();
                         self.set_status_ok("Scrambled fully");
-                        self.timer.on_scramble();
+                        self.timer
+                            .on_scramble(self.prefs.interaction.timer_blind_mode);
                     }
                 }
 
@@ -237,7 +239,8 @@ impl App {
                     if self.prefs.colors.blindfold {
                         self.puzzle.visible_pieces_mut().fill(true);
                     } else {
-                        self.timer.on_blindfold_off();
+                        self.timer
+                            .on_blindfold_off(self.prefs.interaction.timer_blind_mode);
                     }
                     self.prefs.needs_save = true;
                     self.request_redraw_puzzle();
@@ -248,7 +251,8 @@ impl App {
 
             AppEvent::Twist(twist) => {
                 if self.puzzle.is_non_rotation(twist) {
-                    self.timer.on_non_rotation_twist();
+                    self.timer
+                        .on_non_rotation_twist(self.prefs.interaction.timer_blind_mode);
                 }
                 self.puzzle.twist(twist)?;
             }
@@ -381,7 +385,8 @@ impl App {
                 if let Some(mut t) = get_twist(twists) {
                     t.layers = self.gripped_layers(t.layers);
                     if self.puzzle.is_non_rotation(t) {
-                        self.timer.on_non_rotation_twist();
+                        self.timer
+                            .on_non_rotation_twist(self.prefs.interaction.timer_blind_mode);
                     }
                     self.puzzle.twist(t)?;
                 }
@@ -773,7 +778,7 @@ impl App {
             if !self.prefs.colors.blindfold {
                 self.set_status_ok("Solved!");
             }
-            self.timer.on_solve();
+            self.timer.on_solve(self.prefs.interaction.timer_blind_mode);
         }
     }
 

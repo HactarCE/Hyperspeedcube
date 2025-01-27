@@ -244,6 +244,16 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
              similar orientation, not the original. This \
              adds a full-puzzle rotation to the undo history.",
         );
+    if prefs_ui
+        .checkbox("Timer blind mode", access!(.timer_blind_mode))
+        .on_hover_explanation(
+            "(normal mode : blind mode)",
+            "start on (first twist : scramble)\nstop on (solved : blindfold off)\ntoggling will reset the puzzle and timer.",
+        ).clicked() {
+            // TODO: this should really be app.event(crate::commands::Command::Reset) but idk how to get the borrow checker to be happy
+            app.puzzle.reset();
+            app.timer.on_puzzle_reset();
+        }
 
     prefs_ui.ui.separator();
 
