@@ -192,35 +192,45 @@ impl App {
                 Command::Redo => {
                     self.puzzle.redo()?;
                 }
+
                 Command::Reset => {
                     if self.confirm_discard_changes("reset puzzle") {
                         self.puzzle.reset();
+                        self.reset_active_keybind_set();
+                        self.set_status_ok("Reset");
+                        self.timer.on_puzzle_reset();
                     }
                 }
 
                 Command::ScrambleN(n) => {
                     if self.confirm_discard_changes("scramble") {
                         self.puzzle.scramble_n(n)?;
+                        self.reset_active_keybind_set();
                         self.set_status_ok(format!(
                             "Scrambled with {} random {}",
                             n,
                             if n == 1 { "move" } else { "moves" }
                         ));
-                        self.timer.on_scramble();
+                        self.timer
+                            .on_scramble(self.prefs.interaction.timer_blind_mode);
                     }
                 }
                 Command::ScrambleFull => {
                     if self.confirm_discard_changes("scramble") {
                         self.puzzle.scramble_full()?;
+                        self.reset_active_keybind_set();
                         self.set_status_ok("Scrambled fully");
-                        self.timer.on_scramble();
+                        self.timer
+                            .on_scramble(self.prefs.interaction.timer_blind_mode);
                     }
                 }
 
                 Command::NewPuzzle(puzzle_type) => {
                     if self.confirm_discard_changes("reset puzzle") {
                         self.puzzle = PuzzleController::new(puzzle_type);
+                        self.reset_active_keybind_set();
                         self.set_status_ok(format!("Loaded {}", puzzle_type));
+                        self.timer.on_puzzle_reset();
                     }
                 }
 
@@ -229,7 +239,8 @@ impl App {
                     if self.prefs.colors.blindfold {
                         self.puzzle.visible_pieces_mut().fill(true);
                     } else {
-                        self.timer.on_blindfold_off();
+                        self.timer
+                            .on_blindfold_off(self.prefs.interaction.timer_blind_mode);
                     }
                     self.prefs.needs_save = true;
                     self.request_redraw_puzzle();
@@ -240,7 +251,8 @@ impl App {
 
             AppEvent::Twist(twist) => {
                 if self.puzzle.is_non_rotation(twist) {
-                    self.timer.on_non_rotation_twist();
+                    self.timer
+                        .on_non_rotation_twist(self.prefs.interaction.timer_blind_mode);
                 }
                 self.puzzle.twist(twist)?;
             }
@@ -373,7 +385,8 @@ impl App {
                 if let Some(mut t) = get_twist(twists) {
                     t.layers = self.gripped_layers(t.layers);
                     if self.puzzle.is_non_rotation(t) {
-                        self.timer.on_non_rotation_twist();
+                        self.timer
+                            .on_non_rotation_twist(self.prefs.interaction.timer_blind_mode);
                     }
                     self.puzzle.twist(t)?;
                 }
@@ -765,7 +778,7 @@ impl App {
             if !self.prefs.colors.blindfold {
                 self.set_status_ok("Solved!");
             }
-            self.timer.on_solve();
+            self.timer.on_solve(self.prefs.interaction.timer_blind_mode);
         }
     }
 
@@ -940,6 +953,24 @@ impl App {
     #[cfg(target_arch = "wasm32")]
     pub(crate) fn modifiers(&self) -> ModifiersState {
         self.pressed_modifiers
+    }
+
+    /// sets the active keybind set to be the first non-hidden keybind set in the list.
+    fn reset_active_keybind_set(&mut self) {
+        // TODO(HactarCE): why do we store different keybind sets for each puzzle if the sets are actually the same for puzzles of the same dimension?
+        // i didn't look at how keybind sets are modified but this seems kinda weird.
+        let puzzle_keybinds = &mut self.prefs.puzzle_keybinds[self.puzzle.ty()];
+        if let Some(set) = puzzle_keybinds
+            .sets
+            .iter()
+            .filter(|set| {
+                !set.preset_name
+                    .starts_with(crate::gui::windows::HIDDEN_PREFIX_CHAR)
+            })
+            .nth(0)
+        {
+            puzzle_keybinds.active = set.preset_name.clone();
+        }
     }
 }
 
