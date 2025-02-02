@@ -64,6 +64,7 @@ puzzle_generators:add{
         },
         ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
         ['cuts/depth/half'] = size % 2 == 0,
+        ['external/leaderboard'] = size >= 2,
       },
     }
   end,
@@ -219,6 +220,7 @@ puzzle_generators:add{
         },
         ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
         ['cuts/depth/half'] = size % 2 == 0,
+        ['external/leaderboard'] = size >= 2,
       },
     }
   end,

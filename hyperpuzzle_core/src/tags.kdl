@@ -1,4 +1,4 @@
-__schema 1 // Bump this version when adding new required tags
+__schema 2 // Bump this version when adding new required tags
 
 schema "Tag schema" expected=0 hidden=true
 
@@ -247,6 +247,7 @@ external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=1
   (str)hof "Hall Of Fame" expected=1
   mc4d "MagicCube4D" expected=1
+  leaderboard "Leaderboard" expected=1
   (str_list)link "Link" hidden=true
   (int)museum "Twisty Puzzle Museum" expected=1
   (str)wca "World Cube Association" expected=1
