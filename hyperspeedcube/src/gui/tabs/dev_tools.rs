@@ -465,6 +465,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
             .show(ui, |ui| {
                 let PuzzleLintOutput {
                     puzzle: _,
+                    schema,
                     missing_tags,
                 } = lint;
 
@@ -472,6 +473,12 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                     ui.label("All good!");
                 }
 
+                let latest_schema = hyperpuzzle_core::TAGS.schema;
+                if *schema != latest_schema {
+                    ui.label(format!(
+                        "Tags use schema {schema} but latest is {latest_schema}"
+                    ));
+                }
                 if !missing_tags.is_empty() {
                     if ui.button("Copy Lua code to exclude tags").clicked() {
                         let text = missing_tags

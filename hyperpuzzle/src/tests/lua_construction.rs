@@ -37,10 +37,12 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
             let PuzzleLintOutput {
                 puzzle: _,
+                schema,
                 missing_tags,
             } = puzzle_lint_output;
 
             if !missing_tags.is_empty() {
+                out += &format!("  Schema {schema}");
                 out += "  Missing tags:\n";
                 for tag in missing_tags {
                     out += &format!("    {tag:?}\n")

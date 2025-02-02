@@ -1,6 +1,10 @@
+__schema 1 // Bump this version when adding new required tags
+
+schema "Tag schema" expected=0 hidden=true
+
 __heading "Type"
 
-type expected=true inline=true {
+type expected=1 inline=true {
   shape "Shape"
   puzzle "Puzzle"
   generator "Generator" auto=true
@@ -10,7 +14,7 @@ __separator
 
 __heading "Shape"
 
-shape expected=true inline=true {
+shape expected=1 inline=true {
   _3d "3D" {
     platonic "Platonic" {
       cube "Cube"
@@ -75,18 +79,18 @@ shape expected=true inline=true {
 }
 
 colors "Colors" {
-  (str)system "Color system" auto=true expected=true list=true
-  multi_per_facet "Multiple colors per facet" expected=true
-  multi_facet_per "Multiple facets per color" expected=true
+  (str)system "Color system" auto=true expected=1 list=true
+  multi_per_facet "Multiple colors per facet" expected=1
+  multi_facet_per "Multiple facets per color" expected=1
 }
 
-shapeshifting "Shapeshifting" expected=true
+shapeshifting "Shapeshifting" expected=1
 
 __separator
 
 __heading "Twists"
 
-axes "Axis system" expected=true {
+axes "Axis system" expected=1 {
   _3d "3D" {
     elementary "Elementary" {
       cubic "Cubic"
@@ -123,11 +127,11 @@ axes "Axis system" expected=true {
     }
     duoprism "Duoprism"
   }
-  hybrid "Hybrid" expected=true
-  multicore "Multi-core" expected=true
+  hybrid "Hybrid" expected=1
+  multicore "Multi-core" expected=1
 }
 
-turns_by "Turning element" expected=true {
+turns_by "Turning element" expected=1 {
   facet "Facet-turning"
   ridge "Ridge-turning"
   peak "Peak-turning"
@@ -141,34 +145,34 @@ turns_by "Turning element" expected=true {
 }
 
 completeness "Completeness" {
-  super "Super" expected=true
-  real "Real" expected=true // all non-core internal pieces are present and each can be unsolved
-  laminated "Laminated" expected=true
-  complex "Complex" expected=true
+  super "Super" expected=1
+  real "Real" expected=1 // all non-core internal pieces are present and each can be unsolved
+  laminated "Laminated" expected=1
+  complex "Complex" expected=1
 }
 
 algebraic "Algebraic properties" {
-  total expected=true include_in_tag=false inline=true {
+  total expected=1 include_in_tag=false inline=true {
     bandaged "Bandaged"
     doctrinaire "Doctrinaire"
     jumbling "Jumbling"
   }
-  pseudo "Pseudo" expected=true {
+  pseudo "Pseudo" expected=1 {
     bandaged "Pseudobandaged"
     doctrinaire "Pseudodoctrinaire"
     jumbling "Pseudojumbling"
   }
   __separator
-  abelian "Abelian" expected=true
-  fused "Fused" expected=true
+  abelian "Abelian" expected=1
+  fused "Fused" expected=1
   orientations inline=true {
-    non_abelian "Non-abelian orientations" expected=true
+    non_abelian "Non-abelian orientations" expected=1
   }
   // `trivial` means the state space is equivalent to a product of "lines,"
   // where a "line" is a puzzle with at most two moves available from any
   // position
-  trivial "Trivial" expected=true
-  weird_orbits "Weird orbits" expected=true
+  trivial "Trivial" expected=1
+  weird_orbits "Weird orbits" expected=1
 }
 
 __separator
@@ -176,7 +180,7 @@ __separator
 __heading "Cuts"
 
 cuts inline=true {
-  depth "Cut depth" expected=true {
+  depth "Cut depth" expected=1 {
     shallow "Shallow"
     deep "Deep" {
       to_adjacent "To adjacent"
@@ -185,17 +189,17 @@ cuts inline=true {
     }
     half "Half-cut"
   }
-  stored "Stored cuts" expected=true
-  wedge "Wedge cuts" expected=true
+  stored "Stored cuts" expected=1
+  wedge "Wedge cuts" expected=1
 }
 
 __separator
 
 __heading "Categories"
 
-canonical "Canonical" expected=true
+canonical "Canonical" expected=1
 
-family "Family" expected=true {
+family "Family" expected=1 {
   gap "Gap" {
     sliding "Sliding gap"
     rotating "Rotating gap"
@@ -216,21 +220,21 @@ family "Family" expected=true {
   weirdling "Weirdling"
 }
 
-variant "Variant" expected=true {
+variant "Variant" expected=1 {
   (puzzle)stickermod "Stickermod"
   (puzzle)shapemod "Shapemod"
   bump "Bump"
   bandaging "Bandaging"
 }
 
-meme "Meme" expected=true
+meme "Meme" expected=1
 
 __separator
 
 __heading "Attribution"
 
-(str_list)author "Author" expected=true list=true
-(str_list)inventor "Inventor" expected=true list=true
+(str_list)author "Author" expected=1 list=true
+(str_list)inventor "Inventor" expected=1 list=true
 
 __separator
 
@@ -238,16 +242,16 @@ __heading "Miscellaneous"
 
 solved "Solved" auto=true
 generated "Generated" auto=true
-(str)builtin "Built-in" expected=true
+(str)builtin "Built-in" expected=1
 external "External" {
-  (str)gelatinbrain "Gelatinbrain" expected=true
-  (str)hof "Hall Of Fame" expected=true
-  mc4d "MagicCube4D" expected=true
+  (str)gelatinbrain "Gelatinbrain" expected=1
+  (str)hof "Hall Of Fame" expected=1
+  mc4d "MagicCube4D" expected=1
   (str_list)link "Link" hidden=true
-  (int)museum "Twisty Puzzle Museum" expected=true
-  (str)wca "World Cube Association" expected=true
+  (int)museum "Twisty Puzzle Museum" expected=1
+  (str)wca "World Cube Association" expected=1
 }
-experimental "Experimental" expected=true
+experimental "Experimental" expected=1
 big "Big (slow to generate)"
 
 file "File" auto=true hidden=true

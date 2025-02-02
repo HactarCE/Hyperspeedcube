@@ -71,6 +71,8 @@ impl TagMenu {
         node: &hyperpuzzle_core::TagMenuNode,
     ) -> Option<TagFilterAction> {
         match node {
+            hyperpuzzle_core::TagMenuNode::Schema(_) => None,
+
             hyperpuzzle_core::TagMenuNode::Heading(heading_text) => {
                 ui.strong(&**heading_text);
                 None

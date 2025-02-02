@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use super::*;
@@ -5,10 +6,12 @@ use super::*;
 /// Catalog of known tags, defined in `tags.kdl`.
 #[derive(Debug)]
 pub struct AllTags {
+    /// Tag schema version number.
+    pub schema: u64,
     menu: TagMenuNode,
     list: Vec<Arc<str>>,
     tag_data: HashMap<Arc<str>, TagData>,
-    expected: Vec<Vec<Arc<str>>>,
+    expected: BTreeMap<u64, Vec<Vec<Arc<str>>>>,
 }
 impl AllTags {
     /// Returns the data for a tag, or `None` if no such tag exists.
@@ -30,7 +33,7 @@ impl AllTags {
 
     /// Returns a list of tag sets. Every puzzle is expected to have at least
     /// one tag from each set.
-    pub fn expected_tag_sets(&self) -> &[Vec<Arc<str>>] {
+    pub fn expected_tag_sets(&self) -> &BTreeMap<u64, Vec<Vec<Arc<str>>>> {
         &self.expected
     }
 
@@ -55,19 +58,21 @@ impl AllTags {
             display: TagDisplay::Inline,
             subtags: top_level_menu_items,
             auto: false,
-            expected: false,
+            expected: None,
             hidden: false,
             list: false,
         };
 
         // Recursively assemble the othe,r tag indexes from the menu
         // specification. Order is important for `tags_list`.
+        let mut schema = 0;
         let mut stack = vec![&menu];
         let mut tags_list = vec![];
         let mut tag_data_map = HashMap::new();
-        let mut expected_tag_sets = vec![];
+        let mut expected_tag_sets = BTreeMap::<u64, Vec<Vec<Arc<str>>>>::new();
         while let Some(node) = stack.pop() {
             match node {
+                TagMenuNode::Schema(version_number) => schema = *version_number,
                 TagMenuNode::Heading(_) | TagMenuNode::Separator => (),
                 TagMenuNode::Tag {
                     name,
@@ -89,11 +94,14 @@ impl AllTags {
                         };
                         tag_data_map.insert(Arc::clone(name), data);
 
-                        if *expected {
-                            expected_tag_sets.push(vec![Arc::clone(name)]);
+                        if let &Some(v) = expected {
+                            expected_tag_sets
+                                .entry(v)
+                                .or_default()
+                                .push(vec![Arc::clone(name)]);
                         }
-                    } else if *expected {
-                        expected_tag_sets.push(
+                    } else if let &Some(v) = expected {
+                        expected_tag_sets.entry(v).or_default().push(
                             subtags
                                 .iter()
                                 .filter_map(|subtag| subtag.name())
@@ -109,6 +117,7 @@ impl AllTags {
         }
 
         Self {
+            schema,
             menu,
             list: tags_list,
             tag_data: tag_data_map,
@@ -134,6 +143,14 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
         .map(|node| {
             let name = node.name().value();
             match name {
+                "__schema" => TagMenuNode::Schema(
+                    node.entries()[0]
+                        .value()
+                        .as_i64()
+                        .expect("expected u64 value")
+                        .try_into()
+                        .expect("expected u64 value"),
+                ),
                 "__heading" => TagMenuNode::Heading(Arc::from(
                     node.entries()[0]
                         .value()
@@ -157,7 +174,7 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
 
                     let mut display = None;
                     let mut auto = false;
-                    let mut expected = false;
+                    let mut expected = None;
                     let mut inline = false;
                     let mut hidden = false;
                     let mut list = false;
@@ -173,7 +190,14 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                                 auto = entry.value().as_bool().expect("expected bool value");
                             }
                             Some("expected") => {
-                                expected = entry.value().as_bool().expect("expected bool value");
+                                expected = Some(
+                                    entry
+                                        .value()
+                                        .as_i64()
+                                        .expect("expected i64 value")
+                                        .try_into()
+                                        .expect("expected i64 value"),
+                                );
                             }
                             Some("hidden") => {
                                 hidden = entry.value().as_bool().expect("expected bool value");
