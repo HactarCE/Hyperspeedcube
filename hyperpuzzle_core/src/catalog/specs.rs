@@ -46,7 +46,7 @@ pub struct PuzzleSpec {
     /// Function to build the puzzle.
     ///
     /// **This may be expensive. Do call it from the UI thread.**
-    pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>,
+    pub build: Box<dyn Send + Sync + Fn(&mut BuildCtx) -> BuildResult<Puzzle>>,
 }
 impl fmt::Debug for PuzzleSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -67,7 +67,7 @@ pub struct PuzzleSpecGenerator {
     /// Function to generate the puzzle type specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<PuzzleSpec>>,
+    pub generate: Box<dyn Send + Sync + Fn(&mut BuildCtx, Vec<&str>) -> BuildResult<PuzzleSpec>>,
 }
 impl fmt::Debug for PuzzleSpecGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -89,7 +89,7 @@ pub struct ColorSystemGenerator {
     /// Function to generate the color system.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<ColorSystem>>,
+    pub generate: Box<dyn Send + Sync + Fn(&mut BuildCtx, Vec<&str>) -> BuildResult<ColorSystem>>,
 }
 impl fmt::Debug for ColorSystemGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

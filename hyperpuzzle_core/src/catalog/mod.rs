@@ -210,9 +210,9 @@ impl Catalog {
                         Some(generator) => {
                             drop(db_guard); // unlock mutex before running Lua code
                             file = T::get_generator_filename(&generator);
-                            let ctx = BuildCtx::new(&self.default_logger, progress);
+                            let mut ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");
-                            T::generate_spec(ctx, &generator, params)
+                            T::generate_spec(&mut ctx, &generator, params)
                         }
                     }
                 }
@@ -262,8 +262,12 @@ impl Catalog {
                 return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
             }
             // Build the object, which may be expensive.
-            let ctx = BuildCtx::new(&self.default_logger, progress);
-            CacheEntry::from(T::build_object_from_spec(ctx, &spec))
+            let mut ctx = BuildCtx::new(&self.default_logger, progress);
+            let result = T::build_object_from_spec(&mut ctx, &spec);
+            if let Err(e) = &result {
+                ctx.logger.error(e);
+            }
+            CacheEntry::from(result)
         };
 
         self.build_generic_with_redirect_handling(

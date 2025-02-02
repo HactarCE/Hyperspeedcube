@@ -49,9 +49,12 @@ pub trait CatalogObject: Sized {
         generator: &Self::SpecGenerator,
     ) -> Option<&HashMap<String, Arc<Self::Spec>>>;
 
-    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String>;
+    fn build_object_from_spec(
+        ctx: &mut BuildCtx,
+        spec: &Arc<Self::Spec>,
+    ) -> BuildResult<Self, String>;
     fn generate_spec(
-        ctx: BuildCtx,
+        ctx: &mut BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String>;
@@ -91,11 +94,14 @@ impl CatalogObject for Puzzle {
         Some(&generator.examples)
     }
 
-    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+    fn build_object_from_spec(
+        ctx: &mut BuildCtx,
+        spec: &Arc<Self::Spec>,
+    ) -> BuildResult<Self, String> {
         (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
-        ctx: BuildCtx,
+        ctx: &mut BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {
@@ -138,11 +144,14 @@ impl CatalogObject for ColorSystem {
         None
     }
 
-    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+    fn build_object_from_spec(
+        _ctx: &mut BuildCtx,
+        spec: &Arc<Self::Spec>,
+    ) -> BuildResult<Self, String> {
         Ok(Redirectable::Direct(Arc::clone(spec)))
     }
     fn generate_spec(
-        ctx: BuildCtx,
+        ctx: &mut BuildCtx,
         gen: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {
