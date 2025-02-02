@@ -16,6 +16,7 @@ license = "MIT OR Apache-2.0"
 hyperkdl = { workspace = true }
 hyperkdl_derive = { workspace = true }
 hyperpaths = { workspace = true }
+hyperpuzzle_core = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 
 eyre = { workspace = true }

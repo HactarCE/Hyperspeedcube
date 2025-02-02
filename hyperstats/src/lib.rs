@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use eyre::Result;
 use hyperkdl::{NodeContentsSchema, Warning};
+use hyperpuzzle_core::Timestamp;
 use hyperpuzzle_log::verify::SolveVerification;
 use kdl::{KdlDocument, KdlError};
 
@@ -76,13 +77,24 @@ impl StatsDb {
 
     /// Records a solve and updates the PB database.
     pub fn record_new_pb(&mut self, verification: &SolveVerification, filename: &str) {
-        let new_pbs @ NewPbs { fmc, speed, blind } = self.check_new_pb(verification);
+        let new_pbs @ NewPbs {
+            first,
+            fmc,
+            speed,
+            blind,
+        } = self.check_new_pb(verification);
 
         if !new_pbs.any() {
             return;
         }
 
         let pbs = self.0.entry(verification.puzzle.id.clone()).or_default();
+
+        if first {
+            pbs.first = Some(FirstSolve {
+                time: verification.time_completed,
+            });
+        }
 
         if fmc {
             pbs.fmc = Some(FmcPB {
@@ -122,6 +134,10 @@ impl StatsDb {
             .unwrap_or_default();
 
         NewPbs {
+            first: old_pbs
+                .first
+                .is_none_or(|old_pb| old_pb.time > verification.time_completed),
+
             fmc: old_pbs.fmc.as_ref().is_none_or(|old_pb| {
                 old_pb.stm
                     > verification
@@ -157,6 +173,7 @@ impl StatsDb {
 #[allow(missing_docs)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NewPbs {
+    pub first: bool,
     pub fmc: bool,
     pub speed: bool,
     pub blind: bool,
@@ -164,14 +181,22 @@ pub struct NewPbs {
 impl NewPbs {
     /// Returns whether the solve is a PB in any category.
     pub fn any(self) -> bool {
-        let Self { fmc, speed, blind } = self;
-        fmc || speed || blind
+        let Self {
+            first,
+            fmc,
+            speed,
+            blind,
+        } = self;
+        first || fmc || speed || blind
     }
 }
 
 /// Personal bests for a single puzzle.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct PuzzlePBs {
+    /// First solve.
+    #[kdl(child("first"), optional)]
+    pub first: Option<FirstSolve>,
     /// Fewest move count PB.
     #[kdl(child("fmc"), optional)]
     pub fmc: Option<FmcPB>,
@@ -183,8 +208,16 @@ pub struct PuzzlePBs {
     pub blind: Option<SpeedPB>,
 }
 
+/// First solve.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
+pub struct FirstSolve {
+    /// Timestamp when the puzzle was first solved.
+    #[kdl(argument, proxy = hyperpuzzle_log::KdlProxy)]
+    pub time: Timestamp,
+}
+
 /// Twist count PB.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct FmcPB {
     /// Log file path within the `solves` directory.
     #[kdl(property("file"))]
@@ -195,7 +228,7 @@ pub struct FmcPB {
 }
 
 /// Speed PB.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct SpeedPB {
     /// Log file path within the `solves` directory.
     #[kdl(property("file"))]

@@ -6,7 +6,7 @@ extern crate lazy_static;
 
 use std::str::FromStr;
 
-use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
+use hyperkdl::{DocSchema, NodeSchemaProxy, ValueSchemaProxy, Warning};
 use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 use serde::{Deserialize, Serialize};
@@ -293,7 +293,8 @@ pub enum LogEvent {
     },
 }
 
-struct KdlProxy;
+/// KDL serialization proxy type for some types defined in `hyperpuzzle_core`.
+pub struct KdlProxy;
 impl ValueSchemaProxy<LayerMask> for KdlProxy {
     fn proxy_from_kdl_value(value: &KdlValue) -> Option<LayerMask> {
         Some(LayerMask(u32::try_from(value.as_i64()?).ok()?))

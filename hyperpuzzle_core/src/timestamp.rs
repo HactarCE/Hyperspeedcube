@@ -4,7 +4,7 @@ use chrono::SubsecRound;
 use serde::{Deserialize, Serialize};
 
 /// Type used for UTC timestamps in log files.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Timestamp(chrono::DateTime<chrono::Utc>);
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
