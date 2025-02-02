@@ -6,15 +6,12 @@ GIZMO_EDGE_FACTOR = 0.8
 
 function build_120_cell(self, depth)
   local sym = cd'h4'
-  local facet_poles = sym:orbit(sym.ooox.unit)
+  local shape = lib.symmetries.h4._120cell()
+  local facet_poles = shape:iter_poles()
 
   self:carve(facet_poles)
   if depth ~= nil then
     local axes = self.axes:add(facet_poles, {INF, depth})
-
-    self.axes:autoname()
-
-
 
     -- Define twists
     local a1 = self.axes[sym.ooox.unit]
@@ -54,6 +51,7 @@ puzzles:add{
   version = '0.1.0',
   name = "120-Cell",
   ndim = 4,
+  colors = '120_cell',
   build = function(self) build_120_cell(self) end,
 
   tags = {
@@ -67,6 +65,7 @@ puzzles:add{
   version = '0.1.0',
   name = "Facet-Turning 120-Cell (Shallow)",
   ndim = 4,
+  colors = '120_cell',
   scramble = 5000,
   build = function(self) build_120_cell(self, SHALLOW_CUT_DEPTH) end,
 
@@ -82,6 +81,7 @@ puzzles:add{
   version = '0.1.0',
   name = "Facet-Turning 120-Cell (Evil)",
   ndim = 4,
+  colors = '120_cell',
   scramble = 5000,
   build = function(self) build_120_cell(self, EVIL_CUT_DEPTH) end,
 
