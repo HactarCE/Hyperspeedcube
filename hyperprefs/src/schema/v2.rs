@@ -58,7 +58,7 @@ pub struct GlobalColorPalette {
     pub builtin_color_sets: IndexMap<String, Vec<Rgb>>,
 }
 
-pub type ColorSystemPreferences = IndexMap<String, ColorScheme>;
+pub type ColorSystemPreferences = PresetsList<ColorScheme>;
 
 pub type ColorScheme = IndexMap<String, DefaultColor>;
 

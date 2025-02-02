@@ -17,6 +17,7 @@ impl schema::PrefsConvert for ColorSchemePreferences {
     fn to_serde(&self) -> Self::SerdeFormat {
         self.0
             .iter()
+            .filter(|(_k, v)| !v.is_default())
             .map(|(k, v)| (k.clone(), v.to_serde()))
             .collect()
     }
@@ -285,19 +286,16 @@ pub struct ColorSystemPreferences {
     pub schemes: PresetsList<ColorScheme>,
 }
 impl schema::PrefsConvert for ColorSystemPreferences {
-    type DeserContext = ();
-    type SerdeFormat = schema::current::ColorSystemPreferences;
+    type DeserContext = <PresetsList<ColorScheme> as schema::PrefsConvert>::DeserContext;
+    type SerdeFormat = <PresetsList<ColorScheme> as schema::PrefsConvert>::SerdeFormat;
 
     fn to_serde(&self) -> Self::SerdeFormat {
         let Self { schemes } = self;
 
-        schemes
-            .user_presets()
-            .map(|preset| (preset.name().clone(), preset.value.clone()))
-            .collect()
+        schemes.to_serde()
     }
     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
-        self.schemes.reload_from_serde_map(ctx, value);
+        self.schemes.reload_from_serde(ctx, value);
     }
 }
 impl ColorSystemPreferences {
@@ -319,7 +317,14 @@ impl ColorSystemPreferences {
                 .keys()
                 .map(|name| preset_from_color_scheme(color_system, name))
                 .collect(),
+            color_system.default_scheme.clone(),
         );
+    }
+
+    /// Returns whether the color system preferences contains the defaults and
+    /// so does not need to be saved.
+    fn is_default(&self) -> bool {
+        self.schemes.is_default()
     }
 }
 

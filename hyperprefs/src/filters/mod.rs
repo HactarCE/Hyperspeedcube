@@ -317,6 +317,13 @@ impl PuzzleFilterPreferences {
             preset: preset.new_ref(),
         })
     }
+
+    /// Returns whether the filter preferences contains the defaults and so does
+    /// not need to be saved.
+    pub(crate) fn is_default(&self) -> bool {
+        let Self { presets, sequences } = self;
+        presets.is_empty() && sequences.is_empty()
+    }
 }
 
 /// Filter preset in a sequence.

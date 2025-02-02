@@ -206,8 +206,10 @@ pub struct Rename {
 /// That requires a custom type, like [`FilterPresetSeqList`] for example.
 #[derive(Debug)]
 pub struct PresetsList<T: PresetData> {
-    /// Name of the most recently-loaded preset.
+    /// Name of the most recently-loaded preset, or an empty string if unknown.
     last_loaded: String,
+    /// Name of the default preset, if known.
+    default: String,
     /// List of all built-in presets.
     builtin: IndexMap<String, Preset<T>>,
     /// List of all saved user presets.
@@ -221,6 +223,7 @@ impl<T: PresetData> Default for PresetsList<T> {
     fn default() -> Self {
         Self {
             last_loaded: String::new(),
+            default: String::new(),
             builtin: IndexMap::new(),
             user: IndexMap::new(),
 
@@ -276,6 +279,20 @@ impl<T: PresetData + schema::PrefsConvert> PresetsList<T> {
                 .map(|(name, value)| (name, T::from_serde(ctx, value))),
         );
     }
+
+    /// Returns whether the color system preferences contains the defaults and
+    /// so does not need to be saved.
+    pub(crate) fn is_default(&self) -> bool {
+        let Self {
+            last_loaded,
+            default,
+            builtin: _,
+            user,
+            tombstones: _,
+        } = self;
+
+        last_loaded.is_empty() || last_loaded == default && user.is_empty()
+    }
 }
 impl<T: PresetData> PresetsList<T> {
     pub(super) fn reload_from_presets_map(&mut self, map: impl IntoIterator<Item = (String, T)>) {
@@ -293,7 +310,7 @@ impl<T: PresetData> PresetsList<T> {
     /// Sets the builtin presets list.
     ///
     /// Deletes any user presets with the same name.
-    pub fn set_builtin_presets(&mut self, builtin_presets: IndexMap<String, T>) {
+    pub fn set_builtin_presets(&mut self, builtin_presets: IndexMap<String, T>, default: String) {
         // Assemble a list of user presets that have conflicting names.
         let to_rename = self
             .user
@@ -309,6 +326,7 @@ impl<T: PresetData> PresetsList<T> {
 
         self.prune_dead_refs();
 
+        self.default = default;
         self.builtin = builtin_presets
             .into_iter()
             .map(|(k, v)| {

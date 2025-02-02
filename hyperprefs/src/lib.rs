@@ -118,6 +118,7 @@ impl schema::PrefsConvert for Preferences {
 
         let filters = filters
             .iter()
+            .filter(|(_k, v)| !v.is_default())
             .map(|(k, v)| (k.clone(), v.to_serde()))
             .collect();
 
