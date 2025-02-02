@@ -51,7 +51,7 @@ pub fn solve_autosave_file(
     stm: u64,
 ) -> Result<(PathBuf, String)> {
     let puzzle_dirname = puzzle_id.replace(':', "~");
-    let filename = format!("{timestamp}_stm{stm}.hsc");
+    let filename = format!("{timestamp}_stm{stm}.hsc").replace(":", "_");
     Ok((
         solves_dir()?.join(&puzzle_dirname).join(&filename),
         format!("{puzzle_dirname}/{filename}"),
