@@ -336,6 +336,7 @@ puzzle_generators:add{
     return {
       name = ft_duoprism_name(n, 3, n_size, m_size, "Shallow", "Triminx"),
       ndim = 4,
+      colors = string.format('duoprism:%d,3', n),
       build = function(self)
         local n_cuts = polygonal.ngon(n):shallow_cut_depths(n_size)
         local m_cuts, m_opp_cuts = polygonal.ngon(3):full_cut_depths(m_size)
@@ -360,6 +361,7 @@ puzzle_generators:add{
     return {
       name = ft_duoprism_name(3, 3, n_size, m_size, "Triminx", "Triminx"),
       ndim = 4,
+      colors = 'duoprism:3,3',
       build = function(self)
         local n_cuts, n_opposite_cuts = polygonal.ngon(3):full_cut_depths(n_size)
         local m_cuts, m_opposite_cuts = polygonal.ngon(3):full_cut_depths(m_size)
@@ -433,8 +435,8 @@ puzzle_generators:add{
     return {
       -- TODO: better names that depend on megaminx layers
       name = string.format("%s Prism (%dx%d)", funny_name, dodecahedron_size, prism_size),
-      colors = 'dodecahedron_prism',
       ndim = 4,
+      colors = 'dodecahedron_prism',
       build = function(self)
         local dodeca = dodecahedral.dodecahedron()
         local dodeca_cuts = ft_dodecahedra.shallow_ft_dodecahedron_cut_depths(dodecahedron_size)
