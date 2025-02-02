@@ -101,7 +101,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
 
         for example in examples.unwrap_or_default() {
             let generator_param_values = example.params.iter().map(|val| val.to_string()).collect();
-            let id = crate::generated_puzzle_id(&id, &generator_param_values);
+            let id = hyperpuzzle_core::generated_id(&id, &generator_param_values);
             match ret.generate_puzzle_spec(lua, generator_param_values, Some(example)) {
                 Ok(Redirectable::Direct(puzzle_spec)) => {
                     ret.examples
@@ -159,7 +159,7 @@ impl LuaPuzzleGeneratorSpec {
             .map(|v| v.to_string())
             .collect_vec();
 
-        let id = crate::generated_puzzle_id(&self.meta.id, &generator_param_values);
+        let id = hyperpuzzle_core::generated_id(&self.meta.id, &generator_param_values);
 
         if let Some(puzzle_spec) = self.examples.get(&id) {
             return Ok(Redirectable::Direct(Arc::clone(puzzle_spec)));
@@ -200,7 +200,7 @@ impl LuaPuzzleGeneratorSpec {
                                 .iter()
                                 .map(|v| v.to_string())
                                 .try_collect()?;
-                        crate::generated_puzzle_id(&redirect_id, redirect_params)
+                        hyperpuzzle_core::generated_id(&redirect_id, redirect_params)
                     } else {
                         redirect_id
                     },

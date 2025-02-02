@@ -5,6 +5,7 @@
 
 use mlua::prelude::*;
 
+mod generated_id;
 mod multivector_index;
 mod ndim;
 mod numbers;
@@ -13,6 +14,7 @@ mod vec_string;
 mod vector_index;
 mod version;
 
+pub use generated_id::LuaGeneratedId;
 pub use multivector_index::LuaMultivectorIndex;
 pub use ndim::LuaNdim;
 pub use numbers::{LuaIndex, LuaIntegerNoConvert, LuaMirrorIndex, LuaNumberNoConvert};

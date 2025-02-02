@@ -49,7 +49,7 @@ impl LuaPuzzleSpec {
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
         let tags: Option<LuaTable>;
-        let colors: Option<String>;
+        let colors: Option<LuaGeneratedId>;
         let ndim: LuaNdim;
         let build: LuaFunction;
         let remove_internals: Option<bool>;
@@ -68,6 +68,8 @@ impl LuaPuzzleSpec {
         }));
 
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
+
+        let colors = colors.map(|LuaGeneratedId(id)| id);
 
         if let Some(color_system_id) = colors.clone() {
             tags.insert_named("colors/system", TagValue::Str(color_system_id))

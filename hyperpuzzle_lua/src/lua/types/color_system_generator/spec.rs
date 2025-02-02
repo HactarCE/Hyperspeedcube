@@ -91,7 +91,7 @@ impl LuaColorSystemGeneratorSpec {
             .map(|v| v.to_string())
             .collect_vec();
 
-        let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
+        let id = hyperpuzzle_core::generated_id(&self.id, &generator_param_values);
 
         let expected = self.params.len();
         let got = generator_param_values.len();
@@ -128,7 +128,7 @@ impl LuaColorSystemGeneratorSpec {
                                 .iter()
                                 .map(|v| v.to_string())
                                 .try_collect()?;
-                        crate::generated_puzzle_id(&redirect_id, redirect_params)
+                        hyperpuzzle_core::generated_id(&redirect_id, redirect_params)
                     } else {
                         redirect_id
                     },
