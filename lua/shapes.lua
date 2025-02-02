@@ -74,6 +74,7 @@ puzzle_generators:add{
     return {
       name = string.format("{%d}x{%d} Duoprism", n, m),
       ndim = 4,
+      colors = string.format('duoprism:%d,%d', n, m),
       build = function(self)
         local polygon_a = lib.symmetries.polygonal.ngon(n, 1, 'xy')
         local polygon_b = lib.symmetries.polygonal.ngon(m, 1, 'zw')
@@ -81,17 +82,23 @@ puzzle_generators:add{
         self:carve(polygon_a:iter_poles('A'))
         self:carve(polygon_b:iter_poles('B'))
 
-        self.colors:reorder(lib.puzzles.prisms.facet_order)
-        self.colors:set_defaults(lib.puzzles.prisms.get_default_color)
-
         lib.piece_types.mark_everything_core(self)
       end,
       tags = { 'type/shape' }
     }
   end,
+
+  examples = {
+    {
+      params = {100, 4},
+      tags = { meme = true },
+      aliases = "Onehundredagonal Duoprism",
+    },
+  },
+
   tags = merge_tags(
     {
-      builtin = hsc_version,
+      builtin = hsc_v,
       author = author,
       'shape/4d/duoprism',
     },

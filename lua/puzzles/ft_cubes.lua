@@ -234,7 +234,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '2.0.0',
-    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+    external = { '!gelatinbrain', '!hof', 'mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
@@ -306,7 +306,6 @@ puzzle_generators:add{
         },
         ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
         ['cuts/depth/half'] = size % 2 == 0,
-        meme = size == 1,
       },
     }
   end,

@@ -198,13 +198,11 @@ puzzle_generators:add{
         ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
         ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
         ['cuts/depth/half'] = size % 2 == 0,
-        meme = size == 1,
       },
     }
   end,
 
   examples = {
-    { params = {1}, name = "Octahedron" },
     {
       params = {2},
       name = "Skewb Diamond",
@@ -281,7 +279,6 @@ puzzle_generators:add{
   },
   gen = function(params)
     local size = params[1]
-    if size == 0 then return 'octahedron' end
     return {
       name = size .. "-Layer Face-Turning Octahedron (Shallow)",
       colors = 'octahedron',
@@ -349,25 +346,6 @@ puzzle_generators:add{
 
         self:unify_piece_types(shape.sym.chiral)
       end,
-
-      tags = {
-        algebraic = {
-          abelian = size == 1,
-          trivial = size == 1,
-        },
-        canonical = size == 2 or size == 3,
-        completeness = {
-          complex = size == 1,
-          laminated = size == 1,
-          real = size <= 2,
-          super = size == 1,
-        },
-        ['cuts/depth/shallow'] = size == 3,
-        ['cuts/depth/deep/to_adjacent'] = size % 3 == 0,
-        ['cuts/depth/deep/past_adjacent'] = size >= 4 or size == 2,
-        ['cuts/depth/half'] = size % 2 == 0,
-        meme = size == 1,
-      },
     }
   end,
 

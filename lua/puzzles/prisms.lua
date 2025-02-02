@@ -22,20 +22,6 @@ PARAMS = {
 FACET_GIZMO_EDGE_FACTOR = 2/3
 RIDGE_GIZMO_FACTOR = 1/2
 
-function get_default_color(color)
-  local t = {
-    -- 3D
-    U = "Mono Dyad [1]",
-    D = "Mono Dyad [2]",
-    F = "Rainbow [0/0]",
-
-    -- 4D
-    A = "Dark Rainbow [0/0]",
-    B = "Light Rainbow [0/0]",
-  }
-  return t[color.name.canonical:sub(1, 1)]
-end
-
 function facet_order(color_or_axis)
   local s = color_or_axis.name.canonical
   if s == 'U' then
@@ -50,8 +36,12 @@ function facet_order(color_or_axis)
 end
 
 
+function prism_name(n)
+  return string.format("%s Prism", polygonal.ngonal_name(n))
+end
+
 function ft_prism_name(n, width, height, cut_type)
-  local name = string.format("%s Prism", polygonal.ngonal_name(n))
+  local name = prism_name(n)
   if width > 1 or height > 1 then
     name = string.format("Face-Turning %s (%s %dx%d)", name, cut_type, width, height)
   end
@@ -79,8 +69,6 @@ function build_prism_puzzle(self, n, polygon_cut_depths, height)
   local base_colors, base_axes = utils.cut_ft_shape(self, line, line_cut_depths, 'U', 'D')
   local side_colors, side_axes = utils.cut_ft_shape(self, base_polygon, polygon_cut_depths, 'F')
 
-  self.colors:reorder(facet_order)
-  self.colors:set_defaults(get_default_color)
   self.axes:reorder(facet_order)
 
   local sym = cd{n, 2}
@@ -115,8 +103,6 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
     y1 = axes_y[1]
   end
 
-  self.colors:reorder(facet_order)
-  self.colors:set_defaults(get_default_color)
   self.axes:reorder(facet_order)
 
   local sym = cd{n, 2, m}
@@ -190,6 +176,33 @@ end
 
 -- PRISM GENERATORS
 
+color_system_generators:add{
+  id = 'prism',
+  name = "Polygonal Prism",
+  params = {
+    PARAMS.polygon_size("Polygon size"),
+  },
+  gen = function(params)
+    local n = params[1]
+    local colors = {
+      { name = 'U', display = "Up",   default = "Mono Dyad [1]" },
+      { name = 'D', display = "Down", default = "Mono Dyad [2]" },
+    }
+    for i = 1, n do
+      local a = lib.utils.nth_uppercase_name(i)
+      table.insert(colors, {
+        name = 'F' .. a,
+        display = "Face " .. a,
+        default = string.format("Rainbow [%d/%d]", i, n),
+      })
+    end
+    return {
+      name = prism_name(n),
+      colors = colors,
+    }
+  end,
+}
+
 -- Face-Turning Polygonal Prism (Shallow)
 puzzle_generators:add{
   id = 'ft_prism',
@@ -206,6 +219,7 @@ puzzle_generators:add{
     return {
       name = ft_prism_name(n, width, height, "Shallow"),
       ndim = 3,
+      colors = 'prism:' .. n,
       build = function(self)
         local n_cuts = polygonal.ngon(n):shallow_cut_depths(width)
         build_prism_puzzle(self, n, n_cuts, height)
@@ -226,6 +240,7 @@ puzzle_generators:add{
     return {
       name = ft_prism_name(3, width, height, "Triminx"),
       ndim = 3,
+      colors = 'prism:3',
       build = function(self)
         local n_cuts = polygonal.ngon(3):full_cut_depths(width)
         build_prism_puzzle(self, 3, n_cuts, height)
@@ -237,6 +252,37 @@ puzzle_generators:add{
 
 
 -- DUOPRISM GENERATORS
+
+color_system_generators:add{
+  id = 'duoprism',
+  name = "Polygonal Duoprism",
+  params = {
+    PARAMS.polygon_size("Polygon A"),
+    PARAMS.polygon_size("Polygon B"),
+  },
+  gen = function(params)
+    local n, m = table.unpack(params)
+    local colors = {}
+    for i = 1, n do
+      local a = lib.utils.nth_uppercase_name(i)
+      table.insert(colors, {
+        name = 'A' .. a,
+        default = string.format("Dark Rainbow [%d/%d]", i, n),
+      })
+    end
+    for i = 1, m do
+      local b = lib.utils.nth_uppercase_name(i)
+      table.insert(colors, {
+        name = 'B' .. b,
+        default = string.format("Light Rainbow [%d/%d]", i, n),
+      })
+    end
+    return {
+      name = prism_name(n),
+      colors = colors,
+    }
+  end,
+}
 
 -- Facet-Turning Polygonal Duoprism (Shallow)
 puzzle_generators:add{
@@ -252,12 +298,16 @@ puzzle_generators:add{
   },
   gen = function(params)
     local n, m, n_size, m_size = table.unpack(params)
+    if n_size == 1 and m_size == 1 then
+      return 'duoprism', {m, n}
+    end
     if n < m or (n == m and n_size < m_size) then
       return 'ft_duoprism', {m, n, m_size, n_size}
     end
     return {
       name = ft_duoprism_name(n, m, n_size, m_size, "Shallow"),
       ndim = 4,
+      colors = string.format('duoprism:%d,%d', n, m),
       build = function(self)
         local n_cuts = polygonal.ngon(n):shallow_cut_depths(n_size)
         local m_cuts = polygonal.ngon(m):shallow_cut_depths(m_size)
@@ -265,34 +315,9 @@ puzzle_generators:add{
       end,
     }
   end,
-}
-
--- Facet-Turning Onehundredagonal Duoprism
-puzzle_generators:add{
-  id = 'ft_duoprism_100_4',
-  version = VERSION,
-  tags = TAGS,
-  name = "Facet-Turning Onehundredagonal Duoprism",
-  params = {
-    { name = "Size (100)", type = 'int', default = 3, min = 1, max = 3 },
-    { name = "Size (4)", type = 'int', default = 3, min = 1, max = 3 },
-  },
   examples = {
-    { params = {1, 1} },
-    { params = {3, 3} },
+    { params = {100, 4, 3, 3}, tags = { meme = true } },
   },
-  gen = function(params)
-    local n_size, m_size = table.unpack(params)
-    return {
-      name = ft_duoprism_name(100, 4, n_size, m_size, "Shallow"),
-      ndim = 4,
-      build = function(self)
-        local n_cuts = polygonal.ngon(100):shallow_cut_depths(n_size)
-        local m_cuts = polygonal.ngon(4):shallow_cut_depths(m_size)
-        build_duoprism_puzzle(self, 100, 4, n_cuts, m_cuts)
-      end,
-    }
-  end,
 }
 
 -- Facet-Turning Polygonal Duoprism (Shallow, Triminx)

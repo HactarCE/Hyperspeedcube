@@ -41,5 +41,5 @@ puzzles:add{
     self:carve(sym:orbit(dual_vertex_to_pole(v1)))
     self:carve(sym:orbit(dual_vertex_to_pole(v2))) -- square faces
     self:carve(sym:orbit(dual_vertex_to_pole(v3)))
-  end
+  end,
 }
