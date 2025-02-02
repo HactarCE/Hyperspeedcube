@@ -106,7 +106,8 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             let custom_colors = &mut prefs.current.custom_colors;
             let name = custom_colors.make_nonconflicting_funny_name(crate::util::funny_autonames());
             let rgb = rand::rng().random();
-            custom_colors.save_preset(name, Rgb { rgb });
+            // Ignore saved name because there's no way to "activate" a custom color.
+            let _saved_color_name = custom_colors.save_preset(name, Rgb { rgb });
             custom_colors.move_index(custom_colors.len() - 1, 0);
             *prefs.changed = true;
         }

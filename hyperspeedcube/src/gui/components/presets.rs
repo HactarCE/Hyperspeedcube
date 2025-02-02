@@ -318,9 +318,10 @@ where
         if let Some(r) = new_popup_response {
             match r {
                 TextEditPopupResponse::Confirm(new_name) => {
-                    self.presets
+                    let saved_name = self
+                        .presets
                         .save_preset(new_name.clone(), self.current.value.clone());
-                    preset_to_activate = Some(new_name);
+                    preset_to_activate = Some(saved_name);
                 }
                 TextEditPopupResponse::Delete | TextEditPopupResponse::Cancel => (),
             }
@@ -411,7 +412,10 @@ where
             && self.presets.contains_key(&current_name);
 
         if save_preset {
-            self.presets.save_over_preset(self.current);
+            let saved_preset_name = self.presets.save_over_preset(self.current);
+            if let Some(p) = self.presets.load(&saved_preset_name) {
+                *self.current = p;
+            }
             *self.changed = true;
         }
     }

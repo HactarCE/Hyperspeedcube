@@ -286,7 +286,7 @@ impl<T: PresetData> PresetsList<T> {
         for (k, v) in map {
             // `T::from_serde()` could be insufficient to track references if
             // things can reference `T` itself.
-            self.save_preset(k, v);
+            let _ = self.save_preset(k, v);
         }
     }
 
@@ -467,31 +467,38 @@ impl<T: PresetData> PresetsList<T> {
     }
 
     /// Saves a preset, adding a new one if it does not already exist.
-    pub fn save_preset(&mut self, name: String, value: T) {
+    ///
+    /// Returns the name that the preset was saved to.
+    #[must_use]
+    pub fn save_preset(&mut self, name: String, value: T) -> String {
         let name = self.name_to_save(name);
         if let Some(preset) = self.user.get_mut(&name) {
             preset.value = value;
         } else {
             let mut preset = Preset::new(PresetKind::User, name.clone(), value);
             preset.revive_opt_tombstone(self.take_preset_tombstone(&name));
-            self.user.insert(name, preset);
+            self.user.insert(name.clone(), preset);
         }
+        name
     }
     /// Saves a preset, modifying the name if needed to avoid conflicting with
     /// an existing one. Returns the new name.
     #[must_use]
     pub fn save_preset_with_nonconflicting_name(&mut self, desired_name: &str, value: T) -> String {
         let name = self.find_nonconflicting_name(desired_name);
-        self.save_preset(name.clone(), value);
-        name
+        self.save_preset(name.clone(), value)
     }
     /// Saves a modified preset, creating it anew if the old one has been
     /// deleted.
-    pub fn save_over_preset(&mut self, modified_preset: &ModifiedPreset<T>)
+    ///
+    /// Returns the name the preset was saved to, which may be different from
+    /// the original name if it conflicts with a built-in preset.
+    #[must_use]
+    pub fn save_over_preset(&mut self, modified_preset: &ModifiedPreset<T>) -> String
     where
         T: Clone,
     {
-        self.save_preset(modified_preset.base.name(), modified_preset.value.clone());
+        self.save_preset(modified_preset.base.name(), modified_preset.value.clone())
     }
     /// Returns the name that a modified preset will be saved under. For user
     /// presets, this is the same as the original name. For built-in presets, a
@@ -737,10 +744,10 @@ mod tests {
     fn test_preset_renaming() {
         let mut list = PresetsList::default();
         let a1 = list.new_ref("a");
-        list.save_preset("a".to_owned(), 1);
+        let _ = list.save_preset("a".to_owned(), 1);
         let b1 = list.new_ref("b");
-        list.save_preset("b".to_owned(), 2);
-        list.save_preset("c".to_owned(), 3);
+        let _ = list.save_preset("b".to_owned(), 2);
+        let _ = list.save_preset("c".to_owned(), 3);
         let c1 = list.new_ref("c");
         let a2 = list.new_ref("a");
         let b2 = list.new_ref("b");
@@ -784,7 +791,7 @@ mod tests {
         assert_eq!(c3, "a");
         assert_eq!(a4, "a");
 
-        list.save_preset("q".to_owned(), 4);
+        let _ = list.save_preset("q".to_owned(), 4);
         list.rename("q", "r");
         assert_eq!(a1, "r");
         assert_eq!(a2, "r");
@@ -801,18 +808,18 @@ mod tests {
     #[test]
     fn test_nested_preset_renaming() {
         let mut l = PresetsList::default();
-        l.save_preset("A".to_owned(), PresetsList::default());
-        l.save_preset("B".to_owned(), PresetsList::default());
+        let _ = l.save_preset("A".to_owned(), PresetsList::default());
+        let _ = l.save_preset("B".to_owned(), PresetsList::default());
         let a = &mut l.get_mut("A").unwrap().value;
         let aa1 = a.new_ref("a");
-        a.save_preset("a".to_owned(), 1);
+        let _ = a.save_preset("a".to_owned(), 1);
         let aa2 = a.new_ref("a");
         let aa3 = a.get("a").unwrap().new_ref();
         l.remove("A");
 
         let b = &mut l.get_mut("B").unwrap().value;
         let ba1 = b.new_ref("a");
-        b.save_preset("a".to_owned(), 2);
+        let _ = b.save_preset("a".to_owned(), 2);
         let ba2 = b.new_ref("a");
         let ba3 = b.get("a").unwrap().new_ref();
 
@@ -828,7 +835,7 @@ mod tests {
         l.rename("B", "A");
 
         let a = &mut l.get_mut("A").unwrap().value;
-        a.save_preset("a".to_owned(), 3);
+        let _ = a.save_preset("a".to_owned(), 3);
         assert_eq!(aa1, "a");
         assert_eq!(aa2, "a");
         assert_eq!(aa3, "a");
@@ -847,10 +854,10 @@ mod tests {
         l.remove("A");
 
         let mut existing_presets = PresetsList::default();
-        existing_presets.save_preset("q".to_owned(), 4);
-        existing_presets.save_preset("s".to_owned(), 4);
+        let _ = existing_presets.save_preset("q".to_owned(), 4);
+        let _ = existing_presets.save_preset("s".to_owned(), 4);
 
-        l.save_preset("A".to_owned(), existing_presets);
+        let _ = l.save_preset("A".to_owned(), existing_presets);
         let a = &mut l.get_mut("A").unwrap().value;
 
         a.rename("q", "x");

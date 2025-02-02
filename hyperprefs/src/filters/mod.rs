@@ -170,22 +170,41 @@ impl PuzzleFilterPreferences {
         }
     }
     /// Saves a filter preset, creating a filter sequence if necessary.
-    pub fn save_preset(&mut self, name: &FilterPresetName, value: FilterSeqPreset) {
+    ///
+    /// Returns the name that the preset was saved to.
+    #[must_use]
+    pub fn save_preset(
+        &mut self,
+        name: &FilterPresetName,
+        value: FilterSeqPreset,
+    ) -> FilterPresetName {
         match &name.seq {
             Some(seq_name) => {
-                if !self.sequences.contains_key(seq_name) {
+                let saved_seq_name = if self.sequences.contains_key(seq_name) {
+                    seq_name.clone()
+                } else {
                     self.sequences
-                        .save_preset(seq_name.clone(), PresetsList::default());
-                }
+                        .save_preset(seq_name.clone(), PresetsList::default())
+                };
                 let seq = self
                     .sequences
-                    .get_mut(seq_name)
+                    .get_mut(&saved_seq_name)
                     .expect("filter sequence vanished!");
 
-                seq.value.save_preset(name.preset.clone(), value);
+                let saved_preset_name = seq.value.save_preset(name.preset.clone(), value);
+
+                FilterPresetName {
+                    seq: Some(saved_seq_name),
+                    preset: saved_preset_name,
+                }
             }
             None => {
-                self.presets.save_preset(name.preset.clone(), value.inner);
+                let saved_preset_name = self.presets.save_preset(name.preset.clone(), value.inner);
+
+                FilterPresetName {
+                    seq: None,
+                    preset: saved_preset_name,
+                }
             }
         }
     }
@@ -472,7 +491,7 @@ mod tests {
 
         assert!(p.sequences.is_empty());
         assert!(p.presets.is_empty());
-        p.save_preset(
+        let _ = p.save_preset(
             &FilterPresetName::new("a".to_owned()),
             FilterSeqPreset::default(),
         );
@@ -481,7 +500,7 @@ mod tests {
         assert_eq!(ab.seq.clone().unwrap(), "a");
         assert_eq!(ab.preset, "b");
 
-        p.save_preset(&ab.name(), FilterSeqPreset::default());
+        let _ = p.save_preset(&ab.name(), FilterSeqPreset::default());
         p.rename_preset(
             &FilterPresetName {
                 seq: Some("a".to_owned()),
