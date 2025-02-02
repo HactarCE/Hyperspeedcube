@@ -7,6 +7,14 @@ use crate::lua::lua_warn_fn;
 
 /// Constructs a color system from a Lua specification.
 pub fn from_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<ColorSystemBuilder> {
+    let ret = from_generated_lua_table(lua, table)?;
+    crate::validate_id_str(&ret.id).into_lua_err()?;
+    Ok(ret)
+}
+
+/// Constructs a color system from a generated Lua specification.
+pub fn from_generated_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<ColorSystemBuilder> {
+    // don't validate ID
     let id: String;
     let name: Option<String>;
     let colors: LuaTable;
@@ -21,7 +29,7 @@ pub fn from_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<ColorSystemBuilde
     }));
     let colors_table = colors;
 
-    let mut colors = ColorSystemBuilder::new_shared(crate::validate_id(id).into_lua_err()?);
+    let mut colors = ColorSystemBuilder::new_shared(id);
 
     colors.name = name;
 

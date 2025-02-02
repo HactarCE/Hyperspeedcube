@@ -211,6 +211,7 @@ impl Catalog {
                             drop(db_guard); // unlock mutex before running Lua code
                             file = T::get_generator_filename(&generator);
                             let ctx = BuildCtx::new(&self.default_logger, progress);
+                            log::trace!("generating spec for {generator_id:?} {params:?}");
                             T::generate_spec(ctx, &generator, params)
                         }
                     }
@@ -219,7 +220,7 @@ impl Catalog {
             match generator_output {
                 Ok(ok) => CacheEntry::Ok(ok),
                 Err(e) => {
-                    let msg = format!("error building {id}: {e}");
+                    let msg = format!("error building {id:?}: {e}");
                     self.default_logger.log(LogLine {
                         level: log::Level::Error,
                         file,
@@ -251,7 +252,7 @@ impl Catalog {
         let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
             // Get the object spec, which may be expensive.
             progress.lock().task = BuildTask::GeneratingSpec;
-            let spec = match self.build_spec_generic_blocking::<T>(&id) {
+            let spec = match self.build_spec_generic_blocking::<T>(id) {
                 Ok(spec) => spec,
                 Err(e) => return CacheEntry::Err(e),
             };
@@ -261,7 +262,7 @@ impl Catalog {
                 return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
             }
             // Build the object, which may be expensive.
-            let ctx = BuildCtx::new(&self.default_logger, &progress);
+            let ctx = BuildCtx::new(&self.default_logger, progress);
             CacheEntry::from(T::build_object_from_spec(ctx, &spec))
         };
 
@@ -280,6 +281,13 @@ impl Catalog {
         get_cache_entry_fn: &impl Fn(&str) -> Arc<Mutex<CacheEntry<T>>>,
         build_fn: &impl Fn(&str, &Arc<Mutex<Progress>>) -> CacheEntry<T>,
     ) -> Result<Arc<T>, String> {
+        let type_str = unqualified_type_name::<T>();
+
+        log::trace!("requesting {type_str} {id:?}");
+        if !redirect_sequence.is_empty() {
+            log::trace!("(redirected from {redirect_sequence:?})");
+        }
+
         redirect_sequence.push(id.clone());
         if redirect_sequence.len() > crate::MAX_ID_REDIRECTS {
             let msg = format!("too many ID redirects: {redirect_sequence:?}");
@@ -291,22 +299,25 @@ impl Catalog {
         let mut cache_entry_guard = cache_entry.lock();
 
         if let CacheEntry::NotStarted = &*cache_entry_guard {
+            log::trace!("{type_str} {id:?} not yet started");
             // Mark that this object is being built.
             let progress = Arc::new(Mutex::new(Progress::default()));
             *cache_entry_guard = CacheEntry::Building {
                 progress: Arc::clone(&progress),
                 notify: NotifyWhenDropped::new(),
             };
+            log::trace!("building {type_str} {id:?}");
             // Unlock the mutex before during expensive object generation.
             let cache_entry_value =
                 MutexGuard::unlocked(&mut cache_entry_guard, || build_fn(&id, &progress));
+            log::trace!("storing {type_str} {id:?}");
             // Store the result.
             *cache_entry_guard = cache_entry_value;
         };
 
         // If another thread is building the object, then wait for that.
         if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
-            log::trace!("waiting for another thread to build {id:?}");
+            log::trace!("waiting for another thread to build {type_str} {id:?}");
             let waiter = notify.waiter();
             MutexGuard::unlocked(&mut cache_entry_guard, || {
                 waiter.wait();
@@ -375,4 +386,9 @@ impl PuzzleCatalog {
             self.objects().map(|o| &o.meta),
         )
     }
+}
+
+fn unqualified_type_name<T>() -> &'static str {
+    let type_name = std::any::type_name::<T>();
+    type_name.rsplit(':').next().unwrap_or(type_name)
 }

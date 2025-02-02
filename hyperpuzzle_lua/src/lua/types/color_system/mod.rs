@@ -10,7 +10,7 @@ mod spec;
 pub use builder::LuaColorSystem;
 pub use color::LuaColor;
 pub use db::LuaColorSystemDb;
-pub use spec::from_lua_table;
+pub use spec::{from_generated_lua_table, from_lua_table};
 
 fn default_color_from_str(lua: &Lua, s: Option<String>) -> Option<DefaultColor> {
     match s?.parse() {

@@ -62,6 +62,7 @@ pub(super) fn init_lua_environment(loader: &LuaLoader, env: &LuaTable) -> LuaRes
     env.raw_set("puzzles", LuaPuzzleDb)?;
     env.raw_set("puzzle_generators", LuaPuzzleGeneratorDb)?;
     env.raw_set("color_systems", LuaColorSystemDb)?;
+    env.raw_set("color_system_generators", LuaColorSystemGeneratorDb)?;
 
     // `blade` constructors
     let vec_fn =

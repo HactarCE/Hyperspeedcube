@@ -83,7 +83,7 @@ pub struct ColorSystemGenerator {
     /// Internal ID.
     pub id: String,
     /// Human-friendly name.
-    pub name: Option<String>,
+    pub name: String,
     /// Parameter types, ranges, and defaults.
     pub params: Vec<GeneratorParam>,
     /// Function to generate the color system.

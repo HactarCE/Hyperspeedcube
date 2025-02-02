@@ -16,6 +16,11 @@ pub struct Db {
     pub(super) color_system_generators: HashMap<String, Arc<ColorSystemGenerator>>,
     /// Loaded color systems by ID.
     pub(super) color_systems: HashMap<String, Arc<ColorSystem>>,
+    /// Cache of generated color system specs.
+    ///
+    /// This is exactly the same as `color_system_cache`, but is necessary to
+    /// avoid deadlocks with color system generators. It's not ideal.
+    pub(super) color_system_spec_cache: HashMap<String, Arc<Mutex<CacheEntry<ColorSystem>>>>,
     /// Cache of generated color systems.
     pub(super) color_system_cache: HashMap<String, Arc<Mutex<CacheEntry<ColorSystem>>>>,
 
@@ -108,7 +113,8 @@ impl CatalogObject for ColorSystem {
         &mut db.color_system_cache
     }
     fn get_spec_cache(db: &mut Db) -> &mut HashMap<String, Arc<Mutex<CacheEntry<Self::Spec>>>> {
-        &mut db.color_system_cache // same cache
+        // basically the same but different to avoid deadlocks
+        &mut db.color_system_spec_cache
     }
     fn get_specs(db: &mut Db) -> &mut HashMap<String, Arc<Self::Spec>> {
         &mut db.color_systems
