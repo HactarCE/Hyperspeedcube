@@ -4,8 +4,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use hyperpuzzle_core::{
-    GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
-    PuzzleSpecGenerator, TagSet,
+    GeneratorParamType, GeneratorParamValue, PuzzleListMetadata, PuzzleSpecGenerator,
 };
 use itertools::Itertools;
 use regex::Regex;
@@ -261,7 +260,7 @@ fn show_puzzle_generator_ui(
             GeneratorParamType::Int { min, max } => {
                 let GeneratorParamValue::Int(i) = value;
                 ui.horizontal(|ui| {
-                    ui.spacing_mut().slider_width = 200.0;
+                    ui.spacing_mut().slider_width = GENERATOR_SLIDER_WIDTH;
                     ui.add(egui::Slider::new(i, min..=max).logarithmic(true));
                     ui.label(&param.name);
                 });
@@ -527,7 +526,7 @@ impl<'a> Query<'a> {
     }
 
     /// Returns whether the search query is totally empty.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.text.is_empty() && self.included_tags.is_empty() && self.excluded_tags.is_empty()
     }
 }

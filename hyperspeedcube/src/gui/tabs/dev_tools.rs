@@ -5,7 +5,6 @@ use hyperpuzzle_core::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, Puzz
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
-use super::PuzzleWidget;
 use crate::app::App;
 use crate::gui::components::{color_assignment_popup, DragAndDrop};
 use crate::gui::markdown::{md, md_bold_user_text};
@@ -173,7 +172,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                 });
             } else {
                 ui.columns(2, |uis| {
-                    let r = uis[0].menu_button("Copy Lua code", |ui| {
+                    uis[0].menu_button("Copy Lua code", |ui| {
                         let r = ui.button("Compact");
                         let text_to_copy = r
                             .clicked()

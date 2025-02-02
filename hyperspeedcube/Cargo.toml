@@ -39,7 +39,6 @@ empfindung = { workspace = true }
 env_logger = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
-image = { workspace = true }
 itertools = { workspace = true }
 key-names = { workspace = true }
 lab = { workspace = true }
@@ -58,7 +57,6 @@ serde_yml = { workspace = true }
 smallvec = { workspace = true }
 strum = { workspace = true }
 sublime_fuzzy = { workspace = true }
-web-time = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 

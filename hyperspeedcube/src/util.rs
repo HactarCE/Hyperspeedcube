@@ -1,6 +1,5 @@
-use cgmath::SquareMatrix;
 use float_ord::FloatOrd;
-use rand::seq::{IndexedRandom, SliceRandom};
+use rand::seq::IndexedRandom;
 use rand::Rng;
 
 pub const INVALID_STR: &str = "<invalid>";

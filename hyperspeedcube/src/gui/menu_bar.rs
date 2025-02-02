@@ -1,5 +1,4 @@
 use hyperpuzzle_core::ScrambleType;
-use hyperpuzzle_view::ReplayEvent;
 
 use super::{AppUi, Tab};
 use crate::L;

@@ -1,21 +1,17 @@
 use std::fmt;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use egui::mutex::RwLock;
 use egui::Widget;
-use eyre::{bail, OptionExt, Result};
+use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet, StyleColorMode};
-use hyperpuzzle_core::{
-    BuildTask, GizmoFace, LayerMask, Progress, Puzzle, Redirectable, ScrambleProgress,
-};
+use hyperprefs::{AnimationPreferences, Preferences};
+use hyperpuzzle_core::{BuildTask, GizmoFace, LayerMask, Progress, Puzzle, Redirectable};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
-use image::ImageBuffer;
 use parking_lot::Mutex;
-use web_time::Instant;
 
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
@@ -32,12 +28,10 @@ const SEND_CURSOR_POS: bool = false;
 const SHOW_DRAG_VECTOR: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
-    let (r, changed);
+    let changed;
     {
         let mut puzzle_widget_guard = puzzle_widget.lock();
-        r = ui
-            .scope(|ui| puzzle_widget_guard.ui(ui, &mut app.prefs, &app.animation_prefs.value))
-            .response;
+        puzzle_widget_guard.ui(ui, &mut app.prefs, &app.animation_prefs.value);
         changed = std::mem::take(&mut puzzle_widget_guard.puzzle_changed);
     }
 
@@ -92,10 +86,10 @@ fn show_centered_with_sizing_pass<R>(
         let mut desired_rect = egui::Rect::from_center_size(total_rect.center(), size);
         let go_back = total_rect.min - desired_rect.min;
         if !horizontal {
-            desired_rect.translate(egui::vec2(go_back.x, 0.0));
+            desired_rect = desired_rect.translate(egui::vec2(go_back.x, 0.0));
         }
         if !vertical {
-            desired_rect.translate(egui::vec2(0.0, go_back.y));
+            desired_rect = desired_rect.translate(egui::vec2(0.0, go_back.y));
         }
         r = ui.allocate_new_ui(
             egui::UiBuilder::new()
@@ -203,7 +197,9 @@ impl PuzzleWidget {
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))), prefs),
             },
-            hyperpuzzle_core::CacheEntry::Err(e) => {
+            hyperpuzzle_core::CacheEntry::Err(_) => {
+                // The error should've already been reported;
+                // we don't need to report it every frame.
                 if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
                     let gfx = &self.gfx;
                     let sim = Arc::new(Mutex::new(PuzzleSimulation::new(

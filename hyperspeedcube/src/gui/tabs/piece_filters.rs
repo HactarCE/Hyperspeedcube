@@ -10,7 +10,6 @@ use hyperpuzzle_core::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use hyperpuzzle_view::{PuzzleFiltersState, PuzzleView};
 use itertools::Itertools;
 
-use super::PuzzleWidget;
 use crate::app::App;
 use crate::gui::components::{
     DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,

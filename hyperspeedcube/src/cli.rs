@@ -1,9 +1,8 @@
-use std::io::{Read, Write};
-use std::sync::Arc;
+use std::io::Read;
 
 use eyre::{eyre, Context, Result};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 // TODO: specify log file via CLI
 

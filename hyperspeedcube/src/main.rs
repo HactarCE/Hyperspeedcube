@@ -47,7 +47,7 @@ pub const DEFAULT_STYLE_NAME: &str = "Default";
 fn main() -> eyre::Result<()> {
     use clap::Parser;
 
-    let mut args = cli::Args::parse();
+    let args = cli::Args::parse();
 
     if let Some(subcommand) = args.subcommand {
         color_eyre::install().expect("error initializing panic handler");
@@ -191,8 +191,8 @@ fn init_deadlock_detection() {
 fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
     let mut wgpu_options = eframe::egui_wgpu::WgpuConfiguration::default();
     let eframe::egui_wgpu::WgpuSetup::CreateNew {
-        supported_backends,
-        power_preference,
+        supported_backends: _,
+        power_preference: _,
         device_descriptor,
     } = &mut wgpu_options.wgpu_setup
     else {

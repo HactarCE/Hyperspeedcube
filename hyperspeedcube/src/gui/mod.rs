@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use markdown::md;
-use parking_lot::Mutex;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
 macro_rules! unique_id {
@@ -21,7 +20,7 @@ mod modals;
 mod tabs;
 
 pub use tabs::{about_text, PuzzleWidget, Query, Tab};
-use util::{EguiTempFlag, EguiTempValue};
+use util::EguiTempFlag;
 
 pub use crate::app::App;
 use crate::L;
