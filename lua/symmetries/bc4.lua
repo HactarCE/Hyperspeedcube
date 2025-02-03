@@ -1,12 +1,12 @@
 HYPERCUBE_FACET_NAMES = {
+  O = {},
+  F = {4, 'O'},
+  U = {3, 'F'},
   R = {2, 'U'},
   L = {1, 'R'},
-  U = {3, 'F'},
   D = {2, 'L'},
-  F = {4, 'O'},
   B = {3, 'D'},
   I = {4, 'B'},
-  O = {},
 }
 
 function hypercube(scale, basis)

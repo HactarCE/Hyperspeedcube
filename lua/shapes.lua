@@ -26,7 +26,7 @@ local TAGS_FOR_ALL_SHAPES = {
 local function add_basic_shape(shape_version, hsc_version, author, shape_tag_subpath, shape)
   local ndim = shape.sym.ndim
   puzzles:add{
-    id = shape.name:lower(),
+    id = shape.name:lower():gsub('-', '_'),
     version = shape_version,
     name = shape.name,
     aliases = shape.aliases,
@@ -57,6 +57,7 @@ add_basic_shape(v, hsc_v, author, 'platonic/octahedron', lib.symmetries.bc3.octa
 add_basic_shape(v, hsc_v, author, 'platonic/dodecahedron', lib.symmetries.h3.dodecahedron())
 add_basic_shape(v, hsc_v, author, 'platonic/icosahedron', lib.symmetries.h3.icosahedron())
 add_basic_shape(v, hsc_v, author, 'platonic/hypercube', lib.symmetries.bc4.hypercube())
+add_basic_shape(v, hsc_v, author, 'platonic/hypercube', lib.symmetries.bc5.hypercube())
 
 puzzle_generators:add{
   id = 'duoprism',

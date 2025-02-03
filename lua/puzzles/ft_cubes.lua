@@ -259,6 +259,82 @@ puzzle_generators:add{
   },
 }
 
+-- NxNxNxNxN Face-Turning Hypercube generator
+puzzle_generators:add{
+  id = 'ft_5_cube',
+  version = '1.0.0',
+  name = "NxNxNxNxN Face-Turning 5-Cube",
+  aliases = {"N^5"},
+  colors = '5_cube',
+  params = {
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 7 },
+  },
+  gen = function(params)
+    local size = params[1]
+    if size == 1 then return '5_cube' end
+    return {
+      name = size .. "x" .. size .. "x" .. size .. "x" .. size .. "x" .. size,
+      aliases = { size .. "^" .. 5 },
+      ndim = 5,
+      build = function(self)
+        local sym = cd'bc5'
+        local shape = lib.symmetries.bc5.hypercube()
+        self:carve(shape:iter_poles())
+
+        if size == 1 then
+          lib.piece_types.mark_everything_core(self)
+          return
+        end
+
+        -- Define axes and slices
+        self.axes:add(shape:iter_poles(), ft_cube_cut_depths(5, size))
+
+        -- Define twists
+        local a1 = self.axes[sym.oooox.unit]
+        local a2 = sym:thru(5):transform(a1)
+        local a3 = sym:thru(4):transform(a2)
+        local t = rot{fix = a1.vector, from = a2.vector, to = a3.vector}
+        for dim1 in ('xyzwv'):gmatch('.') do
+          for dim2 in ('xyzwv'):gmatch('.') do
+            if dim1 ~= dim2 then
+              for _, ax in ipairs(self.axes) do
+                if vec(dim1) ~= ax.vector and -vec(dim1) ~= ax.vector and vec(dim2) ~= ax.vector and -vec(dim2) ~= ax.vector then
+                  self.twists:add(ax, rot{from = dim1, to = dim2}, {
+                    name = dim1 .. dim2,
+                  })
+                end
+              end
+            end
+          end
+        end
+
+        -- Mark piece types
+        if size == 3 then
+          lib.utils.unpack_named(_ENV, self.axes)
+          self:mark_piece(A(1) & O(1) & F(1) & U(1) & R(1), 'corner', "Corner")
+          self:mark_piece(A(2) & O(1) & F(1) & U(1) & R(1), 'edge', "Edge")
+          self:mark_piece(A(2) & O(2) & F(1) & U(1) & R(1), 'peak', "Peak")
+          self:mark_piece(A(2) & O(2) & F(2) & U(1) & R(1), 'ridge', "Ridge")
+          self:mark_piece(A(2) & O(2) & F(2) & U(2) & R(1), 'center', "Center")
+        end
+        -- lib.piece_types.pentachoracron_subsets.mark_multilayer_UFRLIOAP(self, size)
+        self:unify_piece_types(sym.chiral) -- chiral because left vs. right obliques
+      end,
+    }
+  end,
+
+  examples = {
+    { params = {2} },
+    { params = {3}, tags = { 'canonical' } },
+    { params = {4} },
+    { params = {5} },
+  },
+
+
+  tags = {
+  },
+}
+
 -- N^D Face-Turning Hypercube generator
 puzzle_generators:add{
   id = 'ft_nd_hypercube',
