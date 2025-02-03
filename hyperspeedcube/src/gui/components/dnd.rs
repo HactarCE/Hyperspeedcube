@@ -344,7 +344,7 @@ where
 }
 
 pub fn drag_handle(ui: &mut egui::Ui, is_dragging: bool) -> egui::Response {
-    let (rect, r) = ui.allocate_exact_size(egui::vec2(20.0, 20.0), egui::Sense::drag());
+    let (rect, r) = ui.allocate_exact_size(egui::vec2(12.0, 20.0), egui::Sense::drag());
     if ui.is_rect_visible(rect) {
         // Change color based on hover/focus.
         let color = if r.has_focus() || is_dragging {
