@@ -6,7 +6,7 @@ extern crate lazy_static;
 
 use std::str::FromStr;
 
-use hyperkdl::{DocSchema, NodeSchemaProxy, ValueSchemaProxy, Warning};
+use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
 use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 use serde::{Deserialize, Serialize};
