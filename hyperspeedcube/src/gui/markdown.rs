@@ -56,7 +56,7 @@ pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {
     .response
 }
 
-fn options() -> comrak::Options {
+fn options() -> comrak::Options<'static> {
     let mut options = comrak::Options::default();
     options.extension.strikethrough = true;
     options.extension.superscript = true;
@@ -240,6 +240,10 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
 
         comrak::nodes::NodeValue::TaskItem(_) => not_implemented_label(ui, "TaskItem"),
 
+        comrak::nodes::NodeValue::Raw(_) => not_implemented_label(ui, "Raw"),
+
+        comrak::nodes::NodeValue::Alert(_) => not_implemented_label(ui, "Alert"),
+
         comrak::nodes::NodeValue::Text(_) => (),   // inline
         comrak::nodes::NodeValue::SoftBreak => (), // inline
         comrak::nodes::NodeValue::LineBreak => (), // inline
@@ -351,6 +355,7 @@ fn render_inline_no_recurse(
             job.append(&code_node.literal, 0.0, state.text_format());
         }
         comrak::nodes::NodeValue::HtmlInline(_) => append_not_implemented(job, state, "HtmlInline"),
+        comrak::nodes::NodeValue::Raw(_) => append_not_implemented(job, state, "Raw"),
         comrak::nodes::NodeValue::Emph => state.italics = true,
         comrak::nodes::NodeValue::Strong => state.bold = true,
         comrak::nodes::NodeValue::Strikethrough => state.strikethrough = true,
