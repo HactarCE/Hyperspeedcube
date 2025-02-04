@@ -108,3 +108,7 @@ identifier = "dev.ajfarkas.hyperspeedcube"
 icon = ["resources/icon/*.png", "resources/icon/*.ico"]
 copyright = "Copyright © 2024 HactarCE"
 category = "Puzzle Game"
+
+[package.metadata.trunk.build]
+public_url = "/hyperspeedcube"
+filehash = false
