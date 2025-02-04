@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/HactarCE/Hyperspeedcube/main/resources/icon/hyperspeedcube.svg?sanitize=true" alt="Hyperspeedcube logo" width="150" align="right">
+<img src="https://raw.githubusercontent.com/HactarCE/Hyperspeedcube/main/hyperspeedcube/resources/icon/hyperspeedcube.svg?sanitize=true" alt="Hyperspeedcube logo" width="150" align="right">
 
 # [Hyperspeedcube] [![Release badge]][Release link]
 
