@@ -434,7 +434,7 @@ impl PuzzleWidget {
         if r.hovered() || r.is_pointer_button_down_on() {
             // IIFE to mimic try_block
             cursor_pos = (|| {
-                let egui_pos = r.hover_pos()?;
+                let egui_pos = r.hover_pos().or(r.interact_pointer_pos())?;
                 // Convert to normalized device coordinates (-1 to +1).
                 let mut ndc = (egui_pos - r.rect.center()) * 2.0 / r.rect.size();
                 ndc.y = -ndc.y;
