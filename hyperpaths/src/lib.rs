@@ -70,6 +70,7 @@ pub fn crash_report_dir() -> Result<&'static Path> {
 pub fn move_to_backup_file(original: &Path) {
     let now = time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
     let backup_path = backup_path(original, now);
+
     match std::fs::rename(original, &backup_path) {
         Ok(()) => {
             log::info!(
@@ -79,7 +80,9 @@ pub fn move_to_backup_file(original: &Path) {
             );
         }
         Err(e) => {
-            log::error!("error backing up {}: {e}", original.display());
+            if original.is_file() {
+                log::error!("error backing up {}: {e}", original.display());
+            }
         }
     }
 }
