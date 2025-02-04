@@ -14,8 +14,10 @@ For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeed
 
 ## Project structure
 
-See [crates/README.md].
+See [`crates/README.md`](crates/README.md).
 
 ## License & contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+This project is licensed under [MIT](https://opensource.org/license/mit) OR [Apache v2.0](https://apache.org/licenses/LICENSE-2.0). If you create a derivative work that uses the Hyperspeedcube puzzle simulator as a major component, please prominently credit HactarCE / Andrew J. Farkas.
+
+Hyperspeedcube is the product of the majority of my free time over the course of many years. I provide it free of charge to the Hypercubing community because I want puzzles to be accessible. If you want to make something using it, especially if you wish to monetize it, please contact me at <hello@ajfarkas.dev>. I legally cannot stop you from selling a derivative work using Hyperspeedcube, but it would be rude not to ask me first.
