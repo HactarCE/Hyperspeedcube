@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "ecolor"
 version = "0.30.0"
-source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1425,7 +1425,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.30.0"
-source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 dependencies = [
  "ahash 0.8.11",
  "emath",
@@ -1458,13 +1458,14 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e84c2919cd9f3a38a91e8f84ac6a245c19251fd95226ed9fae61d5ea564fce3"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 dependencies = [
  "ahash 0.8.11",
  "arboard",
  "egui",
+ "lazy_static",
  "log",
+ "parking_lot",
  "profiling",
  "raw-window-handle 0.6.2",
  "smithay-clipboard",
@@ -1511,7 +1512,7 @@ checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 [[package]]
 name = "emath"
 version = "0.30.0"
-source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 dependencies = [
  "bytemuck",
 ]
@@ -1584,7 +1585,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.30.0"
-source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 dependencies = [
  "ab_glyph",
  "ahash 0.8.11",
@@ -1601,7 +1602,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.30.0"
-source = "git+https://github.com/HactarCE/egui.git?branch=total-ordering-patch-0.30.0#83d81fa0527088059273481c4f0ebd5e5ea1ddc5"
+source = "git+https://github.com/HactarCE/egui.git?branch=raw-keyboard-input-0.30.0#7aeeab8039cb670307ea40bada8445b414e9898d"
 
 [[package]]
 name = "equivalent"
