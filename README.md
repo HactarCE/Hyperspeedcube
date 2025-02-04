@@ -1,3 +1,9 @@
+### :construction: Hyperspeedcube 2.0 is a work-in-progress :construction:
+
+Hyperspeedcube is currently undergoing a major rewrite. See the [`v1` branch](https://github.com/HactarCE/Hyperspeedcube/tree/v1) for the stable version.
+
+---
+
 <img src="https://raw.githubusercontent.com/HactarCE/Hyperspeedcube/main/crates/hyperspeedcube/resources/icon/hyperspeedcube.svg?sanitize=true" alt="Hyperspeedcube logo" width="150" align="right">
 
 # [Hyperspeedcube] [![Release badge]][Release link]
