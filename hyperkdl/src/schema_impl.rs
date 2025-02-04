@@ -40,7 +40,7 @@ impl<T: ValueSchema> NodeContentsSchema for T {
         let mut index = 0;
         for entry in node.entries() {
             match entry.name() {
-                Some(k) => ctx.warn_unknown_property(k.value(), *entry.span()),
+                Some(k) => ctx.warn_unknown_property(k.value(), entry.span()),
                 None => {
                     if ret.is_none() {
                         ret = Some(T::from_kdl_entry(
@@ -48,7 +48,7 @@ impl<T: ValueSchema> NodeContentsSchema for T {
                             ctx.with(KeyPathElem::Argument(index)),
                         )?);
                     } else {
-                        ctx.warn_unused_arg(index, *entry.span());
+                        ctx.warn_unused_arg(index, entry.span());
                     }
                     index += 1;
                 }
@@ -85,20 +85,20 @@ impl ValueSchema for bool {
 
 impl ValueSchema for i64 {
     fn from_kdl_value(value: &KdlValue) -> Option<Self> {
-        value.as_i64()
+        value.as_integer()?.try_into().ok()
     }
 
     fn to_kdl_value(&self) -> KdlValue {
-        KdlValue::Base10(*self)
+        KdlValue::Integer(i128::from(*self))
     }
 }
 impl ValueSchema for u32 {
     fn from_kdl_value(value: &KdlValue) -> Option<Self> {
-        value.as_i64()?.try_into().ok()
+        value.as_integer()?.try_into().ok()
     }
 
     fn to_kdl_value(&self) -> KdlValue {
-        KdlValue::Base10(i64::from(*self))
+        KdlValue::Integer(i128::from(*self))
     }
 }
 

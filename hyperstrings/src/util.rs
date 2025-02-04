@@ -13,8 +13,8 @@ pub fn read_kdl_file(path: impl AsRef<Path>) -> (SourceInfo, KdlDocument) {
     match src.contents.parse() {
         Ok(kdl) => (src, kdl),
         Err(e) => {
-            for line in e.to_string().lines() {
-                warn_at(line, src.at(e.span.offset()));
+            for diagnostic in e.diagnostics {
+                warn_at(&diagnostic.to_string(), src.at(diagnostic.span.offset()));
             }
             std::process::exit(1);
             // panic!("bad KDL file");

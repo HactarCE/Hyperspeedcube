@@ -71,9 +71,9 @@ tabs {
 
 top_bar {
   desktop_link "Download desktop app"
-  desktop_link_hover r#"
+  desktop_link_hover """
     The desktop version of Hyperspeedcube has the same features, but runs faster.
-  "#
+  """
 }
 
 menu {
@@ -257,52 +257,52 @@ prefs {
     twists {
       title "Twists"
       (HoverStrings)dynamic_twist_speed "Dynamic twist speed" {
-        desc r#"
+        desc """
           When enabled, the puzzle twists faster when many moves are queued up. When all queued moves are complete, the twist speed resets.
-        "#
+        """
       }
       (HoverStrings)twist_duration "Twist duration"
       (HoverStrings)twist_interpolation "Twist interpolation"
       interpolations {
         (HoverStrings)lerp {
           label "Linear"
-          desc r#"
+          desc """
             The speed throughout a turn is constant, with no easing.
-          "#
+          """
         }
         (HoverStrings)cosine "Cosine"
         (HoverStrings)cubic "Cubic"
         (HoverStrings)circular {
           label "Circular"
-          desc r#"
+          desc """
             Two quarter circles, with a single point of infinite speed at the halfway point.
-          "#
+          """
         }
         (HoverStrings)bounce "Bounce"
         (HoverStrings)overshoot "Overshoot"
         (HoverStrings)underdamped {
           label "Underdamped"
-          desc r#"
+          desc """
             Simulates a weakly damped harmonic oscillator.
-          "#
+          """
         }
         (HoverStrings)critically_damped {
           label "Critically damped"
-          desc r#"
+          desc """
             Simulates a damped harmonic oscillator with a damping force such that the animation completes as quickly as possible without overshooting.
-          "#
+          """
         }
         (HoverStrings)critically_dried {
           label "Critically dried"
-          desc r#"
+          desc """
             Same as critically damped, but reversed.
-          "#
+          """
         }
         (HoverStrings)random {
           label "Random"
-          desc r#"
+          desc """
             Why?
-          "#
+          """
         }
         alignment "_{{alignment}}_"
         alignments {
@@ -322,9 +322,9 @@ prefs {
     other {
       title "Other"
       (HoverStrings)blocking_animation_duration "Blocking animation duration" {
-        desc r#"
+        desc """
           Duration of the animation when a piece is blocking a twist.
-        "#
+        """
       }
     }
   }
@@ -333,43 +333,43 @@ prefs {
     dialogs {
       title "Dialogs"
       (HoverStrings)confirm_discard_only_when_scrambled "Confirm discard only when scrambled" {
-        desc r#"
+        desc """
           When enabled, a confirmation dialog before destructive actions (like resetting the puzzle)is only shown when the puzzle has been fully scrambled.
-        "#
+        """
       }
     }
     reorientation {
       title "Reorientation"
       (HoverStrings)drag_sensitivity "Drag sensitivity"
       (HoverStrings)realign_puzzle_on_release "Realign puzzle on release" {
-        desc r#"
+        desc """
           When enabled, the puzzle snaps back immediately when the mouse is released after dragging to rotate it.
-        "#
+        """
       }
       (HoverStrings)realign_puzzle_on_keypress "Realign puzzle on keypress" {
-        desc r#"
+        desc """
           When enabled, the puzzle snaps back immediately when the keyboard is used to grip or do a move.
-        "#
+        """
       }
       (HoverStrings)smart_realign "Smart realign" {
-        desc r#"
+        desc """
           When enabled, the puzzle snaps to the nearest similar orientation, not the original. This adds a full-puzzle rotation to the undo history.
-        "#
+        """
       }
     }
     ui {
       title "Preferences UI"
       (HoverStrings)middle_click_delete "Middle click to delete" {
-        desc r#"
+        desc """
           When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always works.
-        "#
+        """
       }
       (HoverStrings)reverse_filter_rules "Reverse filter rules" {
-        desc r#"
+        desc """
           When **disabled**, piece filter rules are listed in order from **highest to lowest** priority, so **earlier rules override later ones**.
 
           When **enabled**, piece filter rules are listed in order from **lowest to highest** priority, so **later rules override earlier ones**.
-        "#
+        """
       }
     }
   }
@@ -402,9 +402,9 @@ prefs {
       intensity {
         (HoverStrings)faces "Intensity (faces)"
         (HoverStrings)outlines "Intensity (outlines)" {
-          desc r#"
+          desc """
             This is also enabled or disabled for each style in the style settings. For dark outline colors, it may have little or no effect.
-          "#
+          """
         }
       }
     }
@@ -478,9 +478,9 @@ styles {
       title "Internals"
       (HoverStrings)face_color "Face color" {
         full "Internal faces color"
-        desc r#"
+        desc """
           For 3D puzzles, it's sometimes possible to view the internal faces of pieces, particularly mid-turn or using **piece explode**. You can configure whether internal faces are visible in **view settings**.
-        "#
+        """
       }
     }
     blocking_pieces {
@@ -488,16 +488,16 @@ styles {
       (HoverStrings)outlines_color {
         label "Outlines color"
         full "Blocking pieces outlines color"
-        desc r#"
+        desc """
           Outline color for pieces blocking a move. This is only visible for puzzles that bandage.
-        "#
+        """
       }
       (HoverStrings)outlines_size {
         label "Outlines size"
         full "Blocking pieces outlines size"
-        desc r#"
+        desc """
           Outline size for pieces blocking a move. This is only visible for puzzles that bandage.
-        "#
+        """
       }
     }
   }
@@ -611,12 +611,12 @@ puzzle_view {
 }
 
 help {
-  custom_piece_styles r#"
+  custom_piece_styles """
     # Custom piece styles
 
     Custom styles can be applied to pieces using the **piece filters** tool.
-  "#
-  color_assignments r#"
+  """
+  color_assignments """
     # Color assignments
 
     Each facet on the puzzle is assigned a different color.
@@ -631,8 +631,8 @@ help {
     - Colors within a color set are designed to contrast with each other and with other color sets of the same size
 
     Color values can be customized in the **global color palette** settings.
-  "#
-  global_color_palette r#"
+  """
+  global_color_palette """
     # Global color palette
 
     The global color palette provides a way to change colors across all puzzles at once.
@@ -648,23 +648,23 @@ help {
     ## Color schemes
 
     The color scheme for any particular puzzle can be customized in the **color scheme** settings.
-  "#
-  piece_filters r#"
+  """
+  piece_filters """
     # Piece filters
 
     TODO: explain filters
-  "#
-  piece_filter_presets r#"
+  """
+  piece_filter_presets """
     # Piece filter presets
 
     TODO: explain filter presets
-  "#
-  piece_filter_sequences r#"
+  """
+  piece_filter_sequences """
     # Piece filter sequences
 
     TODO: explain filter sequences
-  "#
-  presets r#"
+  """
+  presets """
     # Presets
 
     A **preset** is a saved set of values that can be loaded at any time.
@@ -675,13 +675,13 @@ help {
     - **Drag** a preset to reorder it
 
     Loading a preset discards unsaved changes.
-  "#
+  """
 }
 
 created_by "Created by **Andrew Farkas (HactarCE)**"
 created_by_url "https://ajfarkas.dev/"
 licensed_under "Licensed under **{{license}}**"
-about r#"
+about """
   Dedicated to **Andrey Astrelin**
 
   ## Acknowledgements
@@ -719,21 +719,21 @@ about r#"
   ## Puzzle definition authors
 
   {{author_list}}
-"#
+"""
 
 _crash {
   _app_crashed "{{app}} crashed"
-  _crash_report_saved r#"
+  _crash_report_saved """
     A crash report has been saved to "{{loc}}"
 
     Please submit this to the developer
-  "#
-  _error_saving_crash_report r#"
+  """
+  _error_saving_crash_report """
     Error saving crash report
-  "#
+  """
 }
 
-eula r#"
+eula """
   # Read this before using this software
 
   This is a **prerelease** version of Hyperspeedcube. All of the following is unstable and subject to change:
@@ -765,6 +765,6 @@ eula r#"
   - Logistics (we don't have the manpower to verify leaderboard submissions for so many new puzzles)
 
   ---
-"#
+"""
 
 eula_checkbox "I promise I won't use HSC2 for speedsolves until it's officially released (and all the other stuff above)"

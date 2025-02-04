@@ -40,7 +40,7 @@ pub trait ValueSchema: Sized {
         };
         let ret = Self::from_kdl_value(entry.value());
         if ret.is_none() {
-            ctx.warn_invalid(*entry.span());
+            ctx.warn_invalid(entry.span());
         }
         ret
     }
@@ -95,7 +95,7 @@ pub trait ValueSchemaProxy<T>: Sized {
         };
         let ret = Self::proxy_from_kdl_value(entry.value());
         if ret.is_none() {
-            ctx.warn_invalid(*entry.span());
+            ctx.warn_invalid(entry.span());
         }
         ret
     }

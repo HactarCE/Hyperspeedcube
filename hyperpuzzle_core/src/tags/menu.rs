@@ -146,7 +146,7 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                 "__schema" => TagMenuNode::Schema(
                     node.entries()[0]
                         .value()
-                        .as_i64()
+                        .as_integer()
                         .expect("expected u64 value")
                         .try_into()
                         .expect("expected u64 value"),
@@ -193,7 +193,7 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                                 expected = Some(
                                     entry
                                         .value()
-                                        .as_i64()
+                                        .as_integer()
                                         .expect("expected i64 value")
                                         .try_into()
                                         .expect("expected i64 value"),

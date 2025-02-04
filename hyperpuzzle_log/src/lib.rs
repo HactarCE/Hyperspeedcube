@@ -16,7 +16,7 @@ pub mod verify;
 
 /// Log file version. This **MUST** be incremented whenever breaking changes are
 /// made to the log file format.
-pub const LOG_FILE_VERSION: i64 = 2;
+pub const LOG_FILE_VERSION: i128 = 2;
 
 /// Top-level log file structure.
 ///
@@ -34,14 +34,19 @@ impl LogFile {
     /// Serializes the log file to a string.
     pub fn serialize(&self) -> String {
         let mut doc = self.to_kdl_doc();
-        doc.set_leading("// Hyperspeedcube puzzle log\n");
+        doc.set_format(KdlDocumentFormat {
+            leading: "// Hyperspeedcube puzzle log\n".to_owned(),
+            trailing: String::new(),
+        });
 
         // version
         doc.nodes_mut().insert(0, {
             let mut node = KdlNode::new("version");
-            node.push(KdlEntry::new(LOG_FILE_VERSION));
+            node.push(KdlEntry::new(LOG_FILE_VERSION as i128));
             node
         });
+
+        doc.autoformat();
 
         doc.to_string()
     }
@@ -60,17 +65,18 @@ impl LogFile {
             return Ok((
                 Self::default(),
                 vec![Warning {
-                    span: *doc.span(),
+                    span: doc.span(),
                     msg: "missing log file format version number".to_owned(),
                 }],
             ));
         };
-        let Some(version_number) = (|| version_node.entries().iter().next()?.value().as_i64())()
+        let Some(version_number) =
+            (|| version_node.entries().iter().next()?.value().as_integer())()
         else {
             return Ok((
                 Self::default(),
                 vec![Warning {
-                    span: *version_node.span(),
+                    span: version_node.span(),
                     msg: "invalid log file format version number".to_owned(),
                 }],
             ));
@@ -81,7 +87,7 @@ impl LogFile {
         // Check version number
         if version_number > LOG_FILE_VERSION {
             warnings.push(Warning {
-                span: *version_node.span(),
+                span: version_node.span(),
                 msg: "this file was saved using a newer version, and might not load correctly"
                     .to_owned(),
             });
@@ -297,10 +303,10 @@ pub enum LogEvent {
 pub struct KdlProxy;
 impl ValueSchemaProxy<LayerMask> for KdlProxy {
     fn proxy_from_kdl_value(value: &KdlValue) -> Option<LayerMask> {
-        Some(LayerMask(u32::try_from(value.as_i64()?).ok()?))
+        Some(LayerMask(u32::try_from(value.as_integer()?).ok()?))
     }
     fn proxy_to_kdl_value(value: &LayerMask) -> KdlValue {
-        KdlValue::Base10(i64::from(value.0))
+        KdlValue::Integer(i128::from(value.0))
     }
 }
 impl ValueSchemaProxy<Timestamp> for KdlProxy {
@@ -314,20 +320,18 @@ impl ValueSchemaProxy<Timestamp> for KdlProxy {
 impl ValueSchemaProxy<ScrambleType> for KdlProxy {
     fn proxy_from_kdl_value(value: &KdlValue) -> Option<ScrambleType> {
         match value {
-            KdlValue::RawString(s) | KdlValue::String(s) => match s.as_str() {
+            KdlValue::String(s) => match s.as_str() {
                 "full" => Some(ScrambleType::Full),
                 _ => None,
             },
-            KdlValue::Base2(n) | KdlValue::Base8(n) | KdlValue::Base10(n) | KdlValue::Base16(n) => {
-                u32::try_from(*n).ok().map(ScrambleType::Partial)
-            }
+            KdlValue::Integer(n) => u32::try_from(*n).ok().map(ScrambleType::Partial),
             _ => None,
         }
     }
     fn proxy_to_kdl_value(value: &ScrambleType) -> KdlValue {
         match *value {
             ScrambleType::Full => KdlValue::from("full"),
-            ScrambleType::Partial(n) => KdlValue::from(n as i64),
+            ScrambleType::Partial(n) => KdlValue::from(i128::from(n)),
         }
     }
 }

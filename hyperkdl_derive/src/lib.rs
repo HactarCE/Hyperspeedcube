@@ -197,7 +197,7 @@ pub fn derive_kdl_doc(input: proc_macro::TokenStream) -> proc_macro::TokenStream
                 crate::from_kdl::gen_unpack_children(quote!(doc), &kdl_fields),
                 crate::from_kdl::gen_construct_struct(
                     &type_name,
-                    quote!(*doc.span()),
+                    quote!(doc.span()),
                     &data_struct.fields,
                     &kdl_fields,
                 ),
@@ -248,7 +248,7 @@ pub fn derive_kdl_node_contents(input: proc_macro::TokenStream) -> proc_macro::T
                 crate::from_kdl::gen_unpack_node_contents(&kdl_fields),
                 crate::from_kdl::gen_construct_struct(
                     &type_name,
-                    quote!(*node.span()),
+                    quote!(node.span()),
                     &data_struct.fields,
                     &kdl_fields,
                 ),
@@ -303,7 +303,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 // Check node name and add it to `ctx`
                 quote! {
                     if #expected_node_name != node.name().value() {
-                        ctx.warn_wrong_node_name(#expected_node_name, node.name().value(), *node.span());
+                        ctx.warn_wrong_node_name(#expected_node_name, node.name().value(), node.span());
                         return None;
                     }
                     let mut ctx = ctx.with(::hyperkdl::KeyPathElem::Node(node.name()));
@@ -312,7 +312,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 crate::from_kdl::gen_unpack_node_contents(&kdl_fields),
                 crate::from_kdl::gen_construct_struct(
                     &type_name,
-                    quote!(*node.span()),
+                    quote!(node.span()),
                     &data_struct.fields,
                     &kdl_fields,
                 ),
@@ -354,7 +354,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                     crate::from_kdl::gen_unpack_node_contents(&kdl_fields),
                     crate::from_kdl::gen_construct_struct(
                         &self_tokens,
-                        quote!(*node.span()),
+                        quote!(node.span()),
                         &variant.fields,
                         &kdl_fields,
                     ),
@@ -380,7 +380,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 match node.name().value() {
                     #from_kdl_match_arms
                     node_name => {
-                        ctx.warn_unknown_node_name(node_name, *node.span());
+                        ctx.warn_unknown_node_name(node_name, node.span());
                         None
                     }
                 }

@@ -21,4 +21,3 @@ kdl = { workspace = true }
 lazy_static = { workspace = true }
 owo-colors = { workspace = true }
 regex = { workspace = true }
-unindent = { workspace = true }

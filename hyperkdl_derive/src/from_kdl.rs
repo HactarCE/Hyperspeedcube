@@ -86,7 +86,7 @@ pub(crate) fn gen_unpack_entries(node: impl ToTokens, kdl_fields: &[KdlField<'_>
                     let mut ctx = ctx.with(::hyperkdl::KeyPathElem::Argument(arg_index));
                     match arg_index {
                         #argument_match_arms
-                        _ => ctx.warn_unused_arg(arg_index + 1, *entry.span()),
+                        _ => ctx.warn_unused_arg(arg_index + 1, entry.span()),
                     }
                     arg_index += 1;
                 },
@@ -94,7 +94,7 @@ pub(crate) fn gen_unpack_entries(node: impl ToTokens, kdl_fields: &[KdlField<'_>
                     let mut ctx = ctx.reborrow();
                     match name.value() {
                         #property_match_arms
-                        key => ctx.warn_unknown_property(key, *entry.span()),
+                        key => ctx.warn_unknown_property(key, entry.span()),
                     }
                 },
             }
@@ -145,7 +145,7 @@ pub(crate) fn gen_unpack_children(
                 }
             }
         }
-        None => quote! { ctx.warn_unknown_child(child_node.name().value(), *child_node.span()) },
+        None => quote! { ctx.warn_unknown_child(child_node.name().value(), child_node.span()) },
     };
 
     quote! {

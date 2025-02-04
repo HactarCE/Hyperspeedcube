@@ -1,20 +1,20 @@
 __schema 2 // Bump this version when adding new required tags
 
-schema "Tag schema" expected=0 hidden=true
+schema "Tag schema" expected=0 hidden=#true
 
 __heading "Type"
 
-type expected=1 inline=true {
+type expected=1 inline=#true {
   shape "Shape"
   puzzle "Puzzle"
-  generator "Generator" auto=true
+  generator "Generator" auto=#true
 }
 
 __separator
 
 __heading "Shape"
 
-shape expected=1 inline=true {
+shape expected=1 inline=#true {
   _3d "3D" {
     platonic "Platonic" {
       cube "Cube"
@@ -79,7 +79,7 @@ shape expected=1 inline=true {
 }
 
 colors "Colors" {
-  (str)system "Color system" auto=true expected=1 list=true
+  (str)system "Color system" auto=#true expected=1 list=#true
   multi_per_facet "Multiple colors per facet" expected=1
   multi_facet_per "Multiple facets per color" expected=1
 }
@@ -152,7 +152,7 @@ completeness "Completeness" {
 }
 
 algebraic "Algebraic properties" {
-  total expected=1 include_in_tag=false inline=true {
+  total expected=1 include_in_tag=#false inline=#true {
     bandaged "Bandaged"
     doctrinaire "Doctrinaire"
     jumbling "Jumbling"
@@ -165,7 +165,7 @@ algebraic "Algebraic properties" {
   __separator
   abelian "Abelian" expected=1
   fused "Fused" expected=1
-  orientations inline=true {
+  orientations inline=#true {
     non_abelian "Non-abelian orientations" expected=1
   }
   // `trivial` means the state space is equivalent to a product of "lines,"
@@ -179,7 +179,7 @@ __separator
 
 __heading "Cuts"
 
-cuts inline=true {
+cuts inline=#true {
   depth "Cut depth" expected=1 {
     shallow "Shallow"
     deep "Deep" {
@@ -233,26 +233,26 @@ __separator
 
 __heading "Attribution"
 
-(str_list)author "Author" expected=1 list=true
-(str_list)inventor "Inventor" expected=1 list=true
+(str_list)author "Author" expected=1 list=#true
+(str_list)inventor "Inventor" expected=1 list=#true
 
 __separator
 
 __heading "Miscellaneous"
 
-solved "Solved" auto=true
-generated "Generated" auto=true
+solved "Solved" auto=#true
+generated "Generated" auto=#true
 (str)builtin "Built-in" expected=1
 external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=1
   (str)hof "Hall Of Fame" expected=1
   mc4d "MagicCube4D" expected=1
   leaderboard "Leaderboard" expected=1
-  (str_list)link "Link" hidden=true
+  (str_list)link "Link" hidden=#true
   (int)museum "Twisty Puzzle Museum" expected=1
   (str)wca "World Cube Association" expected=1
 }
 experimental "Experimental" expected=1
 big "Big (slow to generate)"
 
-file "File" auto=true hidden=true
+file "File" auto=#true hidden=#true

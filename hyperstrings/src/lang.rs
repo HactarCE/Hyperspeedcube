@@ -281,7 +281,7 @@ impl Lang {
         field_path: KeyPath,
         entry: &KdlEntry,
     ) {
-        let Some(s) = util::take_entry_str_value(src, entry).map(unindent::unindent) else {
+        let Some(s) = util::take_entry_str_value(src, entry) else {
             return;
         };
         // Parse template
@@ -303,7 +303,7 @@ impl Lang {
         }
 
         let value = if segments.len() == 1 {
-            LangValue::String(s)
+            LangValue::String(s.to_string())
         } else {
             LangValue::Template { segments }
         };

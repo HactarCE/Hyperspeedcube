@@ -7,7 +7,7 @@ use eyre::Result;
 use hyperkdl::{NodeContentsSchema, Warning};
 use hyperpuzzle_core::Timestamp;
 use hyperpuzzle_log::verify::SolveVerification;
-use kdl::{KdlDocument, KdlError};
+use kdl::{KdlDocument, KdlDocumentFormat, KdlError};
 
 /// Saves the statistics file, overwriting the existing one.
 pub fn save(stats: &StatsDb) -> Result<()> {
@@ -52,11 +52,16 @@ impl StatsDb {
     /// Serializes the PB database to a string.
     pub fn serialize(&self) -> String {
         let mut doc = KdlDocument::new();
-        doc.set_leading("// Hyperspeedcube PB database\n");
+        doc.set_format(KdlDocumentFormat {
+            leading: "// Hyperspeedcube PB database\n".to_string(),
+            trailing: String::new(),
+        });
 
         for (puzzle_id, pbs) in &self.0 {
             doc.nodes_mut().push(pbs.to_kdl_node_with_name(puzzle_id));
         }
+
+        doc.autoformat();
 
         doc.to_string()
     }
