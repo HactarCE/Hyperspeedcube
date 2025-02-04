@@ -33,6 +33,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Smart realign option (always enabled)
 
+## [1.0.11] - 2025-01-05
+
+### Fixed
+
+- Cursor interaction on Safari ([@thatcomputerguy0101] [#69](https://github.com/HactarCE/Hyperspeedcube/pull/69))
+
+## [1.0.10] - 2025-01-05
+
+### Added
+
+- Timer auto-start and auto-stop ([@JosieElliston] [#66](https://github.com/HactarCE/Hyperspeedcube/pull/66))
+
+### Fixed
+
+- Status bar revealing solved state when blindfold is on ([@JosieElliston] [#66](https://github.com/HactarCE/Hyperspeedcube/pull/66))
+
 ## [1.0.9] - 2024-11-20
 
 ### Fixed
