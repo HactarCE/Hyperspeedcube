@@ -1,20 +1,20 @@
 [workspace]
 members = [
-    "hyperdraw",
-    "hyperkdl",
-    "hyperkdl_derive",
-    "hypermath",
-    "hyperpaths",
-    "hyperprefs",
-    "hyperpuzzle",
-    "hyperpuzzle_core",
-    "hyperpuzzle_log",
-    "hyperpuzzle_lua",
-    "hyperpuzzle_view",
-    "hypershape",
-    "hyperspeedcube",
-    "hyperstats",
-    "hyperstrings",
+    "crates/hyperdraw",
+    "crates/hyperkdl",
+    "crates/hyperkdl_derive",
+    "crates/hypermath",
+    "crates/hyperpaths",
+    "crates/hyperprefs",
+    "crates/hyperpuzzle",
+    "crates/hyperpuzzle_core",
+    "crates/hyperpuzzle_log",
+    "crates/hyperpuzzle_lua",
+    "crates/hyperpuzzle_view",
+    "crates/hypershape",
+    "crates/hyperspeedcube",
+    "crates/hyperstats",
+    "crates/hyperstrings",
 ]
 resolver = "2"
 
@@ -57,20 +57,20 @@ opt-level = 1
 [workspace.dependencies]
 
 # Crates that are part of the project
-hyperdraw = { path = "hyperdraw" }
-hyperkdl = { path = "hyperkdl" }
-hyperkdl_derive = { path = "hyperkdl_derive" }
-hypermath = { path = "hypermath" }
-hyperpaths = { path = "hyperpaths" }
-hyperprefs = { path = "hyperprefs" }
-hyperpuzzle = { path = "hyperpuzzle" }
-hyperpuzzle_core = { path = "hyperpuzzle_core" }
-hyperpuzzle_log = { path = "hyperpuzzle_log" }
-hyperpuzzle_lua = { path = "hyperpuzzle_lua" }
-hyperpuzzle_view = { path = "hyperpuzzle_view" }
-hypershape = { path = "hypershape" }
-hyperstats = { path = "hyperstats" }
-hyperstrings = { path = "hyperstrings" }
+hyperdraw = { path = "crates/hyperdraw" }
+hyperkdl = { path = "crates/hyperkdl" }
+hyperkdl_derive = { path = "crates/hyperkdl_derive" }
+hypermath = { path = "crates/hypermath" }
+hyperpaths = { path = "crates/hyperpaths" }
+hyperprefs = { path = "crates/hyperprefs" }
+hyperpuzzle = { path = "crates/hyperpuzzle" }
+hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
+hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
+hyperpuzzle_lua = { path = "crates/hyperpuzzle_lua" }
+hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
+hypershape = { path = "crates/hypershape" }
+hyperstats = { path = "crates/hyperstats" }
+hyperstrings = { path = "crates/hyperstrings" }
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 
 # Data structures

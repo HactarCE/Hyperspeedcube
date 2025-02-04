@@ -41,7 +41,7 @@ const BAKE_LUA_PATHS: bool = true;
 
 /// Built-in Lua files.
 static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_LUA_PATHS {
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua")
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../lua")
 } else {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/lua")
 };
