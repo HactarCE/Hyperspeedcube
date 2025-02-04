@@ -421,9 +421,9 @@ fn get_key_name(key: KeyMappingCode) -> String {
         MetaLeft | MetaRight => {
             if cfg!(windows) {
                 return egui::special_emojis::OS_WINDOWS.to_string();
-            } else if cfg!(os = "macos") {
+            } else if cfg!(target_os = "macos") {
                 "⌘"
-            } else if cfg!(os = "linux") {
+            } else if cfg!(target_os = "linux") {
                 return egui::special_emojis::OS_LINUX.to_string();
             } else {
                 key_names::LOGO_STR
