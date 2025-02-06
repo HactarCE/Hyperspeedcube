@@ -71,7 +71,6 @@ hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hypershape = { path = "crates/hypershape" }
 hyperstats = { path = "crates/hyperstats" }
 hyperstrings = { path = "crates/hyperstrings" }
-key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 
 # Data structures
 ball-tree = { version = "0.5.1" }
@@ -85,7 +84,7 @@ tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
 comrak = { version = "0.35.0", default-features = false }
-config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
+config = { version = "0.15.7", features = ["preserve_order"] }
 directories = { version = "6.0.0" }
 hex = { version = "0.4.3" }
 image = { version = "0.25.5" }
@@ -119,7 +118,7 @@ thiserror = { version = "2.0.11" }
 tracing = { version = "0.1.41" }
 tracing-error = { version = "0.2.1" }
 tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }
-# color-eyre defined at the bottom of the file
+color-eyre = { version = "0.6.2", default-features = false, features = ["track-caller", "capture-spantrace"] } # blocked on https://github.com/eyre-rs/eyre/pull/188
 
 # Command-line interface
 clap = { version = "4.5.28" }
@@ -131,12 +130,13 @@ ecolor = { version = "0.30.0" }
 egui = { version = "0.30.0" }
 egui_dock = { version = "0.15.0" }
 egui-winit = { version = "0.30.0" }
-winit = { version = "0.30.8", features = ["serde"] } # must match egui-winit
+winit = { version = "0.30.8", features = ["serde"] } # must match egui-winit and key-names
 wgpu = { version = "23.0.1", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
 opener = { version = "0.7.0" }
 rfd = {version = "0.15.1" }
+key-names = { version = "3.0.0" }
 
 # Colors
 colorous = { version = "1.0.15" }
@@ -171,16 +171,13 @@ names = { version = "0.14.0", default-features = false }
 time = { version = "0.3.37", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
-# Fork of color-eyre that does not re-export color_owo, which otherwise clogs
-# editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
-[workspace.dependencies.color-eyre]
-git = "https://github.com/FlareFlo/color-eyre.git"
-rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1"
-default-features = false
-features = ["track-caller", "capture-spantrace"]
 
 [patch.crates-io]
 egui = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.30.0" }
 egui-winit = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.30.0" }
 epaint = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.30.0" }
 ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.30.0" }
+
+# Fork of color-eyre that does not re-export color_owo, which otherwise clogs
+# editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
+color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1" }
