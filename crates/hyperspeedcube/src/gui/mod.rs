@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use markdown::md;
@@ -28,6 +28,7 @@ use crate::L;
 pub struct AppUi {
     pub app: App,
     dock_state: egui_dock::DockState<Tab>,
+    raw_winit_event_rx: mpsc::Receiver<winit::event::WindowEvent>,
 }
 
 impl AppUi {
@@ -53,18 +54,34 @@ impl AppUi {
         let surface = dock_state.main_surface_mut();
         let [main, left] =
             surface.split_left(main, 0.15, vec![Tab::PuzzleCatalog, Tab::PuzzleControls]);
-        surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
-        let [_main, right] = surface.split_right(
-            main,
-            0.8,
-            vec![Tab::PieceFilters, Tab::DevTools, Tab::Styles, Tab::View],
-        );
-        surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
+        surface.split_below(left, 0.6, vec![Tab::LuaLogs]);
+        let [_main, right] = surface.split_right(main, 0.65, vec![Tab::Keybinds]);
 
-        AppUi { app, dock_state }
+        // Install WindowEvent hook (workaround to get raw keyboard events).
+        let (raw_winit_event_tx, raw_winit_event_rx) = std::sync::mpsc::channel();
+        egui_winit::install_windowevent_hook(raw_winit_event_tx);
+
+        AppUi {
+            app,
+            dock_state,
+            raw_winit_event_rx,
+        }
     }
 
     pub fn build(&mut self, ctx: &egui::Context) {
+        self.app.key_events = self
+            .raw_winit_event_rx
+            .try_iter()
+            .filter_map(|ev| match ev {
+                winit::event::WindowEvent::KeyboardInput {
+                    event,
+                    is_synthetic,
+                    ..
+                } => Some(event),
+                _ => None,
+            })
+            .collect();
+
         set_middle_click_delete(ctx, self.app.prefs.interaction.middle_click_delete);
 
         if !self.app.prefs.eula {

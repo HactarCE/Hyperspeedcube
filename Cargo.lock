@@ -2217,7 +2217,6 @@ dependencies = [
  "hyperstrings",
  "itertools 0.14.0",
  "js-sys",
- "key-names",
  "lab",
  "lazy_static",
  "log",

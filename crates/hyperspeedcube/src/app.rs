@@ -24,6 +24,8 @@ pub struct App {
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
 
     egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
+
+    pub(crate) key_events: Vec<winit::event::KeyEvent>,
 }
 
 impl App {
@@ -50,6 +52,8 @@ impl App {
             animation_prefs,
 
             egui_wgpu_renderer: Arc::clone(&wgpu_render_state.renderer),
+
+            key_events: vec![],
         }
     }
 

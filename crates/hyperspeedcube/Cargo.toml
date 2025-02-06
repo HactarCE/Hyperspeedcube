@@ -35,12 +35,12 @@ comrak = { workspace = true }
 eframe = { workspace = true }
 egui = { workspace = true }
 egui_dock = { workspace = true }
+egui-winit = { workspace = true }
 empfindung = { workspace = true }
 env_logger = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
 itertools = { workspace = true }
-key-names = { workspace = true }
 lab = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }

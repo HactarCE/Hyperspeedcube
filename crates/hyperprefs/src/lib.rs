@@ -26,6 +26,7 @@ mod filters;
 mod image_generator;
 mod info;
 mod interaction;
+mod key;
 // mod keybinds;
 // mod mousebinds;
 pub mod persist;
@@ -41,6 +42,7 @@ pub use filters::*;
 pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
+pub use key::AnyKey;
 pub use presets::*;
 pub use schema::PrefsConvert;
 pub use styles::*;
@@ -89,7 +91,7 @@ pub struct Preferences {
     pub show_experimental_puzzles: bool,
 
     // TODO: remove this when implementing keybinds
-    pub keybinds: std::marker::PhantomData<crate::serde_impl::KeyMappingCodeSerde>,
+    pub keybinds: std::marker::PhantomData<AnyKey>,
 }
 impl schema::PrefsConvert for Preferences {
     type DeserContext = ();

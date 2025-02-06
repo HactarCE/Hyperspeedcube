@@ -18,6 +18,7 @@ mod locales;
 mod util;
 
 pub use gui::about_text;
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 /// Strings for the current locale.
 ///
@@ -109,7 +110,6 @@ fn main() -> eframe::Result<()> {
     wasm_bindgen_futures::spawn_local(run());
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 async fn run() -> eframe::Result<()> {
     let icon_data = eframe::icon_data::from_png_bytes(ICON_32_PNG_DATA)
         .expect("error loading application icon");
