@@ -288,7 +288,7 @@ impl Lang {
         let mut segments = vec![];
         let mut parameters = vec![];
         let mut last_index = 0;
-        for captures in TEMPLATE_REGEX.captures_iter(&s) {
+        for captures in TEMPLATE_REGEX.captures_iter(s) {
             let whole = captures.get(0).unwrap();
             segments.push(s[last_index..whole.start()].into());
             let (param, param_segment) = parse_template_inner(captures.get(1).unwrap().as_str());

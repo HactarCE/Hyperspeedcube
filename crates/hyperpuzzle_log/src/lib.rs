@@ -42,7 +42,7 @@ impl LogFile {
         // version
         doc.nodes_mut().insert(0, {
             let mut node = KdlNode::new("version");
-            node.push(KdlEntry::new(LOG_FILE_VERSION as i128));
+            node.push(KdlEntry::new(LOG_FILE_VERSION));
             node
         });
 
