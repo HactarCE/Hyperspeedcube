@@ -12,9 +12,9 @@ keywords = ["serialization", "serialize-deserialize"]
 categories = ["encoding"]
 license = "MIT OR Apache-2.0"
 
+[lints]
+workspace = true
+
 [dependencies]
 kdl = { workspace = true }
 miette = { workspace = true }
-
-[lints]
-workspace = true

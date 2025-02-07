@@ -12,12 +12,12 @@ keywords = ["user-data", "config-directory", "path", "folder", "app_dirs"]
 categories = ["filesystem"]
 license = "GPL-3.0-or-later"
 
+[lints]
+workspace = true
+
 [dependencies]
 directories = { workspace = true }
 eyre = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 time = { workspace = true }
-
-[lints]
-workspace = true

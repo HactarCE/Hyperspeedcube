@@ -12,6 +12,9 @@ keywords = ["user-data", "config-directory", "path", "folder", "app_dirs"]
 categories = ["filesystem"]
 license = "MIT OR Apache-2.0"
 
+[lints]
+workspace = true
+
 [dependencies]
 hyperkdl = { workspace = true }
 hyperkdl_derive = { workspace = true }
@@ -22,6 +25,3 @@ hyperpuzzle_log = { workspace = true }
 eyre = { workspace = true }
 kdl = { workspace = true }
 log = { workspace = true }
-
-[lints]
-workspace = true

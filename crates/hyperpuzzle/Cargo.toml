@@ -12,6 +12,9 @@ keywords = ["cubing", "hypercubing", "rubik", "4d"]
 categories = ["simulation"]
 license = "MIT OR Apache-2.0"
 
+[lints]
+workspace = true
+
 [dependencies]
 hyperpuzzle_core = { workspace = true }
 hyperpuzzle_lua = { workspace = true }
@@ -23,6 +26,3 @@ parking_lot = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 
 eyre = { workspace = true }
-
-[lints]
-workspace = true
