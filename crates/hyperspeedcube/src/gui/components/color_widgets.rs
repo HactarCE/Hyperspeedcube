@@ -720,7 +720,7 @@ pub fn color_edit(
     }
     let popup_response = hex_edit_popup.if_open(|popup| {
         popup
-            .over(ui, &r, 1.0)
+            .over(ui, &r, egui::vec2(1.0, 2.0))
             .text_edit_align(egui::Align::Center)
             .text_edit_monospace()
             .auto_confirm(true)

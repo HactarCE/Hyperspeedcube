@@ -159,7 +159,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             let popup_response = popup.if_open(|popup| {
                 popup
                     .text_edit_width(150.0)
-                    .over(ui, &label_response, 2.75) // overwrite width if wider
+                    .over(ui, &label_response, egui::vec2(1.0, 4.0)) // overwrite width if wider
                     .confirm_button_validator(&|new_name| {
                         validate_single_color_name(prefs.current, new_name, L.colors.actions.rename)
                     })

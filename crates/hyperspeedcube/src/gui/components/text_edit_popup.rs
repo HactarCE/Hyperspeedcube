@@ -91,8 +91,8 @@ impl<'v, 's> TextEditPopup<'v, 's> {
         self
     }
     /// Same as `at()` but sets width as well.
-    pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, vertical_fudge: f32) -> Self {
-        self = self.at(ui, r, egui::vec2(0.0, vertical_fudge));
+    pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, fudge: egui::Vec2) -> Self {
+        self = self.at(ui, r, fudge);
         if !self.text_edit_width.is_some_and(|w| w > r.rect.width()) {
             self.text_edit_width = Some(r.rect.width());
         }

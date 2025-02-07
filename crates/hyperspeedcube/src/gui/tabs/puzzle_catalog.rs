@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
+use egui::emath::GuiRounding;
 use hyperpuzzle_core::{
     GeneratorParamType, GeneratorParamValue, PuzzleListMetadata, PuzzleSpecGenerator,
 };
@@ -132,7 +133,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         egui::ScrollArea::vertical()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                let max_size = ui.max_rect().size().floor(); // needed to avoid "unaligned" visual warnings
+                let layout = egui::Layout::top_down_justified(egui::Align::LEFT);
+                ui.allocate_ui_with_layout(max_size, layout, |ui| {
                     let mut query = Query::from_str(&search_query_string);
 
                     if let Some(incomplete_tag) = query
