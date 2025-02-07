@@ -465,10 +465,12 @@ impl ColorButton {
         // This function is based on [`egui::color_picker`]
 
         // Colored rectangle
-        let sense = egui::Sense {
-            click: colors_ui.clickable,
-            drag: colors_ui.dnd.is_some(),
-            focusable: true,
+        let mut sense = egui::Sense::FOCUSABLE;
+        if colors_ui.clickable {
+            sense |= egui::Sense::CLICK
+        };
+        if colors_ui.dnd.is_some() {
+            sense |= egui::Sense::DRAG
         };
         let r = show_color_button(ui, self.color, false, self.size, sense);
 
@@ -515,7 +517,8 @@ impl ColorButton {
                 color_square_size.x *= GRADIENT_WIDTH_MULTIPLIER;
             }
 
-            let left_bottom = self.tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -5.0);
+            let left_bottom =
+                self.tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left as f32, -5.0);
             egui::Area::new(id)
                 .interactable(false)
                 .fixed_pos(left_bottom)
@@ -605,9 +608,12 @@ pub fn show_color_button(
         let rect = rect.expand(visuals.expansion);
         paint_colored_rect(ui.painter(), rect, 0.0, color.into());
 
-        let rounding = visuals.rounding.at_most(2.0);
-        ui.painter()
-            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+        ui.painter().rect_stroke(
+            rect,
+            visuals.corner_radius,
+            (2.0, visuals.bg_fill), // fill is intentional, because default style has no border
+            egui::StrokeKind::Outside,
+        );
     }
     response
 }

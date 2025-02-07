@@ -11,7 +11,7 @@ impl HelpHoverWidget {
         let r = ui.add(
             egui::Button::new("?")
                 .small()
-                .rounding(16.0)
+                .corner_radius(16)
                 .min_size(egui::vec2(24.0, 16.0))
                 .fill(egui::Color32::TRANSPARENT),
         );

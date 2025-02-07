@@ -81,7 +81,7 @@ macro_rules! pipeline {
     }) => {
         $vis struct $pipeline_name {
             pub pipeline: $base_pipeline_type,
-            pub device: ::std::sync::Arc<::wgpu::Device>,
+            pub device: ::wgpu::Device,
             pub label: String,
             pub bind_group_layouts: Vec<::wgpu::BindGroupLayout>,
         }
@@ -98,7 +98,7 @@ macro_rules! pipeline {
 
         impl $pipeline_name {
             pub fn new<$bindings_lt, $( $($($pipeline_params_lt),*)? )?> (
-                device: &::std::sync::Arc<::wgpu::Device>,
+                device: &::wgpu::Device,
                 shader_module: &::wgpu::ShaderModule,
                 $( params: $pipeline_params_struct_name $(<$($pipeline_params_lt),*>)?, )?
             ) -> Self {
@@ -119,7 +119,7 @@ macro_rules! pipeline {
                         shader_module,
                         &pipeline_layout
                     ),
-                    device: ::std::sync::Arc::clone(device),
+                    device: device.clone(),
                     label,
                     bind_group_layouts,
                 }

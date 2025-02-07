@@ -134,7 +134,7 @@ where
             // the same as the other case.
             let mut r = ui.scope(|ui| ui.push_id(id, |ui| add_contents(ui, false)).inner);
 
-            if !r.inner.response.sense.click {
+            if !r.inner.response.sense.senses_click() {
                 r.inner.response = r
                     .inner
                     .response
@@ -183,7 +183,12 @@ where
             inactive_stroke
         };
 
-        ui.painter().rect_stroke(r.rect, DROP_ZONE_ROUNDING, stroke);
+        ui.painter().rect_stroke(
+            r.rect,
+            DROP_ZONE_ROUNDING,
+            stroke,
+            egui::StrokeKind::Outside,
+        );
 
         if is_active {
             let Some(payload) = self.payload.get() else {

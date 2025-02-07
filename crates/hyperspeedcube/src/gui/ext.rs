@@ -82,9 +82,9 @@ impl ComboBoxExt for egui::ComboBox {
             + spacing.item_spacing.x
             + f32::max(
                 spacing.icon_width,
-                spacing.window_margin.left
+                spacing.window_margin.left as f32
                     + spacing.scroll.bar_width
-                    + spacing.window_margin.right
+                    + spacing.window_margin.right as f32
                     + 1.0, // not sure why, but text wraps without the +1.0
             );
 

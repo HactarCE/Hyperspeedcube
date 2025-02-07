@@ -112,7 +112,7 @@ impl AppUi {
         });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill({
+            .frame(egui::Frame::NONE.fill({
                 let [r, g, b] = background_color.rgb;
                 egui::Color32::from_rgb(r, g, b)
             }))

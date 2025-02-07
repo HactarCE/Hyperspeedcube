@@ -138,9 +138,10 @@ impl egui::Widget for FilterCheckbox<'_> {
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(egui::epaint::RectShape::new(
                 big_icon_rect.expand(visuals.expansion),
-                visuals.rounding,
+                visuals.corner_radius,
                 visuals.bg_fill,
                 visuals.bg_stroke,
+                egui::StrokeKind::Outside,
             ));
             match self.state {
                 // Horizontal line
@@ -192,9 +193,12 @@ impl egui::Widget for FilterCheckbox<'_> {
 
                 egui::color_picker::show_color_at(ui.painter(), color, color_rect);
 
-                let rounding = visuals.rounding.at_most(2.0);
-                ui.painter()
-                    .rect_stroke(color_rect, rounding, (2.0, visuals.bg_fill));
+                ui.painter().rect_stroke(
+                    color_rect,
+                    visuals.corner_radius,
+                    (2.0, visuals.bg_fill),
+                    egui::StrokeKind::Outside,
+                );
 
                 x += color_size.x;
             }

@@ -1,5 +1,4 @@
 use std::fmt;
-use std::sync::Arc;
 
 use parking_lot::Mutex;
 use wgpu::util::DeviceExt;
@@ -9,8 +8,8 @@ use super::pipelines::Pipelines;
 /// WGPU graphics state.
 #[allow(missing_docs)]
 pub struct GraphicsState {
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
     pub(super) encoder: Mutex<wgpu::CommandEncoder>,
 
     pub(super) pipelines: Pipelines,
@@ -26,13 +25,13 @@ impl fmt::Debug for GraphicsState {
 }
 impl GraphicsState {
     /// Constructs a new [`GraphicsState`].
-    pub fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let encoder = Mutex::new(create_command_encoder(&device));
 
-        let pipelines = Pipelines::new(&device);
+        let pipelines = Pipelines::new(device);
 
         let uv_vertex_buffer = create_buffer_init::<super::structs::UvVertex>(
-            &device,
+            device,
             "uv_vertices",
             &super::structs::UvVertex::SQUARE,
             wgpu::BufferUsages::VERTEX,
@@ -45,8 +44,8 @@ impl GraphicsState {
         });
 
         Self {
-            device,
-            queue,
+            device: device.clone(),
+            queue: queue.clone(),
             encoder,
 
             pipelines,

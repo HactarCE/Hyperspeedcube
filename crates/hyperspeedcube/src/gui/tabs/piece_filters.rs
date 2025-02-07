@@ -899,7 +899,7 @@ fn show_filter_checkboxes_ui(
                     width: 1.0,
                     color: ui.visuals().window_stroke.color,
                 },
-                inner_margin: egui::Margin::same(3.5),
+                inner_margin: egui::Margin::same(3),
                 ..Default::default()
             }
             .show(ui, |ui| {

@@ -40,8 +40,8 @@ impl App {
         let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("no wgpu render state");
         Self {
             gfx: Arc::new(GraphicsState::new(
-                Arc::clone(&wgpu_render_state.device),
-                Arc::clone(&wgpu_render_state.queue),
+                &wgpu_render_state.device,
+                &wgpu_render_state.queue,
             )),
 
             prefs,

@@ -36,7 +36,7 @@ impl CachedTexture1d {
         self.inner.gfx.queue.write_texture(
             self.texture.as_image_copy(),
             bytemuck::cast_slice(data),
-            wgpu::ImageDataLayout::default(),
+            wgpu::TexelCopyBufferLayout::default(),
             self.inner.extent_3d(),
         );
     }
