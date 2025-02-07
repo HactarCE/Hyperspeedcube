@@ -287,7 +287,7 @@ pub struct ColorInfo {
 #[allow(missing_docs)]
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum DefaultColor {
-    // Unknown default color.
+    /// Unknown default color.
     #[default]
     Unknown,
     /// Specific hexcode, such as `#ff00ff` or `#f0f`.

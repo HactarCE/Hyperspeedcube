@@ -154,10 +154,10 @@
 //! - Loosen name overlap restrictions
 //! - Associative maps (indexmap, hashmap, etc.)
 
-#![allow(unused, missing_docs, clippy::unwrap_used)]
+#![allow(clippy::unwrap_used)]
 
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{parse_macro_input, DeriveInput};
 
 mod attrs;
@@ -165,7 +165,7 @@ mod fields;
 mod from_kdl;
 mod to_kdl;
 
-use fields::{KdlField, KdlFieldStyle};
+use fields::KdlField;
 
 /// Derive macro that implements [`hyperkdl::DocSchema`] for a struct.
 ///
@@ -181,11 +181,8 @@ pub fn derive_kdl_doc(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
     proc_macro::TokenStream::from(match input.data {
         syn::Data::Struct(data_struct) => {
-            let mut from_kdl_impl = TokenStream::new();
-            let mut to_kdl_impl = TokenStream::new();
-
             // Parse struct and field attributes
-            let struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
+            let _struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
             let kdl_fields: Vec<KdlField<'_>> = crate::fields::parse_fields(&data_struct.fields);
 
             // Ignore node name
@@ -218,8 +215,8 @@ pub fn derive_kdl_doc(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
             gen_impl_doc_schema(type_name, &from_kdl_impl, &to_kdl_impl)
         }
-        syn::Data::Enum(data_enum) => panic!("#[derive(NodeContents)] does not support enums"),
-        syn::Data::Union(data_union) => panic!("#[derive(NodeContents)] does not support unions"),
+        syn::Data::Enum(_) => panic!("#[derive(NodeContents)] does not support enums"),
+        syn::Data::Union(_) => panic!("#[derive(NodeContents)] does not support unions"),
     })
 }
 
@@ -234,11 +231,8 @@ pub fn derive_kdl_node_contents(input: proc_macro::TokenStream) -> proc_macro::T
 
     proc_macro::TokenStream::from(match input.data {
         syn::Data::Struct(data_struct) => {
-            let mut from_kdl_impl = TokenStream::new();
-            let mut to_kdl_impl = TokenStream::new();
-
             // Parse struct and field attributes
-            let struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
+            let _struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
             let kdl_fields: Vec<KdlField<'_>> = crate::fields::parse_fields(&data_struct.fields);
 
             // Ignore node name
@@ -269,8 +263,8 @@ pub fn derive_kdl_node_contents(input: proc_macro::TokenStream) -> proc_macro::T
 
             gen_impl_node_contents_schema(type_name, &from_kdl_impl, &to_kdl_impl)
         }
-        syn::Data::Enum(data_enum) => panic!("#[derive(NodeContents)] does not support enums"),
-        syn::Data::Union(data_union) => panic!("#[derive(NodeContents)] does not support unions"),
+        syn::Data::Enum(_) => panic!("#[derive(NodeContents)] does not support enums"),
+        syn::Data::Union(_) => panic!("#[derive(NodeContents)] does not support unions"),
     })
 }
 
@@ -288,9 +282,6 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 
     proc_macro::TokenStream::from(match input.data {
         syn::Data::Struct(data_struct) => {
-            let mut from_kdl_impl = TokenStream::new();
-            let mut to_kdl_impl = TokenStream::new();
-
             // Parse struct and field attributes
             let struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
             let kdl_fields = crate::fields::parse_fields(&data_struct.fields);
@@ -389,7 +380,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 
             gen_impl_node_schema(type_name, &from_kdl_impl, &to_kdl_impl)
         }
-        syn::Data::Union(data_union) => panic!("#[derive(Node)] does not support unions"),
+        syn::Data::Union(_) => panic!("#[derive(Node)] does not support unions"),
     })
 }
 

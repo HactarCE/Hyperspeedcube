@@ -40,12 +40,6 @@ pub(crate) fn gen_construct_node(
     };
     for field in kdl_fields {
         let ident = &field.ident;
-        let to_kdl_value_fn = match &field.attrs.proxy {
-            Some(proxy_type) => {
-                quote!(<proxy_type as ::hyperkdl::NodeContentsSchemaProxy>::proxy_to_kdl_value)
-            }
-            None => quote!(::hyperkdl::NodeContentsSchema::to_kdl_value),
-        };
         match &field.attrs.style {
             KdlFieldStyle::Argument(_) => {
                 let func = field.proxy_fn("ValueSchema", "to_kdl_value");

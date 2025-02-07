@@ -467,11 +467,11 @@ impl ColorButton {
         // Colored rectangle
         let mut sense = egui::Sense::FOCUSABLE;
         if colors_ui.clickable {
-            sense |= egui::Sense::CLICK
-        };
+            sense |= egui::Sense::CLICK;
+        }
         if colors_ui.dnd.is_some() {
-            sense |= egui::Sense::DRAG
-        };
+            sense |= egui::Sense::DRAG;
+        }
         let r = show_color_button(ui, self.color, false, self.size, sense);
 
         // Draggable label

@@ -26,7 +26,7 @@ impl fmt::Debug for GraphicsState {
 impl GraphicsState {
     /// Constructs a new [`GraphicsState`].
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
-        let encoder = Mutex::new(create_command_encoder(&device));
+        let encoder = Mutex::new(create_command_encoder(device));
 
         let pipelines = Pipelines::new(device);
 

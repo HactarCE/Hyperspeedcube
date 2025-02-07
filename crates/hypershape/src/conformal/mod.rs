@@ -204,7 +204,6 @@ impl Space {
     ///
     /// Polytopes are signed, so the same polytope may be returned twice with
     /// different signs; otherwise, there are no duplicates.
-    #[allow(clippy::comparison_chain)]
     pub fn children_with_ndim(&self, root: AtomicPolytopeRef, ndim: u8) -> Vec<AtomicPolytopeRef> {
         let mut queue = vec![root];
         let mut seen = HashSet::new();

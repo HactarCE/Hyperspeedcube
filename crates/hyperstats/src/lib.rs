@@ -175,12 +175,15 @@ impl StatsDb {
 }
 
 /// Categories in which a new solve is a personal best.
-#[allow(missing_docs)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NewPbs {
+    /// First solution to a puzzle.
     pub first: bool,
+    /// Shortest (fewest move count) solution to a puzzle.
     pub fmc: bool,
+    /// Fastest speedsolve of a puzzle.
     pub speed: bool,
+    /// Fastest blindsolve of a puzzle.
     pub blind: bool,
 }
 impl NewPbs {

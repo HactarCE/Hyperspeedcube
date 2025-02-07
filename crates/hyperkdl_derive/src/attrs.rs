@@ -2,7 +2,6 @@ use std::fmt;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::parse::ParseBuffer;
 use syn::Token;
 
 use crate::fields::KdlFieldStyle;
@@ -130,7 +129,8 @@ fn find_kdl_attrs(attrs: &[syn::Attribute]) -> Vec<KdlAttr> {
                             _ => panic!("#[kdl(name = ...)] requires string literal"),
                         }),
                         "argument" => {
-                            meta.require_path_only();
+                            meta.require_path_only()
+                                .expect("invalid form of #[kdl(argument)]");
                             KdlAttr::Argument
                         }
                         "property" => KdlAttr::Property(
@@ -157,7 +157,7 @@ fn find_kdl_attrs(attrs: &[syn::Attribute]) -> Vec<KdlAttr> {
                         }
                         "default" => match meta {
                             syn::Meta::Path(_) => KdlAttr::Default(None),
-                            syn::Meta::List(meta_list) => panic!("invalid form of #[kdl(default)]"),
+                            syn::Meta::List(_) => panic!("invalid form of #[kdl(default)]"),
                             syn::Meta::NameValue(meta_name_value) => {
                                 KdlAttr::Default(Some(meta_name_value.value.clone()))
                             }

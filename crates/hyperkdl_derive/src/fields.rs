@@ -3,8 +3,6 @@ use quote::{format_ident, quote};
 
 /// Field of a struct or enum variant.
 pub(crate) struct KdlField<'a> {
-    /// Index of the field in the struct or enum variant.
-    pub index: usize,
     /// Identifier for use in generated code.
     pub ident: syn::Ident,
     /// Parsed field from the struct or enum variant.
@@ -60,7 +58,6 @@ pub(crate) fn parse_fields(fields: &syn::Fields) -> Vec<KdlField<'_>> {
             let attrs = crate::attrs::parse_kdl_field_attrs(&mut arg_index, field);
 
             KdlField {
-                index: i,
                 ident,
                 field,
                 attrs,

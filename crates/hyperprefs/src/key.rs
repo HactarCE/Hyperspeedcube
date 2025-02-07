@@ -32,7 +32,7 @@ impl Serialize for AnyKey {
                 Key::Character(s) => format!("char_{s}"),
 
                 Key::Unidentified(native_key) => match native_key {
-                    NativeKey::Unidentified => format!("unidentified"),
+                    NativeKey::Unidentified => "unidentified".to_string(),
                     NativeKey::Android(sc) => format!("android_{sc}"),
                     NativeKey::MacOS(sc) => format!("macos_{sc}"),
                     NativeKey::Windows(sc) => format!("windows_{sc}"),
@@ -40,7 +40,7 @@ impl Serialize for AnyKey {
                     NativeKey::Web(s) => format!("web_{s}"),
                 },
 
-                Key::Dead(None) => format!("dead"),
+                Key::Dead(None) => "dead".to_string(),
                 Key::Dead(Some(c)) => format!("dead_{c}"),
             },
 
@@ -48,7 +48,7 @@ impl Serialize for AnyKey {
                 PhysicalKey::Code(key_code) => format!("code_{}", serialize_to_string(key_code)?),
 
                 PhysicalKey::Unidentified(native_key) => match native_key {
-                    NativeKeyCode::Unidentified => format!("native_unidentified"),
+                    NativeKeyCode::Unidentified => "native_unidentified".to_string(),
                     NativeKeyCode::Android(sc) => format!("native_android_{sc}"),
                     NativeKeyCode::MacOS(sc) => format!("native_macos_{sc}"),
                     NativeKeyCode::Windows(sc) => format!("native_windows_{sc}"),

@@ -1,6 +1,5 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
-use syn::token;
 
 use crate::fields::{KdlField, KdlFieldStyle};
 
@@ -126,16 +125,20 @@ pub(crate) fn gen_unpack_children(
 
     // Construct a match arm for each child
     let children_match_arms =
-        TokenStream::from_iter(kdl_fields.iter().filter_map(|field| match &field.attrs.style {
-            KdlFieldStyle::ChildNode(kdl_node_name) => {
-                let ident = &field.ident;
-                let func = field.proxy_fn("NodeContentsSchema", "from_kdl_node_contents");
-                Some(quote! {
-                    #kdl_node_name => #ident = ::hyperkdl::NodeContentsSchema::from_kdl_node_contents(child_node, ctx),
-                })
-            },
-            _ => None,
-        }));
+        TokenStream::from_iter(
+            kdl_fields
+                .iter()
+                .filter_map(|field| match &field.attrs.style {
+                    KdlFieldStyle::ChildNode(kdl_node_name) => {
+                        let ident = &field.ident;
+                        let func = field.proxy_fn("NodeContentsSchema", "from_kdl_node_contents");
+                        Some(quote! {
+                            #kdl_node_name => #ident = #func(child_node, ctx),
+                        })
+                    }
+                    _ => None,
+                }),
+        );
     let fallback_match_expr = match overflow_children_field {
         Some(field) => {
             let ident = &field.ident;
