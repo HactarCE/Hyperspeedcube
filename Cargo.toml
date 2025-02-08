@@ -128,7 +128,7 @@ clio = { version = "0.3.5", features = ["clap-parse"] }
 eframe = { version = "0.31.0", default-features = false, features = ["default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] } # TODO: add `accesskit` back when https://github.com/Adanos020/egui_dock/issues/257 is resolved
 ecolor = { version = "0.31.0" }
 egui = { version = "0.31.0" }
-egui_dock = { version = "0.15.0" }
+egui_dock = { version = "0.16.0" }
 egui-winit = { version = "0.31.0" }
 winit = { version = "0.30.8", features = ["serde"] } # must match egui-winit and key-names
 wgpu = { version = "24.0.1", features = ["webgl"] } # must match egui-wgpu
@@ -177,8 +177,6 @@ egui = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-in
 egui-winit = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
 epaint = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
 ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
-
-egui_dock = { git = "https://github.com/hydra/egui_dock.git", rev = "0d44e58d2a36ebff4c8011b471f6d2bf6cb1b9e5" } # blocked on https://github.com/Adanos020/egui_dock/pull/259/
 
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs
 # editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
