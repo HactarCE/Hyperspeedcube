@@ -194,7 +194,6 @@ pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     }
 }
 pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
-    let mut needs_reset = false;
     let mut changed = false;
     let mut prefs_ui = PrefsUi {
         ui,
@@ -243,14 +242,12 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
              similar orientation, not the original. This \
              adds a full-puzzle rotation to the undo history.",
         );
-    if prefs_ui
+    prefs_ui
         .checkbox("Timer blind mode", access!(.timer_blind_mode))
         .on_hover_explanation(
             "(normal mode : blind mode)",
             "start on (first twist : scramble)\nstop on (solved : blindfold off)\ntoggling will reset the puzzle and timer.",
-        ).clicked() {
-            needs_reset = true;   
-        }
+        );
 
     prefs_ui.ui.separator();
 
@@ -281,9 +278,6 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
             );
     });
     app.prefs.needs_save |= changed;
-    if needs_reset {
-        app.event(crate::commands::Command::Reset);
-    }
 }
 pub fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;

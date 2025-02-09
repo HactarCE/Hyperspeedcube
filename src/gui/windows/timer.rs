@@ -2,8 +2,6 @@ use instant::{Duration, Instant};
 
 use super::Window;
 
-// TODO: move blind mode toggle to settings
-// TODO: should Timer/Stopwatch be in components?
 // TODO: use linear approximation in keybind references too
 
 pub(crate) const TIMER: Window = Window {
@@ -11,10 +9,18 @@ pub(crate) const TIMER: Window = Window {
     build: |ui, app| {
         ui.add(egui::Button::new(autosize_button_text(
             ui,
-            &match app.timer.stopwatch {
-                Stopwatch::NotStarted => "Ready".into(),
-                Stopwatch::Running(start) => duration_to_str(start.elapsed()),
-                Stopwatch::Stopped(duration) => duration_to_str(duration),
+            &if app.puzzle.has_been_fully_scrambled() {
+                match if app.prefs.interaction.timer_blind_mode {
+                    &app.timer.blind
+                } else {
+                    &app.timer.sight
+                } {
+                    Stopwatch::NotStarted => "Ready".to_string(),
+                    Stopwatch::Running(start) => duration_to_str(&start.elapsed()),
+                    Stopwatch::Stopped(duration) => duration_to_str(duration),
+                }
+            } else {
+                "Scramble".to_string()
             },
             ui.available_width() - ui.spacing().button_padding.x * 2.0,
         )));
@@ -88,47 +94,45 @@ impl Stopwatch {
 
 #[derive(Debug)]
 pub(crate) struct Timer {
-    stopwatch: Stopwatch,
+    sight: Stopwatch,
+    blind: Stopwatch,
 }
 impl Timer {
     pub(crate) fn new() -> Self {
         Self {
-            stopwatch: Stopwatch::NotStarted,
+            sight: Stopwatch::NotStarted,
+            blind: Stopwatch::NotStarted,
         }
     }
 
     pub(crate) fn on_puzzle_reset(&mut self) {
-        self.stopwatch.reset();
+        self.sight.reset();
+        self.blind.reset();
     }
 
-    pub(crate) fn on_scramble(&mut self, is_blind: bool) {
-        self.stopwatch.reset();
-        if is_blind {
-            self.stopwatch.start();
-        }
+    pub(crate) fn on_scramble(&mut self) {
+        self.sight.reset();
+        self.blind.reset();
+        self.blind.start();
     }
 
-    pub(crate) fn on_non_rotation_twist(&mut self, is_blind: bool) {
+    pub(crate) fn on_non_rotation_twist(&mut self) {
         // check if the twist is the first one
-        if !is_blind && matches!(self.stopwatch, Stopwatch::NotStarted) {
-            self.stopwatch.start();
+        if matches!(self.sight, Stopwatch::NotStarted) {
+            self.sight.start();
         }
     }
 
-    pub(crate) fn on_solve(&mut self, is_blind: bool) {
-        if !is_blind {
-            self.stopwatch.stop();
-        }
+    pub(crate) fn on_solve(&mut self) {
+        self.sight.stop();
     }
 
-    pub(crate) fn on_blindfold_off(&mut self, is_blind: bool) {
-        if is_blind {
-            self.stopwatch.stop();
-        }
+    pub(crate) fn on_blindfold_off(&mut self) {
+        self.blind.stop();
     }
 }
 
-fn duration_to_str(duration: Duration) -> String {
+fn duration_to_str(duration: &Duration) -> String {
     let milliseconds = duration.as_millis();
     let seconds = milliseconds / 1000;
     let minutes = seconds / 60;
@@ -190,7 +194,7 @@ mod tests {
             ("100:00:00.000", 360000000),
             ("23:02:14.903", 82934903),
         ] {
-            assert_eq!(s, duration_to_str(Duration::from_millis(millis)));
+            assert_eq!(s, duration_to_str(&Duration::from_millis(millis)));
         }
     }
 }
