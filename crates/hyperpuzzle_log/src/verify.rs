@@ -118,6 +118,7 @@ fn verify_internal(
         solution_stm_count,
         single_session,
         used_macros: false, // not yet implemented
+        inspection_duration: speedsolve_start.map(chrono::Duration::milliseconds),
         speedsolve_duration,
         blindsolve_duration: None, // not yet implemented
         time_completed,
@@ -146,6 +147,11 @@ pub struct SolveVerification {
     pub single_session: bool,
     /// Whether any macros were used in the solution.
     pub used_macros: bool,
+    /// Duration of the inspection part of the solve.
+    ///
+    /// The timer starts when the puzzle has been scrambled and ends on the
+    /// first move.
+    pub inspection_duration: Option<chrono::Duration>,
     /// Duration of the solve measured as a speedsolve, or `None` if it was not
     /// a valid speedsolve.
     ///
