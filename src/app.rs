@@ -952,8 +952,6 @@ impl App {
 
     /// sets the active keybind set to be the first non-hidden keybind set in the list.
     fn reset_active_keybind_set(&mut self) {
-        // TODO(HactarCE): why do we store different keybind sets for each puzzle if the sets are actually the same for puzzles of the same dimension?
-        // i didn't look at how keybind sets are modified but this seems kinda weird.
         let puzzle_keybinds = &mut self.prefs.puzzle_keybinds[self.puzzle.ty()];
         if let Some(set) = puzzle_keybinds
             .sets
