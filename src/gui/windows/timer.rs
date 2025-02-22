@@ -16,8 +16,8 @@ pub(crate) const TIMER: Window = Window {
                     &app.timer.sight
                 } {
                     Stopwatch::NotStarted => "Ready".to_string(),
-                    Stopwatch::Running(start) => duration_to_str(&start.elapsed()),
-                    Stopwatch::Stopped(duration) => duration_to_str(duration),
+                    Stopwatch::Running(start) => duration_to_string(start.elapsed()),
+                    Stopwatch::Stopped(duration) => duration_to_string(*duration),
                 }
             } else {
                 "Scramble".to_string()
@@ -132,7 +132,7 @@ impl Timer {
     }
 }
 
-fn duration_to_str(duration: &Duration) -> String {
+fn duration_to_string(duration: Duration) -> String {
     let milliseconds = duration.as_millis();
     let seconds = milliseconds / 1000;
     let minutes = seconds / 60;
@@ -194,7 +194,7 @@ mod tests {
             ("100:00:00.000", 360000000),
             ("23:02:14.903", 82934903),
         ] {
-            assert_eq!(s, duration_to_str(&Duration::from_millis(millis)));
+            assert_eq!(s, duration_to_string(Duration::from_millis(millis)));
         }
     }
 }
