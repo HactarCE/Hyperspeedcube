@@ -1,38 +1,66 @@
 use instant::{Duration, Instant};
 
-use crate::gui::ext::ResponseExt;
-
 use super::Window;
 
-// TODO: resizing of timer text (eg keybind reference)
-// TODO: should Timer/Stopwatch be in components?
+// TODO: use linear approximation in keybind references too
 
 pub(crate) const TIMER: Window = Window {
     name: "Timer",
     build: |ui, app| {
-        ui.add(egui::Button::new(
-            egui::RichText::new(match app.timer.stopwatch {
-                Stopwatch::NotStarted => "Ready".into(),
-                Stopwatch::Running(start) => duration_to_str(start.elapsed()),
-                Stopwatch::Stopped(duration) => duration_to_str(duration),
-            })
-            .size(20.0),
-        ));
-        if ui
-            .selectable_label(app.timer.is_blind, "Blind mode")
-            .on_hover_explanation(
-                "normal mode : blind mode",
-                "start on (first twist : scramble)\nstop on (solved : blindfold off)\ntoggling will reset the timer and puzzle",
-            )
-            .clicked()
-        {
-            app.timer.is_blind ^= true;
-            app.timer.stopwatch.reset();
-            app.puzzle.reset();
-        }
+        ui.add(egui::Button::new(autosize_button_text(
+            ui,
+            &if app.puzzle.has_been_fully_scrambled() {
+                match if app.prefs.interaction.timer_blind_mode {
+                    &app.timer.blind
+                } else {
+                    &app.timer.sight
+                } {
+                    Stopwatch::NotStarted => "Ready".to_string(),
+                    Stopwatch::Running(start) => duration_to_string(start.elapsed()),
+                    Stopwatch::Stopped(duration) => duration_to_string(*duration),
+                }
+            } else {
+                "Scramble".to_string()
+            },
+            ui.available_width() - ui.spacing().button_padding.x * 2.0,
+        )));
     },
     ..Window::DEFAULT
 };
+
+fn text_and_width_of_font_size(
+    ui: &egui::Ui,
+    mut text: egui::RichText,
+    font_size: f32,
+) -> (egui::RichText, f32) {
+    // this function signature is annoying but idk how else to use text.size without cloning
+    text = text.size(font_size);
+    let text_size = egui::WidgetText::RichText(text.clone())
+        .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
+        .size();
+    (text, text_size.x)
+}
+
+/// returns a RichText whose width is close to but no larger than the target width
+fn autosize_button_text(ui: &egui::Ui, text: &str, target_width: f32) -> egui::RichText {
+    // use that width of text is ~linear in font size to generate an initial guess then fix it
+    let mut text = egui::RichText::new(text);
+    let initial_font_size = 100.0;
+    let initial_width;
+    (text, initial_width) = text_and_width_of_font_size(ui, text, initial_font_size);
+    let font_size_per_width = initial_font_size / initial_width;
+    let mut font_size = (target_width * font_size_per_width).max(2.0);
+    let mut width;
+    (text, width) = text_and_width_of_font_size(ui, text, font_size);
+    // this should only run at most 4 times, typically 0 or 1
+    while width > target_width && font_size > 2.0 {
+        // point sizes have a resolution of ~0.5
+        font_size = (font_size - 0.5).max(2.0);
+        (text, width) = text_and_width_of_font_size(ui, text, font_size);
+    }
+    debug_assert!(width <= target_width);
+    text
+}
 
 #[derive(Debug)]
 pub(crate) enum Stopwatch {
@@ -66,45 +94,45 @@ impl Stopwatch {
 
 #[derive(Debug)]
 pub(crate) struct Timer {
-    stopwatch: Stopwatch,
-    is_blind: bool,
+    sight: Stopwatch,
+    blind: Stopwatch,
 }
 impl Timer {
     pub(crate) fn new() -> Self {
         Self {
-            stopwatch: Stopwatch::NotStarted,
-            is_blind: false,
+            sight: Stopwatch::NotStarted,
+            blind: Stopwatch::NotStarted,
         }
     }
 
+    pub(crate) fn on_puzzle_reset(&mut self) {
+        self.sight.reset();
+        self.blind.reset();
+    }
+
     pub(crate) fn on_scramble(&mut self) {
-        self.stopwatch.reset();
-        if self.is_blind {
-            self.stopwatch.start();
-        }
+        self.sight.reset();
+        self.blind.reset();
+        self.blind.start();
     }
 
     pub(crate) fn on_non_rotation_twist(&mut self) {
         // check if the twist is the first one
-        if !self.is_blind && matches!(self.stopwatch, Stopwatch::NotStarted) {
-            self.stopwatch.start();
+        if matches!(self.sight, Stopwatch::NotStarted) {
+            self.sight.start();
         }
     }
 
     pub(crate) fn on_solve(&mut self) {
-        if !self.is_blind {
-            self.stopwatch.stop();
-        }
+        self.sight.stop();
     }
 
     pub(crate) fn on_blindfold_off(&mut self) {
-        if self.is_blind {
-            self.stopwatch.stop();
-        }
+        self.blind.stop();
     }
 }
 
-fn duration_to_str(duration: Duration) -> String {
+fn duration_to_string(duration: Duration) -> String {
     let milliseconds = duration.as_millis();
     let seconds = milliseconds / 1000;
     let minutes = seconds / 60;
@@ -166,7 +194,7 @@ mod tests {
             ("100:00:00.000", 360000000),
             ("23:02:14.903", 82934903),
         ] {
-            assert_eq!(s, duration_to_str(Duration::from_millis(millis)));
+            assert_eq!(s, duration_to_string(Duration::from_millis(millis)));
         }
     }
 }

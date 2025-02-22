@@ -9,6 +9,7 @@ pub struct InteractionPreferences {
     pub realign_on_release: bool,
     pub realign_on_keypress: bool,
     pub smart_realign: bool,
+    pub timer_blind_mode: bool,
 
     pub dynamic_twist_speed: bool,
     pub twist_duration: f32,

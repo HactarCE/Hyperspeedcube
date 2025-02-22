@@ -50,6 +50,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
 
         if let Some(total_rect) = areas.iter().map(|area| area.rect).reduce(egui::Rect::union) {
             // How much space is available?
+            // TODO: This should not be called max_scale because it is not the maximum scale.
             let max_scale = ui.available_size() / total_rect.size();
             let scale = max_scale.x.at_least(min_scale).round();
             // Allocate that much space.
@@ -384,25 +385,25 @@ const NUMPAD_KEYS_NO_NAV: KeyboardArea = KeyboardArea {
 };
 
 fn get_key_size(key: KeyMappingCode) -> egui::Vec2 {
-    use KeyMappingCode::*;
+    use KeyMappingCode as KMC;
 
     let w = match key {
-        Backspace => 2.0,
-        Tab | Backslash => 1.5,
-        CapsLock => 1.75,
-        Enter => 2.25,
-        ShiftLeft => 2.25,
-        ShiftRight => 2.75,
-        ControlLeft | MetaLeft | AltLeft | AltRight | MetaRight | ContextMenu | ControlRight => {
+        KMC::Backspace => 2.0,
+        KMC::Tab | KMC::Backslash => 1.5,
+        KMC::CapsLock => 1.75,
+        KMC::Enter => 2.25,
+        KMC::ShiftLeft => 2.25,
+        KMC::ShiftRight => 2.75,
+        KMC::ControlLeft | KMC::MetaLeft | KMC::AltLeft | KMC::AltRight | KMC::MetaRight | KMC::ContextMenu | KMC::ControlRight => {
             1.25
         }
-        Space => 6.25,
-        Numpad0 => 2.0,
+        KMC::Space => 6.25,
+        KMC::Numpad0 => 2.0,
         _ => 1.0,
     };
 
     let h = match key {
-        NumpadAdd | NumpadEnter => 2.0,
+        KMC::NumpadAdd | KMC::NumpadEnter => 2.0,
         _ => 1.0,
     };
 
