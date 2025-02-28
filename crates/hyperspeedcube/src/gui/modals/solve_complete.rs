@@ -1,7 +1,9 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use hyperpuzzle_log::verify::SolveVerification;
 use hyperpuzzle_log::{LogFile, Solve};
+use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
 
 use crate::gui::util::EguiTempValue;
@@ -21,7 +23,11 @@ struct SolveCompletePopup {
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let solve_complete_popup = EguiTempValue::<Option<SolveCompletePopup>>::new(ui);
 
-    if let Some(Some(mut popup)) = solve_complete_popup.get() {
+    if let Some(Some(mut popup)) = solve_complete_popup.get().filter(|_| {
+        app.active_puzzle
+            .with_sim(|sim| sim.special_anim().get().is_none())
+            .unwrap_or(true)
+    }) {
         let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
             ui.heading(format!(
                 "Yay! You solved the {} in {} twists",
@@ -100,6 +106,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 )
                 .ok()?;
                 let new_pbs = app.stats.check_new_pb(&verification);
+
+                if new_pbs.first {
+                    sim.start_special_anim();
+                }
 
                 solve_complete_popup.set(Some(Some(SolveCompletePopup {
                     solve,

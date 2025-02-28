@@ -13,6 +13,8 @@ use hyperpuzzle_log::Scramble;
 use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
+use crate::animations::SpecialAnimationState;
+
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
 use super::{Action, ReplayEvent, UndoBehavior};
 
@@ -60,6 +62,8 @@ pub struct PuzzleSimulation {
     twist_anim: TwistAnimationState,
     /// Blocking pieces animation state.
     blocking_anim: BlockingAnimationState,
+    /// Special animation state.
+    special_anim: SpecialAnimationState,
 
     /// Twist drag state.
     partial_twist_drag_state: Option<PartialTwistDragState>,
@@ -102,6 +106,7 @@ impl PuzzleSimulation {
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
             blocking_anim: BlockingAnimationState::default(),
+            special_anim: SpecialAnimationState::default(),
 
             partial_twist_drag_state: None,
 
@@ -484,6 +489,7 @@ impl PuzzleSimulation {
             needs_redraw = true;
         }
         needs_redraw |= self.blocking_anim.proceed(animation_prefs);
+        needs_redraw |= self.special_anim.proceed(delta);
 
         if needs_redraw {
             self.last_frame_time = Some(now);
@@ -594,6 +600,15 @@ impl PuzzleSimulation {
                 self.cancel_partial_twist();
             }
         }
+    }
+
+    /// Returns the special animation state.
+    pub fn special_anim(&self) -> &SpecialAnimationState {
+        &self.special_anim
+    }
+    /// Starts the special animation, if it is not already happening.
+    pub fn start_special_anim(&mut self) {
+        self.special_anim.start();
     }
 
     /// Returns the combined session time of the file, in milliseconds.

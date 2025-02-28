@@ -94,6 +94,10 @@ struct DrawParams {
     _padding2: vec2<i32>,
 }
 
+struct EffectParams {
+    chromatic_abberation: vec2<f32>,
+}
+
 
 
 /*
@@ -135,6 +139,7 @@ struct DrawParams {
 @group(2) @binding(4) var<storage, read> outline_color_ids: array<u32>;
 @group(2) @binding(5) var<storage, read> outline_radii: array<f32>;
 @group(2) @binding(6) var<uniform> draw_params: DrawParams;
+@group(2) @binding(7) var<uniform> effect_params: EffectParams;
 
 
 
@@ -564,10 +569,10 @@ fn unpack_f32_from_u16(u: u32) -> f32 {
  * BLITTING PIPELINE
  */
 
- struct UvVertexInput {
+struct UvVertexInput {
     @location(0) position: vec2<f32>,
     @location(1) uv: vec2<f32>,
- }
+}
 
 struct UvVertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -582,16 +587,22 @@ fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
     return out;
 }
 
+fn sample_blit_src_with_postprocessing(in: UvVertexOutput) -> vec4<f32> {
+    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
+    color.r = textureSample(blit_src_texture, blit_src_sampler, in.uv + vec2(1.0,-1.0)* effect_params.chromatic_abberation/50.0).r;
+    color.b = textureSample(blit_src_texture, blit_src_sampler, in.uv - vec2(1.0,-1.0)* effect_params.chromatic_abberation/50.0).b;
+    return color;
+}
+
 @fragment
 fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
-    return linear_to_gamma(color);
+    return sample_blit_src_with_postprocessing(in);
 }
 
 @fragment
 fn blit_fragment_unmultiply_alpha(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
-    return linear_to_gamma(vec4(color.rgb / color.a, color.a));
+    var color = sample_blit_src_with_postprocessing(in);
+    return vec4(color.rgb / color.a, color.a);
 }
 
 

@@ -251,7 +251,7 @@ impl PuzzleRenderer {
             ..Default::default()
         });
 
-        let pipeline = &self.gfx.pipelines.blit_to_export;
+        let pipeline = &self.gfx.pipelines.postprocess_to_export;
 
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &self.buffers.composite_texture.view,
@@ -259,11 +259,12 @@ impl PuzzleRenderer {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
+            effect_params: &self.buffers.effect_params,
         });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("screenshot_blit_render_pass"),
+                label: Some("screenshot_effects_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_texture_view,
                     resolve_target: None,
@@ -403,7 +404,44 @@ impl PuzzleRenderer {
             }
         }
 
-        Ok(&self.buffers.composite_texture)
+        if draw_params.effects == GfxEffectParams::default() {
+            // early exit if no postprocessing
+            return Ok(&self.buffers.composite_texture);
+        }
+
+        {
+            let pipeline = &self.gfx.pipelines.postprocess_to_screen;
+
+            let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
+                src_texture: &self.buffers.composite_texture.view,
+                src_sampler: match draw_params.cam.prefs().downscale_interpolate {
+                    true => &self.gfx.bilinear_sampler,
+                    false => &self.gfx.nearest_neighbor_sampler,
+                },
+                effect_params: &self.buffers.effect_params,
+            });
+
+            {
+                let mut encoder = self.gfx.encoder.lock();
+
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("screen_effects_pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.buffers.effects_texture.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations::default(),
+                    })],
+                    ..Default::default()
+                });
+
+                render_pass.set_pipeline(&pipeline.pipeline);
+                render_pass.set_bind_groups(&bind_groups);
+                render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
+                render_pass.draw(0..4, 0..1);
+            }
+        }
+
+        Ok(&self.buffers.effects_texture)
     }
 
     /// Initializes buffers and returns the number of triangles to draw.
@@ -421,6 +459,7 @@ impl PuzzleRenderer {
         self.buffers.edge_ids_texture.set_size(size);
         self.buffers.edge_ids_depth_texture.set_size(size);
         self.buffers.composite_texture.set_size(size);
+        self.buffers.effects_texture.set_size(size);
 
         // Compute the Z coordinate of the 3D camera; i.e., where the projection
         // rays converge (which may be behind the puzzle). This gives us either
@@ -480,6 +519,15 @@ impl PuzzleRenderer {
             self.gfx
                 .queue
                 .write_buffer(&self.buffers.draw_params, 0, bytemuck::bytes_of(&data));
+        }
+
+        // Write the post-processing effect parameters.
+        {
+            self.gfx.queue.write_buffer(
+                &self.buffers.effect_params,
+                0,
+                bytemuck::bytes_of(&draw_params.effects),
+            );
         }
 
         // Write the puzzle transform.
@@ -1124,6 +1172,11 @@ struct_with_constructor! {
                 draw_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxDrawParams>(
                     label("draw_params"),
                 ),
+                /// Post-processing effect parameters uniform. (constant for a
+                /// given puzzle view)
+                effect_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxEffectParams>(
+                    label("effect_params"),
+                ),
 
                 /*
                  * VERTEX BUFFERS
@@ -1205,6 +1258,14 @@ struct_with_constructor! {
                     wgpu::TextureFormat::Rgba16Float,
                     wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
+
+                /// Output color texture when effects are active.
+                effects_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("effects_texture"),
+                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                )
             }
         }
     }
@@ -1246,6 +1307,7 @@ impl DynamicPuzzleBuffers {
             outline_color_ids: clone_buffer!(gfx, id, self.outline_color_ids),
             outline_radii: clone_buffer!(gfx, id, self.outline_radii),
             draw_params: clone_buffer!(gfx, id, self.draw_params),
+            effect_params: clone_buffer!(gfx, id, self.effect_params),
 
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
             vertex_3d_normals: clone_buffer!(gfx, id, self.vertex_3d_normals),
@@ -1259,6 +1321,7 @@ impl DynamicPuzzleBuffers {
             edge_ids_texture: clone_texture!(id, self.edge_ids_texture),
             edge_ids_depth_texture: clone_texture!(id, self.edge_ids_depth_texture),
             composite_texture: clone_texture!(id, self.composite_texture),
+            effects_texture: clone_texture!(id, self.effects_texture),
         }
     }
 }

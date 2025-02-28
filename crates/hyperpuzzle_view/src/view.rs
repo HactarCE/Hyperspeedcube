@@ -3,13 +3,14 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
+use hyperdraw::GfxEffectParams;
 use hyperdraw::{Camera, GraphicsState, PuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
-    FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
-    PuzzleViewPreferencesSet,
+    FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
+    PuzzleFilterPreferences, PuzzleViewPreferencesSet,
 };
 use hyperpuzzle_core::{
     Axis, GizmoFace, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle, Sticker,
@@ -344,6 +345,79 @@ impl PuzzleView {
 
         // Update camera.
         self.camera.target_size = target_size;
+    }
+
+    /// Returns the camera to use for drawing for one frame.
+    pub fn transient_camera(&self) -> Camera {
+        let mut cam = self.camera.clone();
+
+        if let Some(t) = self.special_anim_t() {
+            use std::f32::consts::{PI, TAU};
+
+            let ndim = self.puzzle().ndim();
+            let angle = (t * TAU) as Float;
+
+            // Adjust view angle.
+            let mut offset = pga::Motor::from_angle_in_axis_plane(ndim, 0, 2, angle);
+            let mut meta_offset = pga::Motor::from_angle_in_axis_plane(ndim, 0, 1, -1.0);
+            if ndim >= 4 {
+                offset *= pga::Motor::from_angle_in_axis_plane(ndim, 1, 3, angle);
+                meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 2, 3, 1.0);
+                // meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0, 3, 0.25 * angle);
+            }
+            if ndim != 4 {
+                meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0, 1, 0.5 * angle);
+            }
+            offset = meta_offset.transform(&offset);
+            cam.rot = offset * cam.rot;
+
+            // Adjust piece explode
+            let control_amount = 1.0 - (2.0 * t - 1.0).powf(12.0);
+            let new_piece_explode = (t * PI).sin()
+                * match ndim {
+                    3 => 0.8,
+                    _ => 0.0,
+                };
+            cam.view_preset.value.piece_explode = hypermath::util::lerp(
+                cam.view_preset.value.piece_explode,
+                new_piece_explode,
+                control_amount,
+            );
+
+            if ndim >= 4 {
+                let new_sticker_shrink = (t * PI).sin() * 0.5;
+                cam.view_preset.value.sticker_shrink = hypermath::util::lerp(
+                    cam.view_preset.value.sticker_shrink,
+                    new_sticker_shrink,
+                    control_amount,
+                );
+            }
+        }
+
+        cam
+    }
+
+    /// Returns the effects to use for drawing for one frame.
+    pub fn effects(&self) -> GfxEffectParams {
+        if let Some(t) = self.special_anim_t() {
+            use std::f32::consts::PI;
+
+            let amount = (t * PI).sin();
+
+            GfxEffectParams {
+                chromatic_abberation: [amount / 4.0, amount / 6.0],
+            }
+        } else {
+            GfxEffectParams::default()
+        }
+    }
+
+    fn special_anim_t(&self) -> Option<f32> {
+        self.sim
+            .lock()
+            .special_anim()
+            .get()
+            .map(|t| InterpolateFn::Cosine.interpolate(t))
     }
 
     /// Computes the new puzzle hover state using the latest cursor position.
