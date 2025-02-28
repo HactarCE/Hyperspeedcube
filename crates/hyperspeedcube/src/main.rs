@@ -220,8 +220,8 @@ fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
         device_descriptor
     });
 
-    eframe::egui_wgpu::WgpuConfiguration{
-        wgpu_setup:eframe::egui_wgpu::WgpuSetup::CreateNew(wgpu_setup),
+    eframe::egui_wgpu::WgpuConfiguration {
+        wgpu_setup: eframe::egui_wgpu::WgpuSetup::CreateNew(wgpu_setup),
         ..Default::default()
     }
 }
