@@ -11,6 +11,8 @@ mod puzzle_type;
 mod scramble;
 mod state;
 mod twist;
+mod twists;
+mod vantage;
 
 pub use colors::{ensure_color_scheme_is_valid, ColorSystem};
 pub use dev_data::*;
@@ -24,3 +26,4 @@ pub use puzzle_type::{Puzzle, PLACEHOLDER_PUZZLE};
 pub use scramble::{ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle};
 pub use state::PuzzleState;
 pub use twist::LayeredTwist;
+pub use twists::*;
