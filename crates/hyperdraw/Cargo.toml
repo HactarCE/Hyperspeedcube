@@ -10,7 +10,7 @@ repository.workspace = true
 rust-version.workspace = true
 keywords = ["graphics", "rendering", "3d", "4d"]
 categories = ["graphics"]
-license = "GPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 
 [lints]
 workspace = true

@@ -10,7 +10,7 @@ repository.workspace = true
 rust-version.workspace = true
 keywords = ["user-data", "config-directory", "path", "folder", "app_dirs"]
 categories = ["filesystem"]
-license = "GPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 
 [lints]
 workspace = true

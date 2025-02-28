@@ -10,7 +10,7 @@ repository.workspace = true
 rust-version.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "game", "4d"]
 categories = ["games", "mathematics", "simulation"]
-license = "GPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 
 [lints]
 workspace = true
