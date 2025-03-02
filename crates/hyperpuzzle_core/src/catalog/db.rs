@@ -55,7 +55,7 @@ pub trait CatalogObject: Sized {
     ) -> BuildResult<Self, String>;
     fn generate_spec(
         ctx: &mut BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
+        generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String>;
 }
@@ -102,10 +102,10 @@ impl CatalogObject for Puzzle {
     }
     fn generate_spec(
         ctx: &mut BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
+        generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {
-        (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
+        (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }
 
@@ -152,9 +152,9 @@ impl CatalogObject for ColorSystem {
     }
     fn generate_spec(
         ctx: &mut BuildCtx,
-        gen: &Arc<Self::SpecGenerator>,
+        generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {
-        (gen.generate)(ctx, params).map_err(|e| format!("{e:#}"))
+        (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }

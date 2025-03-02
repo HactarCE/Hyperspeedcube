@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
-use hyperdraw::GfxEffectParams;
-use hyperdraw::{Camera, GraphicsState, PuzzleRenderer};
+use hyperdraw::{Camera, GfxEffectParams, GraphicsState, PuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{
@@ -18,9 +17,9 @@ use hyperpuzzle_core::{
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
+use super::ReplayEvent;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
-use super::ReplayEvent;
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -363,7 +362,8 @@ impl PuzzleView {
             if ndim >= 4 {
                 offset *= pga::Motor::from_angle_in_axis_plane(ndim, 1, 3, angle);
                 meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 2, 3, 1.0);
-                // meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0, 3, 0.25 * angle);
+                // meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0,
+                // 3, 0.25 * angle);
             }
             if ndim != 4 {
                 meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0, 1, 0.5 * angle);

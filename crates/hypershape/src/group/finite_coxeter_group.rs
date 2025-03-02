@@ -146,16 +146,16 @@ impl FiniteCoxeterGroup {
         while element_id < g.element_count() {
             let element = GroupElementId::try_from_usize(element_id)?;
 
-            for gen in GeneratorId::iter(n) {
-                // If we already know the result of `element * gen` then skip
-                // this iteration.
-                if g.successor(element, gen).is_some() {
+            for generator in GeneratorId::iter(n) {
+                // If we already know the result of `element * generator` then
+                // skip this iteration.
+                if g.successor(element, generator).is_some() {
                     continue;
                 }
 
                 // We've discovered a new element!
-                let new_element = g.add_successor(element, gen)?;
-                g.set_successor(new_element, gen, element); // Generators are self-inverse.
+                let new_element = g.add_successor(element, generator)?;
+                g.set_successor(new_element, generator, element); // Generators are self-inverse.
 
                 // Add a row to the relation tables for each possible pair of
                 // generators.
@@ -166,7 +166,7 @@ impl FiniteCoxeterGroup {
 
                 let mut facts = vec![SuccessorRelation {
                     element,
-                    generator: gen,
+                    generator,
                     result: new_element,
                 }];
                 // Continue updating tables until there are no more new facts.
@@ -198,9 +198,9 @@ struct RelationTables(EggTable<[Vec<RelationTableRow>; 2]>);
 impl fmt::Display for RelationTables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "RelationTables {{")?;
-        for ((elem, gen), [left, right]) in self.0.iter() {
-            let gen = GroupElementId::from(gen);
-            writeln!(f, "    ({elem} * {gen}): {{")?;
+        for ((element, generator), [left, right]) in self.0.iter() {
+            let generator = GroupElementId::from(generator);
+            writeln!(f, "    ({element} * {generator}): {{")?;
             writeln!(f, "        left: [")?;
             for row in left {
                 writeln!(f, "        {row},")?;

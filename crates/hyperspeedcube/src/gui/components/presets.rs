@@ -4,15 +4,15 @@ use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, TextValidationResult,
-    BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE,
+    BIG_ICON_BUTTON_SIZE, HelpHoverWidget, PrefsUi, SMALL_ICON_BUTTON_SIZE, TextEditPopup,
+    TextEditPopupResponse, TextValidationResult,
 };
+use crate::L;
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
-use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 

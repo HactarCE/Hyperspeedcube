@@ -10,13 +10,13 @@ use hyperpuzzle_core::{
 use itertools::Itertools;
 use regex::Regex;
 
+use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    escape_tag_value, format_tag_and_value, unescape_tag_value, BIG_ICON_BUTTON_SIZE,
+    BIG_ICON_BUTTON_SIZE, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::EguiTempValue;
-use crate::L;
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;

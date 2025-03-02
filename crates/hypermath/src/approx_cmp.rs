@@ -3,7 +3,7 @@
 pub use approx::AbsDiffEq;
 use num_traits::Zero;
 
-use crate::{Float, EPSILON};
+use crate::{EPSILON, Float};
 
 /// Compares two numbers, but considers them equal if they are separated by less
 /// than `EPSILON`.

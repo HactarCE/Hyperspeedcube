@@ -1,9 +1,8 @@
 use hypermath::prelude::*;
 use hyperpuzzle_core::{PerPiece, PieceMask};
 
-use crate::{Camera, PieceStyleValues};
-
 use super::structs::GfxEffectParams;
+use crate::{Camera, PieceStyleValues};
 
 /// Complete set of values that determines 3D puzzle vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]

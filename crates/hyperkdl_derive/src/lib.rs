@@ -157,8 +157,8 @@
 #![allow(clippy::unwrap_used)]
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{parse_macro_input, DeriveInput};
+use quote::{ToTokens, TokenStreamExt, quote};
+use syn::{DeriveInput, parse_macro_input};
 
 mod attrs;
 mod fields;

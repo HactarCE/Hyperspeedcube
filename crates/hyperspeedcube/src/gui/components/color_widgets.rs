@@ -7,9 +7,9 @@ use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
 
 use super::{TextEditPopup, TextEditPopupResponse};
+use crate::L;
 use crate::gui::markdown::md;
 use crate::gui::util::EguiTempFlag;
-use crate::L;
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;

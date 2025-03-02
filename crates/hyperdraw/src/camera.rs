@@ -1,5 +1,5 @@
 use cgmath::EuclideanSpace;
-use eyre::{bail, Result};
+use eyre::{Result, bail};
 use hypermath::prelude::*;
 use hyperprefs::{ModifiedPreset, ViewPreferences};
 

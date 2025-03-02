@@ -1,5 +1,5 @@
 use hypermath::collections::{GenericVec, IndexOverflow};
-use hypermath::{idx_struct, pga, ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor};
+use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, idx_struct, pga};
 
 use super::GeneratorSequence;
 
@@ -19,14 +19,14 @@ pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
     while next_unprocessed_index < ret.len() {
         let (_gen_seq, unprocessed_transform, unprocessed_object) =
             ret[next_unprocessed_index].clone();
-        for (gen_seq_ids, gen) in generators {
-            let new_object = gen.transform(&unprocessed_object);
+        for (gen_seq_ids, generator) in generators {
+            let new_object = generator.transform(&unprocessed_object);
             if seen.insert(new_object.clone(), ()).is_none() {
                 let gen_seq = GeneratorSequence {
                     generators: gen_seq_ids.clone(),
                     end: Some(next_unprocessed_index),
                 };
-                ret.push((gen_seq, gen * &unprocessed_transform, new_object));
+                ret.push((gen_seq, generator * &unprocessed_transform, new_object));
             }
         }
         next_unprocessed_index += 1;
@@ -179,7 +179,7 @@ impl EggTable<GroupElementId> {
     pub fn sanity_check_successors(&self) -> GroupResult<()> {
         let mut counts: PerGroupElement<usize> = (0..self.element_count).map(|_| 0).collect();
 
-        for ((elem, gen), &successor) in self.iter() {
+        for ((elem, generator), &successor) in self.iter() {
             let mut ok = true;
 
             // Applying a generator should produce a new element.
@@ -188,7 +188,7 @@ impl EggTable<GroupElementId> {
             // Only the identity has each generator as its own corresponding
             // successor.
             let is_identity = elem == GroupElementId::IDENTITY;
-            ok &= is_identity == (successor == GroupElementId::from(gen));
+            ok &= is_identity == (successor == GroupElementId::from(generator));
 
             if !ok {
                 return Err(GroupError::BadGroupStructure);

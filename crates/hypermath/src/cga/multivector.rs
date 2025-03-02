@@ -6,7 +6,7 @@ use std::ops::{
 
 use float_ord::FloatOrd;
 use itertools::Itertools;
-use smallvec::{smallvec, smallvec_inline, SmallVec};
+use smallvec::{SmallVec, smallvec, smallvec_inline};
 
 use super::*;
 use crate::*;

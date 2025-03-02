@@ -8,7 +8,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::approx_cmp::is_approx_nonzero;
-use crate::{util, Float};
+use crate::{Float, util};
 
 /// Constructs an N-dimensional vector, using the same syntax as `vec![]`.
 #[macro_export]

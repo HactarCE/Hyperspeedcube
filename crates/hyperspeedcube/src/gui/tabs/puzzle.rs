@@ -2,8 +2,8 @@ use std::fmt;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use egui::mutex::RwLock;
 use egui::Widget;
+use egui::mutex::RwLock;
 use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
@@ -13,10 +13,10 @@ use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use parking_lot::Mutex;
 
+use crate::L;
+use crate::gui::App;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
-use crate::gui::App;
-use crate::L;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,

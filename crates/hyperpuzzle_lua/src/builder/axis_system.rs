@@ -1,11 +1,11 @@
 use std::collections::hash_map;
 
-use eyre::{bail, eyre, OptionExt, Result};
+use eyre::{OptionExt, Result, bail, eyre};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, PerLayer};
 use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use super::{CustomOrdering, NamingScheme};
 

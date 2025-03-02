@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use super::{Axes, Term};
 use crate::util::PI;
-use crate::{approx_eq, is_approx_nonzero, Float, Hyperplane, Vector, VectorRef};
+use crate::{Float, Hyperplane, Vector, VectorRef, approx_eq, is_approx_nonzero};
 
 /// Sum of terms of the same grade in the projective geometric algebra.
 #[derive(Clone, PartialEq)]

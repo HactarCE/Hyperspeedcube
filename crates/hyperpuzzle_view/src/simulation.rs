@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
@@ -13,10 +13,9 @@ use hyperpuzzle_log::Scramble;
 use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
-use crate::animations::SpecialAnimationState;
-
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
 use super::{Action, ReplayEvent, UndoBehavior};
+use crate::animations::SpecialAnimationState;
 
 const ASSUMED_FPS: f32 = 120.0;
 

@@ -2,7 +2,7 @@
 
 use std::ops::*;
 
-use super::{permutations, Float, Vector, VectorRef};
+use super::{Float, Vector, VectorRef, permutations};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.

@@ -1,6 +1,6 @@
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 
-use eyre::{bail, ensure, eyre, OptionExt, Result, WrapErr};
+use eyre::{OptionExt, Result, WrapErr, bail, ensure, eyre};
 use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};

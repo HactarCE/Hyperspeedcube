@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
-use eyre::{bail, OptionExt, Result};
+use eyre::{OptionExt, Result, bail};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
 use hyperpuzzle_core::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
@@ -25,7 +25,7 @@ use web_time::Instant;
 use super::bindings::WgpuPassExt;
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
 use super::structs::*;
-use super::{pipelines, CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState};
+use super::{CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState, pipelines};
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
 /// clipping far from the camera, but also less Z buffer precision.
@@ -591,7 +591,7 @@ impl PuzzleRenderer {
         let mut color_ids: HashMap<Rgb, u32> = color_palette
             .iter()
             .enumerate()
-            .filter(|(_, &[_, _, _, a])| a == 255)
+            .filter(|&(_, &[_, _, _, a])| a == 255)
             .map(|(i, &[r, g, b, _])| (Rgb { rgb: [r, g, b] }, i as u32))
             .collect();
         for c in draw_params

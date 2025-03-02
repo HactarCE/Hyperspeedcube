@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 
 use eyre::Result;
-use hypermath::{vector, VecMap, Vector};
+use hypermath::{VecMap, Vector, vector};
 use hyperpuzzle_core::*;
 use hypershape::prelude::*;
 use itertools::Itertools;

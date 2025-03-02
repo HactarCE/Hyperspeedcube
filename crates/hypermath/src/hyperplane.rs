@@ -4,8 +4,8 @@ use std::fmt;
 
 use crate::collections::approx_hashmap::{FloatHash, VectorHash};
 use crate::{
-    approx_cmp, is_approx_nonzero, ApproxHashMapKey, Float, PointWhichSide, Vector, VectorRef,
-    AXIS_NAMES,
+    AXIS_NAMES, ApproxHashMapKey, Float, PointWhichSide, Vector, VectorRef, approx_cmp,
+    is_approx_nonzero,
 };
 
 /// Hyperplane in Euclidean space, which is also used to represent a half-space.

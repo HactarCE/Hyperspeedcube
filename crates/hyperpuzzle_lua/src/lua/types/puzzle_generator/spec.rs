@@ -23,7 +23,7 @@ pub struct LuaPuzzleGeneratorSpec {
     /// Examples and special cases for generated puzzles.
     pub examples: HashMap<String, Arc<PuzzleSpec>>,
     /// Lua function to generate a puzzle definition.
-    gen: LuaFunction,
+    generator: LuaFunction,
 }
 
 impl FromLua for LuaPuzzleGeneratorSpec {
@@ -38,7 +38,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
         let examples: Option<Vec<PuzzleGeneratorOverrides>>;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
-        let gen: LuaFunction;
+        let r#gen: LuaFunction;
         unpack_table!(lua.unpack(table {
             id,
             version,
@@ -48,7 +48,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
 
             params,
             examples,
-            gen,
+            r#gen,
 
             name,
             aliases,
@@ -73,7 +73,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
 
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
-        crate::lua::protect_with_local_env(lua, &gen)?;
+        crate::lua::protect_with_local_env(lua, &r#gen)?;
 
         let name = name.unwrap_or_else(|| {
             lua.warning(format!("missing `name` for puzzle generator `{id}`"), false);
@@ -96,7 +96,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
                 .map(|p| param_from_lua(lua, p))
                 .try_collect()?,
             examples: HashMap::new(),
-            gen,
+            generator: r#gen,
         };
 
         for example in examples.unwrap_or_default() {
@@ -183,7 +183,7 @@ impl LuaPuzzleGeneratorSpec {
         let gen_params_table = lua.create_sequence_from(params.clone())?;
 
         let user_gen_fn_output = self
-            .gen
+            .generator
             .call::<LuaMultiValue>(gen_params_table)
             .context("error generating puzzle definition")?
             .into_iter()

@@ -55,7 +55,7 @@ pub mod prelude {
     pub use crate::traits::*;
     pub use crate::vector::*;
     pub use crate::which_side::*;
-    pub use crate::{cga, pga, vector, Float, AXIS_NAMES, EPSILON, MAX_NDIM};
+    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, cga, pga, vector};
 }
 pub use prelude::*;
 

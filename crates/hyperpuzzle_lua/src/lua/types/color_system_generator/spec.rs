@@ -19,7 +19,7 @@ pub struct LuaColorSystemGeneratorSpec {
     /// Color system generation parameters.
     pub params: Vec<GeneratorParam>,
     /// Lua function to generate a color system.
-    gen: LuaFunction,
+    generator: LuaFunction,
 }
 
 impl FromLua for LuaColorSystemGeneratorSpec {
@@ -29,17 +29,17 @@ impl FromLua for LuaColorSystemGeneratorSpec {
         let id: String;
         let name: Option<String>;
         let params: Vec<LuaValue>;
-        let gen: LuaFunction;
+        let r#gen: LuaFunction;
         unpack_table!(lua.unpack(table {
             id,
             name,
             params,
-            gen,
+            r#gen,
         }));
 
         let id = crate::validate_id(id).into_lua_err()?;
 
-        crate::lua::protect_with_local_env(lua, &gen)?;
+        crate::lua::protect_with_local_env(lua, &r#gen)?;
 
         let name = name.unwrap_or_else(|| {
             lua.warning(
@@ -57,7 +57,7 @@ impl FromLua for LuaColorSystemGeneratorSpec {
                 .into_iter()
                 .map(|p| param_from_lua(lua, p))
                 .try_collect()?,
-            gen,
+            generator: r#gen,
         })
     }
 }
@@ -111,7 +111,7 @@ impl LuaColorSystemGeneratorSpec {
         let gen_params_table = lua.create_sequence_from(params.clone())?;
 
         let user_gen_fn_output = self
-            .gen
+            .generator
             .call::<LuaMultiValue>(gen_params_table)
             .context("error generating puzzle definition")?
             .into_iter()

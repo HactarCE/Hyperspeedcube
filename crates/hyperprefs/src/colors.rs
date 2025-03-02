@@ -1,10 +1,10 @@
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, btree_map};
 
 use hyperpuzzle_core::{ColorSystem, DefaultColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use super::{schema, PresetsList, DEFAULT_PREFS_RAW};
+use super::{DEFAULT_PREFS_RAW, PresetsList, schema};
 
 pub type ColorScheme = IndexMap<String, DefaultColor>;
 

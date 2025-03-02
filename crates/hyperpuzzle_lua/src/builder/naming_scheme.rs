@@ -5,8 +5,8 @@ use hypermath::IndexNewtype;
 use hyperpuzzle_core::Nameable;
 use regex::Regex;
 
-use super::name::TooManyNames;
 use super::NameSet;
+use super::name::TooManyNames;
 
 /// Mutable assignment of names to elements. By default, all elements are
 /// unnamed.

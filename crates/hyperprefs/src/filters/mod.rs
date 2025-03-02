@@ -13,7 +13,7 @@ mod expr;
 pub use checkboxes::*;
 pub use expr::*;
 
-use super::{schema, PieceStyle, PresetRef, PresetTombstone, PresetsList};
+use super::{PieceStyle, PresetRef, PresetTombstone, PresetsList, schema};
 use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]

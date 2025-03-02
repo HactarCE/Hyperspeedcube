@@ -1,8 +1,8 @@
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::sync::Arc;
 
-use serde::ser::SerializeMap;
 use serde::Serialize;
+use serde::ser::SerializeMap;
 
 use super::menu::UnknownTag;
 use super::{TagData, TagValue};

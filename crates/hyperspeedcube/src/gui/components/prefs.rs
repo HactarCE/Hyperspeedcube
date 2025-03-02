@@ -8,11 +8,11 @@ use hyperprefs::{
 use hyperpuzzle_core::Rgb;
 use strum::VariantArray;
 
+use crate::L;
 use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::locales::HoverStrings;
-use crate::L;
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;

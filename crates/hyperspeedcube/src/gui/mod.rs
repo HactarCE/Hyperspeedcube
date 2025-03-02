@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use markdown::md;
@@ -19,11 +19,11 @@ mod menu_bar;
 mod modals;
 mod tabs;
 
-pub use tabs::{about_text, PuzzleWidget, Query, Tab};
+pub use tabs::{PuzzleWidget, Query, Tab, about_text};
 use util::EguiTempFlag;
 
-pub use crate::app::App;
 use crate::L;
+pub use crate::app::App;
 
 pub struct AppUi {
     pub app: App,

@@ -5,11 +5,11 @@ use hyperpuzzle_core::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, Puzz
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
+use crate::L;
 use crate::app::App;
-use crate::gui::components::{color_assignment_popup, DragAndDrop};
+use crate::gui::components::{DragAndDrop, color_assignment_popup};
 use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::{EguiTempFlag, EguiTempValue};
-use crate::L;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum DevToolsTab {

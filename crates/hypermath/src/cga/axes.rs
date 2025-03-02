@@ -134,10 +134,6 @@ impl Mul for Axes {
         // e₋ squares to -1.
         neg ^= (self & rhs).contains(Self::E_MINUS);
 
-        if neg {
-            -1.0
-        } else {
-            1.0
-        }
+        if neg { -1.0 } else { 1.0 }
     }
 }

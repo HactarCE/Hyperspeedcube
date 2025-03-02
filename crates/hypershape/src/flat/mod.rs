@@ -1,17 +1,17 @@
 //! Infinite Euclidean space in which flat polytopes can be constructed.
 
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::fmt;
 use std::sync::{Arc, Weak};
 
-use eyre::{bail, ensure, eyre, OptionExt, Result};
+use eyre::{OptionExt, Result, bail, ensure, eyre};
 use float_ord::FloatOrd;
 use hypermath::collections::generic_vec::IndexOverflow;
 use hypermath::collections::{ApproxHashMap, GenericVec};
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use tinyset::Set64;
 
 mod cut;

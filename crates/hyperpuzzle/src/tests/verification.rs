@@ -1,5 +1,5 @@
-use hyperpuzzle_core::{chrono, ScrambleParams, ScrambleType};
-use hyperpuzzle_log::verify::{verify, SolveVerification};
+use hyperpuzzle_core::{ScrambleParams, ScrambleType, chrono};
+use hyperpuzzle_log::verify::{SolveVerification, verify};
 use hyperpuzzle_log::{LogEvent, LogFile, Puzzle};
 
 use super::{load_new_catalog, time_it};

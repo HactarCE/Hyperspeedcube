@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use hypermath::pga::Motor;
 use hypermath::Vector;
+use hypermath::pga::Motor;
 use hyperpuzzle_core::{Axis, LayerMask, LayerMaskUint};
 use parking_lot::{MappedMutexGuard, MutexGuard};
 

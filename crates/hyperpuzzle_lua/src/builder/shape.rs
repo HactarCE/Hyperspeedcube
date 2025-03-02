@@ -1,9 +1,9 @@
 use std::borrow::Cow;
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::ops::Range;
 use std::sync::Arc;
 
-use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
+use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::*;
 use hypershape::prelude::*;

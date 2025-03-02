@@ -21,7 +21,7 @@ impl PuzzleLintOutput {
         let expected_tag_sets = crate::TAGS
             .expected_tag_sets()
             .iter()
-            .filter(|(&k, _)| k > schema)
+            .filter(|&(&k, _)| k > schema)
             .flat_map(|(_, v)| v);
         let missing_tags = expected_tag_sets
             .filter(|&tag_set| tag_set.iter().all(|tag| !tags.0.contains_key(&**tag)))

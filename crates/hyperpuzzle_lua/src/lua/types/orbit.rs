@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use hypermath::pga::Motor;
 use hypermath::ApproxHashMap;
+use hypermath::pga::Motor;
 use hyperpuzzle_core::util::lazy_resolve;
 use hypershape::GeneratorSequence;
 use itertools::Itertools;

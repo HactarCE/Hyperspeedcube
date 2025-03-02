@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use eyre::{ensure, eyre, OptionExt, Result};
+use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::{
     Color, ColorInfo, ColorSystem, DefaultColor, DevOrbit, PerColor, PuzzleDevData, PuzzleElement,

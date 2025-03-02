@@ -3,8 +3,8 @@
 use hyperpuzzle_core::LogLine;
 use log::Level;
 
-use crate::app::App;
 use crate::L;
+use crate::app::App;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     let logger = hyperpuzzle::catalog().default_logger().clone();

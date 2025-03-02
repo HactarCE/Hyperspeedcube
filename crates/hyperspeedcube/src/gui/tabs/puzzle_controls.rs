@@ -2,8 +2,8 @@ use hyperpuzzle_core::{LayerMask, LayeredTwist};
 use hyperpuzzle_view::ReplayEvent;
 use smallvec::smallvec;
 
-use crate::app::App;
 use crate::L;
+use crate::app::App;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.active_puzzle.with_opt_view(|view| {

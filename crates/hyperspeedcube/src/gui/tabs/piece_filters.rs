@@ -10,15 +10,15 @@ use hyperpuzzle_core::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use hyperpuzzle_view::{PuzzleFiltersState, PuzzleView};
 use itertools::Itertools;
 
+use crate::L;
 use crate::app::App;
 use crate::gui::components::{
     DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
-    PresetHeaderUi, PresetSaveStatus, TextEditPopup, TextEditPopupResponse,
-    PRESET_NAME_TEXT_EDIT_WIDTH,
+    PRESET_NAME_TEXT_EDIT_WIDTH, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
+    TextEditPopupResponse,
 };
 use crate::gui::markdown::{md, md_inline};
-use crate::gui::util::{text_width, EguiTempValue};
-use crate::L;
+use crate::gui::util::{EguiTempValue, text_width};
 
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;

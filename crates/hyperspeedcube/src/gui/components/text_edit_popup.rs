@@ -72,11 +72,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
     /// Executes a function if the popup is open. This is useful to avoid
     /// unnecessary computation.
     pub fn if_open<R>(self, f: impl FnOnce(Self) -> Option<R>) -> Option<R> {
-        if self.is_open() {
-            f(self)
-        } else {
-            None
-        }
+        if self.is_open() { f(self) } else { None }
     }
 
     pub fn below(mut self, r: &egui::Response) -> Self {

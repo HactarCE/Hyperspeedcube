@@ -1,6 +1,6 @@
 //! Functions for verifying log files.
 
-use hyperpuzzle_core::{chrono, Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric};
+use hyperpuzzle_core::{Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric, chrono};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;

@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use eyre::{eyre, Context, Result};
+use eyre::{Context, Result, eyre};
 use itertools::Itertools;
 use serde::Serialize;
 

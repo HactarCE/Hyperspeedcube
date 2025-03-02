@@ -1,6 +1,6 @@
-use crate::gui::util::EguiTempValue;
-use crate::gui::App;
 use crate::L;
+use crate::gui::App;
+use crate::gui::util::EguiTempValue;
 
 mod color_scheme;
 mod global_color_palette;

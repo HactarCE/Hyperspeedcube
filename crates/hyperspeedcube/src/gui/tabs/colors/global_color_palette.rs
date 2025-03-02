@@ -1,11 +1,12 @@
 use egui::Widget;
 use float_ord::FloatOrd;
-use hyperprefs::{GlobalColorPalette, PrefsConvert, DEFAULT_PREFS};
+use hyperprefs::{DEFAULT_PREFS, GlobalColorPalette, PrefsConvert};
 use hyperpuzzle_core::Rgb;
 use itertools::Itertools;
 use rand::Rng;
 use strum::{EnumIter, IntoEnumIterator};
 
+use crate::L;
 use crate::app::App;
 use crate::gui::components::{
     HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
@@ -13,7 +14,6 @@ use crate::gui::components::{
 };
 use crate::gui::ext::ResponseExt;
 use crate::gui::util::EguiTempValue;
-use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let yaml = PlaintextYamlEditor::new(ui);

@@ -1,9 +1,9 @@
 use itertools::Itertools;
 
+use crate::L;
 use crate::app::App;
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::EguiTempFlag;
-use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.active_puzzle.with_opt_view(|view| {

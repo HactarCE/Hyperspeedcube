@@ -1,6 +1,6 @@
-use eyre::{bail, Result};
+use eyre::{Result, bail};
 use hypermath::pga::{self, Blade, Motor};
-use hypermath::{vector, Float, Vector, VectorRef};
+use hypermath::{Float, Vector, VectorRef, vector};
 
 use super::*;
 

@@ -15,7 +15,7 @@ use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
 use bitvec::vec::BitVec;
-use eyre::{eyre, OptionExt};
+use eyre::{OptionExt, eyre};
 use hyperpuzzle_core::{Puzzle, Rgb};
 use serde::{Deserialize, Serialize};
 

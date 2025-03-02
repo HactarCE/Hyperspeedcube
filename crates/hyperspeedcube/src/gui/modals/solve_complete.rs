@@ -6,8 +6,8 @@ use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
 
-use crate::gui::util::EguiTempValue;
 use crate::gui::App;
+use crate::gui::util::EguiTempValue;
 
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {

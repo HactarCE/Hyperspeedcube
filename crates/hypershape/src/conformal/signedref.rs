@@ -39,7 +39,9 @@ impl<I: Clone> From<&I> for SignedRef<I> {
 impl<I: Fits64> Fits64 for SignedRef<I> {
     unsafe fn from_u64(x: u64) -> Self {
         Self {
-            id: I::from_u64(x >> 1),
+            // SAFETY: this is inverse of `to_u64()` and caller ensures that any
+            //         inputs here come from `to_u64()`
+            id: unsafe { I::from_u64(x >> 1) },
             sign: if x & 1 == 0 { Sign::Pos } else { Sign::Neg },
         }
     }

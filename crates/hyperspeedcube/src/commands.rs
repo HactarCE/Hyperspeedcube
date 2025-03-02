@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use hyperpuzzle_core::*;
 use itertools::Itertools;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

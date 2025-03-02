@@ -10,8 +10,8 @@ use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
 use parking_lot::Mutex;
 
-use crate::gui::PuzzleWidget;
 use crate::L;
+use crate::gui::PuzzleWidget;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,

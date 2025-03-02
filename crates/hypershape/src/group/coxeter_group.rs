@@ -3,7 +3,7 @@ use std::fmt;
 use hypermath::collections::approx_hashmap::ApproxHashMapKey;
 use hypermath::prelude::*;
 use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use super::{GroupError, GroupResult, IsometryGroup};
 

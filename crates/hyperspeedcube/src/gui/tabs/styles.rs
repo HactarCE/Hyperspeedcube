@@ -1,10 +1,10 @@
-use hyperprefs::{PieceStyle, StylePreferences, DEFAULT_PREFS};
+use hyperprefs::{DEFAULT_PREFS, PieceStyle, StylePreferences};
 use strum::{EnumIter, IntoEnumIterator};
 
+use crate::L;
 use crate::app::App;
 use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::EguiTempValue;
-use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;

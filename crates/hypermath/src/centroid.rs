@@ -4,7 +4,7 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
-use super::{approx_eq, is_approx_positive, Float, Vector};
+use super::{Float, Vector, approx_eq, is_approx_positive};
 
 /// Centroid and Lebasgue measure of a polytope element. In simpler terms: the
 /// "center of mass" and "N-dimensional mass" of a polytope element.

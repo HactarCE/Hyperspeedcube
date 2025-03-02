@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use eyre::{bail, ensure, OptionExt, Result};
+use eyre::{OptionExt, Result, bail, ensure};
 use hypermath::prelude::*;
 
 use super::{PerGizmoFace, PerPiece, PerSticker, Piece, Surface};

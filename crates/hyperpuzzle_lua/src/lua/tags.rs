@@ -1,6 +1,6 @@
 use std::collections::hash_map;
 
-use hyperpuzzle_core::{TagSet, TagType, TagValue, TAGS};
+use hyperpuzzle_core::{TAGS, TagSet, TagType, TagValue};
 use itertools::Itertools;
 use mlua::prelude::*;
 

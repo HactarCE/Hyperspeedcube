@@ -214,7 +214,7 @@ impl LuaSymmetry {
         match self {
             LuaSymmetry::Coxeter { coxeter, .. } => coxeter.min_ndim(),
             LuaSymmetry::Custom { generators } => {
-                generators.iter().map(|gen| gen.ndim()).max().unwrap_or(1)
+                generators.iter().map(|g| g.ndim()).max().unwrap_or(1)
             }
         }
     }
@@ -230,10 +230,10 @@ impl LuaSymmetry {
         gen_seq
             .into_iter()
             .map(|i| -> Result<pga::Motor, &str> {
-                let gen = generators
+                let g = generators
                     .get(i as usize)
                     .ok_or("generator index out of range")?;
-                Ok(gen.to_ndim_at_least(ndim))
+                Ok(g.to_ndim_at_least(ndim))
             })
             .reduce(|a, b| Ok(a? * b?))
             .unwrap_or(Ok(pga::Motor::ident(ndim)))
@@ -248,7 +248,7 @@ impl LuaUserData for LuaSymmetry {
         fields.add_field_method_get("ndim", |_lua, this| match this {
             LuaSymmetry::Coxeter { coxeter, .. } => Ok(coxeter.min_ndim()),
             LuaSymmetry::Custom { generators } => {
-                Ok(generators.iter().map(|gen| gen.ndim()).max().unwrap_or(1))
+                Ok(generators.iter().map(|g| g.ndim()).max().unwrap_or(1))
             }
         });
 

@@ -4,8 +4,8 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use super::{Axes, Blade, Term};
 use crate::pga::blade::BivectorDecomposition;
 use crate::{
-    approx_eq, is_approx_negative, is_approx_nonzero, Float, Hyperplane, IterWithExactSizeExt,
-    Matrix, Vector, VectorRef,
+    Float, Hyperplane, IterWithExactSizeExt, Matrix, Vector, VectorRef, approx_eq,
+    is_approx_negative, is_approx_nonzero,
 };
 
 /// Sum of terms in the even or odd subalgebra of the projective geometric

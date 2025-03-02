@@ -20,11 +20,11 @@
 //! Atomic polytopes are memoized and given IDs.
 
 use std::cmp::Ordering;
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map};
 use std::fmt;
 use std::ops::{Index, Mul, MulAssign, Neg};
 
-use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
+use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use float_ord::FloatOrd;
 use hypermath::cga::*;
 use hypermath::prelude::*;
@@ -1056,7 +1056,7 @@ impl Space {
             )? {
                 WhichSide::Inside { .. } => continue,
                 WhichSide::Flush | WhichSide::Outside { .. } | WhichSide::Split => {
-                    return Ok(false)
+                    return Ok(false);
                 }
             }
         }

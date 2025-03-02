@@ -1,9 +1,9 @@
 use std::fmt;
 
-use hypermath::collections::generic_vec;
 use hypermath::IndexNewtype;
+use hypermath::collections::generic_vec;
 use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use super::{
     EggTable, GeneratorId, GroupElementId, GroupError, GroupResult, PerGenerator, PerGroupElement,
@@ -53,8 +53,8 @@ pub trait Group {
     /// Composes two elements of the group.
     fn compose(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
         let mut ret = a;
-        for &gen in self.factorization(b) {
-            ret = self.successor(ret, gen);
+        for &generator in self.factorization(b) {
+            ret = self.successor(ret, generator);
         }
         ret
     }
@@ -150,7 +150,7 @@ impl fmt::Display for GroupBuilder {
         writeln!(f, "    successors: [")?;
         for elem in GroupElementId::iter(self.element_count) {
             let successors_string = opt_elem_iter_to_string(
-                GeneratorId::iter(self.generator_count).map(|gen| self.successor(elem, gen)),
+                GeneratorId::iter(self.generator_count).map(|g| self.successor(elem, g)),
             );
             writeln!(f, "        {elem}: [{successors_string}],")?;
         }
@@ -159,7 +159,7 @@ impl fmt::Display for GroupBuilder {
         writeln!(f, "    predecessors: [")?;
         for elem in GroupElementId::iter(self.element_count) {
             let predecessors_string = opt_elem_iter_to_string(
-                GeneratorId::iter(self.generator_count).map(|gen| self.predecessor(elem, gen)),
+                GeneratorId::iter(self.generator_count).map(|g| self.predecessor(elem, g)),
             );
             writeln!(f, "        {elem}: [{predecessors_string}],")?;
         }
@@ -295,8 +295,8 @@ impl GroupBuilder {
                 factorization
                     .iter()
                     .rev()
-                    .fold(GroupElementId::IDENTITY, |elem, &gen| {
-                        *predecessors.get(elem, gen)
+                    .fold(GroupElementId::IDENTITY, |elem, &generator| {
+                        *predecessors.get(elem, generator)
                     })
             })
             .collect::<PerGroupElement<GroupElementId>>();

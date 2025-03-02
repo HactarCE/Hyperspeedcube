@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use hyperpuzzle_core::{LayerMask, LayeredTwist, PerTwist, Twist, TwistInfo};
 use itertools::Itertools;
 use regex::Regex;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 /// Formats a sequence of twists as a string.
 pub fn format_twists(

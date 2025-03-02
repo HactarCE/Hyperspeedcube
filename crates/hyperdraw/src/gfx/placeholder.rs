@@ -4,7 +4,7 @@ use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
 use hyperpuzzle_core::*;
 use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use super::DrawParams;
 use crate::{IterCyclicPairsExt, PieceStyleValues};

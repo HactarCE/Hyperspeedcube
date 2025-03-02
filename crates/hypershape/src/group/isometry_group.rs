@@ -1,7 +1,7 @@
 use std::ops::Index;
 use std::sync::Arc;
 
-use hypermath::collections::{approx_hashmap, ApproxHashMap, MotorNearestNeighborMap};
+use hypermath::collections::{ApproxHashMap, MotorNearestNeighborMap, approx_hashmap};
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
@@ -57,7 +57,7 @@ impl IsometryGroup {
 
         let mut g = GroupBuilder::new(generator_count)?;
 
-        let ndim = generators.iter().map(|gen| gen.ndim()).max().unwrap_or(2);
+        let ndim = generators.iter().map(|g| g.ndim()).max().unwrap_or(2);
 
         let generators: PerGenerator<pga::Motor> = generators
             .iter()
@@ -95,7 +95,7 @@ impl IsometryGroup {
 
                 // Apply each generator to `next_unprocessed` and see where it
                 // goes.
-                for (gen, new_elem) in successors_to_process.into_iter() {
+                for (generator, new_elem) in successors_to_process.into_iter() {
                     let id;
                     match element_ids.entry(new_elem.clone()) {
                         // We've already seen `new_elem`.
@@ -103,11 +103,11 @@ impl IsometryGroup {
                             id = *e.into_mut();
 
                             if id == GroupElementId::IDENTITY {
-                                // We multiplied `next_unprocessed * gen` and
-                                // got the identity element, so
-                                // `next_unprocessed` and `gen` must be
+                                // We multiplied `next_unprocessed * generator`
+                                // and got the identity element, so
+                                // `next_unprocessed` and `generator` must be
                                 // inverses.
-                                generator_inverses[gen] = next_unprocessed_id;
+                                generator_inverses[generator] = next_unprocessed_id;
                             }
                         }
 
@@ -115,7 +115,7 @@ impl IsometryGroup {
                         // new ID and add it to all the relevant lists.
                         approx_hashmap::Entry::Vacant(e) => {
                             id = elements.push(new_elem.clone())?;
-                            g.add_successor(next_unprocessed_id, gen)?;
+                            g.add_successor(next_unprocessed_id, generator)?;
 
                             // Enqueue a new task to compute the successors of
                             // `new_elem`.
@@ -123,8 +123,8 @@ impl IsometryGroup {
                             unprocessed_successors.push(Arc::clone(&task))?;
                             let generators_ref = &generators;
                             s.spawn(move |_| {
-                                task.store(generators_ref.map_ref(|_id, gen| {
-                                    (&new_elem * gen)
+                                task.store(generators_ref.map_ref(|_id, generator| {
+                                    (&new_elem * generator)
                                         .canonicalize()
                                         .unwrap_or_else(|| pga::Motor::ident(ndim))
                                 }));
@@ -133,8 +133,8 @@ impl IsometryGroup {
                             e.insert(id);
                         }
                     }
-                    // Record the result of `new_elem * gen`.
-                    g.set_successor(next_unprocessed_id, gen, id);
+                    // Record the result of `new_elem * generator`.
+                    g.set_successor(next_unprocessed_id, generator, id);
                 }
                 next_unprocessed_id.0 += 1;
             }
