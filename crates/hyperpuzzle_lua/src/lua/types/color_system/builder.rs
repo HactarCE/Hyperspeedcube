@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use hyperpuzzle_core::{Color, DefaultColor, PerColor};
@@ -6,7 +5,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme, PuzzleBuilder};
+use crate::builder::{NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 
 /// Lua handle to the color system of a shape under construction.
@@ -21,7 +20,6 @@ impl LuaUserData for LuaColorSystem {
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         LuaIdDatabase::<Color>::add_db_metamethods(methods, |Self(puz)| puz);
         LuaNamedIdDatabase::<Color>::add_named_db_methods(methods, |Self(puz)| puz);
-        LuaOrderedIdDatabase::<Color>::add_ordered_db_methods(methods, |Self(puz)| puz);
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
 
@@ -52,18 +50,6 @@ impl LuaIdDatabase<Color> for PuzzleBuilder {
     }
     fn db_len(&self) -> usize {
         self.shape.colors.len()
-    }
-    fn ids_in_order(&self) -> Cow<'_, [Color]> {
-        Cow::Borrowed(self.shape.colors.ordering.ids_in_order())
-    }
-}
-
-impl LuaOrderedIdDatabase<Color> for PuzzleBuilder {
-    fn ordering(&self) -> &CustomOrdering<Color> {
-        &self.shape.colors.ordering
-    }
-    fn ordering_mut(&mut self) -> &mut CustomOrdering<Color> {
-        &mut self.shape.colors.ordering
     }
 }
 
@@ -160,11 +146,7 @@ impl LuaColorSystem {
             }
 
             LuaValue::Function(f) => {
-                let colors = puz
-                    .ids_in_order()
-                    .iter()
-                    .map(|&id| puz.wrap_id(id))
-                    .collect_vec();
+                let colors = puz.ids_in_order().map(|id| puz.wrap_id(id)).collect_vec();
                 drop(puz); // Avoid a deadlock in `f.call()`
                 for color in colors {
                     let id = color.id;

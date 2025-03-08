@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use float_ord::FloatOrd;
@@ -8,7 +7,7 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::builder::{AxisLayerBuilder, CustomOrdering, NamingScheme, PuzzleBuilder};
+use crate::builder::{AxisLayerBuilder, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 
 /// Lua handle for an axis system under construction.
@@ -23,7 +22,6 @@ impl LuaUserData for LuaAxisSystem {
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| puz);
         LuaNamedIdDatabase::<Axis>::add_named_db_methods(methods, |Self(puz)| puz);
-        LuaOrderedIdDatabase::<Axis>::add_ordered_db_methods(methods, |Self(puz)| puz);
 
         methods.add_method("autoname", |lua, this, ()| {
             let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
@@ -61,18 +59,8 @@ impl LuaIdDatabase<Axis> for PuzzleBuilder {
     fn db_len(&self) -> usize {
         self.twists.axes.len()
     }
-    fn ids_in_order(&self) -> Cow<'_, [Axis]> {
-        Cow::Borrowed(self.twists.axes.ordering.ids_in_order())
-    }
 }
-impl LuaOrderedIdDatabase<Axis> for PuzzleBuilder {
-    fn ordering(&self) -> &CustomOrdering<Axis> {
-        &self.twists.axes.ordering
-    }
-    fn ordering_mut(&mut self) -> &mut CustomOrdering<Axis> {
-        &mut self.twists.axes.ordering
-    }
-}
+
 impl LuaNamedIdDatabase<Axis> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Axis> {
         &self.twists.axes.names

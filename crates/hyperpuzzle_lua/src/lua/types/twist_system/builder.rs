@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use hyperpuzzle_core::Twist;
@@ -47,9 +46,6 @@ impl LuaIdDatabase<Twist> for PuzzleBuilder {
     }
     fn db_len(&self) -> usize {
         self.twists.len()
-    }
-    fn ids_in_order(&self) -> Cow<'_, [Twist]> {
-        Cow::Owned(self.twists.alphabetized())
     }
 }
 

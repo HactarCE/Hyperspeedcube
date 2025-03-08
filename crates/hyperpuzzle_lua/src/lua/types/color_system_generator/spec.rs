@@ -159,7 +159,7 @@ impl LuaColorSystemGeneratorSpec {
             color_system_spec_table,
         )?;
 
-        let (color_system, _color_map) = color_system_builder
+        let color_system = color_system_builder
             .build(None, None, lua_warn_fn(lua))
             .into_lua_err()?;
 

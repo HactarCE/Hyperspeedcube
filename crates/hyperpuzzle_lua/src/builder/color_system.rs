@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::{
@@ -8,7 +6,7 @@ use hyperpuzzle_core::{
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use super::{BadName, CustomOrdering, NameSet, NamingScheme};
+use super::{BadName, NameSet, NamingScheme};
 
 const PUZZLE_PREFIX: &str = "puzzle:";
 
@@ -29,8 +27,6 @@ pub struct ColorSystemBuilder {
     by_id: PerColor<ColorBuilder>,
     /// User-specified color names.
     pub names: NamingScheme<Color>,
-    /// User-specified ordering of colors.
-    pub ordering: CustomOrdering<Color>,
 
     /// Color schemes.
     pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
@@ -116,7 +112,6 @@ impl ColorSystemBuilder {
         self.is_modified = true;
 
         let id = self.by_id.push(ColorBuilder {})?;
-        self.ordering.add(id)?;
         Ok(id)
     }
 
@@ -199,10 +194,7 @@ impl ColorSystemBuilder {
 
     /// Returns an iterator over all the colors, in the canonical ordering.
     pub fn iter(&self) -> impl Iterator<Item = (Color, &ColorBuilder)> {
-        self.ordering
-            .ids_in_order()
-            .iter()
-            .map(|&id| (id, &self.by_id[id]))
+        self.by_id.iter()
     }
 
     /// Validates and constructs a color system.
@@ -213,7 +205,7 @@ impl ColorSystemBuilder {
         puzzle_id: Option<&str>,
         dev_data: Option<&mut PuzzleDevData>,
         warn_fn: impl Copy + Fn(eyre::Report),
-    ) -> Result<(ColorSystem, HashMap<Color, Color>)> {
+    ) -> Result<ColorSystem> {
         let mut id = self.id.clone();
         if self.is_shared {
             if self.is_modified {
@@ -230,18 +222,9 @@ impl ColorSystemBuilder {
         }
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
-        // map from old ID to new ID
-        let color_id_map: HashMap<Color, Color> = self
-            .ordering
-            .ids_in_order()
-            .iter()
-            .enumerate()
-            .map(|(i, &old_id)| (old_id, Color(i as _)))
-            .collect();
-
         let colors = super::iter_autonamed(
+            self.len(),
             &self.names,
-            &self.ordering,
             hyperpuzzle_core::util::iter_uppercase_letter_names(),
         )
         .map(|(_id, (name_set, display))| {
@@ -259,13 +242,11 @@ impl ColorSystemBuilder {
             .schemes
             .iter()
             .map(|(name, default_colors)| {
-                let mut new_default_colors =
-                    PerColor::from(vec![DefaultColor::Unknown; self.len()]);
-                for (old_id, default_color) in default_colors {
-                    if let Some(&new_id) = color_id_map.get(&old_id) {
-                        new_default_colors[new_id] = default_color.clone().unwrap_or_default();
-                    }
-                }
+                let new_default_colors = default_colors.map_ref(|_, optional_default_color| {
+                    optional_default_color
+                        .clone()
+                        .unwrap_or(DefaultColor::Unknown)
+                });
                 (name.clone(), new_default_colors)
             })
             .collect();
@@ -282,12 +263,11 @@ impl ColorSystemBuilder {
         }
 
         if let Some(dev_data) = dev_data {
-            dev_data
-                .orbits
-                .extend(self.color_orbits.iter().map(|dev_orbit| {
-                    dev_orbit
-                        .map(|old_id| color_id_map.get(&old_id).copied().map(PuzzleElement::Color))
-                }));
+            dev_data.orbits.extend(
+                self.color_orbits
+                    .iter()
+                    .map(|dev_orbit| dev_orbit.map(|i| Some(PuzzleElement::Color(i)))),
+            );
         }
 
         let color_system = ColorSystem {
@@ -299,6 +279,6 @@ impl ColorSystemBuilder {
             schemes,
             default_scheme,
         };
-        Ok((color_system, color_id_map))
+        Ok(color_system)
     }
 }

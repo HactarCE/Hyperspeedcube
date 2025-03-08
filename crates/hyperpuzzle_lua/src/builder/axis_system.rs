@@ -7,7 +7,7 @@ use hyperpuzzle_core::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, Per
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use super::{CustomOrdering, NamingScheme};
+use super::NamingScheme;
 
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
@@ -104,8 +104,6 @@ pub struct AxisSystemBuilder {
     vector_to_id: ApproxHashMap<Vector, Axis>,
     /// User-specified axis names.
     pub names: NamingScheme<Axis>,
-    /// User-specified ordering of axiss.
-    pub ordering: CustomOrdering<Axis>,
 
     /// Orbits used to generate axis, tracked for puzzle dev purposes.
     pub axis_orbits: Vec<DevOrbit<Axis>>,
@@ -137,7 +135,6 @@ impl AxisSystemBuilder {
             hash_map::Entry::Vacant(e) => {
                 let layers = PerLayer::new();
                 let id = self.by_id.push(AxisBuilder { vector, layers })?;
-                self.ordering.add(id)?;
                 e.insert(id);
                 Ok(id)
             }
@@ -162,9 +159,6 @@ impl AxisSystemBuilder {
 
     /// Returns an iterator over all the axes, in the canonical ordering.
     pub fn iter(&self) -> impl Iterator<Item = (Axis, &AxisBuilder)> {
-        self.ordering
-            .ids_in_order()
-            .iter()
-            .map(|&id| (id, &self.by_id[id]))
+        self.by_id.iter()
     }
 }

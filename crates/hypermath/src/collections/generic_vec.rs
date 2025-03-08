@@ -105,7 +105,8 @@ macro_rules! idx_struct {
 /// Newtype wrapper around a primitive unsigned integer, which is useful as an
 /// index into arrays.
 pub trait IndexNewtype:
-    fmt::Debug
+    'static
+    + fmt::Debug
     + fmt::Display
     + Default
     + Copy
@@ -189,7 +190,8 @@ impl<I: IndexNewtype> DoubleEndedIterator for IndexIter<I> {
 impl<I: IndexNewtype> ExactSizeIterator for IndexIter<I> {}
 
 /// Wrapper around a `Vec<E>` that is indexed using `I` by converting it to an
-/// integer.
+/// integer. `I` is expected to implement [`IndexNewtype`] and can be created
+/// using [`idx_struct!`].
 ///
 /// Elements are stored using indices.
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -386,6 +388,18 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     ) -> Result<GenericVec<I, U>, S> {
         Ok(self
             .into_iter()
+            .map(|(i, e)| f(i, e))
+            .collect::<Result<Vec<_>, _>>()?
+            .into())
+    }
+    /// Applies a function to every value in the collection and returns a new
+    /// collection, or the first error returned by the function.
+    pub fn try_map_ref<'a, U, S>(
+        &'a self,
+        mut f: impl FnMut(I, &'a E) -> Result<U, S>,
+    ) -> Result<GenericVec<I, U>, S> {
+        Ok(self
+            .iter()
             .map(|(i, e)| f(i, e))
             .collect::<Result<Vec<_>, _>>()?
             .into())

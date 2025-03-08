@@ -70,10 +70,10 @@ impl PuzzleBuilder {
         let mut dev_data = PuzzleDevData::new();
 
         // Build color system. TODO: cache this across puzzles?
-        let (colors, color_id_map) =
-            self.shape
-                .colors
-                .build(Some(&self.meta.id), Some(&mut dev_data), warn_fn)?;
+        let colors = self
+            .shape
+            .colors
+            .build(Some(&self.meta.id), Some(&mut dev_data), warn_fn)?;
         let colors = Arc::new(colors);
 
         // Build shape.
@@ -84,7 +84,7 @@ impl PuzzleBuilder {
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
-        } = self.shape.build(&color_id_map, warn_fn)?;
+        } = self.shape.build(warn_fn)?;
 
         // Build twist system.
         let (axes, twists, gizmo_twists) =

@@ -11,8 +11,8 @@ impl LuaUserData for LuaColor {
     fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("color"));
 
+        LuaIdDatabase::add_db_entry_fields(fields);
         LuaNamedIdDatabase::add_named_db_entry_fields(fields);
-        LuaOrderedIdDatabase::add_ordered_db_entry_fields(fields);
 
         fields.add_field_method_get("default", |_lua, this| {
             let puz = this.db.lock();

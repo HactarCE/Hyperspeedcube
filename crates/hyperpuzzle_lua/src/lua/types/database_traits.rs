@@ -1,15 +1,12 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
-use std::hash::Hash;
 use std::sync::Arc;
 
-use hypermath::prelude::*;
+use hypermath::collections::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme};
+use crate::builder::NamingScheme;
 use crate::lua::{lua_warn_fn, result_to_ok_or_warn};
 
 /// Lua handle to an object in a collection, indexed by some ID.
@@ -48,10 +45,9 @@ where
     }
 }
 
-/// Database of Lua values referenced using some sort of unique ID.
-pub trait LuaIdDatabase<I>: 'static + Sized + Send
+/// Database of Lua values stored in a [`GenericVec<I>`].
+pub trait LuaIdDatabase<I: IndexNewtype>: 'static + Sized + Send
 where
-    I: 'static + Clone + Send,
     LuaDbEntry<I, Self>: LuaUserData,
 {
     /// User-friendly string for a single object in the collection.
@@ -84,12 +80,39 @@ where
         })
     }
 
+    /// Converts a [`LuaValue`] to an entry ID if it is an index, or returns
+    /// `None` if it is not.
+    fn value_to_id_by_index(&self, lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>> {
+        let LuaIndex(i) = lua.unpack(value.clone()).ok()?;
+        let len = self.db_len();
+        if i < len {
+            Some(I::try_from_usize(i).map_err(LuaError::external))
+        } else {
+            Some(Err(LuaError::external(if len == 1 {
+                format!(
+                    "index {} is out of range; there is only 1 {}",
+                    i + 1,
+                    Self::ELEMENT_NAME_SINGULAR,
+                )
+            } else {
+                format!(
+                    "index {} is out of range; there are only {} {}",
+                    i + 1,
+                    self.db_len(),
+                    Self::ELEMENT_NAME_PLURAL,
+                )
+            })))
+        }
+    }
+
     /// Returns an `Arc` reference to the DB.
     fn db_arc(&self) -> Arc<Mutex<Self>>;
     /// Returns the number of entries in the database.
     fn db_len(&self) -> usize;
-    /// Returns a list of IDs in the database, ideally in some canonical order.
-    fn ids_in_order(&self) -> Cow<'_, [I]>;
+    /// Returns a list of IDs in the database in canonical order.
+    fn ids_in_order(&self) -> hypermath::collections::generic_vec::IndexIter<I> {
+        I::iter(self.db_len())
+    }
 
     /// Constructs a mapping from ID to `T` from a Lua value, which may be a
     /// table of pairs `(id, T)` or a function from ID to `T`.
@@ -112,7 +135,6 @@ where
             LuaValue::Function(f) => {
                 let ids_in_order = db
                     .ids_in_order()
-                    .iter()
                     .map(|id| db.wrap_id(id.clone()))
                     .collect_vec();
 
@@ -155,12 +177,17 @@ where
             Ok(db.db_len())
         });
     }
+
+    /// Defines the following fields on a database entry:
+    /// - `index`
+    fn add_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
+        fields.add_field_method_get("index", |_lua, this| Ok(this.id.to_usize()));
+    }
 }
 
 /// Extension of [`LuaIdDatabase`] to support naming elements.
-pub trait LuaNamedIdDatabase<I>: LuaIdDatabase<I>
+pub trait LuaNamedIdDatabase<I: IndexNewtype>: LuaIdDatabase<I>
 where
-    I: 'static + Clone + Hash + Eq + Send,
     LuaDbEntry<I, Self>: LuaUserData,
 {
     /// Returns a reference to the naming scheme of the database.
@@ -262,118 +289,6 @@ where
             lua.globals()
                 .get::<LuaFunction>("builtin_concat")?
                 .call::<LuaNameSet>((a, b))
-        });
-    }
-}
-
-/// Extension of [`LuaIdDatabase`] to enforce a total ordering on entries. Also,
-/// the ID must be an [`IndexNewtype`].
-pub trait LuaOrderedIdDatabase<I>: LuaIdDatabase<I>
-where
-    I: 'static + IndexNewtype,
-    LuaDbEntry<I, Self>: LuaUserData,
-{
-    /// Returns a reference to the custom ordering of entries in the database.
-    fn ordering(&self) -> &CustomOrdering<I>;
-    /// Returns a mutable reference to the custom ordering of entries in the
-    /// database.
-    fn ordering_mut(&mut self) -> &mut CustomOrdering<I>;
-
-    /// Converts a [`LuaValue`] to an entry ID if it is an index, or returns
-    /// `None` if it is not.
-    fn value_to_id_by_index(&self, lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>> {
-        let LuaIndex(i) = lua.unpack(value.clone()).ok()?;
-        Some(match self.ordering().ids_in_order().get(i) {
-            Some(&id) => Ok(id),
-            None => Err(LuaError::external(if self.db_len() == 1 {
-                format!(
-                    "index {} is out of range; there is only 1 {}",
-                    i + 1,
-                    Self::ELEMENT_NAME_SINGULAR,
-                )
-            } else {
-                format!(
-                    "index {} is out of range; there are only {} {}",
-                    i + 1,
-                    self.db_len(),
-                    Self::ELEMENT_NAME_PLURAL,
-                )
-            })),
-        })
-    }
-
-    /// Reorders all elements according to a hashmap.
-    fn reorder_all_by_key(&mut self, _lua: &Lua, new_order_keys: HashMap<I, f64>) -> LuaResult<()> {
-        // By default, leave unspecified entries in the same order at the end.
-        // This sort is guaranteed to be stable.
-        let mut new_ordering: Vec<I> = self.ordering().ids_in_order().to_vec();
-        new_ordering.sort_by(|a, b| {
-            f64::total_cmp(
-                new_order_keys.get(a).unwrap_or(&f64::INFINITY),
-                new_order_keys.get(b).unwrap_or(&f64::INFINITY),
-            )
-        });
-
-        // We will apply the new ordering all at once.
-        let current_ordering = self.ordering_mut();
-        for (index, id) in new_ordering.into_iter().enumerate() {
-            current_ordering.swap_to_index(id, index).into_lua_err()?;
-        }
-
-        Ok(())
-    }
-
-    /// Swaps two elements.
-    fn swap(&mut self, lua: &Lua, i: LuaValue, j: LuaValue) -> LuaResult<()> {
-        let i = self.value_to_id(lua, i)?;
-        let j = self.value_to_id(lua, j)?;
-        self.ordering_mut().swap(i, j);
-        Ok(())
-    }
-
-    /// Defines the following methods on a database:
-    /// - `swap`
-    /// - `reorder`
-    fn add_ordered_db_methods<T: 'static, M: LuaUserDataMethods<T>>(
-        methods: &mut M,
-        as_mutex_db: fn(&T) -> &Mutex<Self>,
-    ) {
-        methods.add_method("swap", move |lua, this, (i, j)| {
-            let mut db = as_mutex_db(this).lock();
-            db.swap(lua, i, j)
-        });
-
-        // Reorders all elements according to a table or function.
-        methods.add_method("reorder", move |lua, this, new_ordering| {
-            let new_order_keys: HashMap<I, f64> = if let LuaValue::Table(t) = new_ordering {
-                let db = as_mutex_db(this).lock();
-                t.sequence_values()
-                    .enumerate()
-                    .map(|(i, elem)| LuaResult::Ok((db.value_to_id(lua, elem?)?, i as f64)))
-                    .try_collect()?
-            } else {
-                Self::mapping_from_value(as_mutex_db(this), lua, new_ordering)?
-                    .into_iter()
-                    .collect()
-            };
-
-            let mut db = as_mutex_db(this).lock();
-            db.reorder_all_by_key(lua, new_order_keys)
-        });
-    }
-
-    /// Defines the following fields on a database entry:
-    /// - `index`
-    fn add_ordered_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
-        fields.add_field_method_get("index", |_lua, this| {
-            let db = this.db.lock();
-            db.ordering().get_index(this.id).into_lua_err()
-        });
-        fields.add_field_method_set("index", |lua, this, new_index| {
-            let mut db = this.db.lock();
-            let new_index = db.value_to_id(lua, new_index)?;
-            db.ordering_mut().shift_to(this.id, new_index);
-            Ok(())
         });
     }
 }

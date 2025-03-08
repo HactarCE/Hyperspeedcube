@@ -8,7 +8,6 @@ mod axis_system;
 mod color_system;
 mod name;
 mod naming_scheme;
-mod ordering;
 mod puzzle;
 mod shape;
 mod twist_system;
@@ -17,7 +16,6 @@ pub use axis_system::{AxisBuilder, AxisLayerBuilder, AxisSystemBuilder};
 pub use color_system::{ColorBuilder, ColorSystemBuilder};
 pub use name::NameSet;
 pub use naming_scheme::{BadName, NamingScheme};
-pub use ordering::CustomOrdering;
 pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;
 pub use twist_system::{TwistBuilder, TwistKey, TwistSystemBuilder};
@@ -31,8 +29,8 @@ pub use twist_system::{TwistBuilder, TwistKey, TwistSystemBuilder};
 ///
 /// A warning is emitted if any short or long name is duplicated.
 pub fn iter_autonamed<'a, I: hypermath::IndexNewtype>(
+    len: usize,
     names: &'a NamingScheme<I>,
-    order: impl 'a + IntoIterator<Item = I>,
     autonames: impl 'a + IntoIterator<Item = String>,
 ) -> impl 'a + Iterator<Item = (I, (NameSet, String))> {
     let ids_to_names = names.ids_to_names();
@@ -43,7 +41,7 @@ pub fn iter_autonamed<'a, I: hypermath::IndexNewtype>(
         .filter(move |s| !names.names_to_ids().contains_key(s));
     let mut next_unused_name = move || unused_names.next().expect("ran out of names");
 
-    order.into_iter().map(move |id| {
+    I::iter(len).map(move |id| {
         let name = match ids_to_names.get(&id) {
             Some(s) => s.to_owned(),
             None => NameSet::from(next_unused_name()),

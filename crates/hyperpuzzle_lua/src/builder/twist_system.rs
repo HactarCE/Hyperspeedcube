@@ -10,7 +10,7 @@ use hypershape::{ElementId, Space, ToElementId};
 use itertools::Itertools;
 use pga::{Blade, Motor};
 
-use super::{AxisSystemBuilder, CustomOrdering, NameSet};
+use super::{AxisSystemBuilder, NameSet};
 use crate::builder::NamingScheme;
 
 /// Twist during puzzle construction.
@@ -102,14 +102,6 @@ impl TwistSystemBuilder {
         self.by_id.len()
     }
 
-    /// Returns the twist axes in canonical alphabetical order.
-    pub fn alphabetized(&self) -> Vec<Twist> {
-        let mut ordering =
-            CustomOrdering::with_len(self.len()).expect("error constructing default ordering");
-        ordering.sort_by_name(self.names.ids_to_names());
-        ordering.ids_in_order().to_vec()
-    }
-
     /// Adds a new twist.
     pub fn add(&mut self, data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
         let data = data.canonicalize()?;
@@ -184,28 +176,25 @@ impl TwistSystemBuilder {
     ) -> Result<(PerAxis<AxisInfo>, PerTwist<TwistInfo>, PerGizmoFace<Twist>)> {
         // Assemble list of axes.
         let mut axes = PerAxis::new();
-        let mut axis_id_map = HashMap::new(); // map from old ID to new ID
-        for (old_id, (name_set, _display)) in super::iter_autonamed(
+        for (id, (name_set, _display)) in super::iter_autonamed(
+            self.axes.len(),
             &self.axes.names,
-            &self.axes.ordering,
             hyperpuzzle_core::util::iter_uppercase_letter_names(),
         ) {
-            let old_axis = self.axes.get(old_id)?;
+            let old_axis = self.axes.get(id)?;
             let vector = old_axis.vector().clone();
             let layers = old_axis
                 .build_layers()
                 .wrap_err_with(|| format!("building axis {name_set:?}"))?;
             let mut string_set = name_set.string_set()?;
             ensure!(!string_set.is_empty(), "axis is missing canonical name");
-            let new_id = axes.push(AxisInfo {
+            axes.push(AxisInfo {
                 name: string_set.remove(0),
                 aliases: string_set, // all except first
                 vector,
                 layers: AxisLayers(layers),
                 opposite: None, // will be set later
             })?;
-
-            axis_id_map.insert(old_id, new_id);
         }
 
         // Assign opposite axes.
@@ -214,11 +203,7 @@ impl TwistSystemBuilder {
                 continue; // already visited it
             }
 
-            if let Some(&opposite_axis) = self
-                .axes
-                .vector_to_id(&-&axes[axis].vector)
-                .and_then(|old_id| axis_id_map.get(&old_id))
-            {
+            if let Some(opposite_axis) = self.axes.vector_to_id(-&axes[axis].vector) {
                 let self_layers = &axes[axis].layers.0;
                 let opposite_layers = &axes[opposite_axis].layers.0;
 
@@ -254,19 +239,13 @@ impl TwistSystemBuilder {
             }
         }
 
-        let axis_id_map_reverse: HashMap<Axis, Axis> =
-            axis_id_map.iter().map(|(&k, &v)| (v, k)).collect();
-
         // Assemble list of twists.
-        let mut twists = PerTwist::new();
-        let mut twist_id_map = HashMap::new(); // map from old ID to new ID
         let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
-        for old_id in self.alphabetized() {
-            let old_twist = self.get(old_id)?;
-            let axis = *axis_id_map.get(&old_twist.axis).ok_or_eyre("bad axis ID")?;
+        let mut twists: PerTwist<TwistInfo> = self.by_id.try_map_ref(|id, old_twist| {
+            let axis = old_twist.axis;
 
             let (name, aliases);
-            match self.names.get(old_id) {
+            match self.names.get(id) {
                 Some(name_set) => {
                     let mut string_set = name_set.string_set()?;
                     ensure!(!string_set.is_empty(), "twist is missing canonical name");
@@ -274,22 +253,10 @@ impl TwistSystemBuilder {
                     aliases = string_set; // all except first
                 }
                 None => {
-                    name = format!("T{}", old_id.0 + 1); // 1-indexed
+                    name = format!("T{}", id.0 + 1); // 1-indexed
                     aliases = vec![];
                 }
             };
-
-            let new_id = twists.push(TwistInfo {
-                name,
-                aliases,
-                qtm: old_twist.qtm,
-                axis,
-                transform: old_twist.transform.clone(),
-                opposite: None,    // will be assigned later
-                reverse: Twist(0), // will be assigned later
-                include_in_scrambles: old_twist.include_in_scrambles,
-            })?;
-            twist_id_map.insert(old_id, new_id);
 
             if let Some(pole_distance) = old_twist.gizmo_pole_distance {
                 // The axis vector is fixed by the twist.
@@ -314,11 +281,22 @@ impl TwistSystemBuilder {
                 };
 
                 let gizmo_pole = face_normal * pole_distance as _;
-                gizmo_twists[axis].push((gizmo_pole, new_id));
+                gizmo_twists[axis].push((gizmo_pole, id));
             };
 
             // TODO: check that transform keeps layer manifolds fixed
-        }
+
+            Ok(TwistInfo {
+                name,
+                aliases,
+                qtm: old_twist.qtm,
+                axis,
+                transform: old_twist.transform.clone(),
+                opposite: None,    // will be assigned later
+                reverse: Twist(0), // will be assigned later
+                include_in_scrambles: old_twist.include_in_scrambles,
+            })
+        })?;
         // TODO: assign opposite twists.
 
         // Build twist gizmos.
@@ -346,16 +324,8 @@ impl TwistSystemBuilder {
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
         for (id, twist) in &mut twists {
-            match self
-                .data_to_id(&TwistKey::new(
-                    *axis_id_map_reverse
-                        .get(&twist.axis)
-                        .ok_or_eyre("twist not in reverse map")?,
-                    &twist.transform.reverse(),
-                )?)
-                .and_then(|old_id| twist_id_map.get(&old_id))
-            {
-                Some(&reverse_twist) => twist.reverse = reverse_twist,
+            match self.data_to_id(&TwistKey::new(twist.axis, &twist.transform.reverse())?) {
+                Some(reverse_twist) => twist.reverse = reverse_twist,
                 None => twists_without_reverse.push(id),
             }
         }
@@ -386,11 +356,12 @@ impl TwistSystemBuilder {
             twists.push(new_twist_info)?;
         }
 
-        dev_data
-            .orbits
-            .extend(self.axes.axis_orbits.iter().map(|dev_orbit| {
-                dev_orbit.map(|old_id| axis_id_map.get(&old_id).copied().map(PuzzleElement::Axis))
-            }));
+        dev_data.orbits.extend(
+            self.axes
+                .axis_orbits
+                .iter()
+                .map(|dev_orbit| dev_orbit.map(|id| Some(PuzzleElement::Axis(id)))),
+        );
 
         Ok((axes, twists, gizmo_face_twists))
     }
