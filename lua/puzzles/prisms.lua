@@ -40,6 +40,10 @@ function prism_name(n)
   return string.format("%s Prism", polygonal.ngonal_name(n))
 end
 
+function duoprism_name(n, m)
+  return string.format("{%s}x{%s} Duoprism", n, m)
+end
+
 function ft_prism_name(n, width, height, cut_type)
   local name = prism_name(n)
   if width > 1 or height > 1 then
@@ -68,8 +72,6 @@ function build_prism_puzzle(self, n, polygon_cut_depths, height)
 
   local base_colors, base_axes = utils.cut_ft_shape(self, line, line_cut_depths, 'U', 'D')
   local side_colors, side_axes = utils.cut_ft_shape(self, base_polygon, polygon_cut_depths, 'F')
-
-  self.axes:reorder(facet_order)
 
   local sym = cd{n, 2}
 
@@ -102,8 +104,6 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
     local axes_y = self.axes:add(polygon_b:iter_vertices('Y'), m_opposite_cut_depths)
     y1 = axes_y[1]
   end
-
-  self.axes:reorder(facet_order)
 
   local sym = cd{n, 2, m}
 
@@ -278,7 +278,7 @@ color_system_generators:add{
       })
     end
     return {
-      name = prism_name(n),
+      name = duoprism_name(n, m),
       colors = colors,
     }
   end,
