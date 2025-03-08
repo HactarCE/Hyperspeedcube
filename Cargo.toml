@@ -16,7 +16,7 @@ members = [
     "crates/hyperstats",
     "crates/hyperstrings",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 authors = ["Andrew Farkas"]
@@ -134,17 +134,18 @@ clap = { version = "4.5.28" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
-eframe = { version = "0.31.0", default-features = false, features = [
+eframe = { version = "0.31.1", default-features = false, features = [
+    "accesskit",
     "default_fonts",
     "wayland",
     "web_screen_reader",
     "wgpu",
     "x11",
-] } # TODO: add `accesskit` back when https://github.com/Adanos020/egui_dock/issues/257 is resolved
-ecolor = { version = "0.31.0" }
-egui = { version = "0.31.0" }
+] }
+ecolor = { version = "0.31.1" }
+egui = { version = "0.31.1" }
 egui_dock = { version = "0.16.0" }
-egui-winit = { version = "0.31.0" }
+egui-winit = { version = "0.31.1" }
 winit = { version = "0.30.8", features = [
     "serde",
 ] } # must match egui-winit and key-names
@@ -190,10 +191,10 @@ web-time = { version = "1.1.0" }
 
 
 [patch.crates-io]
-egui = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
-egui-winit = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
-epaint = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
-ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.0" }
+egui = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.1" }
+egui-winit = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.1" }
+epaint = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.1" }
+ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.31.1" }
 
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs
 # editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
