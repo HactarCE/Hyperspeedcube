@@ -509,7 +509,7 @@ styles {
     }
   }
   builtin {
-    title "Built-in style"
+    title "Built-in styles"
     default "Default"
     gripped "Gripped"
     ungripped "Ungripped"
