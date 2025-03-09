@@ -131,6 +131,8 @@ impl PuzzleBuilder {
             gizmo_twists,
 
             dev_data,
+
+            new: Box::new(PuzzleState::new),
         }))
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::io::Write;
 use std::sync::{Arc, Weak};
 
@@ -39,11 +40,12 @@ lazy_static! {
         twist_by_name: HashMap::new(),
         gizmo_twists: PerGizmoFace::new(),
         dev_data: PuzzleDevData::new(),
+
+        new: Box::new(PuzzleState::new),
     });
 }
 
 /// Puzzle type info.
-#[derive(Debug)]
 pub struct Puzzle {
     /// Reference-counted pointer to this struct.
     pub this: Weak<Puzzle>,
@@ -95,6 +97,17 @@ pub struct Puzzle {
 
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,
+
+    /// Constructor for a solved puzzle state.
+    pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> PuzzleState>,
+}
+
+impl fmt::Debug for Puzzle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Puzzle")
+            .field("meta", &self.meta)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Compare by puzzle ID.
@@ -126,7 +139,7 @@ impl Puzzle {
     }
     /// Constructs a new instance of the puzzle.
     pub fn new_solved_state(&self) -> PuzzleState {
-        PuzzleState::new(self.arc())
+        (self.new)(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.
     pub fn new_scrambled(&self, params: ScrambleParams) -> ScrambledPuzzle {
