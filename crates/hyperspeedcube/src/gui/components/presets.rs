@@ -317,8 +317,11 @@ where
                 }
             }
         } else if let Some(preset_name) = preset_to_delete {
-            self.presets.remove(&preset_name);
-            *self.changed = true;
+            // Don't delete the last preset.
+            if self.presets.len() > 1 {
+                self.presets.remove(&preset_name);
+                *self.changed = true;
+            }
         }
 
         enum NewPresetAction<T> {
