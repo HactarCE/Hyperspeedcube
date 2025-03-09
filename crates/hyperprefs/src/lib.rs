@@ -175,6 +175,16 @@ impl schema::PrefsConvert for Preferences {
         self.color_palette.reload_from_serde(ctx, color_palette);
         self.color_schemes.reload_from_serde(ctx, color_schemes);
 
+        let defaults = &DEFAULT_PREFS_RAW;
+        self.animation
+            .set_builtin_presets_from_default_prefs(ctx, &defaults.animation);
+        self.custom_styles
+            .set_builtin_presets_from_default_prefs(ctx, &defaults.custom_styles);
+        self.view_3d
+            .set_builtin_presets_from_default_prefs(ctx, &defaults.view_3d);
+        self.view_4d
+            .set_builtin_presets_from_default_prefs(ctx, &defaults.view_4d);
+
         self.show_experimental_puzzles = show_experimental_puzzles;
 
         schema::reload_btreemap(&mut self.filters, &self.custom_styles, filters);
@@ -203,6 +213,8 @@ impl Preferences {
     /// existing preferences are backed up (if possible) and `backup` (or else
     /// the default preferences) is returned.
     pub fn load(backup: Option<Self>) -> Self {
+        lazy_static::initialize(&DEFAULT_PREFS);
+
         let mut config = config::Config::builder()
             .set_default("version", schema::CURRENT_VERSION)
             .expect("error setting preferences schema version");

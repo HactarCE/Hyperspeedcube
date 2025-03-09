@@ -359,6 +359,31 @@ impl<T: PresetData> PresetsList<T> {
         self.default = default;
     }
 
+    /// Sets the built-in presets list and default preset from the given default
+    /// preferences.
+    pub(super) fn set_builtin_presets_from_default_prefs(
+        &mut self,
+        ctx: &T::DeserContext,
+        defaults: &schema::current::PresetsList<T::SerdeFormat>,
+    ) where
+        T: Clone + schema::PrefsConvert,
+        T::SerdeFormat: Default + Clone,
+    {
+        let builtin_presets = defaults
+            .presets
+            .iter()
+            .map(|(k, v)| (k.clone(), schema::PrefsConvert::from_serde(ctx, v.clone())))
+            .collect();
+
+        let default = if defaults.last_loaded.is_empty() {
+            defaults.presets.keys().next().cloned().unwrap_or_default()
+        } else {
+            defaults.last_loaded.clone()
+        };
+
+        self.set_builtin_presets(builtin_presets, default);
+    }
+
     /// Returns whether there are no user presets.
     pub fn is_empty(&self) -> bool {
         self.user.is_empty()
