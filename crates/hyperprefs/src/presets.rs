@@ -308,7 +308,7 @@ impl<T: PresetData> PresetsList<T> {
         for (k, v) in map {
             // `T::from_serde()` could be insufficient to track references if
             // things can reference `T` itself.
-            let _ = self.save_preset(k, v);
+            self.save_preset(k, v);
         }
     }
 
@@ -551,7 +551,7 @@ impl<T: PresetData> PresetsList<T> {
     where
         T: Clone,
     {
-        self.save_preset(modified_preset.base.name(), modified_preset.value.clone())
+        self.save_preset(modified_preset.base.name(), modified_preset.value.clone());
     }
     /// Renames the preset `old_name` to `new_name`. This may overwrite an
     /// existing preset.

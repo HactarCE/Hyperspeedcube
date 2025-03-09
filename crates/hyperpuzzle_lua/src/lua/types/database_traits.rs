@@ -133,16 +133,13 @@ where
                 .collect()),
 
             LuaValue::Function(f) => {
-                let ids_in_order = db
-                    .ids_in_order()
-                    .map(|id| db.wrap_id(id.clone()))
-                    .collect_vec();
+                let ids_in_order = db.ids_in_order().map(|id| db.wrap_id(id)).collect_vec();
 
                 drop(db); // Unlock mutex
 
                 Ok(ids_in_order
                     .into_iter()
-                    .map(|db_entry| Ok((db_entry.id.clone(), f.call(db_entry)?)))
+                    .map(|db_entry| Ok((db_entry.id, f.call(db_entry)?)))
                     .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
                     .collect())
             }
@@ -201,7 +198,7 @@ where
     fn value_to_id_by_name(&self, _lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>> {
         let s = value.as_str()?;
         Some(match self.names().names_to_ids().get(&*s) {
-            Some(id) => Ok(id.clone()),
+            Some(&id) => Ok(id),
             None => Err(LuaError::external(format!("no entry named {s:?}"))),
         })
     }
@@ -249,13 +246,12 @@ where
     fn add_named_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
         fields.add_field_method_get("name", |_lua, this| {
             let db = this.db.lock();
-            Ok(db.names().get(this.id.clone()).cloned().map(LuaNameSet))
+            Ok(db.names().get(this.id).cloned().map(LuaNameSet))
         });
         fields.add_field_method_set("name", |lua, this, new_name: Option<LuaNameSet>| {
             let mut db = this.db.lock();
             let new_name = new_name.map(|LuaNameSet(name_set)| name_set);
-            db.names_mut()
-                .set_name(this.id.clone(), new_name, lua_warn_fn(lua));
+            db.names_mut().set_name(this.id, new_name, lua_warn_fn(lua));
             Ok(())
         });
     }
@@ -268,7 +264,7 @@ where
                 let db = this.db.lock();
                 (
                     db.names()
-                        .get(this.id.clone())
+                        .get(this.id)
                         .map(|s| LuaNameSet(s.clone()))
                         .into_lua(lua)?,
                     rhs,
@@ -278,7 +274,7 @@ where
                 (
                     lhs,
                     db.names()
-                        .get(this.id.clone())
+                        .get(this.id)
                         .map(|s| LuaNameSet(s.clone()))
                         .into_lua(lua)?,
                 )

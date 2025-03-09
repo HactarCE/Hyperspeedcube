@@ -174,8 +174,8 @@ impl PuzzleFilterPreferences {
         match &name.seq {
             Some(seq_name) => {
                 if !self.sequences.contains_key(seq_name) {
-                    self.sequences.save_preset(seq_name, PresetsList::default())
-                };
+                    self.sequences.save_preset(seq_name, PresetsList::default());
+                }
                 let seq = self
                     .sequences
                     .get_mut(seq_name)
