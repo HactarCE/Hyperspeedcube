@@ -512,6 +512,15 @@ where
                         overwrite,
                     } => {
                         ui.add_enabled_ui(is_unsaved, |ui| {
+                            if is_unsaved {
+                                let visuals = ui.visuals_mut();
+                                visuals.widgets.inactive.expansion = 2.0;
+                                visuals.widgets.inactive.bg_stroke = egui::Stroke {
+                                    width: 2.0,
+                                    color: visuals.warn_fg_color,
+                                };
+                            }
+
                             let r = ui
                                 .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
                                 .on_hover_explanation(L.presets.save_changes, {
