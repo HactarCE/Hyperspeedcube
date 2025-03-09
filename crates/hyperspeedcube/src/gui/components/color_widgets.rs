@@ -725,7 +725,7 @@ pub fn color_edit(
             .text_edit_monospace()
             .auto_confirm(true)
             .confirm_button_validator(&|s| s.parse::<Rgb>().map(|_| None).map_err(|_| None))
-            .show_with(ui, |ui| {
+            .show_with::<std::convert::Infallible>(ui, |ui| {
                 // TODO: custom color picker
                 let mut egui_color = color.to_egui_color32();
                 let alpha = egui::color_picker::Alpha::Opaque;
@@ -735,8 +735,8 @@ pub fn color_edit(
                     reopen.set();
                     changed = true;
                 }
+                None
             })
-            .0
     });
     #[allow(clippy::collapsible_match)]
     if let Some(r) = popup_response.filter(|_| !reopen.get()) {

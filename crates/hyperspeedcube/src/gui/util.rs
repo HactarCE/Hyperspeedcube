@@ -235,3 +235,15 @@ pub fn centered_popup_area<R>(
             egui::Frame::popup(ui.style()).show(ui, contents).inner
         })
 }
+
+/// Sets styling to be similar to a menu.
+///
+/// Stolen from
+/// [`egui/src/menu.rs`](https://github.com/emilk/egui/blob/0.31.1/crates/egui/src/menu.rs#L77).
+pub fn set_menu_style(style: &mut egui::Style) {
+    style.spacing.button_padding = egui::vec2(2.0, 0.0);
+    style.visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
+    style.visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
+    style.visuals.widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+}

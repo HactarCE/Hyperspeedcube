@@ -64,6 +64,9 @@ impl<K, V> ReorderableCollection<usize> for IndexMap<K, V> {
 }
 
 impl<T: PresetData> ReorderableCollection<String> for PresetsList<T> {
+    /// Moves the preset `from` to `to`, shifting all the presents in between.
+    ///
+    /// Fails silently if either `from` or `to` does not exist.
     fn reorder(&mut self, drag: DragAndDropResponse<String, String>) {
         let Some(before_or_after) = drag.before_or_after else {
             log::error!("missing `BeforeOrAfter` in reorder");

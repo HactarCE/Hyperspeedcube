@@ -376,11 +376,11 @@ fn show_filter_presets_list_ui_contents(
         let seq_name = make_unique_filter_sequence_name(&filter_prefs.sequences);
         let preset_name = "Step 1".to_owned();
         let mut seq = PresetsList::default();
-        let saved_preset_name = seq.save_preset(preset_name, current.current.clone());
-        let saved_seq_name = filter_prefs.sequences.save_preset(seq_name, seq);
+        seq.save_preset(&preset_name, current.current.clone());
+        filter_prefs.sequences.save_preset(&seq_name, seq);
         preset_to_activate = Some(FilterPresetName {
-            seq: Some(saved_seq_name),
-            preset: saved_preset_name,
+            seq: Some(seq_name),
+            preset: preset_name,
         });
         *changed = true;
     }
@@ -796,10 +796,9 @@ fn show_current_filter_preset_ui_contents(
 
         let filter_prefs = prefs.filters_mut(&puz);
         if let Some(preset_ref) = &view.filters.base {
-            let saved_preset_name =
-                filter_prefs.save_preset(&preset_ref.name(), view.filters.current.clone());
-            view.filters
-                .load_preset(filter_prefs, Some(&saved_preset_name));
+            let preset_name = preset_ref.name();
+            filter_prefs.save_preset(&preset_name, view.filters.current.clone());
+            view.filters.load_preset(filter_prefs, Some(&preset_name));
             prefs.needs_save = true;
         }
     }

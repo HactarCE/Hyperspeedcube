@@ -23,6 +23,7 @@ struct "PresetErrors" default=presets.default.errors {
 
 struct "PresetActions" default=presets.default.actions {
   add
+  add_all_builtin
   rename
   delete
 }

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use std::{borrow::Cow, collections::HashMap};
 
 use hyperpuzzle_core::{PieceMask, Puzzle};
 use itertools::Itertools;
@@ -170,46 +170,28 @@ impl PuzzleFilterPreferences {
         }
     }
     /// Saves a filter preset, creating a filter sequence if necessary.
-    ///
-    /// Returns the name that the preset was saved to.
-    #[must_use]
-    pub fn save_preset(
-        &mut self,
-        name: &FilterPresetName,
-        value: FilterSeqPreset,
-    ) -> FilterPresetName {
+    pub fn save_preset(&mut self, name: &FilterPresetName, value: FilterSeqPreset) {
         match &name.seq {
             Some(seq_name) => {
-                let saved_seq_name = if self.sequences.contains_key(seq_name) {
-                    seq_name.clone()
-                } else {
-                    self.sequences
-                        .save_preset(seq_name.clone(), PresetsList::default())
+                if !self.sequences.contains_key(seq_name) {
+                    self.sequences.save_preset(seq_name, PresetsList::default())
                 };
                 let seq = self
                     .sequences
-                    .get_mut(&saved_seq_name)
+                    .get_mut(seq_name)
                     .expect("filter sequence vanished!");
 
-                let saved_preset_name = seq.value.save_preset(name.preset.clone(), value);
-
-                FilterPresetName {
-                    seq: Some(saved_seq_name),
-                    preset: saved_preset_name,
-                }
+                seq.value.save_preset(&name.preset, value);
             }
-            None => {
-                let saved_preset_name = self.presets.save_preset(name.preset.clone(), value.inner);
-
-                FilterPresetName {
-                    seq: None,
-                    preset: saved_preset_name,
-                }
-            }
+            None => self.presets.save_preset(&name.preset, value.inner),
         }
     }
     /// Renames a filter preset.
-    pub fn rename_preset(&mut self, old_name: &FilterPresetName, new_name: &str) {
+    pub fn rename_preset<'a>(
+        &mut self,
+        old_name: &FilterPresetName,
+        new_name: impl Into<Cow<'a, str>>,
+    ) {
         match &old_name.seq {
             Some(seq_name) => {
                 if let Some(seq) = self.sequences.get_mut(seq_name) {
@@ -282,7 +264,7 @@ impl PuzzleFilterPreferences {
     /// fallback presets.
     pub fn combined_fallback_preset(&self, name: &FilterPresetName) -> Option<FilterPreset> {
         let seq = &self.sequences.get(name.seq.as_ref()?)?.value;
-        let index = seq.get_user_preset_index_of(&name.preset)?;
+        let index = seq.get_index_of(&name.preset)?;
         let mut fallback_presets = (0..=index)
             .rev()
             .map_while(|i| seq.nth_user_preset(i))
@@ -300,7 +282,7 @@ impl PuzzleFilterPreferences {
     /// Returns the previous preset in the sequence, if there is one.
     pub fn prev_preset_in_seq(&self, name: &FilterPresetName) -> Option<FilterPresetRef> {
         let seq = &self.sequences.get(name.seq.as_ref()?)?;
-        let index = seq.value.get_user_preset_index_of(&name.preset)?;
+        let index = seq.value.get_index_of(&name.preset)?;
         let (_, preset) = seq.value.nth_user_preset(index.checked_sub(1)?)?;
         Some(FilterPresetRef {
             seq: Some(seq.new_ref()),
@@ -310,7 +292,7 @@ impl PuzzleFilterPreferences {
     /// Returns the next preset in the sequence, if there is one.
     pub fn next_preset_in_seq(&self, name: &FilterPresetName) -> Option<FilterPresetRef> {
         let seq = &self.sequences.get(name.seq.as_ref()?)?;
-        let index = seq.value.get_user_preset_index_of(&name.preset)?;
+        let index = seq.value.get_index_of(&name.preset)?;
         let (_, preset) = seq.value.nth_user_preset(index.checked_add(1)?)?;
         Some(FilterPresetRef {
             seq: Some(seq.new_ref()),
@@ -322,7 +304,7 @@ impl PuzzleFilterPreferences {
     /// not need to be saved.
     pub(crate) fn is_default(&self) -> bool {
         let Self { presets, sequences } = self;
-        presets.is_empty() && sequences.is_empty()
+        presets.is_default() && sequences.is_default()
     }
 }
 
@@ -498,7 +480,7 @@ mod tests {
 
         assert!(p.sequences.is_empty());
         assert!(p.presets.is_empty());
-        let _ = p.save_preset(
+        p.save_preset(
             &FilterPresetName::new("a".to_owned()),
             FilterSeqPreset::default(),
         );
@@ -507,7 +489,7 @@ mod tests {
         assert_eq!(ab.seq.clone().unwrap(), "a");
         assert_eq!(ab.preset, "b");
 
-        let _ = p.save_preset(&ab.name(), FilterSeqPreset::default());
+        p.save_preset(&ab.name(), FilterSeqPreset::default());
         p.rename_preset(
             &FilterPresetName {
                 seq: Some("a".to_owned()),

@@ -169,6 +169,8 @@ presets {
   save_changes "Save changes"
   create_current "Create {{current}}"
   overwrite_current "Overwrite {{current}}"
+  add_named "Add {{name}}"
+  reset_to_builtin "Reset to built-in values"
 
   // `default` is used as a fallback for others.
   (PresetStrings)default {
@@ -183,6 +185,7 @@ presets {
     }
     (PresetActions)actions {
       add "Add preset"
+      add_all_builtin "Add all built-in presets"
       rename "Rename preset"
       delete "Delete preset"
     }
@@ -202,6 +205,7 @@ presets {
     current_empty "Ad-hoc piece filters"
     (PresetActions)actions {
       add "Add filter preset"
+      add_all_builtin "Add all built-in filter presets"
       rename "Rename filter preset"
       delete "Delete filter preset"
     }
@@ -214,6 +218,7 @@ presets {
     }
     (PresetActions)actions {
       add "Add filter sequence"
+      add_all_builtin "Add all built-in filter sequences"
       rename "Rename filter sequence"
       delete "Delete filter sequence"
     }
@@ -230,6 +235,7 @@ presets {
     }
     (PresetActions)actions {
       add "Add color scheme"
+      add_all_builtin "Add all built-in color schemes"
       rename "Rename color scheme"
       delete "Delete color scheme"
     }
@@ -246,6 +252,7 @@ presets {
     }
     (PresetActions)actions {
       add "Add style"
+      add_all_builtin "Add all built-in styles"
       rename "Rename style"
       delete "Delete style"
     }

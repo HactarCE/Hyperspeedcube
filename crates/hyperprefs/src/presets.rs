@@ -44,6 +44,7 @@
 //! that should be preserved in the [`PresetTombstone`] along with top-level
 //! dead references.
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
@@ -57,12 +58,6 @@ use super::schema;
 use crate::ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection};
 
 pub const MODIFIED_SUFFIX: &str = " (modified)";
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum PresetKind {
-    User,
-    Builtin,
-}
 
 /// Data preserved after deleting a preset.
 ///
@@ -88,7 +83,7 @@ impl<T: PresetData> PresetTombstone<T> {
     }
 }
 
-pub trait PresetData: fmt::Debug {
+pub trait PresetData: fmt::Debug + PartialEq {
     /// Data to preserve after deleting a preset, and to restore if it
     /// recreated. This is delete when the program exits.
     ///
@@ -200,7 +195,7 @@ pub struct Rename {
 /// up efficiently by name and can be referenced externally independent of their
 /// names.
 ///
-/// Some initial presets may be immutable "built-in" values.
+/// Some initial presets may be based on immutable "built-in" values.
 ///
 /// **Do not use this type if `T` contains objects that can be referenced.**
 /// That requires a custom type, like [`FilterPresetSeqList`] for example.
@@ -211,7 +206,7 @@ pub struct PresetsList<T: PresetData> {
     /// Name of the default preset, if known.
     default: String,
     /// List of all built-in presets.
-    builtin: IndexMap<String, Preset<T>>,
+    builtin: IndexMap<String, T>,
     /// List of all saved user presets.
     pub(super) user: IndexMap<String, Preset<T>>,
 
@@ -231,6 +226,16 @@ impl<T: PresetData> Default for PresetsList<T> {
         }
     }
 }
+impl<T: PresetData> PartialEq for PresetsList<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.last_loaded == other.last_loaded
+            && self.default == other.default
+            && self.builtin == other.builtin
+            && self.user == other.user
+        // ignore tombstones
+    }
+}
+impl<T: PresetData + Eq> Eq for PresetsList<T> {}
 impl<T: PresetData + schema::PrefsConvert + Default> schema::PrefsConvert for PresetsList<T>
 where
     T::SerdeFormat: Default,
@@ -287,11 +292,11 @@ impl<T: PresetData + schema::PrefsConvert> PresetsList<T> {
             last_loaded,
             default,
             builtin: _,
-            user,
+            user: _,
             tombstones: _,
         } = self;
 
-        last_loaded.is_empty() || last_loaded == default && user.is_empty()
+        (last_loaded.is_empty() || last_loaded == default) && self.user_presets_eq_builtin_presets()
     }
 }
 impl<T: PresetData> PresetsList<T> {
@@ -307,52 +312,64 @@ impl<T: PresetData> PresetsList<T> {
         }
     }
 
-    /// Sets the builtin presets list.
+    /// Returns whether the list of user presets exactly equals the list of
+    /// built-in presets; i.e., the user hasn't modified them.
+    fn user_presets_eq_builtin_presets(&self) -> bool {
+        itertools::equal(
+            self.builtin.iter(),
+            self.user.iter().map(|(k, v)| (k, &v.value)),
+        )
+    }
+
+    /// Sets the built-in presets list and default preset.
     ///
     /// Deletes any user presets with the same name.
-    pub fn set_builtin_presets(&mut self, builtin_presets: IndexMap<String, T>, default: String) {
-        // Assemble a list of user presets that have conflicting names.
-        let to_rename = self
-            .user
-            .keys()
-            .filter(|&k| builtin_presets.contains_key(k))
-            .cloned()
-            .collect_vec();
-
-        // Remove old built-in presets.
-        for (name, mut preset) in std::mem::take(&mut self.builtin) {
-            self.add_tombstone(name, preset.take_tombstone());
+    pub fn set_builtin_presets(&mut self, builtin_presets: IndexMap<String, T>, default: String)
+    where
+        T: Clone,
+    {
+        if self.builtin == builtin_presets {
+            return;
         }
 
+        if self.user_presets_eq_builtin_presets() {
+            // Replace all presets.
+            self.remove_all();
+            for (name, value) in &builtin_presets {
+                self.save_preset(name.clone(), value.clone());
+            }
+        } else {
+            // Update or delete unmodified built-in presets.
+            let mut to_delete = vec![];
+            for (name, preset) in &mut self.user {
+                if self.builtin.get(name) == Some(&preset.value) {
+                    match builtin_presets.get(name) {
+                        Some(new_value) => preset.value = new_value.clone(),
+                        None => to_delete.push(name.clone()),
+                    }
+                }
+            }
+            for name in to_delete {
+                self.remove(&name);
+            }
+        }
+        self.builtin = builtin_presets;
         self.prune_dead_refs();
 
         self.default = default;
-        self.builtin = builtin_presets
-            .into_iter()
-            .map(|(k, v)| {
-                let mut preset = Preset::new(PresetKind::Builtin, k, v);
-                preset.revive_opt_tombstone(self.take_preset_tombstone(&preset.name));
-                (preset.name.clone(), preset)
-            })
-            .collect();
-
-        // Rename those user presets.
-        for name in to_rename {
-            self.rename(&name, &name);
-        }
     }
 
-    /// Returns whether there are no built-in presets and no user presets.
+    /// Returns whether there are no user presets.
     pub fn is_empty(&self) -> bool {
-        self.builtin.is_empty() && self.user.is_empty()
+        self.user.is_empty()
     }
-    /// Returns the number of presets, including built-in and user presets.
+    /// Returns the number of user presets.
     pub fn len(&self) -> usize {
-        self.builtin.len() + self.user.len()
+        self.user.len()
     }
     /// Returns whether there is a preset with the given name.
     pub fn contains_key(&self, name: &str) -> bool {
-        self.get(name).is_some()
+        self.user.contains_key(name)
     }
     /// Returns the preset with the given name and marks it as the
     /// most-recently-loaded preset.
@@ -368,8 +385,7 @@ impl<T: PresetData> PresetsList<T> {
     }
     /// Returns the preset with the given name, or `None` if it does not exist.
     pub fn get(&self, name: &str) -> Option<&Preset<T>> {
-        None.or_else(|| self.builtin.get(name))
-            .or_else(|| self.user.get(name))
+        self.user.get(name)
     }
     /// Returns the preset with the given name, or `None` if it does not exist
     /// or cannot be modified.
@@ -399,14 +415,21 @@ impl<T: PresetData> PresetsList<T> {
         }
     }
 
+    /// Returns `true` if the user preset has been modified or deleted compared
+    /// to the built-in preset with the same name. If there is no built-in
+    /// preset with the same name, returns whether a preset with `name` exists.
+    pub fn is_preset_modified_from_builtin(&self, name: &str) -> bool {
+        self.user.get(name).map(|p| &p.value) != self.builtin.get(name)
+    }
+
     /// Returns the index of the user preset with the given name.
-    pub fn get_user_preset_index_of(&self, name: &str) -> Option<usize> {
+    pub fn get_index_of(&self, name: &str) -> Option<usize> {
         self.user.get_index_of(name)
     }
 
-    /// Iterates over built-in presets.
-    pub fn builtin_presets(&self) -> impl Iterator<Item = &Preset<T>> {
-        self.builtin.values()
+    /// Returns the map of built-in presets.
+    pub fn builtin_presets(&self) -> &IndexMap<String, T> {
+        &self.builtin
     }
     /// Iterates over saved user presets.
     pub fn user_presets(&self) -> impl Iterator<Item = &Preset<T>> {
@@ -416,14 +439,10 @@ impl<T: PresetData> PresetsList<T> {
     pub fn user_presets_mut(&mut self) -> impl Iterator<Item = &mut Preset<T>> {
         self.user.values_mut()
     }
-    /// Iterates over all presets, starting with built-in ones.
-    pub fn presets(&self) -> impl Iterator<Item = &Preset<T>> {
-        itertools::chain(self.builtin_presets(), self.user_presets())
-    }
 
     /// Returns the set of names with existing presets.
     pub fn taken_names(&self) -> HashSet<String> {
-        self.presets().map(|p| p.name.clone()).collect()
+        self.user.keys().cloned().collect()
     }
 
     /// Returns the `n`th saved user preset.
@@ -454,11 +473,7 @@ impl<T: PresetData> PresetsList<T> {
     where
         T: Default + Clone,
     {
-        match self
-            .last_loaded()
-            .or_else(|| self.builtin_presets().next())
-            .or_else(|| self.user_presets().next())
-        {
+        match self.last_loaded().or_else(|| self.user_presets().next()) {
             Some(p) => p.to_modifiable(),
             None => ModifiedPreset {
                 base: self.new_ref(default_preset_name),
@@ -484,56 +499,40 @@ impl<T: PresetData> PresetsList<T> {
         !new_name.is_empty() && !self.contains_key(new_name)
     }
 
-    /// Saves a preset, adding a new one if it does not already exist.
-    ///
-    /// Returns the name that the preset was saved to.
-    #[must_use]
-    pub fn save_preset(&mut self, name: String, value: T) -> String {
-        let name = self.name_to_save(name);
-        if let Some(preset) = self.user.get_mut(&name) {
+    /// Saves a preset, overwriting an existing one or adding a new one if it
+    /// does not already exist.
+    pub fn save_preset<'a>(&mut self, name: impl Into<Cow<'a, str>>, value: T) {
+        let name = name.into();
+        if let Some(preset) = self.user.get_mut(name.as_ref()) {
             preset.value = value;
         } else {
-            let mut preset = Preset::new(PresetKind::User, name.clone(), value);
+            let name = name.into_owned();
+            let mut preset = Preset::new(name.clone(), value);
             preset.revive_opt_tombstone(self.take_preset_tombstone(&name));
             self.user.insert(name.clone(), preset);
         }
-        name
     }
     /// Saves a preset, modifying the name if needed to avoid conflicting with
     /// an existing one. Returns the new name.
     #[must_use]
     pub fn save_preset_with_nonconflicting_name(&mut self, desired_name: &str, value: T) -> String {
         let name = self.find_nonconflicting_name(desired_name);
-        self.save_preset(name.clone(), value)
+        self.save_preset(&name, value);
+        name
     }
     /// Saves a modified preset, creating it anew if the old one has been
     /// deleted.
-    ///
-    /// Returns the name the preset was saved to, which may be different from
-    /// the original name if it conflicts with a built-in preset.
-    #[must_use]
-    pub fn save_over_preset(&mut self, modified_preset: &ModifiedPreset<T>) -> String
+    pub fn save_over_preset(&mut self, modified_preset: &ModifiedPreset<T>)
     where
         T: Clone,
     {
         self.save_preset(modified_preset.base.name(), modified_preset.value.clone())
     }
-    /// Returns the name that a modified preset will be saved under. For user
-    /// presets, this is the same as the original name. For built-in presets, a
-    /// suffix is added to differentiate them.
-    pub fn name_to_save(&self, mut name: String) -> String {
-        while self.builtin.contains_key(&name) {
-            // Keep looping until we get a free name, just in case the built-in
-            // presets are named pathologically.
-            name += MODIFIED_SUFFIX;
-        }
-        name
-    }
-    /// Renames the preset `old_name` to `new_name`. If the new name is not
-    /// already available, it is changed to one that is available.
-    pub fn rename(&mut self, old_name: &str, new_name: &str) {
+    /// Renames the preset `old_name` to `new_name`. This may overwrite an
+    /// existing preset.
+    pub fn rename<'a>(&mut self, old_name: &str, new_name: impl Into<Cow<'a, str>>) {
         if let Some((index, _old_name, mut preset)) = self.user.swap_remove_full(old_name) {
-            let new_name = self.find_nonconflicting_name(new_name);
+            let new_name = new_name.into().into_owned();
 
             // Update external references.
             preset.name = new_name.clone();
@@ -588,6 +587,8 @@ impl<T: PresetData> PresetsList<T> {
         })
     }
     /// Moves the preset `from` to `to`, shifting all the presents in between.
+    ///
+    /// Fails silently if either `from` or `to` does not exist.
     pub fn reorder_user_preset(&mut self, from: &str, to: &str, before_or_after: BeforeOrAfter) {
         let Some(from) = self.user.get_index_of(from) else {
             return;
@@ -651,7 +652,6 @@ impl<T: PresetData> PresetsList<T> {
 /// Named set of values for some set of settings.
 #[derive(Debug)]
 pub struct Preset<T> {
-    kind: PresetKind,
     name: String,
     pub value: T,
     named_refs: Mutex<Vec<PresetRef>>,
@@ -663,16 +663,12 @@ impl<T: PartialEq> PartialEq for Preset<T> {
 }
 impl<T: Eq> Eq for Preset<T> {}
 impl<T> Preset<T> {
-    fn new(kind: PresetKind, name: String, value: T) -> Self {
+    fn new(name: String, value: T) -> Self {
         Self {
-            kind,
             name,
             value,
             named_refs: Mutex::new(vec![]),
         }
-    }
-    pub fn kind(&self) -> PresetKind {
-        self.kind
     }
     pub fn name(&self) -> &String {
         &self.name

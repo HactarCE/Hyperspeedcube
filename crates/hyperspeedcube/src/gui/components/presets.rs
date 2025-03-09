@@ -185,6 +185,7 @@ where
         let mut edit_popup = TextEditPopup::new(ui);
         let mut new_popup = TextEditPopup::new(ui);
         let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
+        let any_popup = edit_popup.is_open() || new_popup.is_open();
 
         // Presets selector.
         let r = ui.scope(|ui| {
@@ -199,41 +200,25 @@ where
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
-                for preset in self.presets.builtin_presets() {
-                    crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
-                    let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
-                        self.show_preset_name_selectable_label(ui, preset.name())
-                            .on_hover_ui(|ui| {
-                                md(ui, L.click_to.activate.with(L.inputs.click));
-                            })
-                    });
-
-                    // Left click -> Activate preset
-                    if r.clicked() {
-                        preset_to_activate = Some(preset.name().clone());
-                    }
-
-                    // Don't handle other interaction. We can't edit or reorder
-                    // this preset.
-                }
-
                 for preset in self.presets.user_presets() {
                     crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
                     let r = dnd.draggable(ui, preset.name().clone(), |ui, _is_dragging| {
                         let r = self.show_preset_name_selectable_label(ui, preset.name());
                         egui::InnerResponse::new((), r)
                     });
-                    let r = r.inner.response.on_hover_ui(|ui| {
-                        // TODO: don't show this if there's a popup
-                        for action in [
-                            L.click_to.activate.with(L.inputs.click),
-                            L.click_to.rename.with(L.inputs.right_click),
-                            L.click_to.reorder.with(L.inputs.drag),
-                            crate::gui::middle_click_to_delete_text(ui),
-                        ] {
-                            md(ui, action);
-                        }
-                    });
+                    let mut r = r.inner.response;
+                    if !any_popup {
+                        r = r.on_hover_ui(|ui| {
+                            for action in [
+                                L.click_to.activate.with(L.inputs.click),
+                                L.click_to.rename.with(L.inputs.right_click),
+                                L.click_to.reorder.with(L.inputs.drag),
+                                crate::gui::middle_click_to_delete_text(ui),
+                            ] {
+                                md(ui, action);
+                            }
+                        });
+                    }
 
                     // Left click -> Activate preset
                     if r.clicked() {
@@ -267,6 +252,10 @@ where
             });
         });
 
+        enum EditPresetAction<T> {
+            ResetToBuiltin(T),
+        }
+
         let edit_popup_response = edit_popup.if_open(|popup| {
             popup
                 .below(&r.response)
@@ -283,7 +272,29 @@ where
                         Err(Some(self.text.errors.cannot_delete_last.into()))
                     }
                 })
-                .show(ui)
+                .show_with(ui, |ui| {
+                    let preset_name = preset_to_edit.get()?;
+                    let builtin_value = self.presets.builtin_presets().get(&preset_name)?;
+
+                    let is_modified_from_builtin =
+                        self.presets.is_preset_modified_from_builtin(&preset_name)
+                            || (self.current.base.name() == preset_name
+                                && self.current.value != *builtin_value);
+
+                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                        crate::gui::util::set_menu_style(ui.style_mut());
+                        ui.separator();
+                        ui.add_enabled_ui(is_modified_from_builtin, |ui| {
+                            ui.button(L.presets.reset_to_builtin).clicked().then(|| {
+                                TextEditPopupResponse::Other(EditPresetAction::ResetToBuiltin(
+                                    builtin_value.clone(),
+                                ))
+                            })
+                        })
+                        .inner
+                    })
+                    .inner
+                })
         });
         if let Some(r) = edit_popup_response {
             if let Some(preset_name) = preset_to_edit.take() {
@@ -297,11 +308,22 @@ where
                         *self.changed = true;
                     }
                     TextEditPopupResponse::Cancel => (),
+                    TextEditPopupResponse::Other(EditPresetAction::ResetToBuiltin(
+                        builtin_value,
+                    )) => {
+                        self.presets.save_preset(&preset_name, builtin_value);
+                        preset_to_activate = Some(preset_name);
+                    }
                 }
             }
         } else if let Some(preset_name) = preset_to_delete {
             self.presets.remove(&preset_name);
             *self.changed = true;
+        }
+
+        enum NewPresetAction<T> {
+            AddBuiltin(String, T),
+            AddAllBuiltins,
         }
 
         let new_popup_response = new_popup.if_open(|popup| {
@@ -313,17 +335,64 @@ where
                 .confirm_button_validator(&|new_name| {
                     self.validate_preset_name(new_name, self.text.actions.add)
                 })
-                .show(ui)
+                .show_with(ui, |ui| {
+                    let builtins = self.presets.builtin_presets();
+                    if builtins.is_empty() {
+                        return None;
+                    }
+
+                    let mut can_add_any = false;
+                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                        crate::gui::util::set_menu_style(ui.style_mut());
+                        ui.separator();
+                        for (name, value) in builtins {
+                            let can_add_this_preset = !self.presets.contains_key(name);
+                            can_add_any |= can_add_this_preset;
+                            let r = ui.add_enabled_ui(can_add_this_preset, |ui| {
+                                ui.button(L.presets.add_named.with(name))
+                            });
+                            if r.inner.clicked() {
+                                return Some(TextEditPopupResponse::Other(
+                                    NewPresetAction::AddBuiltin(name.clone(), value.clone()),
+                                ));
+                            }
+                        }
+                        if builtins.len() > 1 {
+                            ui.separator();
+                            let r = ui.add_enabled_ui(can_add_any, |ui| {
+                                ui.button(self.text.actions.add_all_builtin)
+                            });
+                            if r.inner.clicked() {
+                                return Some(TextEditPopupResponse::Other(
+                                    NewPresetAction::AddAllBuiltins,
+                                ));
+                            }
+                        }
+                        None
+                    })
+                    .inner
+                })
         });
         if let Some(r) = new_popup_response {
             match r {
                 TextEditPopupResponse::Confirm(new_name) => {
-                    let saved_name = self
-                        .presets
-                        .save_preset(new_name.clone(), self.current.value.clone());
-                    preset_to_activate = Some(saved_name);
+                    self.presets
+                        .save_preset(&new_name, self.current.value.clone());
+                    preset_to_activate = Some(new_name);
                 }
                 TextEditPopupResponse::Delete | TextEditPopupResponse::Cancel => (),
+                TextEditPopupResponse::Other(NewPresetAction::AddBuiltin(name, value)) => {
+                    self.presets.save_preset(&name, value);
+                    preset_to_activate = Some(name);
+                }
+                TextEditPopupResponse::Other(NewPresetAction::AddAllBuiltins) => {
+                    for (name, value) in self.presets.builtin_presets().clone() {
+                        if !self.presets.contains_key(&name) {
+                            self.presets.save_preset(name, value.clone());
+                        }
+                    }
+                    *self.changed = true;
+                }
             }
         }
 
@@ -412,10 +481,7 @@ where
             && self.presets.contains_key(&current_name);
 
         if save_preset {
-            let saved_preset_name = self.presets.save_over_preset(self.current);
-            if let Some(p) = self.presets.load(&saved_preset_name) {
-                *self.current = p;
-            }
+            self.presets.save_over_preset(self.current);
             *self.changed = true;
         }
     }
