@@ -80,18 +80,8 @@ pub struct Puzzle {
     /// Move notation.
     pub notation: Notation,
 
-    /// List of axes, indexed by ID.
-    pub axes: PerAxis<AxisInfo>,
-    /// Map from axis name to axis.
-    pub axis_by_name: HashMap<String, Axis>,
-
-    /// List of twists, indexed by ID.
-    pub twists: PerTwist<TwistInfo>,
-    /// Map from twist name to twist.
-    pub twist_by_name: HashMap<String, Twist>,
-
-    /// Twist for each face of a twist gizmo.
-    pub gizmo_twists: PerGizmoFace<Twist>,
+    /// Layers on each axis.
+    pub axis_layers: PerAxis<AxisLayers>,
 
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,

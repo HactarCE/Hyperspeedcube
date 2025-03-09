@@ -24,7 +24,8 @@ puzzle_generators:add{
   version = '1.0.0',
   name = "NxNxN Face-Turning Cube",
   aliases = {"N^3"},
-  colors = 'cube',
+  shape = 'cube',
+  twists = 'ft_cube',
   params = {
     { name = "Layers", type = 'int', default = 3, min = 1, max = 49 },
   },
@@ -36,18 +37,17 @@ puzzle_generators:add{
       aliases = { size .. "^" .. 3 },
       ndim = 3,
       build = function(self)
-        local shape = lib.symmetries.bc3.cube()
+
         local cut_depths = ft_cube_cut_depths(3, size)
-        local colors, axes = utils.cut_ft_shape(self, shape, cut_depths)
+
+        self.twists.faces:for_each(function(a) a.layers:add(cut_depths) end)
+        for _, ax in ipairs(self.twists.faces) do
+          ax.layers:add(cut_depths)
+        end
 
         if size == 1 then
           lib.piece_types.mark_everything_core(self)
           return
-        end
-
-        -- Define twists
-        for t, ax, rot in shape.sym.chiral:orbit(axes[1], shape.sym:thru(2, 1)) do
-          self.twists:add(ax, rot, { gizmo_pole_distance = 1 })
         end
 
         -- Mark piece types
