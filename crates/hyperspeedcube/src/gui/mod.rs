@@ -1,6 +1,7 @@
 use std::sync::{Arc, mpsc};
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
+use hyperprefs::DeleteInput;
 use markdown::md;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
@@ -20,7 +21,7 @@ mod modals;
 mod tabs;
 
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
-use util::EguiTempFlag;
+use util::{EguiTempFlag, EguiTempValue};
 
 use crate::L;
 pub use crate::app::App;
@@ -117,6 +118,26 @@ impl AppUi {
                 egui::Color32::from_rgb(r, g, b)
             }))
             .show(ctx, |ui| {
+                let tmp = EguiTempValue::new(ui);
+                if ui.input(|input| input.key_pressed(egui::Key::A)) {
+                    tmp.set(Some(5));
+                }
+                if let Some(v) = tmp.get() {
+                    egui::Modal::new(unique_id!()).show(ctx, |ui| {
+                        ui.label("omg");
+                        if ui.button("confirmmmm").clicked()
+                            || ui.input(|input| input.key_pressed(egui::Key::Enter))
+                        {
+                            tmp.set(None);
+                        }
+                        if ui.button("cancel").clicked()
+                            || ui.input(|input| input.key_pressed(egui::Key::Escape))
+                        {
+                            tmp.set(None);
+                        }
+                    });
+                }
+
                 let mut style = egui_dock::Style::from_egui(ui.style());
                 style.tab_bar.fill_tab_bar = true;
                 style.overlay.overlay_type = egui_dock::OverlayType::HighlightedAreas;
@@ -270,9 +291,14 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     }
 }
 
-fn middle_clicked(ui: &egui::Ui, r: &egui::Response) -> bool {
-    r.middle_clicked() && get_middle_click_delete(ui)
-        || ui.input(|input| input.modifiers.alt && !input.modifiers.command) && r.clicked()
+fn middle_clicked(ui: &egui::Ui, r: &egui::Response) -> Option<DeleteInput> {
+    if r.middle_clicked() && get_middle_click_delete(ui) {
+        Some(DeleteInput::MiddleClick)
+    } else if ui.input(|input| input.modifiers.alt && !input.modifiers.command) && r.clicked() {
+        Some(DeleteInput::AltClick)
+    } else {
+        None
+    }
 }
 fn get_middle_click_delete(ui: &egui::Ui) -> bool {
     ui.data(|data| data.get_temp(middle_click_delete_id()))

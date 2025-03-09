@@ -418,8 +418,32 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
     });
 
     let l = &L.prefs.interaction.ui;
-    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+    prefs_ui.collapsing("User interface", |mut prefs_ui| {
+        fn to_hov(s: &'static str) -> HoverStrings {
+            HoverStrings {
+                label: s,
+                full: s,
+                desc: s,
+            }
+        }
+        prefs_ui.checkbox(
+            &to_hov("Confirm discard only when scrambled"),
+            access!(.reverse_filter_rules),
+        );
+        prefs_ui.ui.separator();
         prefs_ui.checkbox(&l.middle_click_delete, access!(.middle_click_delete));
+        prefs_ui.checkbox(
+            &to_hov("Confirm on delete button"),
+            access!(.confirm_on_delete_button),
+        );
+        prefs_ui.checkbox(
+            &to_hov("Confirm on alt+click delete"),
+            access!(.confirm_on_alt_click_delete),
+        );
+        prefs_ui.checkbox(
+            &to_hov("Confirm on middle click delete"),
+            access!(.confirm_on_middle_click_delete),
+        );
         prefs_ui.checkbox(&l.reverse_filter_rules, access!(.reverse_filter_rules));
     });
 }

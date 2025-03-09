@@ -181,7 +181,7 @@ where
 
         let mut preset_to_activate = None;
         let preset_to_edit = EguiTempValue::new(ui);
-        let mut preset_to_delete = None;
+        let preset_to_delete = EguiTempValue::new(ui);
         let mut edit_popup = TextEditPopup::new(ui);
         let mut new_popup = TextEditPopup::new(ui);
         let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
@@ -231,8 +231,8 @@ where
                     }
 
                     // Middle-click -> Delete preset
-                    if crate::gui::middle_clicked(ui, &r) {
-                        preset_to_delete = Some(preset.name().clone());
+                    if crate::gui::middle_clicked(ui, &r).is_some() {
+                        preset_to_delete.set(Some(preset.name().clone()));
                     }
 
                     // Drag -> Reorder preset
@@ -316,7 +316,7 @@ where
                     }
                 }
             }
-        } else if let Some(preset_name) = preset_to_delete {
+        } else if let Some(preset_name) = preset_to_delete.get() {
             // Don't delete the last preset.
             if self.presets.len() > 1 {
                 self.presets.remove(&preset_name);

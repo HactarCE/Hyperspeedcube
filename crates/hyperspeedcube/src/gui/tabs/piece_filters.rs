@@ -580,7 +580,7 @@ fn show_preset_name(
     }
 
     // Alt+click to delete
-    if crate::gui::middle_clicked(ui, &r) {
+    if crate::gui::middle_clicked(ui, &r).is_some() {
         *to_delete = Some(name.clone());
     }
 }

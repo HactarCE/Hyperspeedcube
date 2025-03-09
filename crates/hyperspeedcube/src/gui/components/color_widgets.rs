@@ -704,7 +704,7 @@ pub fn color_edit(
 
     // Alt+click to delete
     if let Some(on_delete) = on_delete {
-        if crate::gui::middle_clicked(ui, &r) {
+        if crate::gui::middle_clicked(ui, &r).is_some() {
             on_delete();
         }
     }
