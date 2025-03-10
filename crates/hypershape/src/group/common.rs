@@ -123,7 +123,7 @@ impl<T: Default + Clone> EggTable<T> {
         let new_element = GroupElementId::try_from_usize(self.element_count)?;
         self.element_count += 1;
         self.contents
-            .extend(std::iter::repeat(value).take(self.generator_count));
+            .extend(std::iter::repeat_n(value, self.generator_count));
         Ok(new_element)
     }
     /// Returns a value from the table.

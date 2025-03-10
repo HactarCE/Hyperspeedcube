@@ -17,6 +17,7 @@ pub struct NdEuclidPuzzleStateRenderData {
 }
 impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
+/// Animation for an N-dimensional Euclidean puzzle.
 #[derive(Debug, Clone)]
 pub struct NdEuclidPuzzleAnimation {
     /// Set of pieces affected by the animation.

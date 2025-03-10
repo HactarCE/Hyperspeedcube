@@ -115,9 +115,8 @@ impl LuaColorSystem {
         // This is similar to `LuaIdDatabase::mapping_from_value()`, but it
         // allows the keys themselves to be tables of values (and then adds
         // `[n]` to the end of the value string).
-        let mut mapping: PerColor<Option<DefaultColor>> = std::iter::repeat(None)
-            .take(puz.shape.colors.len())
-            .collect();
+        let mut mapping: PerColor<Option<DefaultColor>> =
+            std::iter::repeat_n(None, puz.shape.colors.len()).collect();
         match mapping_to_color_names {
             LuaValue::Table(t) => {
                 for pair in t.pairs() {

@@ -19,6 +19,8 @@
 //!
 //! Atomic polytopes are memoized and given IDs.
 
+#![allow(clippy::unneeded_struct_pattern)] // TODO: fix warnings or delete all this code
+
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, hash_map};
 use std::fmt;

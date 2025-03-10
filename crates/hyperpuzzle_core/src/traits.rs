@@ -32,7 +32,11 @@ pub trait PuzzleState: 'static + fmt::Debug + Clone + Send + Sync {
 }
 
 macro_rules! box_dyn_wrapper_struct {
-    ($vis:vis struct $struct_name:ident(Box<dyn $trait_name:ident>)) => {
+    {
+        $(#[$attr:meta])*
+        $vis:vis struct $struct_name:ident(Box<dyn $trait_name:ident>);
+     } => {
+        $(#[$attr])*
         $vis struct $struct_name(Box<dyn $trait_name>);
         impl fmt::Debug for $struct_name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -46,9 +50,11 @@ macro_rules! box_dyn_wrapper_struct {
             }
         }
         impl $struct_name {
+            /// Attempts to downcast to a concrete type.
             pub fn downcast<T: $trait_name>(self) -> Option<Box<T>> {
                 (self.0 as Box<dyn Any>).downcast().ok()
             }
+            /// Attempts to downcast a reference to a concrete type.
             pub fn downcast_ref<T: $trait_name>(&self) -> Option<&T> {
                 (&*self.0 as &dyn Any).downcast_ref()
             }
@@ -62,13 +68,23 @@ macro_rules! box_dyn_wrapper_struct {
 /// Because [`Any`] is defined with a `'static` bound, implementors of this
 /// trait cannot borrow from the puzzle state.
 pub trait PuzzleStateRenderData: Any + Send + Sync {}
-box_dyn_wrapper_struct!(pub struct BoxDynPuzzleStateRenderData(Box<dyn PuzzleStateRenderData>));
+box_dyn_wrapper_struct! {
+    /// Wrapper around `Box<dyn PuzzleStateRenderData>` that can be downcast to
+    /// a concrete render data type.
+    pub struct BoxDynPuzzleStateRenderData(Box<dyn PuzzleStateRenderData>);
+}
 
 /// Marker trait for types that may be used as animations.
 pub trait PuzzleAnimation: Any + Send + Sync {
+    /// Returns a copy of the data.
     fn dyn_clone(&self) -> BoxDynPuzzleAnimation;
 }
-box_dyn_wrapper_struct!(pub struct BoxDynPuzzleAnimation(Box<dyn PuzzleAnimation>));
+box_dyn_wrapper_struct! {
+    /// Wrapper around `Box<dyn PuzzleAnimation>` that can be downcast to a
+    /// concrete animation type. This type also implements [`Clone`] for
+    /// conveninence.
+    pub struct BoxDynPuzzleAnimation(Box<dyn PuzzleAnimation>);
+}
 impl Clone for BoxDynPuzzleAnimation {
     fn clone(&self) -> Self {
         self.0.dyn_clone()
