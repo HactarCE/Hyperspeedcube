@@ -1,6 +1,7 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use std::{borrow::Cow, collections::HashMap};
 
 use hyperpuzzle_core::{PieceMask, Puzzle};
 use itertools::Itertools;

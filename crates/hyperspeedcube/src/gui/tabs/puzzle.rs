@@ -8,7 +8,9 @@ use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
-use hyperpuzzle_core::{BuildTask, GizmoFace, LayerMask, Progress, Puzzle, Redirectable};
+use hyperpuzzle_core::{
+    BuildTask, GizmoFace, LayerMask, NdEuclidPuzzleStateRenderData, Progress, Puzzle, Redirectable,
+};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use parking_lot::Mutex;
@@ -572,6 +574,15 @@ impl PuzzleWidget {
         let cam = view.transient_camera();
         let effects = view.effects();
 
+        let piece_transforms;
+        {
+            let sim = view.sim.lock();
+            let render_data = sim.unwrap_render_data::<NdEuclidPuzzleStateRenderData>();
+            piece_transforms = render_data.piece_transforms.map_ref(|_piece, transform| {
+                transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim())
+            });
+        }
+
         let mut draw_params = DrawParams {
             ndim: puzzle.ndim(),
             cam,
@@ -585,13 +596,7 @@ impl PuzzleWidget {
             internals_color: prefs.styles.internals_color.rgb,
             sticker_colors,
             piece_styles: view.styles.values(prefs),
-            piece_transforms: view
-                .sim
-                .lock()
-                .piece_transforms()
-                .map_ref(|_piece, transform| {
-                    transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim())
-                }),
+            piece_transforms,
 
             effects,
         };

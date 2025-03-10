@@ -1,8 +1,7 @@
 use std::collections::VecDeque;
 
-use hypermath::pga;
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle_core::{PieceMask, PuzzleState};
+use hyperpuzzle_core::{BoxDynPuzzleAnimation, HypershapePuzzleState};
 use web_time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
@@ -15,7 +14,7 @@ const EXP_TWIST_FACTOR: f32 = 0.5;
 #[derive(Debug, Default, Clone)]
 pub struct TwistAnimationState {
     /// Queue of twist animations to be displayed.
-    queue: VecDeque<TwistAnimation>,
+    queue: VecDeque<AnimationFromState>,
     /// Maximum number of animations in the queue (reset when queue is empty).
     queue_max: usize,
     /// Progress of the animation in the current twist, from 0.0 to 1.0.
@@ -57,27 +56,22 @@ impl TwistAnimationState {
         }
     }
 
-    pub fn push(&mut self, anim: TwistAnimation) {
+    pub fn push(&mut self, anim: AnimationFromState) {
         self.queue.push_back(anim);
 
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.queue.len());
     }
 
-    pub fn current(&self) -> Option<(&TwistAnimation, f32)> {
+    pub fn current(&self) -> Option<(&AnimationFromState, f32)> {
         Some((self.queue.front()?, self.progress))
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct TwistAnimation {
-    /// Puzzle state before the twist.
-    pub state: PuzzleState,
-    /// Set of pieces affected by the twist.
-    pub grip: PieceMask,
-    /// Initial transform of the gripped pieces (identity, unless the move was
-    /// inputted using a mouse drag).
-    pub initial_transform: pga::Motor,
-    /// Final transform for the the gripped pieces.
-    pub final_transform: pga::Motor,
+pub struct AnimationFromState {
+    /// Puzzle state before the animation.
+    pub state: HypershapePuzzleState,
+    /// Animation to apply to the state.
+    pub anim: BoxDynPuzzleAnimation,
 }

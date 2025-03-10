@@ -7,10 +7,12 @@ mod catalog;
 mod lint;
 mod logging;
 mod nameable;
+mod nongeneric;
 mod puzzle;
 mod rgb;
 mod tags;
 mod timestamp;
+mod traits;
 pub mod util;
 mod version;
 
@@ -20,10 +22,12 @@ pub use chrono;
 pub use lint::PuzzleLintOutput;
 pub use logging::*;
 pub use nameable::*;
+pub use nongeneric::*;
 pub use puzzle::*;
 pub use rgb::Rgb;
 pub use tags::*;
 pub use timestamp::Timestamp;
+pub use traits::*;
 pub use version::Version;
 
 /// Unsigned integer type used for [`LayerMask`].

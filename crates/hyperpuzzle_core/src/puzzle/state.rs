@@ -7,7 +7,11 @@ use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{Axis, AxisInfo, LayerMask, LayeredTwist, PerAxis, PerPiece, Piece, PieceMask, Puzzle};
+use crate::{
+    Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
+    NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, PieceMask,
+    Puzzle, PuzzleState,
+};
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
 idx_struct! {
@@ -39,7 +43,7 @@ impl CachedTransformData {
 
 /// Instance of a puzzle with a particular state.
 #[derive(Debug, Clone)]
-pub struct PuzzleState {
+pub struct HypershapePuzzleState {
     /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,
     /// Attitude (position & rotation) of each piece.
@@ -48,7 +52,47 @@ pub struct PuzzleState {
     cached_transforms: Arc<Mutex<PerCachedTransform<CachedTransformData>>>,
     cached_transform_by_motor: Arc<Mutex<ApproxHashMap<pga::Motor, CachedTransform>>>,
 }
-impl PuzzleState {
+
+impl PuzzleState for HypershapePuzzleState {
+    fn ty(&self) -> &Arc<Puzzle> {
+        &self.puzzle_type
+    }
+
+    fn render_data(&self) -> BoxDynPuzzleStateRenderData {
+        NdEuclidPuzzleStateRenderData {
+            piece_transforms: self.piece_transforms(),
+        }
+        .into()
+    }
+
+    fn render_data_with_animation(
+        &self,
+        anim: &BoxDynPuzzleAnimation,
+        t: f32,
+    ) -> BoxDynPuzzleStateRenderData {
+        let anim = anim
+            .downcast_ref::<NdEuclidPuzzleAnimation>()
+            .expect("invalid animation for puzzle");
+
+        let start = &anim.initial_transform;
+        let end = &anim.final_transform;
+        let m = if t == 0.0 {
+            start.clone()
+        } else if t == 1.0 {
+            end.clone()
+        } else {
+            pga::Motor::slerp_infallible(start, end, t as _)
+        };
+
+        let mut piece_transforms = self.piece_transforms();
+        for piece in anim.pieces.iter() {
+            piece_transforms[piece] = &m * &piece_transforms[piece];
+        }
+        NdEuclidPuzzleStateRenderData { piece_transforms }.into()
+    }
+}
+
+impl HypershapePuzzleState {
     /// Constructs a new instance of a puzzle.
     pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
         let ident = pga::Motor::ident(puzzle_type.ndim());
@@ -62,35 +106,18 @@ impl PuzzleState {
         by_motor.insert(ident, CachedTransform(0));
         let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
 
-        PuzzleState {
+        HypershapePuzzleState {
             puzzle_type,
             piece_transforms,
             cached_transforms,
             cached_transform_by_motor,
         }
     }
-    /// Returns the puzzle type
-    pub fn ty(&self) -> &Arc<Puzzle> {
-        &self.puzzle_type
-    }
     /// Returns the position and rotation of each piece.
-    pub fn piece_transforms(&self) -> PerPiece<pga::Motor> {
+    pub(crate) fn piece_transforms(&self) -> PerPiece<pga::Motor> {
         let cached = self.cached_transforms.lock();
         self.piece_transforms
             .map_ref(|_, &i| cached[i].motor.clone())
-    }
-    /// Returns the position and rotation of each piece during an arbitrary
-    /// animation affecting a subset of pieces.
-    pub fn partial_piece_transforms(
-        &self,
-        grip: &PieceMask,
-        transform: &pga::Motor,
-    ) -> PerPiece<pga::Motor> {
-        self.piece_transforms()
-            .map(|piece, static_transform| match grip.contains(piece) {
-                true => transform * static_transform,
-                _ => static_transform.clone(),
-            })
     }
 
     /// Does a twist, or returns an error containing the set of pieces that

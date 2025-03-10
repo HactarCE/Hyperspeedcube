@@ -22,5 +22,5 @@ pub use notation::Notation;
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::{PLACEHOLDER_PUZZLE, Puzzle};
 pub use scramble::{ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle};
-pub use state::PuzzleState;
+pub use state::HypershapePuzzleState;
 pub use twist::LayeredTwist;

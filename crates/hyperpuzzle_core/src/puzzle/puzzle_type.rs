@@ -41,7 +41,7 @@ lazy_static! {
         gizmo_twists: PerGizmoFace::new(),
         dev_data: PuzzleDevData::new(),
 
-        new: Box::new(PuzzleState::new),
+        new: Box::new(HypershapePuzzleState::new),
     });
 }
 
@@ -99,7 +99,7 @@ pub struct Puzzle {
     pub dev_data: PuzzleDevData,
 
     /// Constructor for a solved puzzle state.
-    pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> PuzzleState>,
+    pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> HypershapePuzzleState>,
 }
 
 impl fmt::Debug for Puzzle {
@@ -138,7 +138,7 @@ impl Puzzle {
         self.this.upgrade().expect("`Puzzle` removed from `Arc`")
     }
     /// Constructs a new instance of the puzzle.
-    pub fn new_solved_state(&self) -> PuzzleState {
+    pub fn new_solved_state(&self) -> HypershapePuzzleState {
         (self.new)(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.

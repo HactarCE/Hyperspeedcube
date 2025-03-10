@@ -12,7 +12,8 @@ use hyperprefs::{
     PuzzleFilterPreferences, PuzzleViewPreferencesSet,
 };
 use hyperpuzzle_core::{
-    Axis, GizmoFace, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle, Sticker,
+    Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleStateRenderData, PerPiece, Piece,
+    PieceMask, Puzzle, PuzzleState, Sticker,
 };
 use parking_lot::Mutex;
 use smallvec::smallvec;
@@ -578,7 +579,9 @@ impl PuzzleView {
         tri_range: &'a Range<u32>,
         puzzle_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
     ) -> impl 'a + Iterator<Item = PuzzleHoverState> {
-        let piece_transform = &puzzle_state.piece_transforms()[piece];
+        let piece_transform = &puzzle_state
+            .unwrap_render_data::<NdEuclidPuzzleStateRenderData>()
+            .piece_transforms[piece];
         let mesh = &puzzle_state.puzzle_type().mesh;
         mesh.triangles[tri_range.start as usize..tri_range.end as usize]
             .iter()

@@ -132,7 +132,7 @@ impl PuzzleBuilder {
 
             dev_data,
 
-            new: Box::new(PuzzleState::new),
+            new: Box::new(HypershapePuzzleState::new),
         }))
     }
 }
