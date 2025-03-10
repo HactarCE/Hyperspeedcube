@@ -794,6 +794,7 @@ mod tests {
         let motors = vec![
             Motor::rotation(5, [1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, -5.0]).unwrap(),
             Motor::rotation(2, [1.0, 0.0], [0.0, 1.0]).unwrap(),
+            Motor::from_angle_in_axis_plane(2, 0, 1, std::f64::consts::PI),
         ];
         for motor in motors {
             assert_approx_eq!(motor.log().unwrap().exp().unwrap(), motor);
