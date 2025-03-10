@@ -10,7 +10,7 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{PuzzleListMetadata, TagSet, Version};
+use crate::{PuzzleListMetadata, PuzzleState, TagSet, Version};
 
 lazy_static! {
     /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.

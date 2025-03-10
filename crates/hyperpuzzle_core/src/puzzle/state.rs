@@ -9,8 +9,8 @@ use parking_lot::Mutex;
 
 use crate::{
     Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, PieceMask,
-    Puzzle, PuzzleState,
+    NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle,
+    PuzzleState,
 };
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
@@ -58,71 +58,7 @@ impl PuzzleState for HypershapePuzzleState {
         &self.puzzle_type
     }
 
-    fn render_data(&self) -> BoxDynPuzzleStateRenderData {
-        NdEuclidPuzzleStateRenderData {
-            piece_transforms: self.piece_transforms(),
-        }
-        .into()
-    }
-
-    fn render_data_with_animation(
-        &self,
-        anim: &BoxDynPuzzleAnimation,
-        t: f32,
-    ) -> BoxDynPuzzleStateRenderData {
-        let anim = anim
-            .downcast_ref::<NdEuclidPuzzleAnimation>()
-            .expect("invalid animation for puzzle");
-
-        let start = &anim.initial_transform;
-        let end = &anim.final_transform;
-        let m = if t == 0.0 {
-            start.clone()
-        } else if t == 1.0 {
-            end.clone()
-        } else {
-            pga::Motor::slerp_infallible(start, end, t as _)
-        };
-
-        let mut piece_transforms = self.piece_transforms();
-        for piece in anim.pieces.iter() {
-            piece_transforms[piece] = &m * &piece_transforms[piece];
-        }
-        NdEuclidPuzzleStateRenderData { piece_transforms }.into()
-    }
-}
-
-impl HypershapePuzzleState {
-    /// Constructs a new instance of a puzzle.
-    pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
-        let ident = pga::Motor::ident(puzzle_type.ndim());
-        let piece_transforms = puzzle_type.pieces.map_ref(|_, _| CachedTransform(0));
-
-        let cached_transforms = Arc::new(Mutex::new(PerCachedTransform::from_iter([
-            CachedTransformData::new(ident.clone(), &puzzle_type.axes),
-        ])));
-
-        let mut by_motor = ApproxHashMap::new();
-        by_motor.insert(ident, CachedTransform(0));
-        let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
-
-        HypershapePuzzleState {
-            puzzle_type,
-            piece_transforms,
-            cached_transforms,
-            cached_transform_by_motor,
-        }
-    }
-    /// Returns the position and rotation of each piece.
-    pub(crate) fn piece_transforms(&self) -> PerPiece<pga::Motor> {
-        let cached = self.cached_transforms.lock();
-        self.piece_transforms
-            .map_ref(|_, &i| cached[i].motor.clone())
-    }
-
-    /// Does a twist, or returns an error containing the set of pieces that
-    /// prevented the twist.
-    pub fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
+    fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
         let twist_info = &self.puzzle_type.twists[twist.transform];
         let grip = self.compute_grip(twist_info.axis, twist.layers);
 
@@ -161,21 +97,31 @@ impl HypershapePuzzleState {
         })
     }
 
-    /// Returns the set of pieces on the inside of a grip (axis + layer mask).
-    /// This considers blocking pieces to be outside the grip; use
-    /// `compute_grip()` to see which pieces are blocking a twist.
-    pub fn compute_gripped_pieces(&self, axis: Axis, layers: LayerMask) -> PieceMask {
-        PieceMask::from_iter(
-            self.puzzle_type.pieces.len(),
-            self.compute_grip(axis, layers)
-                .iter_filter(|_, &status| status == WhichSide::Inside),
-        )
+    fn is_solved(&self) -> bool {
+        let piece_transforms = self.piece_transforms();
+
+        // Each color may appear on at most one set of parallel planes. Track
+        // that normal vector.
+        let mut color_normals = self.ty().colors.list.map_ref(|_, _| None);
+
+        self.ty().stickers.iter().all(|(_, sticker_info)| {
+            let sticker_transform = &piece_transforms[sticker_info.piece];
+            let normal_vector = sticker_transform.transform_vector(sticker_info.plane.normal());
+            match color_normals.get_mut(sticker_info.color) {
+                Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
+                Ok(opt_color_plane @ None) => {
+                    *opt_color_plane = Some(normal_vector);
+                    true
+                }
+                Err(_) => {
+                    log::error!("unknown color encountered during solved state detection");
+                    false
+                }
+            }
+        })
     }
 
-    /// Returns each piece's location with respect to a grip (axis + layer
-    /// mask). A piece may be inside the grip, outside the grip, or blocking the
-    /// grip. [`WhichSide::Flush`] is not used.
-    pub fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {
+    fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {
         let Ok(axis_info) = self.puzzle_type.axes.get(axis) else {
             log::error!("bad axis ID");
             return self.puzzle_type.pieces.map_ref(|_, _| WhichSide::Split);
@@ -226,15 +172,13 @@ impl HypershapePuzzleState {
         })
     }
 
-    /// Returns the smallest layer mask on `axis` that contains `piece`.
-    pub fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+    fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let (piece_bottom, piece_top) = self.piece_min_max_on_axis(piece, axis).ok()?;
         let axis_info = self.puzzle_type.axes.get(axis).ok()?;
         axis_info.layers.contiguous_range(piece_bottom, piece_top)
     }
-    /// Returns the smallest unblocked layer mask on `axis` that contains
-    /// `piece`.
-    pub fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+
+    fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let ty = self.ty();
         let axis_info = self.puzzle_type.axes.get(axis).ok()?;
 
@@ -276,6 +220,68 @@ impl HypershapePuzzleState {
         axis_info.layers.contiguous_range(lo, hi)
     }
 
+    fn render_data(&self) -> BoxDynPuzzleStateRenderData {
+        NdEuclidPuzzleStateRenderData {
+            piece_transforms: self.piece_transforms(),
+        }
+        .into()
+    }
+
+    fn render_data_with_animation(
+        &self,
+        anim: &BoxDynPuzzleAnimation,
+        t: f32,
+    ) -> BoxDynPuzzleStateRenderData {
+        let anim = anim
+            .downcast_ref::<NdEuclidPuzzleAnimation>()
+            .expect("invalid animation for puzzle");
+
+        let start = &anim.initial_transform;
+        let end = &anim.final_transform;
+        let m = if t == 0.0 {
+            start.clone()
+        } else if t == 1.0 {
+            end.clone()
+        } else {
+            pga::Motor::slerp_infallible(start, end, t as _)
+        };
+
+        let mut piece_transforms = self.piece_transforms();
+        for piece in anim.pieces.iter() {
+            piece_transforms[piece] = &m * &piece_transforms[piece];
+        }
+        NdEuclidPuzzleStateRenderData { piece_transforms }.into()
+    }
+}
+
+impl HypershapePuzzleState {
+    /// Constructs a new solved puzzle state.
+    pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
+        let ident = pga::Motor::ident(puzzle_type.ndim());
+        let piece_transforms = puzzle_type.pieces.map_ref(|_, _| CachedTransform(0));
+
+        let cached_transforms = Arc::new(Mutex::new(PerCachedTransform::from_iter([
+            CachedTransformData::new(ident.clone(), &puzzle_type.axes),
+        ])));
+
+        let mut by_motor = ApproxHashMap::new();
+        by_motor.insert(ident, CachedTransform(0));
+        let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
+
+        HypershapePuzzleState {
+            puzzle_type,
+            piece_transforms,
+            cached_transforms,
+            cached_transform_by_motor,
+        }
+    }
+    /// Returns the attitude of each piece.
+    fn piece_transforms(&self) -> PerPiece<pga::Motor> {
+        let cached = self.cached_transforms.lock();
+        self.piece_transforms
+            .map_ref(|_, &i| cached[i].motor.clone())
+    }
+
     /// Returns the minimum and maximum coordinates along an axis that a piece's
     /// vertices spans.
     fn piece_min_max_on_axis(&self, piece: Piece, axis: Axis) -> Result<(Float, Float)> {
@@ -288,30 +294,5 @@ impl HypershapePuzzleState {
         let vertex_set = space.get(piece_info.polytope).vertex_set();
         let vertex_distances_along_axis = vertex_set.map(|p| p.pos().dot(transformed_axis_vector));
         hypermath::util::min_max(vertex_distances_along_axis).ok_or_eyre("piece has no vertices")
-    }
-
-    /// Returns whether the puzzle is in a solved state.
-    pub fn is_solved(&self) -> bool {
-        let piece_transforms = self.piece_transforms();
-
-        // Each color may appear on at most one set of parallel planes. Track
-        // that normal vector.
-        let mut color_normals = self.ty().colors.list.map_ref(|_, _| None);
-
-        self.ty().stickers.iter().all(|(_, sticker_info)| {
-            let sticker_transform = &piece_transforms[sticker_info.piece];
-            let normal_vector = sticker_transform.transform_vector(sticker_info.plane.normal());
-            match color_normals.get_mut(sticker_info.color) {
-                Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
-                Ok(opt_color_plane @ None) => {
-                    *opt_color_plane = Some(normal_vector);
-                    true
-                }
-                Err(_) => {
-                    log::error!("unknown color encountered during solved state detection");
-                    false
-                }
-            }
-        })
     }
 }
