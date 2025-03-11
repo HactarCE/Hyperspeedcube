@@ -3,7 +3,6 @@ use std::fmt;
 use std::io::Write;
 use std::sync::{Arc, Weak};
 
-use hypershape::Space;
 use rand::seq::IndexedRandom;
 use rand::{Rng, SeedableRng};
 use scramble::{ScrambleProgress, ScrambledPuzzle};
@@ -27,7 +26,6 @@ lazy_static! {
             tags: TagSet::new(),
         },
         ndim: 3,
-        space: Space::new(3),
         pieces: PerPiece::new(),
         stickers: PerSticker::new(),
         piece_types: PerPieceType::new(),
@@ -41,7 +39,6 @@ lazy_static! {
         axis_by_name: HashMap::new(),
         twists: PerTwist::new(),
         twist_by_name: HashMap::new(),
-        gizmo_twists: PerGizmoFace::new(),
         dev_data: PuzzleDevData::new(),
 
         new: Box::new(|this| NdEuclidPuzzleState::new(this).into()),
@@ -59,10 +56,6 @@ pub struct Puzzle {
 
     // TODO: remove this
     pub ndim: u8,
-
-    /// Space containing a polytope for each piece.
-    // TODO: evaluate where this is used and how we can remove it
-    pub space: Arc<Space>,
 
     /// List of pieces, indexed by ID.
     pub pieces: PerPiece<PieceInfo>,
@@ -96,9 +89,6 @@ pub struct Puzzle {
     pub twists: PerTwist<TwistInfo>,
     /// Map from twist name to twist.
     pub twist_by_name: HashMap<String, Twist>,
-
-    /// Twist for each face of a twist gizmo.
-    pub gizmo_twists: PerGizmoFace<Twist>,
 
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,

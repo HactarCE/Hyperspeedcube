@@ -107,8 +107,6 @@ pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
     pub piece_type: PieceType,
-    /// Centroid of the piece.
-    pub centroid: Vector,
 }
 
 /// Sticker info.
@@ -116,8 +114,6 @@ pub struct PieceInfo {
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
-    /// Hyperplane of the sticker.
-    pub plane: Hyperplane, // TODO: avoid storing a bunch of duplicates
     /// Color on the sticker.
     pub color: Color,
 }
@@ -129,8 +125,6 @@ pub struct AxisInfo {
     pub name: String,
     /// Additional names for the twist axis.
     pub aliases: Vec<String>,
-    /// Vector preserved by all twists of the axis.
-    pub vector: Vector,
     /// Layer.
     pub layers: AxisLayers,
     /// Opposite axis, which has a reversed layer list.
@@ -221,8 +215,6 @@ pub struct TwistInfo {
 
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
-    /// Transforation to apply to pieces.
-    pub transform: Motor,
 
     /// Opposite twist. With a reversed layer mask, this applies the
     /// same transformation to the same pieces. For example, R and L' are

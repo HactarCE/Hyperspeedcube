@@ -654,10 +654,10 @@ impl PuzzleWidget {
         };
 
         // Draw gizmos (TODO: move to GPU?)
-        if let Some(geom) = puzzle.ui_data.downcast_ref() {
+        if let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() {
             if let Some(gizmo_vertex_3d_positions) = view.renderer.gizmo_vertex_3d_positions.get() {
                 if let Some(axis) = view.temp_gizmo_highlight.take() {
-                    for (gizmo_face, &twist) in &puzzle.gizmo_twists {
+                    for (gizmo_face, &twist) in &geom.gizmo_twists {
                         if puzzle.twists[twist].axis == axis {
                             show_gizmo_face(
                                 &puzzle,

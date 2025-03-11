@@ -173,9 +173,10 @@ impl TwistSystemBuilder {
         mesh: &mut Mesh,
         dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
-    ) -> Result<(PerAxis<AxisInfo>, PerTwist<TwistInfo>, PerGizmoFace<Twist>)> {
+    ) -> Result<TwistSystemBuildOutput> {
         // Assemble list of axes.
-        let mut axes = PerAxis::new();
+        let mut axes = PerAxis::<AxisInfo>::new();
+        let mut axis_vectors = PerAxis::<Vector>::new();
         for (id, (name_set, _display)) in super::iter_autonamed(
             self.axes.len(),
             &self.axes.names,
@@ -191,10 +192,10 @@ impl TwistSystemBuilder {
             axes.push(AxisInfo {
                 name: string_set.remove(0),
                 aliases: string_set, // all except first
-                vector,
                 layers: AxisLayers(layers),
                 opposite: None, // will be set later
             })?;
+            axis_vectors.push(vector)?;
         }
 
         // Assign opposite axes.
@@ -203,7 +204,7 @@ impl TwistSystemBuilder {
                 continue; // already visited it
             }
 
-            if let Some(opposite_axis) = self.axes.vector_to_id(-&axes[axis].vector) {
+            if let Some(opposite_axis) = self.axes.vector_to_id(-&axis_vectors[axis]) {
                 let self_layers = &axes[axis].layers.0;
                 let opposite_layers = &axes[opposite_axis].layers.0;
 
@@ -241,7 +242,9 @@ impl TwistSystemBuilder {
 
         // Assemble list of twists.
         let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
-        let mut twists: PerTwist<TwistInfo> = self.by_id.try_map_ref(|id, old_twist| {
+        let mut twists: PerTwist<TwistInfo> = PerTwist::new();
+        let mut twist_transforms: PerTwist<Motor> = PerTwist::new();
+        for (id, old_twist) in &self.by_id {
             let axis = old_twist.axis;
 
             let (name, aliases);
@@ -260,7 +263,7 @@ impl TwistSystemBuilder {
 
             if let Some(pole_distance) = old_twist.gizmo_pole_distance {
                 // The axis vector is fixed by the twist.
-                let axis_vector = &axes[axis].vector;
+                let axis_vector = &axis_vectors[axis];
 
                 let face_normal = if space.ndim() == 4 {
                     // Compute the other vector fixed by the twist.
@@ -286,17 +289,17 @@ impl TwistSystemBuilder {
 
             // TODO: check that transform keeps layer manifolds fixed
 
-            Ok(TwistInfo {
+            twists.push(TwistInfo {
                 name,
                 aliases,
                 qtm: old_twist.qtm,
                 axis,
-                transform: old_twist.transform.clone(),
                 opposite: None,    // will be assigned later
                 reverse: Twist(0), // will be assigned later
                 include_in_scrambles: old_twist.include_in_scrambles,
-            })
-        })?;
+            })?;
+            twist_transforms.push(old_twist.transform.clone())?;
+        }
         // TODO: assign opposite twists.
 
         // Build twist gizmos.
@@ -304,14 +307,21 @@ impl TwistSystemBuilder {
         if space.ndim() == 3 {
             let gizmo_twists = gizmo_twists.iter_values().flatten().cloned().collect_vec();
             let resulting_gizmo_faces =
-                Self::build_3d_gizmo(space, mesh, &gizmo_twists, &twists, &axes, warn_fn)?;
+                Self::build_3d_gizmo(space, mesh, &gizmo_twists, &twists, &axis_vectors, warn_fn)?;
             for (_gizmo_face, twist) in resulting_gizmo_faces {
                 gizmo_face_twists.push(twist)?;
             }
         } else if space.ndim() == 4 {
             for (axis, axis_twists) in gizmo_twists {
-                let resulting_gizmo_faces =
-                    Self::build_4d_gizmo(space, mesh, &axes[axis], &axis_twists, &twists, warn_fn)?;
+                let resulting_gizmo_faces = Self::build_4d_gizmo(
+                    space,
+                    mesh,
+                    &axes[axis],
+                    &axis_vectors[axis],
+                    &axis_twists,
+                    &twists,
+                    warn_fn,
+                )?;
                 for (_gizmo_face, twist) in resulting_gizmo_faces {
                     gizmo_face_twists.push(twist)?;
                 }
@@ -324,7 +334,8 @@ impl TwistSystemBuilder {
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
         for (id, twist) in &mut twists {
-            match self.data_to_id(&TwistKey::new(twist.axis, &twist.transform.reverse())?) {
+            let twist_transforms = &twist_transforms[id];
+            match self.data_to_id(&TwistKey::new(twist.axis, &twist_transforms.reverse())?) {
                 Some(reverse_twist) => twist.reverse = reverse_twist,
                 None => twists_without_reverse.push(id),
             }
@@ -340,20 +351,21 @@ impl TwistSystemBuilder {
         for id in twists_without_reverse {
             let new_twist_id = twists.next_idx()?;
             let twist = twists.get_mut(id)?;
+            let twist_transform = &twist_transforms[id];
             twist.reverse = new_twist_id;
             let rev_twist_name = |original| format!("<reverse of {original:?}>");
-            let is_self_reverse = twist.transform.is_self_reverse();
+            let is_self_reverse = twist_transform.is_self_reverse();
             let new_twist_info = TwistInfo {
                 name: rev_twist_name(&twist.name),
                 aliases: twist.aliases.iter().map(rev_twist_name).collect(),
                 qtm: twist.qtm,
                 axis: twist.axis,
-                transform: twist.transform.reverse(),
                 opposite: None,
                 reverse: id,
                 include_in_scrambles: !is_self_reverse,
             };
             twists.push(new_twist_info)?;
+            twist_transforms.push(twist_transform.reverse())?;
         }
 
         dev_data.orbits.extend(
@@ -363,7 +375,13 @@ impl TwistSystemBuilder {
                 .map(|dev_orbit| dev_orbit.map(|id| Some(PuzzleElement::Axis(id)))),
         );
 
-        Ok((axes, twists, gizmo_face_twists))
+        Ok(TwistSystemBuildOutput {
+            axes,
+            axis_vectors,
+            twists,
+            twist_transforms,
+            gizmo_twists: gizmo_face_twists,
+        })
     }
 
     fn build_3d_gizmo(
@@ -371,7 +389,7 @@ impl TwistSystemBuilder {
         mesh: &mut Mesh,
         twists: &[(Vector, Twist)],
         twist_infos: &PerTwist<TwistInfo>,
-        axis_infos: &PerAxis<AxisInfo>,
+        axis_vectors: &PerAxis<Vector>,
         warn_fn: impl Fn(eyre::Report),
     ) -> Result<Vec<(GizmoFace, Twist)>> {
         if twists.is_empty() {
@@ -383,9 +401,8 @@ impl TwistSystemBuilder {
         let mut gizmo_surfaces = HashMap::new();
         for (_, twist) in twists {
             let axis = twist_infos[*twist].axis;
-            let axis_info = &axis_infos[axis];
             if let hash_map::Entry::Vacant(e) = gizmo_surfaces.entry(axis) {
-                e.insert(mesh.add_gizmo_surface(&axis_info.vector)?);
+                e.insert(mesh.add_gizmo_surface(&axis_vectors[axis])?);
             }
         }
 
@@ -405,6 +422,7 @@ impl TwistSystemBuilder {
         space: &Space,
         mesh: &mut Mesh,
         axis: &AxisInfo,
+        axis_vector: impl VectorRef,
         twists: &[(Vector, Twist)],
         twist_infos: &PerTwist<TwistInfo>,
         warn_fn: impl Fn(eyre::Report),
@@ -417,7 +435,7 @@ impl TwistSystemBuilder {
 
         // Cut a primordial polyhedron at the axis.
         let initial_cut_params = CutParams {
-            divider: Hyperplane::from_pole(&axis.vector).ok_or_eyre("bad axis vector")?,
+            divider: Hyperplane::from_pole(&axis_vector).ok_or_eyre("bad axis vector")?,
             inside: PolytopeFate::Remove,
             outside: PolytopeFate::Remove,
         };
@@ -429,9 +447,9 @@ impl TwistSystemBuilder {
             }
         };
 
-        let min_radius = axis.vector.mag();
+        let min_radius = axis_vector.mag();
 
-        let gizmo_surface = mesh.add_gizmo_surface(&axis.vector)?;
+        let gizmo_surface = mesh.add_gizmo_surface(&axis_vector)?;
 
         Self::build_gizmo(
             space,
@@ -590,6 +608,15 @@ impl TwistSystemBuilder {
 
         Ok(resulting_gizmo_faces)
     }
+}
+
+#[derive(Debug)]
+pub struct TwistSystemBuildOutput {
+    pub axes: PerAxis<AxisInfo>,
+    pub axis_vectors: PerAxis<Vector>,
+    pub twists: PerTwist<TwistInfo>,
+    pub twist_transforms: PerTwist<Motor>,
+    pub gizmo_twists: PerGizmoFace<Twist>,
 }
 
 /// Error indicating a bad twist.

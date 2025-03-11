@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use hyperprefs::Preferences;
-use hyperpuzzle_core::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
+use hyperpuzzle_core::{
+    Color, ColorSystem, DevOrbit, NdEuclidPuzzleGeometry, Puzzle, PuzzleElement, PuzzleLintOutput,
+};
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
@@ -101,7 +103,11 @@ fn show_hover_info(ui: &mut egui::Ui, view: &mut PuzzleView) {
         ui.strong(format!("Gizmo {}", hov.gizmo_face));
         info_line(ui, "Backface?", &hov.backface.to_string());
         info_line(ui, "Z", &format!("{:.3}", hov.z));
-        let twist = puz.gizmo_twists[hov.gizmo_face];
+        let geom = puz
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .expect("expected NdEuclidPuzzleGeometry");
+        let twist = geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
         ui.strong(format!("Twist {twist}"));

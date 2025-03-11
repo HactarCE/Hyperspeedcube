@@ -11,10 +11,9 @@ use hyperprefs::{
     FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
     PuzzleFilterPreferences, PuzzleViewPreferencesSet,
 };
-use hyperpuzzle_core::NdEuclidPuzzleGeometry;
 use hyperpuzzle_core::{
-    Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleStateRenderData, PerPiece, Piece,
-    PieceMask, Puzzle, Sticker,
+    Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry,
+    NdEuclidPuzzleStateRenderData, PerPiece, Piece, PieceMask, Puzzle, Sticker,
 };
 use parking_lot::Mutex;
 use smallvec::smallvec;
@@ -271,12 +270,14 @@ impl PuzzleView {
                             let target = hov.normal_3d().cross_product_3d(&parallel_drag_delta);
                             puzzle
                                 .ty()
-                                .axes
+                                .ui_data
+                                .downcast_ref::<NdEuclidPuzzleGeometry>()?
+                                .axis_vectors
                                 .iter()
-                                .filter_map(|(axis, info)| {
+                                .filter_map(|(axis, axis_vector)| {
                                     // TODO: canoncalize axis based on layer mask
                                     let layers = puzzle.min_drag_layer_mask(axis, hov.piece)?;
-                                    let score = target.dot(info.vector.normalize()?).abs();
+                                    let score = target.dot(axis_vector.normalize()?).abs();
                                     if !is_approx_positive(&score) {
                                         return None;
                                     }
@@ -304,7 +305,9 @@ impl PuzzleView {
                         let mut parallel_drag_delta = self.parallel_drag_delta()?;
                         let mut sim = self.sim.lock();
                         let axis = sim.partial_twist().as_ref()?.axis;
-                        let axis_vector = &sim.puzzle_type().axes[axis].vector;
+                        let puzzle = sim.puzzle_type();
+                        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>()?;
+                        let axis_vector = &geom.axis_vectors[axis];
                         if prefs.interaction.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
                                 / hov.position.rejected_from(axis_vector)?.mag();
@@ -499,8 +502,12 @@ impl PuzzleView {
         let puzzle = state.puzzle_type();
         let ndim = puzzle.ndim();
 
+        let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() else {
+            return;
+        };
+
         if let Some(hov) = &self.gizmo_hover_state {
-            let Ok(&target) = puzzle.gizmo_twists.get(hov.gizmo_face) else {
+            let Ok(&target) = geom.gizmo_twists.get(hov.gizmo_face) else {
                 return;
             };
             let transform = match direction {
@@ -531,12 +538,9 @@ impl PuzzleView {
                 // sticker.
                 let [u, v] = [&hov.u_tangent, &hov.v_tangent];
                 let target_vector = Vector::cross_product_3d(u, v);
-                // TODO: this assumes that the axis vectors are normalized,
-                //       which they are, but is that assumption documented or
-                //       enforced anywhere? it feels a little sus.
-                let Some(axis) = puzzle.axes.find(|_, axis_info| {
-                    axis_info
-                        .vector
+                // TODO: should axis vectors already be normalized?
+                let Some(axis) = geom.axis_vectors.find(|_, axis_vector| {
+                    axis_vector
                         .normalize()
                         .is_some_and(|v| approx_eq(&v, &target_vector))
                 }) else {
@@ -559,7 +563,7 @@ impl PuzzleView {
                     // larger if the twist travels through a larger angle:
                     // - no rotation = 0
                     // - 180-degree rotation = ±1
-                    let score = Motor::dot(&puzzle.twists[twist].transform, &target);
+                    let score = Motor::dot(&geom.twist_transforms[twist], &target);
                     (Sign::from(score) * direction, FloatOrd(score.abs()))
                 });
                 if let Some(transform) = best_twist {

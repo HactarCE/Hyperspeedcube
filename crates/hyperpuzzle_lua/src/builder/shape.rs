@@ -478,6 +478,7 @@ impl ShapeBuilder {
         let mut pieces = PerPiece::<PieceInfo>::new();
         let mut piece_polytopes = PerPiece::<PolytopeId>::new();
         let mut stickers = PerSticker::<StickerInfo>::new();
+        let mut sticker_planes = PerSticker::<Hyperplane>::new();
         let mut surfaces = PerSurface::<TempSurfaceData>::new();
 
         // Construct the mesh for each active piece.
@@ -485,6 +486,8 @@ impl ShapeBuilder {
             let piece = &self.pieces[old_piece_id];
 
             let piece_centroid = space.get(piece.polytope).centroid()?.center();
+            // If computing the centroid is expensive, we can replace it with
+            // some arbitrary interior point that's easier to compute.
 
             // IIFE to mimic try_block
             let Some(piece_type) = (|| piece_type_ids_old_to_new[piece.piece_type?])() else {
@@ -495,7 +498,6 @@ impl ShapeBuilder {
             let piece_id = pieces.push(PieceInfo {
                 stickers: smallvec![],
                 piece_type,
-                centroid: piece_centroid.clone(),
             })?;
             piece_polytopes.push(piece.polytope)?;
 
@@ -534,9 +536,9 @@ impl ShapeBuilder {
                 if sticker.color != Color::INTERNAL {
                     let sticker_id = stickers.push(StickerInfo {
                         piece: piece_id,
-                        plane: sticker.plane.clone(),
                         color: sticker.color,
                     })?;
+                    sticker_planes.push(sticker.plane.clone())?;
                     pieces[piece_id].stickers.push(sticker_id);
                 }
 
@@ -612,6 +614,7 @@ impl ShapeBuilder {
             pieces,
             piece_polytopes,
             stickers,
+            sticker_planes,
 
             piece_types,
             piece_type_hierarchy,
@@ -626,6 +629,7 @@ pub struct ShapeBuildOutput {
     pub pieces: PerPiece<PieceInfo>,
     pub piece_polytopes: PerPiece<PolytopeId>,
     pub stickers: PerSticker<StickerInfo>,
+    pub sticker_planes: PerSticker<Hyperplane>,
 
     pub piece_types: PerPieceType<PieceTypeInfo>,
     pub piece_type_hierarchy: PieceTypeHierarchy,
@@ -638,6 +642,7 @@ impl ShapeBuildOutput {
             pieces: PerPiece::new(),
             piece_polytopes: PerPiece::new(),
             stickers: PerSticker::new(),
+            sticker_planes: PerSticker::new(),
 
             piece_types: PerPieceType::new(),
             piece_type_hierarchy: PieceTypeHierarchy::new(0),

@@ -8,18 +8,11 @@ mod state;
 pub use state::NdEuclidPuzzleState;
 
 use crate::{
-    BoxDynPuzzleAnimation, Mesh, PerAxis, PerGizmoFace, PerPiece, PerSticker, PieceMask,
+    BoxDynPuzzleAnimation, Mesh, PerAxis, PerGizmoFace, PerPiece, PerSticker, PerTwist, PieceMask,
     PuzzleAnimation, PuzzleStateRenderData, PuzzleUiData, Twist,
 };
 
-// /// Data that needs to be uploaded to the GPU before rendering.
-// pub enum PuzzleTypeGpuBuffers {
-//     /// N-dimensional Euclidean mesh data.
-//     Hypershape(),
-//     /// No GPU data
-//     None,
-// }
-
+/// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
 pub struct NdEuclidPuzzleGeometry {
     // TODO: just record the vertex set for each polytope because that's all we need
     pub space: Arc<Space>,
@@ -31,16 +24,23 @@ pub struct NdEuclidPuzzleGeometry {
     pub piece_polytopes: PerPiece<PolytopeId>,
 
     /// Plane for each sticker, used to compute whether the puzzle is solved.
-    pub sticker_planes: PerSticker<Hyperplane>,
+    pub sticker_planes: PerSticker<Hyperplane>, // TODO: avoid storing a bunch of duplicates
 
     /// Vector for each axis.
+    ///
+    /// The axis vector is perpendicular to all layer boundaries on the axis and
+    /// is fixed by all turns on the axis.
     pub axis_vectors: PerAxis<Vector>,
+
+    /// Transforation to apply to pieces for each twist.
+    pub twist_transforms: PerTwist<pga::Motor>,
 
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
 }
 impl PuzzleUiData for NdEuclidPuzzleGeometry {}
 impl NdEuclidPuzzleGeometry {
+    /// Returns an empty 3D puzzle geometry.
     pub fn placeholder() -> Self {
         Self {
             space: Space::new(3),
@@ -48,10 +48,12 @@ impl NdEuclidPuzzleGeometry {
             piece_polytopes: PerPiece::new(),
             sticker_planes: PerSticker::new(),
             axis_vectors: PerAxis::new(),
+            twist_transforms: PerTwist::new(),
             gizmo_twists: PerGizmoFace::new(),
         }
     }
 
+    /// Returns the number of dimensions of the space the puzzle inhabits.
     pub fn ndim(&self) -> u8 {
         self.mesh.ndim
     }

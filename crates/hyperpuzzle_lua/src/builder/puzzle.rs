@@ -8,6 +8,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::shape::ShapeBuildOutput;
+use super::twist_system::TwistSystemBuildOutput;
 use super::{ShapeBuilder, TwistSystemBuilder};
 
 /// Puzzle being constructed.
@@ -82,15 +83,23 @@ impl PuzzleBuilder {
             pieces,
             piece_polytopes,
             stickers,
+            sticker_planes,
+
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
         } = self.shape.build(warn_fn)?;
 
         // Build twist system.
-        let (axes, twists, gizmo_twists) =
-            self.twists
-                .build(&self.space(), &mut mesh, &mut dev_data, warn_fn)?;
+        let TwistSystemBuildOutput {
+            axes,
+            axis_vectors,
+            twists,
+            twist_transforms,
+            gizmo_twists,
+        } = self
+            .twists
+            .build(&self.space(), &mut mesh, &mut dev_data, warn_fn)?;
         let axis_by_name = axes
             .iter()
             .map(|(id, info)| (info.name.clone(), id))
@@ -107,9 +116,10 @@ impl PuzzleBuilder {
             space: self.space().clone(),
             mesh,
             piece_polytopes,
-            sticker_planes: stickers.map_ref(|_, sticker| sticker.plane.clone()),
-            axis_vectors: axes.map_ref(|_, axis| axis.vector.clone()),
-            gizmo_twists: gizmo_twists.clone(),
+            sticker_planes,
+            axis_vectors,
+            twist_transforms,
+            gizmo_twists,
         };
 
         Ok(Arc::new_cyclic(|this| Puzzle {
@@ -117,7 +127,6 @@ impl PuzzleBuilder {
             meta: self.meta.clone(),
 
             ndim: self.ndim(),
-            space: self.space(),
 
             pieces,
             stickers,
@@ -137,8 +146,6 @@ impl PuzzleBuilder {
 
             twists,
             twist_by_name,
-
-            gizmo_twists,
 
             dev_data,
 

@@ -7,8 +7,9 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle_core::{
     Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, PieceMask, Puzzle, PuzzleState, PuzzleStateRenderData, ScrambleParams,
-    ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
+    NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, PieceMask, Puzzle, PuzzleState,
+    PuzzleStateRenderData, ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle,
+    Timestamp,
 };
 use hyperpuzzle_log::Scramble;
 use smallvec::smallvec;
@@ -436,15 +437,17 @@ impl PuzzleSimulation {
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
                 let state = std::mem::replace(&mut self.latest_state, new_state);
-                self.twist_anim.push(AnimationFromState {
-                    state,
-                    anim: NdEuclidPuzzleAnimation {
-                        pieces: grip,
-                        initial_transform,
-                        final_transform: twist_info.transform.clone(),
-                    }
-                    .into(),
-                });
+                if let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() {
+                    self.twist_anim.push(AnimationFromState {
+                        state,
+                        anim: NdEuclidPuzzleAnimation {
+                            pieces: grip,
+                            initial_transform,
+                            final_transform: geom.twist_transforms[twist.transform].clone(),
+                        }
+                        .into(),
+                    });
+                }
                 self.blocking_anim.clear();
                 true
             }
@@ -537,14 +540,17 @@ impl PuzzleSimulation {
         animation_prefs: &AnimationPreferences,
     ) {
         let puzzle = Arc::clone(self.puzzle_type());
+        let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() else {
+            return;
+        };
         if let Some(partial) = &mut self.partial_twist_drag_state {
-            let Ok(axis) = puzzle.axes.get(partial.axis) else {
+            let Ok(axis_vector) = geom.axis_vectors.get(partial.axis) else {
                 return;
             };
-            let Some(v1) = surface_normal.cross_product_3d(&axis.vector).normalize() else {
+            let Some(v1) = surface_normal.cross_product_3d(axis_vector).normalize() else {
                 return;
             };
-            let Some(v2) = axis.vector.cross_product_3d(&v1).normalize() else {
+            let Some(v2) = axis_vector.cross_product_3d(&v1).normalize() else {
                 return;
             };
             // TODO: consider scaling by torque (i.e., radius)
@@ -583,17 +589,22 @@ impl PuzzleSimulation {
     ///
     /// If there is no partial twist active, then this does nothing.
     pub fn confirm_partial_twist(&mut self) {
+        let puzzle = self.puzzle_type();
+        let geom = puzzle
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .expect("Expected NdEuclidPuzzleGeometry");
+
         if let Some(partial) = &self.partial_twist_drag_state {
-            let closest_twist = self
-                .puzzle_type()
-                .twists
+            let closest_twist = geom
+                .twist_transforms
                 .iter()
-                .filter(|(_, twist_info)| twist_info.axis == partial.axis)
-                .max_by_key(|(_, twist_info)| {
-                    FloatOrd(Motor::dot(&partial.transform, &twist_info.transform).abs())
+                .filter(|&(twist, _)| puzzle.twists[twist].axis == partial.axis)
+                .max_by_key(|&(_, twist_transform)| {
+                    FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
                 });
-            if let Some((twist, twist_info)) = closest_twist {
-                let dot_with_twist = Motor::dot(&partial.transform, &twist_info.transform).abs();
+            if let Some((twist, twist_transform)) = closest_twist {
+                let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
                 let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
                 if dot_with_twist > dot_with_identity {
                     let twist = LayeredTwist {

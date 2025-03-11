@@ -7,12 +7,10 @@ use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::BoxDynPuzzleState;
-use crate::NdEuclidPuzzleGeometry;
 use crate::{
-    Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle,
-    PuzzleState,
+    Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleState, BoxDynPuzzleStateRenderData,
+    LayerMask, LayeredTwist, NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry,
+    NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle, PuzzleState,
 };
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
@@ -37,9 +35,13 @@ impl CachedTransformData {
             transformed_vectors,
         }
     }
-    fn reverse_transform_axis_vector(&mut self, axis: Axis, axes: &PerAxis<AxisInfo>) -> &Vector {
+    fn reverse_transform_axis_vector(
+        &mut self,
+        axis: Axis,
+        axis_vector: impl VectorRef,
+    ) -> &Vector {
         self.transformed_vectors[axis]
-            .get_or_insert_with(|| self.rev_motor.transform_vector(&axes[axis].vector))
+            .get_or_insert_with(|| self.rev_motor.transform_vector(axis_vector))
     }
 }
 
@@ -65,7 +67,9 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
+        let geom = self.geom();
         let twist_info = &self.puzzle_type.twists[twist.transform];
+        let twist_transform = &geom.twist_transforms[twist.transform];
         let grip = self.compute_grip(twist_info.axis, twist.layers);
 
         // Check for split pieces, which prevent the turn.
@@ -82,7 +86,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         let piece_transforms = self.piece_transforms.map_ref(|piece, &piece_transform| {
             if grip[piece] == WhichSide::Inside {
                 let current_motor = &cached_transforms[piece_transform].motor;
-                let new_motor = &twist_info.transform * current_motor;
+                let new_motor = twist_transform * current_motor;
                 *cached_transform_by_motor
                     .entry(new_motor.clone())
                     .or_insert_with(|| {
@@ -108,15 +112,18 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn is_solved(&self) -> bool {
+        let geom = self.geom();
+
         let piece_transforms = self.piece_transforms();
 
         // Each color may appear on at most one set of parallel planes. Track
         // that normal vector.
         let mut color_normals = self.ty().colors.list.map_ref(|_, _| None);
 
-        self.ty().stickers.iter().all(|(_, sticker_info)| {
+        self.ty().stickers.iter().all(|(sticker, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];
-            let normal_vector = sticker_transform.transform_vector(sticker_info.plane.normal());
+            let normal_vector =
+                sticker_transform.transform_vector(geom.sticker_planes[sticker].normal());
             match color_normals.get_mut(sticker_info.color) {
                 Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {
@@ -294,6 +301,7 @@ impl NdEuclidPuzzleState {
 
     /// Returns the geometry for the puzzle.
     pub fn geom(&self) -> &NdEuclidPuzzleGeometry {
+        // TODO: store a reference to these things in this struct directly
         self.puzzle_type
             .ui_data
             .downcast_ref()
@@ -303,9 +311,11 @@ impl NdEuclidPuzzleState {
     /// Returns the minimum and maximum coordinates along an axis that a piece's
     /// vertices spans.
     fn piece_min_max_on_axis(&self, piece: Piece, axis: Axis) -> Result<(Float, Float)> {
+        let geom = self.geom();
+
         let mut cached_transforms = self.cached_transforms.lock();
         let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
-            .reverse_transform_axis_vector(axis, &self.puzzle_type.axes);
+            .reverse_transform_axis_vector(axis, &geom.axis_vectors[axis]);
 
         let geom = self.geom();
         let vertex_set = geom.space.get(geom.piece_polytopes[piece]).vertex_set();
