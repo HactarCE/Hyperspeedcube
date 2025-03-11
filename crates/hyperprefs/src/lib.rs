@@ -11,12 +11,11 @@ extern crate lazy_static;
 extern crate strum;
 
 use std::collections::BTreeMap;
-use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
 use bitvec::vec::BitVec;
 use eyre::{OptionExt, eyre};
-use hyperpuzzle_core::{Puzzle, PuzzleViewPreferencesSet, Rgb};
+use hyperpuzzle_core::{PerspectiveDim, Puzzle, Rgb};
 use serde::{Deserialize, Serialize};
 
 mod animations;
@@ -190,24 +189,6 @@ impl schema::PrefsConvert for Preferences {
         schema::reload_btreemap(&mut self.filters, &self.custom_styles, filters);
     }
 }
-impl Index<PuzzleViewPreferencesSet> for Preferences {
-    type Output = PresetsList<ViewPreferences>;
-
-    fn index(&self, index: PuzzleViewPreferencesSet) -> &Self::Output {
-        match index {
-            PuzzleViewPreferencesSet::Dim3D => &self.view_3d,
-            PuzzleViewPreferencesSet::Dim4D => &self.view_4d,
-        }
-    }
-}
-impl IndexMut<PuzzleViewPreferencesSet> for Preferences {
-    fn index_mut(&mut self, index: PuzzleViewPreferencesSet) -> &mut Self::Output {
-        match index {
-            PuzzleViewPreferencesSet::Dim3D => &mut self.view_3d,
-            PuzzleViewPreferencesSet::Dim4D => &mut self.view_4d,
-        }
-    }
-}
 impl Preferences {
     /// Loads preferences from `user_config_source`. If loading fails, then the
     /// existing preferences are backed up (if possible) and `backup` (or else
@@ -280,11 +261,20 @@ impl Preferences {
         }
     }
 
-    pub fn view_presets_mut(
+    pub fn perspective_view_presets(&self, dim: PerspectiveDim) -> &PresetsList<ViewPreferences> {
+        match dim {
+            PerspectiveDim::Dim3D => &self.view_3d,
+            PerspectiveDim::Dim4D => &self.view_4d,
+        }
+    }
+    pub fn perspective_view_presets_mut(
         &mut self,
-        view_prefs_set: PuzzleViewPreferencesSet,
+        dim: PerspectiveDim,
     ) -> &mut PresetsList<ViewPreferences> {
-        &mut self[view_prefs_set] // TODO: consider removing indexing
+        match dim {
+            PerspectiveDim::Dim3D => &mut self.view_3d,
+            PerspectiveDim::Dim4D => &mut self.view_4d,
+        }
     }
 
     pub fn filters_mut(&mut self, puzzle: &Puzzle) -> &mut PuzzleFilterPreferences {

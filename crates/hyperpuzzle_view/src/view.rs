@@ -75,17 +75,29 @@ impl PuzzleView {
         sim: &Arc<Mutex<PuzzleSimulation>>,
         prefs: &mut Preferences,
     ) -> Self {
-        let puz = Arc::clone(sim.lock().puzzle_type());
-        let view_preset = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())]
-            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
-        let colors = prefs
-            .color_schemes
-            .get_mut(&puz.colors)
-            .schemes
-            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+        use hyperprefs::DEFAULT_PRESET_NAME;
 
         let simulation = sim.lock();
         let puzzle = simulation.puzzle_type();
+
+        let view_preset = match puzzle.view_prefs_set() {
+            Some(PuzzleViewPreferencesSet::Perspective(dim)) => prefs
+                .perspective_view_presets(dim)
+                .load_last_loaded(DEFAULT_PRESET_NAME),
+            None => todo!("PuzzleView currently only supports 3D or 4D view preferences"),
+        };
+
+        let colors = prefs
+            .color_schemes
+            .get_mut(&puzzle.colors)
+            .schemes
+            .load_last_loaded(DEFAULT_PRESET_NAME);
+
+        let ndim = puzzle
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .expect("expected NdEuclidPuzzleGeometry")
+            .ndim();
 
         Self {
             sim: Arc::clone(sim),
@@ -95,7 +107,7 @@ impl PuzzleView {
             camera: Camera {
                 view_preset,
                 target_size: [1, 1],
-                rot: Motor::ident(puzzle.ndim()),
+                rot: Motor::ident(ndim),
                 zoom: 0.5,
             },
 

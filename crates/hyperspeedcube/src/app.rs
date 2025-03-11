@@ -4,7 +4,9 @@ use std::sync::{Arc, Weak};
 use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
-use hyperpuzzle_core::{Puzzle, PuzzleViewPreferencesSet, ScrambleParams, ScrambleType};
+use hyperpuzzle_core::{
+    PerspectiveDim, Puzzle, PuzzleViewPreferencesSet, ScrambleParams, ScrambleType,
+};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
@@ -63,10 +65,15 @@ impl App {
     }
     pub(super) fn notify_active_puzzle_changed(&mut self) {
         self.active_puzzle.with_view(|view| {
-            let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(view.puzzle().ndim());
-            self.prefs
-                .view_presets_mut(view_prefs_set)
-                .set_last_loaded(view.camera.view_preset.base.name());
+            let view_preset_name = view.camera.view_preset.base.name();
+            let view_preset = match view.puzzle().view_prefs_set() {
+                Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
+                    self.prefs
+                        .perspective_view_presets_mut(dim)
+                        .set_last_loaded(view_preset_name);
+                }
+                None => (),
+            };
 
             self.prefs
                 .color_schemes

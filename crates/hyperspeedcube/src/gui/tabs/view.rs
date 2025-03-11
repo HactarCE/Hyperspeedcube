@@ -1,5 +1,5 @@
 use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
-use hyperpuzzle_core::PuzzleViewPreferencesSet;
+use hyperpuzzle_core::{PerspectiveDim, PuzzleViewPreferencesSet};
 
 use crate::L;
 use crate::app::App;
@@ -8,40 +8,46 @@ use crate::gui::components::PresetsUi;
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let id = unique_id!();
 
+    let mut changed = false;
+
     app.active_puzzle.with_opt_view(|view| {
         if let Some(view) = view {
-            let mut changed = false;
-
-            let prefs_set = PuzzleViewPreferencesSet::from_ndim(view.puzzle().ndim());
-            let presets = app.prefs.view_presets_mut(prefs_set);
-            let current = &mut view.camera.view_preset;
-            let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
-            show_contents(ui, Some(prefs_set), presets_ui);
-
-            app.prefs.needs_save |= changed;
+            match view.puzzle().view_prefs_set() {
+                Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
+                    let presets = app.prefs.perspective_view_presets_mut(dim);
+                    let current = &mut view.camera.view_preset;
+                    let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
+                    show_contents_for_perspective(ui, dim, presets_ui);
+                }
+                None => show_disabled_contents(ui, id),
+            }
         } else {
-            ui.disable();
-
-            let mut presets = PresetsList::default();
-            let mut current = ModifiedPreset::default();
-            show_contents(
-                ui,
-                None,
-                PresetsUi::new(id, &mut presets, &mut current, &mut false),
-            );
+            show_disabled_contents(ui, id);
         }
     });
+
+    app.prefs.needs_save |= changed;
 }
 
-fn show_contents(
+fn show_disabled_contents(ui: &mut egui::Ui, id: egui::Id) {
+    let mut presets = PresetsList::<()>::default();
+    let mut current = ModifiedPreset::default();
+
+    ui.disable();
+    PresetsUi::new(id, &mut presets, &mut current, &mut false)
+        .with_text(&L.presets.view_settings)
+        .show(ui, None, |_prefs_ui| ());
+}
+
+fn show_contents_for_perspective(
     ui: &mut egui::Ui,
-    prefs_set: Option<PuzzleViewPreferencesSet>,
+    dim: PerspectiveDim,
     presets_ui: PresetsUi<'_, ViewPreferences>,
 ) {
-    let presets_set = prefs_set.as_ref().map(|s| s.as_ref());
+    let presets_set = dim.as_ref();
     presets_ui
         .with_text(&L.presets.view_settings)
-        .show(ui, presets_set, |prefs_ui| {
-            crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui);
+        .show(ui, Some(presets_set), |prefs_ui| {
+            crate::gui::components::prefs::build_perspective_dim_view_section(dim, prefs_ui);
         });
 }

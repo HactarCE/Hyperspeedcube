@@ -2,9 +2,10 @@ use std::ops::RangeInclusive;
 
 use egui::NumExt;
 use hyperprefs::{
-    AnimationPreferences, InteractionPreferences, InterpolateFn, StyleColorMode, ViewPreferences,
+    AnimationPreferences, InteractionPreferences, InterpolateFn, Preferences, StyleColorMode,
+    ViewPreferences,
 };
-use hyperpuzzle_core::{PuzzleViewPreferencesSet, Rgb};
+use hyperpuzzle_core::{PerspectiveDim, PuzzleViewPreferencesSet, Rgb};
 use strum::VariantArray;
 
 use crate::L;
@@ -44,6 +45,15 @@ pub struct PrefsUi<'a, T> {
 impl<T> PrefsUi<'_, T> {
     fn get_default<U: Clone>(&self, access: &Access<T, U>) -> Option<U> {
         Some(access.get(self.defaults.as_ref()?).clone())
+    }
+
+    pub fn map_prefs<'b, U>(&'b mut self, access: Access<T, U>) -> PrefsUi<'b, U> {
+        PrefsUi {
+            ui: self.ui,
+            current: access.get_mut(self.current),
+            defaults: self.defaults.map(|defaults| access.get(defaults)),
+            changed: self.changed,
+        }
     }
 
     fn add<'s, 'w, W>(&'s mut self, make_widget: impl FnOnce(&'w mut T) -> W) -> egui::Response
@@ -438,13 +448,13 @@ pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) 
     });
 }
 
-pub fn build_view_section(
-    view_prefs_set: Option<PuzzleViewPreferencesSet>,
+pub fn build_perspective_dim_view_section(
+    dim: PerspectiveDim,
     mut prefs_ui: PrefsUi<'_, ViewPreferences>,
 ) {
     let l = &L.prefs.view.projection;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
+        if dim == PerspectiveDim::Dim4D {
             prefs_ui.angle(&l.fov_4d, access!(.fov_4d), |dv| {
                 dv.range(FOV_4D_RANGE).speed(0.5)
             });
@@ -459,13 +469,13 @@ pub fn build_view_section(
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.show_frontfaces, access!(.show_frontfaces));
         prefs_ui.checkbox(&l.show_backfaces, access!(.show_backfaces));
-        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
+        if dim == PerspectiveDim::Dim4D {
             prefs_ui.checkbox(&l.show_behind_4d_camera, access!(.show_behind_4d_camera));
         } else {
             prefs_ui.current.show_behind_4d_camera = false;
         }
 
-        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim3D) {
+        if dim == PerspectiveDim::Dim3D {
             prefs_ui.checkbox(&l.show_internals, access!(.show_internals));
         } else {
             prefs_ui.current.show_internals = false;

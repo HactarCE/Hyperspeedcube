@@ -1,19 +1,24 @@
-use serde::{Deserialize, Serialize};
 use strum::{AsRefStr, Display};
 
 /// Which set of view settings to use for the puzzle UI.
-#[derive(Serialize, Deserialize, Debug, Display, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Display, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PuzzleViewPreferencesSet {
+    /// Perspective rendering in Euclidean space.
+    #[strum(serialize = "{0}")]
+    Perspective(PerspectiveDim),
+}
+
+/// Perspective rendering dimension.
+#[derive(Debug, Display, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PerspectiveDim {
     /// Perspective 3D rendering.
-    #[serde(rename = "perspective_3d")]
     #[strum(serialize = "3D")]
     Dim3D,
     /// Perspective 4D rendering.
-    #[serde(rename = "perspective_4d")]
     #[strum(serialize = "4D+")]
     Dim4D,
 }
-impl PuzzleViewPreferencesSet {
+impl PerspectiveDim {
     /// Returns the puzzle view preferences set for a perspective-rendered
     /// Euclidean puzzle based on its number of dimensions.
     pub fn from_ndim(ndim: u8) -> Self {

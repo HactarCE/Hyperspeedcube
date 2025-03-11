@@ -213,6 +213,13 @@ impl Puzzle {
         self.ndim
     }
 
+    /// Returns which view preferences UI to display for the puzzle.
+    pub fn view_prefs_set(&self) -> Option<PuzzleViewPreferencesSet> {
+        Some(PuzzleViewPreferencesSet::Perspective(
+            PerspectiveDim::from_ndim(self.ndim),
+        ))
+    }
+
     /// Returns whether the piece has a sticker with the given color.
     pub fn piece_has_color(&self, piece: Piece, color: Color) -> bool {
         self.pieces[piece].stickers.iter().any(|&sticker| {

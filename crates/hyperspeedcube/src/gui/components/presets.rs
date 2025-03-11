@@ -515,7 +515,7 @@ where
                         overwrite,
                     } => {
                         ui.add_enabled_ui(is_unsaved, |ui| {
-                            if is_unsaved {
+                            if ui.is_enabled() {
                                 let visuals = ui.visuals_mut();
                                 visuals.widgets.inactive.expansion = 2.0;
                                 visuals.widgets.inactive.bg_stroke = egui::Stroke {
