@@ -3,8 +3,8 @@ use std::sync::{Arc, Weak};
 
 use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
-use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
-use hyperpuzzle_core::{Puzzle, ScrambleParams, ScrambleType};
+use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
+use hyperpuzzle_core::{Puzzle, PuzzleViewPreferencesSet, ScrambleParams, ScrambleType};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;

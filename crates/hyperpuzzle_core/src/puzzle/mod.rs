@@ -10,6 +10,7 @@ mod piece_type_hierarchy;
 mod puzzle_type;
 mod scramble;
 mod twist;
+mod view_prefs_set;
 
 pub use colors::{ColorSystem, ensure_color_scheme_is_valid};
 pub use dev_data::*;
@@ -22,3 +23,4 @@ pub use piece_type_hierarchy::*;
 pub use puzzle_type::{PLACEHOLDER_PUZZLE, Puzzle};
 pub use scramble::{ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle};
 pub use twist::LayeredTwist;
+pub use view_prefs_set::PuzzleViewPreferencesSet;

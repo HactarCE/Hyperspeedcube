@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use bitvec::vec::BitVec;
 use eyre::{OptionExt, eyre};
-use hyperpuzzle_core::{Puzzle, Rgb};
+use hyperpuzzle_core::{Puzzle, PuzzleViewPreferencesSet, Rgb};
 use serde::{Deserialize, Serialize};
 
 mod animations;
@@ -319,38 +319,6 @@ pub struct PieceFilter {
     /// Opacity of hidden pieces.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hidden_opacity: Option<f32>,
-}
-
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Default,
-    Display,
-    AsRefStr,
-    EnumIter,
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-)]
-pub enum PuzzleViewPreferencesSet {
-    #[serde(rename = "3D")]
-    #[strum(serialize = "3D")]
-    Dim3D,
-    #[default]
-    #[serde(rename = "4D+")]
-    #[strum(serialize = "4D+")]
-    Dim4D,
-}
-impl PuzzleViewPreferencesSet {
-    pub fn from_ndim(ndim: u8) -> Self {
-        match ndim {
-            ..=3 => Self::Dim3D,
-            4.. => Self::Dim4D,
-        }
-    }
 }
 
 #[cfg(test)]

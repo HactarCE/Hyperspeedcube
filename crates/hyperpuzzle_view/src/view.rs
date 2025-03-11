@@ -9,11 +9,12 @@ use hypermath::prelude::*;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
-    PuzzleFilterPreferences, PuzzleViewPreferencesSet,
+    PuzzleFilterPreferences,
 };
 use hyperpuzzle_core::{
     Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, PerPiece, Piece, PieceMask, Puzzle, Sticker,
+    NdEuclidPuzzleStateRenderData, PerPiece, Piece, PieceMask, Puzzle, PuzzleViewPreferencesSet,
+    Sticker,
 };
 use parking_lot::Mutex;
 use smallvec::smallvec;

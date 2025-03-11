@@ -2,10 +2,9 @@ use std::ops::RangeInclusive;
 
 use egui::NumExt;
 use hyperprefs::{
-    AnimationPreferences, InteractionPreferences, InterpolateFn, PuzzleViewPreferencesSet,
-    StyleColorMode, ViewPreferences,
+    AnimationPreferences, InteractionPreferences, InterpolateFn, StyleColorMode, ViewPreferences,
 };
-use hyperpuzzle_core::Rgb;
+use hyperpuzzle_core::{PuzzleViewPreferencesSet, Rgb};
 use strum::VariantArray;
 
 use crate::L;

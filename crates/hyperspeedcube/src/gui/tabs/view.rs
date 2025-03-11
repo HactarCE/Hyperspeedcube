@@ -1,4 +1,5 @@
-use hyperprefs::{ModifiedPreset, PresetsList, PuzzleViewPreferencesSet, ViewPreferences};
+use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
+use hyperpuzzle_core::PuzzleViewPreferencesSet;
 
 use crate::L;
 use crate::app::App;
