@@ -1,8 +1,6 @@
 //! Functions for verifying log files.
 
-use hyperpuzzle_core::{
-    Catalog, LayeredTwist, PuzzleState, ScrambleParams, Timestamp, TwistMetric, chrono,
-};
+use hyperpuzzle_core::{Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric, chrono};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -90,13 +88,13 @@ fn verify_internal(
     if check_solution {
         let mut puzzle_state = puzzle.new_solved_state();
         for twist in scramble_twists {
-            if let Ok(new_state) = puzzle_state.do_twist(twist) {
+            if let Ok(new_state) = puzzle_state.do_twist_dyn(twist) {
                 puzzle_state = new_state;
             }
         }
         twists_done = vec![];
         for twist in twist_groups.into_iter().flatten() {
-            if let Ok(new_state) = puzzle_state.do_twist(twist) {
+            if let Ok(new_state) = puzzle_state.do_twist_dyn(twist) {
                 puzzle_state = new_state;
                 twists_done.push(twist);
             }

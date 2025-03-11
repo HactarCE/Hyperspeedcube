@@ -4,7 +4,6 @@ use std::str::FromStr;
 use hypermath::collections::{GenericMask, GenericVec};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hypershape::PolytopeId;
 use itertools::Itertools;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -110,9 +109,6 @@ pub struct PieceInfo {
     pub piece_type: PieceType,
     /// Centroid of the piece.
     pub centroid: Vector,
-    /// Polytope of the piece.
-    // TODO: remove this somehow
-    pub polytope: PolytopeId,
 }
 
 /// Sticker info.

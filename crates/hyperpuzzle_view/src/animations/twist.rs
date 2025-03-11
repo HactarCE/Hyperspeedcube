@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle_core::{BoxDynPuzzleAnimation, HypershapePuzzleState};
+use hyperpuzzle_core::{BoxDynPuzzleAnimation, BoxDynPuzzleState};
 use web_time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
@@ -71,7 +71,7 @@ impl TwistAnimationState {
 #[derive(Debug, Clone)]
 pub struct AnimationFromState {
     /// Puzzle state before the animation.
-    pub state: HypershapePuzzleState,
+    pub state: BoxDynPuzzleState,
     /// Animation to apply to the state.
     pub anim: BoxDynPuzzleAnimation,
 }

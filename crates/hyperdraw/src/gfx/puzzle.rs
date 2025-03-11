@@ -15,7 +15,9 @@ use std::sync::{Arc, mpsc};
 use eyre::{OptionExt, Result, bail};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
-use hyperpuzzle_core::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
+use hyperpuzzle_core::{
+    Mesh, NdEuclidPuzzleGeometry, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker,
+};
 use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -104,7 +106,7 @@ macro_rules! struct_with_constructor {
 ///
 /// Many GPU structures and intermediate results are cached.
 #[derive(Debug)]
-pub struct PuzzleRenderer {
+pub struct NdEuclidPuzzleRenderer {
     /// Graphics state.
     pub gfx: Arc<GraphicsState>,
     /// Static model data, which does not change and so can be shared among all
@@ -139,7 +141,7 @@ pub struct PuzzleRenderer {
     init_time: Instant,
 }
 
-impl Clone for PuzzleRenderer {
+impl Clone for NdEuclidPuzzleRenderer {
     fn clone(&self) -> Self {
         Self {
             gfx: Arc::clone(&self.gfx),
@@ -166,16 +168,26 @@ impl Clone for PuzzleRenderer {
     }
 }
 
-impl PuzzleRenderer {
+impl NdEuclidPuzzleRenderer {
     /// Constructs a new puzzle renderer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the puzzle is not rendered as an N-dimensional Euclidean
+    /// puzzle.
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
-        let is_empty_model = puzzle.mesh.is_empty() || puzzle.pieces.is_empty();
+        let geom = puzzle
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .expect("expected NdEuclidPuzzleGeometry");
+
+        let is_empty_model = geom.mesh.is_empty() || puzzle.pieces.is_empty();
 
         let mesh = if is_empty_model {
-            let placeholder_mesh = super::placeholder::placeholder_mesh(puzzle.ndim());
+            let placeholder_mesh = super::placeholder::placeholder_mesh(geom.ndim());
             Cow::Owned(placeholder_mesh.expect("error generating placeholder mesh"))
         } else {
-            Cow::Borrowed(&puzzle.mesh)
+            Cow::Borrowed(&geom.mesh)
         };
 
         let puzzle_name = puzzle.meta.name.clone();
@@ -191,7 +203,7 @@ impl PuzzleRenderer {
         };
 
         let id = next_buffer_id();
-        PuzzleRenderer {
+        NdEuclidPuzzleRenderer {
             gfx: Arc::clone(gfx),
             model: Arc::new(StaticPuzzleModel::new(gfx, &mesh, id)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &mesh, id),

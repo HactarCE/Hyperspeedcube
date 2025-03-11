@@ -7,6 +7,8 @@ use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
+use crate::BoxDynPuzzleState;
+use crate::NdEuclidPuzzleGeometry;
 use crate::{
     Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
     NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle,
@@ -43,7 +45,7 @@ impl CachedTransformData {
 
 /// Instance of a puzzle with a particular state.
 #[derive(Debug, Clone)]
-pub struct HypershapePuzzleState {
+pub struct NdEuclidPuzzleState {
     /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,
     /// Attitude (position & rotation) of each piece.
@@ -53,9 +55,13 @@ pub struct HypershapePuzzleState {
     cached_transform_by_motor: Arc<Mutex<ApproxHashMap<pga::Motor, CachedTransform>>>,
 }
 
-impl PuzzleState for HypershapePuzzleState {
+impl PuzzleState for NdEuclidPuzzleState {
     fn ty(&self) -> &Arc<Puzzle> {
         &self.puzzle_type
+    }
+
+    fn clone_dyn(&self) -> BoxDynPuzzleState {
+        self.clone().into()
     }
 
     fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
@@ -95,6 +101,10 @@ impl PuzzleState for HypershapePuzzleState {
             cached_transforms: Arc::clone(&self.cached_transforms),
             cached_transform_by_motor: Arc::clone(&self.cached_transform_by_motor),
         })
+    }
+
+    fn do_twist_dyn(&self, twist: LayeredTwist) -> Result<BoxDynPuzzleState, Vec<Piece>> {
+        self.do_twist(twist).map(BoxDynPuzzleState::from)
     }
 
     fn is_solved(&self) -> bool {
@@ -220,14 +230,14 @@ impl PuzzleState for HypershapePuzzleState {
         axis_info.layers.contiguous_range(lo, hi)
     }
 
-    fn render_data(&self) -> BoxDynPuzzleStateRenderData {
+    fn state_render_data(&self) -> BoxDynPuzzleStateRenderData {
         NdEuclidPuzzleStateRenderData {
             piece_transforms: self.piece_transforms(),
         }
         .into()
     }
 
-    fn render_data_with_animation(
+    fn animated_render_data(
         &self,
         anim: &BoxDynPuzzleAnimation,
         t: f32,
@@ -254,7 +264,7 @@ impl PuzzleState for HypershapePuzzleState {
     }
 }
 
-impl HypershapePuzzleState {
+impl NdEuclidPuzzleState {
     /// Constructs a new solved puzzle state.
     pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
         let ident = pga::Motor::ident(puzzle_type.ndim());
@@ -268,7 +278,7 @@ impl HypershapePuzzleState {
         by_motor.insert(ident, CachedTransform(0));
         let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
 
-        HypershapePuzzleState {
+        NdEuclidPuzzleState {
             puzzle_type,
             piece_transforms,
             cached_transforms,
@@ -282,6 +292,14 @@ impl HypershapePuzzleState {
             .map_ref(|_, &i| cached[i].motor.clone())
     }
 
+    /// Returns the geometry for the puzzle.
+    pub fn geom(&self) -> &NdEuclidPuzzleGeometry {
+        self.puzzle_type
+            .ui_data
+            .downcast_ref()
+            .expect("HypershapePuzzleState requires NdEuclidPuzzleGeometry")
+    }
+
     /// Returns the minimum and maximum coordinates along an axis that a piece's
     /// vertices spans.
     fn piece_min_max_on_axis(&self, piece: Piece, axis: Axis) -> Result<(Float, Float)> {
@@ -289,9 +307,8 @@ impl HypershapePuzzleState {
         let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
             .reverse_transform_axis_vector(axis, &self.puzzle_type.axes);
 
-        let space = &self.puzzle_type.space;
-        let piece_info = &self.puzzle_type.pieces[piece];
-        let vertex_set = space.get(piece_info.polytope).vertex_set();
+        let geom = self.geom();
+        let vertex_set = geom.space.get(geom.piece_polytopes[piece]).vertex_set();
         let vertex_distances_along_axis = vertex_set.map(|p| p.pos().dot(transformed_axis_vector));
         hypermath::util::min_max(vertex_distances_along_axis).ok_or_eyre("piece has no vertices")
     }

@@ -13,7 +13,7 @@ mod structs;
 
 pub use cache::{CachedTexture, CachedTexture1d, CachedTexture2d};
 pub use draw_params::DrawParams;
-pub use puzzle::PuzzleRenderer;
+pub use puzzle::NdEuclidPuzzleRenderer;
 pub use state::GraphicsState;
 pub use structs::GfxEffectParams;
 

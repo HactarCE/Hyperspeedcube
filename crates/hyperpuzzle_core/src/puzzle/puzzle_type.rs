@@ -10,7 +10,10 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{PuzzleListMetadata, PuzzleState, TagSet, Version};
+use crate::{
+    BoxDynPuzzleState, BoxDynPuzzleUiData, NdEuclidPuzzleGeometry, NdEuclidPuzzleState,
+    PuzzleListMetadata, TagSet, Version,
+};
 
 lazy_static! {
     /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
@@ -23,8 +26,8 @@ lazy_static! {
             aliases: vec![],
             tags: TagSet::new(),
         },
+        ndim: 3,
         space: Space::new(3),
-        mesh: Mesh::new_empty(3),
         pieces: PerPiece::new(),
         stickers: PerSticker::new(),
         piece_types: PerPieceType::new(),
@@ -41,7 +44,8 @@ lazy_static! {
         gizmo_twists: PerGizmoFace::new(),
         dev_data: PuzzleDevData::new(),
 
-        new: Box::new(HypershapePuzzleState::new),
+        new: Box::new(|this| NdEuclidPuzzleState::new(this).into()),
+        ui_data: NdEuclidPuzzleGeometry::placeholder().into()
     });
 }
 
@@ -53,11 +57,12 @@ pub struct Puzzle {
     /// Metadata for the puzzle.
     pub meta: PuzzleListMetadata,
 
+    // TODO: remove this
+    pub ndim: u8,
+
     /// Space containing a polytope for each piece.
     // TODO: evaluate where this is used and how we can remove it
     pub space: Arc<Space>,
-    /// Puzzle mesh for rendering.
-    pub mesh: Mesh,
 
     /// List of pieces, indexed by ID.
     pub pieces: PerPiece<PieceInfo>,
@@ -99,7 +104,10 @@ pub struct Puzzle {
     pub dev_data: PuzzleDevData,
 
     /// Constructor for a solved puzzle state.
-    pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> HypershapePuzzleState>,
+    pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> BoxDynPuzzleState>,
+
+    /// Data for rendering and interacting with the puzzle.
+    pub ui_data: BoxDynPuzzleUiData,
 }
 
 impl fmt::Debug for Puzzle {
@@ -138,7 +146,7 @@ impl Puzzle {
         self.this.upgrade().expect("`Puzzle` removed from `Arc`")
     }
     /// Constructs a new instance of the puzzle.
-    pub fn new_solved_state(&self) -> HypershapePuzzleState {
+    pub fn new_solved_state(&self) -> BoxDynPuzzleState {
         (self.new)(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.
@@ -191,7 +199,7 @@ impl Puzzle {
         let mut twists_applied = vec![];
         let mut state = self.new_solved_state();
         for (i, twist) in random_twists.take(scramble_length as usize).enumerate() {
-            if let Ok(new_state) = state.do_twist(twist) {
+            if let Ok(new_state) = state.do_twist_dyn(twist) {
                 twists_applied.push(twist);
                 state = new_state;
             }
@@ -212,7 +220,7 @@ impl Puzzle {
 
     /// Returns the number of dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        self.mesh.ndim
+        self.ndim
     }
 
     /// Returns whether the piece has a sticker with the given color.

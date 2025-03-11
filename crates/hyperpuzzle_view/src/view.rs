@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
-use hyperdraw::{Camera, GfxEffectParams, GraphicsState, PuzzleRenderer};
+use hyperdraw::{Camera, GfxEffectParams, GraphicsState, NdEuclidPuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{
@@ -11,9 +11,10 @@ use hyperprefs::{
     FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
     PuzzleFilterPreferences, PuzzleViewPreferencesSet,
 };
+use hyperpuzzle_core::NdEuclidPuzzleGeometry;
 use hyperpuzzle_core::{
     Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleStateRenderData, PerPiece, Piece,
-    PieceMask, Puzzle, PuzzleState, Sticker,
+    PieceMask, Puzzle, Sticker,
 };
 use parking_lot::Mutex;
 use smallvec::smallvec;
@@ -30,7 +31,7 @@ pub struct PuzzleView {
     pub sim: Arc<Mutex<PuzzleSimulation>>,
 
     /// Puzzle renderer.
-    pub renderer: PuzzleRenderer,
+    pub renderer: NdEuclidPuzzleRenderer,
 
     /// Camera defining how to view the puzzle.
     pub camera: Camera,
@@ -89,7 +90,7 @@ impl PuzzleView {
         Self {
             sim: Arc::clone(sim),
 
-            renderer: PuzzleRenderer::new(gfx, puzzle),
+            renderer: NdEuclidPuzzleRenderer::new(gfx, puzzle),
 
             camera: Camera {
                 view_preset,
@@ -429,12 +430,13 @@ impl PuzzleView {
         prefs: &Preferences,
     ) -> Option<PuzzleHoverState> {
         let puzzle = self.puzzle();
+        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>()?;
 
         let cursor_pos = self.cursor_pos?;
 
         let interactable_pieces = self.styles.interactable_pieces(prefs);
 
-        let sticker_tri_ranges = puzzle
+        let sticker_tri_ranges = geom
             .mesh
             .sticker_triangle_ranges
             .iter()
@@ -442,7 +444,7 @@ impl PuzzleView {
 
         let empty_internals_list = PerPiece::new();
         let internals_tri_ranges = if self.camera.prefs().show_internals {
-            &puzzle.mesh.piece_internals_triangle_ranges
+            &geom.mesh.piece_internals_triangle_ranges
         } else {
             &empty_internals_list
         }
@@ -473,10 +475,11 @@ impl PuzzleView {
         vertex_3d_positions: &[cgmath::Vector4<f32>],
     ) -> Option<GizmoHoverState> {
         let puzzle = self.puzzle();
+        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>()?;
 
         let cursor_pos = self.cursor_pos?;
 
-        let gizmo_tri_ranges = puzzle.mesh.gizmo_triangle_ranges.iter();
+        let gizmo_tri_ranges = geom.mesh.gizmo_triangle_ranges.iter();
 
         gizmo_tri_ranges
             .flat_map(|(gizmo, tri_range)| {
@@ -570,6 +573,10 @@ impl PuzzleView {
 
     /// Returns the triangles on the puzzle that contain the screen-space point
     /// `cursor_pos`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the puzzle backend isn't supported.
     fn puzzle_triangle_hovers<'a>(
         &'a self,
         puzzle_state: &'a PuzzleSimulation,
@@ -579,10 +586,15 @@ impl PuzzleView {
         tri_range: &'a Range<u32>,
         puzzle_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
     ) -> impl 'a + Iterator<Item = PuzzleHoverState> {
+        let geom = puzzle_state
+            .puzzle_type()
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .expect("unexpected type for PuzzleTypeGpuData");
+        let mesh = &geom.mesh;
         let piece_transform = &puzzle_state
             .unwrap_render_data::<NdEuclidPuzzleStateRenderData>()
             .piece_transforms[piece];
-        let mesh = &puzzle_state.puzzle_type().mesh;
         mesh.triangles[tri_range.start as usize..tri_range.end as usize]
             .iter()
             .filter_map(move |&vertex_ids| {
@@ -632,7 +644,11 @@ impl PuzzleView {
         gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     ) -> Option<GizmoHoverState> {
         let puzzle_state = self.sim.lock();
-        let mesh = &puzzle_state.puzzle_type().mesh;
+        let geom = puzzle_state
+            .puzzle_type()
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleGeometry>()?;
+        let mesh = &geom.mesh;
         mesh.triangles[tri_range.start as usize..tri_range.end as usize]
             .iter()
             .find_map(move |&vertex_ids| {

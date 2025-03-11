@@ -9,7 +9,8 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle_core::{
-    BuildTask, GizmoFace, LayerMask, NdEuclidPuzzleStateRenderData, Progress, Puzzle, Redirectable,
+    BuildTask, GizmoFace, LayerMask, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData,
+    Progress, Puzzle, Redirectable,
 };
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
@@ -653,29 +654,35 @@ impl PuzzleWidget {
         };
 
         // Draw gizmos (TODO: move to GPU?)
-        if let Some(gizmo_vertex_3d_positions) = view.renderer.gizmo_vertex_3d_positions.get() {
-            if let Some(axis) = view.temp_gizmo_highlight.take() {
-                for (gizmo_face, &twist) in &puzzle.gizmo_twists {
-                    if puzzle.twists[twist].axis == axis {
-                        show_gizmo_face(
-                            &puzzle,
-                            gizmo_face,
-                            &gizmo_vertex_3d_positions,
-                            &painter,
-                            to_egui,
-                            false,
-                        );
+        if let Some(geom) = puzzle.ui_data.downcast_ref() {
+            if let Some(gizmo_vertex_3d_positions) = view.renderer.gizmo_vertex_3d_positions.get() {
+                if let Some(axis) = view.temp_gizmo_highlight.take() {
+                    for (gizmo_face, &twist) in &puzzle.gizmo_twists {
+                        if puzzle.twists[twist].axis == axis {
+                            show_gizmo_face(
+                                &puzzle,
+                                geom,
+                                gizmo_face,
+                                &gizmo_vertex_3d_positions,
+                                &painter,
+                                to_egui,
+                                false,
+                            );
+                        }
                     }
+                } else if let Some(hover) =
+                    view.gizmo_hover_state().filter(|_| view.show_gizmo_hover)
+                {
+                    show_gizmo_face(
+                        &puzzle,
+                        geom,
+                        hover.gizmo_face,
+                        &gizmo_vertex_3d_positions,
+                        &painter,
+                        to_egui,
+                        true,
+                    );
                 }
-            } else if let Some(hover) = view.gizmo_hover_state().filter(|_| view.show_gizmo_hover) {
-                show_gizmo_face(
-                    &puzzle,
-                    hover.gizmo_face,
-                    &gizmo_vertex_3d_positions,
-                    &painter,
-                    to_egui,
-                    true,
-                );
             }
         }
 
@@ -766,6 +773,7 @@ impl PuzzleWidget {
 
 fn show_gizmo_face(
     puzzle: &Puzzle,
+    geom: &NdEuclidPuzzleGeometry,
     gizmo_face: GizmoFace,
     gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     painter: &egui::Painter,
@@ -778,37 +786,36 @@ fn show_gizmo_face(
     let stroke_strong = egui::Stroke::new(2.0, strong_color);
     let fill = weak_color;
 
-    let twist = puzzle.gizmo_twists[gizmo_face];
+    let twist = geom.gizmo_twists[gizmo_face];
     let axis = puzzle.twists[twist].axis;
-    let other_faces_on_same_gizmo = puzzle
+    let other_faces_on_same_gizmo = geom
         .gizmo_twists
         .iter_filter(|_gizmo_face, &twist| puzzle.twists[twist].axis == axis);
 
     if show_other_faces_on_same_gizmo {
         for face in other_faces_on_same_gizmo {
-            let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face]; // TODO: fix crash here
+            let edge_id_range = &geom.mesh.gizmo_edge_ranges[face]; // TODO: fix crash here
             for edge_id in edge_id_range.clone() {
-                let edge = puzzle.mesh.edges[edge_id as usize]
+                let edge = geom.mesh.edges[edge_id as usize]
                     .map(|i| gizmo_vertex_3d_positions[i as usize]);
                 painter.line_segment(edge.map(&project_to_egui), stroke_weak);
             }
         }
     }
 
-    let tri_id_range = &puzzle.mesh.gizmo_triangle_ranges[gizmo_face];
+    let tri_id_range = &geom.mesh.gizmo_triangle_ranges[gizmo_face];
     for tri_id in tri_id_range.clone() {
         let tri =
-            puzzle.mesh.triangles[tri_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+            geom.mesh.triangles[tri_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.add(egui::Shape::convex_polygon(
             tri.into_iter().map(&project_to_egui).collect(),
             fill,
             egui::Stroke::NONE,
         ));
     }
-    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[gizmo_face];
+    let edge_id_range = &geom.mesh.gizmo_edge_ranges[gizmo_face];
     for edge_id in edge_id_range.clone() {
-        let edge =
-            puzzle.mesh.edges[edge_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+        let edge = geom.mesh.edges[edge_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.line_segment(edge.map(&project_to_egui), stroke_strong);
     }
 }

@@ -476,6 +476,7 @@ impl ShapeBuilder {
         // As we construct the mesh, we'll renumber all the pieces and stickers
         // to exclude inactive ones.
         let mut pieces = PerPiece::<PieceInfo>::new();
+        let mut piece_polytopes = PerPiece::<PolytopeId>::new();
         let mut stickers = PerSticker::<StickerInfo>::new();
         let mut surfaces = PerSurface::<TempSurfaceData>::new();
 
@@ -495,8 +496,8 @@ impl ShapeBuilder {
                 stickers: smallvec![],
                 piece_type,
                 centroid: piece_centroid.clone(),
-                polytope: piece.polytope,
             })?;
+            piece_polytopes.push(piece.polytope)?;
 
             // Add stickers to the mesh sorted by color. It's important that
             // internal stickers are processed last, so that they are all in a
@@ -609,7 +610,9 @@ impl ShapeBuilder {
         Ok(ShapeBuildOutput {
             mesh,
             pieces,
+            piece_polytopes,
             stickers,
+
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
@@ -621,7 +624,9 @@ impl ShapeBuilder {
 pub struct ShapeBuildOutput {
     pub mesh: Mesh,
     pub pieces: PerPiece<PieceInfo>,
+    pub piece_polytopes: PerPiece<PolytopeId>,
     pub stickers: PerSticker<StickerInfo>,
+
     pub piece_types: PerPieceType<PieceTypeInfo>,
     pub piece_type_hierarchy: PieceTypeHierarchy,
     pub piece_type_masks: HashMap<String, PieceMask>,
@@ -631,7 +636,9 @@ impl ShapeBuildOutput {
         Self {
             mesh: Mesh::new_empty(ndim),
             pieces: PerPiece::new(),
+            piece_polytopes: PerPiece::new(),
             stickers: PerSticker::new(),
+
             piece_types: PerPieceType::new(),
             piece_type_hierarchy: PieceTypeHierarchy::new(0),
             piece_type_masks: HashMap::new(),

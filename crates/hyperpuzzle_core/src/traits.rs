@@ -8,21 +8,28 @@ use crate::{Axis, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle};
 
 /// Instance of a puzzle with a particular state.
 ///
-/// In order to be dyn-compatible, this trait has no associated types. Instead
-/// it uses `Box<dyn Any>` for rendering data. All implementors of this trait
-/// should explicitly document which type(s) may be returned from
-/// [`PuzzleState::render_data()`].
-pub trait PuzzleState: 'static + fmt::Debug + Clone + Send + Sync {
+/// In order to be dyn-compatible, this trait has no associated types and uses
+/// wrappers around `Box<dyn Trait>` instead.
+pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     /// Returns the puzzle type.
     fn ty(&self) -> &Arc<Puzzle>;
+
+    /// Clones the puzzle.
+    fn clone_dyn(&self) -> BoxDynPuzzleState;
 
     /*
      * PUZZLE LOGIC
      */
 
-    /// Does a twist, or returns an error containing the set of pieces that
-    /// prevented the twist.
-    fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>>;
+    /// Applies a twist and returns the new puzzle state or an error containing
+    /// the set of pieces that prevented the twist.
+    fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>>
+    where
+        Self: Sized;
+
+    /// Applies a twist and returns the new puzzle state or an error containing
+    /// the set of pieces that prevented the twist.
+    fn do_twist_dyn(&self, twist: LayeredTwist) -> Result<BoxDynPuzzleState, Vec<Piece>>;
 
     /// Returns whether the puzzle is in a solved state.
     fn is_solved(&self) -> bool;
@@ -61,7 +68,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Clone + Send + Sync {
      */
 
     /// Returns data to render the current state of the puzzle.
-    fn render_data(&self) -> BoxDynPuzzleStateRenderData;
+    fn state_render_data(&self) -> BoxDynPuzzleStateRenderData;
 
     /// Returns data to render the state of the puzzle during an animation.
     ///
@@ -71,7 +78,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Clone + Send + Sync {
     /// # Panics
     ///
     /// This method may panics if passed an invalid animation.
-    fn render_data_with_animation(
+    fn animated_render_data(
         &self,
         anim: &BoxDynPuzzleAnimation,
         t: f32,
@@ -106,7 +113,36 @@ macro_rules! box_dyn_wrapper_struct {
                 (&*self.0 as &dyn Any).downcast_ref()
             }
         }
+        impl std::ops::Deref for $struct_name {
+            type Target = dyn $trait_name;
+
+            fn deref(&self) -> &Self::Target {
+                &*self.0
+            }
+        }
     };
+}
+
+box_dyn_wrapper_struct! {
+    /// Wrapper around `Box<dyn PuzzleState>` that can be downcast to a concrete
+    /// puzzle state type. This type also implements [`Clone`] for convenience.
+    pub struct BoxDynPuzzleState(Box<dyn PuzzleState>);
+}
+impl Clone for BoxDynPuzzleState {
+    fn clone(&self) -> Self {
+        self.clone_dyn()
+    }
+}
+
+/// Marker trait for types that may be stored in [`Puzzle::ui_data`].
+///
+/// Because [`Any`] is defined with a `'static` bound, implementors of this
+/// trait cannot borrow from the puzzle state.
+pub trait PuzzleUiData: Any + Send + Sync {}
+box_dyn_wrapper_struct! {
+    /// Wrapper around `Box<dyn PuzzleTypeGpuData>` that can be downcast to a
+    /// concrete GPU data type.
+    pub struct BoxDynPuzzleUiData(Box<dyn PuzzleUiData>);
 }
 
 /// Marker trait for types that may be returned from

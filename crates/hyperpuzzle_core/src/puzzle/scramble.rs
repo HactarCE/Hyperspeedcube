@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use super::{HypershapePuzzleState, LayeredTwist};
-use crate::Timestamp;
+use super::LayeredTwist;
+use crate::{BoxDynPuzzleState, Timestamp};
 
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.
@@ -96,5 +96,5 @@ pub struct ScrambledPuzzle {
     /// Scramble twists applied.
     pub twists: Vec<LayeredTwist>,
     /// State of the puzzle after scrambling.
-    pub state: HypershapePuzzleState,
+    pub state: BoxDynPuzzleState,
 }

@@ -80,6 +80,7 @@ impl PuzzleBuilder {
         let ShapeBuildOutput {
             mut mesh,
             pieces,
+            piece_polytopes,
             stickers,
             piece_types,
             piece_type_hierarchy,
@@ -102,12 +103,21 @@ impl PuzzleBuilder {
         let mut scramble_twists = twists.iter_keys().collect_vec();
         scramble_twists.sort_by_cached_key(|&twist| twists[twist].min_name());
 
+        let gpu_data = NdEuclidPuzzleGeometry {
+            space: self.space().clone(),
+            mesh,
+            piece_polytopes,
+            sticker_planes: stickers.map_ref(|_, sticker| sticker.plane.clone()),
+            axis_vectors: axes.map_ref(|_, axis| axis.vector.clone()),
+            gizmo_twists: gizmo_twists.clone(),
+        };
+
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: self.meta.clone(),
 
+            ndim: self.ndim(),
             space: self.space(),
-            mesh,
 
             pieces,
             stickers,
@@ -132,7 +142,9 @@ impl PuzzleBuilder {
 
             dev_data,
 
-            new: Box::new(HypershapePuzzleState::new),
+            new: Box::new(|this| NdEuclidPuzzleState::new(this).into()),
+
+            ui_data: gpu_data.into(),
         }))
     }
 }
