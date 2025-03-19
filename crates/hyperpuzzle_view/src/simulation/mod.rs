@@ -2,18 +2,21 @@ use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
 use float_ord::FloatOrd;
+use hyperdraw::GfxEffectParams;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
-use hyperprefs::AnimationPreferences;
+use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle_core::{
     Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, PieceMask, Puzzle, PuzzleState,
-    PuzzleStateRenderData, ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle,
-    Timestamp,
+    NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, Puzzle, PuzzleState, PuzzleStateRenderData,
+    ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
 };
 use hyperpuzzle_log::Scramble;
+use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
 use smallvec::smallvec;
 use web_time::{Duration, Instant};
+
+mod nd_euclid;
 
 use super::animations::{AnimationFromState, BlockingAnimationState, TwistAnimationState};
 use super::{Action, ReplayEvent, UndoBehavior};
@@ -27,6 +30,9 @@ const ASSUMED_FPS: f32 = 120.0;
 pub struct PuzzleSimulation {
     /// Latest puzzle state, not including any transient rotation.
     latest_state: BoxDynPuzzleState,
+
+    /// Extra state if this is an N-dimensional Euclidean puzzle.
+    nd_euclid: Option<Box<NdEuclidSimState>>,
 
     scramble_waiting: Option<(
         Arc<ScrambleProgress>,
@@ -66,9 +72,6 @@ pub struct PuzzleSimulation {
     /// Special animation state.
     special_anim: SpecialAnimationState,
 
-    /// Twist drag state for N-dimensional Euclidean puzzles.
-    partial_twist_drag_state: Option<PartialTwistDragState>,
-
     /// Latest visual piece transforms.
     cached_render_data: BoxDynPuzzleStateRenderData,
 
@@ -86,9 +89,11 @@ impl PuzzleSimulation {
     /// Constructs a new simulation with a fresh puzzle state.
     pub fn new(puzzle: &Arc<Puzzle>) -> Self {
         let latest_state = puzzle.new_solved_state();
-        let cached_render_data = latest_state.state_render_data();
+        let cached_render_data = latest_state.render_data();
         Self {
             latest_state,
+
+            nd_euclid: NdEuclidSimState::new(puzzle).map(Box::new),
 
             scramble_waiting: None,
 
@@ -109,8 +114,6 @@ impl PuzzleSimulation {
             blocking_anim: BlockingAnimationState::default(),
             special_anim: SpecialAnimationState::default(),
 
-            partial_twist_drag_state: None,
-
             cached_render_data,
 
             last_log_file: None,
@@ -124,10 +127,6 @@ impl PuzzleSimulation {
     /// Returns the puzzle type.
     pub fn puzzle_type(&self) -> &Arc<Puzzle> {
         self.latest_state.ty()
-    }
-    /// Returns the number of dimensions of the puzzle view.
-    pub fn ndim(&self) -> u8 {
-        self.puzzle_type().ndim()
     }
 
     /// Returns the latest render data.
@@ -143,27 +142,29 @@ impl PuzzleSimulation {
     /// Updates the piece transforms. This is called every frame that the puzzle
     /// is in motion.
     fn update_render_data(&mut self, animation_prefs: &AnimationPreferences) {
-        self.cached_render_data = if let Some((anim, t)) = self.twist_anim.current() {
-            let t = animation_prefs.twist_interpolation.interpolate(t);
-            anim.state.animated_render_data(&anim.anim, t)
-        } else if let Some(partial) = &self.partial_twist_drag_state {
-            // This is inelegant; rethink if this pattern shows up for other backends too.
-            let anim = NdEuclidPuzzleAnimation {
-                pieces: partial.grip.clone(),
-                initial_transform: partial.transform.clone(),
-                final_transform: partial.transform.clone(),
-            };
-            let t = 0.0;
-            self.latest_state.animated_render_data(&anim.into(), t)
-        } else {
-            self.latest_state.state_render_data()
-        };
+        self.cached_render_data = (|| {
+            // Twist animation
+            if let Some((anim, t)) = self.twist_anim.current() {
+                let t = animation_prefs.twist_interpolation.interpolate(t);
+                return anim.state.animated_render_data(&anim.anim, t);
+            }
+
+            // Partial twist drag
+            if let Some(nd_euclid) = &self.nd_euclid {
+                if let Some(ret) = nd_euclid.partial_twist_drag_render_state(&self.latest_state) {
+                    return ret;
+                }
+            }
+
+            // No animation
+            self.latest_state.render_data()
+        })();
     }
     /// Updates the piece transforms, ignoring the current animation state. This
     /// is called after updating the puzzle state with no animation.
     fn skip_twist_animations(&mut self) {
         self.twist_anim = TwistAnimationState::default();
-        self.cached_render_data = self.latest_state.state_render_data();
+        self.cached_render_data = self.latest_state.render_data();
     }
 
     /// Returns whether the puzzle has unsaved changes.
@@ -423,47 +424,56 @@ impl PuzzleSimulation {
         let axis = twist_info.axis;
         let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
 
-        let mut initial_transform = Motor::ident(self.ndim());
-        if let Some(partial) = self.partial_twist_drag_state.take() {
-            if partial.grip == grip {
-                initial_transform = partial.transform;
-            } else {
-                self.cancel_popped_partial_twist(partial);
-                // That call doesn't modify the puzzle state, so `grip` can stay
-                // the same.
+        let mut nd_euclid_initial_transform = None;
+        if let Some(nd_euclid) = &mut self.nd_euclid {
+            if let Some(partial) = nd_euclid.partial_twist_drag_state.take() {
+                if partial.grip == grip {
+                    nd_euclid_initial_transform = Some(partial.transform);
+                } else {
+                    self.cancel_popped_partial_twist(partial);
+                    // That call doesn't modify the puzzle state, so `grip` can
+                    // stay the same.
+                }
             }
         }
 
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
                 let state = std::mem::replace(&mut self.latest_state, new_state);
-                if let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() {
+                self.blocking_anim.clear();
+
+                if let Some(nd_euclid) = &self.nd_euclid {
+                    let geom = &nd_euclid.geom;
                     self.twist_anim.push(AnimationFromState {
                         state,
                         anim: NdEuclidPuzzleAnimation {
                             pieces: grip,
-                            initial_transform,
+                            initial_transform: nd_euclid_initial_transform
+                                .unwrap_or_else(|| Motor::ident(geom.ndim())),
                             final_transform: geom.twist_transforms[twist.transform].clone(),
                         }
                         .into(),
                     });
                 }
-                self.blocking_anim.clear();
+
                 true
             }
             Err(blocking_pieces) => {
-                if !initial_transform.is_ident() {
+                self.blocking_anim.set(blocking_pieces);
+
+                if let Some(initial_transform) = nd_euclid_initial_transform {
+                    let ndim = initial_transform.ndim();
                     self.twist_anim.push(AnimationFromState {
                         state: self.latest_state.clone_dyn(),
                         anim: NdEuclidPuzzleAnimation {
                             pieces: grip,
                             initial_transform,
-                            final_transform: Motor::ident(self.ndim()),
+                            final_transform: Motor::ident(ndim),
                         }
                         .into(),
                     });
                 }
-                self.blocking_anim.set(blocking_pieces);
+
                 false
             }
         }
@@ -518,33 +528,45 @@ impl PuzzleSimulation {
         &self.blocking_anim
     }
 
-    /// Returns the currently active partial twist.
-    pub fn partial_twist(&self) -> &Option<PartialTwistDragState> {
-        &self.partial_twist_drag_state
+    /// Returns the progress for the special animation.
+    pub fn special_anim_t(&self) -> Option<f32> {
+        self.special_anim
+            .get()
+            .map(|t| InterpolateFn::Cosine.interpolate(t))
     }
+
+    /// Returns N-dimensional Euclidean simulation state, if applicable.
+    pub fn nd_euclid(&self) -> Option<&NdEuclidSimState> {
+        self.nd_euclid.as_deref()
+    }
+
     /// Begins a partial twist, which is used for mouse drag twist input.
-    pub fn begin_partial_twist(&mut self, axis: Axis, layers: LayerMask) {
+    pub fn begin_nd_euclid_partial_twist(&mut self, ndim: u8, axis: Axis, layers: LayerMask) {
+        let Some(nd_euclid) = &mut self.nd_euclid else {
+            return;
+        };
+
         let grip = self.latest_state.compute_gripped_pieces(axis, layers);
-        self.partial_twist_drag_state = Some(PartialTwistDragState {
+        nd_euclid.partial_twist_drag_state = Some(PartialTwistDragState {
             axis,
             layers,
             grip,
-            transform: Motor::ident(self.ndim()),
+            transform: Motor::ident(ndim),
         });
     }
     /// Updates a partial twist with a new cursor position.
-    pub fn update_partial_twist(
+    pub fn update_nd_euclid_partial_twist(
         &mut self,
         surface_normal: Vector,
         parallel_drag_delta: Vector,
         animation_prefs: &AnimationPreferences,
     ) {
-        let puzzle = Arc::clone(self.puzzle_type());
-        let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() else {
+        let Some(nd_euclid) = &mut self.nd_euclid else {
             return;
         };
-        if let Some(partial) = &mut self.partial_twist_drag_state {
-            let Ok(axis_vector) = geom.axis_vectors.get(partial.axis) else {
+
+        if let Some(partial) = &mut nd_euclid.partial_twist_drag_state {
+            let Ok(axis_vector) = nd_euclid.geom.axis_vectors.get(partial.axis) else {
                 return;
             };
             let Some(v1) = surface_normal.cross_product_3d(axis_vector).normalize() else {
@@ -564,18 +586,21 @@ impl PuzzleSimulation {
     ///
     /// If there is no partial twist active, then this does nothing.
     pub fn cancel_partial_twist(&mut self) {
-        if let Some(partial) = self.partial_twist_drag_state.take() {
-            self.cancel_popped_partial_twist(partial);
+        if let Some(nd_euclid) = &mut self.nd_euclid {
+            if let Some(partial) = nd_euclid.partial_twist_drag_state.take() {
+                self.cancel_popped_partial_twist(partial);
+            }
         }
     }
     /// Cancels a partial twist that has already been removed.
     fn cancel_popped_partial_twist(&mut self, partial: PartialTwistDragState) {
+        let ndim = partial.transform.ndim();
         self.twist_anim.push(AnimationFromState {
             state: self.latest_state.clone_dyn(),
             anim: NdEuclidPuzzleAnimation {
                 pieces: partial.grip,
                 initial_transform: partial.transform,
-                final_transform: Motor::ident(self.ndim()),
+                final_transform: Motor::ident(ndim),
             }
             .into(),
         });
@@ -589,39 +614,38 @@ impl PuzzleSimulation {
     ///
     /// If there is no partial twist active, then this does nothing.
     pub fn confirm_partial_twist(&mut self) {
-        let puzzle = self.puzzle_type();
-        let geom = puzzle
-            .ui_data
-            .downcast_ref::<NdEuclidPuzzleGeometry>()
-            .expect("Expected NdEuclidPuzzleGeometry");
+        if let Some(nd_euclid) = &mut self.nd_euclid {
+            if let Some(partial) = &nd_euclid.partial_twist_drag_state {
+                let puzzle = self.latest_state.ty();
 
-        if let Some(partial) = &self.partial_twist_drag_state {
-            let closest_twist = geom
-                .twist_transforms
-                .iter()
-                .filter(|&(twist, _)| puzzle.twists[twist].axis == partial.axis)
-                .max_by_key(|&(_, twist_transform)| {
-                    FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
-                });
-            if let Some((twist, twist_transform)) = closest_twist {
-                let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
-                let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
-                if dot_with_twist > dot_with_identity {
-                    let twist = LayeredTwist {
-                        layers: partial.layers,
-                        transform: twist,
-                    };
-                    self.do_event(ReplayEvent::DragTwist);
-                    self.do_event(ReplayEvent::Twists(smallvec![twist]));
+                let closest_twist = nd_euclid
+                    .geom
+                    .twist_transforms
+                    .iter()
+                    .filter(|&(twist, _)| puzzle.twists[twist].axis == partial.axis)
+                    .max_by_key(|&(_, twist_transform)| {
+                        FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
+                    });
+                if let Some((twist, twist_transform)) = closest_twist {
+                    let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
+                    let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
+                    if dot_with_twist > dot_with_identity {
+                        let twist = LayeredTwist {
+                            layers: partial.layers,
+                            transform: twist,
+                        };
+                        self.do_event(ReplayEvent::DragTwist);
+                        self.do_event(ReplayEvent::Twists(smallvec![twist]));
+                    } else {
+                        // The identity twist is closer.
+                        self.cancel_partial_twist();
+                    }
                 } else {
-                    // The identity twist is closer.
+                    // There are no possible twists. Why did we even let the user
+                    // drag the mouse in the first place? Questions such as these
+                    // may never know an answer.
                     self.cancel_partial_twist();
                 }
-            } else {
-                // There are no possible twists. Why did we even let the user
-                // drag the mouse in the first place? Questions such as these
-                // may never know an answer.
-                self.cancel_partial_twist();
             }
         }
     }
@@ -633,6 +657,20 @@ impl PuzzleSimulation {
     /// Starts the special animation, if it is not already happening.
     pub fn start_special_anim(&mut self) {
         self.special_anim.start();
+    }
+    /// Returns the special effects to use for drawing for one frame.
+    pub fn special_effects(&self) -> GfxEffectParams {
+        if let Some(t) = self.special_anim_t() {
+            use std::f32::consts::PI;
+
+            let amount = (t * PI).sin();
+
+            GfxEffectParams {
+                chromatic_abberation: [amount / 4.0, amount / 6.0],
+            }
+        } else {
+            GfxEffectParams::default()
+        }
     }
 
     /// Returns the combined session time of the file, in milliseconds.
@@ -785,12 +823,4 @@ impl PuzzleSimulation {
     pub fn handle_newly_solved_state(&mut self) -> bool {
         self.solved && !std::mem::replace(&mut self.solved_state_handled, true)
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct PartialTwistDragState {
-    pub axis: Axis,
-    pub layers: LayerMask,
-    pub grip: PieceMask,
-    pub transform: Motor,
 }

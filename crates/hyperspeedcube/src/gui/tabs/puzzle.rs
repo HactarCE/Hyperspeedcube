@@ -7,13 +7,15 @@ use egui::mutex::RwLock;
 use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, Preferences};
+use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
 use hyperpuzzle_core::{
-    BuildTask, GizmoFace, LayerMask, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData,
-    Progress, Puzzle, Redirectable,
+    BuildTask, Color, ColorSystem, GizmoFace, LayerMask, NdEuclidPuzzleGeometry,
+    NdEuclidPuzzleStateRenderData, PieceMask, Progress, Puzzle, Redirectable,
 };
 use hyperpuzzle_log::Solve;
-use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
+use hyperpuzzle_view::{
+    DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
+};
 use parking_lot::Mutex;
 
 use crate::L;
@@ -378,50 +380,13 @@ impl PuzzleWidget {
         };
         let puzzle = view.puzzle();
 
-        // Allocate space in the UI.
-        let (egui_rect, target_size) = crate::gui::util::rounded_pixel_rect(
-            ui,
-            ui.available_rect_before_wrap(),
-            view.camera.prefs().downscale_rate,
-        );
-        let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
+        let (r, target_size) = allocate_puzzle_response(ui, view.downscale_rate());
 
-        // egui reports `r.dragged()` whenever the mouse is held, even if it
-        // didn't move, so we manually keep track of whether the mouse has
-        // moved.
-        if r.drag_delta() != egui::Vec2::ZERO && view.drag_state().is_none() {
-            let is_primary = ui.input(|input| input.pointer.primary_down());
-            let puzzle_supports_drag_twists = puzzle.ndim() == 3;
-            if is_primary && puzzle_supports_drag_twists && view.puzzle_hover_state().is_some() {
-                view.set_drag_state(DragState::PreTwist);
-            } else {
-                view.set_drag_state(DragState::ViewRot { z_axis: 2 });
-            }
-        }
-        // Confirm drag on mouse button release.
-        if !r.dragged() {
-            view.confirm_drag();
-        }
-        // Cancel drag on ESC key press.
-        if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-            view.cancel_drag();
-        }
-
-        let modifiers = ui.input(|input| input.modifiers);
-
-        // Change which axis we're rotating depending on modifiers.
-        if matches!(view.drag_state(), Some(DragState::ViewRot { .. })) {
-            let mut z_axis = 2;
-            if modifiers.shift {
-                z_axis += 1;
-            }
-            if modifiers.alt {
-                z_axis += 2;
-            }
-            if modifiers.ctrl {
-                z_axis += 4;
-            }
-            view.set_drag_state(DragState::ViewRot { z_axis });
+        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) {
+            self.reload(prefs);
+            // Don't even try to redraw the puzzle. Just wait for the next
+            // frame.
+            return;
         }
 
         let exceeded_twist_drag_threshold = ui
@@ -431,136 +396,27 @@ impl PuzzleWidget {
             })
             .unwrap_or(false);
 
-        // Compute the screen-space cursor position.
-        let scroll_delta = ui.input(|input| input.smooth_scroll_delta); // TODO: make raw vs. smooth a setting
-        let mut cursor_pos: Option<cgmath::Point2<f32>> = None;
-        if r.hovered() || r.is_pointer_button_down_on() {
-            // IIFE to mimic try_block
-            cursor_pos = (|| {
-                let egui_pos = r.hover_pos().or(r.interact_pointer_pos())?;
+        // Compute NDC cursor position.
+        let mut ndc_cursor_pos: Option<egui::Vec2> =
+            r.hover_pos().or(r.interact_pointer_pos()).map(|egui_pos| {
                 // Convert to normalized device coordinates (-1 to +1).
                 let mut ndc = (egui_pos - r.rect.center()) * 2.0 / r.rect.size();
                 ndc.y = -ndc.y;
-                // Convert to screen space.
-                let s = view.camera.xy_scale().ok()?;
-                Some(cgmath::point2(ndc.x / s.x, ndc.y / s.y))
-            })();
-
-            if view.drag_state().is_none() {
-                // Adjust camera zoom using scroll wheel.
-                let cam = &mut view.camera;
-                cam.zoom *= (scroll_delta.y / 500.0).exp2();
-                cam.zoom = cam.zoom.clamp(2.0_f32.powi(-6), 2.0_f32.powi(8));
-            }
-        }
-
-        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) {
-            self.reload(prefs);
-            // Don't even try to redraw the puzzle. Just wait for the next
-            // frame.
-            return;
-        }
-
-        // Redraw each frame until the image is stable and we have computed 3D
-        // vertex positions.
-        if view.renderer.puzzle_vertex_3d_positions.get().is_none()
-            || view.renderer.gizmo_vertex_3d_positions.get().is_none()
-        {
-            ui.ctx().request_repaint();
-        }
-
-        view.update(
-            PuzzleViewInput {
-                cursor_pos,
-                target_size,
-                puzzle_vertex_3d_positions: view.renderer.puzzle_vertex_3d_positions.get(),
-                gizmo_vertex_3d_positions: view.renderer.gizmo_vertex_3d_positions.get(),
-                exceeded_twist_drag_threshold,
-                hover_mode: match ui.input(|input| input.modifiers.shift) {
-                    true => Some(HoverMode::Piece),
-                    false => Some(HoverMode::TwistGizmo),
-                },
-            },
-            prefs,
-            animation,
-        );
-
-        // Click = twist
-        let mut layers = LayerMask::EMPTY;
-        for (i, k) in [
-            egui::Key::Num1,
-            egui::Key::Num2,
-            egui::Key::Num3,
-            egui::Key::Num4,
-            egui::Key::Num5,
-            egui::Key::Num6,
-            egui::Key::Num7,
-            egui::Key::Num8,
-            egui::Key::Num9,
-            egui::Key::Num0,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            if ui.input(|input| input.key_down(k)) {
-                layers |= LayerMask::from(i as u8);
-            }
-        }
-        if layers == LayerMask::EMPTY {
-            layers = LayerMask::default();
-        }
-        if r.clicked() && modifiers.is_none() {
-            view.do_click_twist(layers, Sign::Neg);
-        }
-        if r.secondary_clicked() && modifiers.is_none() {
-            view.do_click_twist(layers, Sign::Pos);
-        }
-
-        // Ctrl+shift+click = edit sticker color
-        let editing_color = EguiTempValue::new(ui);
-        let mut is_first_frame = false;
-        if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
-            if let Some(hov) = view.puzzle_hover_state() {
-                if let Some(sticker) = hov.sticker {
-                    ui.memory_mut(|mem| mem.open_popup(editing_color.id));
-                    editing_color.set(Some(puzzle.stickers[sticker].color));
-                    is_first_frame = true;
-                }
-            }
-        }
-        if ui.memory(|mem| mem.is_popup_open(editing_color.id)) {
-            let mut area = egui::Area::new(editing_color.id.with("area"))
-                .order(egui::Order::Middle)
-                .constrain_to(ui.ctx().available_rect())
-                .movable(true);
-            if let Some(pos) = r.interact_pointer_pos().filter(|_| is_first_frame) {
-                area = area.current_pos(pos);
-            }
-            let area_response = area.show(ui.ctx(), |ui| {
-                egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
-                });
+                ndc
             });
 
-            // Allow drags but not clicks
-            let any_cursor_input_outside_puzzle =
-                crate::gui::util::clicked_elsewhere(ui, &area_response.response)
-                    && crate::gui::util::clicked_elsewhere(ui, &r);
-            let any_click_inside_puzzle =
-                r.clicked() || r.secondary_clicked() || r.middle_clicked();
-            let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
-            if (clicked_elsewhere && !is_first_frame)
-                || ui.input(|input| input.key_pressed(egui::Key::Escape))
-            {
-                ui.memory_mut(|mem| mem.close_popup());
-            }
-        }
+        let input = PuzzleViewInput {
+            ndc_cursor_pos: ndc_cursor_pos.map(|pos| pos.into()),
+            target_size,
+            exceeded_twist_drag_threshold,
+            hover_mode: match ui.input(|input| input.modifiers.shift) {
+                true => Some(HoverMode::Piece),
+                false => Some(HoverMode::TwistGizmo),
+            },
+        };
+        view.update(input, prefs, animation);
 
-        // Ensure that the color scheme is valid. Ignore whether it actually got
-        // modified.
-        let _ = prefs
-            .color_palette
-            .ensure_color_scheme_is_valid_for_color_system(&mut view.colors.value, &puzzle.colors);
+        let sim = Arc::clone(&view.sim);
 
         let color_map = view.temp_colors.as_ref().unwrap_or(&view.colors.value);
         let sticker_colors = puzzle
@@ -572,125 +428,50 @@ impl PuzzleWidget {
             .collect();
         view.temp_colors = None; // Remove temporary colors
 
-        let cam = view.transient_camera();
-        let effects = view.effects();
+        let piece_styles = view.styles.values(prefs);
 
-        let piece_transforms;
-        {
-            let sim = view.sim.lock();
-            let render_data = sim.unwrap_render_data::<NdEuclidPuzzleStateRenderData>();
-            piece_transforms = render_data.piece_transforms.map_ref(|_piece, transform| {
-                transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim())
-            });
+        let show_gizmo_hover = view.show_gizmo_hover;
+
+        let response;
+        if let Some(nd_euclid) = view.nd_euclid_mut() {
+            response = Some(show_nd_euclid_puzzle_view(
+                ui,
+                &r,
+                prefs,
+                nd_euclid,
+                &sim,
+                sticker_colors,
+                piece_styles,
+                show_gizmo_hover,
+                &mut self.queued_arrows,
+            ));
+        } else {
+            response = None;
         }
 
-        let mut draw_params = DrawParams {
-            ndim: puzzle.ndim(),
-            cam,
+        if let Some(response) = response {
+            // Color edit popup
+            show_color_edit_popup(ui, &r, response.color_to_edit, view, prefs);
 
-            cursor_pos: cursor_pos.filter(|_| SEND_CURSOR_POS),
-            is_dragging_view: match view.drag_state() {
-                Some(DragState::ViewRot { .. }) => true,
-                Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,
-            },
-
-            internals_color: prefs.styles.internals_color.rgb,
-            sticker_colors,
-            piece_styles: view.styles.values(prefs),
-            piece_transforms,
-
-            effects,
-        };
-
-        if draw_params.any_animated() {
-            ui.ctx().request_repaint();
-        }
-
-        // Draw puzzle.
-        let painter = ui.painter_at(r.rect);
-        let dark_mode = ui.visuals().dark_mode;
-        let background_color = prefs.background_color(dark_mode).to_egui_color32();
-        ui.painter().rect_filled(r.rect, 0.0, background_color);
-
-        match self.update_puzzle_texture(&draw_params) {
-            Ok(texture_id) => egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect),
-            Err(e) => log::error!("{e}"),
-        }
-        // Reborrow after calling `self.update_puzzle_texture()` method.
-        let Some(view) = self.contents.as_view_mut() else {
-            return;
-        };
-
-        if SHOW_DRAG_VECTOR {
-            self.queued_arrows.extend(view.drag_delta_3d());
-        }
-
-        let project_point = |p: &Vector| {
-            let ndc = view.camera.project_point_to_ndc(p)?;
-            let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
-            Some(r.rect.lerp_inside(egui_pos))
-        };
-        for [start, end] in std::mem::take(&mut self.queued_arrows) {
-            (|| {
-                let start = project_point(&start)?;
-                let end = project_point(&end)?;
-                painter.circle_filled(start, 3.0, egui::Color32::WHITE);
-                painter.arrow(
-                    start,
-                    end - start,
-                    egui::Stroke::new(3.0, egui::Color32::WHITE),
+            if let Some(texture_view) = response.texture_view {
+                register_or_update_egui_texture(
+                    &self.gfx.device,
+                    texture_view,
+                    response.filter_mode,
+                    &mut self.egui_texture_id,
+                    &mut *self.egui_wgpu_renderer.write(),
                 );
-                Some(())
-            })();
-        }
-
-        let to_egui = |screen_space: cgmath::Vector4<f32>| {
-            let ndc = view
-                .camera
-                .project_3d_screen_space_to_ndc(screen_space)
-                .unwrap_or(cgmath::Point2::new(f32::NAN, f32::NAN));
-            r.rect
-                .lerp_inside(egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5))
-        };
-
-        // Draw gizmos (TODO: move to GPU?)
-        if let Some(geom) = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleGeometry>() {
-            if let Some(gizmo_vertex_3d_positions) = view.renderer.gizmo_vertex_3d_positions.get() {
-                if let Some(axis) = view.temp_gizmo_highlight.take() {
-                    for (gizmo_face, &twist) in &geom.gizmo_twists {
-                        if puzzle.twists[twist].axis == axis {
-                            show_gizmo_face(
-                                &puzzle,
-                                geom,
-                                gizmo_face,
-                                &gizmo_vertex_3d_positions,
-                                &painter,
-                                to_egui,
-                                false,
-                            );
-                        }
-                    }
-                } else if let Some(hover) =
-                    view.gizmo_hover_state().filter(|_| view.show_gizmo_hover)
-                {
-                    show_gizmo_face(
-                        &puzzle,
-                        geom,
-                        hover.gizmo_face,
-                        &gizmo_vertex_3d_positions,
-                        &painter,
-                        to_egui,
-                        true,
-                    );
-                }
+            }
+            if let Some(texture_id) = self.egui_texture_id {
+                egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect);
             }
         }
 
         egui::Area::new(unique_id!())
-            .constrain_to(egui_rect)
+            .constrain_to(r.rect)
             .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
             .show(ui.ctx(), |ui| {
-                ui.set_width(egui_rect.width());
+                ui.set_width(r.rect.width());
                 ui.label(format!("Solved: {}", view.sim.lock().is_solved()));
             });
 
@@ -729,44 +510,28 @@ impl PuzzleWidget {
             self.wants_focus = true;
         }
     }
+}
 
-    fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> Result<egui::TextureId> {
-        let renderer = &mut self
-            .contents
-            .as_view_mut()
-            .ok_or_eyre("no puzzle view")?
-            .renderer;
-
-        let output_texture = &renderer.draw_puzzle(draw_params)?.texture;
-
-        // egui expects sRGB colors in the shader, so we have to read the
-        // sRGB texture as though it were linear to prevent the GPU from
-        // doing gamma conversion.
-        let texture_view = output_texture.create_view(&wgpu::TextureViewDescriptor {
-            format: Some(output_texture.format().remove_srgb_suffix()),
-            ..Default::default()
-        });
-        let mut egui_wgpu_renderer = self.egui_wgpu_renderer.write();
-        let gfx = &renderer.gfx;
-        match self.egui_texture_id {
-            Some(egui_texture_id) => {
-                egui_wgpu_renderer.update_egui_texture_from_wgpu_texture(
-                    &gfx.device,
-                    &texture_view,
-                    renderer.filter_mode,
-                    egui_texture_id,
-                );
-                Ok(egui_texture_id)
-            }
-            None => {
-                let egui_texture_id = egui_wgpu_renderer.register_native_texture(
-                    &gfx.device,
-                    &texture_view,
-                    renderer.filter_mode,
-                );
-                self.egui_texture_id = Some(egui_texture_id);
-                Ok(egui_texture_id)
-            }
+fn register_or_update_egui_texture(
+    device: &wgpu::Device,
+    texture_view: wgpu::TextureView,
+    filter_mode: wgpu::FilterMode,
+    cached_egui_texture_id: &mut Option<egui::TextureId>,
+    egui_wgpu_renderer: &mut eframe::egui_wgpu::Renderer,
+) {
+    match *cached_egui_texture_id {
+        Some(egui_texture_id) => egui_wgpu_renderer.update_egui_texture_from_wgpu_texture(
+            device,
+            &texture_view,
+            filter_mode,
+            egui_texture_id,
+        ),
+        None => {
+            *cached_egui_texture_id = Some(egui_wgpu_renderer.register_native_texture(
+                device,
+                &texture_view,
+                filter_mode,
+            ));
         }
     }
 }
@@ -867,4 +632,307 @@ pub enum PuzzleWidgetLoading {
         puzzle_id: String,
         thread_handle: JoinHandle<Result<PuzzleSimulation, ()>>,
     },
+}
+
+fn show_nd_euclid_puzzle_view(
+    ui: &mut egui::Ui,
+    r: &egui::Response,
+    prefs: &mut Preferences,
+    nd_euclid: &mut NdEuclidViewState,
+    sim: &Arc<Mutex<PuzzleSimulation>>,
+    sticker_colors: Vec<[u8; 3]>,
+    piece_styles: Vec<(PieceStyleValues, PieceMask)>,
+    show_gizmo_hover: bool,
+    queued_arrows: &mut Vec<[Vector; 2]>,
+) -> PuzzleViewResponse {
+    let mut ret = PuzzleViewResponse::default();
+
+    let puzzle = Arc::clone(sim.lock().puzzle_type());
+    let geom = Arc::clone(&nd_euclid.geom);
+    let ndim = geom.ndim();
+
+    if r.hovered() || r.is_pointer_button_down_on() {
+        let scroll_delta = ui.input(|input| input.smooth_scroll_delta); // TODO: make raw vs. smooth a setting
+        if nd_euclid.drag_state.is_none() {
+            // Adjust camera zoom using scroll wheel.
+            let cam = &mut nd_euclid.camera;
+            cam.zoom *= (scroll_delta.y / 500.0).exp2();
+            cam.zoom = cam.zoom.clamp(2.0_f32.powi(-6), 2.0_f32.powi(8));
+        }
+    }
+
+    // egui reports `r.dragged()` whenever the mouse is held, even if it
+    // didn't move, so we manually keep track of whether the mouse has
+    // moved.
+    if r.drag_delta() != egui::Vec2::ZERO && nd_euclid.drag_state.is_none() {
+        let is_primary = ui.input(|input| input.pointer.primary_down());
+        let puzzle_supports_drag_twists = ndim == 3;
+        if is_primary && puzzle_supports_drag_twists && nd_euclid.puzzle_hover_state.is_some() {
+            nd_euclid.drag_state = Some(DragState::PreTwist);
+        } else {
+            nd_euclid.drag_state = Some(DragState::ViewRot { z_axis: 2 });
+        }
+    }
+    // Confirm drag on mouse button release.
+    if !r.dragged() {
+        nd_euclid.confirm_drag(sim);
+    }
+    // Cancel drag on ESC key press.
+    if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+        nd_euclid.cancel_drag(sim);
+    }
+
+    let modifiers = ui.input(|input| input.modifiers);
+
+    // Change which axis we're rotating depending on modifiers.
+    if matches!(nd_euclid.drag_state, Some(DragState::ViewRot { .. })) {
+        let mut z_axis = 2;
+        if modifiers.shift {
+            z_axis += 1;
+        }
+        if modifiers.alt {
+            z_axis += 2;
+        }
+        if modifiers.ctrl {
+            z_axis += 4;
+        }
+        nd_euclid.drag_state = Some(DragState::ViewRot { z_axis });
+    }
+
+    // Redraw each frame until the image is stable and we have computed 3D
+    // vertex positions.
+    let renderer = &nd_euclid.renderer;
+    if renderer.puzzle_vertex_3d_positions.get().is_none()
+        || renderer.gizmo_vertex_3d_positions.get().is_none()
+    {
+        ui.ctx().request_repaint();
+    }
+
+    // Click = twist
+    let mut layers = LayerMask::EMPTY;
+    for (i, k) in [
+        egui::Key::Num1,
+        egui::Key::Num2,
+        egui::Key::Num3,
+        egui::Key::Num4,
+        egui::Key::Num5,
+        egui::Key::Num6,
+        egui::Key::Num7,
+        egui::Key::Num8,
+        egui::Key::Num9,
+        egui::Key::Num0,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if ui.input(|input| input.key_down(k)) {
+            layers |= LayerMask::from(i as u8);
+        }
+    }
+    if layers == LayerMask::EMPTY {
+        layers = LayerMask::default();
+    }
+    if r.clicked() && modifiers.is_none() {
+        nd_euclid.do_click_twist(&mut *sim.lock(), layers, Sign::Neg);
+    }
+    if r.secondary_clicked() && modifiers.is_none() {
+        nd_euclid.do_click_twist(&mut *sim.lock(), layers, Sign::Pos);
+    }
+
+    // Ctrl+shift+click = edit sticker color
+    if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
+        if let Some(hov) = nd_euclid.puzzle_hover_state() {
+            if let Some(sticker) = hov.sticker {
+                ret.color_to_edit = Some(puzzle.stickers[sticker].color);
+            }
+        }
+    }
+
+    let cam = nd_euclid.transient_camera(sim);
+    let effects = sim.lock().special_effects();
+
+    let piece_transforms;
+    {
+        let sim = sim.lock();
+        let render_data = sim.unwrap_render_data::<NdEuclidPuzzleStateRenderData>();
+        piece_transforms = render_data
+            .piece_transforms
+            .map_ref(|_piece, transform| transform.euclidean_rotation_matrix().at_ndim(ndim));
+    }
+
+    let mut draw_params = DrawParams {
+        ndim,
+        cam,
+
+        cursor_pos: nd_euclid.cursor_pos.filter(|_| SEND_CURSOR_POS),
+        is_dragging_view: match nd_euclid.drag_state {
+            Some(DragState::ViewRot { .. }) => true,
+            Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,
+        },
+
+        internals_color: prefs.styles.internals_color.rgb,
+        sticker_colors,
+        piece_styles,
+        piece_transforms,
+
+        effects,
+    };
+
+    if draw_params.any_animated() {
+        ui.ctx().request_repaint();
+    }
+
+    // Draw puzzle.
+    let painter = ui.painter_at(r.rect);
+    let dark_mode = ui.visuals().dark_mode;
+    let background_color = prefs.background_color(dark_mode).to_egui_color32();
+    ui.painter().rect_filled(r.rect, 0.0, background_color);
+
+    match nd_euclid.renderer.draw_puzzle(&draw_params) {
+        Ok(out) => {
+            // egui expects sRGB colors in the shader, so we have to read the
+            // sRGB texture as though it were linear to prevent the GPU from
+            // doing gamma conversion.
+            ret.texture_view = Some(out.texture.create_view(&wgpu::TextureViewDescriptor {
+                format: Some(out.texture.format().remove_srgb_suffix()),
+                ..Default::default()
+            }));
+        }
+        Err(e) => log::error!("{e}"),
+    };
+
+    if SHOW_DRAG_VECTOR {
+        queued_arrows.extend(nd_euclid.drag_delta_3d());
+    }
+
+    let project_point = |p: &Vector| {
+        let ndc = draw_params.cam.project_point_to_ndc(p)?;
+        let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
+        Some(r.rect.lerp_inside(egui_pos))
+    };
+    for [start, end] in std::mem::take(queued_arrows) {
+        (|| {
+            let start = project_point(&start)?;
+            let end = project_point(&end)?;
+            painter.circle_filled(start, 3.0, egui::Color32::WHITE);
+            painter.arrow(
+                start,
+                end - start,
+                egui::Stroke::new(3.0, egui::Color32::WHITE),
+            );
+            Some(())
+        })();
+    }
+
+    let to_egui = |screen_space: cgmath::Vector4<f32>| {
+        let ndc = draw_params
+            .cam
+            .project_3d_screen_space_to_ndc(screen_space)
+            .unwrap_or(cgmath::Point2::new(f32::NAN, f32::NAN));
+        r.rect
+            .lerp_inside(egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5))
+    };
+
+    // Draw gizmos (TODO: move to GPU?)
+    let gizmo_painter = egui::Painter::new(
+        painter.ctx().clone(),
+        egui::LayerId::new(egui::Order::Middle, "twist_gizmos".into()),
+        painter.clip_rect(),
+    );
+    if let Some(gizmo_vertex_3d_positions) = nd_euclid.renderer.gizmo_vertex_3d_positions.get() {
+        if let Some(axis) = nd_euclid.temp_gizmo_highlight.take() {
+            for (gizmo_face, &twist) in &geom.gizmo_twists {
+                if puzzle.twists[twist].axis == axis {
+                    show_gizmo_face(
+                        &puzzle,
+                        &geom,
+                        gizmo_face,
+                        &gizmo_vertex_3d_positions,
+                        &gizmo_painter,
+                        to_egui,
+                        false,
+                    );
+                }
+            }
+        } else if let Some(hover) = &nd_euclid.gizmo_hover_state().filter(|_| show_gizmo_hover) {
+            show_gizmo_face(
+                &puzzle,
+                &geom,
+                hover.gizmo_face,
+                &gizmo_vertex_3d_positions,
+                &gizmo_painter,
+                to_egui,
+                true,
+            );
+        }
+    };
+
+    ret
+}
+
+fn show_color_edit_popup<'a>(
+    ui: &mut egui::Ui,
+    r: &egui::Response,
+    color_to_edit: Option<Color>,
+    view: &mut PuzzleView,
+    prefs: &Preferences,
+) {
+    let puzzle = view.puzzle();
+
+    let editing_color = EguiTempValue::new(ui);
+    let mut is_first_frame = false;
+
+    if let Some(color) = color_to_edit {
+        ui.memory_mut(|mem| mem.open_popup(editing_color.id));
+        editing_color.set(Some(color));
+        is_first_frame = true;
+    }
+
+    if ui.memory(|mem| mem.is_popup_open(editing_color.id)) {
+        let mut area = egui::Area::new(editing_color.id.with("area"))
+            .order(egui::Order::Middle)
+            .constrain_to(ui.ctx().available_rect())
+            .movable(true);
+        if let Some(pos) = r.interact_pointer_pos().filter(|_| is_first_frame) {
+            area = area.current_pos(pos);
+        }
+        let area_response = area.show(ui.ctx(), |ui| {
+            egui::Frame::menu(ui.style()).show(ui, |ui| {
+                color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
+            });
+        });
+
+        // Allow drags but not clicks
+        let any_cursor_input_outside_puzzle =
+            crate::gui::util::clicked_elsewhere(ui, &area_response.response)
+                && crate::gui::util::clicked_elsewhere(ui, &r);
+        let any_click_inside_puzzle = r.clicked() || r.secondary_clicked() || r.middle_clicked();
+        let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
+        if (clicked_elsewhere && !is_first_frame)
+            || ui.input(|input| input.key_pressed(egui::Key::Escape))
+        {
+            ui.memory_mut(|mem| mem.close_popup());
+        }
+    }
+
+    // Ensure that the color scheme is valid. Ignore whether it actually got
+    // modified.
+    let _ = prefs
+        .color_palette
+        .ensure_color_scheme_is_valid_for_color_system(&mut view.colors.value, &puzzle.colors);
+}
+
+fn allocate_puzzle_response(ui: &mut egui::Ui, downscale_rate: u32) -> (egui::Response, [u32; 2]) {
+    // Allocate space in the UI.
+    let (egui_rect, target_size) =
+        crate::gui::util::rounded_pixel_rect(ui, ui.available_rect_before_wrap(), downscale_rate);
+    let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
+    (r, target_size)
+}
+
+#[derive(Debug, Default)]
+struct PuzzleViewResponse {
+    color_to_edit: Option<Color>,
+    texture_view: Option<wgpu::TextureView>,
+    filter_mode: wgpu::FilterMode,
 }

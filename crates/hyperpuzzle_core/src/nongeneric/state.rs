@@ -1,17 +1,22 @@
+use std::fmt;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
 use hypermath::collections::GenericVec;
 use hypermath::idx_struct;
+use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::{
-    Axis, AxisInfo, BoxDynPuzzleAnimation, BoxDynPuzzleState, BoxDynPuzzleStateRenderData,
-    LayerMask, LayeredTwist, NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle, PuzzleState,
+    Axis, AxisInfo, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
+    NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle,
+    PuzzleState,
 };
+use crate::{BoxDynPuzzleAnimation, PieceMask};
+
+use super::NdEuclidPuzzleAnimation;
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
 idx_struct! {
@@ -46,15 +51,26 @@ impl CachedTransformData {
 }
 
 /// Instance of a puzzle with a particular state.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NdEuclidPuzzleState {
     /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,
+    /// N-dimensional Euclidean puzzle geometry.
+    geom: Arc<NdEuclidPuzzleGeometry>,
     /// Attitude (position & rotation) of each piece.
     piece_transforms: PerPiece<CachedTransform>,
     /// Cached set of possible attitudes of pieces.
     cached_transforms: Arc<Mutex<PerCachedTransform<CachedTransformData>>>,
     cached_transform_by_motor: Arc<Mutex<ApproxHashMap<pga::Motor, CachedTransform>>>,
+}
+
+impl fmt::Debug for NdEuclidPuzzleState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NdEuclidPuzzleState")
+            .field("puzzle_type", &self.puzzle_type.meta.name)
+            .field("piece_transforms", &self.piece_transforms)
+            .finish_non_exhaustive()
+    }
 }
 
 impl PuzzleState for NdEuclidPuzzleState {
@@ -67,9 +83,8 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
-        let geom = self.geom();
         let twist_info = &self.puzzle_type.twists[twist.transform];
-        let twist_transform = &geom.twist_transforms[twist.transform];
+        let twist_transform = &self.geom.twist_transforms[twist.transform];
         let grip = self.compute_grip(twist_info.axis, twist.layers);
 
         // Check for split pieces, which prevent the turn.
@@ -101,6 +116,7 @@ impl PuzzleState for NdEuclidPuzzleState {
 
         Ok(Self {
             puzzle_type: Arc::clone(&self.puzzle_type),
+            geom: Arc::clone(&self.geom),
             piece_transforms,
             cached_transforms: Arc::clone(&self.cached_transforms),
             cached_transform_by_motor: Arc::clone(&self.cached_transform_by_motor),
@@ -112,8 +128,6 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn is_solved(&self) -> bool {
-        let geom = self.geom();
-
         let piece_transforms = self.piece_transforms();
 
         // Each color may appear on at most one set of parallel planes. Track
@@ -123,7 +137,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         self.ty().stickers.iter().all(|(sticker, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];
             let normal_vector =
-                sticker_transform.transform_vector(geom.sticker_planes[sticker].normal());
+                sticker_transform.transform_vector(self.geom.sticker_planes[sticker].normal());
             match color_normals.get_mut(sticker_info.color) {
                 Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {
@@ -237,11 +251,26 @@ impl PuzzleState for NdEuclidPuzzleState {
         axis_info.layers.contiguous_range(lo, hi)
     }
 
-    fn state_render_data(&self) -> BoxDynPuzzleStateRenderData {
+    fn render_data(&self) -> BoxDynPuzzleStateRenderData {
         NdEuclidPuzzleStateRenderData {
             piece_transforms: self.piece_transforms(),
         }
         .into()
+    }
+
+    fn partial_twist_render_data(
+        &self,
+        twist: LayeredTwist,
+        t: f32,
+    ) -> BoxDynPuzzleStateRenderData {
+        let axis = self.puzzle_type.twists[twist.transform].axis;
+        let grip = self.compute_gripped_pieces(axis, twist.layers);
+        let anim = NdEuclidPuzzleAnimation {
+            pieces: grip,
+            initial_transform: Motor::ident(self.geom.ndim()),
+            final_transform: self.geom.twist_transforms[twist.transform].clone(),
+        };
+        self.animated_render_data(&anim.into(), t)
     }
 
     fn animated_render_data(
@@ -251,29 +280,25 @@ impl PuzzleState for NdEuclidPuzzleState {
     ) -> BoxDynPuzzleStateRenderData {
         let anim = anim
             .downcast_ref::<NdEuclidPuzzleAnimation>()
-            .expect("invalid animation for puzzle");
-
-        let start = &anim.initial_transform;
-        let end = &anim.final_transform;
+            .expect("expected NdEuclidPuzzleAnimation");
         let m = if t == 0.0 {
-            start.clone()
+            anim.initial_transform.clone()
         } else if t == 1.0 {
-            end.clone()
+            anim.final_transform.clone()
         } else {
-            pga::Motor::slerp_infallible(start, end, t as _)
+            pga::Motor::slerp_infallible(&anim.initial_transform, &anim.final_transform, t as _)
         };
 
-        let mut piece_transforms = self.piece_transforms();
-        for piece in anim.pieces.iter() {
-            piece_transforms[piece] = &m * &piece_transforms[piece];
+        NdEuclidPuzzleStateRenderData {
+            piece_transforms: self.partial_twist_piece_transforms(&anim.pieces, &m),
         }
-        NdEuclidPuzzleStateRenderData { piece_transforms }.into()
+        .into()
     }
 }
 
 impl NdEuclidPuzzleState {
     /// Constructs a new solved puzzle state.
-    pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
+    pub fn new(puzzle_type: Arc<Puzzle>, geom: Arc<NdEuclidPuzzleGeometry>) -> Self {
         let ident = pga::Motor::ident(puzzle_type.ndim());
         let piece_transforms = puzzle_type.pieces.map_ref(|_, _| CachedTransform(0));
 
@@ -287,6 +312,7 @@ impl NdEuclidPuzzleState {
 
         NdEuclidPuzzleState {
             puzzle_type,
+            geom,
             piece_transforms,
             cached_transforms,
             cached_transform_by_motor,
@@ -299,25 +325,28 @@ impl NdEuclidPuzzleState {
             .map_ref(|_, &i| cached[i].motor.clone())
     }
 
-    /// Returns the geometry for the puzzle.
-    pub fn geom(&self) -> &NdEuclidPuzzleGeometry {
-        // TODO: store a reference to these things in this struct directly
-        self.puzzle_type
-            .ui_data
-            .downcast_ref()
-            .expect("HypershapePuzzleState requires NdEuclidPuzzleGeometry")
+    /// Returns piece transforms for a partial twist.
+    pub fn partial_twist_piece_transforms(
+        &self,
+        grip: &PieceMask,
+        transform: &Motor,
+    ) -> PerPiece<Motor> {
+        let mut piece_transforms = self.piece_transforms();
+        for piece in grip.iter() {
+            piece_transforms[piece] = transform * &piece_transforms[piece];
+        }
+        piece_transforms
     }
 
     /// Returns the minimum and maximum coordinates along an axis that a piece's
     /// vertices spans.
     fn piece_min_max_on_axis(&self, piece: Piece, axis: Axis) -> Result<(Float, Float)> {
-        let geom = self.geom();
+        let geom = &self.geom;
 
         let mut cached_transforms = self.cached_transforms.lock();
         let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
             .reverse_transform_axis_vector(axis, &geom.axis_vectors[axis]);
 
-        let geom = self.geom();
         let vertex_set = geom.space.get(geom.piece_polytopes[piece]).vertex_set();
         let vertex_distances_along_axis = vertex_set.map(|p| p.pos().dot(transformed_axis_vector));
         hypermath::util::min_max(vertex_distances_along_axis).ok_or_eyre("piece has no vertices")

@@ -2,7 +2,7 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::{PerPiece, PieceMask};
 
 use super::structs::GfxEffectParams;
-use crate::{Camera, PieceStyleValues};
+use crate::{NdEuclidCamera, PieceStyleValues};
 
 /// Complete set of values that determines 3D puzzle vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -50,7 +50,7 @@ pub struct DrawParams {
     /// just in case.
     pub ndim: u8,
     /// Parameters controlling the camera and lighting.
-    pub cam: Camera,
+    pub cam: NdEuclidCamera,
 
     /// Mouse cursor position in NDC (normalized device coordinates), if it
     /// has some effect on the render.

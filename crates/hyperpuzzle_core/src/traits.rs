@@ -68,7 +68,14 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
      */
 
     /// Returns data to render the current state of the puzzle.
-    fn state_render_data(&self) -> BoxDynPuzzleStateRenderData;
+    fn render_data(&self) -> BoxDynPuzzleStateRenderData;
+
+    /// Returns data to render the state of the puzzle during a twist animation.
+    ///
+    /// `t` ranges from 0 to 1. Motion should be perceptually linear with
+    /// respect to `t`.
+    fn partial_twist_render_data(&self, twist: LayeredTwist, t: f32)
+    -> BoxDynPuzzleStateRenderData;
 
     /// Returns data to render the state of the puzzle during an animation.
     ///

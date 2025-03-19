@@ -65,15 +65,17 @@ impl App {
     }
     pub(super) fn notify_active_puzzle_changed(&mut self) {
         self.active_puzzle.with_view(|view| {
-            let view_preset_name = view.camera.view_preset.base.name();
-            let view_preset = match view.puzzle().view_prefs_set() {
-                Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
-                    self.prefs
-                        .perspective_view_presets_mut(dim)
-                        .set_last_loaded(view_preset_name);
-                }
-                None => (),
-            };
+            if let Some(nd_euclid) = view.nd_euclid() {
+                let view_preset_name = nd_euclid.camera.view_preset.base.name();
+                let view_preset = match view.puzzle().view_prefs_set() {
+                    Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
+                        self.prefs
+                            .perspective_view_presets_mut(dim)
+                            .set_last_loaded(view_preset_name);
+                    }
+                    None => (),
+                };
+            }
 
             self.prefs
                 .color_schemes

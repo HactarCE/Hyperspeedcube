@@ -112,7 +112,7 @@ impl PuzzleBuilder {
         let mut scramble_twists = twists.iter_keys().collect_vec();
         scramble_twists.sort_by_cached_key(|&twist| twists[twist].min_name());
 
-        let gpu_data = NdEuclidPuzzleGeometry {
+        let geom = Arc::new(NdEuclidPuzzleGeometry {
             space: self.space().clone(),
             mesh,
             piece_polytopes,
@@ -120,7 +120,8 @@ impl PuzzleBuilder {
             axis_vectors,
             twist_transforms,
             gizmo_twists,
-        };
+        });
+        let ui_data = Arc::clone(&geom).into();
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -149,9 +150,9 @@ impl PuzzleBuilder {
 
             dev_data,
 
-            new: Box::new(|this| NdEuclidPuzzleState::new(this).into()),
+            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
 
-            ui_data: gpu_data.into(),
+            ui_data,
         }))
     }
 }

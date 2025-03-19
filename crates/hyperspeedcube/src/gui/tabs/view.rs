@@ -15,9 +15,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             match view.puzzle().view_prefs_set() {
                 Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
                     let presets = app.prefs.perspective_view_presets_mut(dim);
-                    let current = &mut view.camera.view_preset;
-                    let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
-                    show_contents_for_perspective(ui, dim, presets_ui);
+                    if let Some(cam) = view.nd_euclid_camera_mut() {
+                        let presets_ui =
+                            PresetsUi::new(id, presets, &mut cam.view_preset, &mut changed);
+                        show_contents_for_perspective(ui, dim, presets_ui);
+                    } else {
+                        show_disabled_contents(ui, id);
+                    }
                 }
                 None => show_disabled_contents(ui, id),
             }

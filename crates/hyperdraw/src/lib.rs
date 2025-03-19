@@ -1,5 +1,7 @@
 //! Twisty puzzle rendering engine.
 
+pub use image;
+
 mod camera;
 mod gfx;
 mod styles;

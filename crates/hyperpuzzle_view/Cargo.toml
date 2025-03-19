@@ -23,6 +23,7 @@ hyperpuzzle_core = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 
 cgmath = { workspace = true }
+eyre = { workspace = true }
 float-ord = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }

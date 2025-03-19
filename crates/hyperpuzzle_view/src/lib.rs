@@ -13,7 +13,9 @@ pub use action::Action;
 use action::UndoBehavior;
 pub use replay_event::ReplayEvent;
 pub use simulation::PuzzleSimulation;
-pub use view::{DragState, HoverMode, PuzzleFiltersState, PuzzleView, PuzzleViewInput};
+pub use view::{
+    DragState, HoverMode, NdEuclidViewState, PuzzleFiltersState, PuzzleView, PuzzleViewInput,
+};
 
 /// Speed multiplier for twists using mouse dragging.
 ///

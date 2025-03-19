@@ -12,7 +12,8 @@ use crate::{
     PuzzleAnimation, PuzzleStateRenderData, PuzzleUiData, Twist,
 };
 
-/// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
+/// Geometry for an N-dimensional Euclidean puzzle.
+#[derive(Debug)]
 pub struct NdEuclidPuzzleGeometry {
     // TODO: just record the vertex set for each polytope because that's all we need
     pub space: Arc<Space>,
@@ -38,7 +39,10 @@ pub struct NdEuclidPuzzleGeometry {
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
 }
-impl PuzzleUiData for NdEuclidPuzzleGeometry {}
+
+/// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
+pub type NdEuclidPuzzleUiData = Arc<NdEuclidPuzzleGeometry>;
+impl PuzzleUiData for NdEuclidPuzzleUiData {}
 impl NdEuclidPuzzleGeometry {
     /// Returns an empty 3D puzzle geometry.
     pub fn placeholder() -> Self {

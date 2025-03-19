@@ -8,7 +8,7 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Camera {
+pub struct NdEuclidCamera {
     /// Current view settings.
     pub view_preset: ModifiedPreset<ViewPreferences>,
 
@@ -20,7 +20,7 @@ pub struct Camera {
     /// Linear factor by which to scale the puzzle before drawing it.
     pub zoom: f32,
 }
-impl Camera {
+impl NdEuclidCamera {
     /// Returns the view preferences that the camera is using.
     pub fn prefs(&self) -> &ViewPreferences {
         &self.view_preset.value

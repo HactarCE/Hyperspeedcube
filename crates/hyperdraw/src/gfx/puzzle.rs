@@ -16,7 +16,7 @@ use eyre::{OptionExt, Result, bail};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
 use hyperpuzzle_core::{
-    Mesh, NdEuclidPuzzleGeometry, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker,
+    Mesh, NdEuclidPuzzleUiData, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker,
 };
 use image::ImageBuffer;
 use itertools::Itertools;
@@ -171,15 +171,9 @@ impl Clone for NdEuclidPuzzleRenderer {
 impl NdEuclidPuzzleRenderer {
     /// Constructs a new puzzle renderer.
     ///
-    /// # Panics
-    ///
-    /// Panics if the puzzle is not rendered as an N-dimensional Euclidean
-    /// puzzle.
-    pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
-        let geom = puzzle
-            .ui_data
-            .downcast_ref::<NdEuclidPuzzleGeometry>()
-            .expect("expected NdEuclidPuzzleGeometry");
+    /// Returns `None` if `puzzle` is not an N-dimensional Euclidean puzzle.
+    pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Option<Self> {
+        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?;
 
         let is_empty_model = geom.mesh.is_empty() || puzzle.pieces.is_empty();
 
@@ -203,7 +197,7 @@ impl NdEuclidPuzzleRenderer {
         };
 
         let id = next_buffer_id();
-        NdEuclidPuzzleRenderer {
+        Some(NdEuclidPuzzleRenderer {
             gfx: Arc::clone(gfx),
             model: Arc::new(StaticPuzzleModel::new(gfx, &mesh, id)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &mesh, id),
@@ -223,7 +217,7 @@ impl NdEuclidPuzzleRenderer {
             edge_ids_texture_needs_clear: false,
 
             init_time: Instant::now(),
-        }
+        })
     }
 
     /// Repeats the most recent puzzle render at a new size and returns the

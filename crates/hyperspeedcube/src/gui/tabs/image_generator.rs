@@ -109,7 +109,6 @@ fn save_screenshot(app: &mut App, path: &Path) -> Result<()> {
     app.active_puzzle
         .with_view(|view| {
             Ok(view
-                .renderer
                 .screenshot(
                     app.prefs.image_generator.width,
                     app.prefs.image_generator.height,

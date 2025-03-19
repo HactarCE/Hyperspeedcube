@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use hyperprefs::Preferences;
 use hyperpuzzle_core::{
-    Color, ColorSystem, DevOrbit, NdEuclidPuzzleGeometry, Puzzle, PuzzleElement, PuzzleLintOutput,
+    Color, ColorSystem, DevOrbit, NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData, Puzzle,
+    PuzzleElement, PuzzleLintOutput,
 };
-use hyperpuzzle_view::PuzzleView;
+use hyperpuzzle_view::{NdEuclidViewState, PuzzleView};
 use itertools::Itertools;
 
 use crate::L;
@@ -72,7 +73,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui_stored_state.set(Some(state));
 }
 
-fn show_hover_info(ui: &mut egui::Ui, view: &mut PuzzleView) {
+fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
+    if let Some(nd_euclid) = view.nd_euclid() {
+        show_nd_euclid_hover_info(ui, view, nd_euclid);
+    }
+}
+
+fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEuclidViewState) {
     let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
         md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
@@ -105,7 +112,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &mut PuzzleView) {
         info_line(ui, "Z", &format!("{:.3}", hov.z));
         let geom = puz
             .ui_data
-            .downcast_ref::<NdEuclidPuzzleGeometry>()
+            .downcast_ref::<NdEuclidPuzzleUiData>()
             .expect("expected NdEuclidPuzzleGeometry");
         let twist = geom.gizmo_twists[hov.gizmo_face];
 
@@ -218,7 +225,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                     if r.hovered() || r.has_focus() {
                                         app.active_puzzle.with_view(|view| {
                                             if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                                view.temp_gizmo_highlight = Some(*axis);
+                                                view.set_temp_gizmo_highlight(*axis);
                                             }
                                         });
                                     }
@@ -313,6 +320,7 @@ fn puzzle_color_edit_button(
     }
 
     let close_behavior = egui::PopupCloseBehavior::CloseOnClickOutside;
+    let puzzle = puzzle_view.puzzle();
     egui::popup_below_widget(ui, popup_id, &r, close_behavior, |ui| {
         color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color));
     });

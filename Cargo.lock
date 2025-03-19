@@ -2301,6 +2301,7 @@ name = "hyperpuzzle_view"
 version = "0.1.0"
 dependencies = [
  "cgmath",
+ "eyre",
  "float-ord",
  "hyperdraw",
  "hypermath",
