@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use eyre::Result;
-use hypermath::{VecMap, Vector, vector};
+use hypermath::{ApproxHashMap, VecMap, Vector, VectorRef, vector};
 use hyperpuzzle_core::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
@@ -112,11 +113,45 @@ impl PuzzleBuilder {
         let mut scramble_twists = twists.iter_keys().collect_vec();
         scramble_twists.sort_by_cached_key(|&twist| twists[twist].min_name());
 
+        // Build vertex sets.
+        let space = self.space();
+        let mut vertex_count = 0;
+        let mut vertex_coordinates = vec![];
+        let mut vertex_id_map = HashMap::new();
+        let piece_vertex_sets = piece_polytopes.map(|_piece, polytope_id| {
+            space
+                .get(polytope_id)
+                .vertex_set()
+                .map(|v| {
+                    *vertex_id_map.entry(v.id()).or_insert_with(|| {
+                        vertex_coordinates.extend(v.pos().iter_ndim(space.ndim()));
+                        let i = vertex_count;
+                        vertex_count += 1;
+                        i
+                    })
+                })
+                .collect()
+        });
+
+        // Build hyperplanes.
+        let mut planes = vec![];
+        let mut plane_id_map = ApproxHashMap::new();
+        let sticker_planes = sticker_planes.map(|_sticker, plane| {
+            *plane_id_map.entry(plane.clone()).or_insert_with(|| {
+                let i = planes.len();
+                planes.push(plane);
+                i
+            })
+        });
+
         let geom = Arc::new(NdEuclidPuzzleGeometry {
-            space: self.space().clone(),
-            mesh,
-            piece_polytopes,
+            vertex_coordinates,
+            piece_vertex_sets,
+
+            planes,
             sticker_planes,
+
+            mesh,
             axis_vectors,
             twist_transforms,
             gizmo_twists,

@@ -137,7 +137,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         self.ty().stickers.iter().all(|(sticker, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];
             let normal_vector =
-                sticker_transform.transform_vector(self.geom.sticker_planes[sticker].normal());
+                sticker_transform.transform_vector(self.geom.sticker_plane(sticker).normal());
             match color_normals.get_mut(sticker_info.color) {
                 Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {
@@ -347,8 +347,7 @@ impl NdEuclidPuzzleState {
         let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
             .reverse_transform_axis_vector(axis, &geom.axis_vectors[axis]);
 
-        let vertex_set = geom.space.get(geom.piece_polytopes[piece]).vertex_set();
-        let vertex_distances_along_axis = vertex_set.map(|p| p.pos().dot(transformed_axis_vector));
-        hypermath::util::min_max(vertex_distances_along_axis).ok_or_eyre("piece has no vertices")
+        geom.piece_min_max_on_axis(piece, transformed_axis_vector)
+            .ok_or_eyre("piece has no vertices")
     }
 }

@@ -1,31 +1,36 @@
 use std::sync::Arc;
 
-use hypermath::{Hyperplane, Vector, pga};
-use hypershape::{PolytopeId, Space};
+use hypermath::{Float, Hyperplane, Vector, VectorRef, pga};
 
 mod state;
 
 pub use state::NdEuclidPuzzleState;
 
 use crate::{
-    BoxDynPuzzleAnimation, Mesh, PerAxis, PerGizmoFace, PerPiece, PerSticker, PerTwist, PieceMask,
-    PuzzleAnimation, PuzzleStateRenderData, PuzzleUiData, Twist,
+    BoxDynPuzzleAnimation, Mesh, PerAxis, PerGizmoFace, PerPiece, PerSticker, PerTwist, Piece,
+    PieceMask, PuzzleAnimation, PuzzleStateRenderData, PuzzleUiData, Sticker, Twist,
 };
 
 /// Geometry for an N-dimensional Euclidean puzzle.
 #[derive(Debug)]
 pub struct NdEuclidPuzzleGeometry {
-    // TODO: just record the vertex set for each polytope because that's all we need
-    pub space: Arc<Space>,
+    /// Flattened vertex coordinates.
+    pub vertex_coordinates: Vec<Float>,
+    /// Vertex set for each piece, as an index into `vertex_coordinates` (after
+    /// dividing by number of dimensions).
+    ///
+    /// This is used to compute whether a move is allowed.
+    pub piece_vertex_sets: PerPiece<tinyset::Set64<usize>>,
+
+    /// Face hyperplanes.
+    pub planes: Vec<Hyperplane>,
+    /// Hyperplane for each sticker, as an index into `hyperplanes`.
+    ///
+    /// This is used to compute whether the puzzle is solved.
+    pub sticker_planes: PerSticker<usize>,
 
     /// Puzzle mesh for rendering.
     pub mesh: Mesh,
-
-    /// Polytope for each piece, used to compute its grip.
-    pub piece_polytopes: PerPiece<PolytopeId>,
-
-    /// Plane for each sticker, used to compute whether the puzzle is solved.
-    pub sticker_planes: PerSticker<Hyperplane>, // TODO: avoid storing a bunch of duplicates
 
     /// Vector for each axis.
     ///
@@ -39,6 +44,31 @@ pub struct NdEuclidPuzzleGeometry {
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
 }
+impl NdEuclidPuzzleGeometry {
+    /// Returns the hyperplane for a sticker.
+    pub fn sticker_plane(&self, sticker: Sticker) -> &Hyperplane {
+        &self.planes[self.sticker_planes[sticker]]
+    }
+
+    /// Returns the `i`th vertex in [`Self::vertex_coordinates`].
+    fn vertex(&self, i: usize) -> impl VectorRef {
+        let ndim = self.ndim() as usize;
+        &self.vertex_coordinates[i * ndim..(i + 1) * ndim]
+    }
+
+    /// Returns the minimum and maximum coordinate of a piece on an axis.
+    ///
+    /// Returns `None` if the piece has no vertices.
+    pub fn piece_min_max_on_axis(
+        &self,
+        piece: Piece,
+        axis: impl VectorRef,
+    ) -> Option<(Float, Float)> {
+        let vertex_coordinates = self.piece_vertex_sets[piece].iter().map(|i| self.vertex(i));
+        let vertex_distances_along_axis = vertex_coordinates.map(|vertex| axis.dot(vertex));
+        hypermath::util::min_max(vertex_distances_along_axis)
+    }
+}
 
 /// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
 pub type NdEuclidPuzzleUiData = Arc<NdEuclidPuzzleGeometry>;
@@ -47,10 +77,13 @@ impl NdEuclidPuzzleGeometry {
     /// Returns an empty 3D puzzle geometry.
     pub fn placeholder() -> Self {
         Self {
-            space: Space::new(3),
-            mesh: Mesh::new_empty(3),
-            piece_polytopes: PerPiece::new(),
+            vertex_coordinates: vec![],
+            piece_vertex_sets: PerPiece::new(),
+
+            planes: vec![],
             sticker_planes: PerSticker::new(),
+
+            mesh: Mesh::new_empty(3),
             axis_vectors: PerAxis::new(),
             twist_transforms: PerTwist::new(),
             gizmo_twists: PerGizmoFace::new(),
