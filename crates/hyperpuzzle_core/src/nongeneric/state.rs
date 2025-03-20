@@ -299,7 +299,7 @@ impl PuzzleState for NdEuclidPuzzleState {
 impl NdEuclidPuzzleState {
     /// Constructs a new solved puzzle state.
     pub fn new(puzzle_type: Arc<Puzzle>, geom: Arc<NdEuclidPuzzleGeometry>) -> Self {
-        let ident = pga::Motor::ident(puzzle_type.ndim());
+        let ident = pga::Motor::ident(geom.ndim());
         let piece_transforms = puzzle_type.pieces.map_ref(|_, _| CachedTransform(0));
 
         let cached_transforms = Arc::new(Mutex::new(PerCachedTransform::from_iter([

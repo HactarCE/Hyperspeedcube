@@ -28,7 +28,7 @@ lazy_static! {
                 aliases: vec![],
                 tags: TagSet::new(),
             },
-            ndim: 3,
+            view_prefs_set: None,
             pieces: PerPiece::new(),
             stickers: PerSticker::new(),
             piece_types: PerPieceType::new(),
@@ -58,8 +58,8 @@ pub struct Puzzle {
     /// Metadata for the puzzle.
     pub meta: PuzzleListMetadata,
 
-    // TODO: remove this
-    pub ndim: u8,
+    /// Set of view preferences to use for the puzzle.
+    pub view_prefs_set: Option<PuzzleViewPreferencesSet>,
 
     /// List of pieces, indexed by ID.
     pub pieces: PerPiece<PieceInfo>,
@@ -212,15 +212,9 @@ impl Puzzle {
         })
     }
 
-    pub fn ndim(&self) -> u8 {
-        self.ndim
-    }
-
     /// Returns which view preferences UI to display for the puzzle.
     pub fn view_prefs_set(&self) -> Option<PuzzleViewPreferencesSet> {
-        Some(PuzzleViewPreferencesSet::Perspective(
-            PerspectiveDim::from_ndim(self.ndim),
-        ))
+        self.view_prefs_set
     }
 
     /// Returns whether the piece has a sticker with the given color.

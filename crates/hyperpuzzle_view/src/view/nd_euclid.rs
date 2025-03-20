@@ -347,7 +347,7 @@ impl NdEuclidViewState {
     /// Applies a twist to the puzzle based on the current mouse position.
     pub fn do_click_twist(&self, sim: &mut PuzzleSimulation, layers: LayerMask, direction: Sign) {
         let puzzle = sim.puzzle_type();
-        let ndim = puzzle.ndim();
+        let ndim = self.geom.ndim();
 
         if let Some(hov) = &self.gizmo_hover_state {
             let Ok(&target) = self.geom.gizmo_twists.get(hov.gizmo_face) else {
@@ -371,7 +371,7 @@ impl NdEuclidViewState {
             });
             sim.do_event(ReplayEvent::Twists(smallvec![twist]));
         } else if let Some(hov) = &self.puzzle_hover_state {
-            if puzzle.ndim() == 3 {
+            if ndim == 3 {
                 // Only do a move if we are hovering a sticker.
                 if hov.sticker.is_none() {
                     return;

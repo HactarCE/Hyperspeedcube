@@ -127,7 +127,9 @@ impl PuzzleBuilder {
             this: Weak::clone(this),
             meta: self.meta.clone(),
 
-            ndim: self.ndim(),
+            view_prefs_set: Some(PuzzleViewPreferencesSet::Perspective(
+                PerspectiveDim::from_ndim(self.ndim()),
+            )),
 
             pieces,
             stickers,
