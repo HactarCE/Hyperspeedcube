@@ -86,27 +86,27 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
 
     let puz = view.puzzle();
 
-    if let Some(hov) = view.puzzle_hover_state().filter(|_| view.show_puzzle_hover) {
-        ui.strong(format!("Piece {}", hov.piece));
-        let piece_info = &puz.pieces[hov.piece];
+    if let Some(piece) = view.hovered_piece() {
+        ui.strong(format!("Piece {piece}"));
+        let piece_info = &puz.pieces[piece];
         info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
         ui.label("");
         ui.strong(format!("Piece type {}", piece_info.piece_type));
         let piece_type_info = &puz.piece_types[piece_info.piece_type];
         info_line(ui, "Piece type name", &piece_type_info.name);
-        if let Some(sticker) = hov.sticker {
-            ui.label("");
-            ui.strong(format!("Sticker {sticker}"));
-            let sticker_info = &puz.stickers[sticker];
-            ui.label("");
-            ui.strong(format!("Color {}", sticker_info.color));
-            let color_info = &puz.colors.list[sticker_info.color];
-            info_line(ui, "Color name", &color_info.name);
-            info_line(ui, "Color display", &color_info.display);
-        }
+    }
+    if let Some(sticker) = view.hovered_sticker() {
+        ui.label("");
+        ui.strong(format!("Sticker {sticker}"));
+        let sticker_info = &puz.stickers[sticker];
+        ui.label("");
+        ui.strong(format!("Color {}", sticker_info.color));
+        let color_info = &puz.colors.list[sticker_info.color];
+        info_line(ui, "Color name", &color_info.name);
+        info_line(ui, "Color display", &color_info.display);
     }
 
-    if let Some(hov) = view.gizmo_hover_state().filter(|_| view.show_gizmo_hover) {
+    if let Some(hov) = view.hovered_gizmo().filter(|_| view.show_gizmo_hover) {
         ui.strong(format!("Gizmo {}", hov.gizmo_face));
         info_line(ui, "Backface?", &hov.backface.to_string());
         info_line(ui, "Z", &format!("{:.3}", hov.z));
@@ -225,7 +225,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                     if r.hovered() || r.has_focus() {
                                         app.active_puzzle.with_view(|view| {
                                             if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                                view.set_temp_gizmo_highlight(*axis);
+                                                view.temp_gizmo_highlight = Some(*axis);
                                             }
                                         });
                                     }

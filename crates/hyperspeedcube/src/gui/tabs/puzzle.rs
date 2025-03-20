@@ -9,7 +9,7 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
 use hyperpuzzle_core::{
-    BuildTask, Color, ColorSystem, GizmoFace, LayerMask, NdEuclidPuzzleGeometry,
+    Axis, BuildTask, Color, ColorSystem, GizmoFace, LayerMask, NdEuclidPuzzleGeometry,
     NdEuclidPuzzleStateRenderData, PieceMask, Progress, Puzzle, Redirectable,
 };
 use hyperpuzzle_log::Solve;
@@ -408,6 +408,7 @@ impl PuzzleWidget {
         let input = PuzzleViewInput {
             ndc_cursor_pos: ndc_cursor_pos.map(|pos| pos.into()),
             target_size,
+            is_dragging: r.dragged(),
             exceeded_twist_drag_threshold,
             hover_mode: match ui.input(|input| input.modifiers.shift) {
                 true => Some(HoverMode::Piece),
@@ -432,6 +433,8 @@ impl PuzzleWidget {
 
         let show_gizmo_hover = view.show_gizmo_hover;
 
+        let temp_gizmo_highlight = view.temp_gizmo_highlight.take();
+
         let response;
         if let Some(nd_euclid) = view.nd_euclid_mut() {
             response = Some(show_nd_euclid_puzzle_view(
@@ -443,6 +446,7 @@ impl PuzzleWidget {
                 sticker_colors,
                 piece_styles,
                 show_gizmo_hover,
+                temp_gizmo_highlight,
                 &mut self.queued_arrows,
             ));
         } else {
@@ -459,7 +463,7 @@ impl PuzzleWidget {
                     texture_view,
                     response.filter_mode,
                     &mut self.egui_texture_id,
-                    &mut *self.egui_wgpu_renderer.write(),
+                    &mut self.egui_wgpu_renderer.write(),
                 );
             }
             if let Some(texture_id) = self.egui_texture_id {
@@ -643,6 +647,7 @@ fn show_nd_euclid_puzzle_view(
     sticker_colors: Vec<[u8; 3]>,
     piece_styles: Vec<(PieceStyleValues, PieceMask)>,
     show_gizmo_hover: bool,
+    temp_gizmo_highlight: Option<Axis>,
     queued_arrows: &mut Vec<[Vector; 2]>,
 ) -> PuzzleViewResponse {
     let mut ret = PuzzleViewResponse::default();
@@ -733,10 +738,10 @@ fn show_nd_euclid_puzzle_view(
         layers = LayerMask::default();
     }
     if r.clicked() && modifiers.is_none() {
-        nd_euclid.do_click_twist(&mut *sim.lock(), layers, Sign::Neg);
+        nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Neg);
     }
     if r.secondary_clicked() && modifiers.is_none() {
-        nd_euclid.do_click_twist(&mut *sim.lock(), layers, Sign::Pos);
+        nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Pos);
     }
 
     // Ctrl+shift+click = edit sticker color
@@ -840,7 +845,7 @@ fn show_nd_euclid_puzzle_view(
         painter.clip_rect(),
     );
     if let Some(gizmo_vertex_3d_positions) = nd_euclid.renderer.gizmo_vertex_3d_positions.get() {
-        if let Some(axis) = nd_euclid.temp_gizmo_highlight.take() {
+        if let Some(axis) = temp_gizmo_highlight {
             for (gizmo_face, &twist) in &geom.gizmo_twists {
                 if puzzle.twists[twist].axis == axis {
                     show_gizmo_face(
@@ -870,7 +875,7 @@ fn show_nd_euclid_puzzle_view(
     ret
 }
 
-fn show_color_edit_popup<'a>(
+fn show_color_edit_popup(
     ui: &mut egui::Ui,
     r: &egui::Response,
     color_to_edit: Option<Color>,
@@ -905,7 +910,7 @@ fn show_color_edit_popup<'a>(
         // Allow drags but not clicks
         let any_cursor_input_outside_puzzle =
             crate::gui::util::clicked_elsewhere(ui, &area_response.response)
-                && crate::gui::util::clicked_elsewhere(ui, &r);
+                && crate::gui::util::clicked_elsewhere(ui, r);
         let any_click_inside_puzzle = r.clicked() || r.secondary_clicked() || r.middle_clicked();
         let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
         if (clicked_elsewhere && !is_first_frame)

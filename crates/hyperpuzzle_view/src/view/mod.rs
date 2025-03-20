@@ -1,32 +1,27 @@
-use std::ops::Range;
 use std::sync::Arc;
 
-use cgmath::{InnerSpace, SquareMatrix};
 use eyre::bail;
-use float_ord::FloatOrd;
 use hyperdraw::image;
-use hyperdraw::{GfxEffectParams, GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
-use hypermath::pga::*;
+use hyperdraw::{GraphicsState, NdEuclidCamera};
 use hypermath::prelude::*;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
-    FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
-    PuzzleFilterPreferences,
+    FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
 };
-use hyperpuzzle_core::{
-    Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, PerPiece, Piece, PieceMask, Puzzle, PuzzleViewPreferencesSet,
-    Sticker,
-};
+use hyperpuzzle_core::{Axis, GizmoFace, LayerMask, Piece, PieceMask, Puzzle, Sticker};
 use parking_lot::Mutex;
-use smallvec::smallvec;
 
 mod nd_euclid;
 
-use super::ReplayEvent;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
-pub use nd_euclid::{DragState, NdEuclidViewState, PartialTwistDragState};
+pub use nd_euclid::{DragState, NdEuclidViewState};
+
+#[derive(Debug)]
+pub enum SpecificPuzzleView {
+    Empty,
+    NdEuclid(Box<NdEuclidViewState>),
+}
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -35,8 +30,8 @@ pub struct PuzzleView {
     /// puzzle views can access the same state.
     pub sim: Arc<Mutex<PuzzleSimulation>>,
 
-    /// Extra state if this is an N-dimensional Euclidean puzzle.
-    nd_euclid: Option<Box<NdEuclidViewState>>,
+    /// Backend-specific view state.
+    specific: SpecificPuzzleView,
 
     /// Current color scheme.
     pub colors: ModifiedPreset<ColorScheme>,
@@ -55,6 +50,9 @@ pub struct PuzzleView {
     /// Whether to show the twist gizmo facet being hovered. This is updated
     /// every frame.
     pub show_gizmo_hover: bool,
+
+    /// Axis whose twist gizmo should be highlighted for only the current frame.
+    pub temp_gizmo_highlight: Option<Axis>,
 }
 impl PuzzleView {
     /// Constructs a new puzzle view with an existing simulation.
@@ -77,7 +75,9 @@ impl PuzzleView {
         Self {
             sim: Arc::clone(sim),
 
-            nd_euclid: NdEuclidViewState::new(gfx, prefs, puzzle).map(Box::new),
+            specific: NdEuclidViewState::new(gfx, prefs, puzzle)
+                .map(|nd_euclid| SpecificPuzzleView::NdEuclid(Box::new(nd_euclid)))
+                .unwrap_or(SpecificPuzzleView::Empty),
 
             colors,
             temp_colors: None,
@@ -86,6 +86,8 @@ impl PuzzleView {
 
             show_puzzle_hover: false,
             show_gizmo_hover: false,
+
+            temp_gizmo_highlight: None,
         }
     }
 
@@ -96,54 +98,50 @@ impl PuzzleView {
 
     /// Returns N-dimensional Euclidean view state, if applicable.
     pub fn nd_euclid(&self) -> Option<&NdEuclidViewState> {
-        self.nd_euclid.as_deref()
+        match &self.specific {
+            SpecificPuzzleView::NdEuclid(nd_euclid) => Some(nd_euclid),
+            _ => None,
+        }
     }
     /// Returns N-dimensional Euclidean view state, if applicable.
     pub fn nd_euclid_mut(&mut self) -> Option<&mut NdEuclidViewState> {
-        self.nd_euclid.as_deref_mut()
-    }
-    /// Sets the temporary gizmo highlight for one frame.
-    pub fn set_temp_gizmo_highlight(&mut self, axis: Axis) {
-        if let Some(euclid) = &mut self.nd_euclid {
-            euclid.temp_gizmo_highlight = Some(axis);
+        match &mut self.specific {
+            SpecificPuzzleView::NdEuclid(nd_euclid) => Some(nd_euclid),
+            _ => None,
         }
     }
 
-    /// Returns what the cursor was hovering over.
-    // TODO: remove this method probably
-    pub fn puzzle_hover_state(&self) -> Option<PuzzleHoverState> {
-        self.nd_euclid().and_then(|e| e.puzzle_hover_state())
+    /// Returns the piece being hovered.
+    pub fn hovered_piece(&self) -> Option<Piece> {
+        match &self.specific {
+            SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::NdEuclid(nd_euclid) => {
+                Some(nd_euclid.puzzle_hover_state.as_ref()?.piece)
+            }
+        }
+    }
+    /// Returns the sticker being hovered.
+    pub fn hovered_sticker(&self) -> Option<Sticker> {
+        match &self.specific {
+            SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::NdEuclid(nd_euclid) => {
+                nd_euclid.puzzle_hover_state.as_ref()?.sticker
+            }
+        }
     }
 
     /// Returns the hovered twist gizmo element.
-    // TODO: remove this method probably
-    pub fn gizmo_hover_state(&self) -> Option<GizmoHoverState> {
-        self.nd_euclid().and_then(|e| e.gizmo_hover_state())
-    }
-
-    /// Sets the mouse drag state.
-    // TODO: make this more generic
-    pub fn set_drag_state(&mut self, new_drag_state: DragState) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.drag_state = Some(new_drag_state);
+    pub fn hovered_gizmo(&self) -> Option<GizmoHoverState> {
+        match &self.specific {
+            SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.gizmo_hover_state,
         }
     }
+
     /// Returns the mouse drag state.
     // TODO: make this more generic
     pub fn drag_state(&self) -> Option<DragState> {
         self.nd_euclid().and_then(|nd_euclid| nd_euclid.drag_state)
-    }
-    /// Completes a mouse drag.
-    pub fn confirm_drag(&mut self) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.confirm_drag(&self.sim)
-        }
-    }
-    /// Cancels a mouse drag.
-    pub fn cancel_drag(&mut self) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.cancel_drag(&self.sim);
-        }
     }
 
     /// Updates the current piece filters.
@@ -204,29 +202,36 @@ impl PuzzleView {
         }
 
         self.show_puzzle_hover = input.hover_mode == Some(HoverMode::Piece)
-            && self.drag_state().is_none()
+            && !input.is_dragging
             && !self.sim.lock().has_twist_anim_queued();
         self.show_gizmo_hover =
-            input.hover_mode == Some(HoverMode::TwistGizmo) && self.drag_state().is_none();
+            input.hover_mode == Some(HoverMode::TwistGizmo) && !input.is_dragging;
 
         self.update_styles(animation_prefs);
 
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.update(input, prefs, animation_prefs, &self.sim, &self.styles);
+        match &mut self.specific {
+            SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::NdEuclid(nd_euclid) => {
+                nd_euclid.update(input, prefs, animation_prefs, &self.sim, &self.styles);
+            }
         }
     }
 
     /// Resets the camera.
     pub fn reset_camera(&mut self) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.reset_camera();
+        match &mut self.specific {
+            SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.reset_camera(),
         }
     }
 
     /// Applies a twist to the puzzle based on the current mouse position.
     pub fn do_click_twist(&self, layers: LayerMask, direction: Sign) {
-        if let Some(nd_euclid) = &self.nd_euclid {
-            nd_euclid.do_click_twist(&mut *self.sim.lock(), layers, direction);
+        match &self.specific {
+            SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::NdEuclid(nd_euclid) => {
+                nd_euclid.do_click_twist(&mut self.sim.lock(), layers, direction);
+            }
         }
     }
 
@@ -247,32 +252,33 @@ impl PuzzleView {
         width: u32,
         height: u32,
     ) -> eyre::Result<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            nd_euclid.renderer.screenshot(width, height)
-        } else {
-            bail!("puzzle backend does not screenshots")
+        match &mut self.specific {
+            SpecificPuzzleView::Empty => {
+                bail!("puzzle backend does not support screenshots")
+            }
+            SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.renderer.screenshot(width, height),
         }
     }
 
     /// Returns a mutable reference to the N-dimensional Euclidean camera, if
     /// there is one.
     pub fn nd_euclid_camera_mut(&mut self) -> Option<&mut NdEuclidCamera> {
-        Some(&mut self.nd_euclid.as_mut()?.camera)
+        Some(&mut self.nd_euclid_mut()?.camera)
     }
 
     /// Returns the downscale rate for the puzzle renderer.
     ///
     /// This is typically 1.
     pub fn downscale_rate(&self) -> u32 {
-        match &self.nd_euclid {
-            Some(nd_euclid) => nd_euclid.camera.prefs().downscale_rate,
-            None => 1,
+        match &self.specific {
+            SpecificPuzzleView::Empty => 1,
+            SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.camera.prefs().downscale_rate,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct PuzzleHoverState {
+pub struct NdEuclidPuzzleHoverState {
     /// Screen-space cursor coordinates within the puzzle view.
     pub cursor_pos: cgmath::Point2<f32>,
     /// Screen-space Z coordinate.
@@ -301,7 +307,7 @@ pub struct PuzzleHoverState {
     /// Second tangent vector of the hovered surface, in puzzle space.
     pub v_tangent: Vector,
 }
-impl PuzzleHoverState {
+impl NdEuclidPuzzleHoverState {
     /// Returns the normal vector to the hovered surface, which is only valid in
     /// 3D.
     pub fn normal_3d(&self) -> Vector {
@@ -310,7 +316,7 @@ impl PuzzleHoverState {
 }
 
 /// Hovered twist gizmo element.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct GizmoHoverState {
     /// Screen-space Z coordinate.
     pub z: f32,
@@ -332,6 +338,8 @@ pub struct PuzzleViewInput {
     pub ndc_cursor_pos: Option<[f32; 2]>,
     /// Size of the target to draw to.
     pub target_size: [u32; 2],
+    /// Whether the cursor is currently dragging at all.
+    pub is_dragging: bool,
     /// Whether the cursor has been dragged enough to begin a drag twist, if
     /// that's the type of drag happening.
     pub exceeded_twist_drag_threshold: bool,

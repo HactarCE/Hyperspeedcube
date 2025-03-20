@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::{
     Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, NdEuclidPuzzleAnimation,
-    NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData, PieceMask, Puzzle, PuzzleState,
+    NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData, PieceMask, Puzzle,
 };
 
 /// Extra state for a simulation of an N-dimensional Euclidean puzzle.

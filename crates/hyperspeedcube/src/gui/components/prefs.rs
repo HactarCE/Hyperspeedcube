@@ -47,7 +47,7 @@ impl<T> PrefsUi<'_, T> {
         Some(access.get(self.defaults.as_ref()?).clone())
     }
 
-    pub fn map_prefs<'b, U>(&'b mut self, access: Access<T, U>) -> PrefsUi<'b, U> {
+    pub fn map_prefs<U>(&mut self, access: Access<T, U>) -> PrefsUi<'_, U> {
         PrefsUi {
             ui: self.ui,
             current: access.get_mut(self.current),

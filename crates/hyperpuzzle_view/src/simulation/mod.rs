@@ -8,8 +8,8 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle_core::{
     Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, Puzzle, PuzzleState, PuzzleStateRenderData,
-    ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
+    NdEuclidPuzzleAnimation, Puzzle, PuzzleState, PuzzleStateRenderData, ScrambleParams,
+    ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
 };
 use hyperpuzzle_log::Scramble;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};

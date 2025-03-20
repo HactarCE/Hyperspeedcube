@@ -3,21 +3,15 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
-use hyperdraw::{GfxEffectParams, GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
+use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
-use hyperprefs::{
-    AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
-    FilterSeqPreset, InterpolateFn, ModifiedPreset, Preferences, PresetRef,
-    PuzzleFilterPreferences,
-};
+use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle_core::NdEuclidPuzzleUiData;
 use hyperpuzzle_core::PerspectiveDim;
-use hyperpuzzle_core::PieceSet;
 use hyperpuzzle_core::{
-    Axis, GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, PerPiece, Piece, PieceMask, Puzzle, PuzzleViewPreferencesSet,
-    Sticker,
+    GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData,
+    PerPiece, Piece, Puzzle, Sticker,
 };
 use parking_lot::Mutex;
 use smallvec::smallvec;
@@ -26,7 +20,7 @@ use crate::styles::PuzzleStyleStates;
 use crate::{PuzzleSimulation, ReplayEvent};
 
 use super::PuzzleViewInput;
-use super::{GizmoHoverState, PuzzleHoverState};
+use super::{GizmoHoverState, NdEuclidPuzzleHoverState};
 
 /// Extra state for a view of an N-dimensional Euclidean puzzle.
 #[derive(Debug, Clone)]
@@ -46,13 +40,10 @@ pub struct NdEuclidViewState {
 
     /// What puzzle geometry the cursor is hovering over. This is frozen during
     /// a drag.
-    pub puzzle_hover_state: Option<PuzzleHoverState>,
+    pub puzzle_hover_state: Option<NdEuclidPuzzleHoverState>,
     /// What twist gizmo the cursor is hovering over. This is frozen during a
     /// drag.
     pub gizmo_hover_state: Option<GizmoHoverState>,
-
-    /// Axis whose twist gizmo should be highlighted for only the current frame.
-    pub temp_gizmo_highlight: Option<Axis>,
 }
 impl NdEuclidViewState {
     /// Constructs a fresh state.
@@ -86,8 +77,6 @@ impl NdEuclidViewState {
 
             puzzle_hover_state: None,
             gizmo_hover_state: None,
-
-            temp_gizmo_highlight: None,
         })
     }
 
@@ -97,18 +86,13 @@ impl NdEuclidViewState {
     }
 
     /// Returns what the cursor was hovering over.
-    pub fn puzzle_hover_state(&self) -> Option<PuzzleHoverState> {
+    pub fn puzzle_hover_state(&self) -> Option<NdEuclidPuzzleHoverState> {
         self.puzzle_hover_state.clone()
-    }
-
-    /// Returns the hovered piece.
-    fn hovered_piece(&self) -> Option<Piece> {
-        Some(self.puzzle_hover_state.as_ref()?.piece)
     }
 
     /// Returns the hovered twist gizmo element.
     pub fn gizmo_hover_state(&self) -> Option<GizmoHoverState> {
-        self.gizmo_hover_state.clone()
+        self.gizmo_hover_state
     }
 
     /// Updates the puzzle view for a frame. This method is idempotent.
@@ -123,6 +107,7 @@ impl NdEuclidViewState {
         let PuzzleViewInput {
             ndc_cursor_pos,
             target_size,
+            is_dragging: _,
             exceeded_twist_drag_threshold,
             hover_mode: _,
         } = input;
@@ -303,7 +288,7 @@ impl NdEuclidViewState {
         prefs: &Preferences,
         styles: &PuzzleStyleStates,
         sim: &Mutex<PuzzleSimulation>,
-    ) -> Option<PuzzleHoverState> {
+    ) -> Option<NdEuclidPuzzleHoverState> {
         let sim = sim.lock();
         let puzzle = sim.puzzle_type();
 
@@ -482,7 +467,7 @@ impl NdEuclidViewState {
         sticker: Option<Sticker>,
         tri_range: &'a Range<u32>,
         puzzle_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
-    ) -> impl 'a + Iterator<Item = PuzzleHoverState> {
+    ) -> impl 'a + Iterator<Item = NdEuclidPuzzleHoverState> {
         let mesh = &self.geom.mesh;
         let piece_transform = &puzzle_state
             .unwrap_render_data::<NdEuclidPuzzleStateRenderData>()
@@ -508,7 +493,7 @@ impl NdEuclidViewState {
                 let v_tangent =
                     piece_transform.transform_vector(va * qa as _ + vb * qb as _ + vc * qc as _);
 
-                Some(PuzzleHoverState {
+                Some(NdEuclidPuzzleHoverState {
                     cursor_pos,
                     z: qa * a.z + qb * b.z + qc * c.z,
 
@@ -582,14 +567,6 @@ impl NdEuclidViewState {
             None => vector![],
         })
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct PartialTwistDragState {
-    pub axis: Axis,
-    pub layers: LayerMask,
-    pub grip: PieceMask,
-    pub transform: Motor,
 }
 
 /// State of a mouse drag for an N-dimensional Euclidean puzzle.

@@ -67,7 +67,7 @@ impl App {
         self.active_puzzle.with_view(|view| {
             if let Some(nd_euclid) = view.nd_euclid() {
                 let view_preset_name = nd_euclid.camera.view_preset.base.name();
-                let view_preset = match view.puzzle().view_prefs_set() {
+                match view.puzzle().view_prefs_set() {
                     Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
                         self.prefs
                             .perspective_view_presets_mut(dim)
