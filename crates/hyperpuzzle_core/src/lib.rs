@@ -3,32 +3,42 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod catalog;
+pub mod catalog;
 mod lint;
 mod logging;
 mod nameable;
-mod nongeneric;
 mod puzzle;
 mod rgb;
-mod tags;
+pub mod tags;
 mod timestamp;
 mod traits;
 pub mod util;
 mod version;
 
-pub use catalog::*;
 /// Re-export of `chrono`.
 pub use chrono;
-pub use lint::PuzzleLintOutput;
-pub use logging::*;
-pub use nameable::*;
-pub use nongeneric::*;
-pub use puzzle::*;
-pub use rgb::Rgb;
-pub use tags::*;
-pub use timestamp::Timestamp;
-pub use traits::*;
-pub use version::Version;
+pub use prelude::*;
+pub use tags::{AllTags, TAGS};
+
+pub use crate::logging::*;
+pub use crate::rgb::Rgb;
+pub use crate::timestamp::Timestamp;
+
+/// Prelude of common imports.
+pub mod prelude {
+    pub use crate::LayerMaskUint;
+    pub use crate::catalog::{
+        Catalog, ColorSystemCatalog, ColorSystemGenerator, GeneratorParam, GeneratorParamError,
+        GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
+        PuzzleSpecGenerator, Redirectable,
+    };
+    pub use crate::lint::PuzzleLintOutput;
+    pub use crate::nameable::Nameable;
+    pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
+    pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};
+    pub use crate::traits::*;
+    pub use crate::version::Version;
+}
 
 /// Unsigned integer type used for [`LayerMask`].
 pub type LayerMaskUint = u32;

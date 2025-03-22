@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use eyre::Context;
-use hyperpuzzle_core::{Color, DevOrbit};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 

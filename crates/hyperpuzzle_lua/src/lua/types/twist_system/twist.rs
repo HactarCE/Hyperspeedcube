@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hyperpuzzle_core::Twist;
+use hyperpuzzle_core::prelude::*;
 
 use super::*;
 use crate::builder::{PuzzleBuilder, TwistBuilder, TwistKey};

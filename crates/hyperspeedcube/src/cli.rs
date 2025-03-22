@@ -143,7 +143,7 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
         }
 
         Subcommand::Tags => {
-            for tag in hyperpuzzle_core::TAGS.all_tags() {
+            for tag in hyperpuzzle::TAGS.all_tags() {
                 println!("{tag}");
             }
             Ok(())

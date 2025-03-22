@@ -6,17 +6,11 @@ use hypermath::collections::GenericVec;
 use hypermath::idx_struct;
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{
-    Axis, AxisInfo, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData, PerAxis, PerPiece, Piece, Puzzle,
-    PuzzleState,
-};
-use crate::{BoxDynPuzzleAnimation, PieceMask};
-
-use super::NdEuclidPuzzleAnimation;
+use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
 idx_struct! {

@@ -1,8 +1,6 @@
 use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{
-    Color, ColorInfo, ColorSystem, DefaultColor, DevOrbit, PerColor, PuzzleDevData, PuzzleElement,
-};
+use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 

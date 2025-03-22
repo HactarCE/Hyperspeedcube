@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-use hyperpuzzle_core::{PieceMask, Puzzle};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};

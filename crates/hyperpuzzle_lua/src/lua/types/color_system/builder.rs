@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::{Color, DefaultColor, PerColor};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 

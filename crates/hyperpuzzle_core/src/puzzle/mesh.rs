@@ -87,7 +87,7 @@ impl Default for Mesh {
 
 impl Mesh {
     /// Constructs an empty mesh.
-    pub fn new_empty(ndim: u8) -> Self {
+    pub const fn new_empty(ndim: u8) -> Self {
         Mesh {
             ndim,
             color_count: 0,

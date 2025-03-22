@@ -1,3 +1,6 @@
+//! Catalog of puzzles and related objects, along with functionality for loading
+//! them.
+
 use std::collections::{BTreeSet, HashMap, hash_map};
 use std::sync::Arc;
 

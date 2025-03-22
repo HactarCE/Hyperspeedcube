@@ -1,6 +1,6 @@
 // TODO: this isn't just Lua
 
-use hyperpuzzle_core::LogLine;
+use hyperpuzzle::LogLine;
 use log::Level;
 
 use crate::L;

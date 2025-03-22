@@ -15,9 +15,7 @@ use std::sync::{Arc, mpsc};
 use eyre::{OptionExt, Result, bail};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
-use hyperpuzzle_core::{
-    Mesh, NdEuclidPuzzleUiData, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker,
-};
+use hyperpuzzle::prelude::*;
 use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -120,7 +118,7 @@ pub struct NdEuclidPuzzleRenderer {
     /// Stickers that are part of each piece.
     puzzle_pieces: PerPiece<SmallVec<[Sticker; 8]>>,
     /// Color for each sticker.
-    puzzle_sticker_colors: PerSticker<hyperpuzzle_core::Color>,
+    puzzle_sticker_colors: PerSticker<hyperpuzzle::Color>,
     is_placeholder_model: bool,
 
     /// Puzzle vertex positions in homogeneous 3D space.
@@ -173,7 +171,10 @@ impl NdEuclidPuzzleRenderer {
     ///
     /// Returns `None` if `puzzle` is not an N-dimensional Euclidean puzzle.
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Option<Self> {
-        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?;
+        let geom = puzzle
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleUiData>()?
+            .geom();
 
         let is_empty_model = geom.mesh.is_empty() || puzzle.pieces.is_empty();
 
@@ -594,11 +595,11 @@ impl NdEuclidPuzzleRenderer {
                 .iter()
                 .map(|&rgb| rgb_to_rgba(rgb)),
         );
-        let mut color_ids: HashMap<Rgb, u32> = color_palette
+        let mut color_ids: HashMap<hyperpuzzle::Rgb, u32> = color_palette
             .iter()
             .enumerate()
             .filter(|&(_, &[_, _, _, a])| a == 255)
-            .map(|(i, &[r, g, b, _])| (Rgb { rgb: [r, g, b] }, i as u32))
+            .map(|(i, &[r, g, b, _])| (hyperpuzzle::Rgb { rgb: [r, g, b] }, i as u32))
             .collect();
         for c in draw_params
             .piece_styles

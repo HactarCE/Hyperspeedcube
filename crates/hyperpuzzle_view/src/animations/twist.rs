@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle_core::{BoxDynPuzzleAnimation, BoxDynPuzzleState};
+use hyperpuzzle::prelude::*;
 use web_time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the

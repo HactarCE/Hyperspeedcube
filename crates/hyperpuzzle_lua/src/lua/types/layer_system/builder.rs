@@ -1,5 +1,5 @@
 use hypermath::IndexNewtype;
-use hyperpuzzle_core::{Layer, PerLayer};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::MappedMutexGuard;
 

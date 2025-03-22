@@ -2132,7 +2132,7 @@ dependencies = [
  "eyre",
  "hypermath",
  "hyperprefs",
- "hyperpuzzle_core",
+ "hyperpuzzle",
  "image",
  "itertools 0.14.0",
  "log",
@@ -2220,6 +2220,7 @@ version = "0.1.0"
 dependencies = [
  "eyre",
  "hyperpuzzle_core",
+ "hyperpuzzle_impl_nd_euclid",
  "hyperpuzzle_log",
  "hyperpuzzle_lua",
  "lazy_static",
@@ -2255,6 +2256,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperpuzzle_impl_nd_euclid"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "hypermath",
+ "hyperpuzzle_core",
+ "itertools 0.14.0",
+ "lazy_static",
+ "log",
+ "parking_lot",
+ "tinyset",
+]
+
+[[package]]
 name = "hyperpuzzle_log"
 version = "0.1.0"
 dependencies = [
@@ -2282,6 +2297,7 @@ dependencies = [
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
+ "hyperpuzzle_impl_nd_euclid",
  "hypershape",
  "include_dir",
  "indexmap",
@@ -2306,7 +2322,7 @@ dependencies = [
  "hyperdraw",
  "hypermath",
  "hyperprefs",
- "hyperpuzzle_core",
+ "hyperpuzzle",
  "hyperpuzzle_log",
  "itertools 0.14.0",
  "log",
@@ -2358,7 +2374,6 @@ dependencies = [
  "hyperpaths",
  "hyperprefs",
  "hyperpuzzle",
- "hyperpuzzle_core",
  "hyperpuzzle_log",
  "hyperpuzzle_lua",
  "hyperpuzzle_view",

@@ -26,9 +26,17 @@
 
 use std::sync::Arc;
 
-use hyperpuzzle_core::Catalog;
+pub use hyperpuzzle_core::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+pub use prelude::*;
+pub use {hyperpuzzle_core as core, hyperpuzzle_impl_nd_euclid as nd_euclid};
+
+/// Prelude of common imports.
+pub mod prelude {
+    pub use hyperpuzzle_core::prelude::*;
+    pub use hyperpuzzle_impl_nd_euclid::*;
+}
 
 lazy_static! {
     /// Even though `Catalog` already contains an `Arc<Mutex<T>>` internally, we

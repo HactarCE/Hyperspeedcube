@@ -3,7 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hyperpuzzle_core::*;
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de};
 

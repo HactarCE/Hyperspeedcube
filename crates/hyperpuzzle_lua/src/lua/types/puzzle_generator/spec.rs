@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyperpuzzle_core::{
-    BuildTask, GeneratorParam, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, Redirectable,
-    TagSet, TagValue,
-};
+use hyperpuzzle_core::catalog::BuildTask;
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 
 use super::*;

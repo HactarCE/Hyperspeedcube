@@ -1,5 +1,5 @@
 use hypermath::pga::Motor;
-use hyperpuzzle_core::Color;
+use hyperpuzzle_core::prelude::*;
 
 use super::*;
 use crate::builder::PuzzleBuilder;

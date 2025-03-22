@@ -1,6 +1,6 @@
 [package]
-name = "hyperpuzzle"
-description = "Puzzle API for Hyperspeedcube"
+name = "hyperpuzzle_impl_nd_euclid"
+description = "N-dimensional Euclidean puzzle backend for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -9,25 +9,19 @@ homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "4d"]
-categories = ["simulation"]
+categories = ["algorithms", "mathematics", "simulation"]
 license = "MIT OR Apache-2.0"
 
 [lints]
 workspace = true
 
 [dependencies]
+hypermath = { workspace = true }
 hyperpuzzle_core = { workspace = true }
-hyperpuzzle_impl_nd_euclid = { workspace = true }
-hyperpuzzle_lua = { workspace = true }
-
-lazy_static = { workspace = true }
-parking_lot = { workspace = true }
-
-[dev-dependencies]
-hyperpuzzle_log = { workspace = true }
 
 eyre = { workspace = true }
-
-[features]
-ecolor = ["hyperpuzzle_core/ecolor"]
-oklab = ["hyperpuzzle_core/oklab"]
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+tinyset = { workspace = true }

@@ -8,10 +8,7 @@ use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
-use hyperpuzzle_core::{
-    Axis, BuildTask, Color, ColorSystem, GizmoFace, LayerMask, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, PieceMask, Progress, Puzzle, Redirectable,
-};
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
@@ -165,31 +162,33 @@ impl PuzzleWidget {
         self.load(id, Some(solve), prefs);
     }
     fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
+        use hyperpuzzle::catalog::CacheEntry;
+
         let cache_entry = hyperpuzzle::catalog().build_puzzle(&puzzle_id);
         let cache_entry_guard = cache_entry.lock();
         match &*cache_entry_guard {
-            hyperpuzzle_core::CacheEntry::NotStarted => {
+            CacheEntry::NotStarted => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                     puzzle_id,
                     progress: None,
                     solve_to_load: solve,
                 });
             }
-            hyperpuzzle_core::CacheEntry::Building { progress, .. } => {
+            CacheEntry::Building { progress, .. } => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                     puzzle_id,
                     progress: Some(Arc::clone(progress)),
                     solve_to_load: solve,
                 });
             }
-            hyperpuzzle_core::CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
+            CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                     puzzle_id: new_id.clone(),
                     progress: None,
                     solve_to_load: solve,
                 });
             }
-            hyperpuzzle_core::CacheEntry::Ok(Redirectable::Direct(puzzle)) => match solve {
+            CacheEntry::Ok(Redirectable::Direct(puzzle)) => match solve {
                 Some(solve) => {
                     let puzzle = Arc::clone(puzzle);
                     let thread_handle = std::thread::spawn(move || {
@@ -202,14 +201,12 @@ impl PuzzleWidget {
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))), prefs),
             },
-            hyperpuzzle_core::CacheEntry::Err(_) => {
+            CacheEntry::Err(_) => {
                 // The error should've already been reported;
                 // we don't need to report it every frame.
                 if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
                     let gfx = &self.gfx;
-                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
-                        &hyperpuzzle_core::PLACEHOLDER_PUZZLE,
-                    )));
+                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(&PLACEHOLDER_PUZZLE)));
                     self.contents = PuzzleWidgetContents::Placeholder {
                         puzzle_id: puzzle_id.to_string(),
                         view: PuzzleView::new(gfx, &sim, prefs),
@@ -302,6 +299,8 @@ impl PuzzleWidget {
                         progress: status,
                         solve_to_load,
                     } => {
+                        use hyperpuzzle::catalog::BuildTask;
+
                         let task = match status {
                             Some(s) => s.lock().task,
                             None => Default::default(),
@@ -628,7 +627,7 @@ pub enum PuzzleWidgetLoading {
     /// Waiting for a puzzle to build.
     BuildingPuzzle {
         puzzle_id: String,
-        progress: Option<Arc<Mutex<Progress>>>,
+        progress: Option<Arc<Mutex<hyperpuzzle::catalog::Progress>>>,
         solve_to_load: Option<Arc<Solve>>,
     },
     /// Waiting for a log file to load.

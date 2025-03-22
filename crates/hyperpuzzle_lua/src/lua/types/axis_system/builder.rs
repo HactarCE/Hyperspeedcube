@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use float_ord::FloatOrd;
 use hypermath::{Hyperplane, VectorRef};
-use hyperpuzzle_core::{Axis, DevOrbit};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 

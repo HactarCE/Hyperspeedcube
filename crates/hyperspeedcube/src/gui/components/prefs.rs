@@ -1,11 +1,8 @@
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
-use hyperprefs::{
-    AnimationPreferences, InteractionPreferences, InterpolateFn, Preferences, StyleColorMode,
-    ViewPreferences,
-};
-use hyperpuzzle_core::{PerspectiveDim, PuzzleViewPreferencesSet, Rgb};
+use hyperprefs::*;
+use hyperpuzzle::prelude::*;
 use strum::VariantArray;
 
 use crate::L;
@@ -188,7 +185,11 @@ impl<T> PrefsUi<'_, T> {
         })
     }
 
-    pub fn color(&mut self, strings: &HoverStrings, access: Access<T, Rgb>) -> egui::Response {
+    pub fn color(
+        &mut self,
+        strings: &HoverStrings,
+        access: Access<T, hyperpuzzle::Rgb>,
+    ) -> egui::Response {
         self.color_with_label(strings.label, access)
             .on_i18n_hover_explanation(strings)
     }
@@ -196,7 +197,7 @@ impl<T> PrefsUi<'_, T> {
     pub fn color_with_label(
         &mut self,
         label: impl Into<egui::WidgetText>,
-        access: Access<T, Rgb>,
+        access: Access<T, hyperpuzzle::Rgb>,
     ) -> egui::Response {
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
@@ -212,7 +213,7 @@ impl<T> PrefsUi<'_, T> {
     pub fn fixed_multi_color(
         &mut self,
         label: impl Into<egui::WidgetText>,
-        access: Access<T, Vec<Rgb>>,
+        access: Access<T, Vec<hyperpuzzle::Rgb>>,
     ) -> egui::Response {
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {

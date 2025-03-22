@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::Twist;
+use hyperpuzzle_core::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;

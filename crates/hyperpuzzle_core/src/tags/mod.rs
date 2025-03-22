@@ -1,3 +1,18 @@
+//! Tags for classifying puzzles.
+//!
+//! Puzzles are classified using "tags," which are arranged hierarchically and
+//! associated to values (typically boolean). Tags are usually written with a
+//! leading `#`, but the `#` is not part of the tag's name.
+//!
+//! For example, `#shape/3d/cube` is a direct subtag of `#shape/3d`.
+//!
+//! A tag is **present** for a puzzle if the tag or any of its subtags has a
+//! non-null, non-false value associated to it for that puzzle.
+//!
+//! Tags are arranged in a menu for filtering puzzles.
+//!
+//! Tags and the tag menu are defined in `tags.kdl` at the crate root.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

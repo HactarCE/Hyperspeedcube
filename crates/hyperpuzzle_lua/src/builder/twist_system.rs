@@ -5,7 +5,7 @@ use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::prelude::*;
-use hyperpuzzle_core::*;
+use hyperpuzzle_core::prelude::*;
 use hypershape::{ElementId, Space, ToElementId};
 use itertools::Itertools;
 use pga::{Blade, Motor};

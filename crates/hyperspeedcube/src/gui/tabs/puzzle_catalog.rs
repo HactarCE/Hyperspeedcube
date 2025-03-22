@@ -4,9 +4,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use egui::emath::GuiRounding;
-use hyperpuzzle_core::{
-    GeneratorParamType, GeneratorParamValue, PuzzleListMetadata, PuzzleSpecGenerator,
-};
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 use regex::Regex;
 
@@ -146,7 +144,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         // Show tag search
                         let search_query = *incomplete_tag;
                         let mut changed = false;
-                        for query_result in hyperpuzzle_core::TAGS
+                        for query_result in hyperpuzzle::TAGS
                             .all_tags()
                             .iter()
                             .filter_map(|tag| SubstringQueryMatch::try_from(search_query, tag))
@@ -273,8 +271,7 @@ fn show_puzzle_generator_ui(
 
     if ui.button(L.catalog.generate_puzzle).clicked() {
         ui.memory_mut(|mem| mem.close_popup());
-        let puzzle_id =
-            hyperpuzzle_core::generated_id(&puzzle_generator.meta.id, &popup_data.params);
+        let puzzle_id = hyperpuzzle::generated_id(&puzzle_generator.meta.id, &popup_data.params);
         app.load_puzzle(&puzzle_id);
     };
 }
@@ -311,10 +308,9 @@ impl<'a> QuerySegment<'a> {
     fn as_incomplete_tag_mut(&mut self) -> Option<&'_ mut &'a str> {
         match self {
             QuerySegment::Whitespace(_) | QuerySegment::Word(_) => None,
-            QuerySegment::Tag { tag_name, .. } => hyperpuzzle_core::TAGS
-                .get(tag_name)
-                .is_err()
-                .then_some(tag_name),
+            QuerySegment::Tag { tag_name, .. } => {
+                hyperpuzzle::TAGS.get(tag_name).is_err().then_some(tag_name)
+            }
         }
     }
 }
@@ -446,7 +442,7 @@ impl<'a> Query<'a> {
                     tag_name,
                     value,
                 } => {
-                    let tag_name_text_format = match hyperpuzzle_core::TAGS.get(tag_name) {
+                    let tag_name_text_format = match hyperpuzzle::TAGS.get(tag_name) {
                         Ok(_) => &symbol_text_format,
                         Err(_) => &error_text_format,
                     };

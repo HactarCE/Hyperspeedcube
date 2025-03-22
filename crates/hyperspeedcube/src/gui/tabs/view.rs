@@ -1,5 +1,5 @@
 use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
-use hyperpuzzle_core::{PerspectiveDim, PuzzleViewPreferencesSet};
+use hyperpuzzle::prelude::*;
 
 use crate::L;
 use crate::app::App;

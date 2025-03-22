@@ -1,6 +1,6 @@
 use hyperpuzzle_core::{ScrambleParams, ScrambleType, chrono};
 use hyperpuzzle_log::verify::{SolveVerification, verify};
-use hyperpuzzle_log::{LogEvent, LogFile, Puzzle};
+use hyperpuzzle_log::{LogEvent, LogFile, LogPuzzle};
 
 use super::{load_new_catalog, time_it};
 
@@ -31,7 +31,7 @@ solve {
     assert!(warnings.is_empty());
 
     let expected_verification = SolveVerification {
-        puzzle: Puzzle {
+        puzzle: LogPuzzle {
             id: "ft_cube:2".to_string(),
             version: "1.0.0".to_string(),
         },

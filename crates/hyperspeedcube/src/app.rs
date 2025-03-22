@@ -4,9 +4,7 @@ use std::sync::{Arc, Weak};
 use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
-use hyperpuzzle_core::{
-    PerspectiveDim, Puzzle, PuzzleViewPreferencesSet, ScrambleParams, ScrambleType,
-};
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;

@@ -6,11 +6,8 @@ use hyperdraw::GfxEffectParams;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
-use hyperpuzzle_core::{
-    Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, LayeredTwist,
-    NdEuclidPuzzleAnimation, Puzzle, PuzzleState, PuzzleStateRenderData, ScrambleParams,
-    ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
-};
+use hyperpuzzle::Timestamp;
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Scramble;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
 use smallvec::smallvec;
@@ -721,7 +718,7 @@ impl PuzzleSimulation {
         }
 
         hyperpuzzle_log::Solve {
-            puzzle: hyperpuzzle_log::Puzzle {
+            puzzle: hyperpuzzle_log::LogPuzzle {
                 id: puz.meta.id.clone(),
                 version: puz.meta.version.to_string(),
             },

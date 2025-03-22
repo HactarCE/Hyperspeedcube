@@ -3,7 +3,8 @@ use std::sync::{Arc, Weak};
 
 use eyre::Result;
 use hypermath::{ApproxHashMap, VecMap, Vector, VectorRef, vector};
-use hyperpuzzle_core::*;
+use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_impl_nd_euclid::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -156,7 +157,7 @@ impl PuzzleBuilder {
             twist_transforms,
             gizmo_twists,
         });
-        let ui_data = Arc::clone(&geom).into();
+        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),

@@ -1,4 +1,4 @@
-use hyperpuzzle_core::ScrambleType;
+use hyperpuzzle::ScrambleType;
 
 use super::{AppUi, Tab};
 use crate::L;

@@ -123,7 +123,7 @@ pub struct Solve {
     ///
     /// This is the only part of a solve that is strictly required.
     #[kdl(child("puzzle"))]
-    pub puzzle: Puzzle,
+    pub puzzle: LogPuzzle,
     /// Whether the puzzle has been solved from a scramble.
     ///
     /// This is always `false` if the puzzle has not been fully scrambled. If at
@@ -162,7 +162,7 @@ pub struct Solve {
 }
 /// Puzzle info.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
-pub struct Puzzle {
+pub struct LogPuzzle {
     /// Puzzle ID.
     #[kdl(property("id"))]
     pub id: String,
@@ -348,7 +348,7 @@ mod tests {
                 version: Some("2.0.0-pre.15".to_string()),
             }),
             solves: vec![Solve {
-                puzzle: Puzzle {
+                puzzle: LogPuzzle {
                     id: "ft_cube:3".to_string(),
                     version: "1.0.0".to_string(),
                 },

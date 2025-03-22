@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{
-    Axis, BoxDynPuzzleState, BoxDynPuzzleStateRenderData, LayerMask, NdEuclidPuzzleAnimation,
-    NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData, PieceMask, Puzzle,
-};
+use hyperpuzzle::prelude::*;
 
 /// Extra state for a simulation of an N-dimensional Euclidean puzzle.
 #[derive(Debug, Clone)]
@@ -17,10 +14,10 @@ impl NdEuclidSimState {
     ///
     /// Returns `None` if `puzzle` is not an N-dimensional Euclidean puzzle.
     pub fn new(puzzle: &Arc<Puzzle>) -> Option<Self> {
-        let geom = Arc::clone(puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?);
+        let ui_data = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?;
 
         Some(Self {
-            geom,
+            geom: ui_data.geom(),
             partial_twist_drag_state: None,
         })
     }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperdraw::PieceStyleValues;
 use hyperprefs::{Preferences, PresetRef};
-use hyperpuzzle_core::{Piece, PieceMask};
+use hyperpuzzle::prelude::*;
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -246,7 +246,7 @@ impl PieceStyleState {
             .map_fixed_color(|c| {
                 // TODO: blocking pieces animation is invisible when using
                 // `StyleColorMode::FromSticker`
-                hyperpuzzle_core::Rgb::mix(
+                hyperpuzzle::Rgb::mix(
                     c,
                     styles.blocking_outline_color,
                     self.blocking_amount as f32 / 255.0,

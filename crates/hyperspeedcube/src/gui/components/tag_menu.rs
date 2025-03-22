@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 
 use super::{FilterCheckbox, FilterCheckboxState};
@@ -15,8 +16,8 @@ enum TagFilterState {
 pub struct TagMenu {
     tag_states: HashMap<String, TagFilterState>,
     show_experimental: bool,
-    puzzle_catalog: hyperpuzzle_core::PuzzleCatalog,
-    color_system_catalog: hyperpuzzle_core::ColorSystemCatalog,
+    puzzle_catalog: PuzzleCatalog,
+    color_system_catalog: ColorSystemCatalog,
 }
 impl TagMenu {
     pub fn new(
@@ -32,7 +33,7 @@ impl TagMenu {
         for (state, tag) in specified_tags {
             // Mark the ancestor tags as mixed unless they are explicitly
             // specified as well.
-            for parent in hyperpuzzle_core::TAGS.ancestors(&tag) {
+            for parent in hyperpuzzle::TAGS.ancestors(&tag) {
                 tag_states
                     .entry(parent.to_owned())
                     .or_insert(TagFilterState::Mixed);
@@ -57,7 +58,7 @@ impl TagMenu {
     #[must_use]
     pub fn show(self, ui: &mut egui::Ui) -> egui::InnerResponse<Option<TagFilterAction>> {
         ui.scope(|ui| {
-            let tags = hyperpuzzle_core::TAGS.menu();
+            let tags = hyperpuzzle::TAGS.menu();
             egui::ScrollArea::vertical()
                 .show(ui, |ui| self.show_tag_menu_node(ui, tags))
                 .inner
@@ -65,25 +66,21 @@ impl TagMenu {
     }
 
     #[must_use]
-    fn show_tag_menu_node(
-        &self,
-        ui: &mut egui::Ui,
-        node: &hyperpuzzle_core::TagMenuNode,
-    ) -> Option<TagFilterAction> {
+    fn show_tag_menu_node(&self, ui: &mut egui::Ui, node: &TagMenuNode) -> Option<TagFilterAction> {
         match node {
-            hyperpuzzle_core::TagMenuNode::Schema(_) => None,
+            TagMenuNode::Schema(_) => None,
 
-            hyperpuzzle_core::TagMenuNode::Heading(heading_text) => {
+            TagMenuNode::Heading(heading_text) => {
                 ui.strong(&**heading_text);
                 None
             }
 
-            hyperpuzzle_core::TagMenuNode::Separator => {
+            TagMenuNode::Separator => {
                 ui.separator();
                 None
             }
 
-            hyperpuzzle_core::TagMenuNode::Tag {
+            TagMenuNode::Tag {
                 name,
                 ty: _,
                 display,
@@ -110,9 +107,7 @@ impl TagMenu {
                             self.color_system_catalog
                                 .objects()
                                 // Sort by name (could sort by ID instead)
-                                .sorted_unstable_by(|a, b| {
-                                    hyperpuzzle_core::compare_ids(&a.id, &b.id)
-                                })
+                                .sorted_unstable_by(|a, b| hyperpuzzle::compare_ids(&a.id, &b.id))
                                 .map(|color_system| {
                                     let name = &color_system.name;
                                     self.tag_checkbox(ui, name, Some(&color_system.id), name)
@@ -138,8 +133,8 @@ impl TagMenu {
                 };
 
                 match display {
-                    hyperpuzzle_core::TagDisplay::Inline => self.show_tag_menu_nodes(ui, subtags),
-                    hyperpuzzle_core::TagDisplay::Submenu(label) => {
+                    TagDisplay::Inline => self.show_tag_menu_nodes(ui, subtags),
+                    TagDisplay::Submenu(label) => {
                         if subtags.is_empty() && !*list {
                             if let Some(name) = name {
                                 self.tag_checkbox(ui, name, None, label)
@@ -161,7 +156,7 @@ impl TagMenu {
     fn show_tag_menu_nodes(
         &self,
         ui: &mut egui::Ui,
-        nodes: &[hyperpuzzle_core::TagMenuNode],
+        nodes: &[TagMenuNode],
     ) -> Option<TagFilterAction> {
         nodes
             .iter()

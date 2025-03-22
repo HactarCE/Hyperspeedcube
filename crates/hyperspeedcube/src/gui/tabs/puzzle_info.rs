@@ -1,3 +1,4 @@
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 
 use crate::L;
@@ -67,17 +68,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .iter()
             .sorted_by_key(|(tag, _value)| *tag)
             .filter_map(|(tag, value)| match value {
-                hyperpuzzle_core::TagValue::False => show_excluded.then(|| format!("!{tag}")),
-                hyperpuzzle_core::TagValue::True => Some(tag.to_string()),
-                hyperpuzzle_core::TagValue::Inherited => show_inherited.then(|| format!("({tag})")),
-                hyperpuzzle_core::TagValue::Int(i) => Some(format!("{tag} = {i}")),
-                hyperpuzzle_core::TagValue::Str(s) => {
-                    Some(format!("{tag} = {}", md_escape(&format!("{s:?}"))))
-                }
-                hyperpuzzle_core::TagValue::StrList(vec) => {
+                TagValue::False => show_excluded.then(|| format!("!{tag}")),
+                TagValue::True => Some(tag.to_string()),
+                TagValue::Inherited => show_inherited.then(|| format!("({tag})")),
+                TagValue::Int(i) => Some(format!("{tag} = {i}")),
+                TagValue::Str(s) => Some(format!("{tag} = {}", md_escape(&format!("{s:?}")))),
+                TagValue::StrList(vec) => {
                     Some(format!("{tag} = {}", md_escape(&format!("{vec:?}"))))
                 }
-                hyperpuzzle_core::TagValue::Puzzle(puz) => Some(format!("{tag} = {puz}")),
+                TagValue::Puzzle(puz) => Some(format!("{tag} = {puz}")),
             })
             .map(|s| format!("- {s}\n"))
             .join("");

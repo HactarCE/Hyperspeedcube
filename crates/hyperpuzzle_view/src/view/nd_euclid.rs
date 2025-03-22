@@ -7,20 +7,13 @@ use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
-use hyperpuzzle_core::NdEuclidPuzzleUiData;
-use hyperpuzzle_core::PerspectiveDim;
-use hyperpuzzle_core::{
-    GizmoFace, LayerMask, LayeredTwist, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData,
-    PerPiece, Piece, Puzzle, Sticker,
-};
+use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
+use super::{GizmoHoverState, NdEuclidPuzzleHoverState, PuzzleViewInput};
 use crate::styles::PuzzleStyleStates;
 use crate::{PuzzleSimulation, ReplayEvent};
-
-use super::PuzzleViewInput;
-use super::{GizmoHoverState, NdEuclidPuzzleHoverState};
 
 /// Extra state for a view of an N-dimensional Euclidean puzzle.
 #[derive(Debug, Clone)]
@@ -54,7 +47,10 @@ impl NdEuclidViewState {
         prefs: &mut Preferences,
         puzzle: &Arc<Puzzle>,
     ) -> Option<Self> {
-        let geom = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?;
+        let geom = puzzle
+            .ui_data
+            .downcast_ref::<NdEuclidPuzzleUiData>()?
+            .geom();
         let renderer = NdEuclidPuzzleRenderer::new(gfx, puzzle)?;
 
         let view_preset = prefs
@@ -70,7 +66,7 @@ impl NdEuclidViewState {
                 zoom: 0.5,
             },
 
-            geom: Arc::clone(geom),
+            geom,
 
             cursor_pos: None,
             drag_state: None,

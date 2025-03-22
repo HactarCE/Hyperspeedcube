@@ -1,5 +1,5 @@
 use hyperprefs::{ColorScheme, GlobalColorPalette};
-use hyperpuzzle_core::ColorSystem;
+use hyperpuzzle::ColorSystem;
 
 use crate::L;
 use crate::app::App;

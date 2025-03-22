@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use hypermath::Vector;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{Axis, LayerMask, LayerMaskUint};
+use hyperpuzzle_core::prelude::*;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use super::*;

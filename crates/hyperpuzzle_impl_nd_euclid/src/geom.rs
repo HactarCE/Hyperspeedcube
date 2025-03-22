@@ -1,15 +1,5 @@
-use std::sync::Arc;
-
 use hypermath::{Float, Hyperplane, Vector, VectorRef, pga};
-
-mod state;
-
-pub use state::NdEuclidPuzzleState;
-
-use crate::{
-    BoxDynPuzzleAnimation, Mesh, PerAxis, PerGizmoFace, PerPiece, PerSticker, PerTwist, Piece,
-    PieceMask, PuzzleAnimation, PuzzleStateRenderData, PuzzleUiData, Sticker, Twist,
-};
+use hyperpuzzle_core::prelude::*;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
 #[derive(Debug)]
@@ -70,9 +60,6 @@ impl NdEuclidPuzzleGeometry {
     }
 }
 
-/// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
-pub type NdEuclidPuzzleUiData = Arc<NdEuclidPuzzleGeometry>;
-impl PuzzleUiData for NdEuclidPuzzleUiData {}
 impl NdEuclidPuzzleGeometry {
     /// Returns an empty 3D puzzle geometry.
     pub fn placeholder() -> Self {
@@ -93,32 +80,5 @@ impl NdEuclidPuzzleGeometry {
     /// Returns the number of dimensions of the space the puzzle inhabits.
     pub fn ndim(&self) -> u8 {
         self.mesh.ndim
-    }
-}
-
-/// Puzzle render data for an N-dimensional Euclidean puzzle.
-pub struct NdEuclidPuzzleStateRenderData {
-    /// Transform for each piece.
-    pub piece_transforms: PerPiece<pga::Motor>,
-}
-impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
-
-/// Animation for an N-dimensional Euclidean puzzle.
-#[derive(Debug, Clone)]
-pub struct NdEuclidPuzzleAnimation {
-    /// Set of pieces affected by the animation.
-    pub pieces: PieceMask,
-    /// Initial transform of the pieces (identity, unless the move was inputted
-    /// using a mouse drag).
-    pub initial_transform: pga::Motor,
-    /// Final transform for the pieces.
-    pub final_transform: pga::Motor,
-}
-impl PuzzleAnimation for NdEuclidPuzzleAnimation {
-    fn dyn_clone(&self) -> BoxDynPuzzleAnimation
-    where
-        Self: Sized,
-    {
-        self.clone().into()
     }
 }

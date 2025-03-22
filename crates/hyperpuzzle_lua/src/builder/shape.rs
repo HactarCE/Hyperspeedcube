@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::*;
+use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;

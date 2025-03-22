@@ -1,7 +1,6 @@
 use egui::Widget;
 use float_ord::FloatOrd;
 use hyperprefs::{DEFAULT_PREFS, GlobalColorPalette, PrefsConvert};
-use hyperpuzzle_core::Rgb;
 use itertools::Itertools;
 use rand::Rng;
 use strum::{EnumIter, IntoEnumIterator};
@@ -106,7 +105,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             let custom_colors = &mut prefs.current.custom_colors;
             let name = custom_colors.make_nonconflicting_funny_name(crate::util::funny_autonames());
             let rgb = rand::rng().random();
-            custom_colors.save_preset(name, Rgb { rgb });
+            custom_colors.save_preset(name, hyperpuzzle::Rgb { rgb });
             custom_colors.move_index(custom_colors.len() - 1, 0);
             *prefs.changed = true;
         }

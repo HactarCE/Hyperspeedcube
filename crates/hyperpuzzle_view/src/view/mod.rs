@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use eyre::bail;
-use hyperdraw::image;
-use hyperdraw::{GraphicsState, NdEuclidCamera};
+use hyperdraw::{GraphicsState, NdEuclidCamera, image};
 use hypermath::prelude::*;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
 };
-use hyperpuzzle_core::{Axis, GizmoFace, LayerMask, Piece, PieceMask, Puzzle, Sticker};
+use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
 
 mod nd_euclid;
 
+pub use nd_euclid::{DragState, NdEuclidViewState};
+
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
-pub use nd_euclid::{DragState, NdEuclidViewState};
 
 #[derive(Debug)]
 pub enum SpecificPuzzleView {
@@ -239,9 +239,9 @@ impl PuzzleView {
     /// per-frame overrides.
     pub fn get_rgb_color(
         &self,
-        color: hyperpuzzle_core::Color,
+        color: hyperpuzzle::Color,
         prefs: &Preferences,
-    ) -> Option<hyperpuzzle_core::Rgb> {
+    ) -> Option<hyperpuzzle::Rgb> {
         let default_color = self.colors.value.get_index(color.0 as usize)?.1;
         prefs.color_palette.get(default_color)
     }

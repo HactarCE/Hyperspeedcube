@@ -19,7 +19,7 @@ workspace = true
 hyperdraw = { workspace = true }
 hypermath = { workspace = true }
 hyperprefs = { workspace = true }
-hyperpuzzle_core = { workspace = true }
+hyperpuzzle = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 
 cgmath = { workspace = true }

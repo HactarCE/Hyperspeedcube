@@ -102,15 +102,15 @@ impl DefaultColorGradient {
 
             Self::LightRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle_core::Rgb::mix(Rgb::WHITE, rainbow, 0.9)
+                Rgb::mix(Rgb::WHITE, rainbow, 0.9)
             }
             Self::DarkRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle_core::Rgb::mix(Rgb::BLACK, rainbow, 0.4)
+                Rgb::mix(Rgb::BLACK, rainbow, 0.4)
             }
             Self::DarkerRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                hyperpuzzle_core::Rgb::mix(Rgb::BLACK, rainbow, 0.2)
+                Rgb::mix(Rgb::BLACK, rainbow, 0.2)
             }
         }
     }

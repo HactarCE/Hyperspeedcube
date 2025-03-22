@@ -2,19 +2,19 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::hash::Hash;
 
-use hyperpuzzle_core::*;
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use crate::app::App;
 use crate::commands::{
-    Command, FilterMode, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
-    PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
+    Command, FilterMode, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX, PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
+    PuzzleCommand,
 };
 use crate::gui::components::{
-    big_icon_button, puzzle_type_menu, FancyComboBox, LayerMaskEdit, PlaintextYamlEditor,
-    PresetsUi, PresetsUiStrings, ReorderableList,
+    FancyComboBox, LayerMaskEdit, PlaintextYamlEditor, PresetsUi, PresetsUiStrings,
+    ReorderableList, big_icon_button, puzzle_type_menu,
 };
 use crate::gui::ext::*;
 use crate::gui::key_combo_popup;

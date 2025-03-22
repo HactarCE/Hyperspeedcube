@@ -1,4 +1,4 @@
-use hyperpuzzle_core::*;
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 

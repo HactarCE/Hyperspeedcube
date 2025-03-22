@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::{
-    BuildTask, Progress, Puzzle, PuzzleListMetadata, PuzzleSpec, Redirectable, TagValue,
-};
+use hyperpuzzle_core::catalog::{BuildTask, Progress};
+use hyperpuzzle_core::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;

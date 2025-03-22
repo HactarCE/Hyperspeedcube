@@ -1,5 +1,5 @@
 use hypermath::prelude::*;
-use hyperpuzzle_core::{PerPiece, PieceMask};
+use hyperpuzzle::prelude::*;
 
 use super::structs::GfxEffectParams;
 use crate::{NdEuclidCamera, PieceStyleValues};

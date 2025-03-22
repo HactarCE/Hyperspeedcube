@@ -20,8 +20,7 @@ hyperdraw = { workspace = true }
 hypermath = { workspace = true }
 hyperpaths = { workspace = true }
 hyperprefs = { workspace = true }
-hyperpuzzle = { workspace = true }
-hyperpuzzle_core = { workspace = true, features = ["ecolor", "oklab"] }
+hyperpuzzle = { workspace = true, features = ["oklab"] }
 hyperpuzzle_lua = { workspace = true, features = ["hyperpaths"] }
 hyperpuzzle_log = { workspace = true }
 hyperpuzzle_view = { workspace = true }

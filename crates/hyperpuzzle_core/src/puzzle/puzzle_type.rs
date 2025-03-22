@@ -9,46 +9,7 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{
-    BoxDynPuzzleState, BoxDynPuzzleUiData, NdEuclidPuzzleGeometry, NdEuclidPuzzleState,
-    PuzzleListMetadata, TagSet, Version,
-};
-
-lazy_static! {
-    /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
-    pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = {
-        let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
-        let ui_data = Arc::clone(&geom).into();
-        Arc::new_cyclic(|this| Puzzle {
-            this: Weak::clone(this),
-            meta: PuzzleListMetadata {
-                id: "~placeholder".to_string(),
-                version: Version::PLACEHOLDER,
-                name: "🤔".to_string(),
-                aliases: vec![],
-                tags: TagSet::new(),
-            },
-            view_prefs_set: None,
-            pieces: PerPiece::new(),
-            stickers: PerSticker::new(),
-            piece_types: PerPieceType::new(),
-            piece_type_hierarchy: PieceTypeHierarchy::new(0),
-            piece_type_masks: HashMap::new(),
-            colors: Arc::new(ColorSystem::new_empty()),
-            scramble_twists: vec![],
-            full_scramble_length: 0,
-            notation: Notation {},
-            axes: PerAxis::new(),
-            axis_by_name: HashMap::new(),
-            twists: PerTwist::new(),
-            twist_by_name: HashMap::new(),
-            dev_data: PuzzleDevData::new(),
-
-            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
-            ui_data,
-        })
-    };
-}
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, PuzzleListMetadata};
 
 /// Puzzle type info.
 pub struct Puzzle {

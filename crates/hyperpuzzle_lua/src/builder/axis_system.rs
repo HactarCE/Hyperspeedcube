@@ -3,7 +3,7 @@ use std::collections::hash_map;
 use eyre::{OptionExt, Result, bail, eyre};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, PerLayer};
+use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 

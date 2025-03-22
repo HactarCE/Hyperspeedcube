@@ -1,6 +1,7 @@
 //! Functions for verifying log files.
 
-use hyperpuzzle_core::{Catalog, LayeredTwist, ScrambleParams, Timestamp, TwistMetric, chrono};
+use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{Timestamp, chrono};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -135,7 +136,7 @@ pub enum Fact {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SolveVerification {
     /// Puzzle that was solved.
-    pub puzzle: Puzzle,
+    pub puzzle: LogPuzzle,
     /// Parameters used to determine the scramble.
     pub scramble: ScrambleParams,
     /// Whether the scramble matches the one specified by the parameters.

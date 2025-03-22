@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use hyperprefs::Preferences;
-use hyperpuzzle_core::{
-    Color, ColorSystem, DevOrbit, NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData, Puzzle,
-    PuzzleElement, PuzzleLintOutput,
-};
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::{NdEuclidViewState, PuzzleView};
 use itertools::Itertools;
 
@@ -113,7 +110,8 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
         let geom = puz
             .ui_data
             .downcast_ref::<NdEuclidPuzzleUiData>()
-            .expect("expected NdEuclidPuzzleGeometry");
+            .expect("expected NdEuclidPuzzleGeometry")
+            .geom();
         let twist = geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
@@ -206,93 +204,88 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                 });
             }
 
-            let Some(puz) = state.puzzle.as_ref().map(Arc::clone) else {
-                return;
-            };
-
             ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
 
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
-                .show(ui, |ui| {
-                    let mut dnd = DragAndDrop::new(ui);
-                    for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
-                        dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
-                            let text_edit = egui::TextEdit::singleline(name);
-                            match &state.loaded_orbit.elements[*index] {
-                                Some(PuzzleElement::Axis(axis)) => {
-                                    let r = ui.add(text_edit);
-                                    if r.hovered() || r.has_focus() {
-                                        app.active_puzzle.with_view(|view| {
-                                            if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                                view.temp_gizmo_highlight = Some(*axis);
-                                            }
-                                        });
-                                    }
-                                }
+                .show(ui, |ui| show_orbit_list(ui, app, state));
+        },
+    );
+}
 
-                                Some(PuzzleElement::Color(color)) => {
-                                    ui.horizontal(|ui| {
-                                        app.active_puzzle.with_view(|view| {
-                                            if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                                puzzle_color_edit_button(
-                                                    ui, view, &app.prefs, *color,
-                                                );
-                                            }
-                                        });
-                                        let r = ui.add(text_edit);
-                                        if r.hovered() {
-                                            app.active_puzzle.with_view(|view| {
-                                                if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                                    let orig_color = view
-                                                        .get_rgb_color(*color, &app.prefs)
-                                                        .unwrap_or_default();
-                                                    let t = hyperpuzzle_core::Timestamp::now()
-                                                        .subsec_nanos()
-                                                        as f32
-                                                        / 1_000_000_000.0;
-                                                    let contrasting =
-                                                        crate::util::contrasting_text_color(
-                                                            orig_color.into(),
-                                                        )
-                                                        .into();
+fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+    let Some(puz) = state.puzzle.as_ref().map(Arc::clone) else {
+        return;
+    };
 
-                                                    // let color = puz.colors.list[*color];
-                                                    view.temp_colors
-                                                        .get_or_insert_with(|| {
-                                                            view.colors.value.clone()
-                                                        })
-                                                        .insert(
-                                                            puz.colors.list[*color].name.clone(),
-                                                            hyperpuzzle_core::DefaultColor::HexCode {
-                                                                rgb: hyperpuzzle_core::Rgb::mix(
-                                                                    contrasting,
-                                                                    orig_color,
-                                                                    (0.5 - t).abs(),
-                                                                ),
-                                                            },
-                                                        );
-                                                    ui.ctx().request_repaint();
-                                                }
-                                            });
-                                        }
-                                    });
-                                }
-
-                                // TODO: is this correct handling?
-                                None => {
-                                    ui.colored_label(
-                                        ui.visuals().error_fg_color,
-                                        "missing orbit element",
-                                    );
-                                }
+    let mut dnd = DragAndDrop::new(ui);
+    for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
+        dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+            let text_edit = egui::TextEdit::singleline(name);
+            match &state.loaded_orbit.elements[*index] {
+                Some(PuzzleElement::Axis(axis)) => {
+                    let r = ui.add(text_edit);
+                    if r.hovered() || r.has_focus() {
+                        app.active_puzzle.with_view(|view| {
+                            if Arc::ptr_eq(&view.puzzle(), &puz) {
+                                view.temp_gizmo_highlight = Some(*axis);
                             }
                         });
                     }
-                    let _ = dnd.end_reorder(ui, &mut state.names_and_order);
-                });
-        },
-    );
+                }
+
+                Some(PuzzleElement::Color(color)) => {
+                    show_orbit_color(app, &puz, ui, text_edit, *color);
+                }
+
+                // TODO: is this correct handling?
+                None => {
+                    ui.colored_label(ui.visuals().error_fg_color, "missing orbit element");
+                }
+            }
+        });
+    }
+    let _ = dnd.end_reorder(ui, &mut state.names_and_order);
+}
+
+fn show_orbit_color(
+    app: &mut App,
+    puz: &Arc<Puzzle>,
+    ui: &mut egui::Ui,
+    text_edit: egui::TextEdit<'_>,
+    color: Color,
+) {
+    ui.horizontal(|ui| {
+        app.active_puzzle.with_view(|view| {
+            if Arc::ptr_eq(&view.puzzle(), puz) {
+                puzzle_color_edit_button(ui, view, &app.prefs, color);
+            }
+        });
+        let r = ui.add(text_edit);
+        if r.hovered() {
+            app.active_puzzle.with_view(|view| {
+                if Arc::ptr_eq(&view.puzzle(), puz) {
+                    let orig_color = view.get_rgb_color(color, &app.prefs).unwrap_or_default();
+                    let t = hyperpuzzle::Timestamp::now().subsec_nanos() as f32 / 1_000_000_000.0;
+                    let contrasting = crate::util::contrasting_text_color(orig_color.into()).into();
+
+                    view.temp_colors
+                        .get_or_insert_with(|| view.colors.value.clone())
+                        .insert(
+                            puz.colors.list[color].name.clone(),
+                            DefaultColor::HexCode {
+                                rgb: hyperpuzzle::Rgb::mix(
+                                    contrasting,
+                                    orig_color,
+                                    (0.5 - t).abs(),
+                                ),
+                            },
+                        );
+                    ui.ctx().request_repaint();
+                }
+            });
+        }
+    });
 }
 
 fn puzzle_color_edit_button(
@@ -328,11 +321,11 @@ fn puzzle_color_edit_button(
 
 fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
     use hyperprefs::MODIFIED_SUFFIX;
-    use hyperpuzzle_core::util::{escape_lua_table_key, lua_string_literal};
+    use hyperpuzzle::util::{escape_lua_table_key, lua_string_literal};
 
     let id_string_literal = lua_string_literal(&color_system.id);
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
-    let mut default_scheme = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME.to_string();
+    let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
     let mut schemes = color_system.schemes.clone();
     if let Some(custom_schemes) = prefs.color_schemes.get(color_system) {
@@ -359,7 +352,7 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     let has_default_colors = schemes.len() == 1;
 
     let color_name_kv_pairs = pad_to_common_length(color_system.list.iter_values().map(|info| {
-        let string_literal = hyperpuzzle_core::util::lua_string_literal(&info.name);
+        let string_literal = lua_string_literal(&info.name);
         format!(" name = {string_literal},")
     }));
     let color_display_kv_pairs =
@@ -487,7 +480,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                     ui.label("All good!");
                 }
 
-                let latest_schema = hyperpuzzle_core::TAGS.schema;
+                let latest_schema = hyperpuzzle::TAGS.schema;
                 if *schema != latest_schema {
                     ui.label(format!(
                         "Tags use schema {schema} but latest is {latest_schema}"

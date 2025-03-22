@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
 use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
-use hyperpuzzle_core::{ColorSystem, DefaultColor, Rgb};
+use hyperpuzzle::{ColorSystem, DefaultColor};
 use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
 
@@ -544,7 +544,9 @@ impl ColorButton {
                                     match self.color {
                                         ColorOrGradient::Color(rgb) => {
                                             let [r, g, b, _a] = rgb.to_array();
-                                            ui.monospace(Rgb { rgb: [r, g, b] }.to_string());
+                                            ui.monospace(
+                                                hyperpuzzle::Rgb { rgb: [r, g, b] }.to_string(),
+                                            );
                                         }
                                         ColorOrGradient::Gradient(_) => {
                                             ui.label(L.colors.builtin_gradient);
@@ -566,8 +568,8 @@ pub enum ColorOrGradient {
     Color(egui::Color32),
     Gradient(DefaultColorGradient),
 }
-impl From<Rgb> for ColorOrGradient {
-    fn from(value: Rgb) -> Self {
+impl From<hyperpuzzle::Rgb> for ColorOrGradient {
+    fn from(value: hyperpuzzle::Rgb) -> Self {
         Self::Color(value.to_egui_color32())
     }
 }
@@ -672,7 +674,7 @@ fn paint_colored_rect(
 
 pub fn color_edit(
     ui: &mut egui::Ui,
-    color: &mut Rgb,
+    color: &mut hyperpuzzle::Rgb,
     on_delete: Option<impl FnOnce()>,
 ) -> egui::Response {
     let mut changed = false;
@@ -724,7 +726,11 @@ pub fn color_edit(
             .text_edit_align(egui::Align::Center)
             .text_edit_monospace()
             .auto_confirm(true)
-            .confirm_button_validator(&|s| s.parse::<Rgb>().map(|_| None).map_err(|_| None))
+            .confirm_button_validator(&|s| {
+                s.parse::<hyperpuzzle::Rgb>()
+                    .map(|_| None)
+                    .map_err(|_| None)
+            })
             .show_with::<std::convert::Infallible>(ui, |ui| {
                 // TODO: custom color picker
                 let mut egui_color = color.to_egui_color32();
@@ -763,7 +769,7 @@ pub fn color_assignment_popup(
     ui: &mut egui::Ui,
     puzzle_view: &mut PuzzleView,
     color_palette: &GlobalColorPalette,
-    editing_color: Option<hyperpuzzle_core::Color>,
+    editing_color: Option<hyperpuzzle::Color>,
 ) {
     let puzzle = puzzle_view.puzzle();
 
