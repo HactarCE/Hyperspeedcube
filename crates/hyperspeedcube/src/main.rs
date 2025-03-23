@@ -70,9 +70,8 @@ fn main() -> eyre::Result<()> {
         let fs_result = (|| {
             let dir = hyperpaths::crash_report_dir()?;
             std::fs::create_dir_all(dir)?;
-            let filename = dir.join(
-                format!("crash_{}.log", hyperpuzzle_core::Timestamp::now()).replace(':', "_"),
-            );
+            let filename =
+                dir.join(format!("crash_{}.log", hyperpuzzle::Timestamp::now()).replace(':', "_"));
             std::fs::write(&filename, &contents)?;
             eyre::Ok(filename)
         })();
