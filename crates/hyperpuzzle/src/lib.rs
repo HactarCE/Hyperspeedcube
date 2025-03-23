@@ -16,8 +16,8 @@
 //!
 //! # Dynamically loading Lua files
 //!
-//! By default, the built-in files are baked into the executable. To dynamically
-//! load Lua files, add this to your `Cargo.toml` and build with the environment
+//! By default, the built-in files are dynamically loaded. To bake them into the
+//! executable , add this to your `Cargo.toml` and build with the environment
 //! variable `HSC_OFFICIAL_BUILD=1`:
 //!
 //! ```toml
