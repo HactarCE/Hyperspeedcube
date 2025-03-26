@@ -22,19 +22,6 @@ PARAMS = {
 FACET_GIZMO_EDGE_FACTOR = 2/3
 RIDGE_GIZMO_FACTOR = 1/2
 
-function facet_order(color_or_axis)
-  local s = color_or_axis.name.canonical
-  if s == 'U' then
-    return -2
-  elseif s == 'D' then
-    return -1
-  else
-    -- 1,000,000 still has integer precision on f32, but is way more than the
-    -- number of faces we should ever have
-    return utils.uppercase_name_to_n(s:sub(1, 1)) * 1000000 + utils.uppercase_name_to_n(s:sub(2))
-  end
-end
-
 
 function prism_name(n)
   return string.format("%s Prism", polygonal.ngonal_name(n))
