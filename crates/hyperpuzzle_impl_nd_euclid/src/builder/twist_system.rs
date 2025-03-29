@@ -409,7 +409,7 @@ impl TwistSystemBuilder {
         Self::build_gizmo(
             space,
             polyhedron.to_element_id(space),
-            crate::PRIMORDIAL_CUBE_RADIUS,
+            hypershape::PRIMORDIAL_CUBE_RADIUS,
             mesh,
             twists,
             "twist gizmo",

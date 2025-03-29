@@ -25,3 +25,24 @@ lazy_static = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 tinyset = { workspace = true }
+
+# Builder dependencies
+hypershape = { workspace = true, optional = true }
+disjoint = { workspace = true, optional = true }
+float-ord = { workspace = true, optional = true }
+indexmap = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+smallvec = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+[features]
+default = ["builder"]
+builder = [
+    "dep:hypershape",
+    "dep:disjoint",
+    "dep:float-ord",
+    "dep:indexmap",
+    "dep:regex",
+    "dep:smallvec",
+    "dep:thiserror",
+]

@@ -13,6 +13,8 @@ impl Space {
     /// Adds a primordial cube to the space. When converting a shape to
     /// simplexes, any polytope flush with a facet of the primordial cube will
     /// produce an error.
+    ///
+    /// Use [`crate::PRIMORDIAL_CUBE_RADIUS`] for a sensible default.
     pub fn add_primordial_cube(&self, size: Float) -> Result<Polytope<'_>> {
         // Construct a 3^d array of polytope elements. Along each axis X, the
         // polytopes at X=0 and X=1 are on the boundary of X=2.

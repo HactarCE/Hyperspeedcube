@@ -13,12 +13,21 @@ use hypermath::pga;
 use hyperpuzzle_core::prelude::*;
 
 mod anim;
+pub mod builder;
 mod geom;
 mod state;
 
 pub use anim::NdEuclidPuzzleAnimation;
 pub use geom::NdEuclidPuzzleGeometry;
 pub use state::NdEuclidPuzzleState;
+
+/// Prelude of common imports.
+pub mod prelude {
+    pub use crate::{
+        NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleState,
+        NdEuclidPuzzleStateRenderData, NdEuclidPuzzleUiData,
+    };
+}
 
 /// Puzzle render data for an N-dimensional Euclidean puzzle.
 pub struct NdEuclidPuzzleStateRenderData {

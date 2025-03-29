@@ -2260,13 +2260,20 @@ dependencies = [
 name = "hyperpuzzle_impl_nd_euclid"
 version = "0.1.0"
 dependencies = [
+ "disjoint",
  "eyre",
+ "float-ord",
  "hypermath",
  "hyperpuzzle_core",
+ "hypershape",
+ "indexmap",
  "itertools 0.14.0",
  "lazy_static",
  "log",
  "parking_lot",
+ "regex",
+ "smallvec",
+ "thiserror 2.0.12",
  "tinyset",
 ]
 

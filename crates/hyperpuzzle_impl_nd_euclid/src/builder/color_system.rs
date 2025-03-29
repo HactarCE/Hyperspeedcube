@@ -136,7 +136,7 @@ impl ColorSystemBuilder {
     pub fn default_scheme_name(&self) -> &str {
         self.default_scheme
             .as_deref()
-            .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME)
+            .unwrap_or(hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME)
     }
 
     /// Sets the default color for a single color.

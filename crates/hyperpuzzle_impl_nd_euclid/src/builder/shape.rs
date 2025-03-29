@@ -69,7 +69,7 @@ impl ShapeBuilder {
     /// primordial cube)
     pub fn new_with_primordial_cube(space: Arc<Space>, puzzle_id: &str) -> Result<Self> {
         let mut this = Self::new_empty(Arc::clone(&space), puzzle_id);
-        let primordial_cube = space.add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
+        let primordial_cube = space.add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?;
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
         let root_piece = this.pieces.push(root_piece_builder)?;
         this.active_pieces.insert(root_piece);

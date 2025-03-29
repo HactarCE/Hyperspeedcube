@@ -22,18 +22,14 @@ hyperpuzzle_core = { workspace = true }
 hyperpuzzle_impl_nd_euclid = { workspace = true }
 hypershape = { workspace = true }
 
-disjoint = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
 include_dir = { workspace = true }
-indexmap = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 mlua = { workspace = true }
 parking_lot = { workspace = true }
-regex = { workspace = true }
 smallvec = { workspace = true }
-thiserror = { workspace = true }
 walkdir = { workspace = true }
 
 # Color conversions

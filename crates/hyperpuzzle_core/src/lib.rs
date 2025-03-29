@@ -53,10 +53,6 @@ pub const PUZZLE_ENGINE_VERSION_STRING: &str =
 /// Default length for a full scramble
 pub const FULL_SCRAMBLE_LENGTH: u32 = 1000;
 
-/// Radius of the promordial cube, which determines the maximum extent of all
-/// vertices along any axis.
-pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power of 2 feels good
-
 /// Name of the default color scheme, if no other is specified.
 pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
 /// Name of the default gradient, to which unknown or conflicting colors are
