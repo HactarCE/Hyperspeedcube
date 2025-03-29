@@ -40,6 +40,7 @@ impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
 /// # Example
 ///
 /// ```rust
+/// # use hyperpuzzle_core::catalog::NotifyWhenDropped;
 /// let notify_when_dropped = NotifyWhenDropped::new();
 ///
 /// let waiter = notify_when_dropped.waiter();
@@ -49,7 +50,7 @@ impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
 ///     println!("2");
 /// });
 ///
-/// println!("1")
+/// println!("1");
 /// drop(notify_when_dropped);
 /// ```
 #[derive(Debug, Default)]
