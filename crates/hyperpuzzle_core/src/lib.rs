@@ -6,6 +6,7 @@ extern crate lazy_static;
 pub mod catalog;
 mod lint;
 mod logging;
+mod name;
 mod nameable;
 mod puzzle;
 mod rgb;
@@ -23,6 +24,7 @@ pub use tags::{AllTags, TAGS};
 pub use crate::logging::*;
 pub use crate::rgb::Rgb;
 pub use crate::timestamp::Timestamp;
+pub use name::parse_name_spec;
 
 /// Prelude of common imports.
 pub mod prelude {
@@ -33,6 +35,7 @@ pub mod prelude {
         PuzzleSpecGenerator, Redirectable,
     };
     pub use crate::lint::PuzzleLintOutput;
+    pub use crate::name::NamePattern;
     pub use crate::nameable::Nameable;
     pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
     pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};

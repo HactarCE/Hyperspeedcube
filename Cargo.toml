@@ -8,9 +8,9 @@ members = [
     "crates/hyperprefs",
     "crates/hyperpuzzle",
     "crates/hyperpuzzle_core",
+    "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_lua",
-    "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_view",
     "crates/hypershape",
     "crates/hyperspeedcube",
@@ -104,6 +104,7 @@ human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 regex = { version = "1.11.1" }
 sublime_fuzzy = { version = "0.7.0" }
+nom = { version = "8.0.0" }
 
 # Math
 approx = { version = "0.5.1" }
