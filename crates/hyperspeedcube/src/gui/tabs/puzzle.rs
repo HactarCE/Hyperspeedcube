@@ -206,7 +206,9 @@ impl PuzzleWidget {
                 // we don't need to report it every frame.
                 if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
                     let gfx = &self.gfx;
-                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(&PLACEHOLDER_PUZZLE)));
+                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
+                        &hyperpuzzle::nd_euclid::PLACEHOLDER_PUZZLE,
+                    )));
                     self.contents = PuzzleWidgetContents::Placeholder {
                         puzzle_id: puzzle_id.to_string(),
                         view: PuzzleView::new(gfx, &sim, prefs),
