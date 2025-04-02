@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use crate::prelude::*;
 use eyre::Result;
 use hypermath::{ApproxHashMap, VecMap, Vector, VectorRef, vector};
 use hyperpuzzle_core::prelude::*;
@@ -12,6 +11,7 @@ use parking_lot::Mutex;
 use super::shape::ShapeBuildOutput;
 use super::twist_system::TwistSystemBuildOutput;
 use super::{ShapeBuilder, TwistSystemBuilder};
+use crate::prelude::*;
 
 /// Puzzle being constructed.
 #[derive(Debug)]

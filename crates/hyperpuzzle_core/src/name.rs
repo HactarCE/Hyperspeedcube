@@ -1,16 +1,14 @@
 use std::borrow::Cow;
 
 use itertools::Itertools;
-use nom::{
-    Parser,
-    branch::alt,
-    bytes::complete::take_while_m_n,
-    character::complete::{anychar, char},
-    combinator::{all_consuming, complete, fail, value, verify},
-    error::Error,
-    multi::{many1, separated_list1},
-    sequence::{delimited, separated_pair},
-};
+use nom::Parser;
+use nom::branch::alt;
+use nom::bytes::complete::take_while_m_n;
+use nom::character::complete::{anychar, char};
+use nom::combinator::{all_consuming, complete, fail, value, verify};
+use nom::error::Error;
+use nom::multi::{many1, separated_list1};
+use nom::sequence::{delimited, separated_pair};
 
 /// Separator characters, in order from loosest-binding to tighest-binding.
 ///

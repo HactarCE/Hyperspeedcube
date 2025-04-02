@@ -18,13 +18,13 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
+pub use name::parse_name_spec;
 pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 
 pub use crate::logging::*;
 pub use crate::rgb::Rgb;
 pub use crate::timestamp::Timestamp;
-pub use name::parse_name_spec;
 
 /// Prelude of common imports.
 pub mod prelude {
