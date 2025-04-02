@@ -11,6 +11,7 @@ members = [
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_lua",
+    "crates/hyperpuzzle_rhai",
     "crates/hyperpuzzle_view",
     "crates/hypershape",
     "crates/hyperspeedcube",
@@ -69,6 +70,7 @@ hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
 hyperpuzzle_lua = { path = "crates/hyperpuzzle_lua" }
+hyperpuzzle_rhai = { path = "crates/hyperpuzzle_rhai" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hypershape = { path = "crates/hypershape" }
 hyperstats = { path = "crates/hyperstats" }
@@ -173,6 +175,9 @@ rayon = { version = "1.7.0" }
 # Lua
 mlua = { version = "0.10.3", features = ["lua54", "send", "vendored"] }
 
+# Rhai
+rhai = { version = "1.21.0", features = ["sync", "no_optimize", "no_time"] }
+
 # Hashing and PRNG
 rand = { version = "0.9.0" }        # must match rand_chacha
 rand_chacha = { version = "0.9.0" } # needs stable output
@@ -189,6 +194,7 @@ chrono = { version = "0.4.39", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }
 names = { version = "0.14.0", default-features = false }
+thread_local = { version = "1.1.8" }
 time = { version = "0.3.37", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 

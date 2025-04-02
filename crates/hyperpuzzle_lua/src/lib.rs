@@ -8,9 +8,6 @@ use hyperpuzzle_impl_nd_euclid::builder;
 
 pub mod lua;
 
-/// Unsigned integer type used for [`LayerMask`].
-pub type LayerMaskUint = u32;
-
 /// Version string such as `hyperpuzzle v1.2.3`.
 pub const PUZZLE_ENGINE_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION"));

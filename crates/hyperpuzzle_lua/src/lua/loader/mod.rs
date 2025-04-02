@@ -172,9 +172,7 @@ impl LuaLoader {
             if let Err(e) = self.load_file(name.to_string()) {
                 logger.log(LogLine {
                     level: Level::Error,
-                    file: Some(filename.to_string()),
                     msg: format!("error loading file {filename:?}: {e:#}"),
-                    traceback: None,
                 });
             }
         }

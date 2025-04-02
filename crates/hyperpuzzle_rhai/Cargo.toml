@@ -1,0 +1,43 @@
+[package]
+name = "hyperpuzzle_rhai"
+description = "Rhai puzzle API for Hyperspeedcube"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["algorithms", "mathematics", "simulation"]
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+hypermath = { workspace = true }
+hyperpaths = { workspace = true, optional = true }
+hyperpuzzle_core = { workspace = true }
+hyperpuzzle_impl_nd_euclid = { workspace = true }
+hypershape = { workspace = true }
+
+disjoint = { workspace = true }
+eyre = { workspace = true }
+float-ord = { workspace = true }
+include_dir = { workspace = true }
+indexmap = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+rhai = { workspace = true }
+smallvec = { workspace = true }
+thiserror = { workspace = true }
+thread_local = { workspace = true }
+walkdir = { workspace = true }
+
+# Color conversions
+ecolor = { workspace = true, optional = true }
+oklab = { workspace = true, optional = true }

@@ -89,3 +89,15 @@ pub fn generated_id(generator_id: &str, params: impl IntoIterator<Item = impl To
 pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     human_sort::compare(a, b)
 }
+
+/// Validates an ID string for a catalog entry.
+pub fn validate_id(s: &str) -> eyre::Result<()> {
+    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        Ok(())
+    } else {
+        Err(eyre::eyre!(
+            "invalid ID {s:?}; ID must be nonempty and \
+             contain only alphanumeric characters and '_'",
+        ))
+    }
+}

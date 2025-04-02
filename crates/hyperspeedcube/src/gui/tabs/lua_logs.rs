@@ -27,32 +27,12 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
         .show(ui, |ui| {
             // no wrap
             ui.with_layout(ui.layout().with_main_wrap(false), |ui| {
-                let mut is_first = true;
-                let mut last_file = &None;
                 for line in logger
                     .lines()
                     .iter()
                     .filter(|line| line.matches_filter_string(&filter_string))
                 {
-                    if is_first {
-                        is_first = false;
-                    } else if last_file != &line.file {
-                        ui.separator();
-                    }
-
-                    if last_file != &line.file {
-                        if let Some(f) = &line.file {
-                            ui.label(
-                                egui::RichText::new(f)
-                                    .strong()
-                                    .text_style(egui::TextStyle::Monospace),
-                            );
-                        }
-                    }
-
                     colored_log_line(ui, line);
-
-                    last_file = &line.file;
                 }
             });
         });
@@ -75,10 +55,4 @@ fn colored_log_line(ui: &mut egui::Ui, line: &LogLine) {
         },
     };
     let label = egui::Label::new(text);
-    if let Some(traceback) = &line.traceback {
-        ui.add(label.sense(egui::Sense::hover()))
-            .on_hover_text(egui::RichText::new(traceback).monospace());
-    } else {
-        ui.add(label);
-    }
 }

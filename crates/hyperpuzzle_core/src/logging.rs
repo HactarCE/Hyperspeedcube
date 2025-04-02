@@ -28,12 +28,7 @@ impl Logger {
         self.lines.lock().push(line);
     }
     fn log_with_level(&self, level: Level, msg: String) {
-        self.log(LogLine {
-            level,
-            file: None,
-            msg,
-            traceback: None,
-        });
+        self.log(LogLine { level, msg });
     }
 
     /// Logs a line with [`Level::Error`] and no file or traceback.
@@ -72,21 +67,12 @@ impl Logger {
 pub struct LogLine {
     /// Log level.
     pub level: Level,
-    /// Lua file that emitted the message.
-    pub file: Option<String>,
     /// Log message.
     pub msg: String,
-    /// Traceback.
-    pub traceback: Option<String>,
 }
 impl LogLine {
     /// Returns whether the line matches a filter string entered by the user.
     pub fn matches_filter_string(&self, filter_string: &str) -> bool {
-        filter_string.is_empty()
-            || self
-                .file
-                .as_ref()
-                .is_some_and(|file| file.contains(filter_string))
-            || self.msg.contains(filter_string)
+        filter_string.is_empty() || self.msg.contains(filter_string)
     }
 }

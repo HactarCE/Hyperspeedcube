@@ -70,19 +70,24 @@ impl Catalog {
     }
 
     /// Adds a puzzle to the catalog.
-    pub fn add_puzzle(&self, spec: Arc<PuzzleSpec>) {
+    pub fn add_puzzle(&self, spec: Arc<PuzzleSpec>) -> eyre::Result<()> {
+        crate::validate_id(&spec.meta.id)?;
         let mut db = self.db.lock();
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         db.puzzles.insert(spec.meta.id.clone(), spec);
+        Ok(())
     }
     /// Adds a puzzle generator to the catalog.
-    pub fn add_puzzle_generator(&self, spec: Arc<PuzzleSpecGenerator>) {
+    pub fn add_puzzle_generator(&self, spec: Arc<PuzzleSpecGenerator>) -> eyre::Result<()> {
+        crate::validate_id(&spec.meta.id)?;
         let mut db = self.db.lock();
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         db.puzzle_generators.insert(spec.meta.id.clone(), spec);
+        Ok(())
     }
     /// Adds a color system to the catalog.
-    pub fn add_color_system(&self, colors: Arc<ColorSystem>) {
+    pub fn add_color_system(&self, colors: Arc<ColorSystem>) -> eyre::Result<()> {
+        crate::validate_id(&colors.id)?;
         self.db
             .lock()
             .color_systems
@@ -92,13 +97,19 @@ impl Catalog {
             colors.id.clone(),
             Arc::new(Mutex::new(CacheEntry::Ok(Redirectable::Direct(colors)))),
         );
+        Ok(())
     }
     /// Adds a color system generator to the catalog.
-    pub fn add_color_system_generator(&self, colors_generator: Arc<ColorSystemGenerator>) {
+    pub fn add_color_system_generator(
+        &self,
+        colors_generator: Arc<ColorSystemGenerator>,
+    ) -> eyre::Result<()> {
+        crate::validate_id(&colors_generator.id)?;
         self.db
             .lock()
             .color_system_generators
             .insert(colors_generator.id.clone(), colors_generator);
+        Ok(())
     }
 
     /// Requests a puzzle to be built if it has not been built already, and then
@@ -226,9 +237,9 @@ impl Catalog {
                     let msg = format!("error building {id:?}: {e}");
                     self.default_logger.log(LogLine {
                         level: log::Level::Error,
-                        file,
+                        // file,
                         msg,
-                        traceback: None,
+                        // traceback: None,
                     });
                     CacheEntry::Err(e)
                 }

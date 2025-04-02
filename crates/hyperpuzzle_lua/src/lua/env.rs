@@ -156,9 +156,7 @@ pub(super) fn try_set_logger(lua: &Lua, logger: &Logger) -> LuaResult<()> {
             let args: Vec<String> = args.iter().map(|arg| arg.to_string()).try_collect()?;
             l.log(LogLine {
                 level: log::Level::Info,
-                file: lua_current_filename(lua),
                 msg: args.into_iter().join("\t"),
-                traceback: None, // we could get a traceback but that would be expensive
             });
             Ok(())
         })?,
@@ -172,9 +170,7 @@ pub(super) fn try_set_logger(lua: &Lua, logger: &Logger) -> LuaResult<()> {
         if !to_continue {
             l.log(LogLine {
                 level: log::Level::Warn,
-                file: lua_current_filename(lua),
                 msg: std::mem::take(&mut full_msg),
-                traceback: Some(lua_stack_trace(lua)),
             });
         }
         Ok(())
