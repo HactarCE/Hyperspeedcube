@@ -173,7 +173,7 @@ enum ModuleResult {
     Err,
 }
 
-pub fn load_files_with_new_engine(
+pub(crate) fn load_files_with_new_engine(
     catalog: &hyperpuzzle_core::Catalog,
     logger: &hyperpuzzle_core::Logger,
 ) -> rhai::Engine {
@@ -216,6 +216,16 @@ pub fn load_files_with_new_engine(
             logger.error(e.to_string());
         }
     }
+
+    engine
+}
+
+#[cfg(test)]
+pub(crate) fn new_engine() -> rhai::Engine {
+    let mut engine = rhai::Engine::new();
+
+    let package = HyperpuzzlePackage::new(&hyperpuzzle_core::Catalog::new());
+    package.register_into_engine(&mut engine);
 
     engine
 }

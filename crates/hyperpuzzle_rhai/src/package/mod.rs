@@ -1,7 +1,16 @@
+use std::fmt;
+
+use rhai::plugin::*;
+
 use rhai::{
-    FuncRegistration, Module, Shared,
+    Dynamic, EvalAltResult, Module, NativeCallContext, Shared,
     packages::{Package, StandardPackage},
 };
+
+mod assertions;
+mod operators;
+
+type RhaiFnOutput = Result<(), Box<EvalAltResult>>;
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {
@@ -9,12 +18,8 @@ impl HyperpuzzlePackage {
         let mut module = Module::new();
         Self::init(&mut module);
 
-        // i64 / i64 -> f64
-        FuncRegistration::new("/")
-            .in_global_namespace()
-            .set_into_module(&mut module, |a: i64, b: i64| a as f64 / b as f64);
-
-        // TODO: more functions!
+        module.combine_flatten(exported_module!(assertions::rhai_mod));
+        module.combine_flatten(exported_module!(operators::rhai_mod));
 
         module.build_index();
         Self(Shared::new(module))

@@ -36,3 +36,13 @@ fn test_load() {
         &hyperpuzzle_core::Logger::new(),
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rhai_api() -> Result<(), Box<rhai::EvalAltResult>> {
+        loader::new_engine().run(include_str!("tests.rhai"))
+    }
+}
