@@ -330,6 +330,14 @@ impl Vector {
     pub fn resize(&mut self, ndim: u8) {
         self.0.resize(ndim as _, 0.0);
     }
+    /// Sets a value in the vector, resizing the vector by padding with zeros if
+    /// it is not already long enough.
+    pub fn resize_and_set(&mut self, axis: u8, value: Float) {
+        if axis >= self.ndim() {
+            self.resize(axis + 1);
+        }
+        self[axis] = value;
+    }
 
     /// Returns an iterator over two vectors, both padded to the same length.
     pub fn zip<A: VectorRef, B: VectorRef>(

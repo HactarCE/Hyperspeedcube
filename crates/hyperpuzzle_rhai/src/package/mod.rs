@@ -1,16 +1,16 @@
-use std::fmt;
-
+use rhai::packages::{Package, StandardPackage};
 use rhai::plugin::*;
-
-use rhai::{
-    Dynamic, EvalAltResult, Module, NativeCallContext, Shared,
-    packages::{Package, StandardPackage},
-};
+use rhai::{Dynamic, EvalAltResult, Module, NativeCallContext, Shared};
 
 mod assertions;
 mod operators;
+mod types;
+mod util;
 
-type RhaiFnOutput = Result<(), Box<EvalAltResult>>;
+use crate::Result;
+
+#[derive(Debug, Default, Clone)]
+pub struct Point(pub hypermath::Vector);
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {
@@ -20,6 +20,8 @@ impl HyperpuzzlePackage {
 
         module.combine_flatten(exported_module!(assertions::rhai_mod));
         module.combine_flatten(exported_module!(operators::rhai_mod));
+        // module.combine_flatten(exported_module!(types::vector::rhai_mod));
+        types::register_all_types(&mut module);
 
         module.build_index();
         Self(Shared::new(module))

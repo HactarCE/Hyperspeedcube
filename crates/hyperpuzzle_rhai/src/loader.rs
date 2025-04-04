@@ -1,9 +1,12 @@
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use itertools::Itertools;
 use parking_lot::RwLock;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use rhai::{AST, Engine, EvalAltResult, Module, ParseError, Scope, Shared, packages::Package};
+use rhai::packages::Package;
+use rhai::{AST, Engine, EvalAltResult, Module, ParseError, Scope, Shared};
 use thread_local::ThreadLocal;
 
 use crate::package::HyperpuzzlePackage;
@@ -210,7 +213,8 @@ pub(crate) fn load_files_with_new_engine(
     // Load files in lexicographic order. The order shouldn't matter, but it's
     // nice to be deterministic.
     for file in files.0.keys().sorted() {
-        // SAFETY: quotes and backslashes are disallowed so there's no injection possible here.
+        // SAFETY: quotes and backslashes are disallowed so there's no injection
+        // possible here.
         if let Err(e) = engine.eval::<()>(&format!("import \"{file}\"; ()")) {
             println!("error: {e}");
             logger.error(e.to_string());

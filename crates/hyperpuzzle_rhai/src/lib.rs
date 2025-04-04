@@ -5,6 +5,9 @@ use std::path::Path;
 mod loader;
 mod package;
 
+/// Rhai evaluation result.
+type Result<T = (), E = Box<rhai::EvalAltResult>> = std::result::Result<T, E>;
+
 #[cfg(feature = "hyperpaths")]
 const BAKE_RHAI_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;
 #[cfg(not(feature = "hyperpaths"))]
@@ -17,6 +20,7 @@ static RHAI_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_RHAI_PATHS {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/rhai")
 };
 
+/// Maximum period of a twist.
 const MAX_TWIST_REPEAT: usize = 50;
 
 /// Loads all puzzles defined using Rhai.

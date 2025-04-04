@@ -247,6 +247,14 @@ impl Blade {
             .sqrt()
     }
 
+    /// Normalizes the blade relative to [`Self::weight_norm()`].
+    ///
+    /// If the weight norm is zero, the blade is returned unmodified.
+    #[must_use]
+    pub fn weight_normalize(&self) -> Self {
+        crate::util::try_div(self, self.weight_norm()).unwrap_or_else(|| self.clone())
+    }
+
     /// Returns whether the blade is approximately zero.
     pub fn is_zero(&self) -> bool {
         self.coefficients.iter().all(|x| approx_eq(x, &0.0))
