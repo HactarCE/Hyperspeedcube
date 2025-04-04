@@ -41,4 +41,8 @@ assert_eq(point(1, 2), point(1, 2));
 assert_neq(point(1, 2), vec(1, 2));
 print(point(1, 2));
 
-assert_eq(point(-3) + vec(1, 2), point(-2, 2))
+assert_eq(point(-3) + vec(1, 2), point(-2, 2));
+
+print(type_of(3));
+print(type_of(3.0));
+print(type_of(vec(1, 2)));

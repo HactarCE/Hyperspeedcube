@@ -3,14 +3,19 @@ use rhai::plugin::*;
 use rhai::{Dynamic, EvalAltResult, Module, NativeCallContext, Shared};
 
 mod assertions;
+mod geometry;
 mod operators;
 mod types;
 mod util;
+
+use util::{new_fn, rhai_to_debug, rhai_to_string};
 
 use crate::Result;
 
 #[derive(Debug, Default, Clone)]
 pub struct Point(pub hypermath::Vector);
+
+type Ctx<'a> = NativeCallContext<'a>;
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {
@@ -18,10 +23,10 @@ impl HyperpuzzlePackage {
         let mut module = Module::new();
         Self::init(&mut module);
 
-        module.combine_flatten(exported_module!(assertions::rhai_mod));
-        module.combine_flatten(exported_module!(operators::rhai_mod));
-        // module.combine_flatten(exported_module!(types::vector::rhai_mod));
-        types::register_all_types(&mut module);
+        assertions::register(&mut module);
+        geometry::register(&mut module);
+        operators::register(&mut module);
+        types::register(&mut module);
 
         module.build_index();
         Self(Shared::new(module))
@@ -42,5 +47,6 @@ impl Package for HyperpuzzlePackage {
         StandardPackage::init_engine(engine);
         engine.set_fast_operators(false);
         engine.set_max_expr_depths(1024, 1024);
+        types::init_engine(engine);
     }
 }
