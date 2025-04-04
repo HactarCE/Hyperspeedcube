@@ -72,22 +72,22 @@ impl Motor {
     }
     /// Constructs a motor representing a reflection through the origin. Returns
     /// `None` if `vector` is zero.
-    pub fn vector_reflection(ndim: u8, vector: impl VectorRef) -> Option<Self> {
+    pub fn vector_reflection(vector: impl VectorRef) -> Option<Self> {
         let v = vector.normalize()?;
-        Some(Self::normalized_vector_reflection(ndim, v))
+        Some(Self::normalized_vector_reflection(v))
     }
     /// Constructs a motor representing a reflection through the origin.
     /// `vector` **must** be normalized.
-    pub fn normalized_vector_reflection(ndim: u8, vector: impl VectorRef) -> Self {
-        let mut ret = Self::zero(ndim, true);
+    pub fn normalized_vector_reflection(vector: impl VectorRef) -> Self {
+        let mut ret = Self::zero(vector.ndim(), true);
         for (i, x) in vector.iter_nonzero() {
             ret.set(Axes::euclidean(i), x);
         }
         ret
     }
     /// Constructs a motor representing a translation by `delta`.
-    pub fn translation(ndim: u8, delta: impl VectorRef) -> Self {
-        let mut ret = Self::ident(ndim);
+    pub fn translation(delta: impl VectorRef) -> Self {
+        let mut ret = Self::ident(delta.ndim());
         for (i, x) in delta.iter_nonzero() {
             ret += Term {
                 coef: x * -0.5,
@@ -98,23 +98,22 @@ impl Motor {
     }
     /// Constructs a rotation motor (also called a "rotor") that takes one
     /// vector to another.
-    pub fn rotation(ndim: u8, from: impl VectorRef, to: impl VectorRef) -> Option<Self> {
+    pub fn rotation(from: impl VectorRef, to: impl VectorRef) -> Option<Self> {
         let from = from.normalize()?;
         let to = to.normalize()?;
         let mid = (to + &from).normalize()?;
-        Some(Self::from_normalized_vector_product(ndim, from, mid))
+        Some(Self::from_normalized_vector_product(from, mid))
     }
     /// Constructs a rotation from an angle in an axis-aligned plane.
     ///
     /// If the axes are the same, returns the identity.
-    pub fn from_angle_in_axis_plane(ndim: u8, a: u8, b: u8, angle: Float) -> Self {
-        Self::from_angle_in_normalized_plane(ndim, Vector::unit(a), Vector::unit(b), angle)
+    pub fn from_angle_in_axis_plane(a: u8, b: u8, angle: Float) -> Self {
+        Self::from_angle_in_normalized_plane(Vector::unit(a), Vector::unit(b), angle)
     }
     /// Constructs a rotation motor (also called a "rotor") from one vector to
     /// another by an specific angle. `from` and `to` **must** be perpendicular
     /// unit vectors.
     pub fn from_angle_in_normalized_plane(
-        ndim: u8,
         a: impl VectorRef,
         b: impl VectorRef,
         angle: Float,
@@ -123,13 +122,13 @@ impl Motor {
         let cos = half_angle.cos();
         let sin = half_angle.sin();
         let mid = a.scale(cos) + b.scale(sin);
-        Self::from_normalized_vector_product(ndim, a, mid)
+        Self::from_normalized_vector_product(a, mid)
     }
     /// Constructs a rotation motor (also called a "rotor") from one vector to
     /// another by twice the angle between them. `a` and `b` **must** be unit
     /// vectors.
-    pub fn from_normalized_vector_product(ndim: u8, a: impl VectorRef, b: impl VectorRef) -> Self {
-        Self::normalized_vector_reflection(ndim, b) * Self::normalized_vector_reflection(ndim, a)
+    pub fn from_normalized_vector_product(a: impl VectorRef, b: impl VectorRef) -> Self {
+        Self::normalized_vector_reflection(b) * Self::normalized_vector_reflection(a)
     }
 
     /// Constructs a new zero motor which can then be filled with coefficients.
@@ -773,7 +772,7 @@ mod tests {
     /// given the rotation and one known fixed axis.
     #[test]
     fn test_4d_extract_second_fixed_axis() {
-        let rot = Motor::from_angle_in_axis_plane(4, 0, 1, 0.2);
+        let rot = Motor::from_angle_in_axis_plane(0, 1, 0.2);
 
         let ax1 = vector![0.0, 0.0, 1.0];
         let ax2 = Blade::wedge(
@@ -794,9 +793,9 @@ mod tests {
     #[test]
     fn test_motor_powf() {
         let motors = vec![
-            Motor::rotation(5, [1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, -5.0]).unwrap(),
-            Motor::rotation(2, [1.0, 0.0], [0.0, 1.0]).unwrap(),
-            Motor::from_angle_in_axis_plane(2, 0, 1, std::f64::consts::PI),
+            Motor::rotation([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, -5.0]).unwrap(),
+            Motor::rotation([1.0, 0.0], [0.0, 1.0]).unwrap(),
+            Motor::from_angle_in_axis_plane(0, 1, std::f64::consts::PI),
         ];
         for motor in motors {
             dbg!(&motor);
@@ -812,11 +811,13 @@ mod tests {
     fn test_transform_vector() {
         for motor_ndim in 2..=6 {
             let rot = Motor::from_normalized_vector_product(
-                motor_ndim,
                 vector![1.0],
                 vector![1.0, 1.0].normalize().unwrap(),
-            );
-            let refl = Motor::vector_reflection(motor_ndim, vector![1.0]).unwrap();
+            )
+            .to_ndim_at_least(motor_ndim);
+            let refl = Motor::vector_reflection(vector![1.0])
+                .unwrap()
+                .to_ndim_at_least(motor_ndim);
 
             let v = vector![1.0];
             assert_approx_eq!(rot.transform_vector(&v), vector![0.0, 1.0]);
@@ -827,9 +828,11 @@ mod tests {
     #[test]
     fn test_transform_point() {
         for motor_ndim in 2..=6 {
-            let rot =
-                Motor::from_normalized_vector_product(motor_ndim, vector![1.0], vector![1.0, 1.0]);
-            let refl = Motor::vector_reflection(motor_ndim, vector![1.0]).unwrap();
+            let rot = Motor::from_normalized_vector_product(vector![1.0], vector![1.0, 1.0])
+                .to_ndim_at_least(motor_ndim);
+            let refl = Motor::vector_reflection(vector![1.0])
+                .unwrap()
+                .to_ndim_at_least(motor_ndim);
 
             let p = vector![1.0];
             assert_approx_eq!(rot.transform_point(&p), vector![0.0, 1.0]);

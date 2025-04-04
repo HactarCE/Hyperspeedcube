@@ -23,16 +23,22 @@ fn test_transforms() {
         // Identity
         let ident = Motor::ident(ndim);
         // Rotate from X to Y
-        let rot_xy = Motor::rotation(ndim, Vector::unit(0), Vector::unit(1)).unwrap();
+        let rot_xy = Motor::rotation(Vector::unit(0), Vector::unit(1))
+            .unwrap()
+            .to_ndim_at_least(ndim);
         // Reflect across Y=1
         let plane = Hyperplane::from_pole(Vector::unit(1)).unwrap();
         let refl_plane = Motor::plane_reflection(ndim, &plane).unwrap();
         // Reflect across X axis
-        let refl_x = Motor::vector_reflection(ndim, Vector::unit(0)).unwrap();
+        let refl_x = Motor::vector_reflection(Vector::unit(0))
+            .unwrap()
+            .to_ndim_at_least(ndim);
         // Reflect across Y axis
-        let refl_y = Motor::vector_reflection(ndim, Vector::unit(1)).unwrap();
+        let refl_y = Motor::vector_reflection(Vector::unit(1))
+            .unwrap()
+            .to_ndim_at_least(ndim);
         // Translate by [-1, +5]
-        let translate = Motor::translation(ndim, vector![-1.0, 5.0]);
+        let translate = Motor::translation(vector![-1.0, 5.0]).to_ndim_at_least(ndim);
 
         println!("  Transforming points");
         let p = vector![2.0, 3.0];

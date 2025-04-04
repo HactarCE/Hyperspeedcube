@@ -139,10 +139,8 @@ impl NdEuclidViewState {
                         if *z_axis < ndim {
                             let cgmath::Vector2 { x: dx, y: dy } = delta;
                             self.camera.rot =
-                                pga::Motor::from_angle_in_axis_plane(ndim, 0, *z_axis, dx as _)
-                                    * pga::Motor::from_angle_in_axis_plane(
-                                        ndim, 1, *z_axis, dy as _,
-                                    )
+                                pga::Motor::from_angle_in_axis_plane(0, *z_axis, dx as _)
+                                    * pga::Motor::from_angle_in_axis_plane(1, *z_axis, dy as _)
                                     * &self.camera.rot;
                         }
                     }
@@ -236,16 +234,15 @@ impl NdEuclidViewState {
             let angle = (t * TAU) as Float;
 
             // Adjust view angle.
-            let mut offset = pga::Motor::from_angle_in_axis_plane(ndim, 0, 2, angle);
-            let mut meta_offset = pga::Motor::from_angle_in_axis_plane(ndim, 0, 1, -1.0);
+            let mut offset = pga::Motor::from_angle_in_axis_plane(0, 2, angle);
+            let mut meta_offset = pga::Motor::from_angle_in_axis_plane(0, 1, -1.0);
             if ndim >= 4 {
-                offset *= pga::Motor::from_angle_in_axis_plane(ndim, 1, 3, angle);
-                meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 2, 3, 1.0);
-                // meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0,
-                // 3, 0.25 * angle);
+                offset *= pga::Motor::from_angle_in_axis_plane(1, 3, angle);
+                meta_offset *= pga::Motor::from_angle_in_axis_plane(2, 3, 1.0);
+                // meta_offset *= pga::Motor::from_angle_in_axis_plane(0, 3, 0.25 * angle);
             }
             if ndim != 4 {
-                meta_offset *= pga::Motor::from_angle_in_axis_plane(ndim, 0, 1, 0.5 * angle);
+                meta_offset *= pga::Motor::from_angle_in_axis_plane(0, 1, 0.5 * angle);
             }
             offset = meta_offset.transform(&offset);
             cam.rot = offset * cam.rot;
@@ -392,8 +389,8 @@ impl NdEuclidViewState {
 
                 // Aim for a 180 degree counterclockwise rotation around the axis.
                 let target = match hov.backface {
-                    false => Motor::from_normalized_vector_product(ndim, v, u),
-                    true => Motor::from_normalized_vector_product(ndim, u, v),
+                    false => Motor::from_normalized_vector_product(v, u),
+                    true => Motor::from_normalized_vector_product(u, v),
                 };
                 let best_twist = candidates.min_by_key(|&twist| {
                     // `score` ranges from -1 to +1. If it's a positive number,

@@ -574,7 +574,7 @@ impl PuzzleSimulation {
             };
             // TODO: consider scaling by torque (i.e., radius)
             let angle = v1.dot(&parallel_drag_delta);
-            let new_transform = Motor::from_angle_in_normalized_plane(3, &v2, &v1, angle);
+            let new_transform = Motor::from_angle_in_normalized_plane(&v2, &v1, angle);
             partial.transform = new_transform;
         }
         self.update_render_data(animation_prefs);

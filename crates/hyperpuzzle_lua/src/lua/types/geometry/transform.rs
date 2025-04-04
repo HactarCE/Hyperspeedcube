@@ -192,7 +192,7 @@ impl LuaTransform {
             _ => bail!("ambiguous rotation"),
         };
 
-        Ok(Motor::from_normalized_vector_product(ndim, a, b))
+        Ok(Motor::from_normalized_vector_product(a, b))
     }
 
     /// Constructs a reflection through a vector, across a hyperplane, through a
@@ -206,8 +206,7 @@ impl LuaTransform {
                     Motor::point_reflection(ndim, point)
                         .ok_or("error constructing point reflection")
                 } else if let Some(vector) = b.to_vector() {
-                    Motor::vector_reflection(ndim, vector)
-                        .ok_or("cannot reflect through zero vector")
+                    Motor::vector_reflection(vector).ok_or("cannot reflect through zero vector")
                 } else if let Some(hyperplane) = b.to_hyperplane(ndim) {
                     Motor::plane_reflection(ndim, &hyperplane)
                         .ok_or("error constructing plane reflection")

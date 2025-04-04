@@ -280,10 +280,7 @@ impl CoxeterGroup {
 
     /// Returns the list of mirrors as generators.
     pub fn generators(&self) -> Vec<pga::Motor> {
-        self.mirrors
-            .iter()
-            .map(|m| m.motor(self.min_ndim))
-            .collect()
+        self.mirrors.iter().map(Mirror::motor).collect()
     }
 
     /// Constructs the full Coxeter group from its description.
@@ -359,8 +356,8 @@ impl Mirror {
         Hyperplane::new(&self.0, 0.0)
     }
     /// Returns the motor representing the mirror transformation.
-    pub fn motor(&self, ndim: u8) -> pga::Motor {
-        pga::Motor::normalized_vector_reflection(ndim, &self.0)
+    pub fn motor(&self) -> pga::Motor {
+        pga::Motor::normalized_vector_reflection(&self.0)
     }
 }
 impl TransformByMotor for Mirror {
