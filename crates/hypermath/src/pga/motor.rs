@@ -21,11 +21,12 @@ pub struct Motor {
     /// Coefficients of the terms of the multivector, ordered by the `Axes`
     /// values they correspond to.
     ///
-    /// Terms are stored as the right complement of the actual terms. Take the
-    /// left complement of each term to get its original term. In practice, when
-    /// using a motor to transform a multivector we take the right complement of
-    /// the multivector first, then sandwich the motor with it, then take the
-    /// left complement of the result.
+    /// Terms are stored as the right complement of the actual terms so that
+    /// motors can be cast into higher dimensions. Take the left complement of
+    /// each term to get its original term. In practice, when using a motor to
+    /// transform a multivector we take the right complement of the multivector
+    /// first, then sandwich the motor with it using geometric product, then
+    /// take the left complement of the result.
     coefficients: Box<[Float]>,
 }
 
@@ -51,19 +52,23 @@ impl Motor {
         ret
     }
     /// Constructs a motor representing a reflection across a plane.
-    pub fn plane_reflection(ndim: u8, hyperplane: &Hyperplane) -> Self {
-        Self::reflection_across_blade(ndim, &Blade::from_hyperplane(ndim, hyperplane))
+    ///
+    /// Returns `None` if the hyperplane does not fit in `ndim` dimensions.
+    pub fn plane_reflection(ndim: u8, hyperplane: &Hyperplane) -> Option<Self> {
+        Self::reflection_across_blade(ndim, &Blade::from_hyperplane(ndim, hyperplane)?)
     }
     /// Constructs a motor representing a point reflection.
-    pub fn point_reflection(ndim: u8, point: Vector) -> Self {
-        Self::reflection_across_blade(ndim, &Blade::from_point(ndim, point))
+    ///
+    /// Returns `None` if the point does not fit in `ndim` dimensions.
+    pub fn point_reflection(ndim: u8, point: Vector) -> Option<Self> {
+        Self::reflection_across_blade(ndim, &Blade::from_point(point))
     }
-    fn reflection_across_blade(ndim: u8, blade: &Blade) -> Self {
-        let mut ret = Self::zero(ndim, blade.antigrade() % 2 == 1);
+    fn reflection_across_blade(ndim: u8, blade: &Blade) -> Option<Self> {
+        let mut ret = Self::zero(ndim, blade.antigrade(ndim)? % 2 == 1);
         for term in blade.terms() {
             ret += term.right_complement(ndim);
         }
-        ret
+        Some(ret)
     }
     /// Constructs a motor representing a reflection through the origin. Returns
     /// `None` if `vector` is zero.
@@ -152,15 +157,14 @@ impl Motor {
     /// because the motor is too low-dimensional or because the motor has the
     /// wrong parity. In release mode, a warning is emitted instead and the
     /// motor is not modified.
+    #[track_caller]
     fn set(&mut self, axes: Axes, value: Float) {
         if cfg!(debug_assertions) {
             self.coefficients[self.panicking_index_of(axes)] = value;
         } else {
             match self.index_of(axes) {
                 Some(i) => self.coefficients[i] = value,
-                None => {
-                    log::error!("bad index {axes} into motor multivector {self}");
-                }
+                None => debug_panic!("bad index {axes} into motor multivector {self}"),
             }
         }
     }
@@ -199,6 +203,7 @@ impl Motor {
     ///
     /// Panics if the term does not exist in the motor due to differing parity
     /// or number of dimensions.
+    #[track_caller]
     fn panicking_index_of(&self, axes: Axes) -> usize {
         self.index_of(axes)
             .expect("bad index into motor multivector")
@@ -260,7 +265,7 @@ impl Motor {
     /// Returns the grade projection of the motor to a blade.
     #[must_use]
     pub fn grade_project(&self, grade: u8) -> Blade {
-        let mut ret = Blade::zero(self.ndim, grade);
+        let mut ret = Blade::zero_with_ndim(self.ndim, grade);
         for term in self.nonzero_terms().filter(|t| t.grade() == grade) {
             ret += term;
         }
@@ -344,8 +349,7 @@ impl Motor {
     ///
     /// See also `transform_point()`.
     pub fn transform_vector(&self, v: impl VectorRef) -> Vector {
-        let ndim = std::cmp::max(self.ndim, v.ndim());
-        self.transform(&Blade::from_vector(ndim, v))
+        self.transform(&Blade::from_vector(v))
             .to_vector()
             .unwrap_or(vector![])
     }
@@ -353,8 +357,7 @@ impl Motor {
     ///
     /// See also `transform_vector()`.
     pub fn transform_point(&self, v: impl VectorRef) -> Vector {
-        let ndim = std::cmp::max(self.ndim, v.ndim());
-        self.transform(&Blade::from_point(ndim, v))
+        self.transform(&Blade::from_point(v))
             .to_point()
             .unwrap_or(vector![])
     }
@@ -576,11 +579,6 @@ impl Mul<&Motor> for &Motor {
     type Output = Motor;
 
     fn mul(self, rhs: &Motor) -> Self::Output {
-        // Expecting motors to be the same dimension causes too many crashes.
-        // assert_eq!(
-        //     self.ndim, rhs.ndim,
-        //     "cannot operate on motors with different numbers of dimensions",
-        // );
         let mut ret = Motor::zero(
             std::cmp::max(self.ndim, rhs.ndim),
             self.is_reflection ^ rhs.is_reflection,
@@ -680,11 +678,13 @@ pub trait TransformByMotor {
 
 impl TransformByMotor for Hyperplane {
     fn transform_by(&self, m: &Motor) -> Self {
-        let ret = Blade::from_hyperplane(m.ndim, self)
+        let ndim = std::cmp::max(m.ndim, self.normal().ndim());
+        let ret = Blade::from_hyperplane(ndim, self)
+            .expect("error constructing hyperplane")
             .transform_by(m)
-            .to_hyperplane()
+            .to_hyperplane(ndim)
             .unwrap_or_else(|| {
-                log::error!("error transforming hyperplane {self} by {m:?}");
+                debug_panic!("error transforming hyperplane {self} by {m:?}");
                 Hyperplane {
                     normal: vector![],
                     distance: 0.0,
@@ -704,7 +704,7 @@ impl TransformByMotor for Hyperplane {
 impl TransformByMotor for Blade {
     fn transform_by(&self, m: &Motor) -> Self {
         let ndim = std::cmp::max(m.ndim, self.ndim());
-        let mut result = Blade::zero(ndim, self.grade());
+        let mut result = Blade::zero_with_ndim(ndim, self.grade());
         for (u, l, r) in
             itertools::iproduct!(self.nonzero_terms(), m.nonzero_terms(), m.nonzero_terms())
         {
@@ -767,6 +767,7 @@ fn common_ndim_and_parity(m1: &Motor, m2: &Motor) -> Option<(u8, bool)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::assert_approx_eq;
 
     /// Test a formula for extracting the second fixed axis of a rotation in 4D,
     /// given the rotation and one known fixed axis.
@@ -776,16 +777,17 @@ mod tests {
 
         let ax1 = vector![0.0, 0.0, 1.0];
         let ax2 = Blade::wedge(
-            &Blade::wedge(&Blade::origin(4), &Blade::from_vector(4, ax1)).unwrap(),
+            &Blade::wedge(&Blade::origin(), &Blade::from_vector(ax1)).unwrap(),
             &rot.grade_project(2),
         )
         .unwrap()
-        .antidual();
+        .antidual(4)
+        .unwrap();
 
         // ax2 should be a unit vector along the W axis.
         assert_eq!(1, ax2.grade());
         assert!(!ax2.is_zero());
-        let wedge = Blade::wedge(&ax2, &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]));
+        let wedge = Blade::wedge(&ax2, &Blade::from_vector(vector![0.0, 0.0, 0.0, 1.0]));
         assert!(wedge.is_some_and(|b| b.is_zero()));
     }
 
@@ -797,11 +799,59 @@ mod tests {
             Motor::from_angle_in_axis_plane(2, 0, 1, std::f64::consts::PI),
         ];
         for motor in motors {
+            dbg!(&motor);
             assert_approx_eq!(motor.log().unwrap().exp().unwrap(), motor);
             assert_approx_eq!(motor.powf(1.0).unwrap(), motor);
             let motor1 = motor.powf(0.3).unwrap();
             let motor2 = motor.powf(0.7).unwrap();
             assert_approx_eq!(motor1 * motor2, motor);
+        }
+    }
+
+    #[test]
+    fn test_transform_vector() {
+        for motor_ndim in 2..=6 {
+            let rot = Motor::from_normalized_vector_product(
+                motor_ndim,
+                vector![1.0],
+                vector![1.0, 1.0].normalize().unwrap(),
+            );
+            let refl = Motor::vector_reflection(motor_ndim, vector![1.0]).unwrap();
+
+            let v = vector![1.0];
+            assert_approx_eq!(rot.transform_vector(&v), vector![0.0, 1.0]);
+            assert_approx_eq!(refl.transform_vector(&v), vector![-1.0]);
+        }
+    }
+
+    #[test]
+    fn test_transform_point() {
+        for motor_ndim in 2..=6 {
+            let rot =
+                Motor::from_normalized_vector_product(motor_ndim, vector![1.0], vector![1.0, 1.0]);
+            let refl = Motor::vector_reflection(motor_ndim, vector![1.0]).unwrap();
+
+            let p = vector![1.0];
+            assert_approx_eq!(rot.transform_point(&p), vector![0.0, 1.0]);
+            assert_approx_eq!(refl.transform_point(&p), vector![-1.0]);
+        }
+    }
+
+    #[test]
+    fn test_geometric_antiproduct() {
+        let ndim = 3;
+        for b in (0..16).map(Axes::from_bits_truncate).map(Term::unit) {
+            for a in (0..16).map(Axes::from_bits_truncate).map(Term::unit) {
+                let antiantiproduct =
+                    Term::geometric_antiproduct(a, b, ndim).map(|t| t.right_complement(ndim));
+                let product =
+                    Term::geometric_product(a.right_complement(ndim), b.right_complement(ndim));
+                if let (Some(antiantiproduct), Some(product)) = (antiantiproduct, product) {
+                    assert_approx_eq!(antiantiproduct, product);
+                } else {
+                    assert_eq!(antiantiproduct, product);
+                }
+            }
         }
     }
 }

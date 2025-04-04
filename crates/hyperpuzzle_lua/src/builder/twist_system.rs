@@ -268,13 +268,13 @@ impl TwistSystemBuilder {
                 let face_normal = if space.ndim() == 4 {
                     // Compute the other vector fixed by the twist.
                     (|| {
-                        let axis_vector = Blade::from_vector(4, axis_vector);
-                        let origin = Blade::origin(4);
+                        let axis_vector = Blade::from_vector(axis_vector);
+                        let origin = Blade::origin();
                         Blade::wedge(
                             &old_twist.transform.grade_project(2),
                             &Blade::wedge(&origin, &axis_vector)?,
                         )?
-                        .antidual()
+                        .antidual(4)?
                         .to_vector()?
                         .normalize()
                     })()

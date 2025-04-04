@@ -21,14 +21,11 @@ pub struct LuaMultivectorIndex {
 impl LuaMultivectorIndex {
     /// Constructs a blade with a coefficient of 1 at this index, and no other
     /// values.
-    pub fn to_multivector(&self, ndim: u8) -> Blade {
-        Blade::from_term(
-            ndim,
-            Term {
-                coef: self.sign.to_num(),
-                axes: self.axes,
-            },
-        )
+    pub fn to_multivector(&self) -> Blade {
+        Blade::from_term(Term {
+            coef: self.sign.to_num(),
+            axes: self.axes,
+        })
     }
 }
 

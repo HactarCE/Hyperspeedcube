@@ -65,11 +65,10 @@ pub(super) fn init_lua_environment(loader: &LuaLoader, env: &LuaTable) -> LuaRes
     env.raw_set("color_system_generators", LuaColorSystemGeneratorDb)?;
 
     // `blade` constructors
-    let vec_fn =
-        lua.create_function(|lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v));
+    let vec_fn = lua.create_function(|_lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(v));
     env.raw_set("vec", vec_fn?)?;
     let point_fn =
-        lua.create_function(|lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v))?;
+        lua.create_function(|_lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(v))?;
     env.raw_set("point", point_fn)?;
     let blade_fn = lua.create_function(|_lua, b: LuaBlade| Ok(b))?;
     env.raw_set("blade", blade_fn)?;

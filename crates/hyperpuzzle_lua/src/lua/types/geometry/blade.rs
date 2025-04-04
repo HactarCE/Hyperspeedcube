@@ -12,10 +12,9 @@ impl FromLua for LuaBlade {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
         } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
-            let ndim = enforce_ndim(lua, v.ndim())?;
-            Ok(Self(Blade::from_vector(ndim, v)))
+            Ok(Self(Blade::from_vector(v)))
         } else if let Ok(n) = lua.unpack(value.clone()) {
-            Ok(Self(Blade::scalar(LuaNdim::get(lua)?, n)))
+            Ok(Self(Blade::scalar(n)))
         } else {
             lua_convert_err(&value, "blade (scalar, vector, point, hyperplane, etc.)")
         }
@@ -28,12 +27,18 @@ impl LuaUserData for LuaBlade {
 
         fields.add_field_method_get("ndim", |_lua, Self(b)| Ok(b.ndim()));
         fields.add_field_method_get("grade", |_lua, Self(b)| Ok(b.grade()));
-        fields.add_field_method_get("antigrade", |_lua, Self(b)| Ok(b.antigrade()));
+        fields.add_field_method_get("antigrade", |lua, Self(b)| {
+            Ok(b.antigrade(LuaNdim::get(lua)?))
+        });
 
-        fields.add_field_method_get("dual", |_lua, Self(this)| Ok(Self(this.dual())));
-        fields.add_field_method_get("antidual", |_lua, Self(this)| Ok(Self(this.antidual())));
-        fields.add_field_method_get("complement", |_lua, Self(this)| {
-            Ok(Self(this.right_complement()))
+        fields.add_field_method_get("dual", |lua, Self(this)| {
+            Ok(this.dual(LuaNdim::get(lua)?).map(Self))
+        });
+        fields.add_field_method_get("antidual", |lua, Self(this)| {
+            Ok(this.antidual(LuaNdim::get(lua)?).map(Self))
+        });
+        fields.add_field_method_get("complement", |lua, Self(this)| {
+            Ok(this.right_complement(LuaNdim::get(lua)?).map(Self))
         });
 
         fields.add_field_method_get("unit", |_lua, Self(this)| {
@@ -56,15 +61,15 @@ impl LuaUserData for LuaBlade {
         fields.add_field_method_get("weight", |_lua, Self(this)| Ok(Self(this.weight())));
 
         // Hyperplane fields
-        fields.add_field_method_get("normal", |_lua, this| {
-            Ok(LuaVector(this.to_hyperplane()?.normal().clone()))
+        fields.add_field_method_get("normal", |lua, this| {
+            Ok(LuaVector(this.to_hyperplane(lua)?.normal().clone()))
         });
-        fields.add_field_method_get("distance", |_lua, this| {
-            Ok(this.to_hyperplane()?.distance())
+        fields.add_field_method_get("distance", |lua, this| {
+            Ok(this.to_hyperplane(lua)?.distance())
         });
 
-        fields.add_field_method_get("region", |_lua, this| {
-            Ok(LuaRegion::HalfSpace(this.to_hyperplane()?.clone()))
+        fields.add_field_method_get("region", |lua, this| {
+            Ok(LuaRegion::HalfSpace(this.to_hyperplane(lua)?.clone()))
         });
     }
 
@@ -98,14 +103,15 @@ impl LuaUserData for LuaBlade {
         methods.add_method("wedge", |_lua, Self(this), Self(other)| {
             Ok(Blade::wedge(this, &other).map(Self))
         });
-        methods.add_method("antiwedge", |_lua, Self(this), Self(other)| {
-            Ok(Blade::antiwedge(this, &other).map(Self))
+        methods.add_method("antiwedge", |lua, Self(this), Self(other)| {
+            Ok(Blade::antiwedge(LuaNdim::get(lua)?, this, &other).map(Self))
         });
         methods.add_method("dot", |_lua, Self(this), Self(other)| {
             Ok(Blade::dot(this, &other))
         });
-        methods.add_method("antidot", |_lua, Self(this), Self(other)| {
-            Ok(Blade::antidot(this, &other).map(|term| Self(Blade::from_term(this.ndim(), term))))
+        methods.add_method("antidot", |lua, Self(this), Self(other)| {
+            Ok(Blade::antidot(LuaNdim::get(lua)?, this, &other)
+                .map(|term| Self(Blade::from_term(term))))
         });
 
         methods.add_method(
@@ -158,12 +164,12 @@ impl LuaUserData for LuaBlade {
             Ok(Blade::wedge(&a, &b).map(Self))
         });
         // blade & blade
-        methods.add_meta_function(LuaMetaMethod::BAnd, |_lua, (Self(a), Self(b))| {
-            Ok(Blade::antiwedge(&a, &b).map(Self))
+        methods.add_meta_function(LuaMetaMethod::BAnd, |lua, (Self(a), Self(b))| {
+            Ok(Blade::antiwedge(LuaNdim::get(lua)?, &a, &b).map(Self))
         });
         // ~blade
-        methods.add_meta_function(LuaMetaMethod::BNot, |_lua, Self(this)| {
-            Ok(Self(this.right_complement()))
+        methods.add_meta_function(LuaMetaMethod::BNot, |lua, Self(this)| {
+            Ok(this.right_complement(LuaNdim::get(lua)?).map(Self))
         });
 
         // blade == blade
@@ -212,29 +218,29 @@ impl LuaUserData for LuaBlade {
         });
 
         // Hyperplane methods
-        methods.add_method("signed_distance", |_lua, this, LuaPoint(p)| {
-            Ok(this.to_hyperplane()?.signed_distance_to_point(p))
+        methods.add_method("signed_distance", |lua, this, LuaPoint(p)| {
+            Ok(this.to_hyperplane(lua)?.signed_distance_to_point(p))
         });
     }
 }
 
 impl LuaBlade {
     /// Constructs a blade representing a vector.
-    pub fn from_vector(lua: &Lua, v: impl VectorRef) -> LuaResult<Self> {
-        Ok(Self(Blade::from_vector(LuaNdim::get(lua)?, v)))
+    pub fn from_vector(v: impl VectorRef) -> LuaResult<Self> {
+        Ok(Self(Blade::from_vector(v)))
     }
     /// Constructs a blade representing a point.
-    pub fn from_point(lua: &Lua, v: impl VectorRef) -> LuaResult<Self> {
-        Ok(Self(Blade::from_point(LuaNdim::get(lua)?, v)))
+    pub fn from_point(v: impl VectorRef) -> LuaResult<Self> {
+        Ok(Self(Blade::from_point(v)))
     }
     /// Constructs a blade representing a hyperplane.
-    pub fn from_hyperplane(lua: &Lua, h: &Hyperplane) -> LuaResult<Self> {
-        Ok(Self(Blade::from_hyperplane(LuaNdim::get(lua)?, h)))
+    pub fn from_hyperplane(lua: &Lua, h: &Hyperplane) -> LuaResult<Option<Self>> {
+        Ok(Blade::from_hyperplane(LuaNdim::get(lua)?, h).map(Self))
     }
 
-    fn to_hyperplane(&self) -> LuaResult<Hyperplane> {
+    fn to_hyperplane(&self, lua: &Lua) -> LuaResult<Hyperplane> {
         self.0
-            .to_hyperplane()
+            .to_hyperplane(LuaNdim::get(lua)?)
             .ok_or_else(|| LuaError::external("expected hyperplane blade"))
     }
 }
@@ -242,16 +248,5 @@ impl LuaBlade {
 impl TransformByMotor for LuaBlade {
     fn transform_by(&self, m: &Motor) -> Self {
         Self(self.0.transform_by(m))
-    }
-}
-
-fn enforce_ndim(lua: &Lua, ndim: u8) -> LuaResult<u8> {
-    let expected_ndim = LuaNdim::get(lua)?;
-    if ndim <= expected_ndim {
-        Ok(ndim)
-    } else {
-        Err(LuaError::external(format!(
-            "cannot construct {ndim}D object in {expected_ndim}D space",
-        )))
     }
 }

@@ -66,9 +66,8 @@ impl FromLua for Transformable {
 
 impl Transformable {
     /// Converts a Lua value into an object that can be transformed arbitrarily.
-    pub fn from_vector(lua: &Lua, v: impl VectorRef) -> LuaResult<Self> {
-        let ndim = LuaNdim::get(lua)?;
-        Ok(Self::Blade(LuaBlade(pga::Blade::from_vector(ndim, v))))
+    pub fn from_vector(v: impl VectorRef) -> LuaResult<Self> {
+        Ok(Self::Blade(LuaBlade(pga::Blade::from_vector(v))))
     }
 
     fn from_axis(axis: LuaAxis) -> LuaResult<Self> {

@@ -58,7 +58,7 @@ impl FromLua for LuaHyperplane {
                     .into_lua_err()?,
             ))
         } else if let Ok(LuaBlade(b)) = cast_userdata(lua, &value) {
-            match b.to_hyperplane() {
+            match b.to_hyperplane(LuaNdim::get(lua)?) {
                 Some(h) => Ok(Self(h)),
                 None => lua_convert_err(&value, "hyperplane"),
             }
@@ -132,9 +132,9 @@ impl LuaHyperplane {
     }
 
     /// Returns a blade representing the hyperplane.
-    pub fn to_blade(&self, lua: &Lua) -> LuaResult<LuaBlade> {
+    pub fn to_blade(&self, lua: &Lua) -> LuaResult<Option<LuaBlade>> {
         let ndim = LuaNdim::get(lua)?;
-        Ok(LuaBlade(pga::Blade::from_hyperplane(ndim, &self.0)))
+        Ok(pga::Blade::from_hyperplane(ndim, &self.0).map(LuaBlade))
     }
 }
 

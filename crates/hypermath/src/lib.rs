@@ -22,6 +22,15 @@ macro_rules! assert_approx_eq {
     };
 }
 
+macro_rules! debug_panic {
+    ($($tok:tt)*) => {
+        match cfg!(debug_assertions) {
+            true => panic!($($tok)*),
+            false => log::error!($($tok)*),
+        }
+    };
+}
+
 #[macro_use]
 mod impl_macros;
 #[macro_use]

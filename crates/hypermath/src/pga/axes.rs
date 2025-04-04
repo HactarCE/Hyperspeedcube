@@ -178,6 +178,12 @@ impl Axes {
         ndim + 1 - self.grade() // +1 because `ndim` doesn't include e₀
     }
 
+    /// Returns the minimum number of Euclidean dimensions required to represent
+    /// the term.
+    pub const fn min_ndim(self) -> u8 {
+        7_u8.saturating_sub(self.bits().leading_zeros() as u8)
+    }
+
     /// Returns the Euclidean axis, if it is exactly one axis and that axis is
     /// Euclidean.
     pub fn single_euclidean_axis(self) -> Option<u8> {

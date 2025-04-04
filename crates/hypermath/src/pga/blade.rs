@@ -63,8 +63,12 @@ impl IndexMut<Axes> for Blade {
 }
 
 impl Blade {
+    /// Constructs a new zero blade of grade `grade`.
+    pub fn zero(grade: u8) -> Self {
+        Self::zero_with_ndim(0, grade)
+    }
     /// Constructs a new zero blade of grade `grade` in `ndim` dimensions.
-    pub fn zero(ndim: u8, grade: u8) -> Self {
+    pub fn zero_with_ndim(ndim: u8, grade: u8) -> Self {
         let len = super::multivector_term_order(ndim, grade).len();
         Self {
             ndim,
@@ -72,34 +76,34 @@ impl Blade {
             coefficients: vec![0.0; len].into_boxed_slice(),
         }
     }
-    /// Constructs a unit blade of grade 0 in `ndim` dimensions.
-    pub fn one(ndim: u8) -> Self {
-        Self::scalar(ndim, 1.0)
+    /// Constructs a unit blade of grade 0.
+    pub fn one() -> Self {
+        Self::scalar(1.0)
     }
-    /// Constructs a blade of grade 0 in `ndim` dimensions.
-    pub fn scalar(ndim: u8, value: Float) -> Self {
+    /// Constructs a blade of grade 0.
+    pub fn scalar(value: Float) -> Self {
         Self {
-            ndim,
+            ndim: 0,
             grade: 0,
             coefficients: vec![value].into_boxed_slice(),
         }
     }
     /// Constructs a blade from a single term.
-    pub fn from_term(ndim: u8, term: Term) -> Self {
-        let mut ret = Self::zero(ndim, term.grade());
+    pub fn from_term(term: Term) -> Self {
+        let mut ret = Self::zero(term.grade());
         ret[term.axes] = term.coef;
         ret
     }
 
     /// Constructs a blade representing the point at the origin.
-    pub fn origin(ndim: u8) -> Self {
-        let mut ret = Self::zero(ndim, 1);
+    pub fn origin() -> Self {
+        let mut ret = Self::zero(1);
         ret[Axes::E0] = 1.0;
         ret
     }
     /// Constructs a blade from a point.
-    pub fn from_point(ndim: u8, v: impl VectorRef) -> Self {
-        let mut ret = Self::from_vector(ndim, v);
+    pub fn from_point(v: impl VectorRef) -> Self {
+        let mut ret = Self::from_vector(v);
         ret[Axes::E0] = 1.0;
         ret
     }
@@ -113,9 +117,13 @@ impl Blade {
     }
 
     /// Constructs a blade from a vector.
-    pub fn from_vector(ndim: u8, v: impl VectorRef) -> Self {
-        let mut ret = Self::zero(ndim, 1);
-        for (i, x) in v.iter_ndim(ndim).enumerate() {
+    pub fn from_vector(v: impl VectorRef) -> Self {
+        Self::from_vector_with_ndim(v.ndim(), v)
+    }
+    /// Constructs a blade from a vector in `ndim` dimensions.
+    pub fn from_vector_with_ndim(ndim: u8, v: impl VectorRef) -> Self {
+        let mut ret = Self::zero_with_ndim(ndim, 1);
+        for (i, x) in v.iter_ndim(v.ndim()).enumerate() {
             ret[Axes::euclidean(i as u8)] = x;
         }
         ret
@@ -134,17 +142,19 @@ impl Blade {
     }
 
     /// Constructs a blade from a hyperplane.
-    pub fn from_hyperplane(ndim: u8, h: &Hyperplane) -> Self {
-        let mut ret = Self::from_vector(ndim, h.normal());
+    ///
+    /// Returns `None` if `h` does not fit in `ndim` dimensions.
+    pub fn from_hyperplane(ndim: u8, h: &Hyperplane) -> Option<Self> {
+        let mut ret = Self::from_vector_with_ndim(ndim, h.normal());
         ret[Axes::E0] = -h.distance;
-        ret.right_complement()
+        ret.right_complement(ndim)
     }
     /// Extracts the hyperplane represented by a blade.
-    pub fn to_hyperplane(&self) -> Option<Hyperplane> {
-        if self.antigrade() != 1 {
+    pub fn to_hyperplane(&self, ndim: u8) -> Option<Hyperplane> {
+        if self.antigrade(ndim) != Some(1) {
             return None;
         }
-        let b = self.left_complement();
+        let b = self.left_complement(ndim)?;
         let normal = b.to_vector()?;
         let mag = normal.mag();
         Some(Hyperplane {
@@ -193,7 +203,7 @@ impl Blade {
     /// [bulk]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Bulk_and_weight
     pub fn bulk(&self) -> Self {
-        let mut bulk = Blade::zero(self.ndim, self.grade);
+        let mut bulk = Blade::zero_with_ndim(self.ndim, self.grade);
         for term in self.bulk_terms() {
             bulk += term;
         }
@@ -205,7 +215,7 @@ impl Blade {
     /// [weight]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Bulk_and_weight
     pub fn weight(&self) -> Self {
-        let mut weight = Blade::zero(self.ndim, self.grade);
+        let mut weight = Blade::zero_with_ndim(self.ndim, self.grade);
         for term in self.weight_terms() {
             weight += term;
         }
@@ -252,7 +262,7 @@ impl Blade {
     /// unmodified.
     pub fn ensure_nonzero_weight(&self) -> Blade {
         if self.weight_is_zero() {
-            if let Some(product) = Blade::wedge(&Blade::from_term(self.ndim, Term::e0(1.0)), self) {
+            if let Some(product) = Blade::wedge(&Blade::from_term(Term::e0(1.0)), self) {
                 return product;
             }
         }
@@ -268,8 +278,10 @@ impl Blade {
         self.grade
     }
     /// Returns the antigrade of the blade.
-    pub fn antigrade(&self) -> u8 {
-        self.ndim + 1 - self.grade // +1 because `ndim` doesn't include e₀
+    ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
+    pub fn antigrade(&self, ndim: u8) -> Option<u8> {
+        (ndim + 1).checked_sub(self.grade) // +1 because `ndim` doesn't include e₀
     }
 
     /// Returns the `Axes` for the `i`th coefficient.
@@ -286,8 +298,11 @@ impl Blade {
     pub fn get(&self, axes: Axes) -> Option<&Float> {
         Some(&self.coefficients[self.index_of(axes)?])
     }
-    /// Returns an element of the blade, if it is present.
+    /// Returns an element of the blade, if it is present. If `axes` has the
+    /// correct grade but requires a greater number of dimensions, then the
+    /// blade is extended to the required number of dimensions.
     pub fn get_mut(&mut self, axes: Axes) -> Option<&mut Float> {
+        self.ensure_ndim_at_least(axes.min_ndim());
         Some(&mut self.coefficients[self.index_of(axes)?])
     }
 
@@ -298,22 +313,50 @@ impl Blade {
             axes: self.axes_at_index(i),
         })
     }
+    /// Returns an iterator over the terms in the blade that fit within
+    /// `ndim`-dimensional space.
+    pub fn terms_in_ndim(&self, ndim: u8) -> impl '_ + Clone + Iterator<Item = Term> {
+        let antiscalar = Axes::antiscalar(ndim);
+        self.terms()
+            .filter(move |term| antiscalar.contains(term.axes))
+    }
     /// Returns an iterator over the terms in the blade that are approximately
     /// nonzero.
     pub fn nonzero_terms(&self) -> impl '_ + Clone + Iterator<Item = Term> {
         self.terms().filter(|term| !term.is_zero())
     }
+    /// Returns an iterator over the terms in the blade that are approximately
+    /// nonzero and fit within `ndim`-dimensional space.
+    pub fn nonzero_terms_in_ndim(&self, ndim: u8) -> impl '_ + Clone + Iterator<Item = Term> {
+        self.terms_in_ndim(ndim).filter(|term| !term.is_zero())
+    }
     /// Lifts the blade into at least `ndim`-dimensional space.
+    ///
+    /// Returns a new blade.
     #[must_use]
     pub fn to_ndim_at_least(&self, ndim: u8) -> Self {
         if ndim <= self.ndim {
-            self.clone()
-        } else {
-            let mut ret = Self::zero(ndim, self.grade);
-            for term in self.terms() {
-                ret += term;
-            }
-            ret
+            return self.clone();
+        }
+        let len = super::multivector_term_order(ndim, self.grade).len();
+        let coefficients = self
+            .coefficients
+            .iter()
+            .copied()
+            .pad_using(len, |_| 0.0)
+            .collect();
+        Self {
+            ndim,
+            grade: self.grade,
+            coefficients,
+        }
+    }
+    /// Lifts the blade into at least `ndim`-dimensional space.
+    ///
+    /// Modifies the blade in-place.
+    pub fn ensure_ndim_at_least(&mut self, ndim: u8) {
+        if self.ndim < ndim {
+            *self = self.to_ndim_at_least(ndim);
         }
     }
 
@@ -322,7 +365,7 @@ impl Blade {
     pub fn product_grade(lhs: &Self, rhs: &Self, grade: u8) -> Self {
         let ndim = std::cmp::max(lhs.ndim, rhs.ndim);
 
-        let mut ret = Self::zero(ndim, grade);
+        let mut ret = Self::zero_with_ndim(ndim, grade);
         for l in lhs.terms() {
             for r in rhs.terms() {
                 let Some(term) = Term::geometric_product(l, r) else {
@@ -358,7 +401,7 @@ impl Blade {
         let blades = blades.into_iter().collect_vec();
         let ndim = blades.iter().map(|b| b.ndim).max().unwrap_or(0);
 
-        let mut ret = Self::zero(ndim, grade);
+        let mut ret = Self::zero_with_ndim(ndim, grade);
 
         'a: for terms in blades.iter().map(|b| b.terms()).multi_cartesian_product() {
             let mut term = Term::scalar(1.0);
@@ -388,6 +431,8 @@ impl Blade {
     /// result is zero because the grade of the result would exceed the number
     /// of dimensions.
     ///
+    /// TODO: revisit
+    ///
     /// [exterior product]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Exterior_products
     #[must_use]
@@ -400,7 +445,7 @@ impl Blade {
             return None;
         }
 
-        let mut ret = Self::zero(ndim, grade);
+        let mut ret = Self::zero_with_ndim(ndim, grade);
         for l in lhs.terms() {
             for r in rhs.terms() {
                 ret += Term::wedge(l, r);
@@ -412,10 +457,15 @@ impl Blade {
     /// the result is zero because the grade of the result would exceed the
     /// number of dimensions.
     ///
+    /// TODO: revisit
+    ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
+    ///
     /// [exterior antiproduct]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Exterior_products
-    pub fn antiwedge(lhs: &Self, rhs: &Self) -> Option<Self> {
-        Some(Self::wedge(&lhs.left_complement(), &rhs.left_complement())?.right_complement())
+    pub fn antiwedge(ndim: u8, lhs: &Self, rhs: &Self) -> Option<Self> {
+        Self::wedge(&lhs.left_complement(ndim)?, &rhs.left_complement(ndim)?)?
+            .right_complement(ndim)
     }
     /// Returns the [dot product] between `lhs` and `rhs`, or `None` if the
     /// arguments have different grades.
@@ -435,70 +485,81 @@ impl Blade {
         }
     }
     /// Returns the [dot antiproduct] between `lhs` and `rhs`, or `None` if the
-    /// arguments have different grades or dimensionalities.
+    /// arguments have different dimensionalities or cannot be represented in
+    /// `ndim`-dimensional space.
     ///
     /// [dot antiproduct]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Dot_products#Antidot_Product
-    pub fn antidot(lhs: &Self, rhs: &Self) -> Option<Term> {
-        if lhs.ndim != rhs.ndim {
-            return None;
-        }
-        let ndim = lhs.ndim;
-
+    pub fn antidot(ndim: u8, lhs: &Self, rhs: &Self) -> Option<Term> {
         Some(
-            Term::scalar(Self::dot(&lhs.left_complement(), &rhs.left_complement())?)
-                .right_complement(ndim),
+            Term::scalar(Self::dot(
+                &lhs.left_complement(ndim)?,
+                &rhs.left_complement(ndim)?,
+            )?)
+            .right_complement(ndim),
         )
     }
 
-    /// Returns the [metric dual] of the blade.
+    /// Returns the [metric dual] of the term in `ndim`-dimensional space, or
+    /// `None` if it is zero. The blade is implicitly projected to
+    /// `ndim`-dimensional space.
+    ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
     ///
     /// [metric dual]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Duals#Dual
     #[must_use]
-    pub fn dual(&self) -> Self {
-        let mut ret = Self::zero(self.ndim, self.antigrade());
-        for term in self.terms() {
-            ret += term.dual(self.ndim);
+    pub fn dual(&self, ndim: u8) -> Option<Self> {
+        let mut ret = Self::zero_with_ndim(ndim, self.antigrade(ndim)?);
+        for term in self.terms_in_ndim(ndim) {
+            ret += term.dual(ndim);
         }
-        ret
+        Some(ret)
     }
-    /// Returns the [metric antidual] of the blade.
+    /// Returns the [metric antidual] of the blade. The blade is implicitly
+    /// projected to `ndim`-dimensional space.
+    ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
     ///
     /// [metric antidual]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Duals#Antidual
     #[must_use]
-    pub fn antidual(&self) -> Self {
-        let mut ret = Self::zero(self.ndim, self.antigrade());
-        for term in self.terms() {
-            ret += term.antidual(self.ndim);
+    pub fn antidual(&self, ndim: u8) -> Option<Self> {
+        let mut ret = Self::zero_with_ndim(ndim, self.antigrade(ndim)?);
+        for term in self.terms_in_ndim(ndim) {
+            ret += term.antidual(ndim);
         }
-        ret
+        Some(ret)
     }
 
     /// Returns the [right complement] of the blade.
     ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
+    ///
     /// [right complement]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Complements
     #[must_use]
-    pub fn right_complement(&self) -> Self {
-        let mut ret = Self::zero(self.ndim, self.antigrade());
-        for term in self.terms() {
-            ret += term.right_complement(self.ndim);
+    pub fn right_complement(&self, ndim: u8) -> Option<Self> {
+        let mut ret = Self::zero_with_ndim(ndim, self.antigrade(ndim)?);
+        for term in self.terms_in_ndim(ndim) {
+            ret += term.right_complement(ndim);
         }
-        ret
+        Some(ret)
     }
-    /// Returns the [left complement] of the blade.
+    /// Returns the [left complement] of the blade. The blade is implicitly
+    /// projected to `ndim`-dimensional space.
+    ///
+    /// Returns `None` if the blade requires more than `ndim` dimensions.
     ///
     /// [left complement]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Complements
     #[must_use]
-    pub fn left_complement(&self) -> Self {
-        let mut ret = Self::zero(self.ndim, self.antigrade());
-        for term in self.terms() {
-            ret += term.left_complement(self.ndim);
+    pub fn left_complement(&self, ndim: u8) -> Option<Self> {
+        let mut ret = Self::zero_with_ndim(ndim, self.antigrade(ndim)?);
+        for term in self.terms_in_ndim(ndim) {
+            ret += term.left_complement(ndim);
         }
-        ret
+        Some(ret)
     }
 
     /// Returns the orthogonal projection of `self` onto `other`, or returns
@@ -512,7 +573,7 @@ impl Blade {
         let ndim = common_ndim(self, other);
         let other = other.to_ndim_at_least(ndim).ensure_nonzero_weight();
         crate::util::try_div(
-            Blade::antiwedge(&other, &Blade::wedge(self, &other.antidual())?)?,
+            Blade::antiwedge(ndim, &other, &Blade::wedge(self, &other.antidual(ndim)?)?)?,
             other.mag2(),
         )
     }
@@ -527,10 +588,10 @@ impl Blade {
     /// vectors, or returns `None` if either blade is not a vector.
     #[must_use]
     pub fn cross_product_3d(lhs: &Self, rhs: &Self) -> Option<Blade> {
-        if lhs.ndim == 3 && rhs.ndim == 3 && lhs.is_vector() && rhs.is_vector() {
+        if lhs.is_vector() && rhs.is_vector() {
             let bivector = Blade::wedge(lhs, rhs)?;
-            let e0 = Blade::from_term(3, Term::e0(1.0));
-            Some(Blade::wedge(&bivector, &e0)?.antidual())
+            let e0 = Blade::from_term(Term::e0(1.0));
+            Some(Blade::wedge(&bivector, &e0)?.antidual(3)?)
         } else {
             None
         }
@@ -540,7 +601,9 @@ impl Blade {
     /// `None` if the basis is invalid.
     pub fn basis(&self) -> Vec<Vector> {
         let ndim = self.ndim;
-        let mut covered = self.right_complement(); // left vs. right doesn't matter
+        let mut covered = self
+            .right_complement(ndim) // left vs. right doesn't matter
+            .expect("right complement failed");
         let mut ret = vec![];
         // Set up a bitmask of remaining axes.
         let mut axes_left = (1_u8 << ndim) - 1;
@@ -550,7 +613,7 @@ impl Blade {
                     let v = Vector::unit(ax as u8);
                     Some((
                         ax as u8,
-                        Blade::from_vector(ndim, v).orthogonal_rejection_from(&covered)?,
+                        Blade::from_vector(v).orthogonal_rejection_from(&covered)?,
                     ))
                 })
                 .max_by_key(|(_, blade)| FloatOrd(blade.mag2()))
@@ -728,11 +791,13 @@ impl Neg for &Blade {
 }
 
 impl AddAssign<Term> for Blade {
+    #[track_caller]
     fn add_assign(&mut self, rhs: Term) {
         self[rhs.axes] += rhs.coef;
     }
 }
 impl AddAssign<Option<Term>> for Blade {
+    #[track_caller]
     fn add_assign(&mut self, rhs: Option<Term>) {
         if let Some(r) = rhs {
             *self += r;
@@ -740,6 +805,7 @@ impl AddAssign<Option<Term>> for Blade {
     }
 }
 impl AddAssign<&Blade> for Blade {
+    #[track_caller]
     fn add_assign(&mut self, rhs: &Blade) {
         for term in rhs.terms() {
             *self += term;
@@ -747,6 +813,7 @@ impl AddAssign<&Blade> for Blade {
     }
 }
 impl AddAssign<Blade> for Blade {
+    #[track_caller]
     fn add_assign(&mut self, rhs: Blade) {
         *self += &rhs;
     }
@@ -758,6 +825,7 @@ where
 {
     type Output = Blade;
 
+    #[track_caller]
     fn add(mut self, rhs: T) -> Self::Output {
         self += rhs;
         self
@@ -765,11 +833,13 @@ where
 }
 
 impl SubAssign<Term> for Blade {
+    #[track_caller]
     fn sub_assign(&mut self, rhs: Term) {
         self[rhs.axes] -= rhs.coef;
     }
 }
 impl SubAssign<Option<Term>> for Blade {
+    #[track_caller]
     fn sub_assign(&mut self, rhs: Option<Term>) {
         if let Some(r) = rhs {
             *self -= r;
@@ -777,6 +847,7 @@ impl SubAssign<Option<Term>> for Blade {
     }
 }
 impl SubAssign<&Blade> for Blade {
+    #[track_caller]
     fn sub_assign(&mut self, rhs: &Blade) {
         for term in rhs.terms() {
             *self -= term;
@@ -784,6 +855,7 @@ impl SubAssign<&Blade> for Blade {
     }
 }
 impl SubAssign<Blade> for Blade {
+    #[track_caller]
     fn sub_assign(&mut self, rhs: Blade) {
         *self -= &rhs;
     }
@@ -795,6 +867,7 @@ where
 {
     type Output = Blade;
 
+    #[track_caller]
     fn sub(mut self, rhs: T) -> Self::Output {
         self -= rhs;
         self
@@ -897,7 +970,7 @@ impl BivectorDecomposition {
     }
 
     fn to_bivector(&self) -> Blade {
-        let mut ret = Blade::zero(self.ndim, 2);
+        let mut ret = Blade::zero_with_ndim(self.ndim, 2);
         for (_mult, biv) in &self.decomposition {
             ret += biv;
         }
@@ -943,14 +1016,14 @@ impl Multivector04 {
     fn zero(ndim: u8) -> Self {
         Self {
             grade0: 0.0,
-            grade4: Blade::zero(ndim, 4),
+            grade4: Blade::zero_with_ndim(ndim, 4),
         }
     }
 
     fn one(ndim: u8) -> Self {
         Self {
             grade0: 1.0,
-            grade4: Blade::zero(ndim, 4),
+            grade4: Blade::zero_with_ndim(ndim, 4),
         }
     }
 
@@ -1048,15 +1121,15 @@ mod tests {
     fn test_blade_orthogonal_rejection() {
         for scalar in [1.0, 0.5, 2.0, 3.5] {
             let fix = Blade::wedge(
-                &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]), // +W
-                &Blade::from_vector(4, vector![0.0, 1.0, 1.0, 0.0]), // +Y+Z
+                &Blade::from_vector(vector![0.0, 0.0, 0.0, 1.0]), // +W
+                &Blade::from_vector(vector![0.0, 1.0, 1.0, 0.0]), // +Y+Z
             )
             .unwrap()
                 * scalar;
 
-            let a = vector![0.0, 0.0, 1.0, 0.0]; // +Z
+            let a = vector![0.0, 0.0, 1.0]; // +Z
 
-            let new_a = Blade::from_vector(4, &a)
+            let new_a = Blade::from_vector(&a)
                 .orthogonal_rejection_from(&fix)
                 .unwrap()
                 .to_vector()
@@ -1069,23 +1142,17 @@ mod tests {
     fn test_bivector_decomposition_specific(vs: Vec<[Vector; 2]>) {
         let bso = vs
             .iter()
-            .map(|[v1, v2]| {
-                Blade::wedge(
-                    &Blade::from_vector(v1.ndim(), v1),
-                    &Blade::from_vector(v2.ndim(), v2),
-                )
-                .unwrap()
-            })
+            .map(|[v1, v2]| Blade::wedge(&Blade::from_vector(v1), &Blade::from_vector(v2)).unwrap())
             .collect_vec();
 
-        let bivector = bso.iter().fold(Blade::zero(bso[0].ndim, 2), Add::add);
+        let bivector = bso.iter().fold(Blade::zero(2), Add::add);
 
         let out = bivector.decompose_bivector().unwrap();
         assert_approx_eq!(
             out.decomposition
                 .iter()
                 .map(|b| b.1.clone())
-                .fold(Blade::zero(bso[0].ndim, 2), Add::add),
+                .fold(Blade::zero(2), Add::add),
             bivector
         );
         dbg!(&out);
@@ -1166,13 +1233,13 @@ mod tests {
     #[test]
     fn test_exp_rational() {
         let b1o = Blade::wedge(
-            &Blade::from_vector(4, vector![1.0, 0.0, 0.0, 0.0]),
-            &Blade::from_vector(4, vector![0.0, 1.0, 0.0, 0.0]),
+            &Blade::from_vector(vector![1.0, 0.0, 0.0, 0.0]),
+            &Blade::from_vector(vector![0.0, 1.0, 0.0, 0.0]),
         )
         .unwrap();
         let b2o = Blade::wedge(
-            &Blade::from_vector(4, vector![0.0, 0.0, 1.0, 0.0]),
-            &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]),
+            &Blade::from_vector(vector![0.0, 0.0, 1.0, 0.0]),
+            &Blade::from_vector(vector![0.0, 0.0, 0.0, 1.0]),
         )
         .unwrap();
         let bivector = b1o.clone() + b2o.clone();
