@@ -42,10 +42,12 @@ impl approx::AbsDiffEq for Blade {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.ndim == other.ndim
-            && self.grade == other.grade
-            && std::iter::zip(&self.coefficients[..], &other.coefficients[..])
-                .all(|(c1, c2)| approx::AbsDiffEq::abs_diff_eq(c1, c2, epsilon))
+        self.grade == other.grade
+            && crate::util::pad_zip(
+                self.coefficients.iter().copied(),
+                other.coefficients.iter().copied(),
+            )
+            .all(|(l, r)| l.abs_diff_eq(&r, epsilon))
     }
 }
 
