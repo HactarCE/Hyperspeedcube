@@ -65,8 +65,7 @@ impl FromLua for LuaVector {
 
 impl IntoLua for LuaVector {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        let ndim = LuaNdim::get(lua)?;
-        LuaBlade(pga::Blade::from_vector(ndim, self.0)).into_lua(lua)
+        LuaBlade(pga::Blade::from_vector(self.0)).into_lua(lua)
     }
 }
 

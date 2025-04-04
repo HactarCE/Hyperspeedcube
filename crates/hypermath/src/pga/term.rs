@@ -140,8 +140,14 @@ impl Term {
         ndim + 1 - self.grade() // +1 because `ndim` doesn't include e₀
     }
 
+    /// Returns the minimum number of Euclidean dimensions required to represent
+    /// the term.
+    pub const fn min_ndim(self) -> u8 {
+        self.axes.min_ndim()
+    }
+
     /// Returns the reverse term, which has the axes reversed (which in practice
-    /// just means the sign might be flipped).u
+    /// just means the sign might be flipped).
     #[must_use]
     pub fn reverse(mut self) -> Self {
         self.coef *= self.axes.sign_of_reverse();
@@ -173,11 +179,10 @@ impl Term {
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Geometric_products
     #[must_use]
     pub fn geometric_antiproduct(lhs: Self, rhs: Self, ndim: u8) -> Option<Self> {
-        let sign = Axes::sign_of_geometric_antiproduct(lhs.axes, rhs.axes, ndim)?;
-        Some(Term {
-            coef: lhs.coef * rhs.coef * sign,
-            axes: Axes::unsigned_geometric_product(lhs.axes, rhs.axes),
-        })
+        Some(
+            Term::geometric_product(lhs.right_complement(ndim), rhs.right_complement(ndim))?
+                .left_complement(ndim),
+        )
     }
     /// Returns the [right complement] of the term in `ndim`-dimensional space.
     ///

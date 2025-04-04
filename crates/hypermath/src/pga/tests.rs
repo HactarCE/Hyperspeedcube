@@ -3,11 +3,10 @@ use crate::{Hyperplane, Vector, VectorRef};
 
 #[test]
 fn test_cross_product() {
-    let ndim = 3;
-    let a = Blade::from_vector(ndim, Vector::unit(0));
-    let b = Blade::from_vector(ndim, Vector::unit(1));
+    let a = Blade::from_vector(Vector::unit(0));
+    let b = Blade::from_vector(Vector::unit(1));
     let cross = Blade::cross_product_3d(&a, &b).unwrap();
-    assert_approx_eq!(cross, Blade::from_vector(ndim, Vector::unit(2)));
+    assert_approx_eq!(cross, Blade::from_vector(Vector::unit(2)));
     assert_approx_eq!(
         Vector::unit(0).cross_product_3d(Vector::unit(1)),
         Vector::unit(2),
@@ -27,7 +26,7 @@ fn test_transforms() {
         let rot_xy = Motor::rotation(ndim, Vector::unit(0), Vector::unit(1)).unwrap();
         // Reflect across Y=1
         let plane = Hyperplane::from_pole(Vector::unit(1)).unwrap();
-        let refl_plane = Motor::plane_reflection(ndim, &plane);
+        let refl_plane = Motor::plane_reflection(ndim, &plane).unwrap();
         // Reflect across X axis
         let refl_x = Motor::vector_reflection(ndim, Vector::unit(0)).unwrap();
         // Reflect across Y axis
@@ -109,8 +108,8 @@ fn test_hyperplane_construction() {
         for ns in [1.0, -1.0] {
             for ds in [1.0, -1.0] {
                 let h = Hyperplane::new(&normal * ns, distance * ds).unwrap();
-                let b = Blade::from_hyperplane(ndim, &h);
-                assert_approx_eq!(h, b.to_hyperplane().unwrap());
+                let b = Blade::from_hyperplane(ndim, &h).unwrap();
+                assert_approx_eq!(h, b.to_hyperplane(ndim).unwrap());
             }
         }
     }

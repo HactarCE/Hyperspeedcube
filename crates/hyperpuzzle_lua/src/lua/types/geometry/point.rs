@@ -39,7 +39,7 @@ impl FromLua for LuaPoint {
 
 impl IntoLua for LuaPoint {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        LuaBlade::from_point(lua, self.0)?.into_lua(lua)
+        LuaBlade::from_point(self.0)?.into_lua(lua)
     }
 }
 

@@ -1,4 +1,5 @@
 -- issues:
+-- - bandaging on D+ R2 U- R- F*
 -- - how to name 45-degree turns?
 -- - multistage scrambling
 -- - center orientation hints?

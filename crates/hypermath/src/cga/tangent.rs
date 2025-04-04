@@ -79,7 +79,7 @@ fn flat_spanning_basis(blade: &Blade) -> Option<Vec<Vector>> {
         dual_space = new_dual_space;
     }
     if blade.cga_opns_ndim() != Some(spanning_vectors.len() as u8) {
-        log::error!("dimension of tangent space does not match manifold dimension");
+        debug_panic!("dimension of tangent space does not match manifold dimension");
         return None;
     }
     Some(spanning_vectors)
