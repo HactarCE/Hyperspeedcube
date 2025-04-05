@@ -14,14 +14,14 @@
 //! assert_eq!("2x2x2", puzzle.meta.name);
 //! ```
 //!
-//! # Dynamically loading Lua files
+//! # Dynamically loading Rhai files
 //!
 //! By default, the built-in files are dynamically loaded. To bake them into the
 //! executable , add this to your `Cargo.toml` and build with the environment
 //! variable `HSC_OFFICIAL_BUILD=1`:
 //!
 //! ```toml
-//! hyperpuzzle_lua = { version = "*", features = ["hyperpaths"] }
+//! hyperpuzzle_rhai = { version = "*", features = ["hyperpaths"] }
 //! ```
 
 use std::sync::Arc;
@@ -60,7 +60,7 @@ pub fn load_global_catalog() {
 
 /// Loads all puzzle backends into a catalog.
 pub fn load_catalog(catalog: &Catalog) {
-    hyperpuzzle_lua::load_puzzles(catalog, catalog.default_logger());
+    hyperpuzzle_rhai::load_puzzles(catalog, catalog.default_logger());
 }
 
 #[cfg(test)]
