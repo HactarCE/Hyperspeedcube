@@ -36,7 +36,7 @@ impl FileList {
     }
 
     #[cfg(feature = "hyperpaths")]
-    fn load_from_directory(&mut self, directory: &Path) {
+    fn load_from_directory(&mut self, directory: &std::path::Path) {
         for entry in walkdir::WalkDir::new(directory).follow_links(true) {
             match entry {
                 Ok(entry) => {

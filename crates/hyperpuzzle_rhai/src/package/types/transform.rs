@@ -84,7 +84,8 @@ pub fn register(module: &mut Module) {
 
         let angle = match args.get("angle") {
             Some(value) => Some(
-                util::try_to_float(value).map_err(|_| expected_ref("number for `angle`")(value))?,
+                util::try_as_number(value)
+                    .map_err(|_| expected_ref("number for `angle`")(value))?,
             ),
             None => None,
         };
