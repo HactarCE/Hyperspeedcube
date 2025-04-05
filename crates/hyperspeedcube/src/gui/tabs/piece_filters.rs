@@ -878,13 +878,13 @@ fn show_filter_checkboxes_ui(
         let rgbs_iter = color_scheme
             .values()
             .map(|color| prefs.color_palette.get(color).unwrap_or_default());
-        let color_infos_iter = puzzle.colors.list.iter_values();
+        let color_displays = puzzle.colors.display_names.iter_values();
 
         // TODO: refactor
         let show_the_things = |ui: &mut egui::Ui| {
-            for ((state, rgb), color_info) in states_iter.zip(rgbs_iter).zip(color_infos_iter) {
+            for ((state, rgb), display_name) in states_iter.zip(rgbs_iter).zip(color_displays) {
                 let r = &ui.add(
-                    FilterCheckbox::new(allowed_states, Some(state), &color_info.display)
+                    FilterCheckbox::new(allowed_states, Some(state), display_name)
                         .color(rgb.to_egui_color32())
                         .indent(),
                 );

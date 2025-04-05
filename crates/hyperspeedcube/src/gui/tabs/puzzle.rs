@@ -421,13 +421,16 @@ impl PuzzleWidget {
         let sim = Arc::clone(&view.sim);
 
         let color_map = view.temp_colors.as_ref().unwrap_or(&view.colors.value);
-        let sticker_colors = puzzle
-            .colors
-            .list
-            .iter_values()
-            .map(|color_info| prefs.color_palette.get(color_map.get(&color_info.name)?))
-            .map(|maybe_rgb| maybe_rgb.unwrap_or_default().rgb)
-            .collect();
+        let mut sticker_colors = vec![[0; 3]; puzzle.colors.len()];
+        for (name, default_color) in color_map {
+            // IIFE to mimic try_block
+            (|| {
+                let id = puzzle.colors.names.id_from_name(name)?;
+                let rgb = prefs.color_palette.get(default_color)?;
+                sticker_colors[id.to_usize()] = rgb.rgb;
+                Some(())
+            })();
+        }
         view.temp_colors = None; // Remove temporary colors
 
         let piece_styles = view.styles.values(prefs);

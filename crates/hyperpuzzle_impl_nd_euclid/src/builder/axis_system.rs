@@ -7,8 +7,6 @@ use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use super::NamingScheme;
-
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct AxisLayerBuilder {
@@ -85,13 +83,13 @@ impl AxisBuilder {
         Ok(())
     }
 
-    pub(super) fn build_layers(&self) -> Result<PerLayer<LayerInfo>> {
+    pub(super) fn build_layers(&self) -> Result<AxisLayers> {
         // Check that the layer planes are monotonic.
         self.ensure_monotonic_layers()?;
 
-        Ok(self
-            .layers
-            .map_ref(|_, &AxisLayerBuilder { bottom, top }| LayerInfo { bottom, top }))
+        Ok(AxisLayers(self.layers.map_ref(
+            |_, &AxisLayerBuilder { bottom, top }| LayerInfo { bottom, top },
+        )))
     }
 }
 
@@ -102,8 +100,8 @@ pub struct AxisSystemBuilder {
     by_id: PerAxis<AxisBuilder>,
     /// Map from vector to axis ID.
     vector_to_id: ApproxHashMap<Vector, Axis>,
-    /// User-specified axis names.
-    pub names: NamingScheme<Axis>,
+    /// Axis names.
+    pub names: NameSpecBiMapBuilder<Axis>,
 
     /// Orbits used to generate axis, tracked for puzzle dev purposes.
     pub axis_orbits: Vec<DevOrbit<Axis>>,

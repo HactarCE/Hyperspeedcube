@@ -3,6 +3,7 @@ use std::hash::Hash;
 use hypershape::GeneratorSequence;
 
 use super::*;
+use crate::NameSpec;
 
 /// Extra information about how the puzzle was generated, for puzzle dev
 /// purposes.
@@ -28,11 +29,11 @@ pub enum PuzzleElement {
     Color(Color),
 }
 impl PuzzleElement {
-    /// Returns the name of the element on the given puzzle.
-    pub fn name(self, puzzle: &Puzzle) -> Option<&String> {
+    /// Returns the name specification of the element on the given puzzle.
+    pub fn name(self, puzzle: &Puzzle) -> Option<&NameSpec> {
         match self {
-            PuzzleElement::Axis(axis) => Some(&puzzle.axes.get(axis).ok()?.name),
-            PuzzleElement::Color(color) => Some(&puzzle.colors.list.get(color).ok()?.name),
+            PuzzleElement::Axis(axis) => puzzle.axis_names.get(axis).ok(),
+            PuzzleElement::Color(color) => puzzle.colors.names.get(color).ok(),
         }
     }
 }

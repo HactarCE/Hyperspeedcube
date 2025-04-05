@@ -95,24 +95,21 @@ impl PuzzleBuilder {
         // Build twist system.
         let TwistSystemBuildOutput {
             axes,
+            axis_names,
             axis_vectors,
             twists,
+            twist_names,
             twist_transforms,
             gizmo_twists,
         } = self
             .twists
             .build(&self.space(), &mut mesh, &mut dev_data, warn_fn)?;
-        let axis_by_name = axes
-            .iter()
-            .map(|(id, info)| (info.name.clone(), id))
-            .collect();
-        let twist_by_name = twists
-            .iter()
-            .map(|(id, info)| (info.name.clone(), id))
-            .collect();
 
         let mut scramble_twists = twists.iter_keys().collect_vec();
-        scramble_twists.sort_by_cached_key(|&twist| twists[twist].min_name());
+        scramble_twists.sort_by_cached_key(|&twist| match twist_names.get(twist) {
+            Ok(name) => &name.canonical,
+            Err(_) => "",
+        });
 
         // Build vertex sets.
         let space = self.space();
@@ -181,10 +178,10 @@ impl PuzzleBuilder {
             notation: Notation {},
 
             axes,
-            axis_by_name,
+            axis_names,
 
             twists,
-            twist_by_name,
+            twist_names,
 
             dev_data,
 

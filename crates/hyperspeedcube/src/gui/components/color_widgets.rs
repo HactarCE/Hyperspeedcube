@@ -773,14 +773,16 @@ pub fn color_assignment_popup(
 ) {
     let puzzle = puzzle_view.puzzle();
 
-    let Some(color_data) = editing_color.and_then(|id| puzzle.colors.list.get(id).ok()) else {
+    let Some(id) = editing_color.filter(|id| (id.0 as usize) < puzzle.colors.len()) else {
         ui.colored_label(ui.visuals().error_fg_color, "error: no such color");
         return;
     };
+    let color_name = &puzzle.colors.names[id];
+    let color_display_name = &puzzle.colors.display_names[id];
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     ui.horizontal(|ui| {
-        ui.heading(L.colors.puzzle_color_popup_title.with(&color_data.display));
+        ui.heading(L.colors.puzzle_color_popup_title.with(color_display_name));
         crate::gui::components::HelpHoverWidget::show_right_aligned(
             ui,
             &get_color_schemes_markdown(true),
@@ -794,7 +796,7 @@ pub fn color_assignment_popup(
         .show_compact_palette(
             ui,
             Some((&mut puzzle_view.colors.value, &puzzle.colors)),
-            Some(color_data.name.clone()),
+            Some(color_name.to_owned()),
         );
     if changed {
         // the user has no way to save the settings in this UI,

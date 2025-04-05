@@ -9,7 +9,7 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, PuzzleListMetadata};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, NameSpecBiMap, PuzzleListMetadata};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -47,13 +47,13 @@ pub struct Puzzle {
 
     /// List of axes, indexed by ID.
     pub axes: PerAxis<AxisInfo>,
-    /// Map from axis name to axis.
-    pub axis_by_name: HashMap<String, Axis>,
+    /// Axis names.
+    pub axis_names: NameSpecBiMap<Axis>,
 
     /// List of twists, indexed by ID.
     pub twists: PerTwist<TwistInfo>,
-    /// Map from twist name to twist.
-    pub twist_by_name: HashMap<String, Twist>,
+    /// Twist names.
+    pub twist_names: NameSpecBiMap<Twist>,
 
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,

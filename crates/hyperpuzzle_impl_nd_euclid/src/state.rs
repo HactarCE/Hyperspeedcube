@@ -126,7 +126,8 @@ impl PuzzleState for NdEuclidPuzzleState {
 
         // Each color may appear on at most one set of parallel planes. Track
         // that normal vector.
-        let mut color_normals = self.ty().colors.list.map_ref(|_, _| None);
+        let mut color_normals: PerColor<Option<Vector>> =
+            PerColor::new_with_len(self.ty().colors.len());
 
         self.ty().stickers.iter().all(|(sticker, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];

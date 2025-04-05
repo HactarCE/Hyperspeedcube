@@ -6,7 +6,7 @@ use itertools::{Itertools, PutBack};
 use regex::Regex;
 
 lazy_static! {
-    /// Match a name, or any single symbol.
+    /// Regex matching a name, or any single symbol.
     static ref TOKEN_REGEX: Regex =
         Regex::new(r"['@]?([a-zA-Z_][a-zA-Z0-9_]*)|.").expect("bad regex");
 }
@@ -195,7 +195,7 @@ impl FilterExpr {
             Self::OnlyColors(colors) => {
                 let cs = colors
                     .iter()
-                    .filter_map(|color_name| puz.colors.list.find(|_, c| c.name == *color_name))
+                    .filter_map(|color_name| puz.colors.names.id_from_name(&color_name))
                     .collect_vec();
                 let piece_iter = puz.pieces.iter_filter(|_piece, piece_info| {
                     piece_info
@@ -213,21 +213,22 @@ impl FilterExpr {
             }
 
             Self::Terminal(s) => {
-                if let Some(piece_type) = s.strip_prefix('\'') {
+                if let Some(piece_type_name) = s.strip_prefix('\'') {
                     // If the piece type doesn't exist, return an empty mask.
-                    match puz.piece_type_masks.get(piece_type) {
+                    match puz.piece_type_masks.get(piece_type_name) {
                         Some(mask) => mask.clone(),
                         None => PieceMask::new_empty(len),
                     }
                 } else {
-                    let color = s;
-                    match puz.colors.list.find(|_, c| c.name == *color) {
+                    let color_name = s;
+                    // If the color doesn't exist, return an empty mask.
+                    match puz.colors.names.id_from_name(&color_name) {
                         Some(c) => {
                             let piece_iter =
                                 puz.pieces.iter_filter(|p, _| puz.piece_has_color(p, c));
                             PieceMask::from_iter(len, piece_iter)
                         }
-                        None => PieceMask::new_empty(len), // color doesn't exist!
+                        None => PieceMask::new_empty(len),
                     }
                 }
             }
@@ -238,12 +239,9 @@ impl FilterExpr {
     pub fn validate(&self, puz: &Puzzle) -> Result<(), String> {
         let mut references = HashSet::new();
         self.accumulate_references(&mut references);
-        for color_info in puz.colors.list.iter_values() {
-            references.remove(&color_info.name);
-        }
         references.retain(|s| match s.strip_prefix('\'') {
             Some(piece_type_name) => !puz.piece_type_masks.contains_key(piece_type_name),
-            None => true,
+            None => !puz.colors.names.contains_name(s),
         });
 
         if references.is_empty() {
@@ -345,7 +343,7 @@ mod parser {
                             Some("(") => depth += 1,
                             Some(")") => depth -= 1,
                             Some(",") => (), // ignore commas
-                            Some(other) if Color::whole_name_regex().is_match(other) => {
+                            Some(other) if other.chars().all(|c| !c.is_ascii_punctuation()) => {
                                 colors.push(other.to_owned());
                             }
                             None => depth = 0,
@@ -388,7 +386,10 @@ mod tests {
         }
         let s = |cb: &FilterCheckboxes| cb.to_string(&(&colors, &hierarchy));
 
-        let init = FilterCheckboxes::new(&colors, &piece_types);
+        let mut init = FilterCheckboxes::default();
+        init.colors.resize(colors.len()).unwrap();
+        init.piece_types.resize(piece_types.len()).unwrap();
+
         let mut checkboxes;
 
         checkboxes = init.clone();

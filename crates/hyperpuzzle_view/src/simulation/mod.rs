@@ -229,7 +229,7 @@ impl PuzzleSimulation {
         let ty = self.puzzle_type();
         let scramble = Scramble::new(
             params,
-            hyperpuzzle_log::notation::format_twists(&ty.twists, twists),
+            hyperpuzzle_log::notation::format_twists(&ty.twist_names, twists),
         );
         self.scramble = Some(scramble.clone());
         self.undo_stack.push(Action::Scramble);
@@ -342,7 +342,7 @@ impl PuzzleSimulation {
                 Some(scramble) => {
                     let ty = Arc::clone(self.puzzle_type());
                     for twist in
-                        hyperpuzzle_log::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
+                        hyperpuzzle_log::notation::parse_twists(&ty.twist_names, &scramble.twists)
                     {
                         match twist {
                             Ok(twist) => match self.latest_state.do_twist_dyn(twist) {
@@ -688,7 +688,7 @@ impl PuzzleSimulation {
                         continue;
                     }
                     let mut s = hyperpuzzle_log::notation::format_twists(
-                        &puz.twists,
+                        &puz.twist_names,
                         twists.iter().copied(),
                     );
                     if twists.len() > 1 {
@@ -758,18 +758,18 @@ impl PuzzleSimulation {
                     reverse,
                 } => {
                     // TODO: handle errors
-                    let Some(target) = puzzle.twist_by_name.get(target) else {
+                    let Some(target) = puzzle.twist_names.id_from_name(target) else {
                         continue;
                     };
                     ret.replay_event(ReplayEvent::GizmoClick {
                         layers: *layers,
-                        target: *target,
+                        target,
                         reverse: *reverse,
                     });
                 }
                 hyperpuzzle_log::LogEvent::Twists(twists_str) => {
                     for group in hyperpuzzle_log::notation::parse_grouped_twists(
-                        &puzzle.twist_by_name,
+                        &puzzle.twist_names,
                         twists_str,
                     ) {
                         // TODO: handle errors

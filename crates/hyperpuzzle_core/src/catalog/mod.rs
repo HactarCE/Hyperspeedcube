@@ -222,7 +222,7 @@ impl Catalog {
                     match T::get_generators(&mut db_guard).get(generator_id).cloned() {
                         None => Err(format!("no generator with ID {generator_id:?}")),
                         Some(generator) => {
-                            drop(db_guard); // unlock mutex before running Lua code
+                            drop(db_guard); // unlock mutex before running Rhai code
                             file = T::get_generator_filename(&generator);
                             let mut ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");

@@ -1,10 +1,7 @@
-use eyre::{OptionExt, Result, ensure, eyre};
+use eyre::{OptionExt, Result, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
-use itertools::Itertools;
-
-use super::{BadName, NameSet, NamingScheme};
 
 const PUZZLE_PREFIX: &str = "puzzle:";
 
@@ -23,8 +20,10 @@ pub struct ColorSystemBuilder {
 
     /// Data for each color.
     by_id: PerColor<ColorBuilder>,
-    /// User-specified color names.
-    pub names: NamingScheme<Color>,
+    /// Color names.
+    pub names: NameSpecBiMapBuilder<Color>,
+    /// Color display names.
+    pub display_names: PerColor<Option<String>>,
 
     /// Color schemes.
     pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
@@ -45,31 +44,31 @@ impl From<&ColorSystem> for ColorSystemBuilder {
         let ColorSystem {
             id,
             name,
-            list,
+            names,
+            display_names,
             schemes,
             default_scheme,
         } = value;
 
-        let mut ret = ColorSystemBuilder::new_shared(id.clone());
-        ret.name = Some(name.clone());
-        for (i, color) in list {
-            let names = itertools::chain([&color.name], &color.aliases);
-            if let Err(e) = ret.get_or_add_with_name(NameSet::any(names), |_| ()) {
-                log::error!("bad color system {id:?}: {e}");
-            }
-            ret.names
-                .set_display(i, Some(color.display.clone()), |_| ());
+        ColorSystemBuilder {
+            id: id.clone(),
+            name: Some(name.clone()),
+
+            by_id: (0..value.len()).map(|_| ColorBuilder {}).collect(),
+            names: names.clone().into(),
+            display_names: display_names.map_ref(|_, display| Some(display.clone())),
+
+            schemes: schemes
+                .iter()
+                .map(|(k, v)| (k.clone(), v.map_ref(|_, default| Some(default.clone()))))
+                .collect(),
+            default_scheme: Some(default_scheme.clone()),
+
+            color_orbits: vec![],
+
+            is_modified: false,
+            is_shared: true,
         }
-        ret.schemes = schemes
-            .iter()
-            .map(|(k, v)| (k.clone(), v.map_ref(|_, default| Some(default.clone()))))
-            .collect();
-        ret.default_scheme = Some(default_scheme.clone());
-
-        // Reset the "is modified" flag.
-        ret.is_modified = false;
-
-        ret
     }
 }
 impl ColorSystemBuilder {
@@ -177,15 +176,16 @@ impl ColorSystemBuilder {
     /// system if it does not already exist.
     pub fn get_or_add_with_name(
         &mut self,
-        name: NameSet,
+        name_pattern: String,
         warn_fn: impl Fn(BadName),
     ) -> Result<Color> {
-        let s = name.canonical_name().ok_or_eyre(BadName::EmptySet)?;
-        if let Some(&id) = self.names.names_to_ids().get(&s) {
+        if let Some(id) = self.names.get_from_pattern(&name_pattern) {
             Ok(id)
         } else {
             let id = self.add()?;
-            self.names.set_name(id, Some(name), warn_fn);
+            if let Err(e) = self.names.set(id, Some(name_pattern)) {
+                warn_fn(e);
+            }
             Ok(id)
         }
     }
@@ -220,21 +220,22 @@ impl ColorSystemBuilder {
         }
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
-        let colors = super::iter_autonamed(
+        let mut names = self.names.clone();
+        names.autoname(
             self.len(),
-            &self.names,
             hyperpuzzle_core::util::iter_uppercase_letter_names(),
-        )
-        .map(|(_id, (name_set, display))| {
-            let mut string_set = name_set.string_set()?;
-            ensure!(!string_set.is_empty(), "color is missing canonical name");
-            eyre::Ok(ColorInfo {
-                name: string_set.remove(0),
-                aliases: string_set, // all except first
-                display,
+        )?;
+        let names = names.build(self.len()).ok_or_eyre("missing color names")?;
+
+        let display_names = names
+            .iter()
+            .map(|(id, name)| {
+                self.display_names
+                    .get_opt(id)
+                    .unwrap_or_else(|| &name.preferred)
+                    .clone()
             })
-        })
-        .try_collect()?;
+            .collect();
 
         let mut schemes: IndexMap<String, PerColor<DefaultColor>> = self
             .schemes
@@ -272,7 +273,8 @@ impl ColorSystemBuilder {
             id,
             name,
 
-            list: colors,
+            names,
+            display_names,
 
             schemes,
             default_scheme,

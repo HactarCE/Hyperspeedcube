@@ -126,21 +126,19 @@ impl PuzzleCommand {
     pub fn short_description(&self, ty: &Puzzle) -> String {
         match self {
             PuzzleCommand::Grip { axis, layers } => {
-                let axis = axis
-                    .as_ref()
-                    .and_then(|name| ty.axis_by_name.get(name))
-                    .map(|&id| &ty.axes[id]);
-                match axis {
-                    Some(ax) => {
-                        let layer_mask = layers.to_layer_mask(ax);
-                        if layer_mask == LayerMask(0) {
-                            ax.name.clone()
-                        } else {
-                            layer_mask.to_string() + &ax.name
-                        }
+                // IIFE to mimic try_block
+                (|| {
+                    let axis_id = ty.axis_names.id_from_name(axis.as_ref()?)?;
+                    let axis_info = &ty.axes[axis_id];
+                    let layer_mask = layers.to_layer_mask(axis_info);
+                    let axis_name = &ty.axis_names[axis_id];
+                    if layer_mask == LayerMask(0) {
+                        Some(axis_name.to_owned())
+                    } else {
+                        Some(layer_mask.to_string() + axis_name)
                     }
-                    None => layers.to_string(),
-                }
+                })()
+                .unwrap_or_else(|| layers.to_string())
             }
             PuzzleCommand::Twist {
                 axis: _,
@@ -148,7 +146,8 @@ impl PuzzleCommand {
                 layers: _,
             } => todo!("description of twist command"),
             PuzzleCommand::Recenter { axis } => {
-                match axis.as_ref().and_then(|name| ty.axis_by_name.get(name)) {
+                // IIFE to mimic try_block
+                match (|| ty.axis_names.id_from_name(axis.as_ref()?))() {
                     Some(_twist_axis) => todo!("description of recenter command"),
                     None => "Recenter".to_string(),
                 }

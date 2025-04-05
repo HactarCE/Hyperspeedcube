@@ -121,19 +121,10 @@ pub struct StickerInfo {
 /// Twist axis info.
 #[derive(Debug)]
 pub struct AxisInfo {
-    /// Name for the twist axis. (e.g, "U", "R", etc.)
-    pub name: String,
-    /// Additional names for the twist axis.
-    pub aliases: Vec<String>,
     /// Layer.
     pub layers: AxisLayers,
     /// Opposite axis, which has a reversed layer list.
     pub opposite: Option<Axis>,
-}
-impl AsRef<str> for AxisInfo {
-    fn as_ref(&self) -> &str {
-        &self.name
-    }
 }
 
 /// Layers of an axis.
@@ -205,11 +196,6 @@ impl TransformByMotor for LayerInfo {
 /// Twist info.
 #[derive(Debug)]
 pub struct TwistInfo {
-    /// Human-friendly name for the twist. (e.g., "U2", "R'", etc.)
-    pub name: String,
-    /// Additional names for the twist.
-    pub aliases: Vec<String>,
-
     /// Value of this twist in quarter turn metric.
     pub qtm: usize,
 
@@ -226,20 +212,6 @@ pub struct TwistInfo {
 
     /// Whether to include this twist in scrambles.
     pub include_in_scrambles: bool,
-}
-impl AsRef<str> for TwistInfo {
-    fn as_ref(&self) -> &str {
-        &self.name
-    }
-}
-impl TwistInfo {
-    /// Returns the lexicographically first name or alias.
-    pub fn min_name(&self) -> &String {
-        match self.aliases.iter().min() {
-            Some(min_alias) => std::cmp::min(min_alias, &self.name),
-            None => &self.name,
-        }
-    }
 }
 
 /// Piece type info.
@@ -261,15 +233,8 @@ impl AsRef<str> for PieceTypeInfo {
 }
 
 /// Color info.
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct ColorInfo {
-    /// Name for the color. (e.g., "U", "R", etc.)
-    pub name: String,
-    /// Additional names for the color.
-    pub aliases: Vec<String>,
-    /// Display name for the color. (e.g., "Up", "Right", etc.)
-    pub display: String,
-}
+#[derive(Debug)]
+pub struct ColorInfo {}
 
 /// Default color for a puzzle color.
 #[allow(missing_docs)]

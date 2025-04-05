@@ -191,7 +191,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                     .pick_folder()
                 {
                     dir_path.push("lua");
-                    match hyperpuzzle_lua::extract_builtin_files(&dir_path) {
+                    match hyperpuzzle_rhai::extract_builtin_files(&dir_path) {
                         Ok(()) => crate::open_dir(&dir_path),
                         Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
                     }

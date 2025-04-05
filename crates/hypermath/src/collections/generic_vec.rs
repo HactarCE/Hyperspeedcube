@@ -244,12 +244,20 @@ impl<I, E> std::ops::DerefMut for GenericVec<I, E> {
     }
 }
 impl<I: IndexNewtype, E> GenericVec<I, E> {
-    /// Constructs a new empty slab.
+    /// Constructs a new empty vector.
     pub const fn new() -> Self {
         GenericVec {
             values: vec![],
             _phantom: PhantomData,
         }
+    }
+    /// Constructs a new vector with the given length, filling it with default
+    /// values.
+    pub fn new_with_len(len: usize) -> Self
+    where
+        E: Default,
+    {
+        I::iter(len).map(|_| E::default()).collect()
     }
 
     /// Adds an element to the end of the vector and returns its index.
@@ -403,6 +411,15 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
             .map(|(i, e)| f(i, e))
             .collect::<Result<Vec<_>, _>>()?
             .into())
+    }
+}
+impl<I: IndexNewtype, E> GenericVec<I, Option<E>> {
+    /// Returns a reference to the element at `index`, collapsing
+    /// `Result<Option<E>>` to `E`.
+    ///
+    /// Short for `self.get(index).ok().map(Option::as_ref).flatten()`.
+    pub fn get_opt(&self, index: I) -> Option<&E> {
+        self.get(index).ok().map(Option::as_ref).flatten()
     }
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {

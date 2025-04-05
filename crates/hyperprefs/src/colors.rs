@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, btree_map};
+use std::collections::{BTreeMap, HashMap, btree_map};
+use std::hash::Hash;
 
-use hyperpuzzle_core::{ColorSystem, DefaultColor, Rgb};
+use hyperpuzzle_core::{Color, ColorSystem, DefaultColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
@@ -239,18 +240,23 @@ impl GlobalColorPalette {
         let mut changed = false;
 
         let names_match = itertools::equal(
-            scheme.iter().map(|(k, _v)| k),
-            color_system.list.iter().map(|(_id, color)| &color.name),
+            scheme.keys(),
+            color_system.names.iter_values().map(|name| &name.preferred),
         );
         if !names_match {
             changed = true;
+            let mut color_assignments: HashMap<Color, DefaultColor> = std::mem::take(scheme)
+                .into_iter()
+                .filter_map(|(k, v)| Some((color_system.names.id_from_name(&k)?, v)))
+                .collect();
             *scheme = color_system
-                .list
-                .iter_values()
-                .map(|color| {
-                    scheme
-                        .swap_remove_entry(&color.name)
-                        .unwrap_or_else(|| (color.name.clone(), DefaultColor::Unknown))
+                .names
+                .iter()
+                .map(|(id, name)| {
+                    let default_color = color_assignments
+                        .remove(&id)
+                        .unwrap_or_else(|| DefaultColor::Unknown);
+                    (name.preferred.clone(), default_color)
                 })
                 .collect();
         }
@@ -332,7 +338,12 @@ fn preset_from_color_scheme(color_system: &ColorSystem, name: &str) -> (String, 
     let value = color_system
         .get_scheme_or_default(name)
         .iter()
-        .map(|(id, default_color)| (color_system.list[id].name.clone(), default_color.clone()))
+        .filter_map(|(id, default_color)| {
+            Some((
+                color_system.names.get(id).ok()?.preferred.clone(),
+                default_color.clone(),
+            ))
+        })
         .collect();
     (name.to_string(), value)
 }

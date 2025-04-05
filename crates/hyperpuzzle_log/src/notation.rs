@@ -1,7 +1,5 @@
 //! Functions for parsing and formatting general puzzle twist notation.
 
-use std::collections::HashMap;
-
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use regex::Regex;
@@ -9,18 +7,18 @@ use smallvec::{SmallVec, smallvec};
 
 /// Formats a sequence of twists as a string.
 pub fn format_twists(
-    all_twists: &PerTwist<TwistInfo>,
+    twist_names: &NameSpecBiMap<Twist>,
     twists: impl IntoIterator<Item = LayeredTwist>,
 ) -> String {
     twists
         .into_iter()
-        .map(|LayeredTwist { layers, transform }| layers.to_string() + &all_twists[transform].name)
+        .map(|LayeredTwist { layers, transform }| layers.to_string() + &twist_names[transform])
         .join(" ")
 }
 
 /// Parses a sequence of twists, allowing non-nested parenthetical groupings.
 pub fn parse_grouped_twists<'a>(
-    twists_by_name: &'a HashMap<String, Twist>,
+    twist_names: &'a NameSpecBiMap<Twist>,
     s: &'a str,
 ) -> Vec<SmallVec<[Result<LayeredTwist, TwistParseError<'a>>; 1]>> {
     // TODO: handle more than 2 nested parens, and also maybe commutator notation
@@ -28,10 +26,10 @@ pub fn parse_grouped_twists<'a>(
     let mut start = 0;
     while start < s.len() {
         let end = start + s[start..].find('(').unwrap_or(s.len() - start);
-        ret.extend(parse_twists(twists_by_name, &s[start..end]).map(|result| smallvec![result]));
+        ret.extend(parse_twists(twist_names, &s[start..end]).map(|result| smallvec![result]));
         start = end.saturating_add(1).min(s.len());
         let end = start + s[start..].find(')').unwrap_or(s.len() - start);
-        let group: SmallVec<_> = parse_twists(twists_by_name, &s[start..end]).collect();
+        let group: SmallVec<_> = parse_twists(twist_names, &s[start..end]).collect();
         if !group.is_empty() {
             ret.push(group);
         }
@@ -41,22 +39,22 @@ pub fn parse_grouped_twists<'a>(
 }
 /// Parses a sequence of twists with no parentheses.
 pub fn parse_twists<'a>(
-    twists_by_name: &'a HashMap<String, Twist>,
+    twist_names: &'a NameSpecBiMap<Twist>,
     s: &'a str,
 ) -> impl 'a + Iterator<Item = Result<LayeredTwist, TwistParseError<'a>>> {
     s.split_whitespace()
-        .map(|word| parse_twist(twists_by_name, word))
+        .map(|word| parse_twist(twist_names, word))
 }
 
 /// Parses a single twist.
 fn parse_twist<'a>(
-    twists_by_name: &HashMap<String, Twist>,
+    twist_names: &'a NameSpecBiMap<Twist>,
     s: &'a str,
 ) -> Result<LayeredTwist, TwistParseError<'a>> {
     let (layers, rest) = strip_layer_mask_prefix(s)?;
     let layers = layers.unwrap_or(LayerMask::default());
-    let transform = *twists_by_name
-        .get(rest)
+    let transform = twist_names
+        .id_from_name(rest)
         .ok_or(TwistParseError::BadTwist(rest))?;
     Ok(LayeredTwist { layers, transform })
 }

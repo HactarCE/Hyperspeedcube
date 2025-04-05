@@ -1,6 +1,6 @@
 use std::collections::{HashMap, hash_map};
 
-use eyre::{OptionExt, Result, WrapErr, bail, ensure, eyre};
+use eyre::{OptionExt, Result, WrapErr, bail, eyre};
 use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
@@ -10,8 +10,7 @@ use hypershape::{ElementId, Space, ToElementId};
 use itertools::Itertools;
 use pga::{Blade, Motor};
 
-use super::{AxisSystemBuilder, NameSet};
-use crate::builder::NamingScheme;
+use super::AxisSystemBuilder;
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -78,14 +77,14 @@ pub struct TwistSystemBuilder {
     /// Axis system being constructed.
     pub axes: AxisSystemBuilder,
 
-    /// Twist data (not including name).
+    /// Twist data.
     by_id: PerTwist<TwistBuilder>,
+    /// Twist names.
+    pub names: NameSpecBiMapBuilder<Twist>,
     /// Map from twist data to twist ID for each axis.
     ///
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
-    /// User-specified twist names.
-    pub names: NamingScheme<Twist>,
 }
 impl TwistSystemBuilder {
     /// Constructs a empty twist system with a given axis system.
@@ -114,11 +113,10 @@ impl TwistSystemBuilder {
 
         // Check that there is not already an identical twist.
         if let Some(&id) = self.data_to_id.get(&key) {
-            let name = self
-                .names
-                .get(id)
-                .and_then(|name| name.canonical_name())
-                .unwrap_or_default();
+            let name = match self.names.get(id) {
+                Some(existing_twist_name) => existing_twist_name.preferred.clone(),
+                None => "?".to_owned(),
+            };
             return Ok(Err(BadTwist::DuplicateTwist { id, name }));
         }
 
@@ -134,7 +132,7 @@ impl TwistSystemBuilder {
     pub fn add_named(
         &mut self,
         data: TwistBuilder,
-        name: NameSet,
+        name: String,
         warn_fn: impl Fn(String),
     ) -> Result<Option<Twist>> {
         let id = match self.add(data)? {
@@ -144,8 +142,9 @@ impl TwistSystemBuilder {
                 return Ok(None);
             }
         };
-        self.names
-            .set_name(id, Some(name), |e| warn_fn(e.to_string()));
+        if let Err(e) = self.names.set(id, Some(name)) {
+            warn_fn(e.to_string());
+        }
         Ok(Some(id))
     }
 
@@ -174,28 +173,32 @@ impl TwistSystemBuilder {
         dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<TwistSystemBuildOutput> {
-        // Assemble list of axes.
-        let mut axes = PerAxis::<AxisInfo>::new();
-        let mut axis_vectors = PerAxis::<Vector>::new();
-        for (id, (name_set, _display)) in super::iter_autonamed(
+        // Autoname axes.
+        let mut axis_names = self.axes.names.clone();
+        axis_names.autoname(
             self.axes.len(),
-            &self.axes.names,
             hyperpuzzle_core::util::iter_uppercase_letter_names(),
-        ) {
-            let old_axis = self.axes.get(id)?;
-            let vector = old_axis.vector().clone();
-            let layers = old_axis
+        )?;
+        let axis_names = axis_names
+            .build(self.axes.len())
+            .ok_or_eyre("missing axis names")?;
+
+        // Assemble list of axes.
+        let mut axes: PerAxis<AxisInfo> = PerAxis::new();
+        let mut axis_vectors: PerAxis<Vector> = PerAxis::new();
+        for (id, axis) in self.axes.iter() {
+            let layers = axis
                 .build_layers()
-                .wrap_err_with(|| format!("building axis {name_set:?}"))?;
-            let mut string_set = name_set.string_set()?;
-            ensure!(!string_set.is_empty(), "axis is missing canonical name");
+                .wrap_err_with(|| match axis_names.get(id) {
+                    Ok(name) => format!("building axis {:?}", name.preferred),
+                    Err(_) => format!("building axis {id}"),
+                })?;
             axes.push(AxisInfo {
-                name: string_set.remove(0),
-                aliases: string_set, // all except first
-                layers: AxisLayers(layers),
+                layers,
                 opposite: None, // will be set later
             })?;
-            axis_vectors.push(vector)?;
+
+            axis_vectors.push(axis.vector().clone())?;
         }
 
         // Assign opposite axes.
@@ -227,8 +230,8 @@ impl TwistSystemBuilder {
                         axes[axis].opposite = Some(opposite_axis);
                         axes[opposite_axis].opposite = Some(axis);
                     } else {
-                        let name1 = &axes[axis].name;
-                        let name2 = &axes[opposite_axis].name;
+                        let name1 = &axis_names[axis];
+                        let name2 = &axis_names[opposite_axis];
                         let layers1 = &axes[axis].layers;
                         let layers2 = &axes[opposite_axis].layers;
                         warn_fn(eyre!(
@@ -240,26 +243,16 @@ impl TwistSystemBuilder {
             }
         }
 
+        // Autoname twists.
+        let mut twist_names = self.names.clone();
+        twist_names.autoname(self.by_id.len(), (0..).map(|i| format!("T{i}")))?;
+
         // Assemble list of twists.
         let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
         let mut twist_transforms: PerTwist<Motor> = PerTwist::new();
         for (id, old_twist) in &self.by_id {
             let axis = old_twist.axis;
-
-            let (name, aliases);
-            match self.names.get(id) {
-                Some(name_set) => {
-                    let mut string_set = name_set.string_set()?;
-                    ensure!(!string_set.is_empty(), "twist is missing canonical name");
-                    name = string_set.remove(0);
-                    aliases = string_set; // all except first
-                }
-                None => {
-                    name = format!("T{}", id.0 + 1); // 1-indexed
-                    aliases = vec![];
-                }
-            };
 
             if let Some(pole_distance) = old_twist.gizmo_pole_distance {
                 // The axis vector is fixed by the twist.
@@ -290,8 +283,6 @@ impl TwistSystemBuilder {
             // TODO: check that transform keeps layer manifolds fixed
 
             twists.push(TwistInfo {
-                name,
-                aliases,
                 qtm: old_twist.qtm,
                 axis,
                 opposite: None,    // will be assigned later
@@ -301,35 +292,6 @@ impl TwistSystemBuilder {
             twist_transforms.push(old_twist.transform.clone())?;
         }
         // TODO: assign opposite twists.
-
-        // Build twist gizmos.
-        let mut gizmo_face_twists = PerGizmoFace::new();
-        if space.ndim() == 3 {
-            let gizmo_twists = gizmo_twists.iter_values().flatten().cloned().collect_vec();
-            let resulting_gizmo_faces =
-                Self::build_3d_gizmo(space, mesh, &gizmo_twists, &twists, &axis_vectors, warn_fn)?;
-            for (_gizmo_face, twist) in resulting_gizmo_faces {
-                gizmo_face_twists.push(twist)?;
-            }
-        } else if space.ndim() == 4 {
-            for (axis, axis_twists) in gizmo_twists {
-                let resulting_gizmo_faces = Self::build_4d_gizmo(
-                    space,
-                    mesh,
-                    &axes[axis],
-                    &axis_vectors[axis],
-                    &axis_twists,
-                    &twists,
-                    warn_fn,
-                )?;
-                for (_gizmo_face, twist) in resulting_gizmo_faces {
-                    gizmo_face_twists.push(twist)?;
-                }
-            }
-        }
-        if gizmo_face_twists.len() != mesh.gizmo_face_count {
-            bail!("error generating gizmo: face count mismatch");
-        }
 
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
@@ -341,7 +303,7 @@ impl TwistSystemBuilder {
             }
         }
         if let Some(&id) = twists_without_reverse.first() {
-            let name = &twists.get(id)?.name;
+            let name = twist_names.get(id).ok_or_eyre("missing twist name")?;
             warn_fn(eyre!(
                 "some twists (such as {name:?}) have no reverse twist; \
                 one was autogenerated for it, but you should include \
@@ -351,13 +313,11 @@ impl TwistSystemBuilder {
         for id in twists_without_reverse {
             let new_twist_id = twists.next_idx()?;
             let twist = twists.get_mut(id)?;
+            let twist_name = twist_names.get(id).ok_or_eyre("missing twist name")?;
             let twist_transform = &twist_transforms[id];
             twist.reverse = new_twist_id;
-            let rev_twist_name = |original| format!("<reverse of {original:?}>");
             let is_self_reverse = twist_transform.is_self_reverse();
             let new_twist_info = TwistInfo {
-                name: rev_twist_name(&twist.name),
-                aliases: twist.aliases.iter().map(rev_twist_name).collect(),
                 qtm: twist.qtm,
                 axis: twist.axis,
                 opposite: None,
@@ -365,7 +325,48 @@ impl TwistSystemBuilder {
                 include_in_scrambles: !is_self_reverse,
             };
             twists.push(new_twist_info)?;
+            twist_names.set(new_twist_id, Some(format!("<reverse of {twist_name:?}>")))?;
             twist_transforms.push(twist_transform.reverse())?;
+        }
+
+        let twist_names = twist_names
+            .build(self.by_id.len())
+            .ok_or_eyre("missing twist names")?;
+
+        // Build twist gizmos.
+        let mut gizmo_face_twists = PerGizmoFace::new();
+        if space.ndim() == 3 {
+            let gizmo_twists = gizmo_twists.iter_values().flatten().cloned().collect_vec();
+            let resulting_gizmo_faces = Self::build_3d_gizmo(
+                space,
+                mesh,
+                &gizmo_twists,
+                &twist_names,
+                &twists,
+                &axis_vectors,
+                warn_fn,
+            )?;
+            for (_gizmo_face, twist) in resulting_gizmo_faces {
+                gizmo_face_twists.push(twist)?;
+            }
+        } else if space.ndim() == 4 {
+            for (axis, axis_twists) in gizmo_twists {
+                let resulting_gizmo_faces = Self::build_4d_gizmo(
+                    space,
+                    mesh,
+                    &axis_names[axis],
+                    &axis_vectors[axis],
+                    &axis_twists,
+                    &twist_names,
+                    warn_fn,
+                )?;
+                for (_gizmo_face, twist) in resulting_gizmo_faces {
+                    gizmo_face_twists.push(twist)?;
+                }
+            }
+        }
+        if gizmo_face_twists.len() != mesh.gizmo_face_count {
+            bail!("error generating gizmo: face count mismatch");
         }
 
         dev_data.orbits.extend(
@@ -377,8 +378,10 @@ impl TwistSystemBuilder {
 
         Ok(TwistSystemBuildOutput {
             axes,
+            axis_names,
             axis_vectors,
             twists,
+            twist_names,
             twist_transforms,
             gizmo_twists: gizmo_face_twists,
         })
@@ -388,6 +391,7 @@ impl TwistSystemBuilder {
         space: &Space,
         mesh: &mut Mesh,
         twists: &[(Vector, Twist)],
+        twist_names: &NameSpecBiMap<Twist>,
         twist_infos: &PerTwist<TwistInfo>,
         axis_vectors: &PerAxis<Vector>,
         warn_fn: impl Fn(eyre::Report),
@@ -413,7 +417,7 @@ impl TwistSystemBuilder {
             mesh,
             twists,
             "twist gizmo",
-            |twist| &twist_infos[twist].name,
+            |twist| &twist_names[twist],
             |twist| gizmo_surfaces[&twist_infos[twist].axis],
             warn_fn,
         )
@@ -421,10 +425,10 @@ impl TwistSystemBuilder {
     fn build_4d_gizmo(
         space: &Space,
         mesh: &mut Mesh,
-        axis: &AxisInfo,
+        axis_name: &str,
         axis_vector: impl VectorRef,
         twists: &[(Vector, Twist)],
-        twist_infos: &PerTwist<TwistInfo>,
+        twist_names: &NameSpecBiMap<Twist>,
         warn_fn: impl Fn(eyre::Report),
     ) -> Result<Vec<(GizmoFace, Twist)>> {
         use hypershape::flat::*;
@@ -457,8 +461,8 @@ impl TwistSystemBuilder {
             min_radius,
             mesh,
             twists,
-            &format!("twist gizmo for axis {}", &axis.name),
-            |twist| &twist_infos[twist].name,
+            &format!("twist gizmo for axis {axis_name:?}"),
+            |twist| &twist_names[twist],
             |_| gizmo_surface,
             warn_fn,
         )
@@ -613,8 +617,10 @@ impl TwistSystemBuilder {
 #[derive(Debug)]
 pub struct TwistSystemBuildOutput {
     pub axes: PerAxis<AxisInfo>,
+    pub axis_names: NameSpecBiMap<Axis>,
     pub axis_vectors: PerAxis<Vector>,
     pub twists: PerTwist<TwistInfo>,
+    pub twist_names: NameSpecBiMap<Twist>,
     pub twist_transforms: PerTwist<Motor>,
     pub gizmo_twists: PerGizmoFace<Twist>,
 }

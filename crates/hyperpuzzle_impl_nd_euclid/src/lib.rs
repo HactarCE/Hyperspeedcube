@@ -75,9 +75,9 @@ lazy_static! {
             full_scramble_length: 0,
             notation: Notation {},
             axes: PerAxis::new(),
-            axis_by_name: HashMap::new(),
+            axis_names: NameSpecBiMap::new(),
             twists: PerTwist::new(),
-            twist_by_name: HashMap::new(),
+            twist_names: NameSpecBiMap::new(),
             dev_data: PuzzleDevData::new(),
 
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),

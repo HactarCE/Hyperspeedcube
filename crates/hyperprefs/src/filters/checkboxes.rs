@@ -13,16 +13,6 @@ pub struct FilterCheckboxes {
     pub piece_types: PerPieceType<Option<bool>>,
 }
 impl FilterCheckboxes {
-    pub fn new<C, T>(colors: &PerColor<C>, piece_types: &PerPieceType<T>) -> Self {
-        Self {
-            colors: colors.map_ref(|_, _| None),
-            piece_types: piece_types.map_ref(|_, _| None),
-        }
-    }
-    pub fn from_puzzle(puz: &Puzzle) -> Self {
-        Self::new(&puz.colors.list, &puz.piece_types)
-    }
-
     pub fn eval(&self, puz: &Puzzle) -> PieceMask {
         let mut ret = PieceMask::new_full(puz.pieces.len());
 
@@ -114,10 +104,7 @@ pub trait FilterCheckboxesCtx {
 
 impl FilterCheckboxesCtx for Puzzle {
     fn color_name(&self, id: Color) -> &str {
-        match self.colors.list.get(id) {
-            Ok(info) => &info.name,
-            Err(_) => "",
-        }
+        &self.colors.names[id]
     }
     fn piece_type_hierarchy(&self) -> &PieceTypeHierarchy {
         &self.piece_type_hierarchy

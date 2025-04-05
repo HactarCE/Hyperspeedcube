@@ -1,5 +1,8 @@
 use std::borrow::Cow;
+use std::collections::{HashMap, hash_map};
+use std::str::FromStr;
 
+use hypermath::IndexNewtype;
 use itertools::Itertools;
 use nom::Parser;
 use nom::branch::alt;
@@ -10,42 +13,167 @@ use nom::error::Error;
 use nom::multi::{many1, separated_list1};
 use nom::sequence::{delimited, separated_pair};
 
+use super::BadName;
+
 /// Separator characters, in order from loosest-binding to tighest-binding.
 ///
 /// `None` represents individual characters, which use no separator.
 const SEPARATORS: &[Option<char>] = &[Some('_'), Some('-'), Some('.'), None];
 
+/// Returns the preferred name for `name_spec`.
+pub fn preferred_name_from_name_spec(name_spec: &str) -> String {
+    name_spec
+        .chars()
+        .filter(|&c| c != '{' && c != '}')
+        .take_while(|&c| c != '|')
+        .collect()
+}
+
+/// Parsed name specification, such as `I{UFR}`.
+///
+/// TODO: document name specifications
+#[derive(Debug, Clone)]
+pub struct NameSpec {
+    /// Preferred name, such as `IUFR`.
+    pub preferred: String,
+    /// Original name specification, such as `I{UFR}`.
+    pub spec: String,
+    /// Lexicographically-first name; useful for canonical ordering.
+    pub canonical: String,
+}
+impl FromStr for NameSpec {
+    type Err = BadName;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s.to_owned())
+    }
+}
+impl NameSpec {
+    /// Constructs a name specification from a string such as `I{UFR}`.
+    pub fn new(spec: String) -> Result<Self, BadName> {
+        let preferred = preferred_name_from_name_spec(&spec);
+        let canonical = parse_name_spec_into_patterns(&spec)?
+            .into_iter()
+            .map(|(_pattern, canonical)| canonical)
+            .min()
+            .unwrap_or_else(|| preferred.clone());
+        Ok(Self {
+            preferred,
+            spec,
+            canonical,
+        })
+    }
+}
+
+/// Map from name spec to value.
+#[derive(Debug, Clone)]
+pub struct NameSpecMap<I>(HashMap<NamePattern, HashMap<String, I>>);
+impl<I> Default for NameSpecMap<I> {
+    fn default() -> Self {
+        Self(HashMap::default())
+    }
+}
+impl<I: IndexNewtype> NameSpecMap<I> {
+    /// Constructs a new empty name map.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Inserts `name_spec` into the map assocaited to `id`.
+    ///
+    /// If there is an equivalent pattern with an equivalent name, then an error
+    /// is returned and the map is not modified.
+    ///
+    /// If successful, returns the canonicalized name.
+    pub fn insert(&mut self, name_spec: &str, id: I) -> Result<String, BadName> {
+        let mut min_canonical = None;
+        for (pattern, canonical) in parse_name_spec_into_patterns(name_spec)? {
+            match self.0.entry(pattern).or_default().entry(canonical.clone()) {
+                hash_map::Entry::Occupied(e) => {
+                    let other_id = e.get().to_usize();
+                    self.remove(name_spec)?;
+                    return Err(BadName::AlreadyTaken {
+                        name: canonical,
+                        id: other_id,
+                    });
+                }
+                hash_map::Entry::Vacant(vacant_entry) => {
+                    vacant_entry.insert(id.clone());
+                }
+            }
+
+            if min_canonical.as_ref().is_none_or(|it| *it > canonical) {
+                min_canonical = Some(canonical);
+            }
+        }
+        min_canonical.ok_or(BadName::Empty)
+    }
+
+    /// Returns the ID associated with a name.
+    pub fn get(&self, name: &str) -> Option<I> {
+        self.0
+            .iter()
+            .find_map(|(pattern, ids)| ids.get(&*pattern.canonicalize(name)?))
+            .copied()
+    }
+
+    /// Returns the ID of the element with a name based on the preferred form of
+    /// `name_pattern`.
+    ///
+    /// This does not guarantee that the whole pattern is unique.
+    pub fn get_from_pattern(&self, name_pattern: &str) -> Option<I> {
+        self.get(&preferred_name_from_name_spec(name_pattern))
+    }
+
+    /// Removes each pattern in `name_pattern`.
+    pub fn remove(&mut self, name_pattern: &str) -> Result<(), BadName> {
+        for (pattern, canonicalized) in parse_name_spec_into_patterns(name_pattern)? {
+            if let Some(hashmap) = self.0.get_mut(&pattern) {
+                hashmap.remove(&canonicalized);
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Pattern for a name.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NamePattern(SeqNode);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct NamePattern(SeqNode);
 impl NamePattern {
     /// Canonicalizes a string according to the pattern, or returns `None` if
     /// the string does not match the pattern.
-    pub fn canonicalize<'a>(&self, s: &'a str) -> Option<Cow<'a, str>> {
+    fn canonicalize<'a>(&self, s: &'a str) -> Option<Cow<'a, str>> {
         self.0.canonicalize(s)
     }
 }
 
-/// Parses a name specification (such as `I{UFR}`) into a [`NamePattern`] and a
-/// preferred name.
-pub fn parse_name_spec(s: &str) -> Option<(NamePattern, String)> {
-    let name: String = s.chars().filter(|&c| c != '{' && c != '}').collect();
+/// Parses a name specification (such as `I{UFR}|Q`) into a list of
+/// [`NamePattern`]s, each with an associated canonicalized name.
+///
+/// Returns `None` in the case of a parse error.
+fn parse_name_spec_into_patterns(name_spec: &str) -> Result<Vec<(NamePattern, String)>, BadName> {
+    name_spec
+        .split('|')
+        .map(|segment| {
+            let (_remaining_input, seq) = all_consuming(separated_element_sequence(SEPARATORS))
+                .parse_complete(segment)
+                .map_err(|_| BadName::InvalidName {
+                    name: segment.to_string(),
+                })?;
 
-    // Do not allow empty name
-    if name.is_empty() {
-        return None;
-    }
+            let canonicalized = seq
+                .canonicalize(
+                    &segment
+                        .chars()
+                        .filter(|&c| c != '{' && c != '}')
+                        .collect::<String>(),
+                )
+                .ok_or(BadName::InternalError)?
+                .into_owned();
 
-    // Optimize for the simplest case
-    if name == s {
-        return Some((NamePattern(SeqNode::Literal), name));
-    }
-
-    let (_remaining_input, seq) = all_consuming(separated_element_sequence(SEPARATORS))
-        .parse_complete(s)
-        .ok()?;
-
-    Some((NamePattern(seq), name))
+            Ok((NamePattern(seq), canonicalized))
+        })
+        .try_collect()
 }
 
 /// Parser for a sequence of elements separated by a separator character.
@@ -128,19 +256,19 @@ fn chars_permutation<'input>()
             }),
             char('}'),
         ),
-        // Single character. Example: `A`
+        // Single character. Example: `A` (may be apostrophe)
         value(
             PermutationNode {
                 inner: SeqNode::Literal,
                 count: 1,
             },
-            verify(anychar, |c: &char| !c.is_ascii_punctuation()),
+            verify(anychar, |&c: &char| !c.is_ascii_punctuation() || c == '\''),
         ),
     ))
 }
 
 /// AST node containing a literal or a sequence of permutations.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum SeqNode {
     /// Literal string of any length.
     Literal,
@@ -185,7 +313,7 @@ impl SeqNode {
 }
 
 /// AST node containing a permutation of N elements.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct PermutationNode {
     /// Structure of an element of the permutation.
     inner: SeqNode,
@@ -196,7 +324,7 @@ struct PermutationNode {
 impl SeqNode {
     /// Canonicalizes a string according to the pattern, or returns `None` if
     /// the string does not match the pattern.
-    pub fn canonicalize<'a>(&self, s: &'a str) -> Option<Cow<'a, str>> {
+    fn canonicalize<'a>(&self, s: &'a str) -> Option<Cow<'a, str>> {
         match self {
             SeqNode::Literal => Some(s.into()),
 
@@ -256,11 +384,10 @@ mod tests {
 
     #[track_caller]
     fn assert_test_case(input: &str, expected_canonicalized: &str) {
-        let (name_pattern, name) = parse_name_spec(input).unwrap();
-        assert_eq!(
-            name_pattern.canonicalize(&name).unwrap(),
-            expected_canonicalized,
-        );
+        let name_specs = parse_name_spec_into_patterns(input).unwrap();
+        assert_eq!(name_specs.len(), 1);
+        let (_name_pattern, canonicalized) = &name_specs[0];
+        assert_eq!(canonicalized, expected_canonicalized);
     }
 
     #[test]
@@ -286,15 +413,15 @@ mod tests {
         assert_test_case("{Al.pha-Be.ta-Gam.ma}", "Al.pha-Be.ta-Gam.ma");
 
         // empty not allowed
-        assert_eq!(None, parse_name_spec(""));
-        assert_eq!(None, parse_name_spec("{}"));
-        assert_eq!(None, parse_name_spec("{a}"));
-        assert_eq!(None, parse_name_spec("{.}"));
-        assert_eq!(None, parse_name_spec("{a.}"));
-        assert_eq!(None, parse_name_spec("{.a.b}"));
+        parse_name_spec_into_patterns("").unwrap_err();
+        parse_name_spec_into_patterns("{}").unwrap_err();
+        parse_name_spec_into_patterns("{a}").unwrap_err();
+        parse_name_spec_into_patterns("{.}").unwrap_err();
+        parse_name_spec_into_patterns("{a.}").unwrap_err();
+        parse_name_spec_into_patterns("{.a.b}").unwrap_err();
         // mismatch structure not allowed
-        assert_eq!(None, parse_name_spec("{{z_e}_{b_r}_a}"));
-        assert_eq!(None, parse_name_spec("{{z.e}_{br}}_a"));
-        assert_eq!(None, parse_name_spec("{{z.e}_{a.b.c}}_a"));
+        parse_name_spec_into_patterns("{{z_e}_{b_r}_a}").unwrap_err();
+        parse_name_spec_into_patterns("{{z.e}_{br}}_a").unwrap_err();
+        parse_name_spec_into_patterns("{{z.e}_{a.b.c}}_a").unwrap_err();
     }
 }

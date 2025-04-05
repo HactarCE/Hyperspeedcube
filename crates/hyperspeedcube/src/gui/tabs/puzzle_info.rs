@@ -23,7 +23,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.label(format!("Aliases: {:?}", puz.meta.aliases));
         ui.label(format!("Piece count: {}", puz.pieces.len()));
         ui.label(format!("Sticker count: {}", puz.stickers.len()));
-        ui.label(format!("Color count: {}", puz.colors.list.len()));
+        ui.label(format!("Color count: {}", puz.colors.names.len()));
 
         ui.add_space(10.0);
         ui.heading("Piece types");
@@ -33,14 +33,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.add_space(10.0);
         ui.heading("Colors");
-        for color in puz.colors.list.iter_values() {
-            let mut name = color.name.to_string();
-            for alias in &color.aliases {
-                name.push_str(", ");
-                name.push_str(alias);
-            }
-            let display = &color.display;
-            ui.label(format!("• {name} = {display}"));
+        for (name, display) in std::iter::zip(
+            puz.colors.names.iter_values(),
+            puz.colors.display_names.iter_values(),
+        ) {
+            let NameSpec {
+                preferred,
+                spec,
+                canonical,
+            } = name;
+            ui.label(format!(
+                "• spec={:?}, preferred={:?}, canonical={:?}, display={:?}",
+                spec, preferred, canonical, display,
+            ));
         }
 
         ui.add_space(10.0);

@@ -81,6 +81,12 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
         md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
 
+    let name_spec_info_lines = |ui: &mut egui::Ui, label: &str, name: &NameSpec| {
+        info_line(ui, &format!("{label} name"), &name.canonical);
+        info_line(ui, &format!("{label} name spec"), &name.spec);
+        info_line(ui, &format!("{label} canonical name"), &name.canonical);
+    };
+
     let puz = view.puzzle();
 
     if let Some(piece) = view.hovered_piece() {
@@ -98,9 +104,12 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
         let sticker_info = &puz.stickers[sticker];
         ui.label("");
         ui.strong(format!("Color {}", sticker_info.color));
-        let color_info = &puz.colors.list[sticker_info.color];
-        info_line(ui, "Color name", &color_info.name);
-        info_line(ui, "Color display", &color_info.display);
+        if let Ok(name) = puz.colors.names.get(sticker_info.color) {
+            name_spec_info_lines(ui, "Color", name);
+        }
+        if let Ok(display) = puz.colors.display_names.get(sticker_info.color) {
+            info_line(ui, "Color display", display);
+        }
     }
 
     if let Some(hov) = view.hovered_gizmo().filter(|_| view.show_gizmo_hover) {
@@ -116,12 +125,14 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
 
         ui.label("");
         ui.strong(format!("Twist {twist}"));
+        if let Ok(name) = puz.twist_names.get(twist) {
+            name_spec_info_lines(ui, "Twist", name);
+        }
         let twist_info = &puz.twists[twist];
-        info_line(ui, "Twist name", &twist_info.name);
         match twist_info.opposite {
             Some(t) => {
                 info_line(ui, "Opposite twist", &t.to_string());
-                info_line(ui, "Opposite twist name", &puz.twists[t].name);
+                info_line(ui, "Opposite twist name", &puz.twist_names[t]);
             }
             None => {
                 info_line(ui, "Opposite twist", "(none)");
@@ -132,8 +143,10 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
 
         ui.label("");
         ui.strong(format!("Axis {}", twist_info.axis));
+        if let Ok(name) = puz.axis_names.get(twist_info.axis) {
+            name_spec_info_lines(ui, "Axis", name);
+        }
         let axis_info = &puz.axes[twist_info.axis];
-        info_line(ui, "Axis name", &axis_info.name);
         info_line(ui, "Layer count", &axis_info.layers.len().to_string());
     }
 }
@@ -174,7 +187,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                     .enumerate()
                                     .sorted_by_key(|(_, elem)| **elem)
                                     .filter_map(|(i, elem)| {
-                                        Some((i, elem.as_ref()?.name(&puz)?.clone()))
+                                        Some((i, elem.as_ref()?.name(&puz)?.spec.clone()))
                                     })
                                     .collect();
                             }
@@ -272,7 +285,7 @@ fn show_orbit_color(
                     view.temp_colors
                         .get_or_insert_with(|| view.colors.value.clone())
                         .insert(
-                            puz.colors.list[color].name.clone(),
+                            puz.colors.names[color].to_owned(),
                             DefaultColor::HexCode {
                                 rgb: hyperpuzzle::Rgb::mix(
                                     contrasting,
@@ -351,15 +364,16 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
 
     let has_default_colors = schemes.len() == 1;
 
-    let color_name_kv_pairs = pad_to_common_length(color_system.list.iter_values().map(|info| {
-        let string_literal = lua_string_literal(&info.name);
+    let color_name_kv_pairs = pad_to_common_length(color_system.names.iter_values().map(|info| {
+        let string_literal = lua_string_literal(&info.spec);
         format!(" name = {string_literal},")
     }));
-    let color_display_kv_pairs =
-        pad_to_common_length(color_system.list.iter_values().map(|info| {
-            let display = &info.display;
-            format!(" display = {display:?},")
-        }));
+    let color_display_kv_pairs = pad_to_common_length(
+        color_system
+            .display_names
+            .iter_values()
+            .map(|display_name| format!(" display = {display_name:?},")),
+    );
     let default_color_kv_pairs =
         schemes
             .get_index(0)
@@ -375,7 +389,7 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
             });
 
     s += "\n  colors = {\n";
-    for i in 0..color_system.list.len() {
+    for i in 0..color_system.names.len() {
         s += "    {";
         s += &color_name_kv_pairs[i];
         if has_default_colors {
@@ -398,7 +412,10 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         for (name, colors) in &schemes {
             s += &format!("    {{{name:?}, {{\n");
             for (k, v) in colors {
-                let k = escape_lua_table_key(&color_system.list[k].name);
+                let k = escape_lua_table_key(match color_system.names.get(k) {
+                    Ok(name) => &name.spec,
+                    Err(_) => "?",
+                });
                 let v = v.to_string();
                 s += &format!("      {k} = {v:?},\n");
             }
@@ -416,6 +433,7 @@ fn pad_to_common_length(strings: impl IntoIterator<Item = String>) -> Vec<String
     let mut ret = strings.into_iter().collect_vec();
     let max_len = ret.iter().map(|s| s.len()).max().unwrap_or(0);
     for s in &mut ret {
+        s.reserve_exact(max_len - s.len());
         while s.len() < max_len {
             s.push(' ');
         }

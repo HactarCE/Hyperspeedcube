@@ -9,6 +9,7 @@ use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use regex::Regex;
 use smallvec::smallvec;
 
 use super::{ColorSystemBuilder, PieceBuilder, PieceTypeBuilder};
@@ -250,7 +251,12 @@ impl ShapeBuilder {
         name: String,
         display: Option<String>,
     ) -> Result<PieceType> {
-        if !PieceType::whole_name_regex().is_match(&name) {
+        lazy_static! {
+            static ref PIECE_TYPE_NAME_REGEX: Regex =
+                Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*$").expect("bad regex");
+        }
+
+        if !PIECE_TYPE_NAME_REGEX.is_match(&name) {
             bail!("invalid piece type name: {name:?}")
         }
 
