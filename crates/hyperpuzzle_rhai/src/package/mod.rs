@@ -3,6 +3,7 @@ use rhai::plugin::*;
 use rhai::{Dynamic, EvalAltResult, Map, Module, NativeCallContext, Shared};
 
 mod assertions;
+mod catalog;
 mod geometry;
 mod operators;
 mod types;
@@ -19,6 +20,7 @@ impl HyperpuzzlePackage {
         Self::init(&mut module);
 
         assertions::register(&mut module);
+        catalog::register(&mut module, catalog);
         geometry::register(&mut module);
         operators::register(&mut module);
         types::register(&mut module);
@@ -31,7 +33,6 @@ impl HyperpuzzlePackage {
 impl Package for HyperpuzzlePackage {
     fn init(module: &mut Module) {
         StandardPackage::init(module);
-        // TODO
     }
 
     fn as_shared_module(&self) -> Shared<Module> {
