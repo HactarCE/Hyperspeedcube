@@ -1,6 +1,7 @@
 //! Assertion functions.
 
 use super::*;
+use crate::util::{rhai_to_debug, rhai_to_string};
 
 pub fn register(module: &mut Module) {
     new_fn("assert").set_into_module(

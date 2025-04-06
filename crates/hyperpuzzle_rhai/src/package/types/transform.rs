@@ -2,11 +2,10 @@
 
 use hypermath::pga::{Axes, Blade, Motor};
 use hypermath::{Float, Hyperplane, Vector, VectorRef, vector};
-use itertools::Itertools;
 use rhai::Map;
-use util::{expected, expected_ref, get_ndim};
 
 use super::*;
+use crate::Point;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<Motor>("transform");
@@ -32,63 +31,37 @@ pub fn register(module: &mut Module) {
     });
 
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>| -> Result<_> {
-        Ok(Motor::point_reflection(get_ndim(ctx)?, vector![]))
+        Ok(Motor::point_reflection(get_ndim(&ctx)?, vector![]))
     });
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, vector: Vector| -> Result<_> {
-        get_ndim(ctx)?;
+        get_ndim(&ctx)?;
         Ok(Motor::vector_reflection(vector))
     });
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, point: Point| -> Result<_> {
-        Ok(Motor::point_reflection(get_ndim(ctx)?, point.0))
+        Ok(Motor::point_reflection(get_ndim(&ctx)?, point.0))
     });
     new_fn("refl").set_into_module(
         module,
         |ctx: Ctx<'_>, hyperplane: Hyperplane| -> Result<_> {
-            Ok(Motor::plane_reflection(get_ndim(ctx)?, &hyperplane))
+            Ok(Motor::plane_reflection(get_ndim(&ctx)?, &hyperplane))
         },
     );
 
     new_fn("is_refl").set_into_module(module, |m: &mut Motor| m.is_reflection());
 
     new_fn("rot").set_into_module(module, |ctx: Ctx<'_>, args: Map| -> Result<_> {
-        let ndim = get_ndim(ctx)?;
+        let ndim = get_ndim(&ctx)?;
 
-        let fixed_blades: Vec<Blade> = match args.get("fix") {
-            Some(value) => match value.as_array_ref() {
-                Ok(array) => array.iter().cloned().map(try_cast_to_blade).try_collect()?,
-                Err(_) => Err(expected_ref("array for `fix`")(value))?,
-            },
-            None => vec![],
-        };
-        let fix = fixed_blades
+        let_from_map!(&ctx, args, {
+            let fix: OptVecOrSingle<Blade>;
+            let from: Option<Vector>;
+            let to: Option<Vector>;
+            let angle: Option<f64>;
+        });
+
+        let fix = fix
             .into_iter()
             .fold(Blade::scalar(1.0), |a, b| Blade::wedge(&a, &b).unwrap_or(a));
-
-        let from = match args.get("from").cloned() {
-            Some(value) => Some(
-                value
-                    .try_cast_result()
-                    .map_err(expected("vector for `from`"))?,
-            ),
-            None => None,
-        };
-
-        let to = match args.get("to").cloned() {
-            Some(value) => Some(
-                value
-                    .try_cast_result()
-                    .map_err(expected("vector for `to`"))?,
-            ),
-            None => None,
-        };
-
-        let angle = match args.get("angle") {
-            Some(value) => Some(
-                util::try_as_number(value)
-                    .map_err(|_| expected_ref("number for `angle`")(value))?,
-            ),
-            None => None,
-        };
 
         construct_rotation(ndim, fix, from, to, angle)
     });
@@ -172,15 +145,4 @@ fn construct_rotation(
     };
 
     Ok(Motor::from_normalized_vector_product(a, b))
-}
-
-fn try_cast_to_blade(value: Dynamic) -> Result<Blade, String> {
-    Err(value)
-        .or_else(|val| val.try_cast_result::<Blade>())
-        .or_else(|val| val.try_cast_result::<Vector>().map(Blade::from_vector))
-        .or_else(|val| {
-            val.try_cast_result::<Point>()
-                .map(|Point(p)| Blade::from_point(p))
-        })
-        .map_err(expected("vector, point, or blade for fixed element"))
 }

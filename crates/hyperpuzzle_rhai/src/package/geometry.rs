@@ -6,6 +6,7 @@ use hypermath::pga::Motor;
 use hypermath::{Hyperplane, Vector, VectorRef};
 
 use super::*;
+use crate::Point;
 
 pub fn register(module: &mut Module) {
     new_fn("+").set_into_module(module, |u: Point, v: Vector| Point(u.0 + v));

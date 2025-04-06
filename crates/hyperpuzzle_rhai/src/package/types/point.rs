@@ -1,9 +1,10 @@
 //! Rhai Euclidean point type.
 
 use hypermath::VectorRef;
-use util::{try_collect_to_point, try_set_vector_component};
 
+use super::vector::{try_collect_to_vector, try_set_vector_component};
 use super::*;
+use crate::Point;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<Point>("point");
@@ -23,22 +24,28 @@ pub fn register(module: &mut Module) {
     });
 
     // Constructors
-    new_fn("point").set_into_module(module, |x: Dynamic| {
-        x.as_array_ref()
-            .map(|array| try_collect_to_point(&*array))
-            .unwrap_or_else(|_| try_collect_to_point(&[x]))
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x: Dynamic| -> Result<_> {
+        Ok(x.as_array_ref()
+            .map(|array| try_collect_to_point(&ctx, &*array))
+            .unwrap_or_else(|_| try_collect_to_point(&ctx, &[x]))?)
     });
-    new_fn("point").set_into_module(module, |x, y| try_collect_to_point(&[x, y]));
-    new_fn("point").set_into_module(module, |x, y, z| try_collect_to_point(&[x, y, z]));
-    new_fn("point").set_into_module(module, |x, y, z, w| try_collect_to_point(&[x, y, z, w]));
-    new_fn("point").set_into_module(module, |x, y, z, w, v| {
-        try_collect_to_point(&[x, y, z, w, v])
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y])?)
     });
-    new_fn("point").set_into_module(module, |x, y, z, w, v, u| {
-        try_collect_to_point(&[x, y, z, w, v, u])
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y, z| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y, z])?)
     });
-    new_fn("point").set_into_module(module, |x, y, z, w, v, u, t| {
-        try_collect_to_point(&[x, y, z, w, v, u, t])
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y, z, w| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y, z, w])?)
+    });
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y, z, w, v| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y, z, w, v])?)
+    });
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y, z, w, v, u| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y, z, w, v, u])?)
+    });
+    new_fn("point").set_into_module(module, |ctx: Ctx<'_>, x, y, z, w, v, u, t| -> Result<_> {
+        Ok(try_collect_to_point(&ctx, &[x, y, z, w, v, u, t])?)
     });
 
     // Indexing
@@ -75,4 +82,8 @@ pub fn register(module: &mut Module) {
             p.resize_and_set(i, new_value as f64);
         });
     }
+}
+
+fn try_collect_to_point(ctx: &Ctx<'_>, values: &[Dynamic]) -> Result<Point, ConvertError> {
+    try_collect_to_vector(ctx, values).map(Point)
 }

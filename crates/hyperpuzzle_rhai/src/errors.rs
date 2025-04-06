@@ -1,0 +1,87 @@
+use std::fmt;
+
+use rhai::{Dynamic, EvalAltResult};
+
+use crate::{Ctx, FromRhai, Result};
+
+/// Extension trait for [`eyre::Result<T>`] that converts eyre reports into Rhai
+/// errors in a way that includes the error chain.
+pub(crate) trait EyreRhai {
+    type Output;
+
+    /// Converts an [`eyre::Result`] into a Rhai [`Result`].
+    fn eyrefmt(self) -> Result<Self::Output>;
+}
+impl<T> EyreRhai for eyre::Result<T> {
+    type Output = T;
+
+    fn eyrefmt(self) -> Result<T> {
+        // use `{e:#}` to show all eyre context
+        self.map_err(|e| format!("{e:#}").into())
+    }
+}
+
+pub(crate) struct ConvertError {
+    pub expected: String,
+    pub got: String,
+    pub keys: Vec<String>,
+}
+impl fmt::Display for ConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            expected,
+            got,
+            keys: context,
+        } = self;
+        write!(f, "expected {expected}; got {got}")?;
+        let mut keys_iter = context.iter();
+        if let Some(key) = keys_iter.next() {
+            write!(f, " for '{key}'")?;
+        }
+        for key in keys_iter {
+            write!(f, " in '{key}'")?;
+        }
+        Ok(())
+    }
+}
+impl From<ConvertError> for Box<EvalAltResult> {
+    fn from(value: ConvertError) -> Self {
+        value.to_string().into()
+    }
+}
+impl ConvertError {
+    /// Constructs a new conversion error, where `T` is the expected type and
+    /// `got` is the value that was actually gotten.
+    pub fn new<T: FromRhai>(ctx: &Ctx<'_>, got: Option<&Dynamic>) -> Self {
+        Self {
+            expected: T::expected_string(),
+            got: match got {
+                Some(v) => format!("{} {}", v.type_name(), crate::util::rhai_to_debug(ctx, v)),
+                None => "nothing".to_owned(),
+            },
+            keys: vec![],
+        }
+    }
+}
+
+/// Extension trait for `ConvertError` and `Result<T, ConvertError>`.
+pub trait InKey: Sized {
+    /// Adds context `format!("in {s}")` to a conversion error.
+    fn in_structure(self, s: impl ToString) -> Self;
+    /// Adds context `format!("in '{s}'")` (note the single quotes) to a
+    /// conversion error.
+    fn in_key(self, s: impl fmt::Display) -> Self {
+        self.in_structure(format!("'{s}'"))
+    }
+}
+impl InKey for ConvertError {
+    fn in_structure(mut self, s: impl ToString) -> Self {
+        self.keys.push(s.to_string());
+        self
+    }
+}
+impl<T> InKey for Result<T, ConvertError> {
+    fn in_structure(self, s: impl ToString) -> Self {
+        self.map_err(|e| e.in_structure(s))
+    }
+}

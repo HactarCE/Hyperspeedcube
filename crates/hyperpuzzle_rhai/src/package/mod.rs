@@ -1,21 +1,16 @@
 use rhai::packages::{Package, StandardPackage};
 use rhai::plugin::*;
-use rhai::{Dynamic, EvalAltResult, Module, NativeCallContext, Shared};
+use rhai::{Dynamic, EvalAltResult, Map, Module, NativeCallContext, Shared};
 
 mod assertions;
 mod geometry;
 mod operators;
 mod types;
-mod util;
 
-use util::{new_fn, rhai_to_debug, rhai_to_string};
-
-use crate::Result;
-
-#[derive(Debug, Default, Clone)]
-pub struct Point(pub hypermath::Vector);
-
-type Ctx<'a> = NativeCallContext<'a>;
+use crate::convert::*;
+use crate::errors::*;
+use crate::util::{get_ndim, new_fn, void_warn, warn, warnf};
+use crate::{Ctx, Result};
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {

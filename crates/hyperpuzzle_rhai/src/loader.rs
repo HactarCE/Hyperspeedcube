@@ -204,11 +204,12 @@ pub(crate) fn load_files_with_new_engine(
     engine.set_module_resolver(resolver);
 
     let l = logger.clone();
-    engine.on_print(move |s| l.info(s));
-    engine.on_debug(|s, src, pos| match src {
-        Some(src) => log::debug!("[{src}:{pos}] {s}"),
-        None => log::debug!("[{pos}] {s}"),
-    });
+    // TODO: logging
+    // engine.on_print(move |s| l.info(s));
+    // engine.on_debug(|s, src, pos| match src {
+    //     Some(src) => log::debug!("[{src}:{pos}] {s}"),
+    //     None => log::debug!("[{pos}] {s}"),
+    // });
 
     // Load files in lexicographic order. The order shouldn't matter, but it's
     // nice to be deterministic.

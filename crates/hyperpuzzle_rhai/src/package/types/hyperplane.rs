@@ -3,6 +3,7 @@
 use hypermath::{Hyperplane, Vector};
 
 use super::*;
+use crate::Point;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<Hyperplane>("plane");
