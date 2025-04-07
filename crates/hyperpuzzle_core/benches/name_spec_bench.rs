@@ -1,12 +1,13 @@
 #![allow(missing_docs, unused_crate_dependencies)]
 
+use std::cell::RefCell;
+
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use hyperpuzzle_core::{
     NameSpecBiMapBuilder, Piece, name_spec_matches_name, preferred_name_from_name_spec,
 };
 use itertools::Itertools;
 use rand::seq::IndexedRandom;
-use std::cell::RefCell;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect_vec();
