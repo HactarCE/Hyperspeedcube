@@ -25,6 +25,14 @@ impl HyperpuzzlePackage {
         operators::register(&mut module);
         types::register(&mut module);
 
+        module.set_var("PI", std::f64::consts::PI);
+        module.set_var("TAU", std::f64::consts::TAU);
+        module.set_var("PHI", (1.0 + f64::sqrt(5.0)) * 0.5);
+        new_fn("deg").set_into_module(&mut module, |deg: i64| {
+            deg as f64 * std::f64::consts::PI / 180.0
+        });
+        new_fn("deg").set_into_module(&mut module, |deg: f64| deg * std::f64::consts::PI / 180.0);
+
         module.build_index();
         Self(Shared::new(module))
     }

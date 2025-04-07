@@ -69,11 +69,13 @@ pub fn register(module: &mut Module) {
             try_set_vector_component(v, i, new_value as f64)
         });
 
-    // Component getters & setters
+    // Constants and component getters & setters
     for (i, c) in hypermath::AXIS_NAMES.chars().enumerate() {
         let i = i as u8;
-        let name = c.to_ascii_lowercase().to_string();
 
+        module.set_var(c.to_string(), Vector::unit(i));
+
+        let name = c.to_ascii_lowercase().to_string();
         let getter = || FuncRegistration::new_getter(&name);
         let setter = || FuncRegistration::new_setter(&name);
 
