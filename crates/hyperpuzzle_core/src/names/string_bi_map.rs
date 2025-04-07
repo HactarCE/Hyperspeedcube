@@ -88,10 +88,7 @@ impl<I: IndexNewtype> StringBiMapBuilder<I> {
             // TODO: consider more validation
             if let Some(&other_id) = self.string_to_id.get(s) {
                 if other_id != id {
-                    return Err(BadName::AlreadyTaken {
-                        name: s.clone(),
-                        id: other_id.to_usize(),
-                    });
+                    return Err(BadName::AlreadyTaken { name: s.clone() });
                 }
             }
             self.string_to_id.insert(s.clone(), id);

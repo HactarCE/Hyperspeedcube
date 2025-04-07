@@ -46,11 +46,11 @@ impl<I: IndexNewtype> NameSpecBiMap<I> {
     }
     /// Returns the ID associated to a string, if there is one.
     pub fn id_from_name(&self, name: &str) -> Option<I> {
-        self.name_to_id.get(name)
+        self.name_to_id.get(name).copied()
     }
     /// Returns the name by which a string is associated to an ID.
     pub fn look_up_name(&self, name: &str) -> Option<&NameSpec> {
-        let id = self.name_to_id.get(name)?;
+        let id = *self.name_to_id.get(name)?;
         Some(&self.id_to_name[id])
     }
 
@@ -95,7 +95,7 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
         let Some(new_name) = name_spec else {
             return Ok(());
         };
-        match self.name_to_id.insert(&new_name, id) {
+        match self.name_to_id.insert(&new_name, &id) {
             Ok(canonical) => {
                 self.id_to_name.extend_to_contain(id);
                 self.id_to_name[id] = Some(NameSpec {
@@ -108,7 +108,7 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
             Err(e) => {
                 if let Some(old_name) = old_name {
                     // Revert removal.
-                    self.name_to_id.insert(&old_name.spec, id)?;
+                    self.name_to_id.insert(&old_name.spec, &id)?;
                 }
                 Err(e)
             }
@@ -130,7 +130,7 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
     }
     /// Returns the ID associated to a string, if there is one.
     pub fn id_from_string(&self, string: &str) -> Option<I> {
-        self.name_to_id.get(string)
+        self.name_to_id.get(string).copied()
     }
     /// Returns the name by which a string is associated to an ID.
     pub fn look_up_name(&self, name: &str) -> Option<&NameSpec> {

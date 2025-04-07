@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
 use std::str::FromStr;
 
-use hypermath::IndexNewtype;
 use itertools::Itertools;
 use nom::Parser;
 use nom::branch::alt;
@@ -27,6 +26,24 @@ pub fn preferred_name_from_name_spec(name_spec: &str) -> String {
         .filter(|&c| c != '{' && c != '}')
         .take_while(|&c| c != '|')
         .collect()
+}
+
+/// Returns whether a name spec is valid.
+pub fn is_name_spec_valid(name_spec: &str) -> bool {
+    parse_name_spec_into_patterns(name_spec).is_ok()
+}
+
+/// Returns whether ar name spec matches a name.
+///
+/// Consider building a [`NameSpecMap`] if calling this multiple times on the
+/// same name spec.
+pub fn name_spec_matches_name(name_spec: &str, name: &str) -> bool {
+    parse_name_spec_into_patterns(name_spec).is_ok_and(|patterns| {
+        patterns.into_iter().any(|(pat, canonicalized_name_spec)| {
+            pat.canonicalize(name)
+                .is_some_and(|canonicalized_name| canonicalized_name == canonicalized_name_spec)
+        })
+    })
 }
 
 /// Parsed name specification, such as `I{UFR}`.
@@ -67,61 +84,64 @@ impl NameSpec {
 
 /// Map from name spec to value.
 #[derive(Debug, Clone)]
-pub struct NameSpecMap<I>(HashMap<NamePattern, HashMap<String, I>>);
-impl<I> Default for NameSpecMap<I> {
+pub struct NameSpecMap<V>(HashMap<NamePattern, HashMap<String, V>>);
+impl<V> Default for NameSpecMap<V> {
     fn default() -> Self {
         Self(HashMap::default())
     }
 }
-impl<I: IndexNewtype> NameSpecMap<I> {
+impl<V: Clone> NameSpecMap<V> {
     /// Constructs a new empty name map.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Inserts `name_spec` into the map assocaited to `id`.
+    /// Inserts `name_spec` into the map associated to `value`.
     ///
     /// If there is an equivalent pattern with an equivalent name, then an error
     /// is returned and the map is not modified.
     ///
     /// If successful, returns the canonicalized name.
-    pub fn insert(&mut self, name_spec: &str, id: I) -> Result<String, BadName> {
+    pub fn insert(&mut self, name_spec: &str, value: &V) -> Result<String, BadName> {
         let mut min_canonical = None;
-        for (pattern, canonical) in parse_name_spec_into_patterns(name_spec)? {
-            match self.0.entry(pattern).or_default().entry(canonical.clone()) {
-                hash_map::Entry::Occupied(e) => {
-                    let other_id = e.get().to_usize();
-                    self.remove(name_spec)?;
-                    return Err(BadName::AlreadyTaken {
-                        name: canonical,
-                        id: other_id,
-                    });
+        let mut saved_patterns = vec![];
+        for (pattern, canonicalized_name) in parse_name_spec_into_patterns(name_spec)? {
+            let pat = pattern;
+            let canon = canonicalized_name;
+            match self.0.entry(pat.clone()).or_default().entry(canon.clone()) {
+                hash_map::Entry::Occupied(_) => {
+                    // Remove partial progress.
+                    for (pat, canon) in saved_patterns {
+                        self.0.entry(pat).or_default().remove(&canon);
+                    }
+
+                    return Err(BadName::AlreadyTaken { name: canon });
                 }
                 hash_map::Entry::Vacant(vacant_entry) => {
-                    vacant_entry.insert(id.clone());
+                    vacant_entry.insert(value.clone());
+                    saved_patterns.push((pat, canon.clone()));
                 }
             }
 
-            if min_canonical.as_ref().is_none_or(|it| *it > canonical) {
-                min_canonical = Some(canonical);
+            if min_canonical.as_ref().is_none_or(|it| *it > canon) {
+                min_canonical = Some(canon);
             }
         }
         min_canonical.ok_or(BadName::Empty)
     }
 
-    /// Returns the ID associated with a name.
-    pub fn get(&self, name: &str) -> Option<I> {
+    /// Returns the value associated with a name.
+    pub fn get(&self, name: &str) -> Option<&V> {
         self.0
             .iter()
             .find_map(|(pattern, ids)| ids.get(&*pattern.canonicalize(name)?))
-            .copied()
     }
 
     /// Returns the ID of the element with a name based on the preferred form of
     /// `name_pattern`.
     ///
     /// This does not guarantee that the whole pattern is unique.
-    pub fn get_from_pattern(&self, name_pattern: &str) -> Option<I> {
+    pub fn get_from_pattern(&self, name_pattern: &str) -> Option<&V> {
         self.get(&preferred_name_from_name_spec(name_pattern))
     }
 

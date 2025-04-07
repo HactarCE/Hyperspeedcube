@@ -2,7 +2,10 @@ mod name_spec;
 mod name_spec_bi_map;
 mod string_bi_map;
 
-pub use name_spec::{NameSpec, NameSpecMap, preferred_name_from_name_spec};
+pub use name_spec::{
+    NameSpec, NameSpecMap, is_name_spec_valid, name_spec_matches_name,
+    preferred_name_from_name_spec,
+};
 pub use name_spec_bi_map::{NameSpecBiMap, NameSpecBiMapBuilder};
 pub use string_bi_map::{StringBiMap, StringBiMapBuilder};
 
@@ -10,8 +13,8 @@ pub use string_bi_map::{StringBiMap, StringBiMapBuilder};
 #[allow(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum BadName {
-    #[error("name {name:?} is already taken by #{id}")]
-    AlreadyTaken { name: String, id: usize },
+    #[error("name {name:?} is already taken")]
+    AlreadyTaken { name: String },
     #[error("name {name:?} is invalid")]
     InvalidName { name: String },
     #[error("name is empty")]

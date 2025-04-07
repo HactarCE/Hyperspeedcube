@@ -42,3 +42,10 @@ tinyset = { workspace = true }
 # Color conversions
 ecolor = { workspace = true, optional = true }
 oklab = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "name_spec_bench"
+harness = false
