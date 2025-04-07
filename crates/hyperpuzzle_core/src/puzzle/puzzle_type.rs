@@ -9,7 +9,7 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, NameSpecBiMap, PuzzleListMetadata};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, PuzzleListMetadata};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -45,15 +45,12 @@ pub struct Puzzle {
     /// Move notation.
     pub notation: Notation,
 
-    /// List of axes, indexed by ID.
-    pub axes: PerAxis<AxisInfo>,
-    /// Axis names.
-    pub axis_names: NameSpecBiMap<Axis>,
-
-    /// List of twists, indexed by ID.
-    pub twists: PerTwist<TwistInfo>,
-    /// Twist names.
-    pub twist_names: NameSpecBiMap<Twist>,
+    /// Axis system.
+    pub axes: Arc<AxisSystem>,
+    /// Layers for each axis.
+    pub axis_layers: PerAxis<AxisLayers>,
+    /// Twist system.
+    pub twists: Arc<TwistSystem>,
 
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,
@@ -141,8 +138,8 @@ impl Puzzle {
         let random_twists = std::iter::from_fn(|| {
             let random_twist = *self.scramble_twists.choose(&mut rng)?;
 
-            let axis = self.twists[random_twist].axis;
-            let layer_count = self.axes[axis].layers.len().max(1) as crate::LayerMaskUint;
+            let axis = self.twists.twists[random_twist].axis;
+            let layer_count = self.axis_layers[axis].len().max(1) as crate::LayerMaskUint;
             let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
 
             Some(LayeredTwist {

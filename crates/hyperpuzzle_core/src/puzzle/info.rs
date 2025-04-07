@@ -43,8 +43,8 @@ hypermath::idx_struct! {
     #[derive(Serialize, Deserialize)]
     pub struct Axis(pub u16);
 
-    /// ID of a **twist**, which is a single move that can be applied to the
-    /// puzzle.
+    /// ID of a **twist**, which is a transform on a grip that can be applied to
+    /// the puzzle on any layer.
     #[derive(Serialize, Deserialize)]
     pub struct Twist(pub u32);
 
@@ -55,6 +55,11 @@ hypermath::idx_struct! {
     /// ID of a **piece type**, a subset of the **pieces** of the puzzle.
     #[derive(Serialize, Deserialize)]
     pub struct PieceType(pub u16);
+
+    /// ID of a **vantage**, which along with a **vantage set**, corresponds to
+    /// angle from which to view and interact with the puzzle.
+    #[derive(Serialize, Deserialize)]
+    pub struct Vantage(pub u32);
 }
 
 impl Surface {
@@ -85,6 +90,8 @@ pub type PerTwist<T> = GenericVec<Twist, T>;
 pub type PerLayer<T> = GenericVec<Layer, T>;
 /// List containing a value per piece type.
 pub type PerPieceType<T> = GenericVec<PieceType, T>;
+/// List containing a value per vantage.
+pub type PerVantage<T> = GenericVec<Vantage, T>;
 
 /// Sparse set of pieces in a puzzle.
 pub type PieceSet = Set64<Piece>;
@@ -198,18 +205,10 @@ impl TransformByMotor for LayerInfo {
 pub struct TwistInfo {
     /// Value of this twist in quarter turn metric.
     pub qtm: usize,
-
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
-
-    /// Opposite twist. With a reversed layer mask, this applies the
-    /// same transformation to the same pieces. For example, R and L' are
-    /// opposite twists on a 3x3x3.
-    pub opposite: Option<Twist>,
-
     /// Reverse twist, which undoes this one.
     pub reverse: Twist,
-
     /// Whether to include this twist in scrambles.
     pub include_in_scrambles: bool,
 }

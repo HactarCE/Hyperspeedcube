@@ -13,8 +13,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         };
 
         let puz = view.puzzle();
-        for (transform, info) in &puz.twists {
-            if ui.button(&puz.twist_names[transform]).clicked() {
+        for (transform, info) in &puz.twists.twists {
+            if ui.button(&puz.twists.names[transform]).clicked() {
                 let layers = LayerMask::default();
                 let twist = LayeredTwist { layers, transform };
                 view.sim

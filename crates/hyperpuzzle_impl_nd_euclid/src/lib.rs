@@ -53,6 +53,8 @@ impl NdEuclidPuzzleUiData {
 lazy_static! {
     /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
     pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = {
+        let axes = Arc::new(AxisSystem::new_empty());
+        let twists = Arc::new(TwistSystem::new_empty(&axes));
         let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
         Arc::new_cyclic(|this| Puzzle {
@@ -74,10 +76,9 @@ lazy_static! {
             scramble_twists: vec![],
             full_scramble_length: 0,
             notation: Notation {},
-            axes: PerAxis::new(),
-            axis_names: NameSpecBiMap::new(),
-            twists: PerTwist::new(),
-            twist_names: NameSpecBiMap::new(),
+            axes,
+            axis_layers: PerAxis::new(),
+            twists,
             dev_data: PuzzleDevData::new(),
 
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),

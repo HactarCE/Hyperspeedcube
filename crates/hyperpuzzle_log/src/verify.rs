@@ -43,7 +43,7 @@ fn verify_internal(
     };
 
     let scramble_twists: Vec<LayeredTwist> =
-        notation::parse_twists(&puzzle.twist_names, &scramble.twists)
+        notation::parse_twists(&puzzle.twists.names, &scramble.twists)
             .try_collect()
             .ok()?;
     let expected_scrambled_puzzle = puzzle.new_scrambled(scramble_params.clone()); // TODO: this may be very slow
@@ -65,7 +65,8 @@ fn verify_internal(
             LogEvent::Scramble => return None, // don't scramble again!
             LogEvent::Click { .. } => (),      // ignore interaction events
             LogEvent::Twists(twists_str) => {
-                for twist_group in notation::parse_grouped_twists(&puzzle.twist_names, twists_str) {
+                for twist_group in notation::parse_grouped_twists(&puzzle.twists.names, twists_str)
+                {
                     twist_groups.push(twist_group.into_iter().try_collect().ok()?);
                 }
             }

@@ -25,8 +25,8 @@ struct CachedTransformData {
     pub transformed_vectors: PerAxis<Option<Vector>>,
 }
 impl CachedTransformData {
-    fn new(motor: pga::Motor, axes: &PerAxis<AxisInfo>) -> Self {
-        let transformed_vectors = axes.map_ref(|_, _| None);
+    fn new(motor: pga::Motor, axes: &AxisSystem) -> Self {
+        let transformed_vectors = PerAxis::new_with_len(axes.len());
         let rev_motor = motor.reverse();
         Self {
             motor,
@@ -77,7 +77,7 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
-        let twist_info = &self.puzzle_type.twists[twist.transform];
+        let twist_info = &self.puzzle_type.twists.twists[twist.transform];
         let twist_transform = &self.geom.twist_transforms[twist.transform];
         let grip = self.compute_grip(twist_info.axis, twist.layers);
 
@@ -148,14 +148,14 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {
-        let Ok(axis_info) = self.puzzle_type.axes.get(axis) else {
+        let Ok(axis_layers) = self.puzzle_type.axis_layers.get(axis) else {
             log::error!("bad axis ID");
             return self.puzzle_type.pieces.map_ref(|_, _| WhichSide::Split);
         };
 
         let grip_layers = layers
             .iter()
-            .filter_map(|layer| Some((layer, axis_info.layers.0.get(layer).ok()?)))
+            .filter_map(|layer| Some((layer, axis_layers.0.get(layer).ok()?)))
             .collect_vec();
 
         let mut segments: Vec<(Float, Float)> = vec![];
@@ -200,16 +200,15 @@ impl PuzzleState for NdEuclidPuzzleState {
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let (piece_bottom, piece_top) = self.piece_min_max_on_axis(piece, axis).ok()?;
-        let axis_info = self.puzzle_type.axes.get(axis).ok()?;
-        axis_info.layers.contiguous_range(piece_bottom, piece_top)
+        let axis_layers = self.puzzle_type.axis_layers.get(axis).ok()?;
+        axis_layers.contiguous_range(piece_bottom, piece_top)
     }
 
     fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let ty = self.ty();
-        let axis_info = self.puzzle_type.axes.get(axis).ok()?;
+        let axis_layers = self.puzzle_type.axis_layers.get(axis).ok()?;
 
-        let mut floats = axis_info
-            .layers
+        let mut floats = axis_layers
             .0
             .iter_values()
             .flat_map(|layer_info| [layer_info.top, layer_info.bottom])
@@ -243,7 +242,7 @@ impl PuzzleState for NdEuclidPuzzleState {
             return None;
         }
 
-        axis_info.layers.contiguous_range(lo, hi)
+        axis_layers.contiguous_range(lo, hi)
     }
 
     fn render_data(&self) -> BoxDynPuzzleStateRenderData {
@@ -258,7 +257,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         twist: LayeredTwist,
         t: f32,
     ) -> BoxDynPuzzleStateRenderData {
-        let axis = self.puzzle_type.twists[twist.transform].axis;
+        let axis = self.puzzle_type.twists.twists[twist.transform].axis;
         let grip = self.compute_gripped_pieces(axis, twist.layers);
         let anim = NdEuclidPuzzleAnimation {
             pieces: grip,

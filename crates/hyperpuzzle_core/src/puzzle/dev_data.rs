@@ -32,7 +32,7 @@ impl PuzzleElement {
     /// Returns the name specification of the element on the given puzzle.
     pub fn name(self, puzzle: &Puzzle) -> Option<&NameSpec> {
         match self {
-            PuzzleElement::Axis(axis) => puzzle.axis_names.get(axis).ok(),
+            PuzzleElement::Axis(axis) => puzzle.axes.names.get(axis).ok(),
             PuzzleElement::Color(color) => puzzle.colors.names.get(color).ok(),
         }
     }

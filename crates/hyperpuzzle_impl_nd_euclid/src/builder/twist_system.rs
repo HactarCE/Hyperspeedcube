@@ -1,4 +1,5 @@
 use std::collections::{HashMap, hash_map};
+use std::sync::Arc;
 
 use eyre::{OptionExt, Result, WrapErr, bail, eyre};
 use float_ord::FloatOrd;
@@ -7,6 +8,7 @@ use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use hypershape::{ElementId, Space, ToElementId};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use pga::{Blade, Motor};
 
@@ -184,7 +186,7 @@ impl TwistSystemBuilder {
             .ok_or_eyre("missing axis names")?;
 
         // Assemble list of axes.
-        let mut axes: PerAxis<AxisInfo> = PerAxis::new();
+        let mut axis_layers: PerAxis<AxisLayers> = PerAxis::new();
         let mut axis_vectors: PerAxis<Vector> = PerAxis::new();
         for (id, axis) in self.axes.iter() {
             let layers = axis
@@ -193,23 +195,21 @@ impl TwistSystemBuilder {
                     Ok(name) => format!("building axis {:?}", name.preferred),
                     Err(_) => format!("building axis {id}"),
                 })?;
-            axes.push(AxisInfo {
-                layers,
-                opposite: None, // will be set later
-            })?;
-
+            axis_layers.push(layers)?;
             axis_vectors.push(axis.vector().clone())?;
         }
 
         // Assign opposite axes.
-        for axis in axes.iter_keys() {
-            if axes[axis].opposite.is_some() {
+        let axis_ids = axis_layers.iter_keys();
+        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new();
+        for axis in axis_ids {
+            if axis_opposites[axis].is_some() {
                 continue; // already visited it
             }
 
             if let Some(opposite_axis) = self.axes.vector_to_id(-&axis_vectors[axis]) {
-                let self_layers = &axes[axis].layers.0;
-                let opposite_layers = &axes[opposite_axis].layers.0;
+                let self_layers = &axis_layers[axis].0;
+                let opposite_layers = &axis_layers[opposite_axis].0;
 
                 // Do the layers overlap?
                 let overlap = Option::zip(self_layers.last(), opposite_layers.last())
@@ -227,13 +227,13 @@ impl TwistSystemBuilder {
                         });
 
                     if is_same_but_reversed {
-                        axes[axis].opposite = Some(opposite_axis);
-                        axes[opposite_axis].opposite = Some(axis);
+                        axis_opposites[axis] = Some(opposite_axis);
+                        axis_opposites[opposite_axis] = Some(axis);
                     } else {
                         let name1 = &axis_names[axis];
                         let name2 = &axis_names[opposite_axis];
-                        let layers1 = &axes[axis].layers;
-                        let layers2 = &axes[opposite_axis].layers;
+                        let layers1 = &axis_layers[axis];
+                        let layers2 = &axis_layers[opposite_axis];
                         warn_fn(eyre!(
                             "axes {name1} and {name2} are opposite and overlapping, \
                              but the layers do not match ({layers1} vs. {layers2})"
@@ -248,7 +248,7 @@ impl TwistSystemBuilder {
         twist_names.autoname(self.by_id.len(), (0..).map(|i| format!("T{i}")))?;
 
         // Assemble list of twists.
-        let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
+        let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axis_layers.map_ref(|_, _| vec![]);
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
         let mut twist_transforms: PerTwist<Motor> = PerTwist::new();
         for (id, old_twist) in &self.by_id {
@@ -285,13 +285,11 @@ impl TwistSystemBuilder {
             twists.push(TwistInfo {
                 qtm: old_twist.qtm,
                 axis,
-                opposite: None,    // will be assigned later
                 reverse: Twist(0), // will be assigned later
                 include_in_scrambles: old_twist.include_in_scrambles,
             })?;
             twist_transforms.push(old_twist.transform.clone())?;
         }
-        // TODO: assign opposite twists.
 
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
@@ -320,7 +318,6 @@ impl TwistSystemBuilder {
             let new_twist_info = TwistInfo {
                 qtm: twist.qtm,
                 axis: twist.axis,
-                opposite: None,
                 reverse: id,
                 include_in_scrambles: !is_self_reverse,
             };
@@ -376,12 +373,22 @@ impl TwistSystemBuilder {
                 .map(|dev_orbit| dev_orbit.map(|id| Some(PuzzleElement::Axis(id)))),
         );
 
-        Ok(TwistSystemBuildOutput {
-            axes,
-            axis_names,
-            axis_vectors,
+        let twists = TwistSystem {
+            id: todo!("twist system ID"),
+            axes: Arc::new(AxisSystem {
+                names: axis_names,
+                opposites: axis_opposites,
+            }),
+            names: twist_names,
             twists,
-            twist_names,
+            vantage_group: BoxDynVantageGroup::from(()),
+            vantage_sets: IndexMap::new(),
+        };
+
+        Ok(TwistSystemBuildOutput {
+            twists,
+            axis_layers,
+            axis_vectors,
             twist_transforms,
             gizmo_twists: gizmo_face_twists,
         })
@@ -616,11 +623,9 @@ impl TwistSystemBuilder {
 
 #[derive(Debug)]
 pub struct TwistSystemBuildOutput {
-    pub axes: PerAxis<AxisInfo>,
-    pub axis_names: NameSpecBiMap<Axis>,
+    pub twists: TwistSystem,
+    pub axis_layers: PerAxis<AxisLayers>,
     pub axis_vectors: PerAxis<Vector>,
-    pub twists: PerTwist<TwistInfo>,
-    pub twist_names: NameSpecBiMap<Twist>,
     pub twist_transforms: PerTwist<Motor>,
     pub gizmo_twists: PerGizmoFace<Twist>,
 }

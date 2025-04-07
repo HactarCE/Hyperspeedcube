@@ -348,7 +348,7 @@ impl NdEuclidViewState {
             };
             let transform = match direction {
                 Sign::Neg => {
-                    let Ok(twist_info) = puzzle.twists.get(target) else {
+                    let Ok(twist_info) = puzzle.twists.twists.get(target) else {
                         return;
                     };
                     twist_info.reverse
@@ -385,7 +385,10 @@ impl NdEuclidViewState {
 
                 // Find the twist that turns the least in the correct direction.
                 // TODO: search only twists on `axis`
-                let candidates = puzzle.twists.iter_filter(|_, info| info.axis == axis);
+                let candidates = puzzle
+                    .twists
+                    .twists
+                    .iter_filter(|_, info| info.axis == axis);
 
                 // Aim for a 180 degree counterclockwise rotation around the axis.
                 let target = match hov.backface {

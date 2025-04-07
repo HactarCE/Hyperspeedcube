@@ -125,29 +125,22 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
 
         ui.label("");
         ui.strong(format!("Twist {twist}"));
-        if let Ok(name) = puz.twist_names.get(twist) {
+        if let Ok(name) = puz.twists.names.get(twist) {
             name_spec_info_lines(ui, "Twist", name);
         }
-        let twist_info = &puz.twists[twist];
-        match twist_info.opposite {
-            Some(t) => {
-                info_line(ui, "Opposite twist", &t.to_string());
-                info_line(ui, "Opposite twist name", &puz.twist_names[t]);
-            }
-            None => {
-                info_line(ui, "Opposite twist", "(none)");
-                info_line(ui, "Opposite twist name", "(none)");
-            }
-        };
+        let twist_info = &puz.twists.twists[twist];
+        let rev = twist_info.reverse;
+        info_line(ui, "Reverse twist", &rev.to_string());
+        info_line(ui, "Reverse twist name", &puz.twists.names[rev]);
         info_line(ui, "QTM", &twist_info.qtm.to_string());
 
         ui.label("");
         ui.strong(format!("Axis {}", twist_info.axis));
-        if let Ok(name) = puz.axis_names.get(twist_info.axis) {
+        if let Ok(name) = puz.axes.names.get(twist_info.axis) {
             name_spec_info_lines(ui, "Axis", name);
         }
-        let axis_info = &puz.axes[twist_info.axis];
-        info_line(ui, "Layer count", &axis_info.layers.len().to_string());
+        let axis_layers = &puz.axis_layers[twist_info.axis];
+        info_line(ui, "Layer count", &axis_layers.len().to_string());
     }
 }
 

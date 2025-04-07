@@ -135,9 +135,8 @@ impl TwistMetric {
 
                 let mut prev_axis = None;
                 for twist in twists {
-                    let axis = puzzle.twists[twist.transform].axis;
-                    let axis_info = &puzzle.axes[axis];
-                    let opp = axis_info.opposite;
+                    let axis = puzzle.twists.twists[twist.transform].axis;
+                    let opp = puzzle.axes.opposites[axis];
                     let is_same_axis = prev_axis == Some(axis) || opp.is_some() && prev_axis == opp;
                     if !is_same_axis {
                         count += 1;
@@ -167,7 +166,7 @@ impl TwistMetric {
         let mut prev_axis = None;
         let mut prev_layers = None;
         for twist in twists {
-            let twist_info = &puzzle.twists[twist.transform];
+            let twist_info = &puzzle.twists.twists[twist.transform];
             let axis = twist_info.axis;
 
             let direction_multiplier = if is_qtm {
@@ -183,7 +182,7 @@ impl TwistMetric {
             prev_axis = Some(axis);
             prev_layers = Some(twist.layers);
 
-            let layer_count = puzzle.axes[axis].layers.len() as u8;
+            let layer_count = puzzle.axis_layers[axis].len() as u8;
             count += direction_multiplier * slice_multiplier(twist.layers, layer_count) as u64;
         }
 

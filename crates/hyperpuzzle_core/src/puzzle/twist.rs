@@ -14,7 +14,7 @@ pub struct LayeredTwist {
 impl LayeredTwist {
     /// Returns the reverse twist.
     pub fn rev(self, puzzle: &Puzzle) -> Result<Self, IndexOutOfRange> {
-        let rev_transform = puzzle.twists.get(self.transform)?.reverse;
+        let rev_transform = puzzle.twists.twists.get(self.transform)?.reverse;
         Ok(LayeredTwist {
             layers: self.layers,
             transform: rev_transform,

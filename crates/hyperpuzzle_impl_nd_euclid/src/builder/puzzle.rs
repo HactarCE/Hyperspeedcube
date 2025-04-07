@@ -94,19 +94,20 @@ impl PuzzleBuilder {
 
         // Build twist system.
         let TwistSystemBuildOutput {
-            axes,
-            axis_names,
-            axis_vectors,
             twists,
-            twist_names,
+            axis_layers,
+            axis_vectors,
             twist_transforms,
             gizmo_twists,
         } = self
             .twists
             .build(&self.space(), &mut mesh, &mut dev_data, warn_fn)?;
 
-        let mut scramble_twists = twists.iter_keys().collect_vec();
-        scramble_twists.sort_by_cached_key(|&twist| match twist_names.get(twist) {
+        let mut scramble_twists = twists
+            .twists
+            .iter_filter(|_, twist_info| twist_info.include_in_scrambles)
+            .collect_vec();
+        scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
             Ok(name) => &name.canonical,
             Err(_) => "",
         });
@@ -177,11 +178,9 @@ impl PuzzleBuilder {
 
             notation: Notation {},
 
-            axes,
-            axis_names,
-
-            twists,
-            twist_names,
+            axes: Arc::clone(&twists.axes),
+            axis_layers,
+            twists: Arc::new(twists),
 
             dev_data,
 

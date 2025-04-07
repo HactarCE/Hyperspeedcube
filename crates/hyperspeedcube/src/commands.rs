@@ -128,10 +128,9 @@ impl PuzzleCommand {
             PuzzleCommand::Grip { axis, layers } => {
                 // IIFE to mimic try_block
                 (|| {
-                    let axis_id = ty.axis_names.id_from_name(axis.as_ref()?)?;
-                    let axis_info = &ty.axes[axis_id];
-                    let layer_mask = layers.to_layer_mask(axis_info);
-                    let axis_name = &ty.axis_names[axis_id];
+                    let axis_id = ty.axes.names.id_from_name(axis.as_ref()?)?;
+                    let layer_mask = layers.to_layer_mask(&ty.axis_layers[axis_id]);
+                    let axis_name = &ty.axes.names[axis_id];
                     if layer_mask == LayerMask(0) {
                         Some(axis_name.to_owned())
                     } else {
@@ -147,7 +146,7 @@ impl PuzzleCommand {
             } => todo!("description of twist command"),
             PuzzleCommand::Recenter { axis } => {
                 // IIFE to mimic try_block
-                match (|| ty.axis_names.id_from_name(axis.as_ref()?))() {
+                match (|| ty.axes.names.id_from_name(axis.as_ref()?))() {
                     Some(_twist_axis) => todo!("description of recenter command"),
                     None => "Recenter".to_string(),
                 }
@@ -310,10 +309,10 @@ impl LayerMaskDesc {
         *self == Self::default()
     }
 
-    pub(crate) fn to_layer_mask(&self, axis: &AxisInfo) -> LayerMask {
+    pub(crate) fn to_layer_mask(&self, axis_layers: &AxisLayers) -> LayerMask {
         let mut ret = LayerMask(0);
 
-        let layer_count = axis.layers.len() as u8;
+        let layer_count = axis_layers.len() as u8;
 
         fn layer_idx(i: i8, layer_count: u8) -> u8 {
             if i > 0 {

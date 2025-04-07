@@ -229,7 +229,7 @@ impl PuzzleSimulation {
         let ty = self.puzzle_type();
         let scramble = Scramble::new(
             params,
-            hyperpuzzle_log::notation::format_twists(&ty.twist_names, twists),
+            hyperpuzzle_log::notation::format_twists(&ty.twists.names, twists),
         );
         self.scramble = Some(scramble.clone());
         self.undo_stack.push(Action::Scramble);
@@ -342,7 +342,7 @@ impl PuzzleSimulation {
                 Some(scramble) => {
                     let ty = Arc::clone(self.puzzle_type());
                     for twist in
-                        hyperpuzzle_log::notation::parse_twists(&ty.twist_names, &scramble.twists)
+                        hyperpuzzle_log::notation::parse_twists(&ty.twists.names, &scramble.twists)
                     {
                         match twist {
                             Ok(twist) => match self.latest_state.do_twist_dyn(twist) {
@@ -415,7 +415,7 @@ impl PuzzleSimulation {
     /// if that's desired.
     fn do_twist(&mut self, twist: LayeredTwist) -> bool {
         let puzzle = Arc::clone(self.puzzle_type());
-        let Ok(twist_info) = puzzle.twists.get(twist.transform) else {
+        let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {
             return false;
         };
         let axis = twist_info.axis;
@@ -619,7 +619,7 @@ impl PuzzleSimulation {
                     .geom
                     .twist_transforms
                     .iter()
-                    .filter(|&(twist, _)| puzzle.twists[twist].axis == partial.axis)
+                    .filter(|&(twist, _)| puzzle.twists.twists[twist].axis == partial.axis)
                     .max_by_key(|&(_, twist_transform)| {
                         FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
                     });
@@ -688,7 +688,7 @@ impl PuzzleSimulation {
                         continue;
                     }
                     let mut s = hyperpuzzle_log::notation::format_twists(
-                        &puz.twist_names,
+                        &puz.twists.names,
                         twists.iter().copied(),
                     );
                     if twists.len() > 1 {
@@ -758,7 +758,7 @@ impl PuzzleSimulation {
                     reverse,
                 } => {
                     // TODO: handle errors
-                    let Some(target) = puzzle.twist_names.id_from_name(target) else {
+                    let Some(target) = puzzle.twists.names.id_from_name(target) else {
                         continue;
                     };
                     ret.replay_event(ReplayEvent::GizmoClick {
@@ -769,7 +769,7 @@ impl PuzzleSimulation {
                 }
                 hyperpuzzle_log::LogEvent::Twists(twists_str) => {
                     for group in hyperpuzzle_log::notation::parse_grouped_twists(
-                        &puzzle.twist_names,
+                        &puzzle.twists.names,
                         twists_str,
                     ) {
                         // TODO: handle errors
