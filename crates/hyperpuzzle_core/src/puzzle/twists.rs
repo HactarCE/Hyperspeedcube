@@ -22,6 +22,8 @@ pub struct TwistSystem {
     pub names: NameSpecBiMap<Twist>,
     /// List of twists, indexed by ID.
     pub twists: PerTwist<TwistInfo>,
+    /// Twist directions accessible in all vantage sets.
+    pub directions: Vec<(String, PerAxis<Option<Twist>>)>,
 
     /// Vantage group.
     pub vantage_group: BoxDynVantageGroup,
@@ -36,6 +38,7 @@ impl TwistSystem {
             axes: Arc::clone(axes),
             names: NameSpecBiMap::new(),
             twists: PerTwist::new(),
+            directions: vec![],
             vantage_group: ().into(),
             vantage_sets: IndexMap::new(),
         }

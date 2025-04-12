@@ -11,6 +11,11 @@ pub const EPSILON: Float = 0.000001;
 /// Names for axes up to 7 dimensions.
 pub const AXIS_NAMES: &str = "XYZWVUT";
 
+/// Returns the axis number for a character.
+pub fn axis_from_char(c: char) -> Option<u8> {
+    AXIS_NAMES.find(c.to_ascii_uppercase()).map(|i| i as u8)
+}
+
 /// Maximum number of dimensions.
 pub const MAX_NDIM: u8 = 7;
 

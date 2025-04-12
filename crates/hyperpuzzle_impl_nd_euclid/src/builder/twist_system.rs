@@ -381,6 +381,7 @@ impl TwistSystemBuilder {
             }),
             names: twist_names,
             twists,
+            directions: vec![],
             vantage_group: BoxDynVantageGroup::from(()),
             vantage_sets: IndexMap::new(),
         };
