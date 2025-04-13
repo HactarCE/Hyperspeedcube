@@ -1,22 +1,29 @@
 use std::ops::Deref;
 
 use hypermath::Vector;
-use hypermath::pga::Blade;
+use hypermath::pga::{Blade, Motor};
 use rhai::Dynamic;
 
-use crate::{ConvertError, Ctx, InKey, Point, Result};
+use crate::{ConvertError, InKey, Point, Result, RhaiCtx};
 
 /// Converts a Rhai value to `T` or returns an error.
-pub fn from_rhai<T: FromRhai>(ctx: &Ctx<'_>, value: Dynamic) -> Result<T, ConvertError> {
+pub fn from_rhai<T: FromRhai>(ctx: impl RhaiCtx, value: Dynamic) -> Result<T, ConvertError> {
     T::try_from_rhai(ctx, value)
 }
 
 /// Converts an optional Rhai value to `T` or returns an error.
 pub fn from_rhai_opt<T: FromRhai>(
-    ctx: &Ctx<'_>,
+    ctx: impl RhaiCtx,
     value: Option<Dynamic>,
 ) -> Result<T, ConvertError> {
     T::try_from_rhai_opt(ctx, value)
+}
+
+pub fn from_rhai_array<T: FromRhai>(
+    ctx: impl RhaiCtx,
+    array: rhai::Array,
+) -> Result<Vec<T>, ConvertError> {
+    from_rhai(ctx, Dynamic::from_array(array))
 }
 
 /// Trait for converting [`rhai::Dynamic`] into specific types with good error
@@ -26,19 +33,19 @@ pub trait FromRhai: 'static + Sized {
     fn expected_string() -> String;
 
     /// Converts [`Dynamic`] to `T` or returns an error.
-    fn try_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<Self, ConvertError> {
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
         value
             .try_cast_result()
             .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
     }
 
     /// Converts [`None`] to `T` or returns an error.
-    fn try_from_none(ctx: &Ctx<'_>) -> Result<Self, ConvertError> {
+    fn try_from_none(ctx: impl RhaiCtx) -> Result<Self, ConvertError> {
         Err(ConvertError::new::<Self>(ctx, None))
     }
 
     /// Converts an `Option<Dynamic>` to `T` or returns an error.
-    fn try_from_rhai_opt(ctx: &Ctx<'_>, value: Option<Dynamic>) -> Result<Self, ConvertError> {
+    fn try_from_rhai_opt(ctx: impl RhaiCtx, value: Option<Dynamic>) -> Result<Self, ConvertError> {
         match value {
             Some(inner) => Self::try_from_rhai(ctx, inner),
             None => Self::try_from_none(ctx),
@@ -51,11 +58,11 @@ impl<T: FromRhai> FromRhai for Option<T> {
         format!("optional {}", T::expected_string())
     }
 
-    fn try_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<Self, ConvertError> {
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
         from_rhai::<T>(ctx, value).map(Some)
     }
 
-    fn try_from_none(_ctx: &Ctx<'_>) -> Result<Self, ConvertError> {
+    fn try_from_none(_ctx: impl RhaiCtx) -> Result<Self, ConvertError> {
         Ok(None)
     }
 }
@@ -65,19 +72,21 @@ impl<T: FromRhai> FromRhai for Vec<T> {
         format!("array of {}", T::expected_string())
     }
 
-    fn try_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<Self, ConvertError> {
+    fn try_from_rhai(mut ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
         if !value.is_array() {
             return Err(ConvertError::new::<Self>(ctx, Some(&value)));
         }
         value
             .cast::<rhai::Array>()
             .into_iter()
-            .map(|elem| from_rhai(ctx, elem))
+            .map(|elem| from_rhai(&mut ctx, elem))
             .collect::<Result<Vec<T>, ConvertError>>()
             .in_structure("array")
     }
 }
 
+/// Implements [`FromRhai`] for a type.
+#[macro_export]
 macro_rules! impl_from_rhai {
     ($type:ty, $name:expr $(, $impl:expr)?) => {
         impl FromRhai for $type {
@@ -86,8 +95,8 @@ macro_rules! impl_from_rhai {
             }
 
             $(
-                fn try_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<Self, ConvertError> {
-                    let f: fn(&Ctx<'_>, Dynamic) -> Result<Self, ConvertError> = $impl;
+                fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
+                    let f: fn(_, Dynamic) -> Result<Self, ConvertError> = $impl;
                     f(ctx, value)
                 }
             )?
@@ -105,15 +114,26 @@ impl_from_rhai!(f64, "number", |ctx, value| {
         .or_else(|| value.as_int().ok().map(|i| i as f64))
         .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
 });
+impl_from_rhai!(usize, "index", |ctx, value| {
+    (value.as_int().ok())
+        .and_then(|i| i.try_into().ok())
+        .ok_or_else(|| ConvertError::new::<usize>(ctx, Some(&value)))
+});
 
 // Math types
 impl_from_rhai!(Vector, "vector");
 impl_from_rhai!(Point, "point");
 impl_from_rhai!(Blade, "vector, point, or PGA blade", |ctx, value| {
     Err(value)
-        .or_else(|val| val.try_cast_result::<Blade>())
+        .or_else(|v| v.try_cast_result::<Blade>())
         .or_else(|v| v.try_cast_result().map(|v: Vector| Blade::from_vector(v)))
         .or_else(|v| v.try_cast_result().map(|p: Point| Blade::from_vector(p.0)))
+        .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
+});
+impl_from_rhai!(Motor, "transform", |ctx, value| {
+    Err(value)
+        .or_else(|v| v.try_cast_result::<Motor>())
+        // TODO: try cast to twist
         .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
 });
 
@@ -123,7 +143,7 @@ impl<T: FromRhai> FromRhai for OptVecOrSingle<T> {
         format!("{}, or array of them", T::expected_string())
     }
 
-    fn try_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<Self, ConvertError> {
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
         if value.is_array() {
             from_rhai::<Vec<T>>(ctx, value).map(Self)
         } else {
@@ -135,7 +155,7 @@ impl<T: FromRhai> FromRhai for OptVecOrSingle<T> {
         })
     }
 
-    fn try_from_none(_ctx: &Ctx<'_>) -> Result<Self, ConvertError> {
+    fn try_from_none(_ctx: impl RhaiCtx) -> Result<Self, ConvertError> {
         Ok(Self(vec![]))
     }
 }

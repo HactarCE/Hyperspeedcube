@@ -2,7 +2,7 @@ use std::fmt;
 
 use rhai::{Dynamic, FuncRegistration};
 
-use crate::{Ctx, Result};
+use crate::{Ctx, Result, RhaiCtx};
 
 /// Emits a warning.
 pub fn warn(ctx: &Ctx<'_>, msg: impl fmt::Display) -> Result {
@@ -31,13 +31,13 @@ pub fn get_ndim(ctx: &Ctx<'_>) -> Result<u8> {
 }
 
 /// Calls Rhai `to_string()` on `val` and returns the result.
-pub fn rhai_to_string(ctx: &Ctx<'_>, val: &Dynamic) -> String {
-    ctx.call_fn::<String>(rhai::FUNC_TO_STRING, (val.clone(),))
+pub fn rhai_to_string(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
+    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_STRING, (val.clone(),))
         .unwrap_or_else(|_| val.to_string())
 }
 
 /// Calls Rhai `to_debug()` on `val` and returns the result.
-pub fn rhai_to_debug(ctx: &Ctx<'_>, val: &Dynamic) -> String {
-    ctx.call_fn::<String>(rhai::FUNC_TO_DEBUG, (val.clone(),))
+pub fn rhai_to_debug(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
+    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_DEBUG, (val.clone(),))
         .unwrap_or_else(|_| val.to_string())
 }

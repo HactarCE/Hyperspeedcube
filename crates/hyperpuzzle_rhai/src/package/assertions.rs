@@ -61,7 +61,7 @@ fn assert<M: Into<Dynamic>>(
 fn assert_eq(ctx: &NativeCallContext<'_>, val1: &Dynamic, val2: &Dynamic, msg: &Dynamic) -> Result {
     assert(
         &ctx,
-        ctx.call_fn("==", (val1.clone(), val2.clone()))?,
+        ctx.call_native_fn("==", (val1.clone(), val2.clone()))?,
         || {
             format!(
                 "{}: {} == {}",
@@ -81,7 +81,7 @@ fn assert_neq(
 ) -> Result {
     assert(
         &ctx,
-        ctx.call_fn("!=", (val1.clone(), val2.clone()))?,
+        ctx.call_native_fn("!=", (val1.clone(), val2.clone()))?,
         || {
             format!(
                 "{}: {} != {}",

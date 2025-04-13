@@ -4,7 +4,9 @@ use std::path::Path;
 
 #[macro_use]
 mod macros;
+#[macro_use]
 mod convert;
+mod ctx;
 mod errors;
 mod loader;
 mod package;
@@ -13,10 +15,9 @@ mod util;
 #[allow(unused)]
 use convert::{FromRhai, from_rhai, from_rhai_opt};
 #[allow(unused)]
+use ctx::{Ctx, EvalCtx, RhaiCtx};
+#[allow(unused)]
 use errors::{ConvertError, EyreRhai, InKey};
-
-/// Rhai evaluation context.
-type Ctx<'a> = rhai::NativeCallContext<'a>;
 
 /// Rhai evaluation result.
 type Result<T = (), E = Box<rhai::EvalAltResult>> = std::result::Result<T, E>;

@@ -2,7 +2,7 @@ use std::fmt;
 
 use rhai::{Dynamic, EvalAltResult};
 
-use crate::{Ctx, FromRhai, Result};
+use crate::{FromRhai, Result, RhaiCtx};
 
 /// Extension trait for [`eyre::Result<T>`] that converts eyre reports into Rhai
 /// errors in a way that includes the error chain.
@@ -52,7 +52,7 @@ impl From<ConvertError> for Box<EvalAltResult> {
 impl ConvertError {
     /// Constructs a new conversion error, where `T` is the expected type and
     /// `got` is the value that was actually gotten.
-    pub fn new<T: FromRhai>(ctx: &Ctx<'_>, got: Option<&Dynamic>) -> Self {
+    pub fn new<T: FromRhai>(ctx: impl RhaiCtx, got: Option<&Dynamic>) -> Self {
         Self {
             expected: T::expected_string(),
             got: match got {
