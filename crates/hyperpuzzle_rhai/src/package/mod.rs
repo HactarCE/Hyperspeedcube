@@ -6,7 +6,11 @@ mod assertions;
 mod catalog;
 mod geometry;
 mod operators;
+mod state;
+mod syntax;
 mod types;
+
+use state::RhaiState;
 
 use crate::convert::*;
 use crate::errors::*;
@@ -51,6 +55,8 @@ impl Package for HyperpuzzlePackage {
         StandardPackage::init_engine(engine);
         engine.set_fast_operators(false);
         engine.set_max_expr_depths(1024, 1024);
+        state::init_engine(engine);
+        syntax::init_engine(engine);
         types::init_engine(engine);
     }
 }

@@ -2,12 +2,12 @@
 
 use super::*;
 
-mod elements;
-mod hyperplane;
-mod point;
-mod symmetry;
-mod transform;
-mod vector;
+pub mod elements;
+pub mod hyperplane;
+pub mod point;
+pub mod symmetry;
+pub mod transform;
+pub mod vector;
 
 pub fn init_engine(engine: &mut Engine) {
     elements::init_engine(engine);

@@ -169,6 +169,8 @@ pub enum RhaiSymmetry {
     },
 }
 
+crate::impl_from_rhai!(RhaiSymmetry, "symmetry");
+
 fn basis_from_str(s: &str) -> Result<Vec<Vector>> {
     s.chars()
         .map(|c| match hypermath::axis_from_char(c) {
@@ -179,6 +181,11 @@ fn basis_from_str(s: &str) -> Result<Vec<Vector>> {
 }
 
 impl RhaiSymmetry {
+    /// Returns the current symmetry, set using `with symmetry { ... }`.
+    pub fn get(ctx: impl RhaiCtx) -> Option<Self> {
+        RhaiState::get(ctx).lock().symmetry.clone()
+    }
+
     /// Constructs a symmetry object from a Coxeter string such as `"bc3"`.
     pub fn construct_from_cd_str(s: &str, basis: Option<Vec<Vector>>) -> Result<Self> {
         fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
