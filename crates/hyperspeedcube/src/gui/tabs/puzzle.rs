@@ -164,7 +164,7 @@ impl PuzzleWidget {
     fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
         use hyperpuzzle::catalog::CacheEntry;
 
-        let cache_entry = hyperpuzzle::catalog().build_puzzle(&puzzle_id);
+        let cache_entry = hyperpuzzle::catalog().build::<Puzzle>(&puzzle_id);
         let cache_entry_guard = cache_entry.lock();
         match &*cache_entry_guard {
             CacheEntry::NotStarted => {

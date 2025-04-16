@@ -50,7 +50,7 @@ pollster = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 rfd = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 serde_yml = { workspace = true }
 smallvec = { workspace = true }

@@ -26,7 +26,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let stored_search_query_string = EguiTempValue::new(ui);
     let mut search_query_string: String = stored_search_query_string.get().unwrap_or_default();
 
-    let puzzle_catalog = hyperpuzzle::catalog().puzzles();
+    let catalog = hyperpuzzle::catalog();
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
@@ -171,8 +171,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 .iter()
                                 .any(|(tag, _value)| *tag == "experimental");
 
-                        let query_results = puzzle_catalog
-                            .puzzle_list_entries()
+                        let puzzle_list_entries = catalog.puzzle_list_entries();
+                        let query_results = puzzle_list_entries
+                            .iter()
                             .filter(|entry| show_experimental || !entry.tags.is_experimental())
                             .filter_map(|entry| query.try_match(entry))
                             .sorted_unstable();
@@ -180,7 +181,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         for query_result in query_results {
                             let obj = query_result.object.clone();
                             let r = ui.add(query_result);
-                            match puzzle_catalog.generators.get(&obj.id) {
+                            match catalog.get_generator::<Puzzle>(&obj.id) {
                                 None => {
                                     if r.clicked() {
                                         app.load_puzzle(&obj.id);
@@ -193,7 +194,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                     if r.clicked() {
                                         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
                                         generator_popup_data =
-                                            Some(PuzzleGeneratorPopupData::new(puzzle_generator));
+                                            Some(PuzzleGeneratorPopupData::new(&*puzzle_generator));
                                     }
 
                                     let close_behavior =
@@ -211,7 +212,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                 show_puzzle_generator_ui(
                                                     ui,
                                                     app,
-                                                    puzzle_generator,
+                                                    &*puzzle_generator,
                                                     popup_data,
                                                 );
                                             },

@@ -34,7 +34,7 @@ fn verify_internal(
     let scramble_params = scramble.params()?;
 
     log::info!("building puzzle {} for verification", solve.puzzle.id);
-    let puzzle = match catalog.build_puzzle_blocking(&solve.puzzle.id) {
+    let puzzle = match catalog.build_blocking::<Puzzle>(&solve.puzzle.id) {
         Ok(p) => p,
         Err(e) => {
             log::error!("error building puzzle {}: {e}", solve.puzzle.id);

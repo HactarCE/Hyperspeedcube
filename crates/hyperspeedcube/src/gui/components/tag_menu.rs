@@ -1,5 +1,5 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
+use std::{borrow::Cow, sync::Arc};
 
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
@@ -16,8 +16,8 @@ enum TagFilterState {
 pub struct TagMenu {
     tag_states: HashMap<String, TagFilterState>,
     show_experimental: bool,
-    puzzle_catalog: PuzzleCatalog,
-    color_system_catalog: ColorSystemCatalog,
+    puzzle_list_entries: Arc<Vec<Arc<PuzzleListMetadata>>>,
+    color_systems: Arc<Vec<Arc<ColorSystem>>>,
 }
 impl TagMenu {
     pub fn new(
@@ -45,8 +45,8 @@ impl TagMenu {
         Self {
             tag_states,
             show_experimental: true,
-            puzzle_catalog: hyperpuzzle::catalog().puzzles(),
-            color_system_catalog: hyperpuzzle::catalog().color_systems(),
+            puzzle_list_entries: hyperpuzzle::catalog().puzzle_list_entries(),
+            color_systems: hyperpuzzle::catalog().object_specs::<ColorSystem>(),
         }
     }
 
@@ -104,8 +104,8 @@ impl TagMenu {
                         let name = name.as_deref().unwrap_or("");
 
                         if name == "colors/system" {
-                            self.color_system_catalog
-                                .objects()
+                            self.color_systems
+                                .iter()
                                 // Sort by name (could sort by ID instead)
                                 .sorted_unstable_by(|a, b| hyperpuzzle::compare_ids(&a.id, &b.id))
                                 .map(|color_system| {
@@ -115,8 +115,8 @@ impl TagMenu {
                                 .reduce(Option::or)
                                 .flatten()
                         } else {
-                            self.puzzle_catalog
-                                .puzzle_list_entries()
+                            self.puzzle_list_entries
+                                .iter()
                                 .filter_map(|meta| meta.tags.get(name))
                                 .flat_map(|tag_value| tag_value.to_strings())
                                 .unique()

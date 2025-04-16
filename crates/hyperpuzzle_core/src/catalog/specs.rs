@@ -42,7 +42,7 @@ pub type BuildResult<T, E = eyre::Report> = Result<Redirectable<Arc<T>>, E>;
 /// Puzzle type specification.
 pub struct PuzzleSpec {
     /// Basic metadata.
-    pub meta: PuzzleListMetadata,
+    pub meta: Arc<PuzzleListMetadata>,
     /// Function to build the puzzle.
     ///
     /// **This may be expensive. Do call it from the UI thread.**
@@ -59,7 +59,7 @@ impl fmt::Debug for PuzzleSpec {
 /// Puzzle type specification generator.
 pub struct PuzzleSpecGenerator {
     /// Basic metadata.
-    pub meta: PuzzleListMetadata,
+    pub meta: Arc<PuzzleListMetadata>,
     /// Parameter types, ranges, and defaults.
     pub params: Vec<GeneratorParam>,
     /// Example puzzles, indexed by ID.

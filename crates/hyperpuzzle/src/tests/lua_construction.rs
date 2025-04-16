@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use eyre::Result;
-use hyperpuzzle_core::PuzzleLintOutput;
+use hyperpuzzle_core::{Puzzle, PuzzleLintOutput};
 
 use super::{load_new_catalog, time_it};
 
@@ -17,7 +17,7 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
     let mut out = String::new();
 
-    for puzzle in catalog.puzzles().objects() {
+    for puzzle in &*catalog.puzzle_specs() {
         if !LINT_EXPERIMENTAL && puzzle.meta.tags.is_experimental() {
             continue;
         }
@@ -71,8 +71,8 @@ fn build_all_puzzles() -> Result<(), String> {
     let mut failed = vec![];
     let mut times = vec![];
     let t1 = std::time::Instant::now();
-    let puzzle_catalog = catalog.puzzles();
-    for puzzle in puzzle_catalog.objects() {
+    let puzzle_specs = catalog.puzzle_specs();
+    for puzzle in &*puzzle_specs {
         if puzzle.meta.tags.get("big").is_some_and(|v| v.is_present()) {
             println!(
                 "Skipping big puzzle {} ({})",
@@ -83,7 +83,7 @@ fn build_all_puzzles() -> Result<(), String> {
 
         let (result, time) = time_it(
             format!("Building puzzle {} ({})", puzzle.meta.name, puzzle.meta.id),
-            || catalog.build_puzzle_blocking(&puzzle.meta.id),
+            || catalog.build_blocking::<Puzzle>(&puzzle.meta.id),
         );
         match result {
             Ok(_) => {
@@ -124,7 +124,7 @@ fn build_all_puzzles() -> Result<(), String> {
 fn build_7x7x7x7() {
     let lib = load_new_catalog();
     let (result, time) = time_it("Building puzzle 7x7x7x7", || {
-        lib.build_puzzle_blocking("ft_hypercube:7")
+        lib.build_blocking::<Puzzle>("ft_hypercube:7")
     });
     result.expect("failed to build puzzle");
     println!("Done in {time:?}");
