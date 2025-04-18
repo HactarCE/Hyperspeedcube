@@ -20,7 +20,7 @@ impl_has_id!(PuzzleSpecGenerator, meta.id);
 impl_has_id!(ColorSystem, id);
 impl_has_id!(ColorSystemGenerator, id);
 impl_has_id!(TwistSystem, id);
-impl_has_id!(TwistSystemGenerator, id);
+impl_has_id!(TwistSystemSpecGenerator, id);
 
 /// Object with an ID (such as a puzzle or color system) that can be stored in
 /// the catalog.
@@ -57,7 +57,7 @@ pub trait CatalogObjectImpl: Sized + HasId {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
+        params: Vec<String>,
     ) -> BuildResult<Self::Spec, String>;
 }
 
@@ -99,7 +99,7 @@ impl CatalogObjectImpl for Puzzle {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
+        params: Vec<String>,
     ) -> BuildResult<Self::Spec, String> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
@@ -137,7 +137,7 @@ impl CatalogObjectImpl for ColorSystem {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
+        params: Vec<String>,
     ) -> BuildResult<Self::Spec, String> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
@@ -152,8 +152,8 @@ impl CatalogObject for TwistSystem {
     }
 }
 impl CatalogObjectImpl for TwistSystem {
-    type Spec = TwistSystem;
-    type SpecGenerator = TwistSystemGenerator;
+    type Spec = TwistSystemSpec;
+    type SpecGenerator = TwistSystemSpecGenerator;
 
     const NAME: &str = "color system";
 
@@ -169,13 +169,13 @@ impl CatalogObjectImpl for TwistSystem {
         None
     }
 
-    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
-        Ok(Redirectable::Direct(Arc::clone(spec)))
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+        (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<&str>,
+        params: Vec<String>,
     ) -> BuildResult<Self::Spec, String> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }

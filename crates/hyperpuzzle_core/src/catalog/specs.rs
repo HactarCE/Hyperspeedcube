@@ -35,7 +35,7 @@ pub struct PuzzleSpec {
     pub meta: Arc<PuzzleListMetadata>,
     /// Function to build the puzzle.
     ///
-    /// **This may be expensive. Do call it from the UI thread.**
+    /// **This may be expensive. Do not call it from the UI thread.**
     pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>,
 }
 impl fmt::Debug for PuzzleSpec {
@@ -57,7 +57,7 @@ pub struct PuzzleSpecGenerator {
     /// Function to generate the puzzle type specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<PuzzleSpec>>,
+    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<PuzzleSpec>>,
 }
 impl fmt::Debug for PuzzleSpecGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -68,10 +68,27 @@ impl fmt::Debug for PuzzleSpecGenerator {
     }
 }
 
+/// Twist system specification.
+pub struct TwistSystemSpec {
+    /// Twist system ID.
+    pub id: String,
+    /// Twist system name.
+    pub name: String,
+    /// Function to build the twist system.
+    ///
+    /// **This may be expensive. Do not call it from the UI thread.**
+    pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<TwistSystem>>,
+}
+impl HasId for TwistSystemSpec {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
 /// Color system generator.
 pub type ColorSystemGenerator = Generator<ColorSystem>;
 /// Twist system generator.
-pub type TwistSystemGenerator = Generator<TwistSystem>;
+pub type TwistSystemSpecGenerator = Generator<TwistSystemSpec>;
 
 /// Object specification generator.
 pub struct Generator<T> {
@@ -84,7 +101,7 @@ pub struct Generator<T> {
     /// Function to generate the object specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<T>>,
+    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<T>>,
 }
 impl fmt::Debug for ColorSystemGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

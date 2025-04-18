@@ -119,13 +119,13 @@ impl Catalog {
     }
 
     /// Adds a twist system to the catalog.
-    pub fn add_twist_system(&self, twists: Arc<TwistSystem>) -> eyre::Result<()> {
+    pub fn add_twist_system(&self, twists: Arc<TwistSystemSpec>) -> eyre::Result<()> {
         self.db.lock().twist_systems.add_spec(twists)
     }
     /// Adds a twist system generator to the catalog.
     pub fn add_twist_system_generator(
         &self,
-        twists_gen: Arc<TwistSystemGenerator>,
+        twists_gen: Arc<TwistSystemSpecGenerator>,
     ) -> eyre::Result<()> {
         self.db.lock().twist_systems.add_spec_generator(twists_gen)
     }
@@ -265,6 +265,7 @@ impl Catalog {
                             file = T::get_generator_filename(&generator);
                             let ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");
+                            let params = params.into_iter().map(|s| s.to_owned()).collect();
                             T::generate_spec(ctx, &generator, params)
                         }
                     }
