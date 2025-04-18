@@ -21,6 +21,7 @@ impl<T> EyreRhai for eyre::Result<T> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct ConvertError {
     pub expected: String,
     pub got: String,
@@ -44,6 +45,7 @@ impl fmt::Display for ConvertError {
         Ok(())
     }
 }
+impl std::error::Error for ConvertError {}
 impl From<ConvertError> for Box<EvalAltResult> {
     fn from(value: ConvertError) -> Self {
         value.to_string().into()

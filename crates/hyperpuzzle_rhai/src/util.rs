@@ -1,8 +1,12 @@
-use std::fmt;
+use std::{
+    fmt,
+    sync::{Arc, mpsc},
+};
 
-use rhai::{Dynamic, FuncRegistration};
+use eyre::eyre;
+use rhai::{Dynamic, Engine, FnPtr, FuncRegistration, Position};
 
-use crate::{Ctx, Result, RhaiCtx};
+use crate::{Ctx, Result, RhaiCtx, loader::RhaiEvalRequestTx};
 
 /// Emits a warning.
 pub fn warn(ctx: &Ctx<'_>, msg: impl fmt::Display) -> Result {
@@ -40,4 +44,45 @@ pub fn rhai_to_string(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
 pub fn rhai_to_debug(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
     ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_DEBUG, (val.clone(),))
         .unwrap_or_else(|_| val.to_string())
+}
+
+/// Returns a closure that can be called to evaluate `inner` on the Rhai thread.
+///
+/// All captures of `inner` should be cheap to clone.
+pub fn rhai_eval_fn<A: 'static + Send + Sync, R: 'static + Send + Sync>(
+    ctx: &Ctx<'_>,
+    eval_tx: RhaiEvalRequestTx,
+    fn_ptr: &FnPtr,
+    inner: impl 'static + Clone + Send + Sync + Fn(Ctx<'_>, A) -> R,
+) -> impl 'static + Clone + Send + Sync + Fn(A) -> eyre::Result<R> {
+    let global_runtime_state = Arc::new(ctx.global_runtime_state().clone());
+    let fn_name = fn_ptr.fn_name().to_owned();
+
+    move |args| {
+        let global_runtime_state = global_runtime_state.clone();
+        let fn_name = fn_name.clone();
+        let inner = inner.clone();
+
+        let (result_tx, result_rx) = mpsc::channel::<R>();
+        let rhai_eval_request = Box::new(move |engine: &mut Engine| {
+            let ctx = Ctx::from((
+                &*engine,
+                fn_name.as_str(),
+                None,
+                &*global_runtime_state,
+                Position::NONE,
+            ));
+            if result_tx.send(inner(ctx, args)).is_err() {
+                log::warn!("error sending eval result to calling thread");
+            }
+        });
+
+        eval_tx
+            .send(rhai_eval_request)
+            .map_err(|_| eyre!("error sending eval request to Rhai thread"))?;
+
+        result_rx
+            .recv()
+            .map_err(|mpsc::RecvError| eyre!("channel disconnected; Rhai thread may have panicked"))
+    }
 }

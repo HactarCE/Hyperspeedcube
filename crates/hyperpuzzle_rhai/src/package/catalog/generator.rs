@@ -1,7 +1,5 @@
-use std::sync::mpsc;
-
 use eyre::{bail, eyre};
-use hyperpuzzle_core::catalog::{BuildCtx, BuildResult, Generator};
+use hyperpuzzle_core::catalog::{BuildCtx, Generator};
 use itertools::Itertools;
 use rhai::Array;
 use std::sync::Arc;
@@ -38,94 +36,64 @@ pub(super) fn generator_from_rhai_map<T: 'static + Send + Sync>(
         .try_collect()?;
 
     let generate_from_spec = Arc::new(generate_from_spec);
-    let global_runtime_state = Arc::new(ctx.global_runtime_state().clone());
+    let generate_fn_ptr = r#gen.clone();
 
-    Ok(Generator {
-        id: id.clone(),
-        name: name.clone(),
+    let id_clone = id.clone();
+    let name_clone = name.clone();
+    let params_clone = params.clone();
 
-        params: params.clone(),
-        generate: Box::new(move |build_ctx, args| {
-            // Clone values so that they can be passed into the closure.
-            let id = id.clone();
-            let params = params.clone();
-            let generate_from_spec = Arc::clone(&generate_from_spec);
-            let global_runtime_state = Arc::clone(&global_runtime_state);
-            let generate_fn_ptr = r#gen.clone();
-            let args = args.iter().map(|s| s.to_string()).collect_vec();
+    let generate_fn = move |ctx: Ctx<'_>, (build_ctx, args): (BuildCtx, Vec<String>)| {
+        let args = args.iter().map(|s| s.to_string()).collect_vec();
 
-            let expected_len = params.len();
-            let actual_len = args.len();
-            if expected_len != actual_len {
-                eyre::bail!("expected {expected_len} params; got {actual_len}");
+        let expected_len = params.len();
+        let actual_len = args.len();
+        if expected_len != actual_len {
+            eyre::bail!("expected {expected_len} params; got {actual_len}");
+        }
+
+        let mut this = Dynamic::from(Map::from_iter([
+            ("id".into(), id.clone().into()),
+            ("name".into(), name.clone().into()),
+        ]))
+        .into_read_only();
+
+        let param_values: Array = std::iter::zip(&params, &args)
+            .map(|(param, arg)| param.value_from_str(arg))
+            .map_ok(|param_value| param_value_into_rhai(&ctx, &param_value))
+            .try_collect()?;
+
+        let return_value = generate_fn_ptr
+            .call_raw(&ctx, Some(&mut this), [Dynamic::from(param_values)])
+            .map_err(|e| eyre!("error running `gen` function: {e}"))?;
+
+        if return_value.is_string() {
+            let string: String = from_rhai(&ctx, return_value).map_err(|e| eyre!("{e}"))?;
+            Ok(Redirectable::Redirect(string))
+        } else if return_value.is_map() {
+            let mut map: Map = from_rhai(&ctx, return_value).map_err(|e| eyre!("{e}"))?;
+
+            let id = hyperpuzzle_core::generated_id(&id, &args);
+            if map.insert("id".into(), id.into()).is_some() {
+                bail!("generated object must not have `id` specified");
             }
 
-            let mut this = Dynamic::from(Map::from_iter([
-                ("id".into(), id.clone().into()),
-                ("name".into(), name.clone().into()),
-            ]))
-            .into_read_only();
+            Ok(Redirectable::Direct(Arc::new(generate_from_spec(
+                &ctx, build_ctx, map,
+            )?)))
+        } else {
+            let e = ConvertError::new_expected_str(&ctx, "string or map", Some(&return_value));
+            Err(eyre!("{e}"))
+        }
+    };
 
-            let (result_tx, result_rx) = mpsc::channel::<BuildResult<T>>();
-            let rhai_eval_request = Box::new(move |engine: &mut Engine| {
-                // IIFE to mimic try_block
-                let send_result = result_tx.send((move || {
-                    let ctx = Ctx::from((
-                        &*engine,
-                        generate_fn_ptr.fn_name(),
-                        None,
-                        &*global_runtime_state,
-                        Position::NONE,
-                    ));
+    let generate = crate::util::rhai_eval_fn(ctx, eval_tx, &r#gen, generate_fn);
 
-                    let param_values: Array = std::iter::zip(&params, &args)
-                        .map(|(param, arg)| param.value_from_str(arg))
-                        .map_ok(|param_value| param_value_into_rhai(&ctx, &param_value))
-                        .try_collect()?;
+    Ok(Generator {
+        id: id_clone,
+        name: name_clone,
 
-                    let return_value = generate_fn_ptr
-                        .call_raw(&ctx, Some(&mut this), [Dynamic::from(param_values)])
-                        .map_err(|e| eyre!("error running `gen` function: {e}"))?;
-
-                    if return_value.is_string() {
-                        let string: String =
-                            from_rhai(&ctx, return_value).map_err(|e| eyre!("{e}"))?;
-                        Ok(Redirectable::Redirect(string))
-                    } else if return_value.is_map() {
-                        let mut map: Map =
-                            from_rhai(&ctx, return_value).map_err(|e| eyre!("{e}"))?;
-
-                        let id = hyperpuzzle_core::generated_id(&id, &args);
-                        if map.insert("id".into(), id.into()).is_some() {
-                            bail!("generated object must not have `id` specified");
-                        }
-
-                        Ok(Redirectable::Direct(Arc::new(generate_from_spec(
-                            &ctx, build_ctx, map,
-                        )?)))
-                    } else {
-                        let e = ConvertError::new_expected_str(
-                            &ctx,
-                            "string or map",
-                            Some(&return_value),
-                        );
-                        Err(eyre!("{e}"))
-                    }
-                })());
-
-                if send_result.is_err() {
-                    log::error!("error sending generator result back to requesting thread");
-                }
-            });
-
-            eval_tx
-                .send(rhai_eval_request)
-                .map_err(|_| eyre!("error sending eval request to Rhai thread"))?;
-
-            result_rx.recv().unwrap_or_else(|mpsc::RecvError| {
-                Err(eyre!("channel disconnected; Rhai thread may have panicked"))
-            })
-        }),
+        params: params_clone,
+        generate: Box::new(move |build_ctx, args| generate((build_ctx, args)).and_then(|r| r)),
     })
 }
 
