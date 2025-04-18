@@ -100,7 +100,7 @@ impl PuzzleState for NdEuclidPuzzleState {
                     .entry(new_motor.clone())
                     .or_insert_with(|| {
                         cached_transforms
-                            .push(CachedTransformData::new(new_motor, &self.puzzle_type.axes))
+                            .push(CachedTransformData::new(new_motor, self.puzzle_type.axes()))
                             .expect("out of memory")
                     })
             } else {
@@ -297,7 +297,7 @@ impl NdEuclidPuzzleState {
         let piece_transforms = puzzle_type.pieces.map_ref(|_, _| CachedTransform(0));
 
         let cached_transforms = Arc::new(Mutex::new(PerCachedTransform::from_iter([
-            CachedTransformData::new(ident.clone(), &puzzle_type.axes),
+            CachedTransformData::new(ident.clone(), puzzle_type.axes()),
         ])));
 
         let mut by_motor = ApproxHashMap::new();

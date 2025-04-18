@@ -5,8 +5,8 @@ macro_rules! box_dyn_wrapper_struct {
     } => {
         $(#[$attr])*
         $vis struct $struct_name(Box<dyn $trait_name>);
-        impl fmt::Debug for $struct_name {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        impl std::fmt::Debug for $struct_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.debug_tuple(stringify!($struct_name))
                     .finish_non_exhaustive()
             }
@@ -46,10 +46,12 @@ macro_rules! impl_dyn_clone {
     };
 }
 
+mod engine_data;
 mod state;
 mod ui_data;
 mod vantages;
 
+pub use engine_data::{BoxDynTwistSystemEngineData, TwistSystemEngineData};
 pub use state::{BoxDynPuzzleState, PuzzleState};
 pub use ui_data::{
     BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, BoxDynPuzzleUiData, PuzzleAnimation,

@@ -14,12 +14,17 @@ use hyperpuzzle_core::prelude::*;
 
 mod anim;
 pub mod builder;
+mod engine;
 mod geom;
 mod state;
 
 pub use anim::NdEuclidPuzzleAnimation;
+pub use engine::NdEuclidTwistSystemEngineData;
 pub use geom::NdEuclidPuzzleGeometry;
 pub use state::NdEuclidPuzzleState;
+
+/// Prefix for ad-hoc color system and twist system IDs.
+const PUZZLE_PREFIX: &str = "puzzle:";
 
 /// Prelude of common imports.
 pub mod prelude {
@@ -76,13 +81,11 @@ lazy_static! {
             scramble_twists: vec![],
             full_scramble_length: 0,
             notation: Notation {},
-            axes,
             axis_layers: PerAxis::new(),
+            axis_opposites: PerAxis::new(),
             twists,
-            dev_data: PuzzleDevData::new(),
-
-            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
             ui_data,
+            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
         })
     };
 }

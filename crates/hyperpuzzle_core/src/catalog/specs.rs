@@ -1,14 +1,4 @@
-#![allow(clippy::type_complexity)]
-
-use std::collections::HashMap;
-use std::fmt;
-use std::sync::Arc;
-
-use parking_lot::Mutex;
-use serde::Serialize;
-
-use super::{GeneratorParam, Progress};
-use crate::{ColorSystem, Logger, Puzzle, TagSet, Version};
+use super::*;
 
 /// Possible ID redirect.
 #[derive(Debug, Clone)]
@@ -46,7 +36,7 @@ pub struct PuzzleSpec {
     /// Function to build the puzzle.
     ///
     /// **This may be expensive. Do call it from the UI thread.**
-    pub build: Box<dyn Send + Sync + Fn(&mut BuildCtx) -> BuildResult<Puzzle>>,
+    pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>,
 }
 impl fmt::Debug for PuzzleSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -67,7 +57,7 @@ pub struct PuzzleSpecGenerator {
     /// Function to generate the puzzle type specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(&mut BuildCtx, Vec<&str>) -> BuildResult<PuzzleSpec>>,
+    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<PuzzleSpec>>,
 }
 impl fmt::Debug for PuzzleSpecGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -79,17 +69,22 @@ impl fmt::Debug for PuzzleSpecGenerator {
 }
 
 /// Color system generator.
-pub struct ColorSystemGenerator {
+pub type ColorSystemGenerator = Generator<ColorSystem>;
+/// Twist system generator.
+pub type TwistSystemGenerator = Generator<TwistSystem>;
+
+/// Object specification generator.
+pub struct Generator<T> {
     /// Internal ID.
     pub id: String,
     /// Human-friendly name.
     pub name: String,
     /// Parameter types, ranges, and defaults.
     pub params: Vec<GeneratorParam>,
-    /// Function to generate the color system.
+    /// Function to generate the object specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(&mut BuildCtx, Vec<&str>) -> BuildResult<ColorSystem>>,
+    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<&str>) -> BuildResult<T>>,
 }
 impl fmt::Debug for ColorSystemGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

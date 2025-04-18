@@ -25,7 +25,7 @@ struct DevToolsState {
 
     current_tab: DevToolsTab,
 
-    loaded_orbit: DevOrbit<PuzzleElement>,
+    loaded_orbit: Option<AnyOrbit>,
     names_and_order: Vec<(usize, String)>,
 
     lint_results: Vec<PuzzleLintOutput>,
@@ -136,7 +136,7 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
 
         ui.label("");
         ui.strong(format!("Axis {}", twist_info.axis));
-        if let Ok(name) = puz.axes.names.get(twist_info.axis) {
+        if let Ok(name) = puz.axes().names.get(twist_info.axis) {
             name_spec_info_lines(ui, "Axis", name);
         }
         let axis_layers = &puz.axis_layers[twist_info.axis];
@@ -162,44 +162,40 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
             ui.separator();
 
-            if state.loaded_orbit.is_empty() {
+            if state.loaded_orbit.is_none() {
                 ui.menu_button("Load orbit from current puzzle", |ui| {
                     app.active_puzzle.with_view(|view| {
                         let puz = view.puzzle();
-                        for (i, orbit) in puz.dev_data.orbits.iter().enumerate() {
+                        for (i, orbit) in puz.orbits().iter().enumerate() {
                             if ui
                                 .button(format!("#{} - {}", i + 1, orbit.description()))
                                 .clicked()
                             {
                                 ui.close_menu();
                                 state.puzzle = Some(Arc::clone(&puz));
-                                state.loaded_orbit = orbit.clone();
-                                state.names_and_order = orbit
-                                    .elements
-                                    .iter()
-                                    .enumerate()
-                                    .sorted_by_key(|(_, elem)| **elem)
-                                    .filter_map(|(i, elem)| {
-                                        Some((i, elem.as_ref()?.name(&puz)?.spec.clone()))
-                                    })
-                                    .collect();
+                                state.loaded_orbit = Some(orbit.clone());
+                                state.names_and_order = orbit.sorted_ids_and_names(&puz);
                             }
                         }
                     });
                 });
             } else {
                 ui.columns(2, |uis| {
+                    let Some(loaded_orbit) = &mut state.loaded_orbit else {
+                        return;
+                    };
+
                     uis[0].menu_button("Copy Lua code", |ui| {
                         let r = ui.button("Compact");
                         let text_to_copy = r
                             .clicked()
-                            .then(|| state.loaded_orbit.lua_code(&state.names_and_order, true));
+                            .then(|| loaded_orbit.lua_code(&state.names_and_order, true));
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
 
                         let r = ui.button("Expanded");
                         let text_to_copy = r
                             .clicked()
-                            .then(|| state.loaded_orbit.lua_code(&state.names_and_order, false));
+                            .then(|| loaded_orbit.lua_code(&state.names_and_order, false));
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
                     });
 
@@ -227,27 +223,30 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
     let mut dnd = DragAndDrop::new(ui);
     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
         dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+            let Some(loaded_orbit) = &state.loaded_orbit else {
+                return;
+            };
+
             let text_edit = egui::TextEdit::singleline(name);
-            match &state.loaded_orbit.elements[*index] {
-                Some(PuzzleElement::Axis(axis)) => {
-                    let r = ui.add(text_edit);
-                    if r.hovered() || r.has_focus() {
-                        app.active_puzzle.with_view(|view| {
-                            if Arc::ptr_eq(&view.puzzle(), &puz) {
-                                view.temp_gizmo_highlight = Some(*axis);
-                            }
-                        });
+            match &state.loaded_orbit {
+                Some(AnyOrbit::Axes(orbit)) => {
+                    if let Some(axis) = orbit.elements[*index] {
+                        let r = ui.add(text_edit);
+                        if r.hovered() || r.has_focus() {
+                            app.active_puzzle.with_view(|view| {
+                                if Arc::ptr_eq(&view.puzzle(), &puz) {
+                                    view.temp_gizmo_highlight = Some(axis);
+                                }
+                            });
+                        }
                     }
                 }
-
-                Some(PuzzleElement::Color(color)) => {
-                    show_orbit_color(app, &puz, ui, text_edit, *color);
+                Some(AnyOrbit::Colors(orbit)) => {
+                    if let Some(color) = orbit.elements[*index] {
+                        show_orbit_color(app, &puz, ui, text_edit, color);
+                    }
                 }
-
-                // TODO: is this correct handling?
-                None => {
-                    ui.colored_label(ui.visuals().error_fg_color, "missing orbit element");
-                }
+                None => (),
             }
         });
     }

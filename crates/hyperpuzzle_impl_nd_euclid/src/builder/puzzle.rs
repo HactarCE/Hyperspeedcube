@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use eyre::Result;
-use hypermath::{ApproxHashMap, VecMap, Vector, VectorRef, vector};
+use eyre::{OptionExt, Result, eyre};
+use hypermath::prelude::*;
+use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::shape::ShapeBuildOutput;
-use super::twist_system::TwistSystemBuildOutput;
-use super::{ShapeBuilder, TwistSystemBuilder};
-use crate::prelude::*;
+use super::{AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
+use crate::{NdEuclidTwistSystemEngineData, prelude::*};
 
 /// Puzzle being constructed.
 #[derive(Debug)]
@@ -26,6 +26,13 @@ pub struct PuzzleBuilder {
     pub shape: ShapeBuilder,
     /// Twist system of the puzzle.
     pub twists: TwistSystemBuilder,
+
+    /// Layer data for each layer on the axis, in order from outermost to
+    /// innermost.
+    ///
+    /// This is private because we must resize it whenever it is accessed to
+    /// ensure it's the same length as `twists.axes`.
+    axis_layers: PerAxis<AxisLayersBuilder>,
 
     /// Number of moves for a full scramble.
     pub full_scramble_length: u32,
@@ -43,6 +50,8 @@ impl PuzzleBuilder {
 
                 shape,
                 twists,
+
+                axis_layers: PerAxis::new(),
 
                 full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
             })
@@ -67,17 +76,30 @@ impl PuzzleBuilder {
         Arc::clone(&self.shape.space)
     }
 
+    /// Returns a mutable reference to the axis layers.
+    pub fn axis_layers(&mut self) -> Result<&mut PerAxis<AxisLayersBuilder>> {
+        self.axis_layers.resize(self.twists.axes.len())?;
+        Ok(&mut self.axis_layers)
+    }
+
     /// Performs the final steps of building a puzzle, generating the mesh and
     /// assigning IDs to pieces, stickers, etc.
-    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Error)) -> Result<Arc<Puzzle>> {
-        let mut dev_data = PuzzleDevData::new();
+    pub fn build(
+        &self,
+        build_ctx: Option<&BuildCtx>,
+        warn_fn: impl Copy + Fn(eyre::Error),
+    ) -> Result<Arc<Puzzle>> {
+        let opt_id = Some(self.meta.id.as_str());
 
-        // Build color system. TODO: cache this across puzzles?
-        let colors = self
-            .shape
-            .colors
-            .build(Some(&self.meta.id), Some(&mut dev_data), warn_fn)?;
-        let colors = Arc::new(colors);
+        // Build color system. TODO: cache this if unmodified
+        let colors = Arc::new(self.shape.colors.build(build_ctx, opt_id, warn_fn)?);
+
+        // Build twist system. TODO: cache this if unmodified
+        let twists = Arc::new(self.twists.build(build_ctx, opt_id, warn_fn)?);
+
+        if let Some(build_ctx) = build_ctx {
+            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+        }
 
         // Build shape.
         let ShapeBuildOutput {
@@ -92,17 +114,6 @@ impl PuzzleBuilder {
             piece_type_masks,
         } = self.shape.build(warn_fn)?;
 
-        // Build twist system.
-        let TwistSystemBuildOutput {
-            twists,
-            axis_layers,
-            axis_vectors,
-            twist_transforms,
-            gizmo_twists,
-        } = self
-            .twists
-            .build(&self.space(), &mut mesh, &mut dev_data, warn_fn)?;
-
         let mut scramble_twists = twists
             .twists
             .iter_filter(|_, twist_info| twist_info.include_in_scrambles)
@@ -111,6 +122,25 @@ impl PuzzleBuilder {
             Ok(name) => &name.canonical,
             Err(_) => "",
         });
+
+        let engine_data = twists
+            .engine_data
+            .downcast_ref::<NdEuclidTwistSystemEngineData>()
+            .ok_or_eyre("expected NdEuclid twist system")?;
+        let NdEuclidTwistSystemEngineData {
+            axis_vectors,
+            twist_transforms,
+            gizmo_pole_distances: _,
+        } = engine_data;
+
+        // Build twist gizmos.
+        let gizmo_twists = super::gizmos::build_twist_gizmos(
+            &self.space(),
+            &mut mesh,
+            &twists,
+            engine_data,
+            warn_fn,
+        )?;
 
         // Build vertex sets.
         let space = self.space();
@@ -151,11 +181,61 @@ impl PuzzleBuilder {
             sticker_planes,
 
             mesh,
-            axis_vectors,
-            twist_transforms,
+
+            axis_vectors: Arc::clone(axis_vectors),
+            twist_transforms: Arc::clone(twist_transforms),
+
             gizmo_twists,
         });
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
+
+        // Build layers.
+        let mut axis_layers = self.axis_layers.clone();
+        axis_layers.resize(twists.axes.len())?;
+        let axis_layers = axis_layers.try_map_ref(|_, layers| layers.build())?;
+
+        // Assign opposite axes.
+        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new();
+        for axis in Axis::iter(twists.axes.len()) {
+            if axis_opposites[axis].is_some() {
+                continue; // already visited it
+            }
+
+            if let Some(opposite_axis) = self.twists.axes.vector_to_id(-&axis_vectors[axis]) {
+                let self_layers = &axis_layers[axis].0;
+                let opposite_layers = &axis_layers[opposite_axis].0;
+
+                // Do the layers overlap?
+                let overlap = Option::zip(self_layers.last(), opposite_layers.last())
+                    .is_some_and(|(l1, l2)| l1.bottom < -l2.bottom);
+
+                if overlap {
+                    // Are the layers exactly the same, just reversed?
+                    let is_same_but_reversed = self_layers.len() == opposite_layers.len()
+                        && std::iter::zip(
+                            self_layers.iter_values().rev(),
+                            opposite_layers.iter_values(),
+                        )
+                        .all(|(l1, l2)| {
+                            approx_eq(&l1.top, &-l2.bottom) && approx_eq(&l1.bottom, &-l2.top)
+                        });
+
+                    if is_same_but_reversed {
+                        axis_opposites[axis] = Some(opposite_axis);
+                        axis_opposites[opposite_axis] = Some(axis);
+                    } else {
+                        let name1 = &twists.axes.names[axis];
+                        let name2 = &twists.axes.names[opposite_axis];
+                        let layers1 = &axis_layers[axis];
+                        let layers2 = &axis_layers[opposite_axis];
+                        warn_fn(eyre!(
+                            "axes {name1} and {name2} are opposite and overlapping, \
+                             but the layers do not match ({layers1} vs. {layers2})"
+                        ));
+                    }
+                }
+            }
+        }
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -178,15 +258,13 @@ impl PuzzleBuilder {
 
             notation: Notation {},
 
-            axes: Arc::clone(&twists.axes),
             axis_layers,
-            twists: Arc::new(twists),
-
-            dev_data,
-
-            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
+            axis_opposites,
+            twists,
 
             ui_data,
+
+            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
         }))
     }
 }

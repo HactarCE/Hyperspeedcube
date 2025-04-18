@@ -9,8 +9,7 @@ use crate::NameSpecBiMap;
 /// System of sticker colors for a puzzle.
 #[derive(Debug)]
 pub struct ColorSystem {
-    /// ID, which may indicate that the color system is shared across multiple
-    /// puzzles.
+    /// Color system ID.
     pub id: String,
     /// Human-friendly name for the color system.
     pub name: String,
@@ -24,6 +23,9 @@ pub struct ColorSystem {
     pub schemes: IndexMap<String, PerColor<DefaultColor>>,
     /// Name of the default color scheme, which is typically `"Default"`.
     pub default_scheme: String,
+
+    /// Orbits used to generate colors.
+    pub orbits: Vec<Orbit<Color>>,
 }
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
@@ -62,6 +64,7 @@ impl ColorSystem {
             display_names: PerColor::new(),
             schemes: IndexMap::new(),
             default_scheme: String::new(),
+            orbits: vec![],
         }
     }
 

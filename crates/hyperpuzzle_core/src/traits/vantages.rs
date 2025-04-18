@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::fmt;
 
 use crate::{Axis, Twist, Vantage};
 
@@ -60,7 +59,6 @@ pub trait VantageGroup: Any + Send + Sync {
     /// Returns the relative twist with the given name.
     fn twist_from_name(&self, name: String) -> Option<BoxDynRelativeTwist>;
 }
-
 box_dyn_wrapper_struct! {
     /// Wrapper around `Arc<dyn VantageGroup>` that can be downcast to a
     /// concrete vantage group type.

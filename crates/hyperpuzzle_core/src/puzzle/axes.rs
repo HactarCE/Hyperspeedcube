@@ -6,22 +6,21 @@ use crate::NameSpecBiMap;
 pub struct AxisSystem {
     /// Axis names.
     pub names: NameSpecBiMap<Axis>,
-    /// For each axis, its opposite axis if there is one.
-    ///
-    /// This is important for Slice Turn Metric calculations.
-    pub opposites: PerAxis<Option<Axis>>,
+
+    /// Orbits used to generate axes.
+    pub orbits: Vec<Orbit<Axis>>,
 }
 impl AxisSystem {
     /// Returns an empty axis system.
     pub fn new_empty() -> Self {
         Self {
             names: NameSpecBiMap::new(),
-            opposites: PerAxis::new(),
+            orbits: vec![],
         }
     }
 
     /// Returns the number of axes.
     pub fn len(&self) -> usize {
-        self.opposites.len()
+        self.names.len()
     }
 }

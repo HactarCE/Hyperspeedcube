@@ -1,9 +1,12 @@
 use eyre::{OptionExt, Result, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{
+    catalog::{BuildCtx, BuildTask},
+    prelude::*,
+};
 use indexmap::IndexMap;
 
-const PUZZLE_PREFIX: &str = "puzzle:";
+use crate::PUZZLE_PREFIX;
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
@@ -31,45 +34,13 @@ pub struct ColorSystemBuilder {
     pub default_scheme: Option<String>,
 
     /// Orbits used to generate colors, tracked for puzzle dev purposes.
-    pub color_orbits: Vec<DevOrbit<Color>>,
+    pub orbits: Vec<Orbit<Color>>,
 
     /// Whether the color system has been modified.
     pub is_modified: bool,
     /// Whether the color system is shared (as opposed to ad-hoc defined for a
     /// single puzzle).
     pub is_shared: bool,
-}
-impl From<&ColorSystem> for ColorSystemBuilder {
-    fn from(value: &ColorSystem) -> Self {
-        let ColorSystem {
-            id,
-            name,
-            names,
-            display_names,
-            schemes,
-            default_scheme,
-        } = value;
-
-        ColorSystemBuilder {
-            id: id.clone(),
-            name: Some(name.clone()),
-
-            by_id: (0..value.len()).map(|_| ColorBuilder {}).collect(),
-            names: names.clone().into(),
-            display_names: display_names.map_ref(|_, display| Some(display.clone())),
-
-            schemes: schemes
-                .iter()
-                .map(|(k, v)| (k.clone(), v.map_ref(|_, default| Some(default.clone()))))
-                .collect(),
-            default_scheme: Some(default_scheme.clone()),
-
-            color_orbits: vec![],
-
-            is_modified: false,
-            is_shared: true,
-        }
-    }
 }
 impl ColorSystemBuilder {
     /// Constructs a new shared color-system.
@@ -200,10 +171,14 @@ impl ColorSystemBuilder {
     /// Also returns a map from old color IDs to new color IDs.
     pub fn build(
         &self,
+        build_ctx: Option<&BuildCtx>,
         puzzle_id: Option<&str>,
-        dev_data: Option<&mut PuzzleDevData>,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<ColorSystem> {
+        if let Some(build_ctx) = build_ctx {
+            build_ctx.progress.lock().task = BuildTask::BuildingColors;
+        }
+
         let mut id = self.id.clone();
         if self.is_shared {
             if self.is_modified {
@@ -221,10 +196,8 @@ impl ColorSystemBuilder {
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
         let mut names = self.names.clone();
-        names.autoname(
-            self.len(),
-            hyperpuzzle_core::util::iter_uppercase_letter_names(),
-        )?;
+        let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
+        names.autoname(self.len(), autonames)?;
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
 
         let display_names = names
@@ -261,13 +234,7 @@ impl ColorSystemBuilder {
             hyperpuzzle_core::ensure_color_scheme_is_valid(list.iter_values_mut(), |_| true);
         }
 
-        if let Some(dev_data) = dev_data {
-            dev_data.orbits.extend(
-                self.color_orbits
-                    .iter()
-                    .map(|dev_orbit| dev_orbit.map(|i| Some(PuzzleElement::Color(i)))),
-            );
-        }
+        let orbits = self.orbits.clone();
 
         let color_system = ColorSystem {
             id,
@@ -278,7 +245,45 @@ impl ColorSystemBuilder {
 
             schemes,
             default_scheme,
+
+            orbits,
         };
         Ok(color_system)
+    }
+
+    /// "Unbuilds" a color system into a color system builder.
+    ///
+    /// If the resulting color system builder is modified, then it emits a
+    /// warning and changes its ID.
+    pub fn unbuild(color_system: &ColorSystem) -> Result<Self> {
+        let ColorSystem {
+            id,
+            name,
+            names,
+            display_names,
+            schemes,
+            default_scheme,
+            orbits,
+        } = color_system;
+
+        Ok(ColorSystemBuilder {
+            id: id.clone(),
+            name: Some(name.clone()),
+
+            by_id: (0..color_system.len()).map(|_| ColorBuilder {}).collect(),
+            names: names.clone().into(),
+            display_names: display_names.map_ref(|_, display| Some(display.clone())),
+
+            schemes: schemes
+                .iter()
+                .map(|(k, v)| (k.clone(), v.map_ref(|_, default| Some(default.clone()))))
+                .collect(),
+            default_scheme: Some(default_scheme.clone()),
+
+            orbits: orbits.clone(),
+
+            is_modified: false,
+            is_shared: true,
+        })
     }
 }

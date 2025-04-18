@@ -125,19 +125,10 @@ pub struct StickerInfo {
     pub color: Color,
 }
 
-/// Twist axis info.
-#[derive(Debug)]
-pub struct AxisInfo {
-    /// Layer.
-    pub layers: AxisLayers,
-    /// Opposite axis, which has a reversed layer list.
-    pub opposite: Option<Axis>,
-}
-
 /// Layers of an axis.
 #[derive(Debug, Default, PartialEq)]
-pub struct AxisLayers(pub PerLayer<LayerInfo>);
-impl fmt::Display for AxisLayers {
+pub struct AxisLayersInfo(pub PerLayer<LayerInfo>);
+impl fmt::Display for AxisLayersInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let top_bottom_pairs = self
             .0
@@ -147,7 +138,7 @@ impl fmt::Display for AxisLayers {
         write!(f, "{top_bottom_pairs:?}")
     }
 }
-impl AxisLayers {
+impl AxisLayersInfo {
     /// Returns whether the layer list is empty.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()

@@ -1,22 +1,12 @@
 use std::collections::hash_map;
 
-use eyre::{OptionExt, Result, bail, eyre};
+use eyre::{OptionExt, Result, eyre};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
-use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-/// Layer of a twist axis during puzzle construction.
-#[derive(Debug, Clone)]
-pub struct AxisLayerBuilder {
-    /// Position along the axis vector from the origin that bounds the bottom of
-    /// the layer. **This may be infinite.**
-    pub bottom: Float,
-    /// Position along the axis vector from the origin that bounds the top of
-    /// the layer. **This may be infinite.**
-    pub top: Float,
-}
+use crate::NdEuclidTwistSystemEngineData;
 
 /// Twist axis during puzzle construction.
 #[derive(Debug, Clone)]
@@ -26,9 +16,6 @@ pub struct AxisBuilder {
     ///
     /// Once an axis has been constructed, its vector cannot be modified.
     vector: Vector,
-    /// Layer data for each layer on the axis, in order from outermost to
-    /// innermost.
-    pub layers: PerLayer<AxisLayerBuilder>,
 }
 impl AxisBuilder {
     /// Returns the axis's vector.
@@ -36,9 +23,27 @@ impl AxisBuilder {
         &self.vector
     }
 
+    /// Returns a union-of-intersections of bounded regions for the given layer
+    /// mask.
+    pub fn plane_bounded_regions(
+        &self,
+        layers: &AxisLayersInfo,
+        layer_mask: LayerMask,
+    ) -> Result<Vec<SmallVec<[Hyperplane; 2]>>> {
+        // TODO: optimize
+        layer_mask
+            .iter()
+            .map(|layer| self.boundary_of_layer(layers, layer))
+            .collect()
+    }
+
     /// Returns the hyperplanes bounding a layer.
-    pub fn boundary_of_layer(&self, layer: Layer) -> Result<SmallVec<[Hyperplane; 2]>> {
-        let l = self.layers.get(layer)?;
+    pub fn boundary_of_layer(
+        &self,
+        layers: &AxisLayersInfo,
+        layer: Layer,
+    ) -> Result<SmallVec<[Hyperplane; 2]>> {
+        let l = layers.0.get(layer)?;
         let mut ret = smallvec![];
         if l.top.is_finite() {
             ret.push(Hyperplane::new(&self.vector, l.top).ok_or_eyre("bad axis vector")?);
@@ -52,45 +57,6 @@ impl AxisBuilder {
         }
         Ok(ret)
     }
-
-    /// Returns a union-of-intersections of bounded regions for the given layer
-    /// mask.
-    pub fn plane_bounded_regions(
-        &self,
-        layer_mask: LayerMask,
-    ) -> Result<Vec<SmallVec<[Hyperplane; 2]>>> {
-        // TODO: optimize
-        layer_mask
-            .iter()
-            .map(|layer| self.boundary_of_layer(layer))
-            .collect()
-    }
-
-    fn ensure_monotonic_layers(&self) -> Result<()> {
-        let mut last_depth = Float::INFINITY;
-        for layer_info in self.layers.iter_values() {
-            let AxisLayerBuilder { bottom, top } = layer_info;
-            if !(approx_gt_eq(&last_depth, top) && approx_gt(top, bottom)) {
-                let depths = self
-                    .layers
-                    .iter_values()
-                    .map(|l| (l.top, l.bottom))
-                    .collect_vec();
-                bail!("axis layers {depths:?} are not sorted from outermost to innermost");
-            }
-            last_depth = *bottom;
-        }
-        Ok(())
-    }
-
-    pub(super) fn build_layers(&self) -> Result<AxisLayers> {
-        // Check that the layer planes are monotonic.
-        self.ensure_monotonic_layers()?;
-
-        Ok(AxisLayers(self.layers.map_ref(
-            |_, &AxisLayerBuilder { bottom, top }| LayerInfo { bottom, top },
-        )))
-    }
 }
 
 /// Axis system during puzzle construction.
@@ -103,8 +69,8 @@ pub struct AxisSystemBuilder {
     /// Axis names.
     pub names: NameSpecBiMapBuilder<Axis>,
 
-    /// Orbits used to generate axis, tracked for puzzle dev purposes.
-    pub axis_orbits: Vec<DevOrbit<Axis>>,
+    /// Orbits used to generate axes, tracked for puzzle dev purposes.
+    pub orbits: Vec<Orbit<Axis>>,
 }
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
@@ -131,8 +97,7 @@ impl AxisSystemBuilder {
         match self.vector_to_id.entry(vector.clone()) {
             hash_map::Entry::Occupied(_) => Err(eyre!("axis vector is already taken")),
             hash_map::Entry::Vacant(e) => {
-                let layers = PerLayer::new();
-                let id = self.by_id.push(AxisBuilder { vector, layers })?;
+                let id = self.by_id.push(AxisBuilder { vector })?;
                 e.insert(id);
                 Ok(id)
             }
@@ -158,5 +123,42 @@ impl AxisSystemBuilder {
     /// Returns an iterator over all the axes, in the canonical ordering.
     pub fn iter(&self) -> impl Iterator<Item = (Axis, &AxisBuilder)> {
         self.by_id.iter()
+    }
+
+    /// Validates and constructs an axis system.
+    pub fn build(&self) -> Result<(AxisSystem, PerAxis<Vector>)> {
+        let mut names = self.names.clone();
+        let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
+        names.autoname(self.len(), autonames)?;
+        let names = names.build(self.len()).ok_or_eyre("missing axis names")?;
+
+        let orbits = self.orbits.clone();
+
+        let axis_vectors = self.by_id.map_ref(|_, axis| axis.vector.clone());
+
+        Ok((AxisSystem { names, orbits }, axis_vectors))
+    }
+
+    /// "Unbuilds" an axis system into an axis system builder.
+    pub fn unbuild(
+        axis_system: &AxisSystem,
+        engine_data: &NdEuclidTwistSystemEngineData,
+    ) -> Result<Self> {
+        let AxisSystem { names, orbits } = axis_system;
+
+        let mut vector_to_id = ApproxHashMap::new();
+        for (id, vector) in &*engine_data.axis_vectors {
+            vector_to_id.insert(vector.clone(), id);
+        }
+
+        Ok(AxisSystemBuilder {
+            by_id: PerAxis::new_with_len(axis_system.len()).map(|id, ()| {
+                let vector = engine_data.axis_vectors[id].clone();
+                AxisBuilder { vector }
+            }),
+            vector_to_id,
+            names: names.clone().into(),
+            orbits: orbits.clone(),
+        })
     }
 }

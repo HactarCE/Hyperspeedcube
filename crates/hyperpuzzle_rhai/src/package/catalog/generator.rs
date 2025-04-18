@@ -1,7 +1,7 @@
 use std::sync::mpsc;
 
 use eyre::{bail, eyre};
-use hyperpuzzle_core::catalog::{BuildCtx, BuildResult, BuildTask, Generator};
+use hyperpuzzle_core::catalog::{BuildCtx, BuildResult, Generator};
 use itertools::Itertools;
 use rhai::Array;
 use std::sync::Arc;
@@ -65,8 +65,6 @@ pub(super) fn generator_from_rhai_map<T: 'static + Send + Sync>(
                 ("name".into(), name.clone().into()),
             ]))
             .into_read_only();
-
-            build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
 
             let (result_tx, result_rx) = mpsc::channel::<BuildResult<T>>();
             let rhai_eval_request = Box::new(move |engine: &mut Engine| {

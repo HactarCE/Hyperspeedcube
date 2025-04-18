@@ -45,21 +45,20 @@ pub struct Puzzle {
     /// Move notation.
     pub notation: Notation,
 
-    /// Axis system.
-    pub axes: Arc<AxisSystem>,
     /// Layers for each axis.
-    pub axis_layers: PerAxis<AxisLayers>,
+    pub axis_layers: PerAxis<AxisLayersInfo>,
+    /// For each axis, its opposite axis if there is one.
+    ///
+    /// This is important for Slice Turn Metric calculations.
+    pub axis_opposites: PerAxis<Option<Axis>>,
     /// Twist system.
     pub twists: Arc<TwistSystem>,
 
-    /// Data for puzzle developers.
-    pub dev_data: PuzzleDevData,
+    /// Data for rendering and interacting with the puzzle.
+    pub ui_data: BoxDynPuzzleUiData,
 
     /// Constructor for a solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> BoxDynPuzzleState>,
-
-    /// Data for rendering and interacting with the puzzle.
-    pub ui_data: BoxDynPuzzleUiData,
 }
 
 impl fmt::Debug for Puzzle {
@@ -168,6 +167,22 @@ impl Puzzle {
             twists: twists_applied,
             state,
         })
+    }
+
+    /// Returns the axis system.
+    ///
+    /// This is a shortcut for `.twists.axes()`.
+    pub fn axes(&self) -> &Arc<AxisSystem> {
+        &self.twists.axes
+    }
+
+    /// Returns all orbits used to construct the puzzle.
+    pub fn orbits(&self) -> Vec<AnyOrbit> {
+        itertools::chain(
+            self.axes().orbits.iter().cloned().map(AnyOrbit::Axes),
+            self.colors.orbits.iter().cloned().map(AnyOrbit::Colors),
+        )
+        .collect()
     }
 
     /// Returns which view preferences UI to display for the puzzle.

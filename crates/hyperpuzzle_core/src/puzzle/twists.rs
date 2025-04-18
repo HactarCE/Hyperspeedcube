@@ -4,16 +4,17 @@ use indexmap::IndexMap;
 
 use super::*;
 use crate::{
-    BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynVantageGroup, BoxDynVantageGroupElement,
-    NameSpecBiMap, VantageGroup, VantageGroupElement,
+    BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
+    BoxDynVantageGroupElement, NameSpecBiMap, VantageGroup, VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
 #[derive(Debug)]
 pub struct TwistSystem {
-    /// ID, which may indicate that the twist system is shared across multiple
-    /// puzzles.
+    /// Twist system ID.
     pub id: String,
+    /// Human-friendly name for the twist system.
+    pub name: String,
 
     /// Axis system.
     pub axes: Arc<AxisSystem>,
@@ -29,19 +30,34 @@ pub struct TwistSystem {
     pub vantage_group: BoxDynVantageGroup,
     /// Built-in vantage sets.
     pub vantage_sets: IndexMap<String, VantageSetInfo>,
+
+    /// Engine-specific data.
+    pub engine_data: BoxDynTwistSystemEngineData,
 }
 impl TwistSystem {
     /// Returns an empty twist system.
     pub fn new_empty(axes: &Arc<AxisSystem>) -> Self {
         Self {
             id: String::new(),
+            name: String::new(),
             axes: Arc::clone(axes),
             names: NameSpecBiMap::new(),
             twists: PerTwist::new(),
             directions: vec![],
             vantage_group: ().into(),
             vantage_sets: IndexMap::new(),
+            engine_data: ().into(),
         }
+    }
+
+    /// Returns whether the twist system has no twists.
+    pub fn is_empty(&self) -> bool {
+        self.twists.is_empty()
+    }
+
+    /// Returns the number of twists.
+    pub fn len(&self) -> usize {
+        self.twists.len()
     }
 }
 

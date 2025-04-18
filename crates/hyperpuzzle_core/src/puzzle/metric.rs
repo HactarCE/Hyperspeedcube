@@ -136,7 +136,7 @@ impl TwistMetric {
                 let mut prev_axis = None;
                 for twist in twists {
                     let axis = puzzle.twists.twists[twist.transform].axis;
-                    let opp = puzzle.axes.opposites[axis];
+                    let opp = puzzle.axis_opposites[axis];
                     let is_same_axis = prev_axis == Some(axis) || opp.is_some() && prev_axis == opp;
                     if !is_same_axis {
                         count += 1;

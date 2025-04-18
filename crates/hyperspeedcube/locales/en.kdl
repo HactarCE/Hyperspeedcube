@@ -608,8 +608,9 @@ puzzle_view {
   select_a_puzzle "Select a puzzle from the puzzle list"
 
   initializing "Initializing"
-  generating_spec "Generating puzzle specification"
+  generating_spec "Generating specification"
   building_colors "Building color system"
+  building_twists "Building twist system"
   building_puzzle "Building puzzle"
   finalizing "Finalizing puzzle"
 

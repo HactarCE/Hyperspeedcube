@@ -311,6 +311,7 @@ impl PuzzleWidget {
                             BuildTask::Initializing => L.puzzle_view.initializing,
                             BuildTask::GeneratingSpec => L.puzzle_view.generating_spec,
                             BuildTask::BuildingColors => L.puzzle_view.building_colors,
+                            BuildTask::BuildingTwists => L.puzzle_view.building_twists,
                             BuildTask::BuildingPuzzle => L.puzzle_view.building_puzzle,
                             BuildTask::Finalizing => L.puzzle_view.finalizing,
                         });

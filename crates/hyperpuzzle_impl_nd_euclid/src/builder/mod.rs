@@ -4,13 +4,16 @@
 //! independently. These builders are a rare place where we accept mutable
 //! aliasing in the Lua API, so the Rust API must also have mutable aliasing.
 
+mod axis_layers;
 mod axis_system;
 mod color_system;
+mod gizmos;
 mod puzzle;
 mod shape;
 mod twist_system;
 
-pub use axis_system::{AxisBuilder, AxisLayerBuilder, AxisSystemBuilder};
+pub use axis_layers::{AxisLayerBuilder, AxisLayersBuilder};
+pub use axis_system::{AxisBuilder, AxisSystemBuilder};
 pub use color_system::{ColorBuilder, ColorSystemBuilder};
 pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;

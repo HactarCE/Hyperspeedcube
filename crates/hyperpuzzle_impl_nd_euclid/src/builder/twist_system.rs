@@ -1,18 +1,16 @@
-use std::collections::{HashMap, hash_map};
 use std::sync::Arc;
 
-use eyre::{OptionExt, Result, WrapErr, bail, eyre};
-use float_ord::FloatOrd;
+use eyre::{OptionExt, Result, eyre};
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::prelude::*;
+use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
-use hypershape::{ElementId, Space, ToElementId};
 use indexmap::IndexMap;
-use itertools::Itertools;
-use pga::{Blade, Motor};
+use pga::Motor;
 
 use super::AxisSystemBuilder;
+use crate::{NdEuclidTwistSystemEngineData, PUZZLE_PREFIX};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -76,6 +74,11 @@ impl TwistKey {
 /// Twist system being constructed.
 #[derive(Debug, Default)]
 pub struct TwistSystemBuilder {
+    /// Twist system ID.
+    pub id: String,
+    /// Name of the twist system.
+    pub name: Option<String>,
+
     /// Axis system being constructed.
     pub axes: AxisSystemBuilder,
 
@@ -87,6 +90,12 @@ pub struct TwistSystemBuilder {
     ///
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
+
+    /// Whether the twist system has been modified.
+    pub is_modified: bool,
+    /// Whether the twist system is shared (as opposed to ad-hoc defined for a
+    /// single puzzle).
+    pub is_shared: bool,
 }
 impl TwistSystemBuilder {
     /// Constructs a empty twist system with a given axis system.
@@ -105,6 +114,8 @@ impl TwistSystemBuilder {
 
     /// Adds a new twist.
     pub fn add(&mut self, data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
+        self.is_modified = true;
+
         let data = data.canonicalize()?;
         let key = data.key()?;
 
@@ -137,6 +148,8 @@ impl TwistSystemBuilder {
         name: String,
         warn_fn: impl Fn(String),
     ) -> Result<Option<Twist>> {
+        self.is_modified = true;
+
         let id = match self.add(data)? {
             Ok(ok) => ok,
             Err(err) => {
@@ -166,129 +179,61 @@ impl TwistSystemBuilder {
         Ok(self.data_to_id(&self.get(id)?.rev_key()?))
     }
 
-    /// Finalizes the axis system and twist system, and validates them to check
-    /// for errors in the definition.
+    /// Validates and constructs a twist system.
     pub fn build(
         &self,
-        space: &Space,
-        mesh: &mut Mesh,
-        dev_data: &mut PuzzleDevData,
+        build_ctx: Option<&BuildCtx>,
+        puzzle_id: Option<&str>,
         warn_fn: impl Copy + Fn(eyre::Report),
-    ) -> Result<TwistSystemBuildOutput> {
-        // Autoname axes.
-        let mut axis_names = self.axes.names.clone();
-        axis_names.autoname(
-            self.axes.len(),
-            hyperpuzzle_core::util::iter_uppercase_letter_names(),
-        )?;
-        let axis_names = axis_names
-            .build(self.axes.len())
-            .ok_or_eyre("missing axis names")?;
-
-        // Assemble list of axes.
-        let mut axis_layers: PerAxis<AxisLayers> = PerAxis::new();
-        let mut axis_vectors: PerAxis<Vector> = PerAxis::new();
-        for (id, axis) in self.axes.iter() {
-            let layers = axis
-                .build_layers()
-                .wrap_err_with(|| match axis_names.get(id) {
-                    Ok(name) => format!("building axis {:?}", name.preferred),
-                    Err(_) => format!("building axis {id}"),
-                })?;
-            axis_layers.push(layers)?;
-            axis_vectors.push(axis.vector().clone())?;
+    ) -> Result<TwistSystem> {
+        if let Some(build_ctx) = build_ctx {
+            build_ctx.progress.lock().task = BuildTask::BuildingTwists;
         }
 
-        // Assign opposite axes.
-        let axis_ids = axis_layers.iter_keys();
-        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new();
-        for axis in axis_ids {
-            if axis_opposites[axis].is_some() {
-                continue; // already visited it
+        let mut id = self.id.clone();
+        if self.is_shared {
+            if self.is_modified {
+                warn_fn(eyre!("shared twist system cannot be modified"));
+                if let Some(puzzle_id) = puzzle_id {
+                    id = format!("{PUZZLE_PREFIX}{puzzle_id}");
+                };
             }
-
-            if let Some(opposite_axis) = self.axes.vector_to_id(-&axis_vectors[axis]) {
-                let self_layers = &axis_layers[axis].0;
-                let opposite_layers = &axis_layers[opposite_axis].0;
-
-                // Do the layers overlap?
-                let overlap = Option::zip(self_layers.last(), opposite_layers.last())
-                    .is_some_and(|(l1, l2)| l1.bottom < -l2.bottom);
-
-                if overlap {
-                    // Are the layers exactly the same, just reversed?
-                    let is_same_but_reversed = self_layers.len() == opposite_layers.len()
-                        && std::iter::zip(
-                            self_layers.iter_values().rev(),
-                            opposite_layers.iter_values(),
-                        )
-                        .all(|(l1, l2)| {
-                            approx_eq(&l1.top, &-l2.bottom) && approx_eq(&l1.bottom, &-l2.top)
-                        });
-
-                    if is_same_but_reversed {
-                        axis_opposites[axis] = Some(opposite_axis);
-                        axis_opposites[opposite_axis] = Some(axis);
-                    } else {
-                        let name1 = &axis_names[axis];
-                        let name2 = &axis_names[opposite_axis];
-                        let layers1 = &axis_layers[axis];
-                        let layers2 = &axis_layers[opposite_axis];
-                        warn_fn(eyre!(
-                            "axes {name1} and {name2} are opposite and overlapping, \
-                             but the layers do not match ({layers1} vs. {layers2})"
-                        ));
-                    }
-                }
+            if self.name.is_none() {
+                warn_fn(eyre!("twist system has no name"));
             }
+        } else {
+            warn_fn(eyre!("using ad-hoc twist system"));
         }
+        let name = self.name.clone().unwrap_or_else(|| self.id.clone());
+
+        // Build axis system.
+        let (axes, axis_vectors) = self.axes.build()?;
 
         // Autoname twists.
         let mut twist_names = self.names.clone();
-        twist_names.autoname(self.by_id.len(), (0..).map(|i| format!("T{i}")))?;
+        twist_names.autoname(self.len(), (0..).map(|i| format!("T{i}")))?;
 
         // Assemble list of twists.
-        let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axis_layers.map_ref(|_, _| vec![]);
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
         let mut twist_transforms: PerTwist<Motor> = PerTwist::new();
-        for (id, old_twist) in &self.by_id {
-            let axis = old_twist.axis;
+        for (id, twist) in &self.by_id {
+            let axis = twist.axis;
+            let axis_vector = &axis_vectors[axis];
 
-            if let Some(pole_distance) = old_twist.gizmo_pole_distance {
-                // The axis vector is fixed by the twist.
-                let axis_vector = &axis_vectors[axis];
-
-                let face_normal = if space.ndim() == 4 {
-                    // Compute the other vector fixed by the twist.
-                    (|| {
-                        let axis_vector = Blade::from_vector(axis_vector);
-                        let origin = Blade::origin();
-                        Blade::wedge(
-                            &old_twist.transform.grade_project(2),
-                            &Blade::wedge(&origin, &axis_vector)?,
-                        )?
-                        .antidual(4)?
-                        .to_vector()?
-                        .normalize()
-                    })()
-                    .ok_or_eyre("error computing normal vector for twist gizmo")?
-                } else {
-                    axis_vector.clone()
-                };
-
-                let gizmo_pole = face_normal * pole_distance as _;
-                gizmo_twists[axis].push((gizmo_pole, id));
-            };
-
-            // TODO: check that transform keeps layer manifolds fixed
+            if !approx_eq(&twist.transform.transform_vector(axis_vector), axis_vector) {
+                warn_fn(match twist_names.get(id) {
+                    Some(name) => eyre!("twist {:?} does not fix axis vector", name.preferred),
+                    None => eyre!("twist {id} does not fix axis vector"),
+                });
+            }
 
             twists.push(TwistInfo {
-                qtm: old_twist.qtm,
+                qtm: twist.qtm,
                 axis,
                 reverse: Twist(0), // will be assigned later
-                include_in_scrambles: old_twist.include_in_scrambles,
+                include_in_scrambles: twist.include_in_scrambles,
             })?;
-            twist_transforms.push(old_twist.transform.clone())?;
+            twist_transforms.push(twist.transform.clone())?;
         }
 
         // Assign reverse twists.
@@ -326,309 +271,87 @@ impl TwistSystemBuilder {
             twist_transforms.push(twist_transform.reverse())?;
         }
 
-        let twist_names = twist_names
-            .build(self.by_id.len())
+        let names = twist_names
+            .build(self.len())
             .ok_or_eyre("missing twist names")?;
 
-        // Build twist gizmos.
-        let mut gizmo_face_twists = PerGizmoFace::new();
-        if space.ndim() == 3 {
-            let gizmo_twists = gizmo_twists.iter_values().flatten().cloned().collect_vec();
-            let resulting_gizmo_faces = Self::build_3d_gizmo(
-                space,
-                mesh,
-                &gizmo_twists,
-                &twist_names,
-                &twists,
-                &axis_vectors,
-                warn_fn,
-            )?;
-            for (_gizmo_face, twist) in resulting_gizmo_faces {
-                gizmo_face_twists.push(twist)?;
-            }
-        } else if space.ndim() == 4 {
-            for (axis, axis_twists) in gizmo_twists {
-                let resulting_gizmo_faces = Self::build_4d_gizmo(
-                    space,
-                    mesh,
-                    &axis_names[axis],
-                    &axis_vectors[axis],
-                    &axis_twists,
-                    &twist_names,
-                    warn_fn,
-                )?;
-                for (_gizmo_face, twist) in resulting_gizmo_faces {
-                    gizmo_face_twists.push(twist)?;
-                }
-            }
-        }
-        if gizmo_face_twists.len() != mesh.gizmo_face_count {
-            bail!("error generating gizmo: face count mismatch");
-        }
+        let gizmo_pole_distances = self.by_id.map_ref(|_, twist| twist.gizmo_pole_distance);
 
-        dev_data.orbits.extend(
-            self.axes
-                .axis_orbits
-                .iter()
-                .map(|dev_orbit| dev_orbit.map(|id| Some(PuzzleElement::Axis(id)))),
-        );
-
-        let twists = TwistSystem {
-            id: todo!("twist system ID"),
-            axes: Arc::new(AxisSystem {
-                names: axis_names,
-                opposites: axis_opposites,
-            }),
-            names: twist_names,
-            twists,
-            directions: vec![],
-            vantage_group: BoxDynVantageGroup::from(()),
-            vantage_sets: IndexMap::new(),
+        let engine_data = NdEuclidTwistSystemEngineData {
+            axis_vectors: Arc::new(axis_vectors),
+            twist_transforms: Arc::new(twist_transforms),
+            gizmo_pole_distances: Arc::new(gizmo_pole_distances),
         };
 
-        Ok(TwistSystemBuildOutput {
+        Ok(TwistSystem {
+            id,
+            name,
+
+            axes: Arc::new(axes),
+
+            names,
             twists,
-            axis_layers,
-            axis_vectors,
-            twist_transforms,
-            gizmo_twists: gizmo_face_twists,
+            directions: vec![],
+
+            vantage_group: ().into(),
+            vantage_sets: IndexMap::new(),
+
+            engine_data: engine_data.into(),
         })
     }
 
-    fn build_3d_gizmo(
-        space: &Space,
-        mesh: &mut Mesh,
-        twists: &[(Vector, Twist)],
-        twist_names: &NameSpecBiMap<Twist>,
-        twist_infos: &PerTwist<TwistInfo>,
-        axis_vectors: &PerAxis<Vector>,
-        warn_fn: impl Fn(eyre::Report),
-    ) -> Result<Vec<(GizmoFace, Twist)>> {
-        if twists.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let polyhedron = space.get_primordial_cube()?.id();
-
-        let mut gizmo_surfaces = HashMap::new();
-        for (_, twist) in twists {
-            let axis = twist_infos[*twist].axis;
-            if let hash_map::Entry::Vacant(e) = gizmo_surfaces.entry(axis) {
-                e.insert(mesh.add_gizmo_surface(&axis_vectors[axis])?);
-            }
-        }
-
-        Self::build_gizmo(
-            space,
-            polyhedron.to_element_id(space),
-            hypershape::PRIMORDIAL_CUBE_RADIUS,
-            mesh,
+    /// "Unbuilds" a twist system into a twist system builder.
+    ///
+    /// If the resulting twist system builder is modified, then it emits a
+    /// warning and changes its ID.
+    pub fn unbuild(twist_system: &TwistSystem) -> Result<Self> {
+        let TwistSystem {
+            id,
+            name,
+            axes,
+            names,
             twists,
-            "twist gizmo",
-            |twist| &twist_names[twist],
-            |twist| gizmo_surfaces[&twist_infos[twist].axis],
-            warn_fn,
-        )
+            directions,
+            vantage_group,
+            vantage_sets,
+            engine_data,
+        } = twist_system;
+
+        let engine_data = engine_data
+            .downcast_ref::<NdEuclidTwistSystemEngineData>()
+            .ok_or_eyre("expected NdEuclid twist system")?;
+
+        let mut data_to_id = ApproxHashMap::new();
+        for (id, twist) in &*twists {
+            data_to_id.insert(
+                TwistKey {
+                    axis: twist.axis,
+                    transform: engine_data.twist_transforms[id].clone(),
+                },
+                id,
+            );
+        }
+
+        Ok(TwistSystemBuilder {
+            id: id.clone(),
+            name: Some(name.clone()),
+
+            axes: AxisSystemBuilder::unbuild(&axes, &engine_data)?,
+
+            by_id: twists.map_ref(|id, twist| TwistBuilder {
+                axis: twist.axis,
+                transform: engine_data.twist_transforms[id].clone(),
+                qtm: twist.qtm,
+                gizmo_pole_distance: engine_data.gizmo_pole_distances[id],
+                include_in_scrambles: twist.include_in_scrambles,
+            }),
+            names: names.clone().into(),
+            data_to_id,
+
+            is_modified: false,
+            is_shared: true,
+        })
     }
-    fn build_4d_gizmo(
-        space: &Space,
-        mesh: &mut Mesh,
-        axis_name: &str,
-        axis_vector: impl VectorRef,
-        twists: &[(Vector, Twist)],
-        twist_names: &NameSpecBiMap<Twist>,
-        warn_fn: impl Fn(eyre::Report),
-    ) -> Result<Vec<(GizmoFace, Twist)>> {
-        use hypershape::flat::*;
-
-        if twists.is_empty() {
-            return Ok(vec![]);
-        }
-
-        // Cut a primordial polyhedron at the axis.
-        let initial_cut_params = CutParams {
-            divider: Hyperplane::from_pole(&axis_vector).ok_or_eyre("bad axis vector")?,
-            inside: PolytopeFate::Remove,
-            outside: PolytopeFate::Remove,
-        };
-        let primordial_cube = space.get_primordial_cube()?;
-        let polyhedron = match Cut::new(space, initial_cut_params).cut(primordial_cube)? {
-            hypershape::ElementCutOutput::Flush => bail!("bad axis vector"),
-            hypershape::ElementCutOutput::NonFlush { intersection, .. } => {
-                intersection.ok_or_eyre("bad axis vector")?
-            }
-        };
-
-        let min_radius = axis_vector.mag();
-
-        let gizmo_surface = mesh.add_gizmo_surface(&axis_vector)?;
-
-        Self::build_gizmo(
-            space,
-            polyhedron,
-            min_radius,
-            mesh,
-            twists,
-            &format!("twist gizmo for axis {axis_name:?}"),
-            |twist| &twist_names[twist],
-            |_| gizmo_surface,
-            warn_fn,
-        )
-    }
-    fn build_gizmo<'a>(
-        space: &Space,
-        mut polyhedron: ElementId,
-        min_radius: Float,
-        mesh: &mut Mesh,
-        twists: &[(Vector, Twist)],
-        gizmo_name: &str,
-        mut get_twist_name: impl FnMut(Twist) -> &'a str,
-        mut get_gizmo_surface: impl FnMut(Twist) -> u32,
-        warn_fn: impl Fn(eyre::Report),
-    ) -> Result<Vec<(GizmoFace, Twist)>> {
-        use hypershape::flat::*;
-
-        // Cut a primordial cube for the twist gizmo.
-        let max_pole_radius = twists
-            .iter()
-            .map(|(v, _)| v.mag())
-            .max_by_key(|&x| FloatOrd(x))
-            .unwrap_or(0.0);
-        let primordial_face_radius = Float::max(max_pole_radius, min_radius) * 2.0; // can be any number greater than 1
-        for axis in 0..space.ndim() {
-            for distance in [-1.0, 1.0] {
-                let cut_normal = Vector::unit(axis) * distance;
-                let cut_plane = Hyperplane::new(cut_normal, primordial_face_radius)
-                    .ok_or_eyre("bad hyperplane")?;
-                let mut cut = Cut::carve(space, cut_plane);
-                let result = cut.cut(polyhedron)?.inside();
-                polyhedron = result.ok_or_eyre("error cutting primordial cube for twist gizmo")?;
-            }
-        }
-
-        // Cut a face for each twist.
-        let mut face_polygons: Vec<(ElementId, Twist)> = vec![];
-        for (new_pole, new_twist) in twists {
-            let Some(cut_plane) = Hyperplane::from_pole(new_pole) else {
-                let new_twist_name = get_twist_name(*new_twist);
-                warn_fn(eyre!(
-                    "bad facet pole for twist {new_twist_name:?} on twist gizmo",
-                ));
-                continue;
-            };
-            let mut cut = Cut::carve(space, cut_plane);
-
-            let mut new_face_polygons = vec![];
-
-            // Cut each existing facet.
-            for (f, twist) in face_polygons {
-                match cut.cut(f)? {
-                    hypershape::ElementCutOutput::Flush => {
-                        let twist_name = get_twist_name(twist);
-                        let new_twist_name = get_twist_name(*new_twist);
-                        warn_fn(eyre!(
-                            "twists {twist_name:?} and {new_twist_name:?} overlap on twist gizmo",
-                        ));
-                    }
-                    hypershape::ElementCutOutput::NonFlush {
-                        inside: Some(new_f),
-                        ..
-                    } => new_face_polygons.push((new_f, twist)),
-                    _ => {
-                        let twist_name = get_twist_name(twist);
-                        let new_twist_name = get_twist_name(*new_twist);
-                        warn_fn(eyre!(
-                            "twist {twist_name:?} is eclipsed by {new_twist_name:?} on twist gizmo",
-                        ));
-                    }
-                }
-            }
-
-            // Cut the polyhedron.
-            let polyhedron_cut_output = cut.cut(polyhedron)?;
-            match polyhedron_cut_output {
-                hypershape::ElementCutOutput::Flush => bail!("polytope is flush"),
-                hypershape::ElementCutOutput::NonFlush {
-                    inside,
-                    outside: _,
-                    intersection,
-                } => {
-                    // Update the polyhedron.
-                    polyhedron = inside.ok_or_eyre("twist gizmo becomes null")?;
-
-                    // Add the new facet.
-                    match intersection {
-                        Some(new_facet) => new_face_polygons.push((new_facet, *new_twist)),
-                        None => {
-                            let new_twist_name = get_twist_name(*new_twist);
-                            warn_fn(eyre!("twist {new_twist_name:?} is eclipsed on twist gizmo"));
-                        }
-                    }
-                }
-            }
-
-            face_polygons = new_face_polygons;
-        }
-
-        if space.get(polyhedron).boundary().count() > face_polygons.len() {
-            let r = primordial_face_radius;
-            warn_fn(eyre!(
-                "{gizmo_name} is infinite; it has been bounded with a radius-{r} cube",
-            ));
-        }
-
-        // Add vertices to the mesh and record a map from vertex IDs in `space`
-        // to vertex IDs in `mesh`.
-        let vertex_map: HashMap<(VertexId, u32), u32> = face_polygons
-            .iter()
-            .flat_map(|&(polygon, twist)| {
-                let surface = get_gizmo_surface(twist);
-                space.get(polygon).vertex_set().map(move |v| (v, surface))
-            })
-            .map(|(vertex, surface)| {
-                let old_id = vertex.id();
-                let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
-                eyre::Ok(((old_id, surface), new_id))
-            })
-            .try_collect()?;
-
-        let mut resulting_gizmo_faces = vec![];
-
-        // Generate mesh for face polygons and edges.
-        for (face_polygon, twist) in face_polygons {
-            let surface = get_gizmo_surface(twist);
-
-            let face_polygon = space.get(face_polygon).as_face()?;
-
-            let triangles_start = mesh.triangle_count() as u32;
-            let edges_start = mesh.edge_count() as u32;
-
-            for edge in face_polygon.edge_endpoints()? {
-                mesh.edges
-                    .push(edge.map(|v| vertex_map[&(v.id(), surface)]));
-            }
-            for tri in face_polygon.triangles()? {
-                mesh.triangles.push(tri.map(|v| vertex_map[&(v, surface)]));
-            }
-
-            let triangles_end = mesh.triangle_count() as u32;
-            let edges_end = mesh.edge_count() as u32;
-            let new_gizmo_face =
-                mesh.add_gizmo_face(triangles_start..triangles_end, edges_start..edges_end)?;
-            resulting_gizmo_faces.push((new_gizmo_face, twist));
-        }
-
-        Ok(resulting_gizmo_faces)
-    }
-}
-
-#[derive(Debug)]
-pub struct TwistSystemBuildOutput {
-    pub twists: TwistSystem,
-    pub axis_layers: PerAxis<AxisLayers>,
-    pub axis_vectors: PerAxis<Vector>,
-    pub twist_transforms: PerTwist<Motor>,
-    pub gizmo_twists: PerGizmoFace<Twist>,
 }
 
 /// Error indicating a bad twist.

@@ -7,6 +7,8 @@ pub struct Db {
     pub puzzles: SubCatalog<Puzzle>,
     /// Color systems.
     pub color_systems: SubCatalog<ColorSystem>,
+    /// Twist systems.
+    pub twist_systems: SubCatalog<TwistSystem>,
 
     /// Sorted list of all puzzle definition authors.
     pub(super) authors: BTreeSet<String>,

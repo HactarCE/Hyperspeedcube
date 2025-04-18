@@ -2,9 +2,11 @@
 //! them.
 
 use std::collections::{BTreeSet, HashMap, hash_map};
+use std::fmt;
 use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
+use serde::Serialize;
 
 mod db;
 mod entry;
@@ -20,7 +22,7 @@ pub use params::*;
 pub use specs::*;
 pub use subcatalog::*;
 
-use crate::{ColorSystem, LogLine, Logger, Puzzle};
+use crate::{ColorSystem, LogLine, Logger, Puzzle, TagSet, TwistSystem, Version};
 
 /// Catalog of shapes, puzzles, twist systems, etc.
 ///
@@ -116,8 +118,20 @@ impl Catalog {
         self.db.lock().color_systems.add_spec_generator(colors_gen)
     }
 
-    /// Requests an object to be built if it has not been built already, and then
-    /// immediately returns the cache entry for the object.
+    /// Adds a twist system to the catalog.
+    pub fn add_twist_system(&self, twists: Arc<TwistSystem>) -> eyre::Result<()> {
+        self.db.lock().twist_systems.add_spec(twists)
+    }
+    /// Adds a twist system generator to the catalog.
+    pub fn add_twist_system_generator(
+        &self,
+        twists_gen: Arc<TwistSystemGenerator>,
+    ) -> eyre::Result<()> {
+        self.db.lock().twist_systems.add_spec_generator(twists_gen)
+    }
+
+    /// Requests an object to be built if it has not been built already, and
+    /// then immediately returns the cache entry for the object.
     ///
     /// It may take time for the object to build. If you want to block the
     /// current thread, see [`Self::build_blocking()`].
@@ -249,9 +263,9 @@ impl Catalog {
                         Some(generator) => {
                             drop(db_guard); // unlock mutex before running Rhai code
                             file = T::get_generator_filename(&generator);
-                            let mut ctx = BuildCtx::new(&self.default_logger, progress);
+                            let ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");
-                            T::generate_spec(&mut ctx, &generator, params)
+                            T::generate_spec(ctx, &generator, params)
                         }
                     }
                 }
@@ -298,8 +312,8 @@ impl Catalog {
                 return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
             }
             // Build the object, which may be expensive.
-            let mut ctx = BuildCtx::new(&self.default_logger, progress);
-            let result = T::build_object_from_spec(&mut ctx, &spec);
+            let ctx = BuildCtx::new(&self.default_logger, progress);
+            let result = T::build_object_from_spec(ctx.clone(), &spec);
             if let Err(e) = &result {
                 ctx.logger.error(e);
             }

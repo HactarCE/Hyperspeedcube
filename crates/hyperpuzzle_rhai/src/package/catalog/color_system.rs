@@ -30,7 +30,9 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 gen_map,
                 |ctx, build_ctx, map| {
                     let builder = color_system_from_rhai_map(&ctx, map)?;
-                    builder.build(None, None, void_warn(&ctx)).eyrefmt()
+                    builder
+                        .build(Some(&build_ctx), None, void_warn(&ctx))
+                        .eyrefmt()
                 },
             )?;
             cat.add_color_system_generator(Arc::new(generator))

@@ -1,4 +1,6 @@
-use hypermath::{Float, Hyperplane, Vector, VectorRef, pga};
+use std::sync::Arc;
+
+use hypermath::{Float, Hyperplane, Vector, VectorRef, pga::Motor};
 use hyperpuzzle_core::prelude::*;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
@@ -26,10 +28,9 @@ pub struct NdEuclidPuzzleGeometry {
     ///
     /// The axis vector is perpendicular to all layer boundaries on the axis and
     /// is fixed by all turns on the axis.
-    pub axis_vectors: PerAxis<Vector>,
-
+    pub axis_vectors: Arc<PerAxis<Vector>>,
     /// Transforation to apply to pieces for each twist.
-    pub twist_transforms: PerTwist<pga::Motor>,
+    pub twist_transforms: Arc<PerTwist<Motor>>,
 
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
@@ -71,8 +72,8 @@ impl NdEuclidPuzzleGeometry {
             sticker_planes: PerSticker::new(),
 
             mesh: Mesh::new_empty(3),
-            axis_vectors: PerAxis::new(),
-            twist_transforms: PerTwist::new(),
+            axis_vectors: Arc::new(PerAxis::new()),
+            twist_transforms: Arc::new(PerTwist::new()),
             gizmo_twists: PerGizmoFace::new(),
         }
     }

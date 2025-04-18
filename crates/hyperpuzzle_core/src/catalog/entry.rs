@@ -101,6 +101,8 @@ pub enum BuildTask {
     GeneratingSpec,
     /// Building color system.
     BuildingColors,
+    /// Building twist system.
+    BuildingTwists,
     /// Building puzzle.
     BuildingPuzzle,
     /// Finalizing the object.

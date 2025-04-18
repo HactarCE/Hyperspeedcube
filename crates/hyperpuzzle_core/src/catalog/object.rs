@@ -19,6 +19,8 @@ impl_has_id!(PuzzleSpec, meta.id);
 impl_has_id!(PuzzleSpecGenerator, meta.id);
 impl_has_id!(ColorSystem, id);
 impl_has_id!(ColorSystemGenerator, id);
+impl_has_id!(TwistSystem, id);
+impl_has_id!(TwistSystemGenerator, id);
 
 /// Object with an ID (such as a puzzle or color system) that can be stored in
 /// the catalog.
@@ -51,12 +53,9 @@ pub trait CatalogObjectImpl: Sized + HasId {
         []
     }
 
-    fn build_object_from_spec(
-        ctx: &mut BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> BuildResult<Self, String>;
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String>;
     fn generate_spec(
-        ctx: &mut BuildCtx,
+        ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String>;
@@ -94,14 +93,11 @@ impl CatalogObjectImpl for Puzzle {
         generator.meta.tags.authors()
     }
 
-    fn build_object_from_spec(
-        ctx: &mut BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> BuildResult<Self, String> {
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
         (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
-        ctx: &mut BuildCtx,
+        ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {
@@ -135,14 +131,49 @@ impl CatalogObjectImpl for ColorSystem {
         None
     }
 
-    fn build_object_from_spec(
-        _ctx: &mut BuildCtx,
-        spec: &Arc<Self::Spec>,
-    ) -> BuildResult<Self, String> {
+    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
         Ok(Redirectable::Direct(Arc::clone(spec)))
     }
     fn generate_spec(
-        ctx: &mut BuildCtx,
+        ctx: BuildCtx,
+        generator: &Arc<Self::SpecGenerator>,
+        params: Vec<&str>,
+    ) -> BuildResult<Self::Spec, String> {
+        (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
+    }
+}
+
+impl CatalogObject for TwistSystem {
+    fn get_subcatalog(db: &Db) -> &SubCatalog<Self> {
+        &db.twist_systems
+    }
+    fn get_subcatalog_mut(db: &mut Db) -> &mut SubCatalog<Self> {
+        &mut db.twist_systems
+    }
+}
+impl CatalogObjectImpl for TwistSystem {
+    type Spec = TwistSystem;
+    type SpecGenerator = TwistSystemGenerator;
+
+    const NAME: &str = "color system";
+
+    fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
+        None
+    }
+    fn get_generator_filename(_generator: &Self::SpecGenerator) -> Option<String> {
+        None
+    }
+    fn get_generator_examples(
+        _generator: &Self::SpecGenerator,
+    ) -> Option<&HashMap<String, Arc<Self::Spec>>> {
+        None
+    }
+
+    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+        Ok(Redirectable::Direct(Arc::clone(spec)))
+    }
+    fn generate_spec(
+        ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<&str>,
     ) -> BuildResult<Self::Spec, String> {

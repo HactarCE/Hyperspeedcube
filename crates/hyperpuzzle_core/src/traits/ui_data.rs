@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::fmt;
 
 /// Marker trait for types that may be stored in [`Puzzle::ui_data`].
 ///
@@ -11,6 +10,7 @@ box_dyn_wrapper_struct! {
     /// concrete GPU data type.
     pub struct BoxDynPuzzleUiData(Box<dyn PuzzleUiData>);
 }
+impl PuzzleUiData for () {}
 
 /// Marker trait for types that may be returned from
 /// [`PuzzleState::render_data()`].
@@ -23,6 +23,7 @@ box_dyn_wrapper_struct! {
     /// a concrete render data type.
     pub struct BoxDynPuzzleStateRenderData(Box<dyn PuzzleStateRenderData>);
 }
+impl PuzzleStateRenderData for () {}
 
 /// Marker trait for types that may be used as animations.
 pub trait PuzzleAnimation: Any + Send + Sync {
@@ -36,3 +37,8 @@ box_dyn_wrapper_struct! {
     pub struct BoxDynPuzzleAnimation(Box<dyn PuzzleAnimation>);
 }
 impl_dyn_clone!(for BoxDynPuzzleAnimation);
+impl PuzzleAnimation for () {
+    fn clone_dyn(&self) -> BoxDynPuzzleAnimation {
+        ().into()
+    }
+}
