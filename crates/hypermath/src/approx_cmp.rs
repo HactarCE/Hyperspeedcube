@@ -56,3 +56,7 @@ pub fn is_approx_negative<T: AbsDiffEq<Epsilon = Float> + PartialOrd + Zero>(x: 
 pub fn is_approx_positive<T: AbsDiffEq<Epsilon = Float> + PartialOrd + Zero>(x: &T) -> bool {
     approx_gt(x, &T::zero())
 }
+/// Returns `f` as an integer if it is approximately equal to one.
+pub fn to_approx_integer(f: Float) -> Option<i64> {
+    Some(f as i64).filter(|&i| approx_eq(&f, &(i as Float)))
+}

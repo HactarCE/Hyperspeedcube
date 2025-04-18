@@ -36,10 +36,10 @@ impl fmt::Display for ConvertError {
         write!(f, "expected {expected}; got {got}")?;
         let mut keys_iter = context.iter();
         if let Some(key) = keys_iter.next() {
-            write!(f, " for '{key}'")?;
+            write!(f, " for {key}")?;
         }
         for key in keys_iter {
-            write!(f, " in '{key}'")?;
+            write!(f, " in {key}")?;
         }
         Ok(())
     }
@@ -53,8 +53,19 @@ impl ConvertError {
     /// Constructs a new conversion error, where `T` is the expected type and
     /// `got` is the value that was actually gotten.
     pub fn new<T: FromRhai>(ctx: impl RhaiCtx, got: Option<&Dynamic>) -> Self {
+        Self::new_expected_str(ctx, T::expected_string(), got)
+    }
+
+    /// Constructs a new conversion error, where `expected` is a string
+    /// representing the expected type and `got` is the value that was actually
+    /// gotten.
+    pub fn new_expected_str(
+        ctx: impl RhaiCtx,
+        expected: impl ToString,
+        got: Option<&Dynamic>,
+    ) -> Self {
         Self {
-            expected: T::expected_string(),
+            expected: expected.to_string(),
             got: match got {
                 Some(v) => format!("{} {}", v.type_name(), crate::util::rhai_to_debug(ctx, v)),
                 None => "nothing".to_owned(),

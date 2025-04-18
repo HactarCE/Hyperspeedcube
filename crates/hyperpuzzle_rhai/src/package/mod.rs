@@ -1,6 +1,6 @@
 use rhai::packages::{Package, StandardPackage};
 use rhai::plugin::*;
-use rhai::{Dynamic, EvalAltResult, Map, Module, NativeCallContext, Shared};
+use rhai::{Dynamic, EvalAltResult, FnPtr, Map, Module, NativeCallContext, Shared};
 
 mod assertions;
 mod catalog;
@@ -14,17 +14,18 @@ use state::RhaiState;
 
 use crate::convert::*;
 use crate::errors::*;
+use crate::loader::RhaiEvalRequestTx;
 use crate::util::{get_ndim, new_fn, void_warn, warn, warnf};
 use crate::{Ctx, Result, RhaiCtx};
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {
-    pub fn new(catalog: &hyperpuzzle_core::Catalog) -> Self {
+    pub fn new(catalog: &hyperpuzzle_core::Catalog, eval_tx: RhaiEvalRequestTx) -> Self {
         let mut module = Module::new();
         Self::init(&mut module);
 
         assertions::register(&mut module);
-        catalog::register(&mut module, catalog);
+        catalog::register(&mut module, catalog, eval_tx);
         geometry::register(&mut module);
         operators::register(&mut module);
         types::register(&mut module);

@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use hypermath::Vector;
 use hypermath::pga::{Blade, Motor};
-use rhai::Dynamic;
+use rhai::{Dynamic, FnPtr};
 
 use crate::{ConvertError, InKey, Point, Result, RhaiCtx};
 
@@ -114,11 +114,17 @@ impl_from_rhai!(f64, "number", |ctx, value| {
         .or_else(|| value.as_int().ok().map(|i| i as f64))
         .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
 });
+impl_from_rhai!(i64, "number", |ctx, value| {
+    None.or_else(|| value.as_int().ok())
+        .or_else(|| value.as_float().ok().and_then(hypermath::to_approx_integer))
+        .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
+});
 impl_from_rhai!(usize, "index", |ctx, value| {
     (value.as_int().ok())
         .and_then(|i| i.try_into().ok())
         .ok_or_else(|| ConvertError::new::<usize>(ctx, Some(&value)))
 });
+impl_from_rhai!(FnPtr, "function");
 
 // Math types
 impl_from_rhai!(Vector, "vector");

@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::mpsc;
 
 use itertools::Itertools;
 use parking_lot::RwLock;
@@ -10,6 +11,9 @@ use rhai::{AST, Engine, EvalAltResult, Module, ParseError, Scope, Shared};
 use thread_local::ThreadLocal;
 
 use crate::package::HyperpuzzlePackage;
+
+pub(crate) type RhaiEvalRequest = Box<dyn Send + Sync + FnOnce(&mut Engine)>;
+pub(crate) type RhaiEvalRequestTx = mpsc::Sender<RhaiEvalRequest>;
 
 /// List of built-in and user-defined Rhai files.
 #[derive(Debug, Default)]
@@ -179,7 +183,7 @@ enum ModuleResult {
 pub(crate) fn load_files_with_new_engine(
     catalog: &hyperpuzzle_core::Catalog,
     logger: &hyperpuzzle_core::Logger,
-) -> rhai::Engine {
+) {
     let mut files = FileList::default();
 
     files.load_builtin_files();
@@ -195,9 +199,11 @@ pub(crate) fn load_files_with_new_engine(
         Err(e) => log::error!("error locating Rhai directory: {e}"),
     }
 
+    let (eval_tx, eval_rx) = std::sync::mpsc::channel();
+
     let mut engine = rhai::Engine::new();
 
-    let package = HyperpuzzlePackage::new(catalog);
+    let package = HyperpuzzlePackage::new(catalog, eval_tx);
     package.register_into_engine(&mut engine);
 
     let resolver = ModuleResolver::from_files(&package, &files);
@@ -222,14 +228,19 @@ pub(crate) fn load_files_with_new_engine(
         }
     }
 
-    engine
+    std::thread::spawn(move || {
+        for eval_request in eval_rx {
+            eval_request(&mut engine);
+        }
+    });
 }
 
 #[cfg(test)]
 pub(crate) fn new_engine() -> rhai::Engine {
     let mut engine = rhai::Engine::new();
 
-    let package = HyperpuzzlePackage::new(&hyperpuzzle_core::Catalog::new());
+    let (tx, _rx) = mpsc::channel();
+    let package = HyperpuzzlePackage::new(&hyperpuzzle_core::Catalog::new(), tx);
     package.register_into_engine(&mut engine);
 
     engine

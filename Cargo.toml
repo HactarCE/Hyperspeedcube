@@ -174,7 +174,12 @@ rayon = { version = "1.7.0" }
 mlua = { version = "0.10.3", features = ["lua54", "send", "vendored"] }
 
 # Rhai
-rhai = { version = "1.21.0", features = ["sync", "no_optimize", "no_time"] }
+rhai = { version = "1.21.0", features = [
+    "internals",
+    "no_optimize",
+    "no_time",
+    "sync",
+] }
 
 # Hashing and PRNG
 rand = { version = "0.9.0" }        # must match rand_chacha
