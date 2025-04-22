@@ -165,6 +165,10 @@ algebraic "Algebraic properties" {
   __separator
   abelian "Abelian" expected=1
   fused "Fused" expected=1
+  // `non_faithful_action` means that there are non-identity elements of the
+  // grip group whose action on the grips is identity (e.g., U4 on quaternion
+  // cube)
+  non_faithful_action "Non-faithful action" expected=1
   orientations inline=#true {
     non_abelian "Non-abelian orientations" expected=1
   }
