@@ -12,6 +12,7 @@ pub struct NdEuclidPuzzleAnimation {
     /// Final transform for the pieces.
     pub final_transform: pga::Motor,
 }
+
 impl PuzzleAnimation for NdEuclidPuzzleAnimation {
     fn clone_dyn(&self) -> BoxDynPuzzleAnimation
     where

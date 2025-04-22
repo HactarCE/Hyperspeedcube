@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::{Float, Hyperplane, Vector, VectorRef, pga::Motor};
+use hypermath::{Float, Hyperplane, Vector, VectorRef, pga};
 use hyperpuzzle_core::prelude::*;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
@@ -30,35 +30,10 @@ pub struct NdEuclidPuzzleGeometry {
     /// is fixed by all turns on the axis.
     pub axis_vectors: Arc<PerAxis<Vector>>,
     /// Transforation to apply to pieces for each twist.
-    pub twist_transforms: Arc<PerTwist<Motor>>,
+    pub twist_transforms: Arc<PerTwist<pga::Motor>>,
 
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
-}
-impl NdEuclidPuzzleGeometry {
-    /// Returns the hyperplane for a sticker.
-    pub fn sticker_plane(&self, sticker: Sticker) -> &Hyperplane {
-        &self.planes[self.sticker_planes[sticker]]
-    }
-
-    /// Returns the `i`th vertex in [`Self::vertex_coordinates`].
-    fn vertex(&self, i: usize) -> impl VectorRef {
-        let ndim = self.ndim() as usize;
-        &self.vertex_coordinates[i * ndim..(i + 1) * ndim]
-    }
-
-    /// Returns the minimum and maximum coordinate of a piece on an axis.
-    ///
-    /// Returns `None` if the piece has no vertices.
-    pub fn piece_min_max_on_axis(
-        &self,
-        piece: Piece,
-        axis: impl VectorRef,
-    ) -> Option<(Float, Float)> {
-        let vertex_coordinates = self.piece_vertex_sets[piece].iter().map(|i| self.vertex(i));
-        let vertex_distances_along_axis = vertex_coordinates.map(|vertex| axis.dot(vertex));
-        hypermath::util::min_max(vertex_distances_along_axis)
-    }
 }
 
 impl NdEuclidPuzzleGeometry {
@@ -81,5 +56,29 @@ impl NdEuclidPuzzleGeometry {
     /// Returns the number of dimensions of the space the puzzle inhabits.
     pub fn ndim(&self) -> u8 {
         self.mesh.ndim
+    }
+
+    /// Returns the hyperplane for a sticker.
+    pub fn sticker_plane(&self, sticker: Sticker) -> &Hyperplane {
+        &self.planes[self.sticker_planes[sticker]]
+    }
+
+    /// Returns the `i`th vertex in [`Self::vertex_coordinates`].
+    fn vertex(&self, i: usize) -> impl VectorRef {
+        let ndim = self.ndim() as usize;
+        &self.vertex_coordinates[i * ndim..(i + 1) * ndim]
+    }
+
+    /// Returns the minimum and maximum coordinate of a piece on an axis.
+    ///
+    /// Returns `None` if the piece has no vertices.
+    pub fn piece_min_max_on_axis(
+        &self,
+        piece: Piece,
+        axis: impl VectorRef,
+    ) -> Option<(Float, Float)> {
+        let vertex_coordinates = self.piece_vertex_sets[piece].iter().map(|i| self.vertex(i));
+        let vertex_distances_along_axis = vertex_coordinates.map(|vertex| axis.dot(vertex));
+        hypermath::util::min_max(vertex_distances_along_axis)
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::hash_map;
+use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
@@ -126,17 +127,21 @@ impl AxisSystemBuilder {
     }
 
     /// Validates and constructs an axis system.
-    pub fn build(&self) -> Result<(AxisSystem, PerAxis<Vector>)> {
+    pub(super) fn build(&self) -> Result<AxisSystemBuildOutput> {
         let mut names = self.names.clone();
         let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
         names.autoname(self.len(), autonames)?;
-        let names = names.build(self.len()).ok_or_eyre("missing axis names")?;
+        let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis names")?);
 
         let orbits = self.orbits.clone();
 
         let axis_vectors = self.by_id.map_ref(|_, axis| axis.vector.clone());
 
-        Ok((AxisSystem { names, orbits }, axis_vectors))
+        Ok(AxisSystemBuildOutput {
+            axes: AxisSystem { names, orbits },
+            axis_vectors,
+            axis_from_vector: self.vector_to_id.clone(),
+        })
     }
 
     /// "Unbuilds" an axis system into an axis system builder.
@@ -146,10 +151,7 @@ impl AxisSystemBuilder {
     ) -> Result<Self> {
         let AxisSystem { names, orbits } = axis_system;
 
-        let mut vector_to_id = ApproxHashMap::new();
-        for (id, vector) in &*engine_data.axis_vectors {
-            vector_to_id.insert(vector.clone(), id);
-        }
+        let vector_to_id = (*engine_data.axis_from_vector).clone();
 
         Ok(AxisSystemBuilder {
             by_id: PerAxis::new_with_len(axis_system.len()).map(|id, ()| {
@@ -157,8 +159,14 @@ impl AxisSystemBuilder {
                 AxisBuilder { vector }
             }),
             vector_to_id,
-            names: names.clone().into(),
+            names: (**names).clone().into(),
             orbits: orbits.clone(),
         })
     }
+}
+
+pub(super) struct AxisSystemBuildOutput {
+    pub axes: AxisSystem,
+    pub axis_vectors: PerAxis<Vector>,
+    pub axis_from_vector: ApproxHashMap<Vector, Axis>,
 }

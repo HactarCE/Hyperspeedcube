@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::NameSpecBiMap;
 
@@ -5,7 +7,7 @@ use crate::NameSpecBiMap;
 #[derive(Debug)]
 pub struct AxisSystem {
     /// Axis names.
-    pub names: NameSpecBiMap<Axis>,
+    pub names: Arc<NameSpecBiMap<Axis>>,
 
     /// Orbits used to generate axes.
     pub orbits: Vec<Orbit<Axis>>,
@@ -14,7 +16,7 @@ impl AxisSystem {
     /// Returns an empty axis system.
     pub fn new_empty() -> Self {
         Self {
-            names: NameSpecBiMap::new(),
+            names: Arc::new(NameSpecBiMap::new()),
             orbits: vec![],
         }
     }

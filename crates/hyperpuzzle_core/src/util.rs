@@ -108,6 +108,25 @@ pub fn lua_string_literal(s: &str) -> String {
     }
 }
 
+/// Constructs a vantage name with the standard format `r1:r2,r3:r4,r5:r6`
+/// (using as many reference pairs as necessary to disambiguate).
+///
+/// The first reference in each pair is typically fixed.
+pub fn vantage_name<'a>(axis_pairs: impl IntoIterator<Item = (&'a str, &'a str)>) -> String {
+    axis_pairs
+        .into_iter()
+        .map(|(ax1, ax2)| format!("{ax1}:{ax2}"))
+        .join(",")
+}
+/// Parses a vantage name with the standard format `r1:r2,r3:r4,r5:r6` (using as
+/// many reference pairs as necessary to disambiguate). Returns `None` if the
+/// name is invalid and unparseable.
+///
+/// The first reference in each pair is typically fixed.
+pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
+    name.split(',').map(|s| s.split_once(':')).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

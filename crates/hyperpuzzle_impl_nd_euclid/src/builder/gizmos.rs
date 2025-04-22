@@ -23,6 +23,7 @@ pub(super) fn build_twist_gizmos(
         axis_vectors,
         twist_transforms,
         gizmo_pole_distances,
+        ..
     } = engine_data;
 
     // Assemble a list of gizmo pole vectors and their associated twists.

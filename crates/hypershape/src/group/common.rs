@@ -36,9 +36,9 @@ pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
 
 idx_struct! {
     /// ID of a group generator.
-    pub struct GeneratorId(pub(super) u8);
+    pub struct GeneratorId(pub u8);
     /// ID of a group element.
-    pub struct GroupElementId(pub(super) u16);
+    pub struct GroupElementId(pub u16);
 }
 impl From<GeneratorId> for GroupElementId {
     fn from(value: GeneratorId) -> Self {

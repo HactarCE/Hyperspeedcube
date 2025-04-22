@@ -1,16 +1,15 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
-use hypermath::collections::approx_hashmap::FloatHash;
-use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
+use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
-use pga::Motor;
+use itertools::Itertools;
 
-use super::AxisSystemBuilder;
-use crate::{NdEuclidTwistSystemEngineData, PUZZLE_PREFIX};
+use super::{AxisSystemBuildOutput, AxisSystemBuilder, VantageSetBuilder};
+use crate::{NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PUZZLE_PREFIX, TwistKey};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -18,7 +17,7 @@ pub struct TwistBuilder {
     /// Axis that is twisted.
     pub axis: Axis,
     /// Transform to apply to pieces.
-    pub transform: Motor,
+    pub transform: pga::Motor,
     /// Value in the quarter-turn metric (or its contextual equivalent).
     pub qtm: usize,
     /// Distance of the pole for the corresponding facet in the 4D facet gizmo.
@@ -37,37 +36,11 @@ impl TwistBuilder {
     }
     /// Returns the key used to hash or look up the twist.
     pub fn key(&self) -> Result<TwistKey, BadTwist> {
-        TwistKey::new(self.axis, &self.transform)
+        TwistKey::new(self.axis, &self.transform).ok_or(BadTwist::BadTransform)
     }
     /// Returns the key used to look up the reverse twist.
     pub fn rev_key(&self) -> Result<TwistKey, BadTwist> {
-        TwistKey::new(self.axis, &self.transform.reverse())
-    }
-}
-
-/// Unique key for a twist.
-#[derive(Debug, Clone)]
-pub struct TwistKey {
-    /// Axis that is twisted.
-    axis: Axis,
-    /// Transform to apply to pieces.
-    transform: Motor,
-}
-impl ApproxHashMapKey for TwistKey {
-    type Hash = (Axis, <Motor as ApproxHashMapKey>::Hash);
-
-    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        (self.axis, self.transform.approx_hash(float_hash_fn))
-    }
-}
-impl TwistKey {
-    /// Constructs a twist key from an axis and a transform, which does not need
-    /// to be canonicalized.
-    pub fn new(axis: Axis, transform: &Motor) -> Result<Self, BadTwist> {
-        let transform = transform
-            .canonicalize_up_to_180()
-            .ok_or(BadTwist::BadTransform)?;
-        Ok(Self { axis, transform })
+        TwistKey::new(self.axis, &self.transform.reverse()).ok_or(BadTwist::BadTransform)
     }
 }
 
@@ -90,6 +63,10 @@ pub struct TwistSystemBuilder {
     ///
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
+
+    vantage_groups: IndexMap<String, NdEuclidVantageGroup>,
+    vantage_sets: Vec<VantageSetBuilder>,
+    directions: Vec<(String, PerAxis<Option<Twist>>)>,
 
     /// Whether the twist system has been modified.
     pub is_modified: bool,
@@ -207,7 +184,11 @@ impl TwistSystemBuilder {
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
         // Build axis system.
-        let (axes, axis_vectors) = self.axes.build()?;
+        let AxisSystemBuildOutput {
+            axes,
+            axis_vectors,
+            axis_from_vector,
+        } = self.axes.build()?;
 
         // Autoname twists.
         let mut twist_names = self.names.clone();
@@ -215,7 +196,7 @@ impl TwistSystemBuilder {
 
         // Assemble list of twists.
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
-        let mut twist_transforms: PerTwist<Motor> = PerTwist::new();
+        let mut twist_transforms: PerTwist<pga::Motor> = PerTwist::new();
         for (id, twist) in &self.by_id {
             let axis = twist.axis;
             let axis_vector = &axis_vectors[axis];
@@ -236,11 +217,15 @@ impl TwistSystemBuilder {
             twist_transforms.push(twist.transform.clone())?;
         }
 
+        let twist_from_transform = self.data_to_id.clone();
+
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
         for (id, twist) in &mut twists {
             let twist_transforms = &twist_transforms[id];
-            match self.data_to_id(&TwistKey::new(twist.axis, &twist_transforms.reverse())?) {
+            let twist_key = TwistKey::new(twist.axis, &twist_transforms.reverse())
+                .ok_or(BadTwist::BadTransform)?;
+            match self.data_to_id(&twist_key) {
                 Some(reverse_twist) => twist.reverse = reverse_twist,
                 None => twists_without_reverse.push(id),
             }
@@ -279,7 +264,11 @@ impl TwistSystemBuilder {
 
         let engine_data = NdEuclidTwistSystemEngineData {
             axis_vectors: Arc::new(axis_vectors),
+            axis_from_vector: Arc::new(axis_from_vector),
+
             twist_transforms: Arc::new(twist_transforms),
+            twist_from_transform: Arc::new(twist_from_transform),
+
             gizmo_pole_distances: Arc::new(gizmo_pole_distances),
         };
 
@@ -289,12 +278,12 @@ impl TwistSystemBuilder {
 
             axes: Arc::new(axes),
 
-            names,
+            names: Arc::new(names),
             twists,
-            directions: vec![],
+            directions: self.directions.clone(),
 
-            vantage_group: ().into(),
-            vantage_sets: IndexMap::new(),
+            vantage_groups: IndexMap::from_iter([("trivial".to_owned(), ().into())]),
+            vantage_sets: vec![],
 
             engine_data: engine_data.into(),
         })
@@ -312,7 +301,7 @@ impl TwistSystemBuilder {
             names,
             twists,
             directions,
-            vantage_group,
+            vantage_groups,
             vantage_sets,
             engine_data,
         } = twist_system;
@@ -321,16 +310,22 @@ impl TwistSystemBuilder {
             .downcast_ref::<NdEuclidTwistSystemEngineData>()
             .ok_or_eyre("expected NdEuclid twist system")?;
 
-        let mut data_to_id = ApproxHashMap::new();
-        for (id, twist) in &*twists {
-            data_to_id.insert(
-                TwistKey {
-                    axis: twist.axis,
-                    transform: engine_data.twist_transforms[id].clone(),
-                },
-                id,
-            );
-        }
+        let data_to_id = (*engine_data.twist_from_transform).clone();
+
+        let vantage_groups: IndexMap<String, NdEuclidVantageGroup> = vantage_groups
+            .iter()
+            .map(|(k, v)| {
+                let vantage_group = v
+                    .downcast_ref::<NdEuclidVantageGroup>()
+                    .ok_or_eyre("expected NdEuclid vantage group")?;
+                eyre::Ok((k.clone(), vantage_group.clone()))
+            })
+            .try_collect()?;
+
+        let vantage_sets = vantage_sets
+            .iter()
+            .map(|vantage_set| VantageSetBuilder::unbuild(vantage_set, &vantage_groups))
+            .try_collect()?;
 
         Ok(TwistSystemBuilder {
             id: id.clone(),
@@ -345,8 +340,12 @@ impl TwistSystemBuilder {
                 gizmo_pole_distance: engine_data.gizmo_pole_distances[id],
                 include_in_scrambles: twist.include_in_scrambles,
             }),
-            names: names.clone().into(),
+            names: (**names).clone().into(),
             data_to_id,
+
+            vantage_groups,
+            vantage_sets,
+            directions: directions.clone(),
 
             is_modified: false,
             is_shared: true,

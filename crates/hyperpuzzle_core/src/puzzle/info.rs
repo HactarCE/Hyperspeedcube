@@ -71,6 +71,10 @@ impl Color {
     /// Color ID for internals.
     pub const INTERNAL: Color = Color::MAX;
 }
+impl Vantage {
+    /// Vantage ID for the initial vantage.
+    pub const INITIAL: Vantage = Vantage(0);
+}
 
 /// List containing a value per piece.
 pub type PerPiece<T> = GenericVec<Piece, T>;

@@ -17,6 +17,11 @@ macro_rules! box_dyn_wrapper_struct {
             }
         }
         impl $struct_name {
+            /// Constructs a new boxed dynamic value.
+            pub fn new<T: $trait_name>(value: T) -> Self {
+                Self(Box::new(value))
+            }
+
             /// Attempts to downcast to a concrete type.
             pub fn downcast<T: $trait_name>(self) -> Option<Box<T>> {
                 (self.0 as Box<dyn Any>).downcast().ok()
@@ -49,6 +54,7 @@ macro_rules! impl_dyn_clone {
 mod engine_data;
 mod state;
 mod ui_data;
+mod vantage_set_data;
 mod vantages;
 
 pub use engine_data::{BoxDynTwistSystemEngineData, TwistSystemEngineData};
@@ -57,7 +63,9 @@ pub use ui_data::{
     BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, BoxDynPuzzleUiData, PuzzleAnimation,
     PuzzleStateRenderData, PuzzleUiData,
 };
+pub use vantage_set_data::{BoxDynVantageSetEngineData, VantageSetEngineData};
 pub use vantages::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynVantageGroup, BoxDynVantageGroupElement,
-    RelativeAxis, RelativeTwist, VantageGroup, VantageGroupElement,
+    RelativeAxis, RelativeTwist, SimpleRelativeAxis, SimpleRelativeTwist, SimpleVantageGroup,
+    VantageGroup, VantageGroupElement,
 };

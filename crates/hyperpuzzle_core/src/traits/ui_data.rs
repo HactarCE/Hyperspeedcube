@@ -1,6 +1,6 @@
 use std::any::Any;
 
-/// Marker trait for types that may be stored in [`Puzzle::ui_data`].
+/// Marker trait for types that may be stored in [`crate::Puzzle::ui_data`].
 ///
 /// Because [`Any`] is defined with a `'static` bound, implementors of this
 /// trait cannot borrow from the puzzle state.
@@ -13,7 +13,7 @@ box_dyn_wrapper_struct! {
 impl PuzzleUiData for () {}
 
 /// Marker trait for types that may be returned from
-/// [`PuzzleState::render_data()`].
+/// [`crate::PuzzleState::render_data()`].
 ///
 /// Because [`Any`] is defined with a `'static` bound, implementors of this
 /// trait cannot borrow from the puzzle state.

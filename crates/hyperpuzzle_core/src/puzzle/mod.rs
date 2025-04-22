@@ -26,5 +26,5 @@ pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
 pub use scramble::{ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle};
 pub use twist::LayeredTwist;
-pub use twists::{AxisDirectionMap, TwistSystem, VantageSetInfo, VantageTransformInfo};
+pub use twists::{AxisDirectionMap, TwistSystem, VantageSet, VantageTransformInfo};
 pub use view_prefs_set::{PerspectiveDim, PuzzleViewPreferencesSet};

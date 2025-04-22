@@ -4,7 +4,6 @@ use std::sync::Arc;
 use eyre::{OptionExt, Result};
 use hypermath::collections::GenericVec;
 use hypermath::idx_struct;
-use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
@@ -118,7 +117,7 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn do_twist_dyn(&self, twist: LayeredTwist) -> Result<BoxDynPuzzleState, Vec<Piece>> {
-        self.do_twist(twist).map(BoxDynPuzzleState::from)
+        self.do_twist(twist).map(BoxDynPuzzleState::new)
     }
 
     fn is_solved(&self) -> bool {
@@ -261,7 +260,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         let grip = self.compute_gripped_pieces(axis, twist.layers);
         let anim = NdEuclidPuzzleAnimation {
             pieces: grip,
-            initial_transform: Motor::ident(self.geom.ndim()),
+            initial_transform: pga::Motor::ident(self.geom.ndim()),
             final_transform: self.geom.twist_transforms[twist.transform].clone(),
         };
         self.animated_render_data(&anim.into(), t)
@@ -323,8 +322,8 @@ impl NdEuclidPuzzleState {
     pub fn partial_twist_piece_transforms(
         &self,
         grip: &PieceMask,
-        transform: &Motor,
-    ) -> PerPiece<Motor> {
+        transform: &pga::Motor,
+    ) -> PerPiece<pga::Motor> {
         let mut piece_transforms = self.piece_transforms();
         for piece in grip.iter() {
             piece_transforms[piece] = transform * &piece_transforms[piece];

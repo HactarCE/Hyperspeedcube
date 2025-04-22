@@ -17,11 +17,18 @@ pub mod builder;
 mod engine;
 mod geom;
 mod state;
+mod twist_key;
+mod vantage_group;
 
 pub use anim::NdEuclidPuzzleAnimation;
-pub use engine::NdEuclidTwistSystemEngineData;
+pub use engine::{NdEuclidTwistSystemEngineData, NdEuclidVantageSetEngineData};
 pub use geom::NdEuclidPuzzleGeometry;
 pub use state::NdEuclidPuzzleState;
+pub use twist_key::TwistKey;
+pub use vantage_group::{
+    NdEuclidRelativeAxis, NdEuclidRelativeTwist, NdEuclidVantageGroup, NdEuclidVantageGroupElement,
+};
+use vantage_group::{PerReferenceVector, ReferenceVector};
 
 /// Prefix for ad-hoc color system and twist system IDs.
 const PUZZLE_PREFIX: &str = "puzzle:";

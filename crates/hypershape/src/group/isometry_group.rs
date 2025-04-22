@@ -161,8 +161,14 @@ impl IsometryGroup {
     pub fn nearest(&self, target: &pga::Motor) -> GroupElementId {
         match self.nearest_neighbors.nearest(target) {
             Some(&e) => e,
-            None => GroupElementId::IDENTITY,
+            None => GroupElementId::IDENTITY, // fallback; shouldn't ever happen
         }
+    }
+
+    /// Returns an element from its motor.
+    pub fn element_from_motor(&self, motor: &pga::Motor) -> Option<GroupElementId> {
+        let nearest = self.nearest_neighbors.nearest(motor).copied();
+        nearest.filter(|&id| self.elements[id].is_equivalent_to(motor))
     }
 }
 

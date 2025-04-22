@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use eyre::{Result, bail};
 use indexmap::IndexMap;
 
 use super::*;
 use crate::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
-    BoxDynVantageGroupElement, NameSpecBiMap, VantageGroup, VantageGroupElement,
+    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, NameSpecBiMap, VantageGroup,
+    VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
@@ -20,16 +22,16 @@ pub struct TwistSystem {
     pub axes: Arc<AxisSystem>,
 
     /// Twist names.
-    pub names: NameSpecBiMap<Twist>,
+    pub names: Arc<NameSpecBiMap<Twist>>,
     /// List of twists, indexed by ID.
     pub twists: PerTwist<TwistInfo>,
     /// Twist directions accessible in all vantage sets.
     pub directions: Vec<(String, PerAxis<Option<Twist>>)>,
 
-    /// Vantage group.
-    pub vantage_group: BoxDynVantageGroup,
+    /// Vantage groups.
+    pub vantage_groups: IndexMap<String, BoxDynVantageGroup>,
     /// Built-in vantage sets.
-    pub vantage_sets: IndexMap<String, VantageSetInfo>,
+    pub vantage_sets: Vec<VantageSet>,
 
     /// Engine-specific data.
     pub engine_data: BoxDynTwistSystemEngineData,
@@ -41,11 +43,11 @@ impl TwistSystem {
             id: String::new(),
             name: String::new(),
             axes: Arc::clone(axes),
-            names: NameSpecBiMap::new(),
+            names: Arc::new(NameSpecBiMap::new()),
             twists: PerTwist::new(),
             directions: vec![],
-            vantage_group: ().into(),
-            vantage_sets: IndexMap::new(),
+            vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
+            vantage_sets: vec![],
             engine_data: ().into(),
         }
     }
@@ -63,9 +65,12 @@ impl TwistSystem {
 
 /// Vantage set.
 #[derive(Debug)]
-pub struct VantageSetInfo {
+pub struct VantageSet {
     /// User-friendly name for the vantage set.
     pub name: String,
+
+    /// Name of the vantage group used by this vantage set.
+    pub group: String,
 
     /// Map from name spec to transform.
     pub transform_map: Vec<(String, VantageTransformInfo)>,
@@ -75,6 +80,9 @@ pub struct VantageSetInfo {
     ///
     /// There should be at most one of these for each relative axis.
     pub direction_maps: Vec<AxisDirectionMap>,
+
+    /// Extra data associated with the vantage set.
+    pub engine_data: BoxDynVantageSetEngineData,
 }
 
 /// Map from twist direction name to relative twist for a single relative axis.
@@ -108,6 +116,10 @@ impl VantageGroupElement for () {
 impl VantageGroup for () {
     fn vantage_count(&self) -> usize {
         1
+    }
+
+    fn identity(&self) -> BoxDynVantageGroupElement {
+        ().into()
     }
 
     fn compose(
@@ -150,35 +162,35 @@ impl VantageGroup for () {
         None
     }
 
-    fn vantage_group_element_name(&self, _elem: BoxDynVantageGroupElement) -> String {
-        "I".to_owned()
+    fn vantage_group_element_name(&self, _elem: BoxDynVantageGroupElement) -> Result<String> {
+        Ok("I".to_owned())
     }
 
-    fn vantage_name(&self, _vantage: Vantage) -> String {
-        "I".to_owned()
+    fn vantage_name(&self, _vantage: Vantage) -> Result<String> {
+        Ok("I".to_owned())
     }
 
-    fn axis_name(&self, _axis: BoxDynRelativeAxis) -> String {
-        String::new()
+    fn axis_name(&self, _axis: BoxDynRelativeAxis) -> Result<String> {
+        bail!("empty vantage group has no axes")
     }
 
-    fn twist_name(&self, _twist: BoxDynRelativeTwist) -> String {
-        String::new()
+    fn twist_name(&self, _twist: BoxDynRelativeTwist) -> Result<String> {
+        bail!("empty vantage group has no twists")
     }
 
-    fn vantage_group_element_from_name(&self, _name: String) -> Option<BoxDynVantageGroupElement> {
+    fn vantage_group_element_from_name(&self, _name: &str) -> Option<BoxDynVantageGroupElement> {
         None
     }
 
-    fn vantage_from_name(&self, _name: String) -> Option<Vantage> {
+    fn vantage_from_name(&self, _name: &str) -> Option<Vantage> {
         None
     }
 
-    fn axis_from_name(&self, _name: String) -> Option<BoxDynRelativeAxis> {
+    fn axis_from_name(&self, _name: &str) -> Option<BoxDynRelativeAxis> {
         None
     }
 
-    fn twist_from_name(&self, _name: String) -> Option<BoxDynRelativeTwist> {
+    fn twist_from_name(&self, _name: &str) -> Option<BoxDynRelativeTwist> {
         None
     }
 }
