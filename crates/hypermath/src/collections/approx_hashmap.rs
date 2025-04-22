@@ -107,6 +107,15 @@ impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
         self.values.iter().map(|(k, v)| (&self.keys[k], v))
     }
 }
+impl<K: ApproxHashMapKey, V> FromIterator<(K, V)> for ApproxHashMap<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut ret = Self::new();
+        for (k, v) in iter {
+            ret.insert(k, v);
+        }
+        ret
+    }
+}
 
 /// Type that can be used as a key in an [`ApproxHashMap`].
 pub trait ApproxHashMapKey {
