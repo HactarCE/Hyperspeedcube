@@ -1,9 +1,7 @@
 use eyre::{OptionExt, Result, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{
-    catalog::{BuildCtx, BuildTask},
-    prelude::*,
-};
+use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
+use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
 
 use crate::PUZZLE_PREFIX;

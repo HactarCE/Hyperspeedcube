@@ -11,7 +11,8 @@ use parking_lot::Mutex;
 
 use super::shape::ShapeBuildOutput;
 use super::{AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
-use crate::{NdEuclidTwistSystemEngineData, prelude::*};
+use crate::NdEuclidTwistSystemEngineData;
+use crate::prelude::*;
 
 /// Puzzle being constructed.
 #[derive(Debug)]
@@ -130,7 +131,7 @@ impl PuzzleBuilder {
         let NdEuclidTwistSystemEngineData {
             axis_vectors,
             twist_transforms,
-            gizmo_pole_distances: _,
+            ..
         } = engine_data;
 
         // Build twist gizmos.

@@ -1,4 +1,6 @@
-use std::{fmt, hash::Hash, sync::Arc};
+use std::fmt;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use hypershape::GeneratorSequence;
 use itertools::Itertools;

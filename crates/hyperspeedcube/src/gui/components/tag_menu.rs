@@ -1,5 +1,6 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;

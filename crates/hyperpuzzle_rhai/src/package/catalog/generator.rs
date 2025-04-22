@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use eyre::{bail, eyre};
 use hyperpuzzle_core::catalog::{BuildCtx, Generator};
 use itertools::Itertools;
 use rhai::Array;
-use std::sync::Arc;
 
 use super::*;
 

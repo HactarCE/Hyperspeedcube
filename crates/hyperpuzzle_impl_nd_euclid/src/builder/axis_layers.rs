@@ -1,8 +1,7 @@
 use eyre::{Result, bail};
-use itertools::Itertools;
-
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
+use itertools::Itertools;
 
 /// Layers of a twist axis.
 #[derive(Debug, Clone, Default)]

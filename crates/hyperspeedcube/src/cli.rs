@@ -1,4 +1,5 @@
-use std::{io::Read, sync::Arc};
+use std::io::Read;
+use std::sync::Arc;
 
 use eyre::{Context, Result, eyre};
 use hyperpuzzle::Puzzle;
