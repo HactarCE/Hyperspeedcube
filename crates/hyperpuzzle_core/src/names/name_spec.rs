@@ -1,3 +1,31 @@
+//! Name specifications, used for puzzle elements such as axes, twists, and
+//! colors.
+//!
+//! - Whitespace characters are never allowed
+//! - Characters other than whitespace or ASCII punctuation are always literal
+//! - `'` is always literal
+//! - `_`, `-`, and `.` are separators for permutable substrings
+//! - `{ ... }` are used to denote permutable sets
+//! - `|` is used to separate high-level choices
+//! - All other ASCII punctuation is reserved for future use
+//!
+//! In particular, the following symbols have established use in twist notation:
+//!
+//! - `[ ... ]` for commutator and conjugate notation
+//! - `( ... )` for grouping twists
+//! - `{ ... }` for layer masks
+//! - `,` for separating elements in a commutator
+//! - `:` for separating elements in a conjugate
+//!
+//! The following symbols do not have a use: `!"#$%&*+-/;<=>?@\^~` and the
+//! literal backtick \`.
+//!
+//! - `+` and `-` may be used for jumbling notation.
+//! - `#` maybe used for physical 2x2x2x2 scrambling notation.
+//!
+//! TODO: add grammar and/or link to dev.hypercubing.xyz, and move the design
+//!       considerations to somewhere on dev.hypercubing.xyz
+
 use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
 use std::str::FromStr;
@@ -33,7 +61,7 @@ pub fn is_name_spec_valid(name_spec: &str) -> bool {
     parse_name_spec_into_patterns(name_spec).is_ok()
 }
 
-/// Returns whether ar name spec matches a name.
+/// Returns whether a name spec matches a name.
 ///
 /// Consider building a [`NameSpecMap`] if calling this multiple times on the
 /// same name spec.
@@ -47,8 +75,6 @@ pub fn name_spec_matches_name(name_spec: &str, name: &str) -> bool {
 }
 
 /// Parsed name specification, such as `I{UFR}`.
-///
-/// TODO: document name specifications
 #[derive(Debug, Clone)]
 pub struct NameSpec {
     /// Preferred name, such as `IUFR`.
@@ -268,11 +294,9 @@ fn chars_permutation<'input>()
         // Permutation of at least 2 characters. Example: `{ABC}`
         delimited(
             char::<_, Error<&str>>('{'),
-            take_while_m_n(2, usize::MAX, |c: char| !c.is_ascii_punctuation()).map(|s: &str| {
-                PermutationNode {
-                    inner: SeqNode::Literal,
-                    count: s.len(),
-                }
+            take_while_m_n(2, usize::MAX, is_literal_char).map(|s: &str| PermutationNode {
+                inner: SeqNode::Literal,
+                count: s.len(),
             }),
             char('}'),
         ),
@@ -282,9 +306,14 @@ fn chars_permutation<'input>()
                 inner: SeqNode::Literal,
                 count: 1,
             },
-            verify(anychar, |&c: &char| !c.is_ascii_punctuation() || c == '\''),
+            verify(anychar, |&c: &char| is_literal_char(c)),
         ),
     ))
+}
+
+/// Returns whether a character may be used in a string literal.
+fn is_literal_char(c: char) -> bool {
+    c == '\'' || (!c.is_ascii_punctuation() && !c.is_whitespace())
 }
 
 /// AST node containing a literal or a sequence of permutations.

@@ -341,12 +341,16 @@ impl Motor {
     }
 
     /// Transforms an object using the motor.
+    ///
+    /// This method does not support transforming `Vector` because this is
+    /// ambiguous; see [`Self::transform_vector()`] and
+    /// [`Self::transform_point()`].
     pub fn transform<T: TransformByMotor>(&self, obj: &T) -> T {
         obj.transform_by(self)
     }
     /// Transforms a vector using the motor.
     ///
-    /// See also `transform_point()`.
+    /// See also [`Self::transform_point()`].
     pub fn transform_vector(&self, v: impl VectorRef) -> Vector {
         self.transform(&Blade::from_vector(v))
             .to_vector()
@@ -354,7 +358,7 @@ impl Motor {
     }
     /// Transforms a point using the motor.
     ///
-    /// See also `transform_vector()`.
+    /// See also [`Self::transform_vector()`].
     pub fn transform_point(&self, v: impl VectorRef) -> Vector {
         self.transform(&Blade::from_point(v))
             .to_point()
