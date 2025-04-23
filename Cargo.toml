@@ -81,7 +81,6 @@ bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
 indexmap = { version = "2.7.1" }                                               # must match serde_yml
 smallvec = { version = "1.13.2", features = ["union"] }
-slab = { version = "0.4.9" }
 tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
@@ -118,15 +117,6 @@ eyre = { version = "0.6.12" }
 log = { version = "0.4.25" }
 owo-colors = { version = "4.1.0" }
 thiserror = { version = "2.0.11" }
-tracing = { version = "0.1.41" }
-tracing-error = { version = "0.2.1" }
-tracing-subscriber = { version = "0.3.17", default-features = false, features = [
-    "env-filter",
-    "fmt",
-    "ansi",
-    "json",
-    "registry",
-] }
 color-eyre = { version = "0.6.2", default-features = false, features = [
     "track-caller",
     "capture-spantrace",

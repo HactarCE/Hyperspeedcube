@@ -45,7 +45,6 @@ pub mod collections;
 
 pub mod approx_cmp;
 pub mod centroid;
-pub mod cga;
 pub mod hyperplane;
 pub mod matrix;
 pub mod permutations;
@@ -69,7 +68,7 @@ pub mod prelude {
     pub use crate::traits::*;
     pub use crate::vector::*;
     pub use crate::which_side::*;
-    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, cga, pga, vector};
+    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, pga, vector};
 }
 pub use prelude::*;
 
@@ -78,7 +77,6 @@ pub mod traits {
     pub use approx::AbsDiffEq;
     pub use tinyset::Fits64;
 
-    pub use crate::cga::{AsMultivector, ToConformalPoint};
     pub use crate::collections::{ApproxHashMapKey, IndexNewtype, VecMap};
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;

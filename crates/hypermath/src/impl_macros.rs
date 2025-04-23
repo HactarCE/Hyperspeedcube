@@ -39,34 +39,3 @@ macro_rules! impl_forward_bin_ops_to_ref {
         impl_forward_bin_ops_to_ref! { $($remainder)* }
     };
 }
-
-macro_rules! impl_forward_assign_ops_to_owned {
-    () => {};
-
-    (
-        impl $trait:ident for $type:ty { fn $func:ident() { $op:tt } }
-        $($remainder:tt)*
-    ) => {
-        impl_forward_assign_ops_to_owned! {
-            impl $trait<$type> for $type { fn $func() { $op } }
-            $($remainder)*
-        }
-    };
-
-    (
-        impl $trait:ident<$rhs:ty> for $type:ty { fn $func:ident() { $op:tt } }
-        $($remainder:tt)*
-    ) => {
-        impl $trait<$rhs> for $type {
-            fn $func(&mut self, rhs: $rhs) {
-                *self = std::mem::take(self) $op &rhs;
-            }
-        }
-        impl<'a> $trait<&'a $rhs> for $type {
-            fn $func(&mut self, rhs: &'a $rhs) {
-                *self = std::mem::take(self) $op rhs;
-            }
-        }
-        impl_forward_assign_ops_to_owned! { $($remainder)* }
-    };
-}

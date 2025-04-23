@@ -181,29 +181,6 @@ impl<T: ApproxHashMapKey> ApproxHashMapKey for Vec<T> {
     }
 }
 
-impl ApproxHashMapKey for cga::Multivector {
-    type Hash = MultivectorHash;
-
-    fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        let hash_term = |cga::Term { axes, coef }| (axes.bits(), float_hash_fn(coef));
-        MultivectorHash(self.nonzero_terms().map(hash_term).collect())
-    }
-}
-impl ApproxHashMapKey for cga::Blade {
-    type Hash = MultivectorHash;
-
-    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        self.mv().approx_hash(float_hash_fn)
-    }
-}
-impl ApproxHashMapKey for cga::Isometry {
-    type Hash = MultivectorHash;
-
-    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        self.mv().approx_hash(float_hash_fn)
-    }
-}
-
 impl ApproxHashMapKey for pga::Blade {
     type Hash = MultivectorHash;
 
