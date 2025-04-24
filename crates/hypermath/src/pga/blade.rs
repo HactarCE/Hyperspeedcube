@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use super::{Axes, Term};
 use crate::util::PI;
-use crate::{Float, Hyperplane, Vector, VectorRef, approx_eq, is_approx_nonzero};
+use crate::{Float, Hyperplane, Point, Vector, VectorRef, approx_eq, is_approx_nonzero};
 
 /// Sum of terms of the same grade in the projective geometric algebra.
 #[derive(Clone, PartialEq)]
@@ -104,14 +104,14 @@ impl Blade {
         ret
     }
     /// Constructs a blade from a point.
-    pub fn from_point(v: impl VectorRef) -> Self {
-        let mut ret = Self::from_vector(v);
+    pub fn from_point(p: &Point) -> Self {
+        let mut ret = Self::from_vector(p.as_vector());
         ret[Axes::E0] = 1.0;
         ret
     }
     /// Extracts the point represented by a blade.
-    pub fn to_point(&self) -> Option<Vector> {
-        crate::util::try_div(self.to_vector()?, self[Axes::E0])
+    pub fn to_point(&self) -> Option<Point> {
+        crate::util::try_div(self.to_vector()?, self[Axes::E0]).map(Point)
     }
     /// Returns whether the blade represents a point.
     pub fn is_point(&self) -> bool {

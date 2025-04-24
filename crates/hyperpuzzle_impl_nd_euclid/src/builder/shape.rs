@@ -297,7 +297,7 @@ impl ShapeBuilder {
     /// test.
     pub fn active_pieces_in_region<'a>(
         &'a mut self,
-        has_point: impl 'a + Fn(&Vector) -> bool,
+        has_point: impl 'a + Fn(&Point) -> bool,
     ) -> impl 'a + Iterator<Item = Piece> {
         self.active_pieces
             .clone()
@@ -310,7 +310,7 @@ impl ShapeBuilder {
         &mut self,
         name: &str,
         display: Option<String>,
-        has_point: impl Fn(&Vector) -> bool,
+        has_point: impl Fn(&Point) -> bool,
         warn_fn: impl Fn(eyre::Error),
     ) -> Result<()> {
         let piece_type = match self.get_or_add_piece_type(name.to_string(), display) {
@@ -351,7 +351,7 @@ impl ShapeBuilder {
         for (i, &piece) in active_pieces.iter().enumerate() {
             let point = self.pieces[piece].interior_point(&self.space).clone();
             for t in transforms {
-                let p = t.transform_point(&point);
+                let p = t.transform(&point);
                 // TODO: compute whether pieces intersect
                 // TODO: optimize using space partitioning tree
                 for (j, &other_piece) in active_pieces.iter().enumerate() {
@@ -606,7 +606,7 @@ impl ShapeBuilder {
 
         for (expected_id, surface_data) in surfaces {
             let surface_id =
-                mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
+                mesh.add_puzzle_surface(&surface_data.centroid.center(), surface_data.normal)?;
             ensure!(surface_id == expected_id.0 as u32);
         }
 
@@ -702,7 +702,7 @@ fn build_shape_polygons(
     mesh: &mut Mesh,
     sticker_shrink_vectors: &HashMap<VertexId, Vector>,
     sticker_shape: Facet<'_>,
-    piece_centroid: &Vector,
+    piece_centroid: &Point,
     piece_id: Piece,
     surface_id: Surface,
 ) -> Result<(Range<usize>, Range<u32>, Range<u32>)> {
@@ -873,7 +873,7 @@ fn compute_sticker_shrink_vectors(
     // Compute the shrink target for each possible facet set that has a good
     // shrink target.
     let unique_facet_sets_of_vertices = elements_and_surface_sets_by_rank[0].values().unique();
-    let shrink_target_by_surface_set: HashMap<&SurfaceSet, Vector> = unique_facet_sets_of_vertices
+    let shrink_target_by_surface_set: HashMap<&SurfaceSet, Point> = unique_facet_sets_of_vertices
         .map(|facet_set| {
             // Find the largest elements of the piece that are contained by all
             // the facets in this set. There must be at least one vertex.

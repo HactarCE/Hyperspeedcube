@@ -4,7 +4,7 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use super::{Axes, Blade, Term};
 use crate::pga::blade::BivectorDecomposition;
 use crate::{
-    Float, Hyperplane, IterWithExactSizeExt, Matrix, Vector, VectorRef, approx_eq,
+    Float, Hyperplane, IterWithExactSizeExt, Matrix, Point, Vector, VectorRef, approx_eq,
     is_approx_negative, is_approx_nonzero,
 };
 
@@ -60,7 +60,7 @@ impl Motor {
     /// Constructs a motor representing a point reflection.
     ///
     /// Returns `None` if the point does not fit in `ndim` dimensions.
-    pub fn point_reflection(ndim: u8, point: Vector) -> Option<Self> {
+    pub fn point_reflection(ndim: u8, point: &Point) -> Option<Self> {
         Self::reflection_across_blade(ndim, &Blade::from_point(point))
     }
     fn reflection_across_blade(ndim: u8, blade: &Blade) -> Option<Self> {
@@ -354,15 +354,15 @@ impl Motor {
     pub fn transform_vector(&self, v: impl VectorRef) -> Vector {
         self.transform(&Blade::from_vector(v))
             .to_vector()
-            .unwrap_or(vector![])
+            .unwrap_or(Vector::EMPTY)
     }
     /// Transforms a point using the motor.
     ///
     /// See also [`Self::transform_vector()`].
-    pub fn transform_point(&self, v: impl VectorRef) -> Vector {
-        self.transform(&Blade::from_point(v))
+    pub fn transform_point(&self, v: impl VectorRef) -> Point {
+        self.transform(&Blade::from_point(&Point(v.to_vector())))
             .to_point()
-            .unwrap_or(vector![])
+            .unwrap_or(Point::ORIGIN)
     }
 
     /// Returns the scalar dot product between two motors.
@@ -447,7 +447,7 @@ impl Motor {
     ///
     /// The result is undefined for any other motor.
     pub fn euclidean_projective_transformation_matrix(&self, ndim: u8) -> Matrix {
-        let w = self.transform_point(vector![]);
+        let w = self.transform(&Point::ORIGIN).into_vector();
         let cols = self
             .euclidean_matrix_cols()
             .map(|col| col - &w)
@@ -456,7 +456,7 @@ impl Motor {
         Matrix::from_cols(cols)
     }
     fn euclidean_matrix_cols(&self) -> impl '_ + ExactSizeIterator<Item = Vector> {
-        (0..self.ndim).map(|i| self.transform_vector(Vector::unit(i)))
+        (0..self.ndim).map(|i| self.transform(&Vector::unit(i)))
     }
 
     /// Returns the tangent of the logarithm of a motor. Returns None if the
@@ -676,8 +676,17 @@ pub trait TransformByMotor {
     fn transform_by(&self, m: &Motor) -> Self;
 }
 
-// Do not `impl TransformByMotor for Vector` because it's ambiguous between
-// `Vector`s and `Point`s.
+impl TransformByMotor for Vector {
+    fn transform_by(&self, m: &Motor) -> Self {
+        m.transform_vector(self)
+    }
+}
+
+impl TransformByMotor for Point {
+    fn transform_by(&self, m: &Motor) -> Self {
+        m.transform_point(self.as_vector())
+    }
+}
 
 impl TransformByMotor for Hyperplane {
     fn transform_by(&self, m: &Motor) -> Self {
@@ -824,8 +833,8 @@ mod tests {
                 .to_ndim_at_least(motor_ndim);
 
             let v = vector![1.0];
-            assert_approx_eq!(rot.transform_vector(&v), vector![0.0, 1.0]);
-            assert_approx_eq!(refl.transform_vector(&v), vector![-1.0]);
+            assert_approx_eq!(rot.transform(&v), vector![0.0, 1.0]);
+            assert_approx_eq!(refl.transform(&v), vector![-1.0]);
         }
     }
 
@@ -838,9 +847,9 @@ mod tests {
                 .unwrap()
                 .to_ndim_at_least(motor_ndim);
 
-            let p = vector![1.0];
-            assert_approx_eq!(rot.transform_point(&p), vector![0.0, 1.0]);
-            assert_approx_eq!(refl.transform_point(&p), vector![-1.0]);
+            let p = point![1.0];
+            assert_approx_eq!(rot.transform(&p), point![0.0, 1.0]);
+            assert_approx_eq!(refl.transform(&p), point![-1.0]);
         }
     }
 

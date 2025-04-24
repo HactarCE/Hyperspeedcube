@@ -189,9 +189,10 @@ impl NdEuclidViewState {
                         let mut parallel_drag_delta = self.parallel_drag_delta()?;
                         let axis = nd_euclid?.partial_twist_drag_state.as_ref()?.axis;
                         let axis_vector = &nd_euclid?.geom.axis_vectors[axis];
+                        let drag_origin = Point::ORIGIN; // TODO: change for multi-origin puzzles
                         if prefs.interaction.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
-                                / hov.position.rejected_from(axis_vector)?.mag();
+                                / (hov.position.rejected_from(axis_vector)? - drag_origin).mag();
                         }
                         Some((hov.normal_3d(), parallel_drag_delta))
                     })();
@@ -442,7 +443,7 @@ impl NdEuclidViewState {
     ///
     /// This is supposed to be parallel to the sticker face that the mouse
     /// initially clicked on.
-    pub fn drag_delta_3d(&self) -> Option<[Vector; 2]> {
+    pub fn drag_delta_3d(&self) -> Option<[Point; 2]> {
         // TODO: where does this method want to live? does it want to exist at all?
         let a = self.puzzle_hover_state()?.position;
         let b = &a + self.parallel_drag_delta()?;

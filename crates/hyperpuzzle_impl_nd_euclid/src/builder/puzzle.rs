@@ -154,7 +154,7 @@ impl PuzzleBuilder {
                 .vertex_set()
                 .map(|v| {
                     *vertex_id_map.entry(v.id()).or_insert_with(|| {
-                        vertex_coordinates.extend(v.pos().iter_ndim(space.ndim()));
+                        vertex_coordinates.extend(v.pos().as_vector().iter_ndim(space.ndim()));
                         let i = vertex_count;
                         vertex_count += 1;
                         i
@@ -284,7 +284,7 @@ pub struct PieceBuilder {
     pub piece_type: Option<PieceType>,
 
     /// Cached arbitrary point inside the polytope.
-    cached_interior_point: Option<Vector>,
+    cached_interior_point: Option<Point>,
 }
 impl PieceBuilder {
     pub(super) fn new(polytope: Polytope<'_>, stickers: VecMap<FacetId, Color>) -> Self {
@@ -303,7 +303,7 @@ impl PieceBuilder {
         *self.stickers.get(&sticker_id).unwrap_or(&Color::INTERNAL)
     }
 
-    pub(super) fn interior_point(&mut self, space: &Space) -> &Vector {
+    pub(super) fn interior_point(&mut self, space: &Space) -> &Point {
         // Average the vertices to get a point that is inside the polytope. For
         // polytopes with many vertices, this could perhaps be improved by using
         // blades.
@@ -312,9 +312,9 @@ impl PieceBuilder {
             let mut sum = vector![];
             for v in space.get(self.polytope).vertex_set() {
                 count += 1;
-                sum += v.pos();
+                sum += v.pos().into_vector();
             }
-            sum / count as _
+            Point(sum / count as _)
         })
     }
 }

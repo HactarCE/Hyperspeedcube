@@ -159,7 +159,7 @@ impl VectorRef for Vector {
     }
 
     fn get(&self, idx: u8) -> Float {
-        self.0.get(idx as usize).cloned().unwrap_or(0.0)
+        self.0.get(idx as usize).copied().unwrap_or(0.0)
     }
 }
 
@@ -275,6 +275,15 @@ impl<V: VectorRef> AddAssign<V> for Vector {
         }
     }
 }
+impl<V: VectorRef> SubAssign<V> for Vector {
+    fn sub_assign(&mut self, rhs: V) {
+        let ndim = std::cmp::max(self.ndim(), rhs.ndim());
+        self.0.resize(ndim as _, 0.0);
+        for i in 0..rhs.ndim() {
+            self[i] -= rhs.get(i);
+        }
+    }
+}
 impl<V: VectorRef> MulAssign<V> for Vector {
     fn mul_assign(&mut self, rhs: V) {
         self.0.truncate(rhs.ndim() as _);
@@ -357,6 +366,7 @@ impl Vector {
         )
     }
 }
+
 impl approx::AbsDiffEq for Vector {
     type Epsilon = Float;
 

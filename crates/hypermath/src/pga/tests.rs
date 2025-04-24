@@ -41,44 +41,44 @@ fn test_transforms() {
         let translate = Motor::translation(vector![-1.0, 5.0]).to_ndim_at_least(ndim);
 
         println!("  Transforming points");
-        let p = vector![2.0, 3.0];
-        assert_approx_eq!(ident.transform_point(&p), p);
-        assert_approx_eq!(rot_xy.transform_point(&p), vector![-3.0, 2.0]);
-        assert_approx_eq!(refl_plane.transform_point(&p), vector![2.0, -1.0]);
-        assert_approx_eq!(refl_x.transform_point(&p), vector![-2.0, 3.0]);
-        assert_approx_eq!(refl_y.transform_point(&p), vector![2.0, -3.0]);
-        assert_approx_eq!(translate.transform_point(&p), vector![1.0, 8.0]);
+        let p = point![2.0, 3.0];
+        assert_approx_eq!(ident.transform(&p), p);
+        assert_approx_eq!(rot_xy.transform(&p), point![-3.0, 2.0]);
+        assert_approx_eq!(refl_plane.transform(&p), point![2.0, -1.0]);
+        assert_approx_eq!(refl_x.transform(&p), point![-2.0, 3.0]);
+        assert_approx_eq!(refl_y.transform(&p), point![2.0, -3.0]);
+        assert_approx_eq!(translate.transform(&p), point![1.0, 8.0]);
 
         println!("  Transforming vectors");
         let v = vector![2.0, 3.0];
-        assert_approx_eq!(ident.transform_vector(&v), v);
-        assert_approx_eq!(rot_xy.transform_vector(&v), vector![-3.0, 2.0]);
-        assert_approx_eq!(refl_plane.transform_vector(&v), vector![2.0, -3.0]);
-        assert_approx_eq!(refl_x.transform_vector(&v), vector![-2.0, 3.0]);
-        assert_approx_eq!(refl_y.transform_vector(&v), vector![2.0, -3.0]);
-        assert_approx_eq!(translate.transform_vector(&v), vector![2.0, 3.0]);
+        assert_approx_eq!(ident.transform(&v), v);
+        assert_approx_eq!(rot_xy.transform(&v), vector![-3.0, 2.0]);
+        assert_approx_eq!(refl_plane.transform(&v), vector![2.0, -3.0]);
+        assert_approx_eq!(refl_x.transform(&v), vector![-2.0, 3.0]);
+        assert_approx_eq!(refl_y.transform(&v), vector![2.0, -3.0]);
+        assert_approx_eq!(translate.transform(&v), vector![2.0, 3.0]);
 
         println!("  Transforming vectors with canonicalized motor");
         let v = vector![2.0, 3.0];
-        assert_approx_eq!(ident.canonicalize().unwrap().transform_vector(&v), v);
+        assert_approx_eq!(ident.canonicalize().unwrap().transform(&v), v);
         assert_approx_eq!(
-            rot_xy.canonicalize().unwrap().transform_vector(&v),
+            rot_xy.canonicalize().unwrap().transform(&v),
             vector![-3.0, 2.0],
         );
         assert_approx_eq!(
-            refl_plane.canonicalize().unwrap().transform_vector(&v),
+            refl_plane.canonicalize().unwrap().transform(&v),
             vector![2.0, -3.0],
         );
         assert_approx_eq!(
-            refl_x.canonicalize().unwrap().transform_vector(&v),
+            refl_x.canonicalize().unwrap().transform(&v),
             vector![-2.0, 3.0],
         );
         assert_approx_eq!(
-            refl_y.canonicalize().unwrap().transform_vector(&v),
+            refl_y.canonicalize().unwrap().transform(&v),
             vector![2.0, -3.0],
         );
         assert_approx_eq!(
-            translate.canonicalize().unwrap().transform_vector(&v),
+            translate.canonicalize().unwrap().transform(&v),
             vector![2.0, 3.0],
         );
 

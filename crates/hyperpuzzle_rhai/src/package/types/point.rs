@@ -1,10 +1,9 @@
 //! Rhai Euclidean point type.
 
-use hypermath::VectorRef;
+use hypermath::{Point, VectorRef};
 
 use super::vector::{try_collect_to_vector, try_set_vector_component};
 use super::*;
-use crate::Point;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<Point>("point");

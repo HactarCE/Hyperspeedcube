@@ -33,13 +33,8 @@ impl CachedTransformData {
             transformed_vectors,
         }
     }
-    fn reverse_transform_axis_vector(
-        &mut self,
-        axis: Axis,
-        axis_vector: impl VectorRef,
-    ) -> &Vector {
-        self.transformed_vectors[axis]
-            .get_or_insert_with(|| self.rev_motor.transform_vector(axis_vector))
+    fn reverse_transform_axis_vector(&mut self, axis: Axis, axis_vector: &Vector) -> &Vector {
+        self.transformed_vectors[axis].get_or_insert_with(|| self.rev_motor.transform(axis_vector))
     }
 }
 
@@ -131,7 +126,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         self.ty().stickers.iter().all(|(sticker, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];
             let normal_vector =
-                sticker_transform.transform_vector(self.geom.sticker_plane(sticker).normal());
+                sticker_transform.transform(self.geom.sticker_plane(sticker).normal());
             match color_normals.get_mut(sticker_info.color) {
                 Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {

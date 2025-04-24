@@ -111,7 +111,7 @@ pub struct PuzzleWidget {
     egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
     egui_texture_id: Option<egui::TextureId>,
 
-    queued_arrows: Vec<[Vector; 2]>,
+    queued_arrows: Vec<[Point; 2]>,
 
     pub wants_focus: bool,
     pub puzzle_changed: bool,
@@ -653,7 +653,7 @@ fn show_nd_euclid_puzzle_view(
     piece_styles: Vec<(PieceStyleValues, PieceMask)>,
     show_gizmo_hover: bool,
     temp_gizmo_highlight: Option<Axis>,
-    queued_arrows: &mut Vec<[Vector; 2]>,
+    queued_arrows: &mut Vec<[Point; 2]>,
 ) -> PuzzleViewResponse {
     let mut ret = PuzzleViewResponse::default();
 
@@ -815,7 +815,7 @@ fn show_nd_euclid_puzzle_view(
         queued_arrows.extend(nd_euclid.drag_delta_3d());
     }
 
-    let project_point = |p: &Vector| {
+    let project_point = |p: &Point| {
         let ndc = draw_params.cam.project_point_to_ndc(p)?;
         let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
         Some(r.rect.lerp_inside(egui_pos))

@@ -201,7 +201,7 @@ impl TwistSystemBuilder {
             let axis = twist.axis;
             let axis_vector = &axis_vectors[axis];
 
-            if !approx_eq(&twist.transform.transform_vector(axis_vector), axis_vector) {
+            if !approx_eq(&twist.transform.transform(axis_vector), axis_vector) {
                 warn_fn(match twist_names.get(id) {
                     Some(name) => eyre!("twist {:?} does not fix axis vector", name.preferred),
                     None => eyre!("twist {id} does not fix axis vector"),

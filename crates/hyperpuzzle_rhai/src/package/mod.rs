@@ -15,7 +15,7 @@ use state::RhaiState;
 use crate::convert::*;
 use crate::errors::*;
 use crate::loader::RhaiEvalRequestTx;
-use crate::util::{get_ndim, new_fn, void_warn, warn, warnf};
+use crate::util::{new_fn, void_warn, warn, warnf};
 use crate::{Ctx, Result, RhaiCtx};
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);

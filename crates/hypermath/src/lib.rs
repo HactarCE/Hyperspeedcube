@@ -41,6 +41,8 @@ mod impl_macros;
 #[macro_use]
 mod vector;
 #[macro_use]
+mod point;
+#[macro_use]
 pub mod collections;
 
 pub mod approx_cmp;
@@ -64,11 +66,12 @@ pub mod prelude {
     pub use crate::hyperplane::*;
     pub use crate::matrix::*;
     pub use crate::permutations::{self, Parity};
+    pub use crate::point::*;
     pub use crate::sign::Sign;
     pub use crate::traits::*;
     pub use crate::vector::*;
     pub use crate::which_side::*;
-    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, pga, vector};
+    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, pga, point, vector};
 }
 pub use prelude::*;
 

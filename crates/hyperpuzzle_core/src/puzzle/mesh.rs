@@ -166,7 +166,8 @@ impl Mesh {
         let ndim = self.ndim;
         let vertex_id = self.vertex_count() as u32;
         self.puzzle_vertex_count += 1;
-        self.vertex_positions.extend(iter_f32(ndim, data.position));
+        self.vertex_positions
+            .extend(iter_f32(ndim, data.position.as_vector()));
         self.u_tangents.extend(iter_f32(ndim, data.u_tangent));
         self.v_tangents.extend(iter_f32(ndim, data.v_tangent));
         self.sticker_shrink_vectors
@@ -178,11 +179,12 @@ impl Mesh {
         Ok(vertex_id)
     }
     /// Adds a gizmo vertex to the mesh and returns the vertex ID.
-    pub fn add_gizmo_vertex(&mut self, pos: impl VectorRef, surface_id: u32) -> Result<u32> {
+    pub fn add_gizmo_vertex(&mut self, pos: Point, surface_id: u32) -> Result<u32> {
         let ndim = self.ndim;
         let vertex_id = self.vertex_count() as u32;
         self.gizmo_vertex_count += 1;
-        self.vertex_positions.extend(iter_f32(ndim, &pos));
+        self.vertex_positions
+            .extend(iter_f32(ndim, pos.as_vector()));
         // No tangent vectors needed.
         // No sticker shrink vectors needed.
         // No piece ID needed.
@@ -219,14 +221,15 @@ impl Mesh {
     /// Adds a piece to the mesh.
     pub fn add_piece(
         &mut self,
-        centroid: &impl VectorRef,
+        centroid: &Point,
         internals_polygon_range: Range<usize>,
         internals_triangle_range: Range<u32>,
         internals_edge_range: Range<u32>,
     ) -> Result<()> {
         let ndim = self.ndim;
         self.piece_count += 1;
-        self.piece_centroids.extend(iter_f32(ndim, centroid));
+        self.piece_centroids
+            .extend(iter_f32(ndim, centroid.as_vector()));
         self.piece_internals_polygon_ranges
             .push(internals_polygon_range)?;
         self.piece_internals_triangle_ranges
@@ -253,18 +256,15 @@ impl Mesh {
     /// Adds a puzzle surface to the mesh and returns the new surface ID.
     ///
     /// This cannot be called after `add_gizmo_surface()`.
-    pub fn add_puzzle_surface(
-        &mut self,
-        centroid: impl VectorRef,
-        normal: impl VectorRef,
-    ) -> Result<u32> {
+    pub fn add_puzzle_surface(&mut self, centroid: &Point, normal: impl VectorRef) -> Result<u32> {
         let surface_id = self.surface_count() as u32;
         let ndim = self.ndim;
         self.puzzle_surface_count += 1;
         if self.gizmo_surface_count > 0 {
             bail!("puzzle surfaces must precede gizmo surfaces");
         }
-        self.surface_centroids.extend(iter_f32(ndim, &centroid));
+        self.surface_centroids
+            .extend(iter_f32(ndim, centroid.as_vector()));
         self.surface_normals.extend(iter_f32(ndim, &normal));
         Ok(surface_id)
     }
@@ -308,7 +308,7 @@ impl Mesh {
 #[derive(Debug, Copy, Clone)]
 pub struct MeshVertexData<'a> {
     /// N-dimensional coordinates of the point.
-    pub position: &'a Vector,
+    pub position: &'a Point,
     /// N-dimensional unit vector tangent to the surface at the point. This must
     /// be perpendicular to `v_tangent`.
     pub u_tangent: &'a Vector,

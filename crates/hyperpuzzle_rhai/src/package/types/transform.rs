@@ -1,11 +1,10 @@
 //! Rhai projective transformation type.
 
 use hypermath::pga::{Axes, Blade, Motor};
-use hypermath::{Float, Hyperplane, Vector, VectorRef, vector};
+use hypermath::{Float, Hyperplane, Point, Vector, VectorRef};
 use rhai::Map;
 
 use super::*;
-use crate::Point;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<Motor>("transform");
@@ -19,38 +18,43 @@ pub fn register(module: &mut Module) {
 
     new_fn("ident").set_into_module(module, || Motor::ident(0));
 
-    new_fn("refl").set_into_module(module, |ndim: u8| Motor::point_reflection(ndim, vector![]));
+    new_fn("refl").set_into_module(module, |ndim: u8| {
+        Motor::point_reflection(ndim, &Point::ORIGIN)
+    });
     new_fn("refl").set_into_module(module, |_ndim: u8, vector: Vector| {
         Motor::vector_reflection(vector)
     });
     new_fn("refl").set_into_module(module, |ndim: u8, point: Point| {
-        Motor::point_reflection(ndim, point.0)
+        Motor::point_reflection(ndim, &point)
     });
     new_fn("refl").set_into_module(module, |ndim: u8, hyperplane: Hyperplane| {
         Motor::plane_reflection(ndim, &hyperplane)
     });
 
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>| -> Result<_> {
-        Ok(Motor::point_reflection(get_ndim(&ctx)?, vector![]))
+        let ndim = RhaiState::get_ndim(&ctx)?;
+        Ok(Motor::point_reflection(ndim, &Point::ORIGIN))
     });
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, vector: Vector| -> Result<_> {
-        get_ndim(&ctx)?;
+        let _ndim = RhaiState::get_ndim(&ctx)?;
         Ok(Motor::vector_reflection(vector))
     });
     new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, point: Point| -> Result<_> {
-        Ok(Motor::point_reflection(get_ndim(&ctx)?, point.0))
+        let ndim = RhaiState::get_ndim(&ctx)?;
+        Ok(Motor::point_reflection(ndim, &point))
     });
     new_fn("refl").set_into_module(
         module,
         |ctx: Ctx<'_>, hyperplane: Hyperplane| -> Result<_> {
-            Ok(Motor::plane_reflection(get_ndim(&ctx)?, &hyperplane))
+            let ndim = RhaiState::get_ndim(&ctx)?;
+            Ok(Motor::plane_reflection(ndim, &hyperplane))
         },
     );
 
     new_fn("is_refl").set_into_module(module, |m: &mut Motor| m.is_reflection());
 
     new_fn("rot").set_into_module(module, |ctx: Ctx<'_>, args: Map| -> Result<_> {
-        let ndim = get_ndim(&ctx)?;
+        let ndim = RhaiState::get_ndim(&ctx)?;
 
         let_from_map!(&ctx, args, {
             let fix: OptVecOrSingle<Blade>;

@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::collections::approx_hashmap::{FloatHash, VectorHash};
 use crate::{
-    AXIS_NAMES, ApproxHashMapKey, Float, PointWhichSide, Vector, VectorRef, approx_cmp,
+    AXIS_NAMES, ApproxHashMapKey, Float, Point, PointWhichSide, Vector, VectorRef, approx_cmp,
     is_approx_nonzero,
 };
 
@@ -91,8 +91,8 @@ impl Hyperplane {
     }
 
     /// Returns the signed perpendicular distance of a point from the plane.
-    pub fn signed_distance_to_point(&self, p: impl VectorRef) -> Float {
-        self.normal.dot(p) - self.distance
+    pub fn signed_distance_to_point(&self, p: &Point) -> Float {
+        self.normal.dot(p.as_vector()) - self.distance
     }
 
     /// Returns a hyperplane in the same location but with the opposite
@@ -117,20 +117,20 @@ impl Hyperplane {
 
     /// Returns the location of a point relative to the hyperplane. For positive
     /// distance, the inside of the hyperplane contains the origin.
-    pub fn location_of_point(&self, p: impl VectorRef) -> PointWhichSide {
+    pub fn location_of_point(&self, p: &Point) -> PointWhichSide {
         Self::location_of_point_from_signed_distance(self.signed_distance_to_point(p))
     }
 
     /// Returns the intersection of the hyperplane with a line segment.
     pub fn intersection_with_line_segment(
         &self,
-        [a, b]: [impl VectorRef; 2],
+        [a, b]: [&Point; 2],
     ) -> HyperplaneLineIntersection {
-        let ha = self.signed_distance_to_point(&a);
-        let hb = self.signed_distance_to_point(&b);
+        let ha = self.signed_distance_to_point(a);
+        let hb = self.signed_distance_to_point(b);
         let a_loc = Self::location_of_point_from_signed_distance(ha);
         let b_loc = Self::location_of_point_from_signed_distance(hb);
-        let intersection = (a_loc != b_loc).then(|| (a.scale(hb) - b.scale(ha)) / (hb - ha));
+        let intersection = (a_loc != b_loc).then(|| Point::normalized_weighted_sum(a, hb, b, -ha));
         HyperplaneLineIntersection {
             a_loc,
             b_loc,
@@ -147,7 +147,7 @@ pub struct HyperplaneLineIntersection {
     pub b_loc: PointWhichSide,
     /// Intersection point of the line segment and hyperplane, if the line
     /// segment touches the hyperplane.
-    pub intersection: Option<Vector>,
+    pub intersection: Option<Point>,
 }
 
 impl ApproxHashMapKey for Hyperplane {

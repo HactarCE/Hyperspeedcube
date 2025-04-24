@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
-use hypermath::Vector;
 use hypermath::pga::{Blade, Motor};
+use hypermath::{Point, Vector};
 use rhai::{Dynamic, FnPtr};
 
-use crate::{ConvertError, InKey, Point, Result, RhaiCtx};
+use crate::{ConvertError, InKey, Result, RhaiCtx};
 
 /// Converts a Rhai value to `T` or returns an error.
 pub fn from_rhai<T: FromRhai>(ctx: impl RhaiCtx, value: Dynamic) -> Result<T, ConvertError> {
@@ -114,7 +114,7 @@ impl_from_rhai!(f64, "number", |ctx, value| {
         .or_else(|| value.as_int().ok().map(|i| i as f64))
         .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
 });
-impl_from_rhai!(i64, "number", |ctx, value| {
+impl_from_rhai!(i64, "integer", |ctx, value| {
     None.or_else(|| value.as_int().ok())
         .or_else(|| value.as_float().ok().and_then(hypermath::to_approx_integer))
         .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
@@ -122,7 +122,12 @@ impl_from_rhai!(i64, "number", |ctx, value| {
 impl_from_rhai!(usize, "index", |ctx, value| {
     (value.as_int().ok())
         .and_then(|i| i.try_into().ok())
-        .ok_or_else(|| ConvertError::new::<usize>(ctx, Some(&value)))
+        .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
+});
+impl_from_rhai!(u8, "small nonnegative integer", |ctx, value| {
+    (value.as_int().ok())
+        .and_then(|i| i.try_into().ok())
+        .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
 });
 impl_from_rhai!(FnPtr, "function");
 
@@ -133,7 +138,7 @@ impl_from_rhai!(Blade, "vector, point, or PGA blade", |ctx, value| {
     Err(value)
         .or_else(|v| v.try_cast_result::<Blade>())
         .or_else(|v| v.try_cast_result().map(|v: Vector| Blade::from_vector(v)))
-        .or_else(|v| v.try_cast_result().map(|p: Point| Blade::from_vector(p.0)))
+        .or_else(|v| v.try_cast_result().map(|p: Point| Blade::from_point(&p)))
         .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
 });
 impl_from_rhai!(Motor, "transform", |ctx, value| {
@@ -142,6 +147,24 @@ impl_from_rhai!(Motor, "transform", |ctx, value| {
         // TODO: try cast to twist
         .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
 });
+
+impl FromRhai for () {
+    fn expected_string() -> String {
+        "nothing".to_owned()
+    }
+
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
+        if value.is_unit() {
+            Ok(())
+        } else {
+            Err(ConvertError::new::<Self>(ctx, Some(&value)))
+        }
+    }
+
+    fn try_from_none(_ctx: impl RhaiCtx) -> Result<Self, ConvertError> {
+        Ok(())
+    }
+}
 
 pub struct OptVecOrSingle<T>(pub Vec<T>);
 impl<T: FromRhai> FromRhai for OptVecOrSingle<T> {

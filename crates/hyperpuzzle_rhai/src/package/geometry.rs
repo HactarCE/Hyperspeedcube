@@ -3,10 +3,9 @@
 //! See [`super::types`] for functions that operate on specific types.
 
 use hypermath::pga::Motor;
-use hypermath::{Hyperplane, Vector, VectorRef};
+use hypermath::{Hyperplane, Point, Vector, VectorRef};
 
 use super::*;
-use crate::Point;
 
 pub fn register(module: &mut Module) {
     new_fn("+").set_into_module(module, |u: Point, v: Vector| Point(u.0 + v));
@@ -42,10 +41,8 @@ pub fn register(module: &mut Module) {
         },
     );
 
-    new_fn("transform").set_into_module(module, |m: &mut Motor, v: Vector| m.transform_vector(v));
-    new_fn("transform").set_into_module(module, |m: &mut Motor, p: Point| {
-        Point(m.transform_point(p.0))
-    });
+    new_fn("transform").set_into_module(module, |m: &mut Motor, v: Vector| m.transform(&v));
+    new_fn("transform").set_into_module(module, |m: &mut Motor, p: Point| m.transform(&p));
     new_fn("transform").set_into_module(module, |m: &mut Motor, h: Hyperplane| m.transform(&h));
     new_fn("transform").set_into_module(module, |m1: &mut Motor, m2: Motor| m1.transform(&m2));
 }

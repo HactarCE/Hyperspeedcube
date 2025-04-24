@@ -1,12 +1,11 @@
-use std::{
-    fmt,
-    sync::{Arc, mpsc},
-};
+use std::fmt;
+use std::sync::{Arc, mpsc};
 
 use eyre::eyre;
 use rhai::{Dynamic, Engine, FnPtr, FuncRegistration, Position};
 
-use crate::{Ctx, Result, RhaiCtx, loader::RhaiEvalRequestTx};
+use crate::loader::RhaiEvalRequestTx;
+use crate::{Ctx, Result, RhaiCtx};
 
 /// Emits a warning.
 pub fn warn(ctx: &Ctx<'_>, msg: impl fmt::Display) -> Result {
@@ -28,21 +27,15 @@ pub fn new_fn(name: &str) -> FuncRegistration {
     FuncRegistration::new(name).in_global_namespace()
 }
 
-/// Returns the current number of dimensions.
-pub fn get_ndim(ctx: &Ctx<'_>) -> Result<u8> {
-    // TODO: make this work
-    ctx.call_native_fn("_get_ndim", ())
-}
-
 /// Calls Rhai `to_string()` on `val` and returns the result.
 pub fn rhai_to_string(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
-    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_STRING, (val.clone(),))
+    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_STRING, vec![val.clone()])
         .unwrap_or_else(|_| val.to_string())
 }
 
 /// Calls Rhai `to_debug()` on `val` and returns the result.
 pub fn rhai_to_debug(mut ctx: impl RhaiCtx, val: &Dynamic) -> String {
-    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_DEBUG, (val.clone(),))
+    ctx.call_rhai_native_fn::<String>(rhai::FUNC_TO_DEBUG, vec![val.clone()])
         .unwrap_or_else(|_| val.to_string())
 }
 

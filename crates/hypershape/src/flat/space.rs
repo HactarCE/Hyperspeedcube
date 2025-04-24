@@ -12,8 +12,8 @@ pub struct Space {
     pub(super) primordial_cube: Mutex<Option<PolytopeId>>,
 
     // TODO: consider using `scc`
-    pub(super) vertices: Mutex<PerVertex<Vector>>,
-    pub(super) vertex_data_to_id: Mutex<ApproxHashMap<Vector, VertexId>>,
+    pub(super) vertices: Mutex<PerVertex<Point>>,
+    pub(super) vertex_data_to_id: Mutex<ApproxHashMap<Point, VertexId>>,
 
     pub(super) polytopes: Mutex<PerElement<PolytopeData>>,
     pub(super) polytope_data_to_id: Mutex<HashMap<PolytopeData, ElementId>>,
@@ -105,12 +105,12 @@ impl Space {
     }
 
     /// Memoizes a vertex.
-    pub fn add_vertex(&self, v: Vector) -> Result<VertexId, IndexOverflow> {
+    pub fn add_vertex(&self, p: Point) -> Result<VertexId, IndexOverflow> {
         let cache = &mut self.vertex_data_to_id.lock();
-        match cache.entry(v.clone()) {
+        match cache.entry(p.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
             hash_map::Entry::Vacant(e) => {
-                let vertex_id = *e.insert(self.vertices.lock().push(v)?);
+                let vertex_id = *e.insert(self.vertices.lock().push(p)?);
                 // Ensure that the vertex has a polytope ID as well.
                 self.add_polytope(vertex_id.into())?;
                 Ok(vertex_id)

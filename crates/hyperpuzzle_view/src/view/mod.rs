@@ -301,7 +301,7 @@ pub struct NdEuclidPuzzleHoverState {
     /// Exact hovered location on the surface of the puzzle, in puzzle space,
     /// after undoing geometry modifications such as sticker shrink and piece
     /// explode.
-    pub position: Vector,
+    pub position: Point,
     /// First tangent vector of the hovered surface, in puzzle space.
     pub u_tangent: Vector,
     /// Second tangent vector of the hovered surface, in puzzle space.

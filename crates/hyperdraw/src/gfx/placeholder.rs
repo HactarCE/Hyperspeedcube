@@ -200,7 +200,7 @@ fn add_line_set_2(mesh: &mut Mesh) -> Result<()> {
     Ok(())
 }
 
-fn quad(mesh: &mut Mesh, verts: [&Vector; 4]) -> Result<()> {
+fn quad(mesh: &mut Mesh, verts: [&Point; 4]) -> Result<()> {
     let [a, b, c, d] = verts;
     let u = b - a;
     let v = c - a;
@@ -215,14 +215,14 @@ fn quad(mesh: &mut Mesh, verts: [&Vector; 4]) -> Result<()> {
     Ok(())
 }
 
-fn general_polygon<'a>(mesh: &mut Mesh, verts: impl IntoIterator<Item = &'a Vector>) -> Result<()> {
+fn general_polygon<'a>(mesh: &mut Mesh, verts: impl IntoIterator<Item = &'a Point>) -> Result<()> {
     let mut verts = verts.into_iter().peekable();
     let z = verts.peek().ok_or_eyre("too few vertices in polygon")?[2];
     let u = vector![1.0, 0.0, 0.0];
     let v = vector![0.0, z.signum(), 0.0];
 
     let polygon_id = mesh.next_polygon_id()?;
-    let center = add_vertex(mesh, &vector![0.0, 0.0, z], &u, &v, polygon_id)?;
+    let center = add_vertex(mesh, &point![0.0, 0.0, z], &u, &v, polygon_id)?;
     let polygon_verts: Vec<u32> = verts
         .map(|p| add_vertex(mesh, p, &u, &v, polygon_id))
         .try_collect()?;
@@ -247,7 +247,7 @@ fn add_edge_seq(mesh: &mut Mesh, edges: &[[f64; 3]]) -> Result<()> {
     Ok(())
 }
 
-fn add_edge(mesh: &mut Mesh, a: &Vector, b: &Vector) -> Result<()> {
+fn add_edge(mesh: &mut Mesh, a: &Point, b: &Point) -> Result<()> {
     let polygon_id = mesh.next_polygon_id()?;
     let a = add_vertex(mesh, a, &Vector::EMPTY, &Vector::EMPTY, polygon_id)?;
     let b = add_vertex(mesh, b, &Vector::EMPTY, &Vector::EMPTY, polygon_id)?;
@@ -257,7 +257,7 @@ fn add_edge(mesh: &mut Mesh, a: &Vector, b: &Vector) -> Result<()> {
 
 fn add_vertex(
     mesh: &mut Mesh,
-    position: &Vector,
+    position: &Point,
     u_tangent: &Vector,
     v_tangent: &Vector,
     polygon_id: u32,
@@ -273,6 +273,6 @@ fn add_vertex(
     })
 }
 
-fn transform_point((x, y): (f64, f64), z: f64, xy_scale: f64) -> Vector {
-    vector![(x - 1.0) * xy_scale, (1.0 - y) * xy_scale, z]
+fn transform_point((x, y): (f64, f64), z: f64, xy_scale: f64) -> Point {
+    point![(x - 1.0) * xy_scale, (1.0 - y) * xy_scale, z]
 }

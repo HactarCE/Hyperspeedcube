@@ -104,7 +104,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
                 .axis_vectors
                 .get(axis.absolute_axis)
                 .ok()?;
-            let new_axis_vector = self.vantage_motor(vantage)?.transform_vector(axis_vector);
+            let new_axis_vector = self.vantage_motor(vantage)?.transform(axis_vector);
             self.twist_system_engine_data
                 .axis_from_vector
                 .get(&new_axis_vector)
@@ -186,7 +186,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             .filter(|&elem| {
                 reference_vector_mapping
                     .iter()
-                    .all(|&(r1, r2)| approx_eq(&self.symmetry[elem].transform_vector(r1), r2))
+                    .all(|&(r1, r2)| approx_eq(&self.symmetry[elem].transform(r1), r2))
             })
             .map(|elem| self.group_element_to_vantage(elem))
             .exactly_one()

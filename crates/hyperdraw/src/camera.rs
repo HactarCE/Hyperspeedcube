@@ -91,10 +91,10 @@ impl NdEuclidCamera {
     /// coordinates.
     ///
     /// Be sure to divide by the W coordinate before putting this on the screen.
-    fn project_point_to_3d_screen_space(&self, p: impl VectorRef) -> Option<cgmath::Vector4<f32>> {
+    fn project_point_to_3d_screen_space(&self, p: &Point) -> Option<cgmath::Vector4<f32>> {
         // This mimics a similar function in the WGSL shader.
-        let p = self.rot.transform_point(p); // Rotate
-        let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
+        let p = self.rot.transform(p); // Rotate
+        let p = hypermath_to_cgmath_vec4(p.as_vector()); // Convert to cgmath vector
         let p = p * self.global_scale(); // Scale
 
         // Clip geometry that is behind the 4D camera.
@@ -116,7 +116,7 @@ impl NdEuclidCamera {
     }
     /// Projects an N-dimensional point to a 2D point in normalized device
     /// coordinates.
-    pub fn project_point_to_ndc(&self, p: impl VectorRef) -> Option<cgmath::Point2<f32>> {
+    pub fn project_point_to_ndc(&self, p: &Point) -> Option<cgmath::Point2<f32>> {
         let p = self.project_point_to_3d_screen_space(p)?;
         let p = self.project_3d_to_2d(cgmath::Point3::from_homogeneous(p)); // Apply 3D perspective transformation
         self.scale_screen_space_to_ndc(p) // Apply scaling
@@ -140,17 +140,17 @@ impl NdEuclidCamera {
     /// initial point `p` where the vector `v` originates.
     pub fn project_vector_to_screen_space(
         &self,
-        p: impl VectorRef,
-        v: impl VectorRef,
+        p: &Point,
+        v: &Vector,
     ) -> Option<cgmath::Vector2<f32>> {
         // This mimics a similar function in the WGSL shader.
 
         // Rotate.
-        let p = self.rot.transform_point(p);
-        let v = self.rot.transform_vector(v);
+        let p = self.rot.transform(p);
+        let v = self.rot.transform(v);
 
         // Convert to cgmath vector.
-        let p_4d = hypermath_to_cgmath_vec4(p);
+        let p_4d = hypermath_to_cgmath_vec4(p.as_vector());
         let v_4d = hypermath_to_cgmath_vec4(v);
 
         // Apply 4D perspective transformation.
@@ -171,9 +171,9 @@ impl NdEuclidCamera {
         1.0 + 1.0 / self.w_factor_4d()
     }
     /// Returns the position of the 4D camera in N-dimensional puzzle space.
-    pub fn camera_4d_pos(&self) -> Vector {
-        let global_camera_4d_pos = vector![0.0, 0.0, 0.0, self.camera_4d_w() as Float];
-        self.rot.reverse().transform_point(global_camera_4d_pos)
+    pub fn camera_4d_pos(&self) -> Point {
+        let global_camera_4d_pos = point![0.0, 0.0, 0.0, self.camera_4d_w() as Float];
+        self.rot.reverse().transform(&global_camera_4d_pos)
     }
 }
 

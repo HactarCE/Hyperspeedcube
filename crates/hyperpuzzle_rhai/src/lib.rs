@@ -22,10 +22,6 @@ use errors::{ConvertError, EyreRhai, InKey};
 /// Rhai evaluation result.
 type Result<T = (), E = Box<rhai::EvalAltResult>> = std::result::Result<T, E>;
 
-/// Point in Euclidean space.
-#[derive(Debug, Default, Clone)]
-struct Point(pub hypermath::Vector);
-
 #[cfg(feature = "hyperpaths")]
 const BAKE_RHAI_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;
 #[cfg(not(feature = "hyperpaths"))]

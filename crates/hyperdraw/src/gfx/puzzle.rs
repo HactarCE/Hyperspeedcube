@@ -571,6 +571,7 @@ impl NdEuclidPuzzleRenderer {
         {
             let camera_4d_pos = draw_params.cam.camera_4d_pos();
             let camera_4d_pos_data: Vec<f32> = camera_4d_pos
+                .as_vector()
                 .iter_ndim(self.model.ndim)
                 .map(|x| x as f32)
                 .collect();

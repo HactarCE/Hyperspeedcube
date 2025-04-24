@@ -24,7 +24,7 @@ impl<T> EyreRhai for eyre::Result<T> {
 #[derive(Debug, Clone)]
 pub(crate) struct ConvertError {
     pub expected: String,
-    pub got: String,
+    pub got: Option<String>,
     pub keys: Vec<String>,
 }
 impl fmt::Display for ConvertError {
@@ -34,7 +34,7 @@ impl fmt::Display for ConvertError {
             got,
             keys: context,
         } = self;
-        write!(f, "expected {expected}; got {got}")?;
+        write!(f, "expected {expected}")?;
         let mut keys_iter = context.iter();
         if let Some(key) = keys_iter.next() {
             write!(f, " for {key}")?;
@@ -42,6 +42,7 @@ impl fmt::Display for ConvertError {
         for key in keys_iter {
             write!(f, " in {key}")?;
         }
+        write!(f, "; got {}", got.as_deref().unwrap_or("nothing"))?;
         Ok(())
     }
 }
@@ -68,10 +69,7 @@ impl ConvertError {
     ) -> Self {
         Self {
             expected: expected.to_string(),
-            got: match got {
-                Some(v) => format!("{} {}", v.type_name(), crate::util::rhai_to_debug(ctx, v)),
-                None => "nothing".to_owned(),
-            },
+            got: got.map(|v| format!("{} {}", v.type_name(), crate::util::rhai_to_debug(ctx, v))),
             keys: vec![],
         }
     }
@@ -84,7 +82,7 @@ pub trait InKey: Sized {
     /// Adds context `format!("in '{s}'")` (note the single quotes) to a
     /// conversion error.
     fn in_key(self, s: impl fmt::Display) -> Self {
-        self.in_structure(format!("'{s}'"))
+        self.in_structure(format!("key '{s}'"))
     }
 }
 impl InKey for ConvertError {

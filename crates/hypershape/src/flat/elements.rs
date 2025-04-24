@@ -355,7 +355,7 @@ impl<'a> From<Vertex<'a>> for Element<'a> {
 }
 impl Vertex<'_> {
     /// Returns the position of the vertex.
-    pub fn pos(self) -> Vector {
+    pub fn pos(self) -> Point {
         self.space.vertices.lock()[self.id].clone()
     }
 }

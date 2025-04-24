@@ -150,6 +150,11 @@ pub trait ApproxHashMapKey {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct VectorHash(SmallVec<[(u8, FloatHash); 6]>);
 
+/// Value dervied from a geometric algebra multivector that can be hashed. Don't
+/// use this directly; use via [`ApproxHashMap`].
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct MultivectorHash(SmallVec<[(u16, FloatHash); 6]>);
+
 impl ApproxHashMapKey for Vector {
     type Hash = VectorHash;
 
@@ -159,10 +164,13 @@ impl ApproxHashMapKey for Vector {
     }
 }
 
-/// Value dervied from a CGA multivector that can be hashed. Don't use this
-/// directly; use via [`ApproxHashMap`].
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct MultivectorHash(SmallVec<[(u16, FloatHash); 6]>);
+impl ApproxHashMapKey for Point {
+    type Hash = VectorHash;
+
+    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        self.0.approx_hash(float_hash_fn)
+    }
+}
 
 impl<T: ApproxHashMapKey> ApproxHashMapKey for Option<T> {
     type Hash = Option<T::Hash>;
@@ -171,6 +179,7 @@ impl<T: ApproxHashMapKey> ApproxHashMapKey for Option<T> {
         self.as_ref().map(|x| x.approx_hash(float_hash_fn))
     }
 }
+
 impl<T: ApproxHashMapKey> ApproxHashMapKey for Vec<T> {
     type Hash = Vec<T::Hash>;
 
@@ -189,6 +198,7 @@ impl ApproxHashMapKey for pga::Blade {
         MultivectorHash(self.nonzero_terms().map(hash_term).collect())
     }
 }
+
 impl ApproxHashMapKey for pga::Motor {
     type Hash = MultivectorHash;
 

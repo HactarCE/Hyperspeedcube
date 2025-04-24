@@ -25,7 +25,9 @@ impl Space {
         for simplex in self.simplices(element)? {
             // The center of a simplex is the average of its vertices.
             let verts = simplex.vertices(self);
-            let center = verts.iter().map(|v| v.pos()).sum::<Vector>() / verts.len() as Float;
+            let center = Point(
+                verts.iter().map(|v| v.pos().into_vector()).sum::<Vector>() / verts.len() as Float,
+            );
 
             // Orthogonalize the vectors spanning the simplex.
             let mut verts_iter = verts.iter().map(|v| v.pos());
