@@ -203,7 +203,7 @@ impl ColorSystemBuilder {
             .map(|(id, name)| {
                 self.display_names
                     .get_opt(id)
-                    .unwrap_or_else(|| &name.preferred)
+                    .unwrap_or(&name.preferred)
                     .clone()
             })
             .collect();

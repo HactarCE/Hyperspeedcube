@@ -15,10 +15,10 @@ pub use isometry_group::IsometryGroup;
 
 /// Parses a vector in Dynkin notation. For example, `oox` represents `[0, 0,
 /// 1]`.
-pub fn parse_dynkin_notation<'a>(
+pub fn parse_dynkin_notation(
     ndim: u8,
-    s: &'a str,
-) -> Result<hypermath::Vector, DynkinNotationError<'a>> {
+    s: &str,
+) -> Result<hypermath::Vector, DynkinNotationError<'_>> {
     if s.len() != ndim as usize {
         return Err(DynkinNotationError::BadLength {
             ndim,

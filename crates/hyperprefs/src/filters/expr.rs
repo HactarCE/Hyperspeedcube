@@ -195,7 +195,7 @@ impl FilterExpr {
             Self::OnlyColors(colors) => {
                 let cs = colors
                     .iter()
-                    .filter_map(|color_name| puz.colors.names.id_from_name(&color_name))
+                    .filter_map(|color_name| puz.colors.names.id_from_name(color_name))
                     .collect_vec();
                 let piece_iter = puz.pieces.iter_filter(|_piece, piece_info| {
                     piece_info
@@ -222,7 +222,7 @@ impl FilterExpr {
                 } else {
                     let color_name = s;
                     // If the color doesn't exist, return an empty mask.
-                    match puz.colors.names.id_from_name(&color_name) {
+                    match puz.colors.names.id_from_name(color_name) {
                         Some(c) => {
                             let piece_iter =
                                 puz.pieces.iter_filter(|p, _| puz.piece_has_color(p, c));

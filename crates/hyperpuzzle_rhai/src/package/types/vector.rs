@@ -34,7 +34,7 @@ pub fn register(module: &mut Module) {
     // Constructors
     new_fn("vec").set_into_module(module, |ctx: Ctx<'_>, x: Dynamic| -> Result<_> {
         Ok(x.as_array_ref()
-            .map(|array| try_collect_to_vector(&ctx, &*array))
+            .map(|array| try_collect_to_vector(&ctx, &array))
             .unwrap_or_else(|_| try_collect_to_vector(&ctx, &[x]))?)
     });
     new_fn("vec").set_into_module(module, |ctx: Ctx<'_>, x, y| -> Result<_> {

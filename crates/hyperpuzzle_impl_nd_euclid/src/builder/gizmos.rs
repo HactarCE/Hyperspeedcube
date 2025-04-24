@@ -93,7 +93,7 @@ fn build_3d_gizmo(
     mesh: &mut Mesh,
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
-    gizmo_poles: &Vec<(Vector, Twist)>,
+    gizmo_poles: &[(Vector, Twist)],
     warn_fn: impl Fn(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
     if twists.is_empty() {
@@ -143,7 +143,7 @@ fn build_4d_gizmo(
 
     // Cut a primordial polyhedron at the axis.
     let initial_cut_params = CutParams {
-        divider: Hyperplane::from_pole(&axis_vector).ok_or_eyre("bad axis vector")?,
+        divider: Hyperplane::from_pole(axis_vector).ok_or_eyre("bad axis vector")?,
         inside: PolytopeFate::Remove,
         outside: PolytopeFate::Remove,
     };
@@ -157,7 +157,7 @@ fn build_4d_gizmo(
 
     let min_radius = axis_vector.mag();
 
-    let gizmo_surface = mesh.add_gizmo_surface(&axis_vector)?;
+    let gizmo_surface = mesh.add_gizmo_surface(axis_vector)?;
 
     build_gizmo(
         space,
@@ -172,7 +172,7 @@ fn build_4d_gizmo(
     )
 }
 
-fn build_gizmo<'a>(
+fn build_gizmo(
     space: &Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,

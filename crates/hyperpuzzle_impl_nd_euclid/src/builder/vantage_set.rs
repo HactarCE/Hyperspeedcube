@@ -208,7 +208,7 @@ impl AxisDirectionMapBuilder {
 }
 
 #[derive(Debug)]
-struct RelativeAxisBuilder {
+pub struct RelativeAxisBuilder {
     pub absolute_axis: Axis,
     pub transform: pga::Motor,
 }
@@ -242,7 +242,7 @@ impl RelativeAxisBuilder {
 }
 
 #[derive(Debug)]
-struct RelativeTwistBuilder {
+pub struct RelativeTwistBuilder {
     pub absolute_twist: Twist,
     pub transform: pga::Motor,
 }

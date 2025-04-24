@@ -128,7 +128,7 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             let ids = if !query_str.is_empty() {
                 let query = crate::gui::Query::from_str(&query_str);
                 entries
-                    .filter_map(|entry| query.try_match(&*entry))
+                    .filter_map(|entry| query.try_match(entry))
                     .sorted_unstable()
                     .map(|query_match| &query_match.object.id)
                     .collect_vec()

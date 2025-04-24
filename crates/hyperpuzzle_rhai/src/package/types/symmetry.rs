@@ -222,7 +222,7 @@ impl RhaiSymmetry {
 
     /// Constructs a symmetry object from a Schalfli symbol such as `[4, 3]`.
     pub fn construct_from_schalfli(indices: &[usize], basis: Option<Vec<Vector>>) -> Result<Self> {
-        let coxeter = CoxeterGroup::new_linear(&indices, basis).map_err(|e| e.to_string())?;
+        let coxeter = CoxeterGroup::new_linear(indices, basis).map_err(|e| e.to_string())?;
         Ok(RhaiSymmetry::Coxeter {
             coxeter,
             chiral: false,

@@ -31,10 +31,8 @@ itertools = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
-regex = { workspace = true }
 rhai = { workspace = true }
 smallvec = { workspace = true }
-thiserror = { workspace = true }
 thread_local = { workspace = true }
 walkdir = { workspace = true }
 

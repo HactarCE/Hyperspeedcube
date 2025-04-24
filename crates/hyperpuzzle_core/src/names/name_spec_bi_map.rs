@@ -151,7 +151,7 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
         for id in I::iter(len) {
             if self.get(id).is_none() {
                 let new_name_spec = autonames
-                    .find(|autoname| self.id_from_string(&autoname).is_none())
+                    .find(|autoname| self.id_from_string(autoname).is_none())
                     .ok_or(BadName::ExhaustedAutonames)?;
                 self.set(id, Some(new_name_spec))?;
                 self.get(id).cloned().ok_or(BadName::InternalError)?;

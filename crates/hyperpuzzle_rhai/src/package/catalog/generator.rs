@@ -109,8 +109,8 @@ fn param_from_rhai(ctx: &Ctx<'_>, value: Dynamic) -> Result<GeneratorParam> {
 
     let ty = match r#type.as_str() {
         "int" => {
-            let min = min.ok_or_else(|| "`int` type requires `min`")?;
-            let max = max.ok_or_else(|| "`int` type requires `max`")?;
+            let min = min.ok_or("`int` type requires `min`")?;
+            let max = max.ok_or("`int` type requires `max`")?;
             GeneratorParamType::Int { min, max }
         }
         s => return Err(format!("unknown parameter type {s:?}").into()),

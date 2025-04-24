@@ -255,7 +255,7 @@ impl GlobalColorPalette {
                 .map(|(id, name)| {
                     let default_color = color_assignments
                         .remove(&id)
-                        .unwrap_or_else(|| DefaultColor::Unknown);
+                        .unwrap_or(DefaultColor::Unknown);
                     (name.preferred.clone(), default_color)
                 })
                 .collect();

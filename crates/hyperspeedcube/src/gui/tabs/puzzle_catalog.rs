@@ -194,7 +194,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                     if r.clicked() {
                                         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
                                         generator_popup_data =
-                                            Some(PuzzleGeneratorPopupData::new(&*puzzle_generator));
+                                            Some(PuzzleGeneratorPopupData::new(&puzzle_generator));
                                     }
 
                                     let close_behavior =
@@ -212,7 +212,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                 show_puzzle_generator_ui(
                                                     ui,
                                                     app,
-                                                    &*puzzle_generator,
+                                                    &puzzle_generator,
                                                     popup_data,
                                                 );
                                             },

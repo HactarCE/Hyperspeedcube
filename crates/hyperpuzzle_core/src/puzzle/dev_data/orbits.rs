@@ -114,7 +114,7 @@ impl<T: PuzzleElement> Orbit<T> {
             .iter()
             .enumerate()
             .sorted_by_key(|(_, elem)| **elem)
-            .filter_map(|(i, elem)| Some((i, elem.as_ref()?.name(&puz)?.spec.clone())))
+            .filter_map(|(i, elem)| Some((i, elem.as_ref()?.name(puz)?.spec.clone())))
             .collect()
     }
 

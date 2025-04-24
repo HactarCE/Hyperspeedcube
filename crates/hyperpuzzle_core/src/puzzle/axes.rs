@@ -21,7 +21,11 @@ impl AxisSystem {
         }
     }
 
-    /// Returns the number of axes.
+    /// Returns whether there are no axes in the axis system.
+    pub fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+    /// Returns the number of axes in the axis system.
     pub fn len(&self) -> usize {
         self.names.len()
     }

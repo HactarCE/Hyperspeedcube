@@ -331,7 +331,7 @@ impl TwistSystemBuilder {
             id: id.clone(),
             name: Some(name.clone()),
 
-            axes: AxisSystemBuilder::unbuild(&axes, &engine_data)?,
+            axes: AxisSystemBuilder::unbuild(axes, engine_data)?,
 
             by_id: twists.map_ref(|id, twist| TwistBuilder {
                 axis: twist.axis,

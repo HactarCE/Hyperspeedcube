@@ -417,9 +417,9 @@ impl<I: IndexNewtype, E> GenericVec<I, Option<E>> {
     /// Returns a reference to the element at `index`, collapsing
     /// `Result<Option<E>>` to `E`.
     ///
-    /// Short for `self.get(index).ok().map(Option::as_ref).flatten()`.
+    /// Short for `self.get(index).ok().and_then(Option::as_ref)`.
     pub fn get_opt(&self, index: I) -> Option<&E> {
-        self.get(index).ok().map(Option::as_ref).flatten()
+        self.get(index).ok().and_then(Option::as_ref)
     }
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {

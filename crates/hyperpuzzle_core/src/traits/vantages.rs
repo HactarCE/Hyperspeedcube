@@ -121,7 +121,7 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
                 transform: self.vantage_group_element_from_name_concrete(elem_name)?,
             }),
             None => Some(SimpleRelativeAxis {
-                absolute_axis: self.axis_names().id_from_name(&name)?,
+                absolute_axis: self.axis_names().id_from_name(name)?,
                 transform: self.identity_concrete(),
             }),
         }
@@ -134,7 +134,7 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
                 transform: self.vantage_group_element_from_name_concrete(elem_name)?,
             }),
             None => Some(SimpleRelativeTwist {
-                absolute_twist: self.twist_names().id_from_name(&name)?,
+                absolute_twist: self.twist_names().id_from_name(name)?,
                 transform: self.identity_concrete(),
             }),
         }
@@ -332,7 +332,7 @@ pub struct SimpleRelativeAxis<G: SimpleVantageGroup + ?Sized> {
 impl<G: SimpleVantageGroup + ?Sized> Clone for SimpleRelativeAxis<G> {
     fn clone(&self) -> Self {
         Self {
-            absolute_axis: self.absolute_axis.clone(),
+            absolute_axis: self.absolute_axis,
             transform: self.transform.clone(),
         }
     }
@@ -363,7 +363,7 @@ pub struct SimpleRelativeTwist<G: SimpleVantageGroup + ?Sized> {
 impl<G: SimpleVantageGroup + ?Sized> Clone for SimpleRelativeTwist<G> {
     fn clone(&self) -> Self {
         Self {
-            absolute_twist: self.absolute_twist.clone(),
+            absolute_twist: self.absolute_twist,
             transform: self.transform.clone(),
         }
     }

@@ -43,8 +43,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 canonical,
             } = name;
             ui.label(format!(
-                "• spec={:?}, preferred={:?}, canonical={:?}, display={:?}",
-                spec, preferred, canonical, display,
+                "• spec={spec:?}, \
+                   preferred={preferred:?}, \
+                   canonical={canonical:?}, \
+                   display={display:?}"
             ));
         }
 

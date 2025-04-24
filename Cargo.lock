@@ -2385,10 +2385,8 @@ dependencies = [
  "oklab",
  "parking_lot",
  "rayon",
- "regex",
  "rhai",
  "smallvec",
- "thiserror 2.0.12",
  "thread_local",
  "walkdir",
 ]

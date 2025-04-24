@@ -11,10 +11,10 @@ use smallvec::SmallVec;
 use crate::{NdEuclidTwistSystemEngineData, TwistKey};
 
 hypermath::idx_struct! {
-    pub(crate) struct ReferenceVector(u16);
+    pub struct ReferenceVector(u16);
 }
 
-pub(crate) type PerReferenceVector<T> = GenericVec<ReferenceVector, T>;
+pub type PerReferenceVector<T> = GenericVec<ReferenceVector, T>;
 
 /// Vantage group for an N-dimensional Euclidean puzzle that is based on a
 /// finite isometry group of N-dimensional Euclidean space.

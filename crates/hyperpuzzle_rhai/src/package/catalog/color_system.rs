@@ -29,9 +29,9 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 tx,
                 gen_map,
                 |ctx, build_ctx, map| {
-                    let builder = color_system_from_rhai_map(&ctx, map)?;
+                    let builder = color_system_from_rhai_map(ctx, map)?;
                     builder
-                        .build(Some(&build_ctx), None, void_warn(&ctx))
+                        .build(Some(&build_ctx), None, void_warn(ctx))
                         .eyrefmt()
                 },
             )?;
@@ -60,7 +60,7 @@ pub fn color_system_from_rhai_map(ctx: &Ctx<'_>, data: Map) -> Result<ColorSyste
     add_colors_from_array(ctx, &mut colors, colors_array, schemes.is_some())?;
 
     // Add color schemes.
-    for scheme in schemes.unwrap_or(vec![]) {
+    for scheme in schemes.unwrap_or_default() {
         let_from_map!(ctx, scheme, {
             let name: String;
             let map: Map;
