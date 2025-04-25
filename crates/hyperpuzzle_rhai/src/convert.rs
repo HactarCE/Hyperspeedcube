@@ -4,6 +4,7 @@ use hypermath::pga::{Blade, Motor};
 use hypermath::{Point, Vector};
 use rhai::{Dynamic, FnPtr};
 
+use crate::package::RhaiAxis;
 use crate::{ConvertError, InKey, Result, RhaiCtx};
 
 /// Converts a Rhai value to `T` or returns an error.
@@ -108,7 +109,11 @@ macro_rules! impl_from_rhai {
 impl_from_rhai!(Dynamic, "value");
 impl_from_rhai!(rhai::Map, "map");
 impl_from_rhai!(String, "string");
+impl_from_rhai!(bool, "bool");
 impl_from_rhai!(char, "char");
+impl_from_rhai!(f32, "number", |ctx, value| {
+    f64::try_from_rhai(ctx, value).map(|x| x as f32)
+});
 impl_from_rhai!(f64, "number", |ctx, value| {
     None.or_else(|| value.as_float().ok())
         .or_else(|| value.as_int().ok().map(|i| i as f64))
@@ -132,13 +137,19 @@ impl_from_rhai!(u8, "small nonnegative integer", |ctx, value| {
 impl_from_rhai!(FnPtr, "function");
 
 // Math types
-impl_from_rhai!(Vector, "vector");
+impl_from_rhai!(Vector, "vector", |ctx, value| {
+    Err(value)
+        .or_else(|v| v.try_cast_result::<Vector>())
+        .or_else(|v| try_cast_rhai_axis_to_vector(v))
+        .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
+});
 impl_from_rhai!(Point, "point");
 impl_from_rhai!(Blade, "vector, point, or PGA blade", |ctx, value| {
     Err(value)
         .or_else(|v| v.try_cast_result::<Blade>())
-        .or_else(|v| v.try_cast_result().map(|v: Vector| Blade::from_vector(v)))
         .or_else(|v| v.try_cast_result().map(|p: Point| Blade::from_point(&p)))
+        .or_else(|v| v.try_cast_result().map(|v: Vector| Blade::from_vector(v)))
+        .or_else(|v| try_cast_rhai_axis_to_vector(v).map(Blade::from_vector))
         .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
 });
 impl_from_rhai!(Motor, "transform", |ctx, value| {
@@ -147,6 +158,11 @@ impl_from_rhai!(Motor, "transform", |ctx, value| {
         // TODO: try cast to twist
         .map_err(|v| ConvertError::new::<Self>(ctx, Some(&v)))
 });
+
+fn try_cast_rhai_axis_to_vector(v: Dynamic) -> Result<Vector, Dynamic> {
+    let ax = v.try_cast_result::<RhaiAxis>()?;
+    ax.vector().map_err(|_| Dynamic::from(ax))
+}
 
 impl FromRhai for () {
     fn expected_string() -> String {

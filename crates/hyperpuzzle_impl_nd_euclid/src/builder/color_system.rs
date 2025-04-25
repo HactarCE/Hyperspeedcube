@@ -41,7 +41,7 @@ pub struct ColorSystemBuilder {
     pub is_shared: bool,
 }
 impl ColorSystemBuilder {
-    /// Constructs a new shared color-system.
+    /// Constructs a new shared color system.
     pub fn new_shared(id: String) -> Self {
         Self {
             id,

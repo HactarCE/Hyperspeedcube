@@ -45,7 +45,7 @@ impl TwistBuilder {
 }
 
 /// Twist system being constructed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TwistSystemBuilder {
     /// Twist system ID.
     pub id: String,
@@ -75,9 +75,37 @@ pub struct TwistSystemBuilder {
     pub is_shared: bool,
 }
 impl TwistSystemBuilder {
+    /// Constructs a new shared twist system.
+    pub fn new_shared(id: String, ndim: u8) -> Self {
+        Self {
+            is_shared: true,
+            ..Self::new(id, ndim)
+        }
+    }
+
+    /// Constructs a new empty ad-hoc color system.
+    pub fn new_ad_hoc(puzzle_id: &str, ndim: u8) -> Self {
+        Self {
+            is_shared: false,
+            ..Self::new(format!("{PUZZLE_PREFIX}{puzzle_id}"), ndim)
+        }
+    }
+
     /// Constructs a empty twist system with a given axis system.
-    pub fn new() -> Self {
-        Self::default()
+    fn new(id: String, ndim: u8) -> Self {
+        Self {
+            id,
+            name: None,
+            axes: AxisSystemBuilder::new(ndim),
+            by_id: PerTwist::new(),
+            names: NameSpecBiMapBuilder::new(),
+            data_to_id: ApproxHashMap::new(),
+            vantage_groups: IndexMap::new(),
+            vantage_sets: vec![],
+            directions: vec![],
+            is_modified: false,
+            is_shared: false,
+        }
     }
 
     /// Returns whether there are no twists in the twist system.
@@ -263,6 +291,8 @@ impl TwistSystemBuilder {
         let gizmo_pole_distances = self.by_id.map_ref(|_, twist| twist.gizmo_pole_distance);
 
         let engine_data = NdEuclidTwistSystemEngineData {
+            ndim: self.axes.ndim,
+
             axis_vectors: Arc::new(axis_vectors),
             axis_from_vector: Arc::new(axis_from_vector),
 

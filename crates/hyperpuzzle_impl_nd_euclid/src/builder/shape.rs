@@ -48,7 +48,7 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(space: Arc<Space>, puzzle_id: &str) -> Self {
+    pub fn new_empty(puzzle_id: &str, space: Arc<Space>) -> Self {
         Self {
             space,
 
@@ -68,8 +68,8 @@ impl ShapeBuilder {
 
     /// Constructs a shape builder that starts with a single solid piece (the
     /// primordial cube)
-    pub fn new_with_primordial_cube(space: Arc<Space>, puzzle_id: &str) -> Result<Self> {
-        let mut this = Self::new_empty(Arc::clone(&space), puzzle_id);
+    pub fn new_with_primordial_cube(puzzle_id: &str, space: Arc<Space>) -> Result<Self> {
+        let mut this = Self::new_empty(puzzle_id, Arc::clone(&space));
         let primordial_cube = space.add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?;
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
         let root_piece = this.pieces.push(root_piece_builder)?;

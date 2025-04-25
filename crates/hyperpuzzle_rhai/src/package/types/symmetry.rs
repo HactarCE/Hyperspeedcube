@@ -3,10 +3,11 @@
 use std::borrow::Cow;
 
 use hypermath::pga::Motor;
-use hypermath::{Vector, VectorRef};
-use hypershape::{CoxeterGroup, FiniteCoxeterGroup};
+use hypermath::{ApproxHashMapKey, TransformByMotor, Vector, VectorRef};
+use hypershape::{CoxeterGroup, FiniteCoxeterGroup, GeneratorSequence};
 use itertools::Itertools;
 use rhai::Array;
+use smallvec::smallvec;
 
 use super::*;
 
@@ -294,16 +295,36 @@ impl RhaiSymmetry {
 
     /// Returns a motor representing a sequence of generators, specified using
     /// indices into the list of generators.
-    pub fn motor_for_gen_seq(&self, gen_seq: impl IntoIterator<Item = usize>) -> Result<Motor> {
+    pub fn motor_for_gen_seq(&self, gen_seq: impl IntoIterator<Item = u8>) -> Result<Motor> {
         let generators = self.underlying_generators();
         let ndim = self.ndim();
         gen_seq
             .into_iter()
             .map(|i| -> Result<Motor> {
-                let g = generators.get(i).ok_or("generator index out of range")?;
+                let g = generators
+                    .get(i as usize)
+                    .ok_or_else(|| format!("generator index {i} out of range"))?;
                 Ok(g.to_ndim_at_least(ndim))
             })
             .reduce(|a, b| Ok(a? * b?))
             .unwrap_or(Ok(Motor::ident(ndim))) // if `gen_seq` is empty
+    }
+
+    /// Returns the orbit of an object under the symmetry.
+    pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
+        &self,
+        object: T,
+    ) -> Vec<(GeneratorSequence, Motor, T)> {
+        match self {
+            RhaiSymmetry::Coxeter { coxeter, chiral } => coxeter.orbit(object, *chiral),
+            RhaiSymmetry::Custom { generators } => hypershape::orbit(
+                &generators
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| (smallvec![i as u8], m.clone()))
+                    .collect_vec(),
+                object,
+            ),
+        }
     }
 }

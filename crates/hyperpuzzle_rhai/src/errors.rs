@@ -63,13 +63,17 @@ impl ConvertError {
     /// representing the expected type and `got` is the value that was actually
     /// gotten.
     pub fn new_expected_str(
-        ctx: impl RhaiCtx,
+        mut ctx: impl RhaiCtx,
         expected: impl ToString,
         got: Option<&Dynamic>,
     ) -> Self {
         Self {
             expected: expected.to_string(),
-            got: got.map(|v| format!("{} {}", v.type_name(), crate::util::rhai_to_debug(ctx, v))),
+            got: got.map(|v| {
+                let debug_str = crate::util::rhai_to_debug(&mut ctx, v);
+                let type_name = ctx.map_type_name(v.type_name());
+                format!("{type_name} {debug_str}")
+            }),
             keys: vec![],
         }
     }

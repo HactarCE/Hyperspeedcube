@@ -61,8 +61,11 @@ impl AxisBuilder {
 }
 
 /// Axis system during puzzle construction.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AxisSystemBuilder {
+    /// Number of dimensions of the space.
+    pub ndim: u8,
+
     /// Axis data (not including name and ordering).
     by_id: PerAxis<AxisBuilder>,
     /// Map from vector to axis ID.
@@ -75,8 +78,14 @@ pub struct AxisSystemBuilder {
 }
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(ndim: u8) -> Self {
+        Self {
+            ndim,
+            by_id: PerAxis::new(),
+            vector_to_id: ApproxHashMap::new(),
+            names: NameSpecBiMapBuilder::new(),
+            orbits: vec![],
+        }
     }
 
     /// Returns whether there are no axes in the axis system.
@@ -154,6 +163,7 @@ impl AxisSystemBuilder {
         let vector_to_id = (*engine_data.axis_from_vector).clone();
 
         Ok(AxisSystemBuilder {
+            ndim: engine_data.ndim,
             by_id: PerAxis::new_with_len(axis_system.len()).map(|id, ()| {
                 let vector = engine_data.axis_vectors[id].clone();
                 AxisBuilder { vector }

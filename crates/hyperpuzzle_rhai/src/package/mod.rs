@@ -6,6 +6,7 @@ mod assertions;
 mod catalog;
 mod geometry;
 mod operators;
+mod orbit_names;
 mod state;
 mod syntax;
 mod types;
@@ -17,6 +18,7 @@ use crate::errors::*;
 use crate::loader::RhaiEvalRequestTx;
 use crate::util::{new_fn, void_warn, warn, warnf};
 use crate::{Ctx, Result, RhaiCtx};
+pub use types::elements::{LockAs, RhaiAxis, RhaiColor, RhaiPuzzleElement, RhaiTwist};
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {
@@ -56,6 +58,7 @@ impl Package for HyperpuzzlePackage {
         StandardPackage::init_engine(engine);
         engine.set_fast_operators(false);
         engine.set_max_expr_depths(1024, 1024);
+        catalog::init_engine(engine);
         state::init_engine(engine);
         syntax::init_engine(engine);
         types::init_engine(engine);

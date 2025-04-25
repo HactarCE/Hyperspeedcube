@@ -16,6 +16,10 @@ pub(crate) trait RhaiCtx {
         fn_name: &str,
         args: Vec<Dynamic>,
     ) -> Result<T>;
+
+    /// Returns a nicer name for a type, given a name produced by
+    /// [`std::any::type_name()`].
+    fn map_type_name<'a>(&'a self, name: &'a str) -> &'a str;
 }
 impl RhaiCtx for &Ctx<'_> {
     fn call_rhai_native_fn<T: rhai::Variant + Clone>(
@@ -24,6 +28,10 @@ impl RhaiCtx for &Ctx<'_> {
         args: Vec<Dynamic>,
     ) -> Result<T> {
         self.call_native_fn(fn_name, args)
+    }
+
+    fn map_type_name<'a>(&'a self, name: &'a str) -> &'a str {
+        self.engine().map_type_name(name)
     }
 }
 impl RhaiCtx for &mut EvalCtx<'_, '_, '_, '_, '_, '_> {
@@ -37,6 +45,10 @@ impl RhaiCtx for &mut EvalCtx<'_, '_, '_, '_, '_, '_> {
             .try_cast()
             .ok_or_else(|| format!("bad return type for {fn_name}").into())
     }
+
+    fn map_type_name<'a>(&'a self, name: &'a str) -> &'a str {
+        self.engine().map_type_name(name)
+    }
 }
 impl<C: RhaiCtx> RhaiCtx for &mut C {
     fn call_rhai_native_fn<T: rhai::Variant + Clone>(
@@ -45,5 +57,9 @@ impl<C: RhaiCtx> RhaiCtx for &mut C {
         args: Vec<Dynamic>,
     ) -> Result<T> {
         (**self).call_rhai_native_fn(fn_name, args)
+    }
+
+    fn map_type_name<'a>(&'a self, name: &'a str) -> &'a str {
+        (**self).map_type_name(name)
     }
 }

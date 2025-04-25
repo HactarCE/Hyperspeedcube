@@ -37,7 +37,7 @@ pub fn titlecase(s: &str) -> String {
 
 /// Lazily resolves a set of dependencies.
 pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
-    key_value_dependencies: Vec<(K, (V, Option<K>))>,
+    key_value_dependencies: impl IntoIterator<Item = (K, (V, Option<K>))>,
     compose: fn(V, &V) -> V,
     warn_fn: impl Fn(String),
 ) -> HashMap<K, V> {

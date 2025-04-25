@@ -10,6 +10,9 @@ use crate::TwistKey;
 /// This type is relatively cheap to clone.
 #[derive(Debug, Clone)]
 pub struct NdEuclidTwistSystemEngineData {
+    /// Number of dimensions of the space.
+    pub ndim: u8,
+
     /// Vector for each axis.
     ///
     /// The axis vector is perpendicular to all layer boundaries on the axis and

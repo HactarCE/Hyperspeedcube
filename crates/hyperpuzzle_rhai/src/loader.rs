@@ -93,7 +93,7 @@ impl ModuleResolver {
                 });
                 match engine.compile(file_contents) {
                     Ok(mut ast) => {
-                        ast.set_source(file_path);
+                        ast.set_source(format!("{file_path}.rhai"));
                         (file_path.clone(), Ok(ast))
                     }
                     Err(e) => (file_path.clone(), Err(e)),

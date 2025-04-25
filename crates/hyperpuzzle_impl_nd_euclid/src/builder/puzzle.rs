@@ -41,8 +41,8 @@ pub struct PuzzleBuilder {
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
     pub fn new(meta: PuzzleListMetadata, ndim: u8) -> Result<Arc<Mutex<Self>>> {
-        let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &meta.id)?;
-        let twists = TwistSystemBuilder::new();
+        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Space::new(ndim))?;
+        let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
