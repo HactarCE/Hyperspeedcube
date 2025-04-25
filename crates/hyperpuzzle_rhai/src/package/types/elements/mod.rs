@@ -39,6 +39,31 @@ pub fn register(module: &mut Module) {
         })
     });
 
+    FuncRegistration::new_getter("namespec").set_into_module(
+        module,
+        |axis: &mut RhaiAxis| -> Result<String> {
+            Ok(axis
+                .lock_db()?
+                .names
+                .get(axis.id)
+                .ok_or("invalid axis")?
+                .spec
+                .clone())
+        },
+    );
+    FuncRegistration::new_getter("name").set_into_module(
+        module,
+        |axis: &mut RhaiAxis| -> Result<String> {
+            Ok(axis
+                .lock_db()?
+                .names
+                .get(axis.id)
+                .ok_or("invalid axis")?
+                .preferred
+                .clone())
+        },
+    );
+
     color::register(module);
 }
 

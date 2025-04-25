@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eyre::eyre;
-use hypermath::{ApproxHashMap, ApproxHashMapKey, TransformByMotor, Vector, pga};
+use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, pga};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask, TwistSystemSpec};
 use hyperpuzzle_impl_nd_euclid::builder::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
@@ -106,6 +106,50 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
               data: Map|
               -> Result<Dynamic> {
             twist_system.add_twists(&ctx, axis, transform, Some(data))
+        },
+    );
+
+    new_fn("add_twist_direction").set_into_module(
+        module,
+        move |ctx: Ctx<'_>,
+              twist_system: RhaiTwistSystemBuilder,
+              name: String,
+              gen_twist: FnPtr|
+              -> Result<()> {
+            if RhaiState::get(&ctx).lock().symmetry.is_some() {
+                return Err("twist directions cannot use symmetry".into());
+            }
+            let twist_system_guard = twist_system.lock()?;
+            if twist_system_guard.directions.contains_key(&name) {
+                warn(&ctx, format!("duplicate twist direction name {name:?}"))?;
+                return Ok(());
+            }
+            let axis_count = twist_system_guard.axes.len();
+            drop(twist_system_guard);
+            let db: Arc<dyn LockAs<AxisSystemBuilder>> = Arc::new(twist_system.clone());
+            let mut twist_seqs = PerAxis::new();
+            for id in Axis::iter(axis_count) {
+                let axis = RhaiAxis {
+                    id,
+                    db: Arc::clone(&db),
+                };
+                let mut this = Dynamic::from(twist_system.clone());
+                let twist_seq = from_rhai::<OptVecOrSingle<RhaiTwist>>(
+                    &ctx,
+                    gen_twist.call_raw(&ctx, Some(&mut this), &mut [Dynamic::from(axis)])?,
+                )?
+                .into_vec();
+
+                twist_seqs
+                    .push(if twist_seq.is_empty() {
+                        None
+                    } else {
+                        Some(twist_seq.into_iter().map(|twist| twist.id).collect())
+                    })
+                    .map_err(|e| e.to_string())?;
+            }
+            twist_system.lock()?.directions.insert(name, twist_seqs);
+            Ok(())
         },
     );
 }
@@ -495,10 +539,21 @@ impl RhaiTwistSystemBuilder {
     pub fn new(twist_system_builder: TwistSystemBuilder) -> Self {
         Self(Arc::new(Mutex::new(Some(twist_system_builder))))
     }
+
+    // TODO: THIS IS A REALLY NASTY HACK
+    pub fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
+        <Self as LockAs<TwistSystemBuilder>>::lock(self)
+    }
 }
 impl LockAs<TwistSystemBuilder> for RhaiTwistSystemBuilder {
     fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
         MutexGuard::try_map(self.0.lock(), |contents| contents.as_mut())
+            .map_err(|_| "no twist system".into())
+    }
+}
+impl LockAs<AxisSystemBuilder> for RhaiTwistSystemBuilder {
+    fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
+        MutexGuard::try_map(self.0.lock(), |contents| Some(&mut contents.as_mut()?.axes))
             .map_err(|_| "no twist system".into())
     }
 }

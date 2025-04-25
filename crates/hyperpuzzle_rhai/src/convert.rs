@@ -4,7 +4,7 @@ use hypermath::pga::{Blade, Motor};
 use hypermath::{Point, Vector};
 use rhai::{Dynamic, FnPtr};
 
-use crate::package::RhaiAxis;
+use crate::package::{RhaiAxis, RhaiColor, RhaiTwist};
 use crate::{ConvertError, InKey, Result, RhaiCtx};
 
 /// Converts a Rhai value to `T` or returns an error.
@@ -163,6 +163,11 @@ fn try_cast_rhai_axis_to_vector(v: Dynamic) -> Result<Vector, Dynamic> {
     let ax = v.try_cast_result::<RhaiAxis>()?;
     ax.vector().map_err(|_| Dynamic::from(ax))
 }
+
+// Puzzle elements
+impl_from_rhai!(RhaiAxis, "axis");
+impl_from_rhai!(RhaiColor, "color");
+impl_from_rhai!(RhaiTwist, "twist");
 
 impl FromRhai for () {
     fn expected_string() -> String {

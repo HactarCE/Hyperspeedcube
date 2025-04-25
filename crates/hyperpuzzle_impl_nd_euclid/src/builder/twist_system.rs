@@ -7,6 +7,7 @@ use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use smallvec::SmallVec;
 
 use super::{AxisSystemBuildOutput, AxisSystemBuilder, VantageSetBuilder};
 use crate::{NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PUZZLE_PREFIX, TwistKey};
@@ -66,7 +67,7 @@ pub struct TwistSystemBuilder {
 
     vantage_groups: IndexMap<String, NdEuclidVantageGroup>,
     vantage_sets: Vec<VantageSetBuilder>,
-    directions: Vec<(String, PerAxis<Option<Twist>>)>,
+    pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
     /// Whether the twist system has been modified.
     pub is_modified: bool,
@@ -102,7 +103,7 @@ impl TwistSystemBuilder {
             data_to_id: ApproxHashMap::new(),
             vantage_groups: IndexMap::new(),
             vantage_sets: vec![],
-            directions: vec![],
+            directions: IndexMap::new(),
             is_modified: false,
             is_shared: false,
         }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use eyre::{Result, bail};
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 use super::*;
 use crate::{
@@ -26,7 +27,7 @@ pub struct TwistSystem {
     /// List of twists, indexed by ID.
     pub twists: PerTwist<TwistInfo>,
     /// Twist directions accessible in all vantage sets.
-    pub directions: Vec<(String, PerAxis<Option<Twist>>)>,
+    pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
     /// Vantage groups.
     pub vantage_groups: IndexMap<String, BoxDynVantageGroup>,
@@ -45,7 +46,7 @@ impl TwistSystem {
             axes: Arc::clone(axes),
             names: Arc::new(NameSpecBiMap::new()),
             twists: PerTwist::new(),
-            directions: vec![],
+            directions: IndexMap::new(),
             vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
             vantage_sets: vec![],
             engine_data: ().into(),
