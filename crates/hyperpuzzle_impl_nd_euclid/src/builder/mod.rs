@@ -22,4 +22,6 @@ pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;
 pub use twist_system::{TwistBuilder, TwistSystemBuilder};
 pub use vantage_group::VantageGroupBuilder;
-pub use vantage_set::VantageSetBuilder;
+pub use vantage_set::{
+    AxisDirectionMapBuilder, RelativeAxisBuilder, RelativeTwistBuilder, VantageSetBuilder,
+};

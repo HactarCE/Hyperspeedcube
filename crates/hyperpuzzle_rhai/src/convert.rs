@@ -230,3 +230,15 @@ impl<T> Deref for OptVecOrSingle<T> {
         &self.0
     }
 }
+
+impl<T: FromRhai, const N: usize> FromRhai for [T; N] {
+    fn expected_string() -> String {
+        format!("array of {} with length {N}", T::expected_string())
+    }
+
+    fn try_from_rhai(mut ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
+        from_rhai::<Vec<T>>(&mut ctx, value.clone())?
+            .try_into()
+            .map_err(|_| ConvertError::new::<Self>(ctx, Some(&value)))
+    }
+}

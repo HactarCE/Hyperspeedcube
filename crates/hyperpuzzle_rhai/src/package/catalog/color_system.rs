@@ -9,20 +9,17 @@ use crate::util::warnf;
 
 pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalRequestTx) {
     let cat = catalog.clone();
-    new_fn("add_color_system").set_into_module(
-        module,
-        move |ctx: Ctx<'_>, map: Map| -> Result<()> {
-            let builder = color_system_from_rhai_map(&ctx, map)?;
-            let color_system = builder.build(None, None, void_warn(&ctx)).eyrefmt()?;
-            cat.add_color_system(Arc::new(color_system)).eyrefmt()
-        },
-    );
+    new_fn("add_color_system").set_into_module(module, move |ctx: Ctx<'_>, map: Map| -> Result {
+        let builder = color_system_from_rhai_map(&ctx, map)?;
+        let color_system = builder.build(None, None, void_warn(&ctx)).eyrefmt()?;
+        cat.add_color_system(Arc::new(color_system)).eyrefmt()
+    });
 
     let cat = catalog.clone();
     let tx = eval_tx.clone();
     new_fn("add_color_system_generator").set_into_module(
         module,
-        move |ctx: Ctx<'_>, gen_map: Map| -> Result<()> {
+        move |ctx: Ctx<'_>, gen_map: Map| -> Result {
             let tx = tx.clone();
             let generator = super::generator::generator_from_rhai_map(
                 &ctx,

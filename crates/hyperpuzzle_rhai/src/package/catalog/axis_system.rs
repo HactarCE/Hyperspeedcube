@@ -3,7 +3,8 @@ use std::sync::Arc;
 use hyperpuzzle_impl_nd_euclid::builder::*;
 use parking_lot::MappedMutexGuard;
 
-use super::{twist_system::RhaiTwistSystemBuilder, *};
+use super::twist_system::RhaiTwistSystemBuilder;
+use super::*;
 use crate::package::types::elements::{LockAs, RhaiAxis};
 
 pub fn init_engine(engine: &mut Engine) {

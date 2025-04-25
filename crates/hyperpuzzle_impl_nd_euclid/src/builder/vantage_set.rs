@@ -21,7 +21,7 @@ pub struct VantageSetBuilder {
     pub directions: Vec<AxisDirectionMapBuilder>,
 }
 impl VantageSetBuilder {
-    pub fn build(self, groups: &IndexMap<String, NdEuclidVantageGroup>) -> Result<VantageSet> {
+    pub fn build(&self, groups: &IndexMap<String, NdEuclidVantageGroup>) -> Result<VantageSet> {
         let group = groups
             .get(&self.group)
             .ok_or_else(|| eyre!("no group with name {:?}", self.group))?;

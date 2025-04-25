@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use super::{AxisSystemBuildOutput, AxisSystemBuilder, VantageSetBuilder};
+use super::{AxisSystemBuildOutput, AxisSystemBuilder, VantageGroupBuilder, VantageSetBuilder};
 use crate::{NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PUZZLE_PREFIX, TwistKey};
 
 /// Twist during puzzle construction.
@@ -65,8 +65,9 @@ pub struct TwistSystemBuilder {
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
 
-    vantage_groups: IndexMap<String, NdEuclidVantageGroup>,
-    vantage_sets: Vec<VantageSetBuilder>,
+    // TODO: make a nice foolproof API for these
+    pub vantage_groups: IndexMap<String, VantageGroupBuilder>,
+    pub vantage_sets: Vec<VantageSetBuilder>,
     pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
     /// Whether the twist system has been modified.
@@ -285,9 +286,11 @@ impl TwistSystemBuilder {
             twist_transforms.push(twist_transform.reverse())?;
         }
 
-        let names = twist_names
-            .build(self.len())
-            .ok_or_eyre("missing twist names")?;
+        let names = Arc::new(
+            twist_names
+                .build(self.len())
+                .ok_or_eyre("missing twist names")?,
+        );
 
         let gizmo_pole_distances = self.by_id.map_ref(|_, twist| twist.gizmo_pole_distance);
 
@@ -303,18 +306,48 @@ impl TwistSystemBuilder {
             gizmo_pole_distances: Arc::new(gizmo_pole_distances),
         };
 
+        let twist_axes = Arc::new(twists.map_ref(|_, twist_info| twist_info.axis));
+
+        let vantage_groups: IndexMap<String, NdEuclidVantageGroup> = self
+            .vantage_groups
+            .iter()
+            .map(|(id, vantage_group_builder)| {
+                let vantage_group = vantage_group_builder.build(
+                    Arc::clone(&axes.names),
+                    Arc::clone(&names),
+                    Arc::clone(&twist_axes),
+                    engine_data.clone(), // relatively cheap; just a lot of `Arc::clone()`s
+                )?;
+                eyre::Ok((id.clone(), vantage_group))
+            })
+            .try_collect()?;
+
+        let vantage_sets = self
+            .vantage_sets
+            .iter()
+            .map(|vantage_set| vantage_set.build(&vantage_groups))
+            .try_collect()?;
+
+        let mut vantage_groups: IndexMap<String, BoxDynVantageGroup> = vantage_groups
+            .into_iter()
+            .map(|(k, v)| (k, BoxDynVantageGroup::new(v)))
+            .collect();
+        if vantage_groups.is_empty() {
+            vantage_groups.insert("trivial".to_owned(), ().into());
+        }
+
         Ok(TwistSystem {
             id,
             name,
 
             axes: Arc::new(axes),
 
-            names: Arc::new(names),
+            names,
             twists,
             directions: self.directions.clone(),
 
-            vantage_groups: IndexMap::from_iter([("trivial".to_owned(), ().into())]),
-            vantage_sets: vec![],
+            vantage_groups,
+            vantage_sets,
 
             engine_data: engine_data.into(),
         })
@@ -343,7 +376,7 @@ impl TwistSystemBuilder {
 
         let data_to_id = (*engine_data.twist_from_transform).clone();
 
-        let vantage_groups: IndexMap<String, NdEuclidVantageGroup> = vantage_groups
+        let nd_euclid_vantage_groups: IndexMap<String, NdEuclidVantageGroup> = vantage_groups
             .iter()
             .map(|(k, v)| {
                 let vantage_group = v
@@ -355,7 +388,12 @@ impl TwistSystemBuilder {
 
         let vantage_sets = vantage_sets
             .iter()
-            .map(|vantage_set| VantageSetBuilder::unbuild(vantage_set, &vantage_groups))
+            .map(|vantage_set| VantageSetBuilder::unbuild(vantage_set, &nd_euclid_vantage_groups))
+            .try_collect()?;
+
+        let vantage_groups = vantage_groups
+            .iter()
+            .map(|(k, v)| eyre::Ok((k.clone(), VantageGroupBuilder::unbuild(v)?)))
             .try_collect()?;
 
         Ok(TwistSystemBuilder {

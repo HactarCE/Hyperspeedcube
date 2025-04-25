@@ -1,4 +1,5 @@
-use hypermath::{IndexNewtype, collections::GenericVec};
+use hypermath::IndexNewtype;
+use hypermath::collections::GenericVec;
 use hyperpuzzle_core::{NameSpec, NameSpecBiMapBuilder};
 use itertools::Itertools;
 use rhai::Array;

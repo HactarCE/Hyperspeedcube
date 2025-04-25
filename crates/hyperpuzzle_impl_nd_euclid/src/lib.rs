@@ -27,8 +27,8 @@ pub use state::NdEuclidPuzzleState;
 pub use twist_key::TwistKey;
 pub use vantage_group::{
     NdEuclidRelativeAxis, NdEuclidRelativeTwist, NdEuclidVantageGroup, NdEuclidVantageGroupElement,
+    PerReferenceVector, ReferenceVector,
 };
-use vantage_group::{PerReferenceVector, ReferenceVector};
 
 /// Prefix for ad-hoc color system and twist system IDs.
 const PUZZLE_PREFIX: &str = "puzzle:";

@@ -3,7 +3,7 @@ use super::*;
 pub fn register(module: &mut Module) {
     new_fn("set_name").set_into_module(
         module,
-        |ctx: Ctx<'_>, color: &mut RhaiColor, name_spec| -> Result<()> {
+        |ctx: Ctx<'_>, color: &mut RhaiColor, name_spec| -> Result {
             color
                 .lock_db()?
                 .names

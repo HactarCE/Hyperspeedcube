@@ -6,10 +6,18 @@ use eyre::eyre;
 use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, pga};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask, TwistSystemSpec};
 use hyperpuzzle_impl_nd_euclid::builder::*;
+use hyperpuzzle_impl_nd_euclid::{
+    NdEuclidRelativeAxis, NdEuclidVantageGroup, NdEuclidVantageGroupElement, PerReferenceVector,
+    ReferenceVector,
+};
+use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
+use rhai::Array;
 
-use super::{axis_system::RhaiAxisSystem, *};
+use super::axis_system::RhaiAxisSystem;
+use super::*;
 use crate::package::types::elements::{LockAs, RhaiAxis, RhaiTwist};
+use crate::package::types::symmetry::RhaiSymmetry;
 
 pub fn init_engine(engine: &mut Engine) {
     engine.register_type_with_name::<RhaiTwistSystemBuilder>("twistsystem");
@@ -18,19 +26,16 @@ pub fn init_engine(engine: &mut Engine) {
 pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalRequestTx) {
     let cat = catalog.clone();
     let tx = eval_tx.clone();
-    new_fn("add_twist_system").set_into_module(
-        module,
-        move |ctx: Ctx<'_>, map: Map| -> Result<()> {
-            let spec = twist_system_spec_from_rhai_map(&ctx, tx.clone(), map)?;
-            cat.add_twist_system(Arc::new(spec)).eyrefmt()
-        },
-    );
+    new_fn("add_twist_system").set_into_module(module, move |ctx: Ctx<'_>, map: Map| -> Result {
+        let spec = twist_system_spec_from_rhai_map(&ctx, tx.clone(), map)?;
+        cat.add_twist_system(Arc::new(spec)).eyrefmt()
+    });
 
     let cat = catalog.clone();
     let tx = eval_tx.clone();
     new_fn("add_twist_system_generator").set_into_module(
         module,
-        move |ctx: Ctx<'_>, gen_map: Map| -> Result<()> {
+        move |ctx: Ctx<'_>, gen_map: Map| -> Result {
             let tx = tx.clone();
             let generator = super::generator::generator_from_rhai_map::<TwistSystemSpec>(
                 &ctx,
@@ -73,49 +78,47 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
 
     new_fn("add_axis").set_into_module(
         module,
-        move |ctx: Ctx<'_>,
-              twist_system: RhaiTwistSystemBuilder,
-              vector: Vector|
-              -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, None) },
+        |ctx: Ctx<'_>,
+         twist_system: &mut RhaiTwistSystemBuilder,
+         vector: Vector|
+         -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, None) },
     );
 
     new_fn("add_axis").set_into_module(
         module,
-        move |ctx: Ctx<'_>,
-              twist_system: RhaiTwistSystemBuilder,
-              vector: Vector,
-              names: Dynamic|
-              -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, Some(names)) },
+        |ctx: Ctx<'_>,
+         twist_system: &mut RhaiTwistSystemBuilder,
+         vector: Vector,
+         names: Dynamic|
+         -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, Some(names)) },
     );
 
     new_fn("add_twist").set_into_module(
         module,
-        move |ctx: Ctx<'_>,
-              twist_system: RhaiTwistSystemBuilder,
-              axis: RhaiAxis,
-              transform: pga::Motor|
-              -> Result<Dynamic> { twist_system.add_twists(&ctx, axis, transform, None) },
+        |ctx: Ctx<'_>,
+         twist_system: &mut RhaiTwistSystemBuilder,
+         axis: RhaiAxis,
+         transform: pga::Motor|
+         -> Result<Dynamic> { twist_system.add_twists(&ctx, axis, transform, None) },
     );
 
     new_fn("add_twist").set_into_module(
         module,
-        move |ctx: Ctx<'_>,
-              twist_system: RhaiTwistSystemBuilder,
-              axis: RhaiAxis,
-              transform: pga::Motor,
-              data: Map|
-              -> Result<Dynamic> {
-            twist_system.add_twists(&ctx, axis, transform, Some(data))
-        },
+        |ctx: Ctx<'_>,
+         twist_system: &mut RhaiTwistSystemBuilder,
+         axis: RhaiAxis,
+         transform: pga::Motor,
+         data: Map|
+         -> Result<Dynamic> { twist_system.add_twists(&ctx, axis, transform, Some(data)) },
     );
 
     new_fn("add_twist_direction").set_into_module(
         module,
-        move |ctx: Ctx<'_>,
-              twist_system: RhaiTwistSystemBuilder,
-              name: String,
-              gen_twist: FnPtr|
-              -> Result<()> {
+        |ctx: Ctx<'_>,
+         twist_system: &mut RhaiTwistSystemBuilder,
+         name: String,
+         gen_twist: FnPtr|
+         -> Result {
             if RhaiState::get(&ctx).lock().symmetry.is_some() {
                 return Err("twist directions cannot use symmetry".into());
             }
@@ -152,6 +155,134 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
             Ok(())
         },
     );
+
+    new_fn("add_vantage_group").set_into_module(
+        module,
+        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystemBuilder, data: Map| -> Result {
+            let_from_map!(&ctx, data, {
+                let id: String;
+                let symmetry: RhaiSymmetry;
+                let refs: Array;
+                let init: Vec<String>;
+            });
+
+            match twist_system.lock()?.vantage_groups.entry(id.clone()) {
+                indexmap::map::Entry::Occupied(_) => {
+                    Err(format!("vantage group already exists with ID {id:?}").into())
+                }
+                indexmap::map::Entry::Vacant(e) => {
+                    let mut reference_vectors = PerReferenceVector::new();
+                    let mut reference_vector_names = NameSpecBiMapBuilder::new();
+                    for pair in refs {
+                        let [init, names] = from_rhai(&ctx, pair).in_key("refs")?;
+                        // TODO: support types other than just vectors
+                        // (anything that can be orbited? maybe just blades?)
+                        let init_vector: Vector = from_rhai(&ctx, init).in_key("refs")?;
+                        for (_gen_seq, _motor, vector, name) in symmetry
+                            .orbit_with_names::<ReferenceVector, Vector>(
+                                &ctx,
+                                init_vector,
+                                Some(names),
+                            )?
+                        {
+                            let id = reference_vectors.push(vector).map_err(|e| e.to_string())?;
+                            reference_vector_names
+                                .set(id, name)
+                                .map_err(|e| e.to_string())?;
+                        }
+                    }
+
+                    let preferred_reference_vectors = init
+                        .into_iter()
+                        .map(|s| {
+                            reference_vector_names
+                                .id_from_string(&s)
+                                .ok_or(format!("no reference vector named {s:?}"))
+                        })
+                        .try_collect()?;
+
+                    e.insert(VantageGroupBuilder {
+                        symmetry: symmetry.isometry_group()?,
+                        reference_vectors,
+                        reference_vector_names,
+                        preferred_reference_vectors,
+                    });
+                    Ok(())
+                }
+            }
+        },
+    );
+
+    new_fn("add_vantage_set").set_into_module(
+        module,
+        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystemBuilder, data: Map| -> Result {
+            let_from_map!(&ctx, data, {
+                let name: String;
+                let group: String;
+                let view_offset: Option<pga::Motor>;
+                let transforms: Option<Map>;
+                let axes: Option<Dynamic>;
+            });
+
+            let mut twist_system_guard = twist_system.lock()?;
+            let ndim = twist_system_guard.axes.ndim;
+            let ident = pga::Motor::ident(ndim);
+            let view_offset = view_offset.unwrap_or_else(|| ident.clone());
+
+            let transforms = transforms
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(k, v)| Ok((k.into(), from_rhai(&ctx, v)?)))
+                .collect::<Result<Vec<_>>>()?;
+
+            let axes = if axes.as_ref().is_some_and(|a| a.is_string()) {
+                if axes.unwrap_or_default().into_string().as_deref() != Ok("*") {
+                    return Err("invalid string for key `axes`; only \"*\" is allowed".into());
+                }
+                Axis::iter(twist_system_guard.axes.len())
+                    .filter_map(|axis| {
+                        Some((
+                            twist_system_guard.axes.names.get(axis)?.spec.clone(),
+                            RelativeAxisBuilder {
+                                absolute_axis: axis,
+                                transform: ident.clone(),
+                            },
+                        ))
+                    })
+                    .collect()
+            } else if let Some(v) = axes {
+                // TODO: type error here does not explain that "*" is also allowed
+                from_rhai::<Map>(&ctx, v)
+                    .in_key("axes")?
+                    .into_iter()
+                    .map(|(k, pair)| {
+                        let [transform, axis] =
+                            from_rhai::<[Dynamic; 2]>(&ctx, pair).in_key("axes")?;
+                        Result::Ok((
+                            k.into(),
+                            RelativeAxisBuilder {
+                                absolute_axis: from_rhai::<RhaiAxis>(&ctx, axis).in_key("axes")?.id,
+                                transform: from_rhai(&ctx, transform).in_key("axes")?,
+                            },
+                        ))
+                    })
+                    .collect::<Result<Vec<_>>>()?
+            } else {
+                vec![]
+            };
+
+            twist_system_guard.vantage_sets.push(VantageSetBuilder {
+                name,
+                group,
+                view_offset,
+                transforms,
+                axes,
+                directions: vec![], // TODO
+            });
+
+            Ok(())
+        },
+    );
 }
 
 impl RhaiTwistSystemBuilder {
@@ -166,19 +297,10 @@ impl RhaiTwistSystemBuilder {
             let mut orbit_elements = vec![];
             let mut generator_sequences = vec![];
 
-            let mut vector_to_name = ApproxHashMap::new();
-            if let Some(names) = names {
-                let name_specs_and_gen_seqs =
-                    orbit_names::names_from_table::<Axis>(ctx, from_rhai(ctx, names)?)?;
-                for (name, gen_seq) in name_specs_and_gen_seqs {
-                    let v = symmetry.motor_for_gen_seq(gen_seq)?.transform(&vector);
-                    vector_to_name.insert(v, name.spec);
-                }
-            }
-
             // Add the axes.
-            for (gen_seq, _motor, v) in symmetry.orbit(vector.clone()) {
-                let name = vector_to_name.get(&v).cloned();
+            for (gen_seq, _motor, v, name) in
+                symmetry.orbit_with_names::<Axis, Vector>(ctx, vector.clone(), names)?
+            {
                 let axis = self.add_axis(axis_system, v, name)?;
                 orbit_elements.push(Some(axis.id));
                 generator_sequences.push(gen_seq);

@@ -36,7 +36,7 @@ pub struct NdEuclidVantageGroup {
     /// This information exists in the twist system too, but we don't really
     /// want to hold a reference to the twist system because that would be a
     /// circular reference which is slightly awkward to construct.
-    pub(crate) twist_axes: PerTwist<Axis>,
+    pub(crate) twist_axes: Arc<PerTwist<Axis>>,
     pub(crate) twist_system_engine_data: NdEuclidTwistSystemEngineData,
 }
 

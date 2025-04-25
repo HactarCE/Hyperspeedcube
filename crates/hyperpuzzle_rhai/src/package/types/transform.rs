@@ -71,6 +71,8 @@ pub fn register(module: &mut Module) {
     });
 
     new_fn("rev").set_into_module(module, |m: &mut Motor| m.reverse());
+
+    new_fn("*").set_into_module(module, |m1: Motor, m2: Motor| m1 * m2);
 }
 
 fn construct_rotation(

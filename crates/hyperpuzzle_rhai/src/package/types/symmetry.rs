@@ -1,10 +1,11 @@
-//! Rhai symmetry type.
-
+///! Rhai symmetry type.
 use std::borrow::Cow;
 
 use hypermath::pga::Motor;
-use hypermath::{ApproxHashMapKey, TransformByMotor, Vector, VectorRef};
-use hypershape::{CoxeterGroup, FiniteCoxeterGroup, GeneratorSequence};
+use hypermath::{
+    ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, VectorRef,
+};
+use hypershape::{CoxeterGroup, FiniteCoxeterGroup, GeneratorSequence, IsometryGroup};
 use itertools::Itertools;
 use rhai::Array;
 use smallvec::smallvec;
@@ -140,6 +141,13 @@ pub fn register(module: &mut Module) {
         },
     );
 
+    new_fn("thru").set_into_module(
+        module,
+        |s: &mut RhaiSymmetry, index: rhai::INT| -> Result<Motor> {
+            let index = u8::try_from(index).map_err(|e| e.to_string())?;
+            s.motor_for_gen_seq([index])
+        },
+    );
     new_fn("thru").set_into_module(
         module,
         |ctx: Ctx<'_>, s: &mut RhaiSymmetry, a: Array| -> Result<Motor> {
@@ -326,5 +334,39 @@ impl RhaiSymmetry {
                 object,
             ),
         }
+    }
+
+    pub fn orbit_with_names<I: IndexNewtype, T: ApproxHashMapKey + Clone + TransformByMotor>(
+        &self,
+        ctx: &Ctx<'_>,
+        object: T,
+        names: Option<Dynamic>,
+    ) -> Result<Vec<(GeneratorSequence, Motor, T, Option<String>)>> {
+        // TODO: probably optimize this?
+
+        let mut obj_to_name = ApproxHashMap::new();
+        if let Some(names) = names {
+            let name_specs_and_gen_seqs =
+                orbit_names::names_from_table::<I>(ctx, from_rhai(ctx, names)?)?;
+            for (name, gen_seq) in name_specs_and_gen_seqs {
+                let obj = self.motor_for_gen_seq(gen_seq)?.transform(&object);
+                obj_to_name.insert(obj, name.spec);
+            }
+        }
+
+        Ok(self
+            .orbit(object)
+            .into_iter()
+            .map(|(gen_seq, motor, obj)| {
+                let name = obj_to_name.get(&obj).cloned();
+                (gen_seq, motor, obj, name)
+            })
+            .collect())
+    }
+
+    /// Constructs the isometry group.
+    pub fn isometry_group(&self) -> Result<IsometryGroup> {
+        IsometryGroup::from_generators(&self.chiral_safe_generators())
+            .map_err(|e| e.to_string().into())
     }
 }

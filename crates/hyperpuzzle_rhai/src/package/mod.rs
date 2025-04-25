@@ -12,13 +12,13 @@ mod syntax;
 mod types;
 
 use state::RhaiState;
+pub use types::elements::{LockAs, RhaiAxis, RhaiColor, RhaiPuzzleElement, RhaiTwist};
 
 use crate::convert::*;
 use crate::errors::*;
 use crate::loader::RhaiEvalRequestTx;
 use crate::util::{new_fn, void_warn, warn, warnf};
 use crate::{Ctx, Result, RhaiCtx};
-pub use types::elements::{LockAs, RhaiAxis, RhaiColor, RhaiPuzzleElement, RhaiTwist};
 
 pub(crate) struct HyperpuzzlePackage(Shared<Module>);
 impl HyperpuzzlePackage {

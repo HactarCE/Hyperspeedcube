@@ -18,17 +18,16 @@ pub struct VantageGroupBuilder {
     pub symmetry: IsometryGroup,
     pub reference_vectors: PerReferenceVector<Vector>,
     pub reference_vector_names: NameSpecBiMapBuilder<ReferenceVector>,
-
-    preferred_reference_vectors: Vec<ReferenceVector>,
+    pub preferred_reference_vectors: Vec<ReferenceVector>,
 }
 impl VantageGroupBuilder {
     pub fn build(
-        self,
+        &self,
         axis_names: Arc<NameSpecBiMap<Axis>>,
         twist_names: Arc<NameSpecBiMap<Twist>>,
-        twist_axes: PerTwist<Axis>,
+        twist_axes: Arc<PerTwist<Axis>>,
         twist_system_engine_data: NdEuclidTwistSystemEngineData,
-    ) -> Result<BoxDynVantageGroup> {
+    ) -> Result<NdEuclidVantageGroup> {
         let reference_vectors_by_vector = ApproxHashMap::<Vector, ReferenceVector>::from_iter(
             self.reference_vectors
                 .iter()
@@ -37,6 +36,7 @@ impl VantageGroupBuilder {
 
         let reference_vector_names = self
             .reference_vector_names
+            .clone()
             .build(self.reference_vectors.len())
             .ok_or_eyre("missing reference vector names")?;
 
@@ -46,6 +46,7 @@ impl VantageGroupBuilder {
         let vantage_names: PerVantage<_> = self
             .symmetry
             .elements()
+            .filter(|&e| !self.symmetry[e].is_reflection())
             .map(|e| {
                 self.preferred_reference_vectors
                     .iter()
@@ -58,14 +59,19 @@ impl VantageGroupBuilder {
                     .collect::<Result<SmallVec<_>>>()
             })
             .try_collect()?;
-        if let Some(name) = vantage_names.iter_values().duplicates().next() {
+        if let Some(pairs) = vantage_names.iter_values().duplicates().next() {
+            let name = hyperpuzzle_core::util::vantage_name(
+                pairs
+                    .iter()
+                    .map(|&(a, b)| (&reference_vector_names[a], &reference_vector_names[b])),
+            );
             bail!("duplicate vantage name {name:?}");
         }
 
-        Ok(BoxDynVantageGroup::new(NdEuclidVantageGroup {
+        Ok(NdEuclidVantageGroup {
             symmetry: self.symmetry.clone(),
 
-            reference_vectors: self.reference_vectors,
+            reference_vectors: self.reference_vectors.clone(),
             reference_vector_names,
             preferred_reference_vectors: self.preferred_reference_vectors.clone(),
 
@@ -76,7 +82,7 @@ impl VantageGroupBuilder {
 
             twist_axes,
             twist_system_engine_data,
-        }))
+        })
     }
 
     pub fn unbuild(vantage_group: &BoxDynVantageGroup) -> Result<Self> {
