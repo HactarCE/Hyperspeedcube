@@ -51,6 +51,15 @@ impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
         ApproxHashMap::default()
     }
 
+    /// Returns whether the map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+    /// Returns the number of entries in the map.
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
     /// Inserts an entry into the map and returns the old value, if any.
     ///
     /// `key` is assumed to be already canonicalized, if necessary. For example,
@@ -74,6 +83,11 @@ impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
     /// Returns the value in the map associated to the given key (or something
     /// approximately equal).
     pub fn get(&self, key: &K) -> Option<&V> {
+        // Early exit optimization
+        if self.is_empty() {
+            return None;
+        }
+
         let hash_key = key.try_approx_hash(|x| self.try_hash_float(x))?;
         self.values.get(&hash_key)
     }
@@ -105,6 +119,11 @@ impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
     /// Returns an iterator over all keys and values in the map.
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.values.iter().map(|(k, v)| (&self.keys[k], v))
+    }
+
+    /// Converts the map into an iterator over all its values.
+    pub fn into_values(self) -> impl Iterator<Item = V> {
+        self.values.into_values()
     }
 }
 impl<K: ApproxHashMapKey, V> FromIterator<(K, V)> for ApproxHashMap<K, V> {
