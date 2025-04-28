@@ -155,7 +155,7 @@ impl CatalogObjectImpl for TwistSystem {
     type Spec = TwistSystemSpec;
     type SpecGenerator = TwistSystemSpecGenerator;
 
-    const NAME: &str = "color system";
+    const NAME: &str = "twist system";
 
     fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
         None
