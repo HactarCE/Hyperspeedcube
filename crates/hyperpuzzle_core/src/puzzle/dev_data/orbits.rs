@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use hypershape::GeneratorSequence;
+use hypershape::{AbbrGenSeq, GeneratorId};
 use itertools::Itertools;
 
 use super::*;
@@ -76,7 +76,7 @@ pub struct Orbit<T> {
     pub elements: Arc<Vec<Option<T>>>,
     /// Generator sequence for each element in the orbit, in the order they were
     /// generated, including missing ones.
-    pub generator_sequences: Arc<Vec<GeneratorSequence>>,
+    pub generator_sequences: Arc<Vec<AbbrGenSeq>>,
 }
 impl<T> Default for Orbit<T> {
     fn default() -> Self {
@@ -141,7 +141,7 @@ impl<T: PuzzleElement> Orbit<T> {
             let mut is_first = true;
             let mut elem_index = *i;
             while let Some(gen_seq) = self.generator_sequences.get(elem_index) {
-                for g in &gen_seq.generators {
+                for GeneratorId(g) in &gen_seq.generators.0 {
                     if is_first {
                         is_first = false;
                     } else {
