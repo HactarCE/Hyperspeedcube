@@ -1,15 +1,16 @@
-///! Rhai symmetry type.
+//! Rhai symmetry type.
+
 use std::borrow::Cow;
 
 use hypermath::pga::Motor;
-use hypermath::{
-    ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, VectorRef,
+use hypermath::{ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, VectorRef};
+use hypershape::{
+    AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, IsometryGroup,
 };
-use hypershape::{CoxeterGroup, FiniteCoxeterGroup, GeneratorSequence, IsometryGroup};
 use itertools::Itertools;
 use rhai::Array;
-use smallvec::smallvec;
 
+use super::name_strategy::RhaiNameStrategy;
 use super::*;
 
 pub fn init_engine(engine: &mut Engine) {
@@ -54,21 +55,21 @@ pub fn register(module: &mut Module) {
     new_fn("cd").set_into_module(
         module,
         |ctx: Ctx<'_>, indices: Array| -> Result<RhaiSymmetry> {
-            let indices = from_rhai_array(&ctx, indices)?;
+            let indices = vec_from_rhai_array(&ctx, indices)?;
             RhaiSymmetry::construct_from_schalfli(&indices, None)
         },
     );
     new_fn("cd").set_into_module(
         module,
         |ctx: Ctx<'_>, indices: Array, basis: String| -> Result<RhaiSymmetry> {
-            let indices = from_rhai_array(&ctx, indices)?;
+            let indices = vec_from_rhai_array(&ctx, indices)?;
             RhaiSymmetry::construct_from_schalfli(&indices, Some(basis_from_str(&basis)?))
         },
     );
     new_fn("cd").set_into_module(
         module,
         |ctx: Ctx<'_>, indices: Array, basis: Array| -> Result<RhaiSymmetry> {
-            let indices = from_rhai_array(&ctx, indices)?;
+            let indices = vec_from_rhai_array(&ctx, indices)?;
             RhaiSymmetry::construct_from_schalfli(&indices, Some(from_rhai_array(&ctx, basis)?))
         },
     );
@@ -144,15 +145,15 @@ pub fn register(module: &mut Module) {
     new_fn("thru").set_into_module(
         module,
         |s: &mut RhaiSymmetry, index: rhai::INT| -> Result<Motor> {
-            let index = u8::try_from(index).map_err(|e| e.to_string())?;
-            s.motor_for_gen_seq([index])
+            let generator_id = u8::try_from(index).map_err(|e| e.to_string())?;
+            s.motor_for_gen_seq(&GenSeq::new([GeneratorId(generator_id)]))
         },
     );
     new_fn("thru").set_into_module(
         module,
         |ctx: Ctx<'_>, s: &mut RhaiSymmetry, a: Array| -> Result<Motor> {
-            let indices = from_rhai_array(&ctx, a)?;
-            s.motor_for_gen_seq(indices)
+            let generator_ids = from_rhai(&ctx, Dynamic::from(a))?;
+            s.motor_for_gen_seq(&generator_ids)
         },
     );
 }
@@ -303,12 +304,13 @@ impl RhaiSymmetry {
 
     /// Returns a motor representing a sequence of generators, specified using
     /// indices into the list of generators.
-    pub fn motor_for_gen_seq(&self, gen_seq: impl IntoIterator<Item = u8>) -> Result<Motor> {
+    pub fn motor_for_gen_seq(&self, gen_seq: &GenSeq) -> Result<Motor> {
         let generators = self.underlying_generators();
         let ndim = self.ndim();
         gen_seq
-            .into_iter()
-            .map(|i| -> Result<Motor> {
+            .0
+            .iter()
+            .map(|&GeneratorId(i)| -> Result<Motor> {
                 let g = generators
                     .get(i as usize)
                     .ok_or_else(|| format!("generator index {i} out of range"))?;
@@ -322,46 +324,36 @@ impl RhaiSymmetry {
     pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         object: T,
-    ) -> Vec<(GeneratorSequence, Motor, T)> {
+    ) -> Vec<(AbbrGenSeq, Motor, T)> {
         match self {
             RhaiSymmetry::Coxeter { coxeter, chiral } => coxeter.orbit(object, *chiral),
             RhaiSymmetry::Custom { generators } => hypershape::orbit(
                 &generators
                     .iter()
                     .enumerate()
-                    .map(|(i, m)| (smallvec![i as u8], m.clone()))
+                    .map(|(i, m)| (GenSeq::new([GeneratorId(i as u8)]), m.clone()))
                     .collect_vec(),
                 object,
             ),
         }
     }
 
+    /// Returns the orbit of an object under the symmetry, with names specified
+    /// using some name strategy.
     pub fn orbit_with_names<I: IndexNewtype, T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         ctx: &Ctx<'_>,
         object: T,
-        names: Option<Dynamic>,
-    ) -> Result<Vec<(GeneratorSequence, Motor, T, Option<String>)>> {
-        // TODO: probably optimize this?
-
-        let mut obj_to_name = ApproxHashMap::new();
-        if let Some(names) = names {
-            let name_specs_and_gen_seqs =
-                orbit_names::names_from_table::<I>(ctx, from_rhai(ctx, names)?)?;
-            for (name, gen_seq) in name_specs_and_gen_seqs {
-                let obj = self.motor_for_gen_seq(gen_seq)?.transform(&object);
-                obj_to_name.insert(obj, name.spec);
-            }
-        }
-
-        Ok(self
-            .orbit(object)
+        names: &RhaiNameStrategy,
+    ) -> Result<Vec<(AbbrGenSeq, Motor, T, Option<String>)>> {
+        let name_fn = names.name_fn::<I, T>(ctx, Some(self), &object)?;
+        self.orbit(object)
             .into_iter()
             .map(|(gen_seq, motor, obj)| {
-                let name = obj_to_name.get(&obj).cloned();
-                (gen_seq, motor, obj, name)
+                let name = name_fn.call(ctx, &motor, &obj)?;
+                Ok((gen_seq, motor, obj, name))
             })
-            .collect())
+            .collect()
     }
 
     /// Constructs the isometry group.

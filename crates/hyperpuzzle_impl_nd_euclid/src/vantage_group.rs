@@ -11,9 +11,11 @@ use smallvec::SmallVec;
 use crate::{NdEuclidTwistSystemEngineData, TwistKey};
 
 hypermath::idx_struct! {
+    /// ID of a reference vector in a vantage group.
     pub struct ReferenceVector(u16);
 }
 
+/// List containing a value per reference vector.
 pub type PerReferenceVector<T> = GenericVec<ReferenceVector, T>;
 
 /// Vantage group for an N-dimensional Euclidean puzzle that is based on a

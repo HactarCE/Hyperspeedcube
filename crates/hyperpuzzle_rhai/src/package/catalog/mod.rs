@@ -3,6 +3,8 @@
 use hyperpuzzle_core::prelude::*;
 
 use super::*;
+pub use axis_system::RhaiAxisSystem;
+pub use twist_system::RhaiTwistSystem;
 
 mod axis_system;
 mod color_system;

@@ -76,11 +76,7 @@ pub struct VantageSet {
     /// Map from name spec to transform.
     pub transform_map: Vec<(String, VantageTransformInfo)>,
     /// Map from name spec to relative axis.
-    pub axis_map: Vec<(String, BoxDynRelativeAxis)>,
-    /// Twist direction map.
-    ///
-    /// There should be at most one of these for each relative axis.
-    pub direction_maps: Vec<AxisDirectionMap>,
+    pub axis_map: Vec<(String, BoxDynRelativeAxis, AxisDirectionMap)>,
 
     /// Extra data associated with the vantage set.
     pub engine_data: BoxDynVantageSetEngineData,
@@ -89,9 +85,6 @@ pub struct VantageSet {
 /// Map from twist direction name to relative twist for a single relative axis.
 #[derive(Debug)]
 pub struct AxisDirectionMap {
-    /// Axis for which this direction map applies.
-    pub axis: BoxDynRelativeAxis,
-
     /// Map from name spec to twist.
     pub directions: Vec<(String, BoxDynRelativeTwist)>,
     /// Transform via which to inherit the direction map from another relative

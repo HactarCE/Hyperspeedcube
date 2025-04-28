@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::IndexNewtype;
+use hypermath::{IndexNewtype, Vector};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::builder::*;
 use parking_lot::MappedMutexGuard;
@@ -63,6 +63,10 @@ pub fn register(module: &mut Module) {
                 .clone())
         },
     );
+    FuncRegistration::new_getter("vector")
+        .set_into_module(module, |axis: &mut RhaiAxis| -> Result<Vector> {
+            axis.vector()
+        });
 
     color::register(module);
 }

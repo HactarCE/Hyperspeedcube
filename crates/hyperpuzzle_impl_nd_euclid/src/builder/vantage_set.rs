@@ -18,7 +18,6 @@ pub struct VantageSetBuilder {
 
     pub transforms: Vec<(String, pga::Motor)>,
     pub axes: Vec<(String, RelativeAxisBuilder)>,
-    pub directions: Vec<AxisDirectionMapBuilder>,
 }
 impl VantageSetBuilder {
     pub fn build(&self, groups: &IndexMap<String, NdEuclidVantageGroup>) -> Result<VantageSet> {
@@ -36,6 +35,7 @@ impl VantageSetBuilder {
         let transform_map = self
             .transforms
             .iter()
+            .sorted_by_cached_key(|(name, _)| NameSpec::sort_key(name.clone()))
             .map(|(name, rot)| {
                 let transform = try_element_from_motor(group, rot)
                     .wrap_err_with(|| format!("building relative transform {name:?}"))?
@@ -51,20 +51,14 @@ impl VantageSetBuilder {
         let axis_map = self
             .axes
             .iter()
+            .sorted_by_cached_key(|(name, _)| NameSpec::sort_key(name.clone()))
             .map(|(name, axis)| {
-                let relative_axis = axis
+                let (relative_axis, direction_map) = axis
                     .build(group)
                     .wrap_err_with(|| format!("building relative axis {name:?}"))?;
-                eyre::Ok((name.clone(), relative_axis))
+                eyre::Ok((name.clone(), relative_axis, direction_map))
             })
             .try_collect()?;
-
-        let direction_maps = self
-            .directions
-            .iter()
-            .map(|direction_map| direction_map.build(group))
-            .try_collect()
-            .wrap_err("building direction map")?;
 
         let engine_data = NdEuclidVantageSetEngineData {
             view_offset: self.view_offset.clone(),
@@ -77,7 +71,6 @@ impl VantageSetBuilder {
 
             transform_map,
             axis_map,
-            direction_maps,
 
             engine_data: engine_data.into(),
         })
@@ -92,7 +85,6 @@ impl VantageSetBuilder {
             group: group_name,
             transform_map,
             axis_map,
-            direction_maps,
             engine_data,
         } = vantage_set;
 
@@ -114,21 +106,17 @@ impl VantageSetBuilder {
 
         let axes = axis_map
             .iter()
-            .map(|(name, axis)| {
+            .map(|(name, axis, direction_map)| {
                 let relative_axis = axis
                     .downcast_ref::<NdEuclidRelativeAxis>()
                     .ok_or_eyre("expected NdEuclid relative axis")?;
                 let relative_axis_builder = RelativeAxisBuilder {
                     absolute_axis: relative_axis.absolute_axis,
                     transform: group.group_element_motor(relative_axis.transform).clone(),
+                    direction_map: AxisDirectionMapBuilder::unbuild(direction_map, group)?,
                 };
                 eyre::Ok((name.clone(), relative_axis_builder))
             })
-            .try_collect()?;
-
-        let directions = direction_maps
-            .iter()
-            .map(|direction_map| AxisDirectionMapBuilder::unbuild(direction_map, group))
             .try_collect()?;
 
         Ok(Self {
@@ -137,16 +125,12 @@ impl VantageSetBuilder {
             view_offset: view_offset.clone(),
             transforms,
             axes,
-            directions,
         })
     }
 }
 
 #[derive(Debug)]
 pub struct AxisDirectionMapBuilder {
-    /// Axis for which this direction map applies.
-    pub axis: RelativeAxisBuilder,
-
     /// Map from name spec to twist.
     pub directions: Vec<(String, RelativeTwistBuilder)>,
     /// Transform via which to inherit the direction map from another relative
@@ -160,10 +144,10 @@ impl AxisDirectionMapBuilder {
         }
 
         Ok(AxisDirectionMap {
-            axis: self.axis.build(group)?,
             directions: self
                 .directions
                 .iter()
+                .sorted_by_cached_key(|(name, _)| NameSpec::sort_key(name.clone()))
                 .map(|(name, twist)| {
                     let relative_twist = twist
                         .build(group)
@@ -182,15 +166,9 @@ impl AxisDirectionMapBuilder {
         })
     }
 
-    pub fn unbuild(
-        axis_direction_map: &AxisDirectionMap,
-        group: &NdEuclidVantageGroup,
-    ) -> Result<Self> {
-        let axis = RelativeAxisBuilder::unbuild(&axis_direction_map.axis, group)?;
-
+    pub fn unbuild(direction_map: &AxisDirectionMap, group: &NdEuclidVantageGroup) -> Result<Self> {
         Ok(AxisDirectionMapBuilder {
-            axis,
-            directions: axis_direction_map
+            directions: direction_map
                 .directions
                 .iter()
                 .map(|(name, relative_twist)| {
@@ -199,7 +177,7 @@ impl AxisDirectionMapBuilder {
                     eyre::Ok((name.clone(), relative_twist_builder))
                 })
                 .try_collect()?,
-            inherit: match &axis_direction_map.inherit {
+            inherit: match &direction_map.inherit {
                 Some(inherit) => Some(try_motor_from_element(group, inherit)?.clone()),
                 None => None,
             },
@@ -211,22 +189,32 @@ impl AxisDirectionMapBuilder {
 pub struct RelativeAxisBuilder {
     pub absolute_axis: Axis,
     pub transform: pga::Motor,
+    pub direction_map: AxisDirectionMapBuilder,
 }
 impl RelativeAxisBuilder {
-    fn build(&self, group: &NdEuclidVantageGroup) -> Result<BoxDynRelativeAxis> {
+    fn build(
+        &self,
+        group: &NdEuclidVantageGroup,
+    ) -> Result<(BoxDynRelativeAxis, AxisDirectionMap)> {
         let elem = try_element_from_motor(group, &self.transform)
             .wrap_err("constructing relative axis")?;
         let initial_relative_axis = NdEuclidRelativeAxis {
             absolute_axis: self.absolute_axis,
             transform: NdEuclidVantageGroupElement::IDENTITY,
         };
-        group
+        let relative_axis = group
             .transform_axis_concrete(elem, initial_relative_axis)
             .ok_or_eyre("error constructing relative axis")
-            .map(BoxDynRelativeAxis::new)
+            .map(BoxDynRelativeAxis::new)?;
+        let direction_map = self.direction_map.build(group)?;
+        Ok((relative_axis, direction_map))
     }
 
-    fn unbuild(axis: &BoxDynRelativeAxis, group: &NdEuclidVantageGroup) -> Result<Self> {
+    fn unbuild(
+        axis: &BoxDynRelativeAxis,
+        direction_map: &AxisDirectionMap,
+        group: &NdEuclidVantageGroup,
+    ) -> Result<Self> {
         let NdEuclidRelativeAxis {
             absolute_axis,
             transform,
@@ -237,6 +225,7 @@ impl RelativeAxisBuilder {
         Ok(Self {
             absolute_axis,
             transform: group.group_element_motor(transform).clone(),
+            direction_map: AxisDirectionMapBuilder::unbuild(direction_map, group)?,
         })
     }
 }

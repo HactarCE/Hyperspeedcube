@@ -2,7 +2,9 @@ use std::ops::Deref;
 
 use hypermath::pga::{Blade, Motor};
 use hypermath::{Point, Vector};
+use hypershape::{GenSeq, GeneratorId};
 use rhai::{Dynamic, FnPtr};
+use smallvec::SmallVec;
 
 use crate::package::{RhaiAxis, RhaiColor, RhaiTwist};
 use crate::{ConvertError, InKey, Result, RhaiCtx};
@@ -20,11 +22,35 @@ pub fn from_rhai_opt<T: FromRhai>(
     T::try_from_rhai_opt(ctx, value)
 }
 
-pub fn from_rhai_array<T: FromRhai>(
+pub fn vec_from_rhai_array<T: FromRhai>(
     ctx: impl RhaiCtx,
     array: rhai::Array,
 ) -> Result<Vec<T>, ConvertError> {
-    from_rhai(ctx, Dynamic::from_array(array))
+    from_rhai_array(ctx, array)
+}
+pub fn from_rhai_array<C: FromIterator<T>, T: FromRhai>(
+    ctx: impl RhaiCtx,
+    array: rhai::Array,
+) -> Result<C, ConvertError> {
+    iter_from_rhai_array(ctx, array).collect()
+}
+
+pub fn iter_from_rhai_array<T: FromRhai>(
+    mut ctx: impl RhaiCtx,
+    array: rhai::Array,
+) -> impl Iterator<Item = Result<T, ConvertError>> {
+    array
+        .into_iter()
+        .map(move |elem| from_rhai(&mut ctx, elem).in_structure("array"))
+}
+pub fn iter_from_rhai_array_value<T: FromRhai>(
+    ctx: impl RhaiCtx,
+    value: Dynamic,
+) -> Result<impl Iterator<Item = Result<T, ConvertError>>, ConvertError> {
+    if !value.is_array() {
+        return Err(ConvertError::new::<Vec<T>>(ctx, Some(&value)));
+    }
+    Ok(iter_from_rhai_array(ctx, value.cast::<rhai::Array>()))
 }
 
 /// Trait for converting [`rhai::Dynamic`] into specific types with good error
@@ -73,16 +99,18 @@ impl<T: FromRhai> FromRhai for Vec<T> {
         format!("array of {}", T::expected_string())
     }
 
-    fn try_from_rhai(mut ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
-        if !value.is_array() {
-            return Err(ConvertError::new::<Self>(ctx, Some(&value)));
-        }
-        value
-            .cast::<rhai::Array>()
-            .into_iter()
-            .map(|elem| from_rhai(&mut ctx, elem))
-            .collect::<Result<Vec<T>, ConvertError>>()
-            .in_structure("array")
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
+        iter_from_rhai_array_value(ctx, value)?.collect()
+    }
+}
+
+impl<T: FromRhai, const N: usize> FromRhai for SmallVec<[T; N]> {
+    fn expected_string() -> String {
+        <Vec<T>>::expected_string()
+    }
+
+    fn try_from_rhai(ctx: impl RhaiCtx, value: Dynamic) -> Result<Self, ConvertError> {
+        iter_from_rhai_array_value(ctx, value)?.collect()
     }
 }
 
@@ -133,6 +161,12 @@ impl_from_rhai!(u8, "small nonnegative integer", |ctx, value| {
     (value.as_int().ok())
         .and_then(|i| i.try_into().ok())
         .ok_or_else(|| ConvertError::new::<Self>(ctx, Some(&value)))
+});
+impl_from_rhai!(GeneratorId, "generator index", |ctx, value| {
+    from_rhai(ctx, value).map(GeneratorId)
+});
+impl_from_rhai!(GenSeq, "array of generator index", |ctx, value| {
+    from_rhai(ctx, value).map(GenSeq)
 });
 impl_from_rhai!(FnPtr, "function");
 

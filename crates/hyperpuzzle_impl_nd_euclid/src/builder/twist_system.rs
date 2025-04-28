@@ -152,7 +152,7 @@ impl TwistSystemBuilder {
     pub fn add_named(
         &mut self,
         data: TwistBuilder,
-        name: String,
+        name: Option<String>,
         warn_fn: impl Fn(String),
     ) -> Result<Option<Twist>> {
         self.is_modified = true;
@@ -164,7 +164,7 @@ impl TwistSystemBuilder {
                 return Ok(None);
             }
         };
-        if let Err(e) = self.names.set(id, Some(name)) {
+        if let Err(e) = self.names.set(id, name) {
             warn_fn(e.to_string());
         }
         Ok(Some(id))

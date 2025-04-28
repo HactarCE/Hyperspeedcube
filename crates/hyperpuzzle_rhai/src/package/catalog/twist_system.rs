@@ -3,13 +3,10 @@
 use std::sync::Arc;
 
 use eyre::eyre;
-use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, pga};
+use hypermath::{ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, pga};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask, TwistSystemSpec};
 use hyperpuzzle_impl_nd_euclid::builder::*;
-use hyperpuzzle_impl_nd_euclid::{
-    NdEuclidRelativeAxis, NdEuclidVantageGroup, NdEuclidVantageGroupElement, PerReferenceVector,
-    ReferenceVector,
-};
+use hyperpuzzle_impl_nd_euclid::{PerReferenceVector, ReferenceVector};
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use rhai::Array;
@@ -17,10 +14,11 @@ use rhai::Array;
 use super::axis_system::RhaiAxisSystem;
 use super::*;
 use crate::package::types::elements::{LockAs, RhaiAxis, RhaiTwist};
+use crate::package::types::name_strategy::RhaiNameStrategy;
 use crate::package::types::symmetry::RhaiSymmetry;
 
 pub fn init_engine(engine: &mut Engine) {
-    engine.register_type_with_name::<RhaiTwistSystemBuilder>("twistsystem");
+    engine.register_type_with_name::<RhaiTwistSystem>("twistsystem");
 }
 
 pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalRequestTx) {
@@ -51,16 +49,14 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
         },
     );
 
-    FuncRegistration::new_getter("ndim").set_into_module(
-        module,
-        |twist_system: &mut RhaiTwistSystemBuilder| -> Result<u8> {
+    FuncRegistration::new_getter("ndim")
+        .set_into_module(module, |twist_system: &mut RhaiTwistSystem| -> Result<u8> {
             Ok(twist_system.lock()?.axes.ndim)
-        },
-    );
+        });
 
     FuncRegistration::new_index_getter().set_into_module(
         module,
-        |twist_system: &mut RhaiTwistSystemBuilder, name: String| -> Result<RhaiTwist> {
+        |twist_system: &mut RhaiTwistSystem, name: String| -> Result<RhaiTwist> {
             let opt_id = twist_system.lock()?.names.id_from_string(&name);
             Ok(RhaiTwist {
                 id: opt_id.ok_or_else(|| format!("no twist named {name:?}"))?,
@@ -71,23 +67,22 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
 
     FuncRegistration::new_getter("axes").set_into_module(
         module,
-        |twist_system: &mut RhaiTwistSystemBuilder| -> RhaiAxisSystem {
+        |twist_system: &mut RhaiTwistSystem| -> RhaiAxisSystem {
             RhaiAxisSystem(twist_system.clone())
         },
     );
 
     new_fn("add_axis").set_into_module(
         module,
-        |ctx: Ctx<'_>,
-         twist_system: &mut RhaiTwistSystemBuilder,
-         vector: Vector|
-         -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, None) },
+        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystem, vector: Vector| -> Result<Dynamic> {
+            twist_system.add_axes(&ctx, vector, None)
+        },
     );
 
     new_fn("add_axis").set_into_module(
         module,
         |ctx: Ctx<'_>,
-         twist_system: &mut RhaiTwistSystemBuilder,
+         twist_system: &mut RhaiTwistSystem,
          vector: Vector,
          names: Dynamic|
          -> Result<Dynamic> { twist_system.add_axes(&ctx, vector, Some(names)) },
@@ -96,7 +91,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
     new_fn("add_twist").set_into_module(
         module,
         |ctx: Ctx<'_>,
-         twist_system: &mut RhaiTwistSystemBuilder,
+         twist_system: &mut RhaiTwistSystem,
          axis: RhaiAxis,
          transform: pga::Motor|
          -> Result<Dynamic> { twist_system.add_twists(&ctx, axis, transform, None) },
@@ -105,7 +100,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
     new_fn("add_twist").set_into_module(
         module,
         |ctx: Ctx<'_>,
-         twist_system: &mut RhaiTwistSystemBuilder,
+         twist_system: &mut RhaiTwistSystem,
          axis: RhaiAxis,
          transform: pga::Motor,
          data: Map|
@@ -115,7 +110,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
     new_fn("add_twist_direction").set_into_module(
         module,
         |ctx: Ctx<'_>,
-         twist_system: &mut RhaiTwistSystemBuilder,
+         twist_system: &mut RhaiTwistSystem,
          name: String,
          gen_twist: FnPtr|
          -> Result {
@@ -158,7 +153,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
 
     new_fn("add_vantage_group").set_into_module(
         module,
-        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystemBuilder, data: Map| -> Result {
+        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystem, data: Map| -> Result {
             let_from_map!(&ctx, data, {
                 let id: String;
                 let symmetry: RhaiSymmetry;
@@ -182,7 +177,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                             .orbit_with_names::<ReferenceVector, Vector>(
                                 &ctx,
                                 init_vector,
-                                Some(names),
+                                &from_rhai(&ctx, names)?,
                             )?
                         {
                             let id = reference_vectors.push(vector).map_err(|e| e.to_string())?;
@@ -215,54 +210,107 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
 
     new_fn("add_vantage_set").set_into_module(
         module,
-        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystemBuilder, data: Map| -> Result {
+        |ctx: Ctx<'_>, twist_system: &mut RhaiTwistSystem, data: Map| -> Result {
             let_from_map!(&ctx, data, {
                 let name: String;
                 let group: String;
                 let view_offset: Option<pga::Motor>;
                 let transforms: Option<Map>;
                 let axes: Option<Dynamic>;
+                let directions: Option<Map>;
+                let inherit_directions: Option<FnPtr>;
             });
 
-            let mut twist_system_guard = twist_system.lock()?;
-            let ndim = twist_system_guard.axes.ndim;
+            let ndim = twist_system.lock()?.axes.ndim;
             let ident = pga::Motor::ident(ndim);
             let view_offset = view_offset.unwrap_or_else(|| ident.clone());
 
             let transforms = transforms
                 .unwrap_or_default()
                 .into_iter()
-                .map(|(k, v)| Ok((k.into(), from_rhai(&ctx, v)?)))
+                .map(|(k, v)| Ok((k.into(), from_rhai::<pga::Motor>(&ctx, v)?)))
                 .collect::<Result<Vec<_>>>()?;
 
-            let axes = if axes.as_ref().is_some_and(|a| a.is_string()) {
+            let get_inherit_directions = |axis_vector: Vector| -> Result<Option<pga::Motor>> {
+                let Some(f) = &inherit_directions else {
+                    return Ok(None);
+                };
+                let ret: Dynamic = f.call_within_context(&ctx, [axis_vector])?;
+                if ret.is_unit() {
+                    Ok(None)
+                } else {
+                    Ok(Some(from_rhai::<pga::Motor>(&ctx, ret)?))
+                }
+            };
+
+            // TODO: refactor and add more ways to specify relative axes & twists
+
+            let mut axes = if axes.as_ref().is_some_and(|a| a.is_string()) {
                 if axes.unwrap_or_default().into_string().as_deref() != Ok("*") {
                     return Err("invalid string for key `axes`; only \"*\" is allowed".into());
                 }
-                Axis::iter(twist_system_guard.axes.len())
-                    .filter_map(|axis| {
-                        Some((
-                            twist_system_guard.axes.names.get(axis)?.spec.clone(),
+                let axis_count = twist_system.lock()?.axes.len();
+                Axis::iter(axis_count)
+                    .map(|axis| -> Result<Option<(String, RelativeAxisBuilder)>> {
+                        let twist_system_guard = twist_system.lock()?;
+                        let Some(axis_name) = twist_system_guard.axes.names.get(axis) else {
+                            return Ok(None);
+                        };
+
+                        let Ok(axis_info) = twist_system_guard.axes.get(axis) else {
+                            return Ok(None);
+                        };
+                        let axis_name_spec = axis_name.spec.clone();
+                        let axis_vector = axis_info.vector().clone();
+                        drop(twist_system_guard); // Drop before running `get_inherit_directins()`
+
+                        Ok(Some((
+                            axis_name_spec,
                             RelativeAxisBuilder {
                                 absolute_axis: axis,
                                 transform: ident.clone(),
+                                direction_map: AxisDirectionMapBuilder {
+                                    directions: vec![],
+                                    inherit: get_inherit_directions(axis_vector)?,
+                                },
                             },
-                        ))
+                        )))
                     })
-                    .collect()
+                    .filter_map(Result::transpose)
+                    .try_collect()?
             } else if let Some(v) = axes {
                 // TODO: type error here does not explain that "*" is also allowed
                 from_rhai::<Map>(&ctx, v)
                     .in_key("axes")?
                     .into_iter()
                     .map(|(k, pair)| {
-                        let [transform, axis] =
-                            from_rhai::<[Dynamic; 2]>(&ctx, pair).in_key("axes")?;
+                        let [transform, axis] = if pair.is_array() {
+                            from_rhai::<[Dynamic; 2]>(&ctx, pair).in_key("axes")?
+                        } else {
+                            [Dynamic::from(pga::Motor::ident(ndim)), pair]
+                        };
+
+                        let absolute_axis = from_rhai::<RhaiAxis>(&ctx, axis).in_key("axes")?.id;
+                        let transform = from_rhai::<pga::Motor>(&ctx, transform).in_key("axes")?;
+
+                        let axis_vector = transform.transform(
+                            twist_system
+                                .lock()?
+                                .axes
+                                .get(absolute_axis)
+                                .map_err(|e| e.to_string())?
+                                .vector(),
+                        );
+
                         Result::Ok((
                             k.into(),
                             RelativeAxisBuilder {
-                                absolute_axis: from_rhai::<RhaiAxis>(&ctx, axis).in_key("axes")?.id,
-                                transform: from_rhai(&ctx, transform).in_key("axes")?,
+                                absolute_axis,
+                                transform,
+                                direction_map: AxisDirectionMapBuilder {
+                                    directions: vec![],
+                                    inherit: get_inherit_directions(axis_vector)?,
+                                },
                             },
                         ))
                     })
@@ -271,13 +319,57 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 vec![]
             };
 
-            twist_system_guard.vantage_sets.push(VantageSetBuilder {
+            for (k, v) in directions.unwrap_or_default() {
+                let axis_name_key = format!("{k:?}");
+                match axes
+                    .iter_mut()
+                    .find(|(name_spec, _)| hyperpuzzle_core::name_spec_matches_name(name_spec, &k))
+                {
+                    Some((_, relative_axis_builder)) => {
+                        for (direction_name, pair) in from_rhai::<Map>(&ctx, v)
+                            .in_key("directions")
+                            .in_key(&axis_name_key)?
+                        {
+                            let direction_name_key = format!("{direction_name:?}");
+
+                            let [transform, twist] = if pair.is_array() {
+                                from_rhai::<[Dynamic; 2]>(&ctx, pair)
+                                    .in_key("directions")
+                                    .in_key(&axis_name_key)
+                                    .in_key(&direction_name_key)?
+                            } else {
+                                [Dynamic::from(pga::Motor::ident(ndim)), pair]
+                            };
+
+                            let absolute_twist = from_rhai::<RhaiTwist>(&ctx, twist)
+                                .in_key("directions")
+                                .in_key(&axis_name_key)
+                                .in_key(&direction_name_key)?
+                                .id;
+                            let transform = from_rhai::<pga::Motor>(&ctx, transform)
+                                .in_key("directions")
+                                .in_key(&axis_name_key)
+                                .in_key(&direction_name_key)?;
+
+                            relative_axis_builder.direction_map.directions.push((
+                                direction_name.to_string(),
+                                RelativeTwistBuilder {
+                                    absolute_twist,
+                                    transform,
+                                },
+                            ))
+                        }
+                    }
+                    None => warn(&ctx, format!("no axis named {k:?}"))?,
+                }
+            }
+
+            twist_system.lock()?.vantage_sets.push(VantageSetBuilder {
                 name,
                 group,
                 view_offset,
                 transforms,
                 axes,
-                directions: vec![], // TODO
             });
 
             Ok(())
@@ -285,7 +377,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
     );
 }
 
-impl RhaiTwistSystemBuilder {
+impl RhaiTwistSystem {
     fn add_axes(&self, ctx: &Ctx<'_>, vector: Vector, names: Option<Dynamic>) -> Result<Dynamic> {
         let mut twist_system = self.lock()?;
         let axis_system = &mut twist_system.axes;
@@ -298,8 +390,9 @@ impl RhaiTwistSystemBuilder {
             let mut generator_sequences = vec![];
 
             // Add the axes.
+            let names = from_rhai_opt(ctx, names)?;
             for (gen_seq, _motor, v, name) in
-                symmetry.orbit_with_names::<Axis, Vector>(ctx, vector.clone(), names)?
+                symmetry.orbit_with_names::<Axis, Vector>(ctx, vector.clone(), &names)?
             {
                 let axis = self.add_axis(axis_system, v, name)?;
                 orbit_elements.push(Some(axis.id));
@@ -350,54 +443,50 @@ impl RhaiTwistSystemBuilder {
         let ndim = twist_system.axes.ndim;
 
         let_from_map!(ctx, data.unwrap_or_default(), {
-            let multipliers: Option<bool>;
             let inverse: Option<bool>;
-            let prefix: Option<String>;
-            let name: Option<String>;
-            let suffix: Option<String>;
-            let inv_name: Option<String>;
-            let inv_suffix: Option<String>;
-            let name_fn: Option<FnPtr>;
+            let multipliers: Option<bool>;
+            let prefix: Option<RhaiNameStrategy>;
+            let name: Option<RhaiNameStrategy>;
+            let suffix: Option<RhaiNameStrategy>;
             let qtm: Option<usize>;
             let gizmo_pole_distance: Option<f32>;
         });
 
-        // Prefix defaults to axis name.
-        let get_prefix = |axis: Axis| match &prefix {
-            Some(s) => Some(s.to_owned()),
-            None => self
-                .lock()
-                .ok()?
-                .axes
-                .names
-                .get(axis)
-                .map(|name| name.spec.clone()),
-        };
-
-        let do_naming = prefix.as_ref().is_none_or(|s| !s.is_empty()) // prefix defaults to axis
-            || name.as_ref().is_some_and(|s| !s.is_empty())
-            || suffix.as_ref().is_some_and(|s| !s.is_empty())
-            || inv_name.as_ref().is_some_and(|s| !s.is_empty())
-            || inv_suffix.as_ref().is_some_and(|s| !s.is_empty())
-            || name_fn.is_some();
-
+        // Should we generate inverses? Default true only in 3D.
         let inverse = inverse.unwrap_or(ndim == 3);
+        // Should we generate multipliers? Default true only in 3D.
         let multipliers = multipliers.unwrap_or(ndim == 3);
 
-        let suffix = suffix.unwrap_or_default();
-        let inv_suffix = inv_suffix.unwrap_or_else(|| match &inv_name {
-            Some(_) => suffix.clone(),
-            None => "'".to_string(),
-        });
+        let sym = RhaiState::get(ctx).lock().symmetry.clone();
 
-        if name_fn.is_some() && (name.is_some() || inv_name.is_some()) {
-            return Err(
-                "when `name_fn` is specified, `name` and `inv_name` must not be specified".into(),
-            );
+        let init_axis_vector = twist_system
+            .axes
+            .get(init_axis.id)
+            .map_err(|e| e.to_string())?
+            .vector()
+            .clone();
+
+        let init = AxisAndTransform::new(init_axis_vector, init_transform)?;
+
+        let do_naming;
+        {
+            let has_prefix = prefix.as_ref().is_none_or(|s| !s.is_empty()); // prefix defaults to axis
+            let has_name = name.as_ref().is_some_and(|s| !s.is_empty());
+            let has_suffix = suffix.as_ref().is_some_and(|s| !s.is_empty());
+            do_naming = has_prefix || has_name || has_suffix;
         }
 
-        let name = name.unwrap_or_default();
-        let inv_name = inv_name.unwrap_or_else(|| name.clone());
+        let prefix_fn = prefix
+            .map(|s| s.name_fn::<Twist, _>(ctx, sym.as_ref(), &init))
+            .transpose()?;
+
+        let name_fn = name
+            .map(|s| s.name_fn::<Twist, _>(ctx, sym.as_ref(), &init))
+            .transpose()?;
+
+        let suffix_fn = suffix
+            .map(|s| s.name_fn::<Twist, _>(ctx, sym.as_ref(), &init))
+            .transpose()?;
 
         let qtm = qtm.unwrap_or(1);
         if qtm < 1 {
@@ -408,75 +497,88 @@ impl RhaiTwistSystemBuilder {
             return Err("twist gizmo is only supported in 3D and 4D".into());
         }
 
-        let get_name = |axis: Axis, i: i32| {
-            if let Some(name_fn) = &name_fn {
-                name_fn.call_within_context(ctx, [i])
-            } else if do_naming {
-                if i == 0 {
-                    return Err("bad twist multiplier".into());
-                }
-                let mut ret = get_prefix(axis).unwrap_or_default();
-                ret += if i > 0 { &name } else { &inv_name };
-                if i.abs() >= 2 {
-                    ret += &i.abs().to_string();
-                }
-                ret += if i > 0 { &suffix } else { &inv_suffix };
+        let get_name = |motor: &pga::Motor, obj: &AxisAndTransform, i: i64| {
+            if do_naming {
+                let args = vec![Dynamic::from(motor.clone()), Dynamic::from(i)];
+
+                // `prefix` defaults to axis name.
+                let prefix = match &prefix_fn {
+                    Some(f) => f.call_with_args(ctx, obj, args.clone())?,
+                    None => {
+                        let db = self.lock()?;
+                        // IIFE to mimic try_block
+                        (|| {
+                            let axis_id = db.axes.vector_to_id(&obj.ax_vec)?;
+                            let axis_name = db.axes.names.get(axis_id)?;
+                            Some(axis_name.spec.clone())
+                        })()
+                    }
+                };
+
+                // `name` defaults to empty.
+                let name = match &name_fn {
+                    Some(f) => f.call_with_args(ctx, obj, args.clone())?,
+                    None => None,
+                };
+
+                // `suffix` defaults to number + `'`.
+                let suffix = match &suffix_fn {
+                    Some(f) => f.call_with_args(ctx, obj, args)?,
+                    None => {
+                        let inverse = if i < 0 { "'" } else { "" };
+                        if i.abs() > 1 {
+                            Some(format!("{}{inverse}", i.abs().to_string()))
+                        } else {
+                            Some(inverse.to_string())
+                        }
+                    }
+                };
+
+                let ret = prefix.unwrap_or_default()
+                    + name.unwrap_or_default().as_str()
+                    + suffix.unwrap_or_default().as_str();
+
                 if ret.contains("|") {
                     void_warn(ctx)(format!(
                         "name {ret:?} formed by concatenation may be incorrect"
                     ));
                 }
-                Ok(ret)
+                Ok(Some(ret).filter(|s| !s.is_empty()))
             } else {
-                Ok(String::new())
+                Ok(None)
             }
         };
 
-        let init_axis_vector = twist_system
-            .axes
-            .get(init_axis.id)
-            .map_err(|e| e.to_string())?
-            .vector()
-            .clone();
-
         drop(twist_system); // Unlock mutex
 
-        let rhai_state = RhaiState::get(ctx);
-        let rhai_state_guard = rhai_state.lock();
-        if let Some(symmetry) = &rhai_state_guard.symmetry {
+        if let Some(symmetry) = sym {
             let mut first_twist = None;
 
-            let init = AxisAndTransform {
-                ax_vec: init_axis_vector,
-                transform: init_transform,
-            };
-
             // Add the twists.
-            for (_gen_seq, _motor, AxisAndTransform { ax_vec, transform }) in symmetry.orbit(init) {
+            for (_gen_seq, motor, obj) in symmetry.orbit(init) {
                 let twist = self.add_twist(
                     ctx,
-                    &ax_vec,
-                    transform,
+                    &obj,
                     qtm,
                     gizmo_pole_distance,
                     inverse,
                     multipliers,
-                    get_name,
+                    |i| get_name(&motor, &obj, i),
                 )?;
                 first_twist.get_or_insert(twist);
             }
 
             Ok(Dynamic::from(first_twist.ok_or("no twists added")?))
         } else {
+            let ident = pga::Motor::ident(ndim);
             let twist = self.add_twist(
                 ctx,
-                &init_axis_vector,
-                init_transform,
+                &init,
                 qtm,
                 gizmo_pole_distance,
                 inverse,
                 multipliers,
-                get_name,
+                |i| get_name(&ident, &init, i),
             )?;
             Ok(Dynamic::from(twist.ok_or("no twists added")?))
         }
@@ -485,21 +587,23 @@ impl RhaiTwistSystemBuilder {
     fn add_twist(
         &self,
         ctx: &Ctx<'_>,
-        axis_vector: &Vector,
-        base_transform: pga::Motor,
+        axis_and_transform: &AxisAndTransform,
         qtm: usize,
         gizmo_pole_distance: Option<f32>,
         inverse: bool,
         multipliers: bool,
-        get_name: impl Fn(Axis, i32) -> Result<String>,
+        get_name: impl Fn(i64) -> Result<Option<String>>,
     ) -> Result<Option<RhaiTwist>> {
         let ndim = self.lock()?.axes.ndim;
+
+        let axis_vector = &axis_and_transform.ax_vec;
+        let base_transform = &axis_and_transform.transform;
 
         let Some(axis) = self.lock()?.axes.vector_to_id(axis_vector) else {
             return Ok(None);
         };
         let transform = base_transform.clone();
-        let name = get_name(axis, 1)?;
+        let name = get_name(1)?;
         let Some(first_twist_id) = self
             .lock()?
             .add_named(
@@ -520,7 +624,7 @@ impl RhaiTwistSystemBuilder {
         if inverse {
             let transform = base_transform.reverse();
             let is_equivalent_to_reverse = base_transform.is_self_reverse();
-            let name = get_name(axis, -1)?;
+            let name = get_name(-1)?;
             self.lock()?
                 .add_named(
                     TwistBuilder {
@@ -543,7 +647,7 @@ impl RhaiTwistSystemBuilder {
             }
 
             // Check whether we've exceeded the max repeat count.
-            if i > crate::MAX_TWIST_REPEAT as i32 {
+            if i > crate::MAX_TWIST_REPEAT as i64 {
                 return Err(format!(
                     "twist transform takes too long to repeat! exceeded maximum of {}",
                     crate::MAX_TWIST_REPEAT,
@@ -551,7 +655,7 @@ impl RhaiTwistSystemBuilder {
                 .into());
             }
 
-            let transform = &previous_transform * &base_transform;
+            let transform = &previous_transform * base_transform;
 
             // Check whether we've reached the inverse.
             if inverse {
@@ -565,7 +669,7 @@ impl RhaiTwistSystemBuilder {
             }
             previous_transform = transform.clone();
 
-            let name = get_name(axis, i)?;
+            let name = get_name(i)?;
             self.lock()?
                 .add_named(
                     TwistBuilder {
@@ -583,7 +687,7 @@ impl RhaiTwistSystemBuilder {
             if inverse {
                 let transform = previous_transform.reverse();
                 let is_equivalent_to_reverse = previous_transform.is_self_reverse();
-                let name = get_name(axis, -i)?;
+                let name = get_name(-i)?;
                 self.lock()?
                     .add_named(
                         TwistBuilder {
@@ -628,7 +732,7 @@ pub fn twist_system_spec_from_rhai_map(
         let mut builder = TwistSystemBuilder::new_shared(id.clone(), ndim);
         builder.name = name.clone();
 
-        let builder = RhaiTwistSystemBuilder::new(builder);
+        let builder = RhaiTwistSystem::new(builder);
 
         let mut this = Dynamic::from(builder.clone());
 
@@ -656,8 +760,8 @@ pub fn twist_system_spec_from_rhai_map(
 }
 
 #[derive(Debug, Clone)]
-pub struct RhaiTwistSystemBuilder(pub Arc<Mutex<Option<TwistSystemBuilder>>>);
-impl RhaiTwistSystemBuilder {
+pub struct RhaiTwistSystem(pub Arc<Mutex<Option<TwistSystemBuilder>>>);
+impl RhaiTwistSystem {
     pub fn new(twist_system_builder: TwistSystemBuilder) -> Self {
         Self(Arc::new(Mutex::new(Some(twist_system_builder))))
     }
@@ -667,23 +771,49 @@ impl RhaiTwistSystemBuilder {
         <Self as LockAs<TwistSystemBuilder>>::lock(self)
     }
 }
-impl LockAs<TwistSystemBuilder> for RhaiTwistSystemBuilder {
+impl LockAs<TwistSystemBuilder> for RhaiTwistSystem {
     fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
         MutexGuard::try_map(self.0.lock(), |contents| contents.as_mut())
             .map_err(|_| "no twist system".into())
     }
 }
-impl LockAs<AxisSystemBuilder> for RhaiTwistSystemBuilder {
+impl LockAs<AxisSystemBuilder> for RhaiTwistSystem {
     fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
         MutexGuard::try_map(self.0.lock(), |contents| Some(&mut contents.as_mut()?.axes))
             .map_err(|_| "no twist system".into())
     }
 }
+impl RhaiTwistSystem {
+    pub fn get(&self, twist_name: &str) -> Result<Option<RhaiTwist>> {
+        self.lock().map(|builder| {
+            builder
+                .names
+                .id_from_string(twist_name)
+                .map(|id| RhaiTwist {
+                    id,
+                    db: Arc::new(self.clone()),
+                })
+        })
+    }
+}
 
+/// Axis and transform representing a twist to be created.
+///
+/// The orientation of `transform` is preserved when reflected. For example, a
+/// 90-degree clockwise rotation in 2D will always be clockwise no matter how it
+/// is transformed.
 #[derive(Debug, Clone)]
 struct AxisAndTransform {
     ax_vec: Vector,
     transform: pga::Motor,
+}
+impl AxisAndTransform {
+    pub fn new(ax_vec: Vector, transform: pga::Motor) -> Result<Self> {
+        let transform = transform
+            .canonicalize_up_to_180()
+            .ok_or("bad twist transform")?;
+        Ok(Self { ax_vec, transform })
+    }
 }
 impl TransformByMotor for AxisAndTransform {
     fn transform_by(&self, m: &pga::Motor) -> Self {

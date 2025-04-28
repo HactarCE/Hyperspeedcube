@@ -4,6 +4,7 @@ use super::*;
 
 pub mod elements;
 pub mod hyperplane;
+pub mod name_strategy;
 pub mod point;
 pub mod symmetry;
 pub mod transform;

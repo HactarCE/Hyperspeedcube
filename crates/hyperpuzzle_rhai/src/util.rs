@@ -8,17 +8,17 @@ use crate::loader::RhaiEvalRequestTx;
 use crate::{Ctx, Result, RhaiCtx};
 
 /// Emits a warning.
-pub fn warn(ctx: &Ctx<'_>, msg: impl fmt::Display) -> Result {
-    ctx.call_native_fn("print", (format!("{msg:#}"),))
+pub fn warn(mut ctx: impl RhaiCtx, msg: impl fmt::Display) -> Result {
+    ctx.call_rhai_native_fn("print", vec![format!("{msg:#}").into()])
 }
 /// Returns a function that emits a warning and returns a [`Result`].
 pub fn warnf<'a, T: fmt::Display>(ctx: &'a Ctx<'_>) -> impl 'a + Copy + Fn(T) -> Result {
-    |msg| warn(ctx, msg)
+    |msg| warn(&mut &*ctx, msg)
 }
 /// Returns a function that emits a warning and returns nothing.
 pub fn void_warn<'a, T: fmt::Display>(ctx: &'a Ctx<'_>) -> impl 'a + Copy + Fn(T) {
     |msg| {
-        let _ = warn(ctx, msg);
+        let _ = warn(&mut &*ctx, msg);
     }
 }
 

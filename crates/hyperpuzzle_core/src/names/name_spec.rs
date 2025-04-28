@@ -106,6 +106,17 @@ impl NameSpec {
             canonical,
         })
     }
+
+    /// Returns a key to use for sorting name specs canonically.
+    ///
+    /// TODO: review uses of this and consider canonicalizing the namespec in
+    ///       all cases
+    pub fn sort_key(spec: String) -> impl Ord {
+        match Self::new(spec) {
+            Ok(name) => (None, Some(name.canonical)),
+            Err(error) => (Some(error), None),
+        }
+    }
 }
 
 /// Map from name spec to value.

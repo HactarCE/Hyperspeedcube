@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hyperpuzzle_impl_nd_euclid::builder::*;
 use parking_lot::MappedMutexGuard;
 
-use super::twist_system::RhaiTwistSystemBuilder;
+use super::twist_system::RhaiTwistSystem;
 use super::*;
 use crate::package::types::elements::{LockAs, RhaiAxis};
 
@@ -25,11 +25,21 @@ pub fn register(module: &mut Module) {
 }
 
 #[derive(Debug, Clone)]
-pub struct RhaiAxisSystem(pub RhaiTwistSystemBuilder);
+pub struct RhaiAxisSystem(pub RhaiTwistSystem);
 impl LockAs<AxisSystemBuilder> for RhaiAxisSystem {
     fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
         Ok(MappedMutexGuard::map(self.0.lock()?, |twists| {
             &mut twists.axes
         }))
+    }
+}
+impl RhaiAxisSystem {
+    pub fn get(&self, axis_name: &str) -> Result<Option<RhaiAxis>> {
+        self.lock().map(|builder| {
+            builder.names.id_from_string(axis_name).map(|id| RhaiAxis {
+                id,
+                db: Arc::new(self.clone()),
+            })
+        })
     }
 }

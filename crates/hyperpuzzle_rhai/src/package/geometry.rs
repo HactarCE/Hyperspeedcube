@@ -45,4 +45,20 @@ pub fn register(module: &mut Module) {
     new_fn("transform").set_into_module(module, |m: &mut Motor, p: Point| m.transform(&p));
     new_fn("transform").set_into_module(module, |m: &mut Motor, h: Hyperplane| m.transform(&h));
     new_fn("transform").set_into_module(module, |m1: &mut Motor, m2: Motor| m1.transform(&m2));
+
+    new_fn("transform").set_into_module(module, |m: &mut Motor, ax: RhaiAxis| -> Result<Dynamic> {
+        let db = ax.lock_db()?;
+        let axis_vector = db.get(ax.id).map_err(|e| e.to_string())?.vector();
+        match db.vector_to_id(m.transform(axis_vector)) {
+            Some(id) => Ok(Dynamic::from(RhaiAxis {
+                id,
+                db: ax.db.clone(),
+            })),
+            None => Ok(Dynamic::UNIT),
+        }
+    });
+    new_fn("transform")
+        .set_into_module(module, |m: &mut Motor, tw: RhaiTwist| -> Result<Dynamic> {
+            Err("todo".into())
+        });
 }

@@ -39,7 +39,7 @@ pub fn titlecase(s: &str) -> String {
 pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     key_value_dependencies: impl IntoIterator<Item = (K, (V, Option<K>))>,
     compose: fn(V, &V) -> V,
-    warn_fn: impl Fn(String),
+    warn_fn: impl FnOnce(String),
 ) -> HashMap<K, V> {
     // Some values are given directly.
     let mut known = Vec::<(K, V)>::new();
