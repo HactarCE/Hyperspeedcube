@@ -31,29 +31,30 @@ pub fn register(module: &mut Module) {
         Motor::plane_reflection(ndim, &hyperplane)
     });
 
-    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>| -> Result<_> {
+    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>| -> Result<Motor> {
         let ndim = RhaiState::get_ndim(&ctx)?;
-        Ok(Motor::point_reflection(ndim, &Point::ORIGIN))
+        Ok(Motor::point_reflection(ndim, &Point::ORIGIN)
+            .ok_or("error constructing central inversion")?)
     });
-    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, vector: Vector| -> Result<_> {
+    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, vector: Vector| -> Result<Motor> {
         let _ndim = RhaiState::get_ndim(&ctx)?;
-        Ok(Motor::vector_reflection(vector))
+        Ok(Motor::vector_reflection(vector).ok_or("invalid vector")?)
     });
-    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, point: Point| -> Result<_> {
+    new_fn("refl").set_into_module(module, |ctx: Ctx<'_>, point: Point| -> Result<Motor> {
         let ndim = RhaiState::get_ndim(&ctx)?;
-        Ok(Motor::point_reflection(ndim, &point))
+        Ok(Motor::point_reflection(ndim, &point).ok_or("invalid point")?)
     });
     new_fn("refl").set_into_module(
         module,
-        |ctx: Ctx<'_>, hyperplane: Hyperplane| -> Result<_> {
+        |ctx: Ctx<'_>, hyperplane: Hyperplane| -> Result<Motor> {
             let ndim = RhaiState::get_ndim(&ctx)?;
-            Ok(Motor::plane_reflection(ndim, &hyperplane))
+            Ok(Motor::plane_reflection(ndim, &hyperplane).ok_or("invalid hyperplane")?)
         },
     );
 
     new_fn("is_refl").set_into_module(module, |m: &mut Motor| m.is_reflection());
 
-    new_fn("rot").set_into_module(module, |ctx: Ctx<'_>, args: Map| -> Result<_> {
+    new_fn("rot").set_into_module(module, |ctx: Ctx<'_>, args: Map| -> Result<Motor> {
         let ndim = RhaiState::get_ndim(&ctx)?;
 
         let_from_map!(&ctx, args, {
@@ -70,9 +71,9 @@ pub fn register(module: &mut Module) {
         construct_rotation(ndim, fix, from, to, angle)
     });
 
-    new_fn("rev").set_into_module(module, |m: &mut Motor| m.reverse());
+    new_fn("rev").set_into_module(module, |m: &mut Motor| -> Motor { m.reverse() });
 
-    new_fn("*").set_into_module(module, |m1: Motor, m2: Motor| m1 * m2);
+    new_fn("*").set_into_module(module, |m1: Motor, m2: Motor| -> Motor { m1 * m2 });
 }
 
 fn construct_rotation(
