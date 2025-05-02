@@ -705,7 +705,7 @@ impl TransformByMotor for Hyperplane {
         // Transforming a blade reflects its orientation (a clockwise arrow on
         // the hyperplane will now point counterclockwise) but we want to
         // preserve its inside/outside. This case handles that correctly.
-        if m.is_reflection() && m.ndim % 2 == 1 {
+        if m.is_reflection() && ndim % 2 == 1 {
             ret.flip()
         } else {
             ret
@@ -868,6 +868,20 @@ mod tests {
                     assert_eq!(antiantiproduct, product);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn test_reflect_hyperplane() {
+        let refl = Motor::vector_reflection(vector![1.0]).unwrap();
+        for ax in 0..7 {
+            let init = Hyperplane::from_pole(Vector::unit(ax)).unwrap();
+            let expected = if ax == 0 {
+                Hyperplane::from_pole(vector![-1.0]).unwrap()
+            } else {
+                init.clone()
+            };
+            assert_approx_eq!(expected, refl.transform(&init));
         }
     }
 }
