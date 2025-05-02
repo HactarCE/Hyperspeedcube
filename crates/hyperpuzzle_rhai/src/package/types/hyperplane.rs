@@ -14,16 +14,24 @@ pub fn register(module: &mut Module) {
     });
     new_fn("to_debug").set_into_module(module, |h: &mut Hyperplane| format!("{h:?}"));
 
-    new_fn("plane").set_into_module(module, |pole: Vector| Hyperplane::from_pole(pole));
-    new_fn("plane").set_into_module(module, |pole: Point| {
-        Hyperplane::from_pole(pole.as_vector())
+    new_fn("plane").set_into_module(module, |pole: Vector| -> Result<Hyperplane> {
+        Ok(Hyperplane::from_pole(pole).ok_or("bad hyperplane pole")?)
     });
-    new_fn("plane").set_into_module(module, |normal: Vector, distance: f64| {
-        Hyperplane::new(normal, distance)
+    new_fn("plane").set_into_module(module, |pole: Point| -> Result<Hyperplane> {
+        Ok(Hyperplane::from_pole(pole.as_vector()).ok_or("bad hyperplane pole")?)
     });
-    new_fn("plane").set_into_module(module, |normal: Vector, point: Point| {
-        Hyperplane::through_point(normal, point.0)
-    });
+    new_fn("plane").set_into_module(
+        module,
+        |normal: Vector, distance: f64| -> Result<Hyperplane> {
+            Ok(Hyperplane::new(normal, distance).ok_or("bad hyperplane normal")?)
+        },
+    );
+    new_fn("plane").set_into_module(
+        module,
+        |normal: Vector, point: Point| -> Result<Hyperplane> {
+            Ok(Hyperplane::through_point(normal, point.0).ok_or("bad hyperplane normal")?)
+        },
+    );
 
     new_fn("==").set_into_module(module, |h1: Hyperplane, h2: Hyperplane| {
         hypermath::approx_eq(&h1, &h2)

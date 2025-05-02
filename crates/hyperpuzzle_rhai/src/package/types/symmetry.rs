@@ -82,7 +82,7 @@ pub fn register(module: &mut Module) {
 
     // Getters
     FuncRegistration::new_getter("ndim")
-        .set_into_module(module, |s: &mut RhaiSymmetry| -> i64 { s.ndim() as i64 });
+        .set_into_module(module, |s: &mut RhaiSymmetry| -> i64 { s.ndim().into() });
     FuncRegistration::new_getter("mirror_vectors").set_into_module(
         module,
         |s: &mut RhaiSymmetry| -> Result<Array> {
@@ -144,7 +144,7 @@ pub fn register(module: &mut Module) {
 
     new_fn("thru").set_into_module(
         module,
-        |s: &mut RhaiSymmetry, index: rhai::INT| -> Result<Motor> {
+        |s: &mut RhaiSymmetry, index: i64| -> Result<Motor> {
             let generator_id = u8::try_from(index).map_err(|e| e.to_string())?;
             s.motor_for_gen_seq(&GenSeq::new([GeneratorId(generator_id)]))
         },

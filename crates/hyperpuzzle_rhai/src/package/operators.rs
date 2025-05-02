@@ -1,13 +1,51 @@
 //! Overrides for numeric operators that use approximate equality and implicitly
 //! convert integers to floats for division.
 
-use hypermath::{approx_eq, approx_gt, approx_gt_eq, approx_lt, approx_lt_eq, num::Float};
+use hypermath::{approx_eq, approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
 
 use super::*;
 
 pub fn register(module: &mut Module) {
     // i64 / i64 -> f64
     new_fn("/").set_into_module(module, |a: i64, b: i64| a as f64 / b as f64);
+
+    // Flooring f64 -> i64
+    new_fn("floor").set_into_module(module, |x: f64| -> Result<i64> {
+        let x = x.floor();
+        if x.is_nan() {
+            Err(format!("error: to_int(NaN)").into())
+        } else if x > i64::MAX as f64 || x < i64::MAX as f64 {
+            Err(format!("integer overflow: to_int({x})").into())
+        } else {
+            Ok(x as i64)
+        }
+    });
+    new_fn("ceiling").set_into_module(module, |x: f64| -> Result<i64> {
+        let x = x.ceil();
+        if x.is_nan() {
+            Err(format!("error: to_int(NaN)").into())
+        } else if x > i64::MAX as f64 || x < i64::MAX as f64 {
+            Err(format!("integer overflow: to_int({x})").into())
+        } else {
+            Ok(x as i64)
+        }
+    });
+    new_fn("round").set_into_module(module, |x: f64| -> Result<i64> {
+        let x = x.round();
+        if x.is_nan() {
+            Err(format!("error: to_int(NaN)").into())
+        } else if x > i64::MAX as f64 || x < i64::MAX as f64 {
+            Err(format!("integer overflow: to_int({x})").into())
+        } else {
+            Ok(x as i64)
+        }
+    });
+
+    // Euclidean `%`
+    new_fn("%").set_into_module(module, |a: f64, b: f64| a.rem_euclid(b));
+    new_fn("%").set_into_module(module, |a: i64, b: f64| (a as f64).rem_euclid(b));
+    new_fn("%").set_into_module(module, |a: f64, b: i64| a.rem_euclid(b as f64));
+    new_fn("%").set_into_module(module, |a: i64, b: i64| a.rem_euclid(b));
 
     // number == number
     new_fn("==").set_into_module(module, |a: f64, b: f64| approx_eq(&a, &b));

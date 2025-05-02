@@ -32,6 +32,7 @@ impl HyperpuzzlePackage {
         operators::register(&mut module);
         types::register(&mut module);
 
+        module.set_var("INF", f64::INFINITY);
         module.set_var("PI", std::f64::consts::PI);
         module.set_var("TAU", std::f64::consts::TAU);
         module.set_var("PHI", (1.0 + f64::sqrt(5.0)) * 0.5);
@@ -39,6 +40,11 @@ impl HyperpuzzlePackage {
             deg as f64 * std::f64::consts::PI / 180.0
         });
         new_fn("deg").set_into_module(&mut module, |deg: f64| deg * std::f64::consts::PI / 180.0);
+
+        new_fn("to_char").set_into_module(&mut module, |int: i64| -> Result<char> {
+            let i = int.try_into().ok();
+            Ok(i.and_then(char::from_u32).ok_or("bad codepoint")?)
+        });
 
         module.build_index();
         Self(Shared::new(module))
