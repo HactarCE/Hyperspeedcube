@@ -5,13 +5,13 @@ use std::sync::Arc;
 use hyperpuzzle_impl_nd_euclid::builder::*;
 
 use super::*;
-use crate::util::warnf;
+use crate::util::{warn_on_error, warnf};
 
 pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalRequestTx) {
     let cat = catalog.clone();
     new_fn("add_color_system").set_into_module(module, move |ctx: Ctx<'_>, map: Map| -> Result {
         let builder = color_system_from_rhai_map(&ctx, map)?;
-        let color_system = builder.build(None, None, void_warn(&ctx)).eyrefmt()?;
+        let color_system = builder.build(None, None, warnf(&ctx)).eyrefmt()?;
         cat.add_color_system(Arc::new(color_system)).eyrefmt()
     });
 
@@ -27,9 +27,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 gen_map,
                 |ctx, build_ctx, map| {
                     let builder = color_system_from_rhai_map(ctx, map)?;
-                    builder
-                        .build(Some(&build_ctx), None, void_warn(ctx))
-                        .eyrefmt()
+                    builder.build(Some(&build_ctx), None, warnf(ctx)).eyrefmt()
                 },
             )?;
             cat.add_color_system_generator(Arc::new(generator))
@@ -89,7 +87,7 @@ fn add_colors_from_array(
         warn_init |= init.is_some() && has_schemes;
 
         let id = colors.add().eyrefmt()?;
-        colors.names.set(id, name).or_else(warnf(ctx))?;
+        colors.names.set(id, name).or_else(warn_on_error(ctx))?;
         colors.display_names.extend_to_contain(id);
         colors.display_names[id] = display;
         if let Some(s) = init {
@@ -98,7 +96,7 @@ fn add_colors_from_array(
     }
 
     if warn_init {
-        warn(ctx, "per-color 'init' cannot be used with color schemes")?;
+        warn(ctx, "per-color 'init' cannot be used with color schemes");
     }
 
     Ok(())

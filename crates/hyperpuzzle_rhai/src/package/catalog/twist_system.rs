@@ -121,7 +121,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
             }
             let twist_system_guard = twist_system.lock()?;
             if twist_system_guard.directions.contains_key(&name) {
-                warn(&ctx, format!("duplicate twist direction name {name:?}"))?;
+                warn(&ctx, format!("duplicate twist direction name {name:?}"));
                 return Ok(());
             }
             let axis_count = twist_system_guard.axes.len();
@@ -362,7 +362,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                             ))
                         }
                     }
-                    None => warn(&ctx, format!("no axis named {k:?}"))?,
+                    None => warn(&ctx, format!("no axis named {k:?}")),
                 }
             }
 
@@ -492,7 +492,7 @@ impl RhaiTwistSystem {
 
         let qtm = qtm.unwrap_or(1);
         if qtm < 1 {
-            warn(ctx, "twist has QTM value less than 1")?;
+            warn(ctx, "twist has QTM value less than 1");
         }
 
         if gizmo_pole_distance.is_some() && ndim != 3 && ndim != 4 {
@@ -541,9 +541,10 @@ impl RhaiTwistSystem {
                     + suffix.unwrap_or_default().as_str();
 
                 if ret.contains("|") {
-                    void_warn(ctx)(format!(
-                        "name {ret:?} formed by concatenation may be incorrect"
-                    ));
+                    warn(
+                        ctx,
+                        format!("name {ret:?} formed by concatenation may be incorrect"),
+                    );
                 }
                 Ok(Some(ret).filter(|s| !s.is_empty()))
             } else {
@@ -617,7 +618,7 @@ impl RhaiTwistSystem {
                     include_in_scrambles: true,
                 },
                 name,
-                void_warn(ctx),
+                warnf(ctx),
             )
             .eyrefmt()?
         else {
@@ -637,7 +638,7 @@ impl RhaiTwistSystem {
                         include_in_scrambles: !is_equivalent_to_reverse,
                     },
                     name,
-                    void_warn(ctx),
+                    warnf(ctx),
                 )
                 .eyrefmt()?;
         }
@@ -682,7 +683,7 @@ impl RhaiTwistSystem {
                         include_in_scrambles: true,
                     },
                     name,
-                    void_warn(ctx),
+                    warnf(ctx),
                 )
                 .eyrefmt()?;
 
@@ -700,7 +701,7 @@ impl RhaiTwistSystem {
                             include_in_scrambles: !is_equivalent_to_reverse,
                         },
                         name,
-                        void_warn(ctx),
+                        warnf(ctx),
                     )
                     .eyrefmt()?;
             }
@@ -753,7 +754,7 @@ pub fn twist_system_spec_from_rhai_map(
 
             builder
                 .lock()?
-                .build(Some(&build_ctx), None, void_warn(&ctx))
+                .build(Some(&build_ctx), None, warnf(&ctx))
                 .map(|ok| Redirectable::Direct(Arc::new(ok)))
         },
     );

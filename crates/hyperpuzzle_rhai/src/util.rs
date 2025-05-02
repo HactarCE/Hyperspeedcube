@@ -5,20 +5,30 @@ use eyre::eyre;
 use rhai::{Dynamic, Engine, FnPtr, FuncRegistration, Position};
 
 use crate::loader::RhaiEvalRequestTx;
-use crate::{Ctx, Result, RhaiCtx};
+use crate::{Ctx, RhaiCtx};
 
 /// Emits a warning.
-pub fn warn(mut ctx: impl RhaiCtx, msg: impl fmt::Display) -> Result {
-    ctx.call_rhai_native_fn("print", vec![format!("{msg:#}").into()])
+pub fn warn(mut ctx: impl RhaiCtx, msg: impl fmt::Display) {
+    let args = vec![format!("{msg:#}").into()];
+    match ctx.call_rhai_native_fn::<()>("print", args) {
+        Ok(()) => (),
+        Err(e) => {
+            log::error!("error calling Rhai warning function: {e}");
+            log::warn!("{e}");
+        }
+    }
 }
-/// Returns a function that emits a warning and returns a [`Result`].
-pub fn warnf<'a, T: fmt::Display>(ctx: &'a Ctx<'_>) -> impl 'a + Copy + Fn(T) -> Result {
+/// Returns a function that emits a warning.
+pub fn warnf<'a, T: fmt::Display>(ctx: &'a Ctx<'_>) -> impl 'a + Copy + Fn(T) {
     |msg| warn(&mut &*ctx, msg)
 }
-/// Returns a function that emits a warning and returns nothing.
-pub fn void_warn<'a, T: fmt::Display>(ctx: &'a Ctx<'_>) -> impl 'a + Copy + Fn(T) {
-    |msg| {
-        let _ = warn(&mut &*ctx, msg);
+
+pub fn warn_on_error<'a, E: std::error::Error>(
+    ctx: &'a Ctx<'_>,
+) -> impl 'a + Copy + Fn(E) -> crate::Result<()> {
+    move |e| {
+        warn(ctx, e);
+        Ok(())
     }
 }
 

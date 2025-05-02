@@ -175,7 +175,7 @@ pub fn puzzle_spec_from_rhai_map(
     let name = match name {
         Some(s) => s,
         None => {
-            warn(ctx, format!("missing `name` for puzzle `{id}`"))?;
+            warn(ctx, format!("missing `name` for puzzle `{id}`"));
             id.clone()
         }
     };
@@ -242,7 +242,7 @@ pub fn puzzle_spec_from_rhai_map(
 
             builder
                 .lock()?
-                .build(Some(&build_ctx), void_warn(&ctx))
+                .build(Some(&build_ctx), warnf(&ctx))
                 .map(|ok| Redirectable::Direct(ok))
         },
     );

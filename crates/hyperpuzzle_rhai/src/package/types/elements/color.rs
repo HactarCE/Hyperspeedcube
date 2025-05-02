@@ -1,3 +1,5 @@
+use crate::util::warn_on_error;
+
 use super::*;
 
 pub fn register(module: &mut Module) {
@@ -8,7 +10,7 @@ pub fn register(module: &mut Module) {
                 .lock_db()?
                 .names
                 .set(color.id, name_spec)
-                .or_else(warnf(&ctx))
+                .or_else(warn_on_error(&ctx))
         },
     );
 

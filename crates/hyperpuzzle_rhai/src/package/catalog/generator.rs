@@ -26,7 +26,7 @@ pub(super) fn generator_from_rhai_map<T: 'static + Send + Sync>(
         Some(name) => name,
         None => {
             let warn_msg = format!("missing `name` for color system generator `{id}`");
-            warn(ctx, warn_msg)?;
+            warn(ctx, warn_msg);
             id.clone()
         }
     };

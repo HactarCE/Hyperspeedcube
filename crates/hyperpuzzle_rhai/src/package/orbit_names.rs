@@ -46,7 +46,7 @@ pub fn names_from_map<I: IndexNewtype>(ctx: &Ctx<'_>, map: Map) -> Result<Vec<(G
             seq1.0.extend_from_slice(&seq2.0);
             seq1
         },
-        void_warn(ctx),
+        warnf(ctx),
     )
     .into_iter()
     .filter_map(|(k, v)| Some((v, names.get(k)?.clone())))
