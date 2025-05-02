@@ -179,18 +179,18 @@ impl AxisLayersInfo {
 /// Layer info.
 #[derive(Debug, PartialEq)]
 pub struct LayerInfo {
-    /// Position along the axis vector from the origin that bounds the bottom of
-    /// the layer. **This may be infinite.**
-    pub bottom: Float,
     /// Position along the axis vector from the origin that bounds the top of
     /// the layer. **This may be infinite.**
     pub top: Float,
+    /// Position along the axis vector from the origin that bounds the bottom of
+    /// the layer. **This may be infinite.**
+    pub bottom: Float,
 }
 impl TransformByMotor for LayerInfo {
     fn transform_by(&self, _m: &Motor) -> Self {
         Self {
-            bottom: self.bottom,
             top: self.top,
+            bottom: self.bottom,
         }
     }
 }

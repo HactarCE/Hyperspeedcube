@@ -3,7 +3,7 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 
-/// Layers of a twist axis.
+/// Layers of a twist axis, in order from top to bottom.
 #[derive(Debug, Clone, Default)]
 pub struct AxisLayersBuilder(pub PerLayer<AxisLayerBuilder>);
 impl AxisLayersBuilder {
@@ -11,7 +11,7 @@ impl AxisLayersBuilder {
     pub fn ensure_monotonic(&self) -> Result<()> {
         let mut last_depth = Float::INFINITY;
         for layer_info in self.0.iter_values() {
-            let AxisLayerBuilder { bottom, top } = layer_info;
+            let AxisLayerBuilder { top, bottom } = layer_info;
             if !(approx_gt_eq(&last_depth, top) && approx_gt(top, bottom)) {
                 let depths = self
                     .0
@@ -31,7 +31,7 @@ impl AxisLayersBuilder {
         self.ensure_monotonic()?;
 
         Ok(AxisLayersInfo(self.0.map_ref(
-            |_, &AxisLayerBuilder { bottom, top }| LayerInfo { bottom, top },
+            |_, &AxisLayerBuilder { top, bottom }| LayerInfo { top, bottom },
         )))
     }
 }
@@ -39,10 +39,10 @@ impl AxisLayersBuilder {
 /// Layer of a twist axis.
 #[derive(Debug, Clone)]
 pub struct AxisLayerBuilder {
-    /// Position along the axis vector from the origin that bounds the bottom of
-    /// the layer. **This may be infinite.**
-    pub bottom: Float,
     /// Position along the axis vector from the origin that bounds the top of
     /// the layer. **This may be infinite.**
     pub top: Float,
+    /// Position along the axis vector from the origin that bounds the bottom of
+    /// the layer. **This may be infinite.**
+    pub bottom: Float,
 }

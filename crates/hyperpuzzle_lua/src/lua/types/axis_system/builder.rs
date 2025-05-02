@@ -132,7 +132,7 @@ impl LuaAxisSystem {
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;
             for (&top, &bottom) in depths.iter().tuple_windows() {
-                let layer = AxisLayerBuilder { bottom, top };
+                let layer = AxisLayerBuilder { top, bottom };
                 axis.layers.push(layer).into_lua_err()?;
             }
             if slice {
