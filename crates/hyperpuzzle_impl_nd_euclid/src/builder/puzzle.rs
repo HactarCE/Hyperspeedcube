@@ -21,7 +21,7 @@ pub struct PuzzleBuilder {
     pub this: Weak<Mutex<Self>>,
 
     /// Puzzle metadata.
-    pub meta: PuzzleListMetadata,
+    pub meta: Arc<PuzzleListMetadata>,
 
     /// Shape of the puzzle.
     pub shape: ShapeBuilder,
@@ -40,7 +40,7 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(meta: PuzzleListMetadata, ndim: u8) -> Result<Arc<Mutex<Self>>> {
+    pub fn new(meta: Arc<PuzzleListMetadata>, ndim: u8) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Space::new(ndim))?;
         let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
         Ok(Arc::new_cyclic(|this| {
@@ -196,7 +196,7 @@ impl PuzzleBuilder {
         let axis_layers = axis_layers.try_map_ref(|_, layers| layers.build())?;
 
         // Assign opposite axes.
-        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new();
+        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new_with_len(twists.axes.len());
         for axis in Axis::iter(twists.axes.len()) {
             if axis_opposites[axis].is_some() {
                 continue; // already visited it

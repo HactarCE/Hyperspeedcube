@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use hypermath::pga::{Blade, Motor};
 use hypermath::{Point, Vector};
+use hyperpuzzle_core::Version;
 use hypershape::{GenSeq, GeneratorId};
 use rhai::{Dynamic, FnPtr};
 use smallvec::SmallVec;
@@ -167,6 +168,38 @@ impl_from_rhai!(GeneratorId, "generator index", |ctx, value| {
 });
 impl_from_rhai!(GenSeq, "array of generator index", |ctx, value| {
     from_rhai(ctx, value).map(GenSeq)
+});
+impl_from_rhai!(Version, "version string", |mut ctx, value| {
+    let version_string = from_rhai::<String>(&mut ctx, value)?;
+
+    fn parse_component(s: &str) -> Result<u32, String> {
+        s.parse()
+            .map_err(|e| format!("invalid major version because {e}"))
+    }
+
+    // IIFE to mimic try_block
+    let result = (|| {
+        let mut segments = version_string.split('.');
+        let version = Version {
+            major: parse_component(segments.next().ok_or("missing major version")?)?,
+            minor: parse_component(segments.next().unwrap_or("0"))?,
+            patch: parse_component(segments.next().unwrap_or("0"))?,
+        };
+        if segments.next().is_some() {
+            return Err(
+                "too many segments; only the form `major.minor.patch` is accepted".to_owned(),
+            );
+        }
+        Ok(version)
+    })();
+
+    match result {
+        Ok(version) => Ok(version),
+        Err(e) => {
+            crate::util::warn(ctx, format!("error parsing version string: {e}"));
+            Ok(Version::default())
+        }
+    }
 });
 impl_from_rhai!(FnPtr, "function");
 

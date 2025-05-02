@@ -140,10 +140,12 @@ impl<I: PartialEq, DB> PartialEq for RhaiPuzzleElement<I, DB> {
 impl<I: Eq, DB> Eq for RhaiPuzzleElement<I, DB> {}
 impl<I, DB> RhaiPuzzleElement<I, DB> {
     pub fn lock_db(&self) -> Result<MappedMutexGuard<'_, DB>> {
+        // TODO: infallible
         self.db.lock()
     }
 }
 
 pub trait LockAs<T>: Send + Sync {
+    // TODO: infallible
     fn lock(&self) -> Result<MappedMutexGuard<'_, T>>;
 }

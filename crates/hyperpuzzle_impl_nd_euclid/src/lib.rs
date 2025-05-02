@@ -71,13 +71,13 @@ lazy_static! {
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            meta: PuzzleListMetadata {
+            meta: Arc::new(PuzzleListMetadata {
                 id: "~placeholder".to_string(),
                 version: Version::PLACEHOLDER,
                 name: "🤔".to_string(),
                 aliases: vec![],
                 tags: TagSet::new(),
-            },
+            }),
             view_prefs_set: None,
             pieces: PerPiece::new(),
             stickers: PerSticker::new(),

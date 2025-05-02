@@ -17,7 +17,7 @@ pub struct Puzzle {
     pub this: Weak<Puzzle>,
 
     /// Metadata for the puzzle.
-    pub meta: PuzzleListMetadata,
+    pub meta: Arc<PuzzleListMetadata>,
 
     /// Set of view preferences to use for the puzzle.
     pub view_prefs_set: Option<PuzzleViewPreferencesSet>,

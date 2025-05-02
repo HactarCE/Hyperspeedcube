@@ -131,6 +131,10 @@ axes "Axis system" expected=1 {
   multicore "Multi-core" expected=1
 }
 
+twists "Twists" {
+  (str)system "Twist system" auto=#true expected=1 list=#true
+}
+
 turns_by "Turning element" expected=1 {
   facet "Facet-turning"
   ridge "Ridge-turning"

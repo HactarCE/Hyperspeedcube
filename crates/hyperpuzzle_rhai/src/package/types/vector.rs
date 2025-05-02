@@ -56,6 +56,14 @@ pub fn register(module: &mut Module) {
         Ok(try_collect_to_vector(&ctx, &[x, y, z, w, v, u, t])?)
     });
 
+    FuncRegistration::new_getter("unit").set_into_module(
+        module,
+        |v: &mut Vector| -> Result<Vector> {
+            Ok(v.normalize()
+                .ok_or("unit() cannot be used on zero vector")?)
+        },
+    );
+
     // Indexing
     FuncRegistration::new_index_getter().set_into_module(module, |v: &mut Vector, i: i64| {
         v.get(i.try_into().unwrap_or(0))

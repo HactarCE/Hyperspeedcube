@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use eyre::eyre;
 use hypermath::{ApproxHashMapKey, IndexNewtype, TransformByMotor, Vector, pga};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask, TwistSystemSpec};
 use hyperpuzzle_impl_nd_euclid::builder::*;
@@ -12,6 +11,7 @@ use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use rhai::Array;
 
 use super::axis_system::RhaiAxisSystem;
+use super::puzzle::RhaiPuzzle;
 use super::*;
 use crate::package::types::elements::{LockAs, RhaiAxis, RhaiTwist};
 use crate::package::types::name_strategy::RhaiNameStrategy;
@@ -49,10 +49,12 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
         },
     );
 
-    FuncRegistration::new_getter("ndim")
-        .set_into_module(module, |twist_system: &mut RhaiTwistSystem| -> Result<u8> {
-            Ok(twist_system.lock()?.axes.ndim)
-        });
+    FuncRegistration::new_getter("ndim").set_into_module(
+        module,
+        |twist_system: &mut RhaiTwistSystem| -> Result<i64> {
+            Ok(twist_system.lock()?.axes.ndim.into())
+        },
+    );
 
     FuncRegistration::new_index_getter().set_into_module(
         module,
@@ -711,7 +713,7 @@ impl RhaiTwistSystem {
     }
 }
 
-/// Constructs a twist system from a Rhai specification.
+/// Constructs a twist system spec from a Rhai specification.
 pub fn twist_system_spec_from_rhai_map(
     ctx: &Ctx<'_>,
     eval_tx: RhaiEvalRequestTx,
@@ -728,62 +730,54 @@ pub fn twist_system_spec_from_rhai_map(
     let name_clone = name.clone();
     let build_clone = build.clone();
 
-    let build_fn = move |ctx: Ctx<'_>, build_ctx: BuildCtx| {
-        let mut builder = TwistSystemBuilder::new_shared(id.clone(), ndim);
-        builder.name = name.clone();
+    let create_twist_system_builder =
+        move |_build_ctx: &BuildCtx| -> eyre::Result<RhaiTwistSystem> {
+            let mut builder = TwistSystemBuilder::new_shared(id.clone(), ndim);
+            builder.name = name.clone();
 
-        let builder = RhaiTwistSystem::new(builder);
+            Ok(RhaiTwistSystem::new(builder))
+        };
 
-        let mut this = Dynamic::from(builder.clone());
+    let build_from_twist_system_builder = crate::util::rhai_eval_fn(
+        ctx,
+        eval_tx,
+        &build_clone,
+        move |ctx: Ctx<'_>, (build_ctx, builder): (BuildCtx, RhaiTwistSystem)| {
+            let mut this = Dynamic::from(builder.clone());
 
-        let () = RhaiState::with_ndim(&ctx, ndim, |ctx| {
-            Ok(from_rhai(ctx, build.call_raw(ctx, Some(&mut this), [])?)?)
-        })?;
-        builder.lock()?.is_modified = false; // this is not ad-hoc
+            let () = RhaiState::with_ndim(&ctx, ndim, |ctx| {
+                Ok(from_rhai(ctx, build.call_raw(ctx, Some(&mut this), [])?)?)
+            })?;
 
-        builder
-            .0
-            .lock()
-            .take()
-            .ok_or_else(|| eyre!("twist system builder is missing"))?
-            .build(Some(&build_ctx), None, void_warn(&ctx))
-            .map(|ok| Redirectable::Direct(Arc::new(ok)))
-    };
+            builder.lock()?.is_modified = false; // this is not ad-hoc
 
-    let build = crate::util::rhai_eval_fn(ctx, eval_tx, &build_clone, build_fn);
+            builder
+                .lock()?
+                .build(Some(&build_ctx), None, void_warn(&ctx))
+                .map(|ok| Redirectable::Direct(Arc::new(ok)))
+        },
+    );
 
     Ok(TwistSystemSpec {
         id: id_clone.clone(),
         name: name_clone.unwrap_or(id_clone),
-        build: Box::new(move |build_ctx| build(build_ctx).and_then(|r| r)),
+        build: Box::new(move |build_ctx| {
+            let builder = create_twist_system_builder(&build_ctx)?;
+            build_from_twist_system_builder((build_ctx, builder))?
+        }),
     })
 }
 
 #[derive(Debug, Clone)]
-pub struct RhaiTwistSystem(pub Arc<Mutex<Option<TwistSystemBuilder>>>);
+pub enum RhaiTwistSystem {
+    Puzzle(RhaiPuzzle),
+    Twists(Arc<Mutex<TwistSystemBuilder>>),
+}
 impl RhaiTwistSystem {
     pub fn new(twist_system_builder: TwistSystemBuilder) -> Self {
-        Self(Arc::new(Mutex::new(Some(twist_system_builder))))
+        Self::Twists(Arc::new(Mutex::new(twist_system_builder)))
     }
 
-    // TODO: THIS IS A REALLY NASTY HACK
-    pub fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
-        <Self as LockAs<TwistSystemBuilder>>::lock(self)
-    }
-}
-impl LockAs<TwistSystemBuilder> for RhaiTwistSystem {
-    fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
-        MutexGuard::try_map(self.0.lock(), |contents| contents.as_mut())
-            .map_err(|_| "no twist system".into())
-    }
-}
-impl LockAs<AxisSystemBuilder> for RhaiTwistSystem {
-    fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
-        MutexGuard::try_map(self.0.lock(), |contents| Some(&mut contents.as_mut()?.axes))
-            .map_err(|_| "no twist system".into())
-    }
-}
-impl RhaiTwistSystem {
     pub fn get(&self, twist_name: &str) -> Result<Option<RhaiTwist>> {
         self.lock().map(|builder| {
             builder
@@ -794,6 +788,33 @@ impl RhaiTwistSystem {
                     db: Arc::new(self.clone()),
                 })
         })
+    }
+
+    // TODO: THIS IS A REALLY NASTY HACK
+    pub fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
+        <Self as LockAs<TwistSystemBuilder>>::lock(self)
+    }
+}
+impl LockAs<TwistSystemBuilder> for RhaiTwistSystem {
+    fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
+        match self {
+            RhaiTwistSystem::Puzzle(puzzle) => LockAs::lock(puzzle),
+            RhaiTwistSystem::Twists(twists) => {
+                MutexGuard::try_map(twists.lock(), |contents| Some(contents))
+                    .map_err(|_| "no twist system".into())
+            }
+        }
+    }
+}
+impl LockAs<AxisSystemBuilder> for RhaiTwistSystem {
+    fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
+        match self {
+            RhaiTwistSystem::Puzzle(puzzle) => LockAs::lock(puzzle),
+            RhaiTwistSystem::Twists(twists) => {
+                MutexGuard::try_map(twists.lock(), |contents| Some(&mut contents.axes))
+                    .map_err(|_| "no twist system".into())
+            }
+        }
     }
 }
 
