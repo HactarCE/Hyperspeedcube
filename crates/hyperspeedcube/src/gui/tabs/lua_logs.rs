@@ -54,5 +54,5 @@ fn colored_log_line(ui: &mut egui::Ui, line: &LogLine) {
             Level::Info | Level::Debug | Level::Trace => text.color(egui::Color32::BLUE),
         },
     };
-    let label = egui::Label::new(text);
+    ui.label(text);
 }

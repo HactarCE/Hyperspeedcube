@@ -245,7 +245,6 @@ impl Catalog {
         let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
             let mut db_guard = self.db.lock();
             let subcatalog = db_guard.get_mut::<T>();
-            let mut file = None;
             // Get the object spec, which may be expensive.
             progress.lock().task = BuildTask::GeneratingSpec;
             let generator_output = match crate::parse_generated_id(id) {
@@ -253,7 +252,6 @@ impl Catalog {
                     None => Err(format!("no {} with ID {id:?}", T::NAME)),
                     Some(spec) => {
                         drop(db_guard);
-                        file = T::get_spec_filename(&spec);
                         Ok(Redirectable::Direct(spec))
                     }
                 },
@@ -262,7 +260,6 @@ impl Catalog {
                         None => Err(format!("no generator with ID {generator_id:?}")),
                         Some(generator) => {
                             drop(db_guard); // unlock mutex before running Rhai code
-                            file = T::get_generator_filename(&generator);
                             let ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");
                             let params = params.into_iter().map(|s| s.to_owned()).collect();
@@ -277,9 +274,7 @@ impl Catalog {
                     let msg = format!("error building {id:?}: {e}");
                     self.default_logger.log(LogLine {
                         level: log::Level::Error,
-                        // file,
                         msg,
-                        // traceback: None,
                     });
                     CacheEntry::Err(e)
                 }

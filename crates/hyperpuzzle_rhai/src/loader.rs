@@ -10,6 +10,7 @@ use rhai::packages::Package;
 use rhai::{AST, Engine, EvalAltResult, Module, ParseError, Scope, Shared};
 use thread_local::ThreadLocal;
 
+use crate::Ctx;
 use crate::package::HyperpuzzlePackage;
 
 pub(crate) type RhaiEvalRequest = Box<dyn Send + Sync + FnOnce(&mut Engine)>;
@@ -146,7 +147,10 @@ impl rhai::ModuleResolver for ModuleResolver {
                 pos,
             ))),
             Some(ast_result) => match ast_result {
-                Ok(ast) => Module::eval_ast_as_new(Scope::new(), &ast, engine).map(Shared::new),
+                Ok(mut ast) => {
+                    ast.set_source(rhai::ImmutableString::from(format!("{module_name}.rhai")));
+                    Module::eval_ast_as_new(Scope::new(), &ast, engine).map(Shared::new)
+                }
                 Err(ParseError(parse_error_type, parse_error_pos)) => Err(Box::new(
                     EvalAltResult::ErrorParsing(*parse_error_type, parse_error_pos),
                 )),
@@ -209,13 +213,24 @@ pub(crate) fn load_files_with_new_engine(
     let resolver = ModuleResolver::from_files(&package, &files);
     engine.set_module_resolver(resolver);
 
+    fn format_src_pos_msg(src: Option<&str>, pos: rhai::Position, msg: &str) -> String {
+        match (src, pos.line()) {
+            (None, _) => format!("{msg}"),
+            (Some(src), None) => format!("[{src}] {msg}"),
+            (Some(src), Some(line)) => format!("[{src}:{line}] {msg}"),
+        }
+    }
+
     let l = logger.clone();
-    // TODO: logging
-    // engine.on_print(move |s| l.info(s));
-    // engine.on_debug(|s, src, pos| match src {
-    //     Some(src) => log::debug!("[{src}:{pos}] {s}"),
-    //     None => log::debug!("[{pos}] {s}"),
-    // });
+    engine.register_fn("warn", move |ctx: Ctx<'_>, s: rhai::Dynamic| {
+        let src = dbg!(ctx.source());
+        let pos = dbg!(ctx.position());
+        l.warn(format_src_pos_msg(src, pos, &s.to_string()));
+    });
+    let l = logger.clone();
+    engine.on_print(move |s| l.info(s));
+    let l = logger.clone();
+    engine.on_debug(move |s, src, pos| l.debug(format_src_pos_msg(src, pos, s)));
 
     // Load files in lexicographic order. The order shouldn't matter, but it's
     // nice to be deterministic.
@@ -223,7 +238,6 @@ pub(crate) fn load_files_with_new_engine(
         // SAFETY: quotes and backslashes are disallowed so there's no injection
         // possible here.
         if let Err(e) = engine.eval::<()>(&format!("import \"{file}\"; ()")) {
-            println!("error: {e}");
             logger.error(e.to_string());
         }
     }
@@ -244,4 +258,18 @@ pub(crate) fn new_engine() -> rhai::Engine {
     package.register_into_engine(&mut engine);
 
     engine
+}
+
+#[cfg(test)]
+#[test]
+fn buggy() {
+    let mut e = rhai::Engine::new();
+    e.register_fn("print_source", |ctx: rhai::NativeCallContext<'_>| {
+        assert!(ctx.source().is_some());
+        println!("{:?}", ctx.source());
+        println!("{:?}", ctx.position());
+    });
+    let mut ast = e.compile_expression("print_source()").unwrap();
+    ast.set_source("some_source");
+    e.eval_ast::<()>(&ast).unwrap();
 }

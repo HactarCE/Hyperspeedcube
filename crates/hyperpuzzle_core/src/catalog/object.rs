@@ -39,11 +39,9 @@ pub trait CatalogObjectImpl: Sized + HasId {
 
     const NAME: &str;
 
-    fn get_spec_filename(spec: &Self::Spec) -> Option<String>;
     fn get_spec_authors(_spec: &Self::Spec) -> impl IntoIterator<Item = &String> {
         []
     }
-    fn get_generator_filename(generator: &Self::SpecGenerator) -> Option<String>;
     fn get_generator_examples(
         generator: &Self::SpecGenerator,
     ) -> Option<&HashMap<String, Arc<Self::Spec>>>;
@@ -75,14 +73,8 @@ impl CatalogObjectImpl for Puzzle {
 
     const NAME: &str = "puzzle";
 
-    fn get_spec_filename(spec: &Self::Spec) -> Option<String> {
-        spec.meta.tags.filename().map(str::to_owned)
-    }
     fn get_spec_authors(spec: &Self::Spec) -> impl IntoIterator<Item = &String> {
         spec.meta.tags.authors()
-    }
-    fn get_generator_filename(generator: &Self::SpecGenerator) -> Option<String> {
-        generator.meta.tags.filename().map(str::to_owned)
     }
     fn get_generator_examples(
         generator: &Self::SpecGenerator,
@@ -119,12 +111,6 @@ impl CatalogObjectImpl for ColorSystem {
 
     const NAME: &str = "color system";
 
-    fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
-        None
-    }
-    fn get_generator_filename(_generator: &Self::SpecGenerator) -> Option<String> {
-        None
-    }
     fn get_generator_examples(
         _generator: &Self::SpecGenerator,
     ) -> Option<&HashMap<String, Arc<Self::Spec>>> {
@@ -157,12 +143,6 @@ impl CatalogObjectImpl for TwistSystem {
 
     const NAME: &str = "twist system";
 
-    fn get_spec_filename(_spec: &Self::Spec) -> Option<String> {
-        None
-    }
-    fn get_generator_filename(_generator: &Self::SpecGenerator) -> Option<String> {
-        None
-    }
     fn get_generator_examples(
         _generator: &Self::SpecGenerator,
     ) -> Option<&HashMap<String, Arc<Self::Spec>>> {

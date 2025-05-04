@@ -10,7 +10,7 @@ use crate::{Ctx, RhaiCtx};
 /// Emits a warning.
 pub fn warn(mut ctx: impl RhaiCtx, msg: impl fmt::Display) {
     let args = vec![format!("{msg:#}").into()];
-    match ctx.call_rhai_native_fn::<()>("print", args) {
+    match ctx.call_rhai_native_fn::<()>("warn", args) {
         Ok(()) => (),
         Err(e) => {
             log::error!("error calling Rhai warning function: {e}");
@@ -60,6 +60,7 @@ pub fn rhai_eval_fn<A: 'static + Send + Sync, R: 'static + Send + Sync>(
 ) -> impl 'static + Clone + Send + Sync + Fn(A) -> eyre::Result<R> {
     let global_runtime_state = Arc::new(ctx.global_runtime_state().clone());
     let fn_name = fn_ptr.fn_name().to_owned();
+    let pos = ctx.position();
 
     move |args| {
         let global_runtime_state = global_runtime_state.clone();
@@ -73,7 +74,7 @@ pub fn rhai_eval_fn<A: 'static + Send + Sync, R: 'static + Send + Sync>(
                 fn_name.as_str(),
                 None,
                 &*global_runtime_state,
-                Position::NONE,
+                pos,
             ));
             if result_tx.send(inner(ctx, args)).is_err() {
                 log::warn!("error sending eval result to calling thread");

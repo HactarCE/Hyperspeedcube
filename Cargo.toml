@@ -201,3 +201,7 @@ ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs
 # editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
 color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1" }
+
+# Fork of rhai, blocked on rhaiscript/rhai#986 and rhaiscript/rhai#987
+# rhai = { git = "https://github.com/HactarCE/rhai" }
+rhai = { path = "../rhai" }

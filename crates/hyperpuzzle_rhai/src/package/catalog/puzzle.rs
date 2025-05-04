@@ -189,7 +189,7 @@ pub fn puzzle_spec_from_rhai_map(
     });
     let meta_clone = Arc::clone(&meta);
 
-    // Part of the puzzle-building process that happens on non-Rhai thread.
+    // Part of the puzzle-building process that happens on non-Rhai thread
     let create_puzzle_builder = move |build_ctx: &BuildCtx| -> eyre::Result<RhaiPuzzle> {
         let builder = RhaiPuzzle(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
 
@@ -223,7 +223,7 @@ pub fn puzzle_spec_from_rhai_map(
         Ok(builder)
     };
 
-    // Part of the puzzle-building process that happens on Rhai thread.
+    // Part of the puzzle-building process that happens on Rhai thread
     let build_from_puzzle_builder = crate::util::rhai_eval_fn(
         ctx,
         eval_tx,

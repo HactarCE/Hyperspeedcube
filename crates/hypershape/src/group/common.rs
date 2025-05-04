@@ -1,6 +1,5 @@
 use hypermath::collections::{GenericVec, IndexOverflow};
 use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, idx_struct, pga};
-use itertools::Itertools;
 
 use super::{AbbrGenSeq, GenSeq};
 

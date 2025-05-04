@@ -31,23 +31,23 @@ impl Logger {
         self.log(LogLine { level, msg });
     }
 
-    /// Logs a line with [`Level::Error`] and no file or traceback.
+    /// Logs a line with [`Level::Error`].
     pub fn error(&self, msg: impl ToString) {
         self.log_with_level(Level::Error, msg.to_string());
     }
-    /// Logs a line with [`Level::Warn`] and no file or traceback.
+    /// Logs a line with [`Level::Warn`].
     pub fn warn(&self, msg: impl ToString) {
         self.log_with_level(Level::Warn, msg.to_string());
     }
-    /// Logs a line with [`Level::Info`] and no file or traceback.
+    /// Logs a line with [`Level::Info`].
     pub fn info(&self, msg: impl ToString) {
         self.log_with_level(Level::Info, msg.to_string());
     }
-    /// Logs a line with [`Level::Debug`] and no file or traceback.
+    /// Logs a line with [`Level::Debug`].
     pub fn debug(&self, msg: impl ToString) {
         self.log_with_level(Level::Debug, msg.to_string());
     }
-    /// Logs a line with [`Level::Trace`] and no file or traceback.
+    /// Logs a line with [`Level::Trace`].
     pub fn trace(&self, msg: impl ToString) {
         self.log_with_level(Level::Trace, msg.to_string());
     }

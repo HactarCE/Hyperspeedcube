@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(test)]
+use criterion as _; // Suppress unused crate warning (it's used in a benchmark)
+
 pub mod catalog;
 mod lint;
 mod logging;
