@@ -9,6 +9,7 @@ members = [
     "crates/hyperpuzzle",
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_nd_euclid",
+    "crates/hyperpuzzle_lang",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_rhai",
     "crates/hyperpuzzle_view",
@@ -99,6 +100,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 walkdir = { version = "2.4.0" }
 
 # String manipulation
+arcstr = { version = "1.2.0" }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 regex = { version = "1.11.1" }
