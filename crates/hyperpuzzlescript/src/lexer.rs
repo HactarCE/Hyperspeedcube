@@ -315,10 +315,13 @@ pub enum Token<'src> {
 //     Interpolation(Vec<Spanned<Token>>),
 // }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, PartialEq, Eq)]
 pub enum StringSegmentToken<'src> {
+    #[strum(to_string = "literal text")]
     Literal,
+    #[strum(to_string = "escape sequence using backslash")]
     Escape(char),
+    #[strum(to_string = "${{...}}")] // TODO: make sure this renders correctly
     Interpolation(Vec<Spanned<Token<'src>>>),
 }
 
