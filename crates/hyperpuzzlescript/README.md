@@ -1,3 +1,3 @@
-# hyperpuzzle_lang
+# hyperpuzzlescript
 
 Domain-specific language for defining puzzles for Hyperspeedcube
