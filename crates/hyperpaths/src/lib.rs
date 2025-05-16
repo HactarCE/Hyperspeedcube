@@ -24,6 +24,7 @@ const SOLVES_DIR_NAME: &str = "solves";
 
 const LUA_DIR_NAME: &str = "lua";
 const RHAI_DIR_NAME: &str = "rhai";
+const HPS_DIR_NAME: &str = "hps";
 
 lazy_static! {
     static ref PATHS: Option<AppPaths> = app_paths();
@@ -65,6 +66,10 @@ pub fn lua_dir() -> Result<&'static Path> {
 /// Returns the directory containing Rhai files such as user puzzle definitions.
 pub fn rhai_dir() -> Result<&'static Path> {
     Ok(&get()?.rhai_dir)
+}
+/// Returns the directory containing Hyperpuzzlescript files.
+pub fn hps_dir() -> Result<&'static Path> {
+    Ok(&get()?.hps_dir)
 }
 pub fn crash_report_dir() -> Result<&'static Path> {
     Ok(&get()?.crash_report_dir)
@@ -130,6 +135,8 @@ struct AppPaths {
     pub lua_dir: PathBuf,
     /// Path to the Hyperspeedcube Rhai directory.
     pub rhai_dir: PathBuf,
+    /// Path to the Hyperpuzzlescript directory.
+    pub hps_dir: PathBuf,
     /// Path to Hyperspeedcube crash reports.
     pub crash_report_dir: PathBuf,
 }
@@ -165,6 +172,7 @@ fn nonportable_paths() -> Option<AppPaths> {
                 solves_dir: dirs.data_dir().join(SOLVES_DIR_NAME),
                 lua_dir: dirs.data_dir().join(LUA_DIR_NAME),
                 rhai_dir: dirs.data_dir().join(RHAI_DIR_NAME),
+                hps_dir: dirs.data_dir().join(HPS_DIR_NAME),
                 crash_report_dir: dirs.cache_dir().to_path_buf(),
             })
         }
@@ -185,6 +193,7 @@ fn portable_paths() -> Option<AppPaths> {
                 solves_dir: dir.join(SOLVES_DIR_NAME),
                 lua_dir: dir.join(LUA_DIR_NAME),
                 rhai_dir: dir.join(RHAI_DIR_NAME),
+                hps_dir: dir.join(HPS_DIR_NAME),
                 crash_report_dir: dir,
             })
         }

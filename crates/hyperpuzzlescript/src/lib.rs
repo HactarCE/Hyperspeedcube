@@ -4,36 +4,29 @@
 
 mod ast;
 // mod builtins;
-mod error;
+mod diagnostic;
 // mod eval;
-mod lexer;
-// mod runtime;
-mod parser;
+// mod file_store;
+mod parse;
+mod runtime;
 mod ty;
 mod util;
 // mod value;
 
-use std::{collections::HashMap, path::Path};
+pub use runtime::{FileStore, Runtime};
+use std::path::Path;
 
-use arcstr::ArcStr;
-pub use error::{Error, Warning};
+pub use diagnostic::{Error, ErrorMsg, Warning};
 // use eval::Ctx;
-use ty::{FnType, Type};
+pub use ty::{FnType, Type};
 // use value::Value;
 
-pub type FileIndex = u32;
-pub type Span = chumsky::span::SimpleSpan<u32, FileIndex>;
+/// Numeric ID for a Hyperpuzzlescript file.
+pub type FileId = u32;
+/// Span in a Hyperpuzzlescript file.
+pub type Span = chumsky::span::SimpleSpan<u32, FileId>;
+/// Value with an associated `Span`.
 pub type Spanned<T> = (T, Span);
-pub fn full_span(len: usize, file_index: FileIndex) -> Span {
-    Span {
-        start: 0,
-        end: len as u32,
-        context: file_index,
-    }
-}
-pub fn span_to_range(s: Span) -> std::ops::Range<usize> {
-    s.start as usize..s.end as usize
-}
 
 #[cfg(feature = "hyperpaths")]
 const BAKE_HPS_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;

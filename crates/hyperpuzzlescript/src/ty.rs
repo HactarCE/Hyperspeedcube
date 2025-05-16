@@ -1,9 +1,8 @@
 use std::fmt;
 
-use itertools::Itertools;
-
 /// Type in the language.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum Type {
     #[default]
     Any,
@@ -35,8 +34,6 @@ pub enum Type {
     AxisSystem,
     TwistSystem,
     Puzzle,
-
-    Union(Vec<Type>),
 }
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -77,11 +74,11 @@ impl fmt::Display for Type {
             Type::AxisSystem => write!(f, "AxisSystem"),
             Type::TwistSystem => write!(f, "TwistSystem"),
             Type::Puzzle => write!(f, "Puzzle"),
-            Type::Union(types) => write!(f, "{}", types.iter().join(" | ")),
         }
     }
 }
 impl Type {
+    /// Returns a superset of the union of `a` and `b`.
     pub fn unify(a: Type, b: Type) -> Type {
         match (a, b) {
             (a, b) if a == b => a,
@@ -135,9 +132,12 @@ impl From<FnType> for Type {
     }
 }
 
+/// Function type.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct FnType {
+    /// Parameter types, or `None` if the number of parameters is unknown.
     pub params: Option<Vec<Type>>,
+    /// Return type.
     pub ret: Type,
 }
 impl fmt::Display for FnType {
@@ -179,6 +179,8 @@ impl FnType {
         }
     }
 
+    /// Returns whether this function might conflict with `other` if they were
+    /// both overloads assigned to the same name.
     pub fn might_conflict_with(&self, other: &FnType) -> bool {
         // If either function is missing arg types, then there is definitely a
         // conflict.
@@ -199,6 +201,7 @@ impl FnType {
             .all(|(self_param, other_param)| self_param.might_be_subtype_of(other_param))
     }
 
+    /// Returns whether `self` is definitely a subtype of `other`.
     pub fn is_subtype_of(&self, other: &FnType) -> bool {
         self.ret.is_subtype_of(&other.ret)
             && match (&self.params, &other.params) {
@@ -212,6 +215,7 @@ impl FnType {
                 (None, _maybe_other_params) => true,
             }
     }
+    /// Returns whether `self` might be a subtype of `other`.
     pub fn might_be_subtype_of(&self, other: &FnType) -> bool {
         self.ret.might_be_subtype_of(&other.ret)
             && match (&self.params, &other.params) {
@@ -225,6 +229,7 @@ impl FnType {
             }
     }
 
+    /// Returns whether this function might take `args` as arguments.
     pub fn might_take(&self, args: &[Type]) -> bool {
         match &self.params {
             Some(params) => {

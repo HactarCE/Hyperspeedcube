@@ -1,29 +1,19 @@
-use chumsky::{
-    pratt::{left, right},
-    prelude::*,
-};
-use itertools::Itertools;
+use chumsky::pratt::{left, right};
 
-use crate::{
-    Error, FileIndex, Span, Spanned, ast,
-    lexer::{LexExtra, StringSegmentToken, Token},
-};
+use super::lexer::{StringSegmentToken, Token};
+use super::*;
 
-pub type ParseError<'src> = Rich<'src, Token, Span>;
+pub(crate) type ParserInput<'src> = chumsky::input::MappedInput<
+    Token,
+    Span,
+    &'src [Spanned<Token>],
+    fn(&'src Spanned<Token>) -> (&'src Token, &'src Span),
+>;
+pub(crate) type ParseError<'src> = Rich<'src, Token, Span>;
+pub(crate) type ParseState<'src> = extra::SimpleState<&'src str>;
+pub(crate) type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
 
-type ParseState<'src> = extra::SimpleState<&'src str>;
-
-type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
-
-fn with_hint<'src>(hint: &'static str) -> impl Copy + Fn(ParseError<'src>) -> ParseError<'src> {
-    move |mut e| {
-        chumsky::label::LabelError::<ParserInput<'_>, _>::label_with(
-            &mut e,
-            format!("hint: {hint}"),
-        );
-        e
-    }
-}
+/// Adds a label to an error at `span` saying "inside this {thing}".
 fn map_err_inside_this<'src>(
     thing: &str,
     span: Span,
@@ -37,165 +27,24 @@ fn map_err_inside_this<'src>(
         e
     }
 }
+/// Adds a label to an error at `span` saying "inside this {thing}".
 fn inside_this<'src>(
     thing: &str,
 ) -> impl Copy + Fn(ParseError<'src>, Span, &mut ParseState<'src>) -> ParseError<'src> {
     move |e, span, _state| map_err_inside_this(thing, span)(e)
 }
 
-struct ConstSource(ariadne::Source<&'static str>);
-impl ariadne::Cache<FileIndex> for ConstSource {
-    type Storage = &'static str;
-
-    fn fetch(
-        &mut self,
-        id: &FileIndex,
-    ) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
-        Ok::<_, String>(&self.0)
-    }
-
-    fn display<'a>(&self, id: &'a FileIndex) -> Option<impl std::fmt::Display + 'a> {
-        Some("demo.hps")
-    }
-}
-
-#[test]
-fn test_a() {
-    const N: usize = 10_000;
-    const THREADS: usize = 16;
-
-    let src = include_str!("demo.hps");
-
-    match crate::parser::parse(0, src) {
-        Ok(_) => (),
-        Err(errors) => {
-            for e in errors {
-                e.report()
-                    .print(ConstSource(ariadne::Source::from(src)))
-                    .unwrap();
-            }
-            panic!();
-        }
-    }
-    panic!();
-
-    use rayon::prelude::*;
-
-    let t = std::time::Instant::now();
-    let v: Vec<_> = (0..N)
-        .par_bridge()
-        .map(|i| {
-            crate::parser::parse(i as FileIndex, src);
-        })
-        .collect();
-    dbg!(t.elapsed());
-}
-
-// struct HpsParser<'src> {
-//     lexer: Boxed<'src, 'src, &'src str, Vec<(Token, Span)>, LexExtra<'src, ()>>,
-//     parser: Boxed<'src, 'src, ParserInput<'src>, ast::Node, ParseExtra<'src, ()>>,
-// }
-// impl Default for HpsParser<'_> {
-//     fn default() -> Self {
-//         Self {
-//             lexer: crate::lexer::lexer().boxed(),
-//             parser: crate::parser::parser().boxed(),
-//         }
-//     }
-// }
-// impl<'src> HpsParser<'src> {
-//     pub fn new() -> Self {
-//         Self::default()
-//     }
-
-//     pub fn parse(
-//         &self,
-//         file_index: FileIndex,
-//         file_contents: &'src str,
-//     ) -> Result<ast::Node, Vec<Error>> {
-//         let full_span = Span {
-//             start: 0,
-//             end: file_contents.len() as u32,
-//             context: file_index,
-//         };
-
-//         let lexer: Boxed<'src, 'src, &'src str, Vec<(Token, Span)>, LexExtra<'src>> =
-//             crate::lexer::lexer().boxed();
-//         let tokens = lexer
-//             .parse_with_state(file_contents, &mut extra::SimpleState(file_index))
-//             .into_result()
-//             .map_err(|errs| errs.into_iter().map(Error::from).collect_vec())?;
-
-//         let parser: Boxed<'src, 'src, ParserInput<'src>, ast::Node, ParseExtra<'src, ()>> =
-//             crate::parser::parser().boxed();
-//         parser
-//             .parse_with_state(
-//                 make_input(full_span, &tokens),
-//                 &mut extra::SimpleState(file_contents),
-//             )
-//             .into_result()
-//             .map_err(|errs| errs.into_iter().map(Error::from).collect_vec())
-//     }
-// }
-
-pub fn parse(file_index: FileIndex, file_contents: &str) -> Result<ast::Node, Vec<Error>> {
-    let full_span = Span {
-        start: 0,
-        end: file_contents.len() as u32,
-        context: file_index,
-    };
-
-    let t = std::time::Instant::now();
-    let lexer: Boxed<'_, '_, &'_ str, Vec<(Token, Span)>, LexExtra<'_>> =
-        crate::lexer::lexer().boxed();
-    println!("build lexer: {:?}", t.elapsed());
-    let t = std::time::Instant::now();
-    let tokens = lexer
-        .parse_with_state(file_contents, &mut extra::SimpleState(file_index))
-        .into_result()
-        .map_err(|errs| {
-            errs.into_iter()
-                .map(|e| Error::LexError(file_index, e.into_owned()))
-                .collect_vec()
-        })?;
-    println!("lex: {:?}", t.elapsed());
-
-    let t = std::time::Instant::now();
-    let parser: Boxed<'_, '_, ParserInput<'_>, ast::Node, ParseExtra<'_>> =
-        crate::parser::parser().boxed();
-    println!("build parser: {:?}", t.elapsed());
-    let t = std::time::Instant::now();
-    let r = parser
-        .parse_with_state(
-            make_input(full_span, &tokens),
-            &mut extra::SimpleState(file_contents),
-        )
-        .into_result()
-        .map_err(|errs| {
-            errs.into_iter()
-                .map(|e| Error::ParseError(e.into_owned()))
-                .collect_vec()
-        });
-    println!("parse: {:?}", t.elapsed());
-    r
-}
-
-type ParserInput<'src> = chumsky::input::MappedInput<
-    Token,
-    Span,
-    &'src [Spanned<Token>],
-    fn(&'src Spanned<Token>) -> (&'src Token, &'src Span),
->;
-
-fn make_input<'src>(eoi: Span, toks: &'src [Spanned<Token>]) -> ParserInput<'src> {
+/// Converts `&[Spanned<Token>]` to [`ParserInput`].
+pub fn make_input<'src>(eoi: Span, toks: &'src [Spanned<Token>]) -> ParserInput<'src> {
     toks.map(eoi, |(t, s)| (t, s))
 }
 
+/// Returns the string slice at `span`.
 fn span_to_str<'src>(span: Span, e: &mut ParseState<'src>) -> &'src str {
     &e[span.start as usize..span.end as usize]
 }
 
-fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseExtra<'src>> {
+pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseExtra<'src>> {
     let mut expr = Recursive::declare();
     let mut statement = Recursive::declare();
 

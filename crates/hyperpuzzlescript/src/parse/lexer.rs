@@ -1,26 +1,9 @@
-use std::fmt;
+use super::*;
 
-use chumsky::{input::MapExtra, prelude::*};
-
-use crate::{FileIndex, Span, Spanned};
-
-pub type LexError<'src> = Rich<'src, char, SimpleSpan>;
-
-pub type LexExtra<'src> = extra::Full<LexError<'src>, LexState, ()>;
-
-pub type LexExtraInternal<'src> = extra::Full<LexError<'src>, LexState, LexCtx>;
-
-pub type LexState = extra::SimpleState<FileIndex>;
-
-// TODO: figure out why this never gets called
-fn inside_here<'src>(
-    mut e: LexError<'src>,
-    span: SimpleSpan,
-    _state: &mut LexState,
-) -> LexError<'src> {
-    chumsky::label::LabelError::<&str, _>::in_context(&mut e, format!("inside here"), span);
-    e
-}
+pub(crate) type LexError<'src> = Rich<'src, char, SimpleSpan>;
+pub(crate) type LexState = extra::SimpleState<FileId>;
+pub(crate) type LexExtra<'src> = extra::Full<LexError<'src>, LexState, ()>;
+type LexExtraInternal<'src> = extra::Full<LexError<'src>, LexState, LexCtx>;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 struct LexCtx {
@@ -32,8 +15,20 @@ impl LexCtx {
     };
 }
 
+/// Adds a label to an error at `span` saying "inside here".
+// TODO: figure out why this never gets called
+fn inside_here<'src>(
+    mut e: LexError<'src>,
+    span: SimpleSpan,
+    _state: &mut LexState,
+) -> LexError<'src> {
+    chumsky::label::LabelError::<&str, _>::in_context(&mut e, format!("inside here"), span);
+    e
+}
+
+/// Returns a [`Span`] from chumsky "extra" data.
 fn span_from_extra<'src, 'b>(
-    extra: &mut MapExtra<'src, 'b, &'src str, LexExtraInternal<'src>>,
+    extra: &mut chumsky::input::MapExtra<'src, 'b, &'src str, LexExtraInternal<'src>>,
 ) -> Span {
     Span {
         start: extra.span().start as u32,
@@ -227,6 +222,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 just(".").to(Token::Period),
             ]),
         ))
+        .labelled("token")
         .map_with(|tok, e| (tok, span_from_extra(e)))
         .padded_by(padding)
         .repeated()
