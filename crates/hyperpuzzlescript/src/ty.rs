@@ -1,3 +1,7 @@
+use std::fmt;
+
+use itertools::Itertools;
+
 /// Type in the language.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -5,12 +9,11 @@ pub enum Type {
     Any,
     Null,
     Bool,
-    Number,
-    String,
+    Num,
+    Str,
     List(Box<Type>),
     Map(Box<Type>),
     Fn(Box<FnType>),
-    Type,
 
     Vector,
 
@@ -32,9 +35,54 @@ pub enum Type {
     AxisSystem,
     TwistSystem,
     Puzzle,
+
+    Union(Vec<Type>),
+}
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Type::Any => write!(f, "Any"),
+            Type::Null => write!(f, "Null"),
+            Type::Bool => write!(f, "Bool"),
+            Type::Num => write!(f, "Num"),
+            Type::Str => write!(f, "Str"),
+            Type::List(inner) => {
+                write!(f, "List")?;
+                if **inner != Type::Any {
+                    write!(f, "[{inner}]")?;
+                }
+                Ok(())
+            }
+            Type::Map(inner) => {
+                write!(f, "Map")?;
+                if **inner != Type::Any {
+                    write!(f, "[{inner}]")?;
+                }
+                Ok(())
+            }
+            Type::Fn(fn_type) => write!(f, "{fn_type}"),
+            Type::Vector => write!(f, "Vector"),
+            Type::EuclidPoint => write!(f, "euclid.Point"),
+            Type::EuclidTransform => write!(f, "euclid.Transform"),
+            Type::EuclidPlane => write!(f, "euclid.Plane"),
+            Type::EuclidRegion => write!(f, "euclid.Region"),
+            Type::Cga2dBlade1 => write!(f, "cga2d.Blade1"),
+            Type::Cga2dBlade2 => write!(f, "cga2d.Blade2"),
+            Type::Cga2dBlade3 => write!(f, "cga2d.Blade3"),
+            Type::Cga2dAntiscalar => write!(f, "cga2d.Antiscalar"),
+            Type::Cga2dRegion => write!(f, "cga2d.Region"),
+            Type::Color => write!(f, "Color"),
+            Type::Axis => write!(f, "Axis"),
+            Type::Twist => write!(f, "Twist"),
+            Type::AxisSystem => write!(f, "AxisSystem"),
+            Type::TwistSystem => write!(f, "TwistSystem"),
+            Type::Puzzle => write!(f, "Puzzle"),
+            Type::Union(types) => write!(f, "{}", types.iter().join(" | ")),
+        }
+    }
 }
 impl Type {
-    fn unify(a: Type, b: Type) -> Type {
+    pub fn unify(a: Type, b: Type) -> Type {
         match (a, b) {
             (a, b) if a == b => a,
             (Type::List(a_elem), Type::List(b_elem)) => {
@@ -45,6 +93,34 @@ impl Type {
             }
             (Type::Fn(a_fn), Type::Fn(b_fn)) => Type::Fn(Box::new(FnType::unify(*a_fn, *b_fn))),
             _ => Type::Any,
+        }
+    }
+
+    /// Returns whether all values of type `self` also have type `other`.
+    pub fn is_subtype_of(&self, other: &Type) -> bool {
+        match (self, other) {
+            (_, Type::Any) => true,
+            (Type::List(self_inner), Type::List(other_inner))
+            | (Type::Map(self_inner), Type::Map(other_inner)) => {
+                self_inner.is_subtype_of(other_inner)
+            }
+            (Type::Fn(self_inner), Type::Fn(other_inner)) => self_inner.is_subtype_of(other_inner),
+            _ => self == other,
+        }
+    }
+    /// Returns whether there is any value that has type `self` and type
+    /// `other`.
+    pub fn might_be_subtype_of(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Any, _) | (_, Type::Any) => true,
+            (Type::List(self_inner), Type::List(other_inner))
+            | (Type::Map(self_inner), Type::Map(other_inner)) => {
+                self_inner.might_be_subtype_of(other_inner)
+            }
+            (Type::Fn(self_inner), Type::Fn(other_inner)) => {
+                self_inner.might_be_subtype_of(other_inner)
+            }
+            _ => self == other,
         }
     }
 }
@@ -64,6 +140,31 @@ pub struct FnType {
     pub params: Option<Vec<Type>>,
     pub ret: Type,
 }
+impl fmt::Display for FnType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Fn(")?;
+
+        if let Some(param_types) = &self.params {
+            let mut is_first = true;
+            for param_ty in param_types {
+                if is_first {
+                    is_first = false;
+                } else {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{param_ty}")?;
+            }
+        }
+
+        write!(f, ")")?;
+
+        if self.ret != Type::Any {
+            write!(f, " -> {}", self.ret)?;
+        }
+
+        Ok(())
+    }
+}
 impl FnType {
     fn unify(a: FnType, b: FnType) -> FnType {
         FnType {
@@ -75,6 +176,63 @@ impl FnType {
                         .collect()
                 }),
             ret: Type::unify(a.ret, b.ret),
+        }
+    }
+
+    pub fn might_conflict_with(&self, other: &FnType) -> bool {
+        // If either function is missing arg types, then there is definitely a
+        // conflict.
+        let Some(self_params) = &self.params else {
+            return true;
+        };
+        let Some(other_params) = &other.params else {
+            return true;
+        };
+
+        // If the parameter lists have different lengths, there is definitely
+        // NOT a conflict.
+        if self_params.len() != other_params.len() {
+            return false;
+        }
+
+        std::iter::zip(self_params, other_params)
+            .all(|(self_param, other_param)| self_param.might_be_subtype_of(other_param))
+    }
+
+    pub fn is_subtype_of(&self, other: &FnType) -> bool {
+        self.ret.is_subtype_of(&other.ret)
+            && match (&self.params, &other.params) {
+                (Some(self_params), Some(other_params)) => {
+                    // contravariance!
+                    self_params.len() == other_params.len()
+                        && std::iter::zip(self_params, other_params)
+                            .all(|(self_param, other_param)| other_param.is_subtype_of(self_param))
+                }
+                (Some(_self_params), None) => false,
+                (None, _maybe_other_params) => true,
+            }
+    }
+    pub fn might_be_subtype_of(&self, other: &FnType) -> bool {
+        self.ret.might_be_subtype_of(&other.ret)
+            && match (&self.params, &other.params) {
+                (Some(self_params), Some(other_params)) => {
+                    self_params.len() == other_params.len()
+                        && std::iter::zip(self_params, other_params).all(
+                            |(self_param, other_param)| other_param.might_be_subtype_of(self_param),
+                        )
+                }
+                _ => true,
+            }
+    }
+
+    pub fn might_take(&self, args: &[Type]) -> bool {
+        match &self.params {
+            Some(params) => {
+                params.len() == args.len()
+                    && std::iter::zip(params, args)
+                        .all(|(param, arg)| arg.might_be_subtype_of(param))
+            }
+            None => true,
         }
     }
 }

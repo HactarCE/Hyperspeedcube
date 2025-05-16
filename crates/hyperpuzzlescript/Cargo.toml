@@ -23,13 +23,16 @@ hyperpuzzle_impl_nd_euclid = { workspace = true }
 hypershape = { workspace = true }
 
 arcstr = { workspace = true }
+ariadne = "0.5.1"
 chumsky = { version = "0.10.1", features = ["pratt"] }
 disjoint = { workspace = true }
+ecow = "0.2.5"
 eyre = { workspace = true }
 float-ord = { workspace = true }
 include_dir = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
+lazy_static = { workspace = true }
 log = { workspace = true }
 logos = { version = "0.15.0" }
 parking_lot = { workspace = true }

@@ -332,6 +332,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ariadne"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f5e3dca4e09a6f340a61a0e9c7b61e030c69fc27bf29d73218f7e5e3b7638f"
+dependencies = [
+ "unicode-width",
+ "yansi",
+]
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1502,6 +1512,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecow"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b92b481eb5d59fd8e80e92ff11d057d1ca8d144b2cd8c66cc8d5bd177a3c0dc5"
+
+[[package]]
 name = "eframe"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2474,9 +2490,11 @@ name = "hyperpuzzlescript"
 version = "0.1.0"
 dependencies = [
  "arcstr",
+ "ariadne",
  "chumsky",
  "disjoint",
  "ecolor",
+ "ecow",
  "eyre",
  "float-ord",
  "hypermath",
@@ -2487,6 +2505,7 @@ dependencies = [
  "include_dir",
  "indexmap",
  "itertools 0.14.0",
+ "lazy_static",
  "log",
  "logos",
  "oklab",

@@ -1,244 +1,355 @@
-// use ariadne::{Color, Label, Report, ReportKind, sources};
 use chumsky::{
-    input::BorrowInput,
     pratt::{left, right},
     prelude::*,
 };
 use itertools::Itertools;
 
 use crate::{
-    Span, Spanned, ast,
-    lexer::{LexError, StringSegmentToken, Token},
+    Error, FileIndex, Span, Spanned, ast,
+    lexer::{LexExtra, StringSegmentToken, Token},
 };
 
-pub type ParseError<'src> = Rich<'src, Token<'src>>;
+pub type ParseError<'src> = Rich<'src, Token, Span>;
 
-type Extra<'src> = extra::Full<ParseError<'src>, (), Ctx>;
+type ParseState<'src> = extra::SimpleState<&'src str>;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-struct Ctx {
-    allow_newlines_within_statement: bool,
+type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
+
+fn with_hint<'src>(hint: &'static str) -> impl Copy + Fn(ParseError<'src>) -> ParseError<'src> {
+    move |mut e| {
+        chumsky::label::LabelError::<ParserInput<'_>, _>::label_with(
+            &mut e,
+            format!("hint: {hint}"),
+        );
+        e
+    }
 }
-impl Ctx {
-    const DELIMITED: Self = Self {
-        allow_newlines_within_statement: true,
-    };
+fn map_err_inside_this<'src>(
+    thing: &str,
+    span: Span,
+) -> impl Copy + Fn(ParseError<'src>) -> ParseError<'src> {
+    move |mut e| {
+        chumsky::label::LabelError::<ParserInput<'_>, _>::in_context(
+            &mut e,
+            format!("inside this {thing}"),
+            span,
+        );
+        e
+    }
+}
+fn inside_this<'src>(
+    thing: &str,
+) -> impl Copy + Fn(ParseError<'src>, Span, &mut ParseState<'src>) -> ParseError<'src> {
+    move |e, span, _state| map_err_inside_this(thing, span)(e)
 }
 
-pub fn parse<'src>(s: &'src str) -> Result<ast::Node, Vec<String>> {
-    // TODO: better error handling
-    let lexer = crate::lexer::lexer();
-    let tokens = lexer
-        .parse(s)
-        .into_result()
-        .map_err(|e| e.into_iter().map(|e| e.to_string()).collect_vec())?;
-    let parser = parser(make_input);
-    let ast = parser
-        .parse(make_input((0..s.len()).into(), &tokens))
-        .into_result()
-        .map_err(|e| {
-            e.into_iter()
-                .map(|e| format!("parse error at {}: {}", e.span(), e.reason()))
-                .collect_vec()
-        })?;
-    Ok(ast)
+struct ConstSource(ariadne::Source<&'static str>);
+impl ariadne::Cache<FileIndex> for ConstSource {
+    type Storage = &'static str;
+
+    fn fetch(
+        &mut self,
+        id: &FileIndex,
+    ) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
+        Ok::<_, String>(&self.0)
+    }
+
+    fn display<'a>(&self, id: &'a FileIndex) -> Option<impl std::fmt::Display + 'a> {
+        Some("demo.hps")
+    }
 }
 
 #[test]
-fn test_things() {
-    let p = parser(make_input);
-    // dbg!(p.parse(" abc "));
-    // dbg!(p.parse(" abc\n "));
-    // dbg!(p.parse("[ abc, def ]"));
-    // dbg!(p.parse("[\n abc, \ndef\n]"));
-    // dbg!(p.parse(r##""my string $("abc $(def) \n $("hij")")""##));
+fn test_a() {
+    const N: usize = 10_000;
+    const THREADS: usize = 16;
+
+    let src = include_str!("demo.hps");
+
+    match crate::parser::parse(0, src) {
+        Ok(_) => (),
+        Err(errors) => {
+            for e in errors {
+                e.report()
+                    .print(ConstSource(ariadne::Source::from(src)))
+                    .unwrap();
+            }
+            panic!();
+        }
+    }
+    panic!();
+
+    use rayon::prelude::*;
+
+    let t = std::time::Instant::now();
+    let v: Vec<_> = (0..N)
+        .par_bridge()
+        .map(|i| {
+            crate::parser::parse(i as FileIndex, src);
+        })
+        .collect();
+    dbg!(t.elapsed());
 }
 
-fn make_input<'src>(
-    eoi: Span,
-    toks: &'src [Spanned<Token<'src>>],
-) -> impl BorrowInput<'src, Token = Token<'src>, Span = Span> {
+// struct HpsParser<'src> {
+//     lexer: Boxed<'src, 'src, &'src str, Vec<(Token, Span)>, LexExtra<'src, ()>>,
+//     parser: Boxed<'src, 'src, ParserInput<'src>, ast::Node, ParseExtra<'src, ()>>,
+// }
+// impl Default for HpsParser<'_> {
+//     fn default() -> Self {
+//         Self {
+//             lexer: crate::lexer::lexer().boxed(),
+//             parser: crate::parser::parser().boxed(),
+//         }
+//     }
+// }
+// impl<'src> HpsParser<'src> {
+//     pub fn new() -> Self {
+//         Self::default()
+//     }
+
+//     pub fn parse(
+//         &self,
+//         file_index: FileIndex,
+//         file_contents: &'src str,
+//     ) -> Result<ast::Node, Vec<Error>> {
+//         let full_span = Span {
+//             start: 0,
+//             end: file_contents.len() as u32,
+//             context: file_index,
+//         };
+
+//         let lexer: Boxed<'src, 'src, &'src str, Vec<(Token, Span)>, LexExtra<'src>> =
+//             crate::lexer::lexer().boxed();
+//         let tokens = lexer
+//             .parse_with_state(file_contents, &mut extra::SimpleState(file_index))
+//             .into_result()
+//             .map_err(|errs| errs.into_iter().map(Error::from).collect_vec())?;
+
+//         let parser: Boxed<'src, 'src, ParserInput<'src>, ast::Node, ParseExtra<'src, ()>> =
+//             crate::parser::parser().boxed();
+//         parser
+//             .parse_with_state(
+//                 make_input(full_span, &tokens),
+//                 &mut extra::SimpleState(file_contents),
+//             )
+//             .into_result()
+//             .map_err(|errs| errs.into_iter().map(Error::from).collect_vec())
+//     }
+// }
+
+pub fn parse(file_index: FileIndex, file_contents: &str) -> Result<ast::Node, Vec<Error>> {
+    let full_span = Span {
+        start: 0,
+        end: file_contents.len() as u32,
+        context: file_index,
+    };
+
+    let t = std::time::Instant::now();
+    let lexer: Boxed<'_, '_, &'_ str, Vec<(Token, Span)>, LexExtra<'_>> =
+        crate::lexer::lexer().boxed();
+    println!("build lexer: {:?}", t.elapsed());
+    let t = std::time::Instant::now();
+    let tokens = lexer
+        .parse_with_state(file_contents, &mut extra::SimpleState(file_index))
+        .into_result()
+        .map_err(|errs| {
+            errs.into_iter()
+                .map(|e| Error::LexError(file_index, e.into_owned()))
+                .collect_vec()
+        })?;
+    println!("lex: {:?}", t.elapsed());
+
+    let t = std::time::Instant::now();
+    let parser: Boxed<'_, '_, ParserInput<'_>, ast::Node, ParseExtra<'_>> =
+        crate::parser::parser().boxed();
+    println!("build parser: {:?}", t.elapsed());
+    let t = std::time::Instant::now();
+    let r = parser
+        .parse_with_state(
+            make_input(full_span, &tokens),
+            &mut extra::SimpleState(file_contents),
+        )
+        .into_result()
+        .map_err(|errs| {
+            errs.into_iter()
+                .map(|e| Error::ParseError(e.into_owned()))
+                .collect_vec()
+        });
+    println!("parse: {:?}", t.elapsed());
+    r
+}
+
+type ParserInput<'src> = chumsky::input::MappedInput<
+    Token,
+    Span,
+    &'src [Spanned<Token>],
+    fn(&'src Spanned<Token>) -> (&'src Token, &'src Span),
+>;
+
+fn make_input<'src>(eoi: Span, toks: &'src [Spanned<Token>]) -> ParserInput<'src> {
     toks.map(eoi, |(t, s)| (t, s))
 }
 
-fn optional<'src, I, T>(
-    p: impl Clone + Parser<'src, I, T, Extra<'src>>,
-) -> impl Clone + Parser<'src, I, Option<T>, Extra<'src>>
-where
-    I: BorrowInput<'src, Token = Token<'src>, Span = Span>,
-{
-    p.repeated()
-        .at_most(1)
-        .collect::<Vec<T>>()
-        .map(|xs| xs.into_iter().next())
+fn span_to_str<'src>(span: Span, e: &mut ParseState<'src>) -> &'src str {
+    &e[span.start as usize..span.end as usize]
 }
 
-fn parser<'src, I, M>(make_input: M) -> impl Parser<'src, I, ast::Node, Extra<'src>>
-where
-    I: BorrowInput<'src, Token = Token<'src>, Span = Span>,
-    // Because this function is generic over the input type, we need the caller to tell us how to create a new input,
-    // `I`, from a nested token tree. This function serves that purpose.
-    M: Copy + Fn(Span, &'src [Spanned<Token<'src>>]) -> I + Clone + 'src,
-{
+fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseExtra<'src>> {
     let mut expr = Recursive::declare();
     let mut statement = Recursive::declare();
 
-    let newlines = just(Token::Newline).repeated();
+    let comma_sep = just(Token::Comma).recover_with(skip_then_retry_until(
+        any().ignored(),
+        just(Token::Comma).ignored(),
+    ));
 
     let parens = select_ref! { Token::Parens(toks) = e => make_input(e.span(), toks) };
     let brackets = select_ref! { Token::Brackets(toks) = e => make_input(e.span(), toks) };
     let braces = select_ref! { Token::Braces(toks) = e => make_input(e.span(), toks) };
+    let map_literal = select_ref! { Token::MapLiteral(toks) = e => make_input(e.span(), toks) };
 
     let statement_list = statement
         .clone()
-        .separated_by(newlines.clone().at_least(1))
+        .separated_by(just(Token::Newline).repeated().at_least(1))
+        .allow_leading()
+        .allow_trailing()
         .collect()
         .map(ast::NodeContents::Block)
-        .with_ctx(Ctx::default())
-        .padded_by(newlines.clone());
+        .boxed();
 
     let statement_block = statement_list.clone().nested_in(braces);
     let spanned_statement_block = statement_block
         .clone()
-        .map_with(|block, e| Box::new((block, e.span())));
+        .map_with(|block, e| Box::new((block, e.span())))
+        .boxed();
 
-    // Workaround for https://github.com/zesterer/chumsky/issues/748
-    let expr_pad = (newlines.clone()).configure(|repeat, ctx: &Ctx| {
-        if ctx.allow_newlines_within_statement {
-            repeat
-        } else {
-            repeat.exactly(0)
-        }
-    });
-    let pad_just = |token: Token<'src>| just(token).padded_by(expr_pad.clone());
+    let type_annotation = just(Token::Colon)
+        .ignore_then(expr.clone())
+        .map(Box::new)
+        .or_not()
+        .boxed();
 
-    let type_annotation = optional(
-        pad_just(Token::Colon)
-            .ignore_then(expr.clone())
-            .map(Box::new),
-    );
-
-    let fn_params = pad_just(Token::Ident)
+    let fn_params = just(Token::Ident)
         .to_span()
         .then(type_annotation.clone())
         .map(|(name, ty)| ast::FnParam { name, ty })
-        .separated_by(pad_just(Token::Comma))
+        .separated_by(comma_sep.clone())
         .allow_trailing()
         .collect()
-        .with_ctx(Ctx::DELIMITED)
+        .boxed()
         .nested_in(parens);
 
     let fn_contents = fn_params
         .clone()
-        .then(optional(
-            just(Token::Arrow).ignore_then(expr.clone().map(Box::new)),
-        ))
+        .then(
+            just(Token::Arrow)
+                .ignore_then(expr.clone().map(Box::new))
+                .or_not(),
+        )
         .then(spanned_statement_block.clone())
         .map(|((params, return_type), body)| ast::FnContents {
             params,
             return_type,
             body,
-        });
+        })
+        .map_err_with_state(inside_this("function"));
 
     expr.define({
         let expr_list = expr
             .clone()
-            .separated_by(pad_just(Token::Comma))
+            .separated_by(comma_sep.clone())
             .allow_trailing()
-            .collect()
-            .with_ctx(Ctx::DELIMITED);
+            .collect();
 
-        let ident = pad_just(Token::Ident)
-            .to_span()
-            .map(ast::NodeContents::Ident);
+        let ident = just(Token::Ident).to_span().map(ast::NodeContents::Ident);
 
         let expr_clone = expr.clone();
-        let string_literal = move |contents: &'src [Spanned<StringSegmentToken<'src>>]| {
-            contents
-                .iter()
-                .map(|(token, span)| match token {
-                    StringSegmentToken::Literal => Ok(ast::StringSegment::Literal(*span)),
-                    StringSegmentToken::Escape(c) => match c {
-                        'n' => Ok(ast::StringSegment::Char('\n')),
-                        c if c.is_ascii_punctuation() => Ok(ast::StringSegment::Char(*c)),
-                        c => {
-                            let msg = format!("unknown escape character: {c:?}");
-                            Err(Rich::custom(*span, msg))
+        let string_literal_contents =
+            move |contents: &'src [Spanned<StringSegmentToken>], state: &mut ParseState<'src>| {
+                contents
+                    .iter()
+                    .map(|(token, span)| match token {
+                        StringSegmentToken::Literal => Ok(ast::StringSegment::Literal(*span)),
+                        StringSegmentToken::Escape(c) => match c {
+                            'n' => Ok(ast::StringSegment::Char('\n')),
+                            c if c.is_ascii_punctuation() => Ok(ast::StringSegment::Char(*c)),
+                            c => {
+                                let msg = format!("unknown escape character: {c:?}");
+                                Err(Rich::custom(*span, msg))
+                            }
+                        },
+                        StringSegmentToken::Interpolation(items) => {
+                            Ok(ast::StringSegment::Interpolation(
+                                expr_clone
+                                    .parse_with_state(make_input(*span, items), state)
+                                    .into_result()
+                                    .map_err(|e| e.into_iter().next().expect("empty errors"))?,
+                            ))
                         }
-                    },
-                    StringSegmentToken::Interpolation(items) => {
-                        Ok(ast::StringSegment::Interpolation(
-                            expr_clone
-                                .parse(make_input(*span, items))
-                                .into_result()
-                                .map_err(|e| e.into_iter().next().expect("empty errors"))?,
-                        ))
-                    }
-                })
-                .try_collect()
-                .map(ast::NodeContents::StringLiteral)
-        };
+                    })
+                    .try_collect()
+                    .map(ast::NodeContents::StringLiteral)
+            };
+        let string_literal = select_ref! {
+            Token::StringLiteral(contents) = e => string_literal_contents(contents, e.state())
+                .map_err(map_err_inside_this("string", e.span())),
+        }
+        .try_map(|result, _span| result);
 
         let literal = select_ref! {
             Token::Null => Ok(ast::NodeContents::NullLiteral),
             Token::True => Ok(ast::NodeContents::BoolLiteral(true)),
             Token::False => Ok(ast::NodeContents::BoolLiteral(false)),
-            Token::NumberLiteral(s) = e => match s.parse() {
+            Token::NumberLiteral = e => match span_to_str(e.span(), e.state()).parse() {
                 Ok(n) => Ok(ast::NodeContents::NumberLiteral(n)),
-                Err(err) => Err(Rich::custom(e.span(), format!("invalid number literal: {err}"))),
+                Err(err) => Err(Rich::custom(
+                    e.span(),
+                    format!("invalid number literal: {err}"),
+                )),
             },
-            Token::StringLiteral(contents) => string_literal(contents),
         }
         .try_map(|result, _span| result);
 
-        let fn_expr = just(Token::Fn)
-            .ignore_then(fn_contents.clone())
-            .map(ast::NodeContents::Fn);
-
         let list_literal = expr_list
             .clone()
+            .map_err_with_state(inside_this("list"))
             .nested_in(brackets)
             .map(ast::NodeContents::ListLiteral);
 
-        let map_literal = just(Token::Hash).ignore_then(
-            (ident.clone().map_with(|x, e| (x, e.span())))
-                .then_ignore(just(Token::Colon))
-                .then(expr.clone())
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect()
-                .map(ast::NodeContents::MapLiteral)
-                .with_ctx(Ctx::DELIMITED)
-                .nested_in(braces),
-        );
+        let map_literal = choice((ident.clone(), string_literal.clone()))
+            .map_with(|x, e| (x, e.span()))
+            .then_ignore(just(Token::Colon))
+            .then(expr.clone())
+            .separated_by(comma_sep.clone())
+            .allow_trailing()
+            .collect()
+            .map_err_with_state(inside_this("map"))
+            .map(ast::NodeContents::MapLiteral)
+            .nested_in(map_literal);
 
         let if_else_expr = just(Token::If)
             .ignore_then(expr.clone().map(Box::new))
-            .then(
-                expr.clone()
-                    .map(Box::new)
-                    .with_ctx(Ctx::DELIMITED)
-                    .nested_in(braces),
-            )
+            .then(expr.clone().map(Box::new).nested_in(braces))
             .separated_by(just(Token::Else))
             .at_least(1)
             .collect()
-            .then(optional(
-                just(Token::Else).ignore_then(
-                    expr.clone()
-                        .map(Box::new)
-                        .with_ctx(Ctx::DELIMITED)
-                        .nested_in(braces),
-                ),
-            ))
+            .then(
+                just(Token::Else)
+                    .ignore_then(expr.clone().map(Box::new).nested_in(braces))
+                    .or_not(),
+            )
             .map(|(if_cases, else_case)| ast::NodeContents::IfElse {
                 if_cases,
                 else_case,
             });
 
+        let fn_expr = just(Token::Fn)
+            .ignore_then(fn_contents.clone())
+            .map(ast::NodeContents::Fn);
+
         let paren_expr = expr
             .clone()
-            .with_ctx(Ctx::DELIMITED)
             .nested_in(parens)
             .map(Box::new)
             .map(ast::NodeContents::Paren);
@@ -246,16 +357,17 @@ where
         let atom = choice((
             ident,
             literal,
-            fn_expr,
+            string_literal,
             list_literal,
             map_literal,
             if_else_expr,
+            fn_expr,
             paren_expr,
         ))
         .boxed()
         .labelled("value");
 
-        let op_parser = |s| just(s).to_span().padded_by(expr_pad.clone());
+        let op_parser = |s| just(s).to_span();
         let prefix = |binding_power, op_str| {
             chumsky::pratt::prefix(binding_power, op_parser(op_str), |op, rhs, extra| {
                 let args = vec![rhs];
@@ -270,29 +382,21 @@ where
         };
 
         let postfix_dot_access = |binding_power| {
-            let dot_then_ident = just(Token::Period)
-                .ignore_then(just(Token::Ident).to_span())
-                .padded_by(expr_pad.clone());
+            let dot_then_ident = just(Token::Period).ignore_then(just(Token::Ident).to_span());
             chumsky::pratt::postfix(binding_power, dot_then_ident, |lhs, field, extra| {
                 let obj = Box::new(lhs);
                 (ast::NodeContents::Access { obj, field }, extra.span())
             })
         };
         let postfix_function_call = |binding_power| {
-            let paren_expr_list = expr_list
-                .clone()
-                .nested_in(parens)
-                .padded_by(expr_pad.clone());
+            let paren_expr_list = expr_list.clone().nested_in(parens);
             chumsky::pratt::postfix(binding_power, paren_expr_list, |lhs, args, extra| {
                 let func = Box::new(lhs);
                 (ast::NodeContents::FnCall { func, args }, extra.span())
             })
         };
         let postfix_indexing = |binding_power| {
-            let bracket_expr_list = expr_list
-                .clone()
-                .nested_in(brackets)
-                .padded_by(expr_pad.clone());
+            let bracket_expr_list = expr_list.clone().nested_in(brackets);
             chumsky::pratt::postfix(binding_power, bracket_expr_list, |lhs, args, extra| {
                 let obj = Box::new(lhs);
                 (ast::NodeContents::Index { obj, args }, extra.span())
@@ -351,19 +455,19 @@ where
                 infix(left(2), Token::Xor),
                 infix(left(1), Token::Or),
             ))
-            .padded_by(expr_pad)
             .boxed()
     });
 
     statement.define({
         let expr_or_assignment = expr
             .clone()
-            .then(optional(
+            .then(
                 type_annotation
                     .clone()
                     .then(choice([just(Token::Assign), just(Token::CompoundAssign)]).to_span())
-                    .then(expr.clone()),
-            ))
+                    .then(expr.clone())
+                    .or_not(),
+            )
             .map(|(lhs, opt_assignment)| match opt_assignment {
                 None => lhs.0,
                 Some(((ty, assign_symbol), rhs)) => ast::NodeContents::Assign {
@@ -383,17 +487,15 @@ where
 
         let bare_ident_list = just(Token::Ident)
             .to_span()
-            .separated_by(just(Token::Comma))
+            .separated_by(comma_sep.clone())
             .at_least(1)
             .collect();
         let ident_list_in_parens = just(Token::Ident)
             .to_span()
-            .padded_by(newlines.clone())
-            .separated_by(just(Token::Comma))
+            .separated_by(comma_sep.clone())
             .allow_trailing()
             .at_least(1)
             .collect()
-            .with_ctx(Ctx::DELIMITED)
             .nested_in(parens);
         let ident_list = choice((bare_ident_list, ident_list_in_parens));
 
@@ -449,9 +551,11 @@ where
             .separated_by(just(Token::Else))
             .at_least(1)
             .collect()
-            .then(optional(
-                just(Token::Else).ignore_then(spanned_statement_block.clone()),
-            ))
+            .then(
+                just(Token::Else)
+                    .ignore_then(spanned_statement_block.clone())
+                    .or_not(),
+            )
             .map(|(if_cases, else_case)| ast::NodeContents::IfElse {
                 if_cases,
                 else_case,
@@ -476,7 +580,7 @@ where
         let continue_statement = just(Token::Continue).map(|_| ast::NodeContents::Continue);
         let break_statement = just(Token::Break).map(|_| ast::NodeContents::Break);
         let return_statement = just(Token::Return)
-            .ignore_then(optional(expr.clone().map(Box::new)))
+            .ignore_then(expr.clone().map(Box::new).or_not())
             .map(ast::NodeContents::Return);
 
         choice((
@@ -493,8 +597,13 @@ where
             continue_statement,
             break_statement,
             return_statement,
-            // Assignment (last because it's the hardest to parse)
+            // Assignment (last because it doesn't start with a keyword)
             expr_or_assignment,
+        ))
+        .recover_with(skip_until(
+            any().ignored(),
+            just(Token::Newline).ignored(),
+            || ast::NodeContents::Error,
         ))
         .map_with(|stmt, e| (stmt, e.span()))
         .boxed()

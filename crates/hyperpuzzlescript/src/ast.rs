@@ -70,6 +70,9 @@ pub enum NodeContents {
     StringLiteral(Vec<StringSegment>),
     ListLiteral(Vec<Node>),
     MapLiteral(Vec<(Node, Node)>),
+
+    // Parse error
+    Error,
 }
 impl NodeContents {
     pub(crate) fn is_fn_call(&self) -> bool {
