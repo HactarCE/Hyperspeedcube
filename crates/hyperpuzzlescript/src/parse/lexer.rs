@@ -1,4 +1,8 @@
-use super::*;
+use std::fmt;
+
+use chumsky::prelude::*;
+
+use crate::{FileId, Span, Spanned};
 
 pub(crate) type LexError<'src> = Rich<'src, char, SimpleSpan>;
 pub(crate) type LexState = extra::SimpleState<FileId>;
@@ -95,6 +99,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             "import" => Token::Import,
             "export" => Token::Export,
             "fn" => Token::Fn,
+            "mut" => Token::Mut,
             "from" => Token::From,
             "as" => Token::As,
             "is" => Token::Is,
@@ -261,6 +266,7 @@ pub enum Token {
     Import,
     Export,
     Fn,
+    Mut,
 
     From,
     As,
@@ -340,6 +346,7 @@ impl fmt::Display for Token {
             Self::Import => "import",
             Self::Export => "export",
             Self::Fn => "fn",
+            Self::Mut => "mut",
             Self::From => "from",
             Self::As => "as",
             Self::Is => "is",

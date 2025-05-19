@@ -1,7 +1,8 @@
 use chumsky::pratt::{left, right};
+use chumsky::prelude::*;
 
 use super::lexer::{StringSegmentToken, Token};
-use super::*;
+use crate::{Span, Spanned, ast};
 
 pub(crate) type ParserInput<'src> = chumsky::input::MappedInput<
     Token,
@@ -73,16 +74,16 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .map_with(|block, e| Box::new((block, e.span())))
         .boxed();
 
-    let type_annotation = just(Token::Colon)
+    let opt_type_annotation = just(Token::Colon)
         .ignore_then(expr.clone())
         .map(Box::new)
         .or_not()
         .boxed();
 
-    let fn_params = just(Token::Ident)
-        .to_span()
-        .then(type_annotation.clone())
-        .map(|(name, ty)| ast::FnParam { name, ty })
+    let fn_params = (just(Token::Mut).or_not().map(|opt| opt.is_some()))
+        .then(just(Token::Ident).to_span())
+        .then(opt_type_annotation.clone())
+        .map(|((is_mut, name), ty)| ast::FnParam { is_mut, name, ty })
         .separated_by(comma_sep.clone())
         .allow_trailing()
         .collect()
@@ -137,7 +138,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                             ))
                         }
                     })
-                    .try_collect()
+                    .collect::<Result<_, _>>()
                     .map(ast::NodeContents::StringLiteral)
             };
         let string_literal = select_ref! {
@@ -311,7 +312,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let expr_or_assignment = expr
             .clone()
             .then(
-                type_annotation
+                opt_type_annotation
                     .clone()
                     .then(choice([just(Token::Assign), just(Token::CompoundAssign)]).to_span())
                     .then(expr.clone())

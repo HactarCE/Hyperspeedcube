@@ -1,9 +1,7 @@
-use std::fmt;
-
 use chumsky::prelude::*;
 use itertools::Itertools;
 
-use crate::{Error, ErrorMsg, FileId, Span, Spanned, ast};
+use crate::{Error, ErrorMsg, FileId, Span, ast};
 
 mod lexer;
 mod parser;
