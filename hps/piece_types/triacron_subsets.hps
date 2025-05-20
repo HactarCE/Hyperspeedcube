@@ -1,0 +1,81 @@
+// Marks all pieces on a triacron-subset puzzle with axes named U, F, R, and L
+// in the expected places.
+//
+// The twist `U` and the region `R(1, half_layers)` must generate `U_adj`.
+export fn mark_multilayer_UFRL(puzzle, combined_layers) {
+    half_layers = floor(combined_layers/2)
+    U = puzzle.axes.U
+    F = puzzle.axes.F
+    R = puzzle.axes.R
+    L = puzzle.axes.L
+    U_adj = symmetry(puzzle.twists.U).orbit(R(1, half_layers)).union()
+    UF_adj = R(1, half_layers) | L(1, half_layers)
+    UFR_adj = REGION_NONE
+    mark_multilayer(puzzle, combined_layers, U, F, R, U_adj, UF_adj, UFR_adj)
+}
+
+// Marks all pieces on a triacron-subset puzzle
+export fn mark_multilayer(puzzle, combined_layers, U, F, R, U_adj, UF_adj, UFR_adj) {
+  half_layers = floor(combined_layers/2)
+  if combined_layers % 2 == 1 {
+    mark_multilayer_edges(puzzle, half_layers, U, F, U_adj, UF_adj)
+  }
+  mark_multilayer_corners(puzzle, half_layers, U, F, R, UFR_adj)
+}
+
+// Marks middle edges and centers on a multilayer sphenic (2-acronic) edge block.
+export fn mark_multilayer_edges(puzzle, layers, U, F, U_adj, UF_adj) {
+    if layers < 1 { return }
+
+    puzzle.add_piece_type("center", "Center")
+    puzzle.add_piece_type("edge", "Edge")
+
+    // Middle edges + centers
+    middle_center_region = U(1) & ~U_adj
+    middle_edge_region = U(1) & F(1) & ~UF_adj
+    if layers > 1 {
+        puzzle.mark_piece(middle_center_region, "center/0_0", "Middle center")
+        puzzle.mark_piece(middle_edge_region, "edge/0", "Middle edge")
+    } else {
+        puzzle.mark_piece(middle_center_region, "center")
+        puzzle.mark_piece(middle_edge_region, "edge")
+    }
+
+    // T-centers
+    for i in 1..layers {
+        region = U(1) & F(layers-i+1) & ~UF_adj
+        puzzle.mark_piece(region, "center/0_${i}", "T-center (${i})")
+    }
+}
+
+// Marks the centers and wings of a multilayer triacronic corner block.
+export fn mark_multilayer_corners(puzzle, layers, U, F, R, UFR_adj) {
+    if layers < 1 { return }
+
+    if layers > 1 {
+        puzzle.add_piece_type("center", "Center")
+        puzzle.add_piece_type("edge", "Edge")
+    }
+
+    // X-centers and oblique centers
+    for i in 1..layers {
+        for j in 1..layers {
+            region = U(1) & F(layers-i+1) & R(layers-j+1) & ~UFR_adj
+            if i == j {
+                puzzle.mark_piece(region, "center/${i}_${j}", "X-center (${i}, ${j})")
+            } else {
+                lib.piece_types.mark_left_right(puzzle, region, "center", "oblique", i, j)
+            }
+        }
+    }
+
+    // Wings
+    for i in 1..layers {
+        region = U(1) & F(1) & R(layers-i+1) & ~UFR_adj
+        puzzle.mark_piece(region, "edge/${i}", "Wing (${i})")
+    }
+
+    // Corners
+    region = U(1) & F(1) & R(1) & ~UFR_adj
+    puzzle.mark_piece(region, "corner", "Corner")
+}

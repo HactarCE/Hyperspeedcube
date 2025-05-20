@@ -1,13 +1,38 @@
-use std::{fmt, ops::Index, path::Path};
+use std::{fmt, ops::Index, path::Path, sync::Arc};
 
+use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;
 use itertools::Itertools;
+use lazy_static::lazy_static;
 
-use crate::{FileId, Span};
+use crate::{FileId, Result, Span, Value, ast};
+
+lazy_static! {
+    static ref INTERNAL_SOURCE: ariadne::Source<ArcStr> =
+        ariadne::Source::from(ArcStr::from("<builtin>"));
+}
+
+#[derive(Debug)]
+pub struct File {
+    pub contents: ArcStr,
+    pub source: ariadne::Source<ArcStr>,
+    pub ast: Option<Arc<ast::Node>>,
+    pub result: Option<Result<Value, ()>>,
+}
+impl File {
+    pub fn new(source: ArcStr) -> Self {
+        Self {
+            contents: source.clone(),
+            source: ariadne::Source::from(source),
+            ast: None,
+            result: None,
+        }
+    }
+}
 
 /// Hyperpuzzlescript source files.
 #[derive(Debug, Default)]
-pub struct FileStore(IndexMap<String, ariadne::Source>);
+pub struct FileStore(pub(crate) IndexMap<String, File>);
 
 impl FileStore {
     /// Constructs a new file store with built-in files and user files (if
@@ -26,7 +51,7 @@ impl FileStore {
                     "reading Hyperpuzzlescript files from path {}",
                     hps_dir.to_string_lossy(),
                 );
-                files.load_from_directory(hps_dir);
+                ret.add_from_directory(hps_dir);
             }
             Err(e) => log::error!("error locating Hyperpuzzlescript directory: {e}"),
         }
@@ -44,7 +69,7 @@ impl FileStore {
                     include_dir::DirEntry::File(file) => {
                         let path = file.path();
                         if path.extension().is_some_and(|ext| ext == "hps") {
-                            match file.contents_utf8().map(str::to_owned) {
+                            match file.contents_utf8().map(ArcStr::from) {
                                 Some(contents) => self.add_file(&path, contents),
                                 None => log::error!("error loading built-in file {path:?}"),
                             }
@@ -65,7 +90,7 @@ impl FileStore {
                     if path.extension().is_some_and(|ext| ext == "rhai") {
                         let relative_path = path.strip_prefix(directory).unwrap_or(path);
                         match std::fs::read_to_string(path) {
-                            Ok(contents) => self.add_file(relative_path.to_owned(), contents),
+                            Ok(contents) => self.add_file(relative_path, ArcStr::from(contents)),
                             Err(e) => log::error!("error loading file {relative_path:?}: {e}"),
                         }
                     }
@@ -76,7 +101,7 @@ impl FileStore {
     }
 
     /// Adds a file to the file store.
-    pub(crate) fn add_file(&mut self, path: &Path, contents: String) {
+    pub(crate) fn add_file(&mut self, path: &Path, contents: ArcStr) {
         let path_string = path
             .with_extension("")
             .components()
@@ -85,7 +110,7 @@ impl FileStore {
             .chars()
             .filter(|&c| c != '"' && c != '\\') // dubious chars
             .collect();
-        self.0.insert(path_string, ariadne::Source::from(contents));
+        self.0.insert(path_string, File::new(contents));
     }
 
     /// Returns the name of a file.
@@ -93,8 +118,15 @@ impl FileStore {
         Some(self.0.get_index(id as usize)?.0)
     }
     /// Returns the contents of a file.
-    pub fn file_contents(&self, id: FileId) -> Option<&str> {
-        Some(self.0.get_index(id as usize)?.1.text())
+    pub fn file_contents(&self, id: FileId) -> Option<&ArcStr> {
+        Some(&self.0.get_index(id as usize)?.1.contents)
+    }
+
+    pub fn substr(&self, span: Span) -> Substr {
+        match self.file_contents(span.context) {
+            Some(contents) => contents.substr(span.start as usize..span.end as usize),
+            None => Substr::new(),
+        }
     }
 
     /// Returns the number of files in the store.
@@ -102,14 +134,23 @@ impl FileStore {
         self.0.len()
     }
 
-    pub(crate) fn ariadne_source(&self, id: FileId) -> Result<&ariadne::Source, impl fmt::Debug> {
+    pub(crate) fn ariadne_source(
+        &self,
+        id: FileId,
+    ) -> Result<&ariadne::Source<ArcStr>, impl fmt::Debug> {
+        if id == FileId::MAX {
+            return Ok(&INTERNAL_SOURCE);
+        }
         match self.0.get_index(id as usize) {
-            Some((_name, source)) => Ok(source),
+            Some((_name, file)) => Ok(&file.source),
             None => Err(Box::new(format!("no file with ID {id}"))),
         }
     }
     pub(crate) fn ariadne_display(&self, id: FileId) -> Option<String> {
-        self.file_name(id).map(|s| s.to_owned())
+        if id == FileId::MAX {
+            return Some("<builtin>".to_owned());
+        }
+        self.file_name(id).map(|s| format!("{s}.hps"))
     }
 }
 
@@ -125,9 +166,9 @@ impl Index<Span> for FileStore {
 }
 
 impl ariadne::Cache<FileId> for &FileStore {
-    type Storage = String;
+    type Storage = ArcStr;
 
-    fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source, impl fmt::Debug> {
+    fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source<ArcStr>, impl fmt::Debug> {
         self.ariadne_source(*id)
     }
 

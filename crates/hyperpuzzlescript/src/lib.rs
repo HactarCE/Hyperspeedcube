@@ -3,23 +3,22 @@
 #![warn(variant_size_differences)]
 
 mod ast;
-// mod builtins;
+mod builtins;
 mod diagnostic;
-// mod eval;
-// mod file_store;
 mod parse;
 mod runtime;
 mod ty;
 mod util;
-// mod value;
+mod value;
 
-pub use runtime::{FileStore, Runtime};
+pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
 use std::path::Path;
 
-pub use diagnostic::{Error, ErrorMsg, Warning};
-// use eval::Ctx;
+pub use diagnostic::{Error, ErrorMsg, ImmutReason, Warning};
 pub use ty::{FnType, Type};
-// use value::Value;
+use value::{FnDebugInfo, FnOverload, FnValue, MapKey, Value, ValueData};
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// Numeric ID for a Hyperpuzzlescript file.
 pub type FileId = u32;
@@ -27,6 +26,12 @@ pub type FileId = u32;
 pub type Span = chumsky::span::SimpleSpan<u32, FileId>;
 /// Value with an associated `Span`.
 pub type Spanned<T> = (T, Span);
+
+const BUILTIN_SPAN: Span = Span {
+    start: 0,
+    end: 0,
+    context: FileId::MAX,
+};
 
 #[cfg(feature = "hyperpaths")]
 const BAKE_HPS_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;
@@ -42,8 +47,15 @@ static HPS_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_HPS_PATHS {
 
 /// Loads all puzzles defined using Hyperpuzzlescript.
 pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_core::Logger) {
-    // runtime::load_files_with_new_engine(catalog, logger);
-    todo!()
+    Runtime::with_default_files().load_all_files();
+}
+
+#[test]
+fn test_all() {
+    load_puzzles(
+        &hyperpuzzle_core::Catalog::new(),
+        &hyperpuzzle_core::Logger::new(),
+    );
 }
 
 /// Extracts the built-in Hyperpuzzlescript files to the specified path.
@@ -56,7 +68,7 @@ const MAX_TWIST_REPEAT: usize = 50;
 
 #[test]
 pub fn test_eval() {
-    let src = include_str!("../resources/hps/polygonal.hps");
+    let src = include_str!("../resources/hps/test.hps");
     // let ast = parser::parse(src).unwrap();
     // let mut ctx = Ctx {
     //     src: src.into(),

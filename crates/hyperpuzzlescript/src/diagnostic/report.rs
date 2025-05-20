@@ -51,9 +51,26 @@ impl ReportBuilder {
         self.builder.add_note(note);
         self
     }
+    pub fn notes<S: ToString>(mut self, notes: impl IntoIterator<Item = S>) -> Self {
+        for note in notes {
+            self = self.note(note);
+        }
+        self
+    }
     pub fn help(mut self, help: impl ToString) -> Self {
         self.builder.add_help(help);
         self
+    }
+
+    pub fn label_or_note(
+        self,
+        opt_span: Option<impl Into<AriadneSpan>>,
+        msg: impl ToString,
+    ) -> Self {
+        match opt_span {
+            Some(span) => self.label(span, msg),
+            None => self.note(msg),
+        }
     }
 
     pub fn to_string_with_ansi_escapes(self, files: impl ariadne::Cache<FileId>) -> String {

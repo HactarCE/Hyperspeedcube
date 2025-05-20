@@ -1506,6 +1506,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecow"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b92b481eb5d59fd8e80e92ff11d057d1ca8d144b2cd8c66cc8d5bd177a3c0dc5"
+
+[[package]]
 name = "eframe"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2475,6 +2481,7 @@ dependencies = [
  "ariadne",
  "chumsky",
  "ecolor",
+ "ecow",
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
@@ -2483,8 +2490,10 @@ dependencies = [
  "include_dir",
  "indexmap",
  "itertools 0.14.0",
+ "lazy_static",
  "log",
  "oklab",
+ "parking_lot",
  "thiserror 2.0.12",
  "walkdir",
 ]

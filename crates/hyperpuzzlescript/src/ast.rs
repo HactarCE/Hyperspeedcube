@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{Span, Spanned};
 
 pub type Node = Spanned<NodeContents>;
@@ -78,13 +80,47 @@ impl NodeContents {
     pub(crate) fn is_fn_call(&self) -> bool {
         matches!(self, Self::FnCall { .. })
     }
+
+    pub(crate) fn kind_str(&self) -> &'static str {
+        match self {
+            NodeContents::Assign { .. } => "assignment statement",
+            NodeContents::Export(_) => "'export' statement",
+            NodeContents::FnDef { .. } => "named function definition",
+            NodeContents::ImportAllFrom(_)
+            | NodeContents::ImportFrom(_, _)
+            | NodeContents::ImportAs(_, _)
+            | NodeContents::Import(_) => "'import' statement",
+            NodeContents::UseAllFrom(_) | NodeContents::UseFrom(_, _) => "'use' statement",
+            NodeContents::Block(_) => "statement block",
+            NodeContents::IfElse { .. } => "if statement",
+            NodeContents::ForLoop { .. } => "'for' loop",
+            NodeContents::WhileLoop { .. } => "'while' loop",
+            NodeContents::Continue => "'continue' statement",
+            NodeContents::Break => "'break' statement",
+            NodeContents::Return(_) => "'return' statement",
+            NodeContents::Ident(_) => "identifier",
+            NodeContents::Op { .. } => "operator expression",
+            NodeContents::FnCall { .. } => "function call expression",
+            NodeContents::Paren(_) => "parenthetical expression",
+            NodeContents::Access { .. } => "access expression",
+            NodeContents::Index { .. } => "indexing expression",
+            NodeContents::Fn(_) => "anonymous function expression",
+            NodeContents::NullLiteral => "null literal",
+            NodeContents::BoolLiteral(_) => "boolean literal",
+            NodeContents::NumberLiteral(_) => "number literal",
+            NodeContents::StringLiteral(_) => "string literal",
+            NodeContents::ListLiteral(_) => "list literal",
+            NodeContents::MapLiteral(_) => "map literal",
+            NodeContents::Error => "error",
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct FnContents {
     pub params: Vec<FnParam>,
     pub return_type: Option<Box<Node>>,
-    pub body: Box<Node>,
+    pub body: Arc<Node>,
 }
 
 #[derive(Debug)]

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chumsky::pratt::{left, right};
 use chumsky::prelude::*;
 
@@ -80,10 +82,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .or_not()
         .boxed();
 
-    let fn_params = (just(Token::Mut).or_not().map(|opt| opt.is_some()))
-        .then(just(Token::Ident).to_span())
+    let fn_params = (just(Token::Ident).to_span())
         .then(opt_type_annotation.clone())
-        .map(|((is_mut, name), ty)| ast::FnParam { is_mut, name, ty })
+        .map(|(name, ty)| ast::FnParam { name, ty })
         .separated_by(comma_sep.clone())
         .allow_trailing()
         .collect()
@@ -101,7 +102,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .map(|((params, return_type), body)| ast::FnContents {
             params,
             return_type,
-            body,
+            body: Arc::new(*body),
         })
         .map_err_with_state(inside_this("function"));
 
@@ -312,11 +313,16 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let expr_or_assignment = expr
             .clone()
             .then(
-                opt_type_annotation
-                    .clone()
-                    .then(choice([just(Token::Assign), just(Token::CompoundAssign)]).to_span())
-                    .then(expr.clone())
-                    .or_not(),
+                choice((
+                    just(Token::CompoundAssign)
+                        .to_span()
+                        .map(|assign_symbol| (None, assign_symbol)),
+                    opt_type_annotation
+                        .clone()
+                        .then(just(Token::Assign).to_span()),
+                ))
+                .then(expr.clone())
+                .or_not(),
             )
             .map(|(lhs, opt_assignment)| match opt_assignment {
                 None => lhs.0,

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// Type in the language.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -129,6 +129,16 @@ impl FromIterator<Type> for Type {
 impl From<FnType> for Type {
     fn from(value: FnType) -> Self {
         Type::Fn(Box::new(value))
+    }
+}
+impl<'a> From<Type> for Cow<'a, Type> {
+    fn from(value: Type) -> Self {
+        Cow::Owned(value)
+    }
+}
+impl<'a> From<&'a Type> for Cow<'a, Type> {
+    fn from(value: &'a Type) -> Self {
+        Cow::Borrowed(value)
     }
 }
 
