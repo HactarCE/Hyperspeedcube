@@ -10,14 +10,15 @@ mod diagnostic;
 mod parse;
 mod runtime;
 mod ty;
-mod util;
 mod value;
 
-pub use diagnostic::{DiagMsg, FullDiagnostic, ImmutReason, TracebackLine};
+use diagnostic::LoopControlFlow;
+pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
 pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
 pub use ty::{FnType, Type};
-use value::{FnDebugInfo, FnOverload, FnValue, Index, MapKey, Value, ValueData};
+pub use value::{FnDebugInfo, FnOverload, FnValue, MapKey, Value, ValueData};
 
+/// Result type supporting a single [`FullDiagnostic`].
 pub type Result<T, E = FullDiagnostic> = std::result::Result<T, E>;
 
 /// Numeric ID for a Hyperpuzzlescript file.
@@ -27,11 +28,25 @@ pub type Span = chumsky::span::SimpleSpan<u32, FileId>;
 /// Value with an associated `Span`.
 pub type Spanned<T> = (T, Span);
 
-const BUILTIN_SPAN: Span = Span {
+/// Dummy span used for built-in values.
+///
+/// This is handled specially by any code that prints spans.
+pub const BUILTIN_SPAN: Span = Span {
     start: 0,
     end: 0,
     context: FileId::MAX,
 };
+
+/// Whether to check for function overload conflicts in built-ins and user code.
+///
+/// This only affects checks performed when the function is defined, not when
+/// the function is called.
+const CHECK_FN_OVERLOAD_CONFLICTS: bool = true;
+
+/// Name of the scripting language.
+pub const LANGUAGE_NAME: &str = "Hyperpuzzlescript";
+/// File extension for scripts in the language.
+pub const FILE_EXTENSION: &str = "hps";
 
 #[cfg(feature = "hyperpaths")]
 const BAKE_HPS_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;

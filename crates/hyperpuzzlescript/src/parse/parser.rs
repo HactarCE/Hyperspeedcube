@@ -6,15 +6,15 @@ use chumsky::prelude::*;
 use super::lexer::{StringSegmentToken, Token};
 use crate::{Span, Spanned, ast};
 
-pub(crate) type ParserInput<'src> = chumsky::input::MappedInput<
+pub(super) type ParserInput<'src> = chumsky::input::MappedInput<
     Token,
     Span,
     &'src [Spanned<Token>],
     fn(&'src Spanned<Token>) -> (&'src Token, &'src Span),
 >;
-pub(crate) type ParseError<'src> = Rich<'src, Token, Span>;
-pub(crate) type ParseState<'src> = extra::SimpleState<&'src str>;
-pub(crate) type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
+pub(super) type ParseError<'src> = Rich<'src, Token, Span>;
+pub(super) type ParseState<'src> = extra::SimpleState<&'src str>;
+pub(super) type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
 
 /// Adds a label to an error at `span` saying "inside this {thing}".
 fn map_err_inside_this<'src>(

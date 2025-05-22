@@ -4,12 +4,10 @@ use chumsky::prelude::*;
 
 use crate::{FileId, Span, Spanned};
 
-pub(crate) type LexError<'src> = Rich<'src, char, SimpleSpan>;
-pub(crate) type LexState = extra::SimpleState<FileId>;
-pub(crate) type LexExtra<'src> = extra::Full<LexError<'src>, LexState, ()>;
+pub(super) type LexError<'src> = Rich<'src, char, SimpleSpan>;
+pub(super) type LexState = extra::SimpleState<FileId>;
+pub(super) type LexExtra<'src> = extra::Full<LexError<'src>, LexState, ()>;
 type LexExtraInternal<'src> = extra::Full<LexError<'src>, LexState, LexCtx>;
-
-pub const CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS: &str = "\"\\$";
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 struct LexCtx {
@@ -36,11 +34,7 @@ fn inside_here<'src>(
 fn span_from_extra<'src, 'b>(
     extra: &mut chumsky::input::MapExtra<'src, 'b, &'src str, LexExtraInternal<'src>>,
 ) -> Span {
-    Span {
-        start: extra.span().start as u32,
-        end: extra.span().end as u32,
-        context: **extra.state(),
-    }
+    super::span_with_file(**extra.state(), extra.span())
 }
 
 pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExtra<'src>> {
@@ -134,7 +128,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             just('n').to('\n'),
         )));
         let string_literal = choice((
-            none_of(CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS)
+            none_of(super::CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS)
                 .repeated()
                 .at_least(1)
                 .to(StringSegmentToken::Literal),
@@ -319,8 +313,6 @@ pub enum Token {
 
     Assign,
     CompoundAssign,
-
-    Eof,
 }
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -390,7 +382,6 @@ impl fmt::Display for Token {
             Self::Gte => ">=",
             Self::CompoundAssign => "<compound assignment operator>",
             Self::Assign => "=",
-            Self::Eof => "<end>",
         };
         write!(f, "{s}")
     }

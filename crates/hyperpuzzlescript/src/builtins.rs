@@ -5,7 +5,7 @@ use hypermath::{approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
 use itertools::Itertools;
 use smallvec::smallvec;
 
-use crate::{DiagMsg, Result, Scope, Span, Type, Value};
+use crate::{Diagnostic, Error, Result, Scope, Span, Type, Value, Warning};
 
 pub fn new_builtins_scope() -> Arc<Scope> {
     let scope = Scope::new();
@@ -59,6 +59,7 @@ macro_rules! hps_fn {
                     Ok($crate::ValueData::from(output).at($crate::BUILTIN_SPAN))
                 }),
                 debug_info: $crate::FnDebugInfo::Internal($fn_name),
+                new_scope: false, // built-in functions never modify local variables
             },
         )
     };
@@ -157,9 +158,8 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
             ctx.runtime.print(args.iter().join(" "));
         }),
         hps_fn!("warn", (None, Type::Null), |ctx, args| {
-            ctx.runtime.report_diagnostic(
-                DiagMsg::UserWarning(args.iter().join(" ").into()).at(ctx.caller_span),
-            );
+            ctx.runtime
+                .report_diagnostic(Warning::User(args.iter().join(" ").into()).at(ctx.caller_span));
         }),
         hps_fn!("error", (None, Type::Null), |ctx, args| {
             let msg = if args.is_empty() {
@@ -167,7 +167,7 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
             } else {
                 args.iter().join(" ").into()
             };
-            Err::<(), _>(DiagMsg::UserError(msg).at(ctx.caller_span))?
+            Err::<(), _>(Error::User(msg).at(ctx.caller_span))?
         }),
         // Assertions
         hps_fn!("assert", |ctx, cond: Bool| -> Null {
@@ -214,12 +214,14 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
         }),
         hps_fn!("__eval_to_error", |ctx, f: Fn| -> Str {
             match f.call(ctx.caller_span, ctx.caller_span, ctx, vec![]) {
-                Ok(value) => Err(DiagMsg::UserError(eco_format!(
-                    "expected error; got {}",
-                    value.repr()
-                ))
-                .at(ctx.caller_span)),
-                Err(e) => Ok(EcoString::from(e.msg.overview().1)),
+                Ok(value) => Err(
+                    Error::User(eco_format!("expected error; got {}", value.repr()))
+                        .at(ctx.caller_span),
+                ),
+                Err(e) => Ok(EcoString::from(match e.msg {
+                    Diagnostic::Error(e) => e.to_string(),
+                    Diagnostic::Warning(w) => w.to_string(),
+                })),
             }?
         }),
         // Vector construction
@@ -259,13 +261,6 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
          -> Vec {
             hypermath::Vector(smallvec![x, y, z, w, v, u, t])
         }),
-        //
-        hps_fn!("add_puzzle", |args: Map| -> Null {
-            let x = match args.get("ndim") {
-                Some(val) => val.as_u8()?,
-                None => 0,
-            };
-        }),
     ])?;
 
     Ok(())
@@ -274,7 +269,7 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
 fn assert<S: Into<EcoString>>(condition: bool, msg: impl FnOnce() -> S, span: Span) -> Result<()> {
     match condition {
         true => Ok(()),
-        false => Err(DiagMsg::Assert(msg().into()).at(span)),
+        false => Err(Error::Assert(msg().into()).at(span)),
     }
 }
 fn assert_cmp<S: Into<EcoString>>(
@@ -285,6 +280,6 @@ fn assert_cmp<S: Into<EcoString>>(
 ) -> Result<()> {
     match condition {
         true => Ok(()),
-        false => Err(DiagMsg::AssertCompare(Box::new(l), Box::new(r), msg().into()).at(span)),
+        false => Err(Error::AssertCompare(Box::new(l), Box::new(r), msg().into()).at(span)),
     }
 }

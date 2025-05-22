@@ -23,9 +23,12 @@ impl ScopeRef {
     }
 }
 
+/// Scope containing variables, and optionally referencing a parent scope.
 #[derive(Debug, Default)]
 pub struct Scope {
+    /// Parent scope.
     pub parent: Option<ScopeRef>,
+    /// Names in this scope.
     pub names: Mutex<HashMap<Substr, Value>>,
 }
 impl Scope {

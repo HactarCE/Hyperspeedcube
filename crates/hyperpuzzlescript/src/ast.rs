@@ -77,10 +77,6 @@ pub enum NodeContents {
     Error,
 }
 impl NodeContents {
-    pub(crate) fn is_fn_call(&self) -> bool {
-        matches!(self, Self::FnCall { .. })
-    }
-
     pub(crate) fn kind_str(&self) -> &'static str {
         match self {
             NodeContents::Assign { .. } => "assignment statement",

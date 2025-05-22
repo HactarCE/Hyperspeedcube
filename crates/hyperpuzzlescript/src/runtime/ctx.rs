@@ -1,3 +1,4 @@
+use std::ops::Index;
 use std::sync::Arc;
 
 use ecow::eco_format;
@@ -6,17 +7,23 @@ use itertools::Itertools;
 
 use super::{Runtime, Scope};
 use crate::{
-    DiagMsg, FnOverload, FnType, FnValue, Index, MapKey, Result, Span, Spanned, Type, Value,
-    ValueData, ast,
+    Error, FnOverload, FnType, FnValue, LoopControlFlow, MapKey, Result, Span, Spanned, Type,
+    Value, ValueData, ast,
 };
 
+/// Evaluation context.
 pub struct EvalCtx<'a> {
+    /// Innermost scope.
     pub scope: &'a Arc<Scope>,
+    /// Language runtime.
     pub runtime: &'a mut Runtime,
+    /// Span of the most recent caller.
+    ///
+    /// This is used as the span when an error occurs in a built-in function.
     pub caller_span: Span,
 }
 
-impl std::ops::Index<Span> for EvalCtx<'_> {
+impl Index<Span> for EvalCtx<'_> {
     type Output = str;
 
     fn index(&self, index: Span) -> &Self::Output {
@@ -44,7 +51,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::Access { obj, field } => self.modify(
                 obj,
                 Box::new(|ctx, obj_span, obj| {
-                    let mut obj = obj.ok_or(DiagMsg::Undefined.at(obj_span))?;
+                    let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
                     let old_value = ctx.field_get(&obj, *field)?.at(span);
                     let new_value = update_fn(ctx, span, Some(old_value))?;
                     ctx.field_set(&mut obj, *field, new_value)?;
@@ -57,7 +64,7 @@ impl EvalCtx<'_> {
                 self.modify(
                     obj,
                     Box::new(|ctx, obj_span, obj| {
-                        let mut obj = obj.ok_or(DiagMsg::Undefined.at(obj_span))?;
+                        let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
                         let old_value = ctx.index_get(&obj, args.clone(), args_span)?.at(span);
                         let new_value = update_fn(ctx, span, Some(old_value.clone()))?;
                         ctx.index_set(span, &mut obj, args, new_value)?;
@@ -65,7 +72,7 @@ impl EvalCtx<'_> {
                     }),
                 )
             }
-            node_contents => Err(DiagMsg::CannotAssignToExpr {
+            node_contents => Err(Error::CannotAssignToExpr {
                 kind: node_contents.kind_str(),
             }
             .at(span)),
@@ -101,7 +108,7 @@ impl EvalCtx<'_> {
             ValueData::Vec(v) => match field_name {
                 "unit" => Some(ValueData::Vec(
                     v.normalize()
-                        .ok_or(DiagMsg::NormalizeZeroVector.at(obj.span))?,
+                        .ok_or(Error::NormalizeZeroVector.at(obj.span))?,
                 )),
                 "mag2" => Some(ValueData::Num(v.mag2())),
                 "mag" => Some(ValueData::Num(v.mag())),
@@ -109,7 +116,7 @@ impl EvalCtx<'_> {
             },
             _ => None,
         }
-        .ok_or(DiagMsg::NoField { obj: obj.span }.at(field))
+        .ok_or(Error::NoField { obj: obj.span }.at(field))
     }
     fn field_set(&mut self, obj: &mut Value, field: Span, new_value: Value) -> Result<()> {
         match &mut obj.data {
@@ -137,11 +144,11 @@ impl EvalCtx<'_> {
             }
             _ => (),
         }
-        Err(DiagMsg::CannotSetField { obj: obj.span }.at(field))
+        Err(Error::CannotSetField { obj: obj.span }.at(field))
     }
     fn index_get(&mut self, obj: &Value, index: Vec<Value>, index_span: Span) -> Result<ValueData> {
         let index_value = index.iter().exactly_one().map_err(|_| {
-            DiagMsg::WrongNumberOfIndices {
+            Error::WrongNumberOfIndices {
                 obj_span: obj.span,
                 count: index.len(),
                 min: 1,
@@ -150,32 +157,15 @@ impl EvalCtx<'_> {
             .at(index_span)
         })?;
         match &obj.data {
-            ValueData::Str(s) => {
-                let index = index_value.as_index()?;
-                let opt_char = match index {
-                    Index::Front(i) => s.chars().nth(i),
-                    Index::Back(i) => s.chars().nth_back(i),
-                };
-                match opt_char {
-                    Some(c) => Ok(ValueData::from(c)),
-                    None => Err(index
-                        .out_of_bounds_pos_neg_err(s.chars().count())
-                        .at(index_value.span)),
-                }
-            }
-            ValueData::List(list) => {
-                let index = index_value.as_index()?;
-                let opt_value = match index {
-                    Index::Front(i) => list.get(i),
-                    Index::Back(i) => list.iter().nth_back(i), // optimized
-                };
-                match opt_value {
-                    Some(v) => Ok(v.data.clone()),
-                    None => Err(index
-                        .out_of_bounds_pos_neg_err(list.len())
-                        .at(index_value.span)),
-                }
-            }
+            // Index string by character (O(n))
+            ValueData::Str(s) => Ok(index_value
+                .index_double_ended(s.chars(), || s.chars().count())?
+                .into()),
+            // Index list by element (O(1))
+            ValueData::List(list) => Ok(index_value
+                .index_double_ended(list.iter(), || list.len())?
+                .data
+                .clone()),
             ValueData::Map(map) => match &index_value.data {
                 ValueData::Str(s) => match map.get(s.as_str()) {
                     Some(v) => Ok(v.data.clone()),
@@ -186,7 +176,7 @@ impl EvalCtx<'_> {
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
                 Ok(ValueData::Num(vec.get(index_value.as_u8()?)))
             }
-            _ => Err(DiagMsg::CannotIndex(obj.ty()).at(obj.span)),
+            _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
     }
     fn index_set(
@@ -197,7 +187,7 @@ impl EvalCtx<'_> {
         new_value: Value,
     ) -> Result<()> {
         let index_value = index.iter().exactly_one().map_err(|_| {
-            DiagMsg::WrongNumberOfIndices {
+            Error::WrongNumberOfIndices {
                 obj_span: obj.span,
                 count: index.len(),
                 min: 1,
@@ -206,22 +196,15 @@ impl EvalCtx<'_> {
             .at(span)
         })?;
         match &mut obj.data {
-            ValueData::Str(_) => Err(DiagMsg::CannotAssignToExpr {
+            ValueData::Str(_) => Err(Error::CannotAssignToExpr {
                 kind: "string indexing expression",
             }
             .at(span)),
             ValueData::List(list) => {
-                let index = index_value.as_index()?;
-                let opt_value = match index {
-                    Index::Front(i) => Arc::make_mut(list).get_mut(i),
-                    Index::Back(i) => Arc::make_mut(list).iter_mut().nth_back(i), // optimized
-                };
-                match opt_value {
-                    Some(v) => Ok(*v = new_value),
-                    None => Err(index
-                        .out_of_bounds_pos_neg_err(list.len())
-                        .at(index_value.span)),
-                }
+                let len = list.len();
+                *index_value.index_double_ended(Arc::make_mut(list).iter_mut(), || len)? =
+                    new_value;
+                Ok(())
             }
             ValueData::Map(map) => match &index_value.data {
                 ValueData::Str(s) => {
@@ -239,10 +222,11 @@ impl EvalCtx<'_> {
                 vec.resize_and_set(index_value.as_u8()?, new_value.as_num()?);
                 Ok(())
             }
-            _ => Err(DiagMsg::CannotIndex(obj.ty()).at(obj.span)),
+            _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
     }
 
+    /// Evaluates an AST node to a value.
     pub fn eval(&mut self, node: &ast::Node) -> Result<Value> {
         let &(ref contents, span) = node;
         let null = ValueData::Null;
@@ -262,13 +246,13 @@ impl EvalCtx<'_> {
 
                 let assign_op_str = self[*assign_symbol]
                     .strip_suffix("=")
-                    .ok_or(DiagMsg::Internal("invalid operator").at(*assign_symbol))?;
+                    .ok_or(Error::Internal("invalid operator").at(*assign_symbol))?;
                 let assign_op = match assign_op_str {
                     "" => None,
                     _ => Some(
                         self.scope
                             .get(assign_op_str)
-                            .ok_or(DiagMsg::UnsupportedOperator.at(*assign_symbol))?,
+                            .ok_or(Error::UnsupportedOperator.at(*assign_symbol))?,
                     ),
                 };
 
@@ -276,8 +260,7 @@ impl EvalCtx<'_> {
                     var,
                     Box::new(|ctx, old_value_span, old_value| match &assign_op {
                         Some(op_fn) => {
-                            let old_value =
-                                old_value.ok_or(DiagMsg::Undefined.at(old_value_span))?;
+                            let old_value = old_value.ok_or(Error::Undefined.at(old_value_span))?;
                             let args = vec![old_value, new_value];
                             op_fn.as_func()?.call(span, *assign_symbol, ctx, args)
                         }
@@ -353,7 +336,7 @@ impl EvalCtx<'_> {
                     }
                     ValueData::Map(map) => {
                         let &[key_var, value_var] = loop_var_idents.as_slice() else {
-                            return Err(DiagMsg::WrongNumberOfLoopVars {
+                            return Err(Error::WrongNumberOfLoopVars {
                                 iter_span: iter_value.span,
                                 count: loop_var_idents.len(),
                                 min: 2,
@@ -371,7 +354,7 @@ impl EvalCtx<'_> {
                         self.exec_for_loop_indexed(loop_vars, iter_value.span, vec.iter(), body)?;
                         Ok(null)
                     }
-                    _ => return Err(DiagMsg::CannotIterate(iter_value.ty()).at(iter_value.span)),
+                    _ => return Err(Error::CannotIterate(iter_value.ty()).at(iter_value.span)),
                 }
             }
             ast::NodeContents::WhileLoop { condition, body } => {
@@ -379,32 +362,31 @@ impl EvalCtx<'_> {
                     while ctx.eval(&condition)?.as_bool()? {
                         match ctx.eval(body) {
                             Ok(_) => (),
-                            Err(e) => match &e.msg {
-                                DiagMsg::Break => break,
-                                DiagMsg::Continue => continue,
-                                _ => return Err(e),
+                            Err(e) => match e.try_resolve_loop_control_flow()? {
+                                LoopControlFlow::Break => break,
+                                LoopControlFlow::Continue => continue,
                             },
                         }
                     }
                     Ok(null)
                 })?)
             }
-            ast::NodeContents::Continue => Err(DiagMsg::Continue),
-            ast::NodeContents::Break => Err(DiagMsg::Break),
-            ast::NodeContents::Return(ret_expr) => Err(DiagMsg::Return(Box::new(match ret_expr {
+            ast::NodeContents::Continue => Err(Error::Continue),
+            ast::NodeContents::Break => Err(Error::Break),
+            ast::NodeContents::Return(ret_expr) => Err(Error::Return(Box::new(match ret_expr {
                 Some(expr) => self.eval(expr)?,
                 None => null.at(span),
             }))),
             ast::NodeContents::Ident(ident_span) => Ok(self
                 .scope
                 .get(&self[*ident_span])
-                .ok_or(DiagMsg::Undefined.at(*ident_span))?
+                .ok_or(Error::Undefined.at(*ident_span))?
                 .data),
             ast::NodeContents::Op { op, args } => {
                 let f = self
                     .scope
                     .get(&self[*op])
-                    .ok_or(DiagMsg::UnsupportedOperator.at(*op))?;
+                    .ok_or(Error::UnsupportedOperator.at(*op))?;
                 let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
                 Ok(f.as_func()?.call(span, *op, self, args)?.data)
             }
@@ -487,7 +469,7 @@ impl EvalCtx<'_> {
                             ast::NodeContents::StringLiteral(_) => {
                                 MapKey::String(eco_format!("{}", self.eval(key_node)?))
                             }
-                            _ => return Err(DiagMsg::ExpectedMapKey.at(*key_span)),
+                            _ => return Err(Error::ExpectedMapKey.at(*key_span)),
                         };
                         let value = self.eval(value_node)?;
                         Ok((key, value))
@@ -496,18 +478,22 @@ impl EvalCtx<'_> {
                     .try_collect()?,
             ))),
 
-            ast::NodeContents::Error => Err(DiagMsg::AstErrorNode),
+            ast::NodeContents::Error => Err(Error::AstErrorNode),
         }
         .map(|val| val.at(span))
         .map_err(|err| err.at(span))
     }
 
+    /// Evaluates an optional AST node to a type annotation.
+    ///
+    /// Returns [`Type::Any`] if the node is `None`.
     pub fn eval_opt_ty(&self, opt_node: Option<&ast::Node>) -> Result<Type> {
         match opt_node {
             Some(node) => self.eval_ty(node),
             None => Ok(Type::Any),
         }
     }
+    /// Evaluates an AST node to a type annotation.
     pub fn eval_ty(&self, node: &ast::Node) -> Result<Type> {
         let (contents, span) = node;
         match contents {
@@ -542,13 +528,13 @@ impl EvalCtx<'_> {
                 "TwistSystem" => Ok(Type::TwistSystem),
                 "Puzzle" => Ok(Type::Puzzle),
 
-                _ => Err(DiagMsg::UnknownType.at(*span)),
+                _ => Err(Error::UnknownType.at(*span)),
             },
             ast::NodeContents::Index { obj, args } => {
                 let &(ref obj_node, obj_span) = &**obj;
                 let &(ref args_nodes, args_span) = &**args;
                 let inner_type_node = args_nodes.iter().exactly_one().map_err(|_| {
-                    DiagMsg::WrongNumberOfIndices {
+                    Error::WrongNumberOfIndices {
                         obj_span,
                         count: args_nodes.len(),
                         min: 1,
@@ -561,13 +547,13 @@ impl EvalCtx<'_> {
                     ast::NodeContents::Ident(ident_span) => match &self[*ident_span] {
                         "List" => Ok(Type::List(Box::new(inner_type))),
                         "Map" => Ok(Type::Map(Box::new(inner_type))),
-                        "Fn" => Err(DiagMsg::Unimplemented("specific function types").at(*span)),
-                        _ => Err(DiagMsg::ExpectedCollectionType.at(*ident_span)),
+                        "Fn" => Err(Error::Unimplemented("specific function types").at(*span)),
+                        _ => Err(Error::ExpectedCollectionType.at(*ident_span)),
                     },
-                    _ => Err(DiagMsg::ExpectedCollectionType.at(obj_span)),
+                    _ => Err(Error::ExpectedCollectionType.at(obj_span)),
                 }
             }
-            _ => Err(DiagMsg::ExpectedType {
+            _ => Err(Error::ExpectedType {
                 ast_node_kind: contents.kind_str(),
             }
             .at(*span)),
@@ -592,7 +578,7 @@ impl EvalCtx<'_> {
                 for (i, &param_span) in param_names.iter().enumerate() {
                     let param_name = ctx.runtime.substr(param_span);
                     let arg_value = args.get_mut(i).ok_or(
-                        DiagMsg::Internal("missing this function argument in call").at(param_span),
+                        Error::Internal("missing this function argument in call").at(param_span),
                     )?;
                     ctx.scope.set(param_name, std::mem::take(arg_value));
                 }
@@ -601,6 +587,7 @@ impl EvalCtx<'_> {
                 Ok(return_value)
             }),
             debug_info: span.into(),
+            new_scope: true,
         })
     }
 
@@ -627,7 +614,7 @@ impl EvalCtx<'_> {
                     .map(|(i, e)| [(index_var, i.into()), (elem_var, e)]),
                 body,
             ),
-            _ => Err(DiagMsg::WrongNumberOfLoopVars {
+            _ => Err(Error::WrongNumberOfLoopVars {
                 iter_span: iter_value_span,
                 count: loop_var_idents.len(),
                 min: 1,
@@ -649,10 +636,9 @@ impl EvalCtx<'_> {
                 }
                 match ctx.eval(body) {
                     Ok(_) => (),
-                    Err(e) => match &e.msg {
-                        DiagMsg::Break => break,
-                        DiagMsg::Continue => continue,
-                        _ => return Err(e),
+                    Err(e) => match e.try_resolve_loop_control_flow()? {
+                        LoopControlFlow::Break => break,
+                        LoopControlFlow::Continue => continue,
                     },
                 }
             }

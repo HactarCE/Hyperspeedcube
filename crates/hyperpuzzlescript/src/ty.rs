@@ -178,6 +178,8 @@ impl fmt::Display for FnType {
     }
 }
 impl FnType {
+    /// Constructs a function type from an optional parameter list and a return
+    /// type.
     pub fn new(params: Option<Vec<Type>>, ret: Type) -> Self {
         Self { params, ret }
     }

@@ -145,15 +145,6 @@ impl From<Span> for AriadneSpan {
         Self(value)
     }
 }
-impl From<(FileId, chumsky::span::SimpleSpan)> for AriadneSpan {
-    fn from((file_id, span): (FileId, chumsky::span::SimpleSpan)) -> Self {
-        Self(Span {
-            start: span.start as u32,
-            end: span.end as u32,
-            context: file_id,
-        })
-    }
-}
 
 fn color_generator() -> impl FnMut() -> ariadne::Color {
     let mut ariadne_color_generator = ariadne::ColorGenerator::new();

@@ -64,7 +64,10 @@ impl Runtime {
     }
 
     /// Parses any files that have not yet been parsed.
-    fn parse_all(&mut self) {
+    ///
+    /// Files are parsed automatically as they are needed, but it may be more
+    /// efficient to call this method first.
+    pub fn parse_all(&mut self) {
         for i in 0..self.files.len() {
             self.file_ast(i as FileId);
         }
@@ -72,6 +75,12 @@ impl Runtime {
 
     /// Parses any files that have not yet been parsed and executes any files
     /// that have not yet been executed.
+    ///
+    /// Files are executed automatically as they are imported, so it is not
+    /// necessary to call this method if there is a specific entry point (like a
+    /// main file where execution starts).
+    ///
+    /// Files are executed in an unspecified order.
     pub fn exec_all_files(&mut self) {
         for i in 0..self.files.len() {
             self.file_ret(i as FileId);
@@ -102,6 +111,8 @@ impl Runtime {
         }
     }
 
+    /// Executes a file if it has not yet been executed, and then returns its
+    /// return value / exports.
     pub fn file_ret(&mut self, file_id: FileId) -> Option<&Result<Value, ()>> {
         let file = self.files.get_mut(file_id)?;
         match file.result {
@@ -125,6 +136,7 @@ impl Runtime {
         }
     }
 
+    /// Returns a substring from a [`Span`].
     pub fn substr(&self, span: Span) -> Substr {
         self.files.substr(span)
     }

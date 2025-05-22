@@ -9,16 +9,19 @@ use hypermath::Vector;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use crate::{
-    DiagMsg, EvalCtx, FnType, FullDiagnostic, Result, Scope, Span, Spanned, TracebackLine, Type,
-};
+use crate::{Error, EvalCtx, FnType, FullDiagnostic, Result, Scope, Span, TracebackLine, Type};
 
 /// Value in the language, with an optional associated span.
 ///
 /// This type is relatively cheap to clone, especially for common types.
+///
+/// This type dereferences to [`ValueData`], so you can call [`ValueData`]
+/// methods on it without a need for `.data`.
 #[derive(Debug, Clone)]
 pub struct Value {
+    /// Data in the value.
     pub data: ValueData,
+    /// Span where the value was constructed.
     pub span: Span,
 }
 impl std::ops::Deref for Value {
@@ -44,11 +47,14 @@ impl Default for Value {
     }
 }
 impl Value {
+    /// `null` with no span.
     pub const NULL: Self = Self {
         data: ValueData::Null,
         span: crate::BUILTIN_SPAN,
     };
 
+    /// Returns whether `self` and `other` are equal, or returns an error if
+    /// they are both of a type that cannot be compared.
     pub fn eq(&self, other: &Self, span: Span) -> Result<bool> {
         if std::mem::discriminant(&self.data) != std::mem::discriminant(&other.data) {
             return Ok(false);
@@ -83,7 +89,7 @@ impl Value {
                 Ok(hypermath::approx_eq(&**plane1, &**plane2))
             }
 
-            _ => Err(DiagMsg::InvalidComparison(
+            _ => Err(Error::InvalidComparison(
                 Box::new((self.ty(), self.span)),
                 Box::new((other.ty(), other.span)),
             )
@@ -91,12 +97,14 @@ impl Value {
         }
     }
 
+    /// Returns a debug representation of the value that is useful to the user.
     pub fn repr(&self) -> String {
         format!("{:?}", self.data)
     }
 
+    /// Returns a type error saying that this value has the wrong type.
     pub fn type_error(&self, expected: Type) -> FullDiagnostic {
-        DiagMsg::TypeError {
+        Error::TypeError {
             expected,
             got: self.ty(),
         }
@@ -146,14 +154,15 @@ impl Value {
         }
     }
 
+    /// Returns the function, or an error if this isn't a function.
     pub fn as_func(&self) -> Result<&Arc<FnValue>> {
         match &self.data {
             ValueData::Fn(f) => Ok(f),
             _ => Err(self.type_error(Type::Fn(Box::new(FnType::default())))),
         }
     }
-    /// Returns the function value. Replaces other values with a new function
-    /// value.
+    /// Returns the function. If this value wasn't a function before, this
+    /// function will make it become one.
     pub fn as_func_mut(&mut self, span: Span) -> &mut FnValue {
         if !matches!(self.data, ValueData::Fn(_)) {
             *self = ValueData::Fn(Arc::new(FnValue::default())).at(span);
@@ -163,96 +172,112 @@ impl Value {
             _ => unreachable!(),
         }
     }
-
+    /// Returns the string, or an error if this isn't a string. This does not
+    /// convert other types to a string.
     pub fn as_str(&self) -> Result<&EcoString> {
         match &self.data {
             ValueData::Str(s) => Ok(s),
             _ => Err(self.type_error(Type::Str)),
         }
     }
-
+    /// Returns the boolean, or an error if this isn't a boolean. This does not
+    /// convert other types to a boolean.
     pub(crate) fn as_bool(&self) -> Result<bool> {
         match &self.data {
             ValueData::Bool(b) => Ok(*b),
             _ => Err(self.type_error(Type::Bool)),
         }
     }
-
+    /// Returns the number, or an error if this isn't a number.
     pub(crate) fn as_num(&self) -> Result<f64> {
         match &self.data {
             ValueData::Num(n) => Ok(*n),
             _ => Err(self.type_error(Type::Num)),
         }
     }
+    /// Returns the number as an `i64`, or an error if this isn't an integer
+    /// that fits within an `i64`.
     pub(crate) fn as_int(&self) -> Result<i64> {
         let n = self.as_num()?;
-        hypermath::to_approx_integer(n).ok_or(DiagMsg::ExpectedInteger(n).at(self.span))
+        hypermath::to_approx_integer(n).ok_or(Error::ExpectedInteger(n).at(self.span))
     }
-    pub(crate) fn as_index(&self) -> Result<Index> {
-        Ok(Index::from(self.as_int()?))
-    }
+    /// Returns the integer as a `u8`, or an error if this isn't an integer that
+    /// fits with in a `u8`.
     pub(crate) fn as_u8(&self) -> Result<u8> {
         let i = self.as_int()?;
         i.try_into().map_err(|_| {
             let bounds = Some((u8::MIN as i64, u8::MAX as i64));
-            DiagMsg::IndexOutOfBounds { got: i, bounds }.at(self.span)
+            Error::IndexOutOfBounds { got: i, bounds }.at(self.span)
+        })
+    }
+
+    /// Converts the value to an integer and then uses it to index a
+    /// double-ended collection.
+    ///
+    /// This may be take O(n) time with respect to the size of the collection,
+    /// but many double-ended iterators in Rust have O(1) implementations of
+    /// `.nth()` and `.nth_back()` so it is often performant.
+    pub(crate) fn index_double_ended<I: IntoIterator>(
+        &self,
+        iter: I,
+        get_len: impl FnOnce() -> usize,
+    ) -> Result<I::Item>
+    where
+        I::IntoIter: DoubleEndedIterator,
+    {
+        self.index(
+            iter.into_iter(),
+            |mut it: I::IntoIter, i| it.nth(i),
+            Some(|mut it: I::IntoIter, i| it.nth_back(i)),
+            get_len,
+        )
+    }
+
+    /// Converts the value to an integer and then uses it to index a collection.
+    ///
+    /// - `get_front` should return the `i`th value from the front of the
+    ///   collection (starting at zero)
+    /// - `get_back` should return the `i`th value from the back of the
+    ///   collection (starting at zero).
+    /// - `get_back` should be `None` if the collection does not support
+    ///   indexing from the back.
+    /// - `get_len` should return the length of the collection.
+    pub(crate) fn index<C, T>(
+        &self,
+        collection: C,
+        get_front: impl FnOnce(C, usize) -> Option<T>,
+        get_back: Option<impl FnOnce(C, usize) -> Option<T>>,
+        get_len: impl FnOnce() -> usize,
+    ) -> Result<T> {
+        let allow_negatives = get_back.is_some();
+        let i = self.as_int()?;
+        match i {
+            0.. => get_front(collection, i.try_into().unwrap_or(usize::MAX)),
+            ..0 => get_back.and_then(|f| f(collection, (-i - 1).try_into().unwrap_or(usize::MAX))),
+        }
+        .ok_or_else(|| {
+            Error::IndexOutOfBounds {
+                got: i,
+                bounds: (|| {
+                    let max = get_len().checked_sub(1)? as i64;
+                    let min = if allow_negatives { -max - 1 } else { 0 };
+                    Some((min, max))
+                })(),
+            }
+            .at(self.span)
         })
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Index {
-    Front(usize),
-    Back(usize),
-}
-impl From<i64> for Index {
-    fn from(value: i64) -> Self {
-        match value {
-            0.. => Index::Front(value.try_into().unwrap_or(usize::MAX)),
-            ..0 => Index::Back((-value - 1).try_into().unwrap_or(usize::MAX)),
-        }
-    }
-}
-impl Index {
-    fn to_i64(self) -> i64 {
-        match self {
-            Index::Front(i) => i.try_into().unwrap_or(i64::MAX),
-            Index::Back(i) => i
-                .try_into()
-                .unwrap_or(i64::MAX)
-                .saturating_neg()
-                .saturating_sub(1),
-        }
-    }
-    fn to_usize(self) -> Option<usize> {
-        match self {
-            Index::Front(i) => i.try_into().ok(),
-            Index::Back(_) => None,
-        }
-    }
-    pub fn out_of_bounds_only_pos_err(self, len: usize) -> DiagMsg {
-        DiagMsg::IndexOutOfBounds {
-            got: self.to_i64(),
-            bounds: len.checked_sub(1).and_then(|max| {
-                let max: i64 = max.try_into().unwrap_or(i64::MAX);
-                Some((0, max))
-            }),
-        }
-    }
-    pub fn out_of_bounds_pos_neg_err(self, len: usize) -> DiagMsg {
-        DiagMsg::IndexOutOfBounds {
-            got: self.to_i64(),
-            bounds: len.checked_sub(1).and_then(|max| {
-                let max: i64 = max.try_into().unwrap_or(i64::MAX);
-                Some((max.saturating_neg().saturating_sub(1), max))
-            }),
-        }
-    }
-}
-
+/// String key in a [`ValueData::Map`].
+///
+/// This is always a string, but we might store it differently for optimization
+/// reasons.
 #[derive(Debug, Clone)]
 pub enum MapKey {
+    /// Substring of program source code.
     Substr(Substr),
+    /// Dynamically-constructed string.
     String(EcoString),
 }
 impl AsRef<str> for MapKey {
@@ -290,21 +315,41 @@ impl Hash for MapKey {
 /// This type is relatively cheap to clone, especially for common types.
 #[derive(Default, Clone)]
 pub enum ValueData {
+    /// Null.
+    ///
+    /// Used for optional values (analogous to [`None`]) and values with no data
+    /// (analogous to the unit type `()`).
     #[default]
     Null,
+    /// True or false.
     Bool(bool),
+    /// Floating-point number. Also used in place of integers.
     Num(f64),
+    /// Copy-on-write Unicode string.
     Str(EcoString),
-    List(Arc<Vec<Value>>),             // TODO: use rpds::Vector
+    /// Copy-on-write list of values.
+    List(Arc<Vec<Value>>), // TODO: use rpds::Vector
+    /// Copy-on-write dictionary with string keys.
     Map(Arc<IndexMap<MapKey, Value>>), // TODO: use rpds::RedBlackTreeMap
-    Fn(Arc<FnValue>),                  // TODO: use rpds::Vector
+    /// Function with a copy-on-write list of overloads.
+    Fn(Arc<FnValue>), // TODO: use rpds::Vector
 
+    /// N-dimensional vector of numbers. Unused dimensions are zero.
     Vec(Vector),
 
+    /// Point in Euclidean space.
     EuclidPoint(hypermath::Point),
+    /// Isometry (distance-preserving transform) in Euclidean space.
+    ///
+    /// All isometries can be constructing by composing a translation, a
+    /// rotation, and an optional reflection.
     EuclidTransform(hypermath::pga::Motor),
+    /// Hyperplane in Euclidean space.
+    ///
+    /// In an N-dimensional space, this represents an (N-1)-dimensional plane.
     EuclidPlane(Box<hypermath::Hyperplane>),
-    EuclidRegion(TODO),
+    /// Region of Euclidean space.
+    EuclidRegion(std::convert::Infallible),
 }
 impl fmt::Debug for ValueData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -346,7 +391,7 @@ impl ValueData {
                     if !std::mem::take(&mut first) {
                         write!(f, ", ")?;
                     }
-                    v.fmt_internal(f, is_debug);
+                    v.fmt_internal(f, is_debug)?;
                 }
                 write!(f, "]")?;
                 Ok(())
@@ -363,7 +408,7 @@ impl ValueData {
                         MapKey::String(k) => write!(f, "{:?}", Self::Str(k.clone()))?,
                     }
                     write!(f, ": ")?;
-                    v.fmt_internal(f, is_debug);
+                    v.fmt_internal(f, is_debug)?;
                 }
                 write!(f, "}}")?;
                 Ok(())
@@ -389,10 +434,11 @@ impl ValueData {
             }
             Self::EuclidTransform(motor) => todo!("display motor"),
             Self::EuclidPlane(hyperplane) => todo!("display hyperplane"),
-            Self::EuclidRegion(todo) => todo!("display region"),
+            Self::EuclidRegion(region) => todo!("display region"),
         }
     }
 
+    /// Returns the type of the value.
     pub fn ty(&self) -> Type {
         match self {
             Self::Null => Type::Null,
@@ -413,15 +459,14 @@ impl ValueData {
         }
     }
 
+    /// Attaches a span to the value.
     pub fn at(self, span: Span) -> Value {
         Value { data: self, span }
     }
 
+    /// Returns whether the value is `null`.
     pub fn is_null(&self) -> bool {
         matches!(self, Self::Null)
-    }
-    pub fn is_map(&self) -> bool {
-        matches!(self, Self::Map(_))
     }
 }
 impl From<()> for ValueData {
@@ -492,16 +537,17 @@ impl From<hypermath::Point> for ValueData {
     }
 }
 
-// TODO: delete this
-#[derive(Debug, Clone)]
-struct TODO;
-
+/// Script function.
 #[derive(Debug, Default, Clone)]
 pub struct FnValue {
+    /// Name of the function, or `None` if it is anonymous.
     pub name: Option<Substr>,
+    /// List of overloads, which may overlap although they typically don't.
     pub overloads: Vec<FnOverload>,
 }
 impl FnValue {
+    /// Guesses the return type, given a list of arguments. Returns `None` if
+    /// there is no overload matching the argument type.
     pub fn guess_return_type(&self, arg_types: &[Type]) -> Option<Type> {
         self.overloads
             .iter()
@@ -521,18 +567,21 @@ impl FnValue {
                 })
             })
     }
+    /// Returns whether any overload of the function is a subtype of `fn_type`.
     pub fn any_overload_is_subtype_of(&self, fn_type: &FnType) -> bool {
         self.overloads
             .iter()
             .any(|overload| overload.ty.is_subtype_of(fn_type))
     }
+    /// Returns the overload to use when calling the function with `args`, or an
+    /// error if there is no matching overload or multiple matching overloads.
     pub fn get_overload(&self, fn_span: Span, args: &[Value]) -> Result<&FnOverload> {
         let mut matching_dispatches = self
             .overloads
             .iter()
             .filter(|func| func.ty.would_take(args));
         let first_match = matching_dispatches.next().ok_or_else(|| {
-            DiagMsg::BadArgTypes {
+            Error::BadArgTypes {
                 arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: self.overloads.iter().map(|f| f.ty.clone()).collect(),
             }
@@ -541,7 +590,7 @@ impl FnValue {
         let mut remaining = matching_dispatches.map(|func| &func.ty).collect_vec();
         if !remaining.is_empty() {
             remaining.insert(0, &first_match.ty);
-            return Err(DiagMsg::AmbiguousFnCall {
+            return Err(Error::AmbiguousFnCall {
                 arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: remaining.into_iter().cloned().collect(),
             }
@@ -549,28 +598,39 @@ impl FnValue {
         }
         Ok(first_match)
     }
+    /// Adds an overload to the function. Returns an error if the new overload
+    /// overlaps with an existing one.
     pub fn push_overload(&mut self, overload: FnOverload) -> Result<()> {
-        #[cfg(debug_assertions)]
-        if let Some(conflict) = self
-            .overloads
-            .iter()
-            .find(|existing| existing.ty.might_conflict_with(&overload.ty))
-        {
-            return Err(DiagMsg::FnOverloadConflict {
-                new_ty: Box::new(overload.ty),
-                old_ty: Box::new(conflict.ty.clone()),
-                old_span: match conflict.debug_info {
-                    FnDebugInfo::Span(span) => Some(span),
-                    FnDebugInfo::Internal(_) => None,
-                },
+        if crate::CHECK_FN_OVERLOAD_CONFLICTS {
+            if let Some(conflict) = self
+                .overloads
+                .iter()
+                .find(|existing| existing.ty.might_conflict_with(&overload.ty))
+            {
+                let error = Error::FnOverloadConflict {
+                    new_ty: Box::new(overload.ty),
+                    old_ty: Box::new(conflict.ty.clone()),
+                    old_span: match conflict.debug_info {
+                        FnDebugInfo::Span(span) => Some(span),
+                        FnDebugInfo::Internal(_) => None,
+                    },
+                }
+                .at(overload.debug_info.to_span().unwrap_or(crate::BUILTIN_SPAN));
+
+                #[cfg(debug_assertions)]
+                if let FnDebugInfo::Internal(name) = overload.debug_info {
+                    panic!("error in internal {name:?}: {error:?}")
+                }
+
+                return Err(error);
             }
-            .debug_at(overload.debug_info));
         }
 
         self.overloads.push(overload);
 
         Ok(())
     }
+    /// Calls the function.
     pub fn call(
         &self,
         call_span: Span,
@@ -580,11 +640,15 @@ impl FnValue {
     ) -> Result<Value> {
         let overload = self.get_overload(fn_span, &args)?;
 
-        let scope = Scope::new_closure(Arc::clone(&ctx.scope), self.name.clone());
-        // TODO: construct the new context within `call` so that we don't need
-        //       to do it for builtins
+        let fn_scope = match overload.new_scope {
+            true => Cow::Owned(Scope::new_closure(
+                Arc::clone(&ctx.scope),
+                self.name.clone(),
+            )),
+            false => Cow::Borrowed(ctx.scope),
+        };
         let mut call_ctx = EvalCtx {
-            scope: &scope,
+            scope: &*fn_scope,
             runtime: ctx.runtime,
             caller_span: call_span,
         };
@@ -593,7 +657,7 @@ impl FnValue {
             .map_err(|e| {
                 e.at_caller(TracebackLine {
                     fn_name: self.name.clone(),
-                    fn_span: overload.opt_span(),
+                    fn_span: overload.debug_info.to_span(),
                     call_span,
                 })
             })?;
@@ -609,11 +673,21 @@ impl FnValue {
     }
 }
 
+/// Overload for a function.
 #[derive(Clone)]
 pub struct FnOverload {
+    /// Function type signature.
     pub ty: FnType,
+    /// Function to evaluate the function body.
     pub call: Arc<dyn Send + Sync + Fn(&mut EvalCtx<'_>, Vec<Value>) -> Result<Value>>,
+    /// Debug info about the source of the function.
     pub debug_info: FnDebugInfo,
+    /// Whether to construct a new scope when calling the function.
+    ///
+    /// This should be `true` if the function uses local variables. Setting this
+    /// to `false` is an optimization that is only valid for for built-in
+    /// functions.
+    pub new_scope: bool,
 }
 impl fmt::Debug for FnOverload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -622,31 +696,28 @@ impl fmt::Debug for FnOverload {
             .finish()
     }
 }
-impl FnOverload {
-    pub fn span(&self) -> Span {
-        self.opt_span().unwrap_or(crate::BUILTIN_SPAN)
-    }
-    fn opt_span(&self) -> Option<Span> {
-        match self.debug_info {
-            FnDebugInfo::Span(span) => Some(span),
-            FnDebugInfo::Internal(_) => None,
-        }
-    }
-    pub fn internal_name(&self) -> Option<&'static str> {
-        match self.debug_info {
-            FnDebugInfo::Span(_) => None,
-            FnDebugInfo::Internal(name) => Some(name),
-        }
-    }
-}
+
+/// Debug info about the source of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FnDebugInfo {
+    /// Span where the function was defined in user code.
     Span(Span),
+    /// Internal name of the function.
     Internal(&'static str),
 }
 impl From<Span> for FnDebugInfo {
     fn from(value: Span) -> Self {
         Self::Span(value)
+    }
+}
+impl FnDebugInfo {
+    /// Returns the span where the overload was defined, or `None` if the
+    /// overload is built-in.
+    fn to_span(self) -> Option<Span> {
+        match self {
+            FnDebugInfo::Span(span) => Some(span),
+            FnDebugInfo::Internal(_) => None,
+        }
     }
 }
 

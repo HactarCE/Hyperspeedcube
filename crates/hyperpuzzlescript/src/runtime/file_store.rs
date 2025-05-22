@@ -8,7 +8,9 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 
-use crate::{FileId, Result, Span, Value, ast};
+#[cfg(feature = "hyperpaths")]
+use crate::LANGUAGE_NAME;
+use crate::{FILE_EXTENSION, FileId, Result, Span, Value, ast};
 
 lazy_static! {
     static ref INTERNAL_SOURCE: ariadne::Source<ArcStr> =
@@ -33,10 +35,10 @@ impl File {
     }
 }
 
-/// Hyperpuzzlescript source files.
+/// Source files.
 ///
 /// The "name" of a file is typically a relative path using `/` as separator and
-/// excluding the `.hps` extension.
+/// excluding the file extension.
 #[derive(Debug, Default)]
 pub struct FileStore(IndexMap<String, File>);
 
@@ -54,12 +56,12 @@ impl FileStore {
         match hyperpaths::hps_dir() {
             Ok(hps_dir) => {
                 log::info!(
-                    "reading Hyperpuzzlescript files from path {}",
+                    "reading {LANGUAGE_NAME} files from path {}",
                     hps_dir.to_string_lossy(),
                 );
                 ret.add_from_directory(hps_dir);
             }
-            Err(e) => log::error!("error locating Hyperpuzzlescript directory: {e}"),
+            Err(e) => log::error!("error locating {LANGUAGE_NAME} directory: {e}"),
         }
 
         ret
@@ -74,7 +76,7 @@ impl FileStore {
                     include_dir::DirEntry::Dir(subdir) => stack.push(subdir.clone()),
                     include_dir::DirEntry::File(file) => {
                         let path = file.path();
-                        if path.extension().is_some_and(|ext| ext == "hps") {
+                        if path.extension().is_some_and(|ext| ext == FILE_EXTENSION) {
                             match file.contents_utf8() {
                                 Some(contents) => self.add_file(&path, contents),
                                 None => log::error!("error loading built-in file {path:?}"),
@@ -92,7 +94,7 @@ impl FileStore {
             match entry {
                 Ok(entry) => {
                     let path = entry.path();
-                    if path.extension().is_some_and(|ext| ext == "hps") {
+                    if path.extension().is_some_and(|ext| ext == FILE_EXTENSION) {
                         let relative_path = path.strip_prefix(directory).unwrap_or(path);
                         match std::fs::read_to_string(path) {
                             Ok(contents) => self.add_file(relative_path, contents),
@@ -165,7 +167,7 @@ impl FileStore {
         if id == FileId::MAX {
             return Some("<builtin>".to_owned());
         }
-        self.file_name(id).map(|s| format!("{s}.hps"))
+        self.file_name(id).map(|s| format!("{s}.{FILE_EXTENSION}"))
     }
 }
 
