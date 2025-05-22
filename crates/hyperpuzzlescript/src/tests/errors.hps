@@ -1,12 +1,7 @@
-print(5)
-print("hello!")
-
-// assert_eq(sqrt(1), 2.sqrt())
-
-print(1)
 expected_errors = [
     ["bad argument types", fn() { 1 + "abc" }],
     ["assertion failed", fn() { assert_eq(1.sqrt(), 2.sqrt()) }],
+    ["assertion failed", fn() { assert_neq(2, 2) }],
 ]
 
 for test_case in expected_errors {

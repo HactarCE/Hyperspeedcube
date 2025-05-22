@@ -303,34 +303,36 @@ impl EvalCtx<'_> {
             ast::NodeContents::Import(simple_span) => todo!(),
             ast::NodeContents::UseAllFrom(_) => todo!(),
             ast::NodeContents::UseFrom(simple_spans, _) => todo!(),
-            ast::NodeContents::Block(items) => Ok(self.exec_in_child_scope(|ctx| {
-                if items.len() == 1 {
-                    Ok(ctx.eval(&items[0])?.data)
-                } else {
-                    for item in items {
-                        ctx.eval(item)?;
+            ast::NodeContents::Block(items) => {
+                return Ok(self.exec_in_child_scope(|ctx| {
+                    if items.len() == 1 {
+                        ctx.eval(&items[0])
+                    } else {
+                        for item in items {
+                            ctx.eval(item)?;
+                        }
+                        Ok(null.at(span))
                     }
-                    Ok(null)
-                }
-            })?),
+                })?);
+            }
             ast::NodeContents::IfElse {
                 if_cases,
                 else_case,
             } => {
                 let mut if_cases = if_cases.iter();
-                Ok(loop {
+                return Ok(loop {
                     match if_cases.next() {
                         Some((cond, body)) => {
                             if self.eval(cond)?.as_bool()? {
-                                break self.eval(body)?.data;
+                                break self.eval(body)?;
                             }
                         }
                         None => match else_case {
-                            Some(body) => break self.eval(body)?.data,
-                            None => break null,
+                            Some(body) => break self.eval(body)?,
+                            None => break null.at(span),
                         },
                     }
-                })
+                });
             }
             ast::NodeContents::ForLoop {
                 loop_vars,

@@ -1,0 +1,12 @@
+fn f(a: Num) -> Str { a }
+fn f(a: List[Num]) -> Str { "hello" }
+assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: List[Str]) -> Str { "hello" } }))
+
+assert_eq("hello", f([]))
+assert_eq("type error", __eval_to_error(fn() { f(3) }))
+assert_eq("bad argument types", __eval_to_error(fn() { f("abc") }))
+assert_eq("bad argument types", __eval_to_error(fn() { f(["abc"]) }))
+assert_eq("bad argument types", __eval_to_error(fn() { f([["abc"]]) }))
+assert_eq("bad argument types", __eval_to_error(fn() { f([[10]]) }))
+assert_eq("hello", f([10]))
+assert_eq("hello", f([]))

@@ -1,5 +1,7 @@
 use std::{borrow::Cow, fmt};
 
+use crate::Value;
+
 /// Type in the language.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
@@ -224,8 +226,8 @@ impl FnType {
                         && std::iter::zip(self_params, other_params)
                             .all(|(self_param, other_param)| other_param.is_subtype_of(self_param))
                 }
-                (Some(_self_params), None) => false,
-                (None, _maybe_other_params) => true,
+                (Some(_self_params), None) => true,
+                (None, _maybe_other_params) => false,
             }
     }
     /// Returns whether `self` might be a subtype of `other`.
@@ -242,15 +244,21 @@ impl FnType {
     }
 
     /// Returns whether this function might take `args` as arguments.
-    pub fn might_take<'a, I>(&self, args: impl IntoIterator<IntoIter = I>) -> bool
-    where
-        I: Iterator<Item = &'a Type> + ExactSizeIterator,
-    {
-        let args = args.into_iter();
+    pub fn might_take(&self, arg_types: &[Type]) -> bool {
+        match &self.params {
+            Some(params) => {
+                params.len() == arg_types.len()
+                    && std::iter::zip(params, arg_types).all(|(param, arg)| arg.overlaps(param))
+            }
+            None => true,
+        }
+    }
+    /// Returns whether this function would definitely take `args` as arguments.
+    pub fn would_take(&self, args: &[Value]) -> bool {
         match &self.params {
             Some(params) => {
                 params.len() == args.len()
-                    && std::iter::zip(params, args).all(|(param, arg)| arg.overlaps(param))
+                    && std::iter::zip(params, args).all(|(param, arg)| arg.is_type(param))
             }
             None => true,
         }

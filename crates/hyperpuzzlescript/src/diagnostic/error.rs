@@ -67,7 +67,8 @@ impl Error {
                 .label_or_note(
                     *old_span,
                     format!("previous overload has type \x02{old_ty}\x03"),
-                ),
+                )
+                .note("overloads may be ambiguous when passed an empty `List` or `Map`"),
             ErrorMsg::CannotAssignToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not assignable"))
             }
@@ -172,7 +173,7 @@ impl Error {
                 .filter(|line| line.call_span != self.span)
                 .map(|line| (line.call_span, "in this function call")),
         )
-        .note({
+        .notes((!self.traceback.is_empty()).then(|| {
             let mut s = "here is the traceback:"
                 .fg(ariadne::Color::Fixed(231))
                 .to_string();
@@ -180,7 +181,7 @@ impl Error {
                 line.write(&mut files, &mut s, i == 0, i + 1 == self.traceback.len());
             }
             s
-        })
+        }))
         .to_string_with_ansi_escapes(files)
     }
 

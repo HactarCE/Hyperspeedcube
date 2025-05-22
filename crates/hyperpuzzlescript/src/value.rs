@@ -122,8 +122,27 @@ impl Value {
                 }
                 Ok(())
             }
+            (ValueData::Fn(f), Type::Fn(fn_type)) if f.any_overload_is_subtype_of(fn_type) => {
+                Ok(())
+            }
             _ if self.data.ty().is_subtype_of(&expected) => Ok(()),
             _ => Err(self.type_error(expected.into_owned())),
+        }
+    }
+    /// Returns whether the value has this type.
+    pub fn is_type(&self, expected: &Type) -> bool {
+        if matches!(expected, Type::Any) {
+            return true;
+        }
+        match (&self.data, &*expected) {
+            (ValueData::List(list), Type::List(expected_inner_ty)) => {
+                list.iter().all(|elem| elem.is_type(expected_inner_ty))
+            }
+            (ValueData::Map(map), Type::Map(expected_inner_ty)) => {
+                map.values().all(|value| value.is_type(expected_inner_ty))
+            }
+            (ValueData::Fn(f), Type::Fn(fn_type)) => f.any_overload_is_subtype_of(fn_type),
+            _ => self.data.ty().is_subtype_of(&expected),
         }
     }
 
@@ -502,14 +521,19 @@ impl FnValue {
                 })
             })
     }
-    pub fn get_overload(&self, fn_span: Span, arg_types: &[Spanned<Type>]) -> Result<&FnOverload> {
+    pub fn any_overload_is_subtype_of(&self, fn_type: &FnType) -> bool {
+        self.overloads
+            .iter()
+            .any(|overload| overload.ty.is_subtype_of(fn_type))
+    }
+    pub fn get_overload(&self, fn_span: Span, args: &[Value]) -> Result<&FnOverload> {
         let mut matching_dispatches = self
             .overloads
             .iter()
-            .filter(|func| func.ty.might_take(arg_types.iter().map(|(ty, _)| ty)));
+            .filter(|func| func.ty.would_take(args));
         let first_match = matching_dispatches.next().ok_or_else(|| {
             ErrorMsg::BadArgTypes {
-                arg_types: arg_types.to_vec(),
+                arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: self.overloads.iter().map(|f| f.ty.clone()).collect(),
             }
             .at(fn_span)
@@ -518,7 +542,7 @@ impl FnValue {
         if !remaining.is_empty() {
             remaining.insert(0, &first_match.ty);
             return Err(ErrorMsg::AmbiguousFnCall {
-                arg_types: arg_types.to_vec(),
+                arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: remaining.into_iter().cloned().collect(),
             }
             .at(fn_span));
@@ -554,10 +578,7 @@ impl FnValue {
         ctx: &mut EvalCtx<'_>,
         args: Vec<Value>,
     ) -> Result<Value> {
-        let overload = self.get_overload(
-            fn_span,
-            &args.iter().map(|v| (v.ty(), v.span)).collect_vec(),
-        )?;
+        let overload = self.get_overload(fn_span, &args)?;
 
         let scope = Scope::new_closure(Arc::clone(&ctx.scope), self.name.clone());
         // TODO: construct the new context within `call` so that we don't need

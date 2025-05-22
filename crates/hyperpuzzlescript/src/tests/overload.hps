@@ -6,3 +6,9 @@ assert_eq(
         fn my_func(a: Num, b: Any) -> Num { str(b) }
     }),
 )
+
+fn sqrt(s: Str) { s[0] }
+assert_eq(2, 4.sqrt())
+assert_eq(2, sqrt(4))
+assert_eq("a", "abc".sqrt())
+assert_eq("a", sqrt("abc"))
