@@ -2485,8 +2485,6 @@ dependencies = [
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
- "hyperpuzzle_impl_nd_euclid",
- "hypershape",
  "include_dir",
  "indexmap",
  "itertools 0.14.0",

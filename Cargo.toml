@@ -80,6 +80,7 @@ ball-tree = { version = "0.5.1" }
 bitflags = { version = "2.6.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
+ecow = { version = "0.2.5" }
 indexmap = { version = "2.7.1" }                                               # must match serde_yml
 smallvec = { version = "1.13.2", features = ["union"] }
 tinyset = { version = "0.5.1" }
@@ -101,6 +102,8 @@ walkdir = { version = "2.4.0" }
 
 # String manipulation
 arcstr = { version = "1.2.0" }
+ariadne = { version = "0.5.1" }
+chumsky = { version = "0.10.1", features = ["pratt"] }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 regex = { version = "1.11.1" }
