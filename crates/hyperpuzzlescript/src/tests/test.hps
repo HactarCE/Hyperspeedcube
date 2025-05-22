@@ -24,20 +24,20 @@ params = #{
 
 // add_puzzle(params)
 
-fn a() {
-    b()
+fn aaaaa() {
+    bbb()
 }
 
-fn c() {
-    a(3)
+fn ccccccccc() {
+    aaaaa(3)
 }
 
-fn a(n: Num) {
+fn aaaaa(n: Num) {
     error(n)
 }
 
-fn b() {
-    c()
+fn bbb() {
+    ccccccccc()
 }
 
-a()
+aaaaa()

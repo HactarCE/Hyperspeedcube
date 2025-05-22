@@ -224,7 +224,7 @@ impl TracebackLine {
             *out += " (built-in function)"
         }
         *out += if is_last { "\n   " } else { "\n│  " };
-        *out += "╰── called at ";
+        *out += "  called at ";
         *out += &display_span(self.call_span, &mut files)
             .fg(ariadne::Color::Fixed(140))
             .to_string();
