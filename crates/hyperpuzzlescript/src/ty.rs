@@ -14,7 +14,7 @@ pub enum Type {
     Map(Box<Type>),
     Fn(Box<FnType>),
 
-    Vector,
+    Vec,
 
     EuclidPoint,
     EuclidTransform,
@@ -58,7 +58,7 @@ impl fmt::Display for Type {
                 Ok(())
             }
             Type::Fn(fn_type) => write!(f, "{fn_type}"),
-            Type::Vector => write!(f, "Vector"),
+            Type::Vec => write!(f, "Vec"),
             Type::EuclidPoint => write!(f, "euclid.Point"),
             Type::EuclidTransform => write!(f, "euclid.Transform"),
             Type::EuclidPlane => write!(f, "euclid.Plane"),
@@ -107,13 +107,10 @@ impl Type {
     }
     /// Returns whether there is any value that has type `self` and type
     /// `other`.
-    pub fn might_be_subtype_of(&self, other: &Type) -> bool {
+    pub fn overlaps(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Any, _) | (_, Type::Any) => true,
-            (Type::List(self_inner), Type::List(other_inner))
-            | (Type::Map(self_inner), Type::Map(other_inner)) => {
-                self_inner.might_be_subtype_of(other_inner)
-            }
+            (Type::List(_), Type::List(_)) | (Type::Map(_), Type::Map(_)) => true,
             (Type::Fn(self_inner), Type::Fn(other_inner)) => {
                 self_inner.might_be_subtype_of(other_inner)
             }
@@ -164,6 +161,8 @@ impl fmt::Display for FnType {
                 }
                 write!(f, "{param_ty}")?;
             }
+        } else {
+            write!(f, "...")?;
         }
 
         write!(f, ")")?;
@@ -176,6 +175,10 @@ impl fmt::Display for FnType {
     }
 }
 impl FnType {
+    pub fn new(params: Option<Vec<Type>>, ret: Type) -> Self {
+        Self { params, ret }
+    }
+
     fn unify(a: FnType, b: FnType) -> FnType {
         FnType {
             params: Option::zip(a.params, b.params)
@@ -208,7 +211,7 @@ impl FnType {
         }
 
         std::iter::zip(self_params, other_params)
-            .all(|(self_param, other_param)| self_param.might_be_subtype_of(other_param))
+            .all(|(self_param, other_param)| self_param.overlaps(other_param))
     }
 
     /// Returns whether `self` is definitely a subtype of `other`.
@@ -227,25 +230,27 @@ impl FnType {
     }
     /// Returns whether `self` might be a subtype of `other`.
     pub fn might_be_subtype_of(&self, other: &FnType) -> bool {
-        self.ret.might_be_subtype_of(&other.ret)
+        self.ret.overlaps(&other.ret)
             && match (&self.params, &other.params) {
                 (Some(self_params), Some(other_params)) => {
                     self_params.len() == other_params.len()
-                        && std::iter::zip(self_params, other_params).all(
-                            |(self_param, other_param)| other_param.might_be_subtype_of(self_param),
-                        )
+                        && std::iter::zip(self_params, other_params)
+                            .all(|(self_param, other_param)| other_param.overlaps(self_param))
                 }
                 _ => true,
             }
     }
 
     /// Returns whether this function might take `args` as arguments.
-    pub fn might_take(&self, args: &[Type]) -> bool {
+    pub fn might_take<'a, I>(&self, args: impl IntoIterator<IntoIter = I>) -> bool
+    where
+        I: Iterator<Item = &'a Type> + ExactSizeIterator,
+    {
+        let args = args.into_iter();
         match &self.params {
             Some(params) => {
                 params.len() == args.len()
-                    && std::iter::zip(params, args)
-                        .all(|(param, arg)| arg.might_be_subtype_of(param))
+                    && std::iter::zip(params, args).all(|(param, arg)| arg.overlaps(param))
             }
             None => true,
         }

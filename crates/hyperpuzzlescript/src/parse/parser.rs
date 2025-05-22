@@ -70,7 +70,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .map(ast::NodeContents::Block)
         .boxed();
 
-    let statement_block = statement_list.clone().nested_in(braces);
+    let statement_block = statement_list
+        .clone()
+        .nested_in(braces)
+        .labelled("statement block");
     let spanned_statement_block = statement_block
         .clone()
         .map_with(|block, e| Box::new((block, e.span())))
@@ -103,8 +106,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             params,
             return_type,
             body: Arc::new(*body),
-        })
-        .map_err_with_state(inside_this("function"));
+        });
 
     expr.define({
         let expr_list = expr
@@ -197,7 +199,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let fn_expr = just(Token::Fn)
             .ignore_then(fn_contents.clone())
-            .map(ast::NodeContents::Fn);
+            .map(ast::NodeContents::Fn)
+            .map_err_with_state(inside_this("function"));
 
         let paren_expr = expr
             .clone()
@@ -247,7 +250,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             })
         };
         let postfix_indexing = |binding_power| {
-            let bracket_expr_list = expr_list.clone().nested_in(brackets);
+            let bracket_expr_list = expr_list
+                .clone()
+                .nested_in(brackets)
+                .map_with(|exprs, e| Box::new((exprs, e.span())));
             chumsky::pratt::postfix(binding_power, bracket_expr_list, |lhs, args, extra| {
                 let obj = Box::new(lhs);
                 (ast::NodeContents::Index { obj, args }, extra.span())
@@ -358,7 +364,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let fn_declaration = just(Token::Fn)
             .ignore_then(just(Token::Ident).to_span())
             .then(fn_contents.clone().map(Box::new))
-            .map(|(name, contents)| ast::NodeContents::FnDef { name, contents });
+            .map(|(name, contents)| ast::NodeContents::FnDef { name, contents })
+            .map_err_with_state(inside_this("function"));
 
         let export_statement = just(Token::Export)
             .ignore_then(
@@ -418,7 +425,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             });
 
         let for_loop = just(Token::For)
-            .ignore_then(ident_list)
+            .ignore_then(ident_list.map_with(|idents, e| Box::new((idents, e.span()))))
             .then_ignore(just(Token::In))
             .then(expr.clone().map(Box::new))
             .then(spanned_statement_block.clone())

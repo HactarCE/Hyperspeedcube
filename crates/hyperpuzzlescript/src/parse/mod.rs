@@ -6,7 +6,7 @@ use crate::{Error, ErrorMsg, FileId, Span, ast};
 mod lexer;
 mod parser;
 
-pub(crate) use lexer::LexError;
+pub(crate) use lexer::{CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS, LexError};
 use lexer::{LexExtra, Token};
 pub(crate) use parser::ParseError;
 use parser::{ParseExtra, ParserInput};

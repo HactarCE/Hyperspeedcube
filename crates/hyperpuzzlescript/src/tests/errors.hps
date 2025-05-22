@@ -1,0 +1,21 @@
+print(5)
+print("hello!")
+
+// assert_eq(sqrt(1), 2.sqrt())
+
+print(1)
+expected_errors = [
+    ["bad argument types", fn() { 1 + "abc" }],
+    ["assertion failed", fn() { assert_eq(1.sqrt(), 2.sqrt()) }],
+]
+
+for test_case in expected_errors {
+    expected_error_msg = test_case[0]
+    test_fn = test_case[1]
+    actual_error_msg = __eval_to_error(test_fn)
+    if expected_error_msg != actual_error_msg {
+        warn("expected: ${repr(expected_error_msg)}")
+        warn("actual:   ${repr(actual_error_msg)}")
+        test_fn()
+    }
+}

@@ -30,5 +30,7 @@ fn fib(n: Num) -> Num {
 }
 print(fib(15))
 
+print(["hello", #{a: 10, b: "world"}])
+
 print(2**16)
 print(2^16)

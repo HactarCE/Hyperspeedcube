@@ -4,13 +4,7 @@ use std::{
 };
 
 use arcstr::Substr;
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
-
-lazy_static! {
-    pub static ref EMPTY_SCOPE: Arc<Scope> = Scope::new();
-    pub static ref BUILTIN_SCOPE: Arc<Scope> = crate::builtins::new_builtins_scope();
-}
 
 use crate::{FnOverload, FnValue, ImmutReason, Result, Span, Value, ValueData};
 
@@ -58,8 +52,8 @@ impl Scope {
         Self::new_with_parent(parent_scope, Some(immut_reason))
     }
     /// Constructs a new top-level file scope.
-    pub fn new_top_level() -> Arc<Scope> {
-        Self::new_with_parent(Arc::clone(&BUILTIN_SCOPE), Some(ImmutReason::Builtin))
+    pub fn new_top_level(builtins: &Arc<Scope>) -> Arc<Scope> {
+        Self::new_with_parent(Arc::clone(builtins), Some(ImmutReason::Builtin))
     }
     fn new_with_parent(parent_scope: Arc<Scope>, immut_reason: Option<ImmutReason>) -> Arc<Scope> {
         Arc::new(Scope {
@@ -205,12 +199,14 @@ impl Scope {
     /// Registers a function in the scope.
     pub fn register_func(&self, span: Span, name: Substr, overload: FnOverload) -> Result<()> {
         self.atomic_modify(
-            name,
+            name.clone(),
             |val| val.as_func_mut(span).push_overload(overload.clone()),
             || {
-                let mut f = FnValue::default();
-                f.push_overload(overload.clone())?;
-                Ok(Some(ValueData::Fn(Arc::new(f)).at(span)))
+                let fn_value = ValueData::Fn(Arc::new(FnValue {
+                    name: Some(name),
+                    overloads: vec![overload.clone()],
+                }));
+                Ok(Some(fn_value.at(span)))
             },
         )
     }

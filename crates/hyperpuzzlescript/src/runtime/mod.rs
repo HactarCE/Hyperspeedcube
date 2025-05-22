@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, ops::Index, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt, ops::Index, sync::Arc};
 
 mod ctx;
 mod file_store;
@@ -7,18 +7,20 @@ mod scope;
 use crate::{Error, FileId, Result, Span, Value, Warning, ast};
 use arcstr::{ArcStr, Substr};
 pub use ctx::EvalCtx;
-use file_store::File;
 pub use file_store::FileStore;
-pub use scope::{BUILTIN_SCOPE, EMPTY_SCOPE, Scope};
+pub use scope::Scope;
 
 /// Script runtime.
-#[derive(Default)]
 pub struct Runtime {
     /// Source file names and contents.
-    files: FileStore,
+    pub files: FileStore,
 
     /// Prelude to be imported into every file.
     prelude: HashMap<String, ()>,
+
+    builtins: Arc<Scope>,
+
+    pub any_errors: bool,
 }
 
 impl fmt::Debug for Runtime {
@@ -27,15 +29,21 @@ impl fmt::Debug for Runtime {
     }
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self {
+            files: Default::default(),
+            prelude: Default::default(),
+            builtins: crate::builtins::new_builtins_scope(),
+            any_errors: Default::default(),
+        }
+    }
+}
+
 impl Runtime {
     /// Constructs a new runtime with no files.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Adds a file to the runtime.
-    pub fn add_file(&mut self, path: &Path, contents: impl Into<ArcStr>) {
-        self.files.add_file(path, contents.into())
     }
 
     /// Constructs a runtime with built-in files and user files (if feature
@@ -54,21 +62,17 @@ impl Runtime {
         }
     }
 
-    /// Parses any files that have not yet been parsed and loads any files that
-    /// have not yet been loaded.
-    pub fn load_all_files(&mut self) {
+    /// Parses any files that have not yet been parsed and executes any files that
+    /// have not yet been executed.
+    pub fn exec_all_files(&mut self) {
         for i in 0..self.files.len() {
             self.file_ret(i as FileId);
         }
     }
 
-    fn file_mut(&mut self, file_id: FileId) -> Option<&mut File> {
-        Some(self.files.0.get_index_mut(file_id as usize)?.1)
-    }
-
     /// Returns the top-level AST for a file, or `None` if it doesn't exist.
     pub fn file_ast(&mut self, file_id: FileId) -> Option<Arc<ast::Node>> {
-        let file = self.file_mut(file_id)?;
+        let file = self.files.get_mut(file_id)?;
         match file.ast.clone() {
             Some(ast) => Some(ast),
             None => {
@@ -83,7 +87,7 @@ impl Runtime {
                         };
                         (ast::NodeContents::Error, span)
                     });
-                let file = self.file_mut(file_id)?;
+                let file = self.files.get_mut(file_id)?;
                 file.ast = Some(Arc::new(ast));
                 file.ast.clone()
             }
@@ -91,21 +95,22 @@ impl Runtime {
     }
 
     pub fn file_ret(&mut self, file_id: FileId) -> Option<&Result<Value, ()>> {
-        let file = self.file_mut(file_id)?;
+        let file = self.files.get_mut(file_id)?;
         match file.result {
             // extra lookup is necessary to appease borrowchecker
-            Some(_) => self.file_mut(file_id)?.result.as_ref(),
+            Some(_) => self.files.get_mut(file_id)?.result.as_ref(),
             None => {
                 let ast = self.file_ast(file_id)?;
-                let scope = Scope::new_top_level();
+                let scope = Scope::new_top_level(&self.builtins);
                 let result = EvalCtx {
                     scope: &scope,
                     runtime: self,
+                    caller_span: crate::BUILTIN_SPAN,
                 }
                 .eval(&ast)
                 .or_else(Error::try_resolve_return_value)
                 .map_err(|e| self.error(e));
-                let file = self.file_mut(file_id)?;
+                let file = self.files.get_mut(file_id)?;
                 file.result = Some(result);
                 file.result.as_ref()
             }
@@ -116,22 +121,25 @@ impl Runtime {
         self.files.substr(span)
     }
 
-    pub fn file_name_to_id(&self, name: &str) -> Option<FileId> {
-        Some(self.files.0.get_index_of(name)? as FileId)
-    }
-
-    pub fn print(&self, s: &str) {
+    pub fn info_str(&mut self, s: impl fmt::Display) {
         println!("[INFO] {s}");
     }
 
-    pub fn warn(&self, w: Warning) {
-        eprintln!("[WARN] {}", w.to_string(self));
+    pub fn warn_str(&mut self, s: impl fmt::Display) {
+        eprintln!("[WARN] {s}");
+    }
+    pub fn warn(&mut self, w: Warning) {
+        self.warn_str(w.to_string(&*self));
     }
 
-    pub fn error(&self, e: Error) {
-        eprintln!("[ERROR] {}", e.to_string(self));
+    pub fn error_str(&mut self, s: impl fmt::Display) {
+        eprintln!("[ERROR] {s}");
     }
-    pub fn errors(&self, errors: impl IntoIterator<Item = Error>) {
+    pub fn error(&mut self, e: Error) {
+        self.any_errors = true;
+        self.error_str(e.to_string(&*self));
+    }
+    pub fn errors(&mut self, errors: impl IntoIterator<Item = Error>) {
         for e in errors {
             self.error(e);
         }

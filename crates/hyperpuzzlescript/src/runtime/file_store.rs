@@ -20,7 +20,7 @@ pub struct File {
     pub result: Option<Result<Value, ()>>,
 }
 impl File {
-    pub fn new(source: ArcStr) -> Self {
+    fn new(source: ArcStr) -> Self {
         Self {
             contents: source.clone(),
             source: ariadne::Source::from(source),
@@ -31,13 +31,16 @@ impl File {
 }
 
 /// Hyperpuzzlescript source files.
+///
+/// The "name" of a file is typically a relative path using `/` as separator and
+/// excluding the `.hps` extension.
 #[derive(Debug, Default)]
-pub struct FileStore(pub(crate) IndexMap<String, File>);
+pub struct FileStore(IndexMap<String, File>);
 
 impl FileStore {
     /// Constructs a new file store with built-in files and user files (if
     /// feature `hyperpaths` is enabled).
-    pub(crate) fn with_default_files() -> Self {
+    pub fn with_default_files() -> Self {
         let mut ret = Self(IndexMap::new());
 
         // Load built-in files.
@@ -60,7 +63,7 @@ impl FileStore {
     }
 
     /// Adds built-in files to the file store.
-    fn add_builtin_files(&mut self) {
+    pub fn add_builtin_files(&mut self) {
         let mut stack = vec![crate::HPS_BUILTIN_DIR.clone()];
         while let Some(dir) = stack.pop() {
             for entry in dir.entries() {
@@ -69,7 +72,7 @@ impl FileStore {
                     include_dir::DirEntry::File(file) => {
                         let path = file.path();
                         if path.extension().is_some_and(|ext| ext == "hps") {
-                            match file.contents_utf8().map(ArcStr::from) {
+                            match file.contents_utf8() {
                                 Some(contents) => self.add_file(&path, contents),
                                 None => log::error!("error loading built-in file {path:?}"),
                             }
@@ -81,16 +84,15 @@ impl FileStore {
     }
 
     /// Adds files recursively from a directory on disk.
-    #[cfg(feature = "hyperpaths")]
-    fn add_from_directory(&mut self, directory: &std::path::Path) {
+    pub fn add_from_directory(&mut self, directory: &std::path::Path) {
         for entry in walkdir::WalkDir::new(directory).follow_links(true) {
             match entry {
                 Ok(entry) => {
                     let path = entry.path();
-                    if path.extension().is_some_and(|ext| ext == "rhai") {
+                    if path.extension().is_some_and(|ext| ext == "hps") {
                         let relative_path = path.strip_prefix(directory).unwrap_or(path);
                         match std::fs::read_to_string(path) {
-                            Ok(contents) => self.add_file(relative_path, ArcStr::from(contents)),
+                            Ok(contents) => self.add_file(relative_path, contents),
                             Err(e) => log::error!("error loading file {relative_path:?}: {e}"),
                         }
                     }
@@ -101,7 +103,7 @@ impl FileStore {
     }
 
     /// Adds a file to the file store.
-    pub(crate) fn add_file(&mut self, path: &Path, contents: ArcStr) {
+    pub fn add_file(&mut self, path: &Path, contents: impl Into<ArcStr>) {
         let path_string = path
             .with_extension("")
             .components()
@@ -110,7 +112,12 @@ impl FileStore {
             .chars()
             .filter(|&c| c != '"' && c != '\\') // dubious chars
             .collect();
-        self.0.insert(path_string, File::new(contents));
+        self.0.insert(path_string, File::new(contents.into()));
+    }
+
+    /// Returns the ID of the file with the given name.
+    pub fn id_from_name(&self, name: &str) -> Option<FileId> {
+        Some(self.0.get_index_of(name)? as FileId)
     }
 
     /// Returns the name of a file.
@@ -122,6 +129,11 @@ impl FileStore {
         Some(&self.0.get_index(id as usize)?.1.contents)
     }
 
+    pub(crate) fn get_mut(&mut self, id: FileId) -> Option<&mut File> {
+        Some(self.0.get_index_mut(id as usize)?.1)
+    }
+
+    /// Returns a [`Substr`] from `span`.
     pub fn substr(&self, span: Span) -> Substr {
         match self.file_contents(span.context) {
             Some(contents) => contents.substr(span.start as usize..span.end as usize),

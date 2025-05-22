@@ -14,9 +14,9 @@ mod value;
 pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
 use std::path::Path;
 
-pub use diagnostic::{Error, ErrorMsg, ImmutReason, Warning};
+pub use diagnostic::{Error, ErrorMsg, ImmutReason, TracebackLine, Warning};
 pub use ty::{FnType, Type};
-use value::{FnDebugInfo, FnOverload, FnValue, MapKey, Value, ValueData};
+use value::{FnDebugInfo, FnOverload, FnValue, Index, MapKey, Value, ValueData};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -47,7 +47,7 @@ static HPS_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_HPS_PATHS {
 
 /// Loads all puzzles defined using Hyperpuzzlescript.
 pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_core::Logger) {
-    Runtime::with_default_files().load_all_files();
+    Runtime::with_default_files().exec_all_files();
 }
 
 #[test]
@@ -76,3 +76,6 @@ pub fn test_eval() {
     // };
     // println!("{:?}", ctx.eval(&ast))
 }
+
+#[cfg(test)]
+mod tests;

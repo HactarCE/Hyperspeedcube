@@ -9,6 +9,8 @@ pub(crate) type LexState = extra::SimpleState<FileId>;
 pub(crate) type LexExtra<'src> = extra::Full<LexError<'src>, LexState, ()>;
 type LexExtraInternal<'src> = extra::Full<LexError<'src>, LexState, LexCtx>;
 
+pub const CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS: &str = "\"\\$";
+
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 struct LexCtx {
     ignore_newlines: bool,
@@ -132,7 +134,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             just('n').to('\n'),
         )));
         let string_literal = choice((
-            none_of("\"\\$")
+            none_of(CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS)
                 .repeated()
                 .at_least(1)
                 .to(StringSegmentToken::Literal),

@@ -1,3 +1,5 @@
+use ecow::EcoString;
+
 use crate::FileId;
 
 use super::ReportBuilder;
@@ -5,7 +7,9 @@ use super::ReportBuilder;
 /// Warning type for the language.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum Warning {}
+pub enum Warning {
+    User(EcoString),
+}
 
 impl Warning {
     /// Returns the error as a string with ANSI escape codes.

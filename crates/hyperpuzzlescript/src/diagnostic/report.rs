@@ -1,9 +1,10 @@
-use crate::{FileId, Span};
+use crate::{FileId, Span, Spanned, Type, Value};
 
 pub struct ReportBuilder {
     builder: ariadne::ReportBuilder<'static, AriadneSpan>,
     main_span: AriadneSpan,
     next_color: Box<dyn FnMut() -> ariadne::Color>,
+    label_count: i32,
 }
 impl ReportBuilder {
     fn new(
@@ -16,9 +17,11 @@ impl ReportBuilder {
         Self {
             builder: ariadne::Report::build(kind, span)
                 .with_code(code)
-                .with_message(msg),
+                .with_message(msg)
+                .with_config(ariadne::Config::new()),
             main_span: span,
             next_color: Box::new(color_generator()),
+            label_count: 0,
         }
     }
     pub fn error(code: u32, msg: impl ToString, span: impl Into<AriadneSpan>) -> Self {
@@ -39,11 +42,31 @@ impl ReportBuilder {
         mut self,
         spanned_labels: impl IntoIterator<Item = (S, L)>,
     ) -> Self {
-        self.builder.add_labels(
-            spanned_labels
-                .into_iter()
-                .map(|(span, label)| new_label((self.next_color)(), span, label)),
-        );
+        self.builder
+            .add_labels(spanned_labels.into_iter().map(|(span, label)| {
+                self.label_count += 1;
+                new_label((self.next_color)(), span, label, self.label_count)
+            }));
+        self
+    }
+
+    pub fn label_value(self, value: &Value) -> Self {
+        self.label(value.span, value.repr())
+    }
+    pub fn label_values<'a>(mut self, values: impl IntoIterator<Item = &'a Value>) -> Self {
+        for v in values {
+            self = self.label_value(v);
+        }
+        self
+    }
+
+    pub fn label_type(self, (ty, span): &Spanned<Type>) -> Self {
+        self.label(span, format!("this is a \x02{ty}\x03"))
+    }
+    pub fn label_types<'a>(mut self, types: impl IntoIterator<Item = &'a Spanned<Type>>) -> Self {
+        for ty in types {
+            self = self.label_type(ty);
+        }
         self
     }
 
@@ -86,12 +109,23 @@ fn new_label(
     color: ariadne::Color,
     span: impl Into<AriadneSpan>,
     msg: impl ToString,
+    order: i32,
 ) -> ariadne::Label<AriadneSpan> {
     use ariadne::Fmt;
 
+    let mut msg = msg.to_string();
+    if msg.contains('\x02') {
+        while let (Some(i), Some(j)) = (msg.find('\x02'), msg.find('\x03')) {
+            msg.replace_range(i..j + 1, &msg[i + 1..j].fg(color).to_string());
+        }
+    } else {
+        msg = msg.fg(color).to_string();
+    }
+
     ariadne::Label::new(span.into())
-        .with_message(msg.to_string().fg(color))
+        .with_message(msg)
         .with_color(color)
+        .with_order(order)
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

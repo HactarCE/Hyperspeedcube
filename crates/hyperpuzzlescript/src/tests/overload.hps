@@ -1,0 +1,8 @@
+fn my_func(a: Num, b: Num) -> Num { a + b }
+fn my_func(a: Any) -> Str { repr(a) }
+assert_eq(
+    "conflicting function overload",
+    __eval_to_error(fn() {
+        fn my_func(a: Num, b: Any) -> Num { str(b) }
+    }),
+)

@@ -32,7 +32,7 @@ pub enum NodeContents {
         else_case: Option<Box<Node>>,
     },
     ForLoop {
-        loop_vars: Vec<Span>,
+        loop_vars: Box<Spanned<Vec<Span>>>,
         iterator: Box<Node>,
         body: Box<Node>,
     },
@@ -61,7 +61,7 @@ pub enum NodeContents {
     },
     Index {
         obj: Box<Node>,
-        args: Vec<Node>,
+        args: Box<Spanned<Vec<Node>>>,
     },
     Fn(FnContents),
 

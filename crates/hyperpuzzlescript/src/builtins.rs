@@ -1,9 +1,10 @@
-use arcstr::Substr;
-use ecow::eco_format;
-use hypermath::{approx_eq, approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
-use std::{io::Write, sync::Arc};
+use ecow::{EcoString, eco_format};
+use hypermath::{approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
+use itertools::Itertools;
+use smallvec::smallvec;
+use std::sync::Arc;
 
-use crate::{FnOverload, FnType, FnValue, Result, Scope, Type, Value, ValueData};
+use crate::{ErrorMsg, Result, Scope, Span, Type, Value};
 
 pub fn new_builtins_scope() -> Arc<Scope> {
     let scope = Scope::new();
@@ -12,26 +13,49 @@ pub fn new_builtins_scope() -> Arc<Scope> {
 }
 
 macro_rules! hps_fn {
-    ($fn_name:expr, |$($param:tt : $param_ty:ident),*| -> $ret_ty:ident { $($body:tt)* }) => {
+    ($fn_name:expr, || $($rest:tt)*) => {
+        hps_fn!($fn_name, |_ctx| $($rest)*)
+    };
+    ($fn_name:expr, |$($param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?),*| -> $ret_ty:ident { $($body:tt)* }) => {
+        hps_fn!($fn_name, |_ctx, $($param : $param_ty $( ( $($param_ty_contents)* ) )?),*| -> $ret_ty { $($body)* })
+    };
+    ($fn_name:expr, |$ctx:ident $(, $param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?)* $(,)?| -> $ret_ty:ident { $($body:tt)* }) => {
+        hps_fn!(
+            $fn_name,
+            (
+                Some(vec![$(ty_from_tokens!($param_ty $( ( $($param_ty_contents)* ) )?)),*]),
+                $crate::Type::$ret_ty
+            ),
+            |$ctx, args| {
+                #[allow(unused)]
+                let mut args = args;
+                #[allow(unused)]
+                let mut i = 0;
+                $(
+                    unpack_val!(let $param = std::mem::take(&mut args[i]), $param_ty $( ( $($param_ty_contents)* ) )?);
+                    #[allow(unused_assignments)]
+                    {
+                        i += 1;
+                    }
+                )*
+                $($body)*
+            }
+        )
+    };
+    ($fn_name:expr, ($params:expr, $ret:expr $(,)?), || -> $($rest:tt)*) => {
+        hps_fn!($fn_name, ($params, $ret), | | -> $($rest)*)
+    };
+    ($fn_name:expr, ($params:expr, $ret:expr $(,)?), |$args:ident $(,)?| { $($body:tt)* }) => {
+        hps_fn!($fn_name, ($params, $ret), |_ctx, $args| { $($body)* })
+    };
+    ($fn_name:expr, ($params:expr, $ret:expr $(,)?), |$ctx:ident, $args:ident $(,)?| { $($body:tt)* }) => {
         (
             $fn_name,
             $crate::FnOverload {
-                ty: $crate::FnType {
-                    params: Some(vec![$($crate::Type::$param_ty),*]),
-                    ret: $crate::Type::$ret_ty,
-                },
-                call: Arc::new(|#[allow(unused)] ctx, mut args| {
-                    #[allow(unused)]
-                    let mut i = 0;
-                    $(
-                        unpack_val!(let $param = $param_ty, std::mem::take(&mut args[i]));
-                        #[allow(unused_assignments)]
-                        {
-                            i += 1;
-                        }
-                    )*
-                    let result = $($body)*;
-                    Ok($crate::ValueData::from(result).at($crate::BUILTIN_SPAN))
+                ty: $crate::FnType { params: $params, ret: $ret },
+                call: Arc::new(|$ctx, $args| {
+                    let output = { $($body)* };
+                    Ok($crate::ValueData::from(output).at($crate::BUILTIN_SPAN))
                 }),
                 debug_info: $crate::FnDebugInfo::Internal($fn_name),
             },
@@ -45,37 +69,68 @@ macro_rules! hps_fn {
     };
 }
 
+macro_rules! ty_from_tokens {
+    (Fn) => {
+        $crate::Type::Fn(std::boxed::Box::new($crate::FnType::default()))
+    };
+    (List) => {
+        $crate::Type::List(std::boxed::Box::new($crate::Type::Any))
+    };
+    (Map) => {
+        $crate::Type::Map(std::boxed::Box::new($crate::Type::Any))
+    };
+    ($collection_ty:ident ( $($inner:tt)* )) => {
+        $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
+    };
+    ($($tok:tt)*) => { $crate::Type::$($tok)* };
+}
+
 macro_rules! unpack_val {
     (let $dst:ident = $($rest:tt)*) => { unpack_val!(let ($dst, _) = $($rest)*) };
-    (let ($dst:ident, $span:tt) = $ty:ident, $val:expr) => {
+    (let ($dst:ident, $span:tt) = $val:expr, $($ty:tt)*) => {
         let val = $val;
         let $span = val.span;
-        let $dst = unpack_val!($ty, val);
+        let $dst = unpack_val!(val, $($ty)*);
     };
 
-    (Any,    $val:ident) => { $val };
-    (Null,   $val:ident) => { unpack_val!(@$val, $crate::ValueData::Null => ()) };
-    (Bool,   $val:ident) => { unpack_val!(@$val, $crate::ValueData::Bool(b) => b) };
-    (Num,    $val:ident) => { unpack_val!(@$val, $crate::ValueData::Num(n) => n) };
-    (Str,    $val:ident) => { unpack_val!(@$val, $crate::ValueData::Str(s) => s) };
-    (List,   $val:ident) => { unpack_val!(@$val, $crate::ValueData::List(l) => l) };
-    (Map,    $val:ident) => { unpack_val!(@$val, $crate::ValueData::Map(m) => m) };
-    (Fn,     $val:ident) => { unpack_val!(@$val, $crate::ValueData::Fn(f) => f) };
-    (Vector, $val:ident) => { unpack_val!(@$val, $crate::ValueData::Vector(v) => v) };
+    ($val:ident, Any)  => { $val };
+    ($val:ident, Null) => { unpack_val!(@$val, (Null), $crate::ValueData::Null => ()) };
+    ($val:ident, Bool) => { unpack_val!(@$val, (Bool), $crate::ValueData::Bool(b) => b) };
+    ($val:ident, Num)  => { unpack_val!(@$val, (Num),  $crate::ValueData::Num(n) => n) };
+    ($val:ident, Str)  => { unpack_val!(@$val, (Str),  $crate::ValueData::Str(s) => s) };
+    ($val:ident, List) => { unpack_val!(@$val, (List), $crate::ValueData::List(l) => l) };
+    ($val:ident, Map)  => { unpack_val!(@$val, (Map),  $crate::ValueData::Map(m) => m) };
+    ($val:ident, Fn)   => { unpack_val!(@$val, (Fn),   $crate::ValueData::Fn(f) => f) };
+    ($val:ident, Vec)  => { unpack_val!(@$val, (Vec),  $crate::ValueData::Vec(v) => v) };
     // TODO: more types, including integers
-    ($other:ident, $val:ident) => { compile_error!(concat!("unsupported type: ", $other)) };
+    ($val:ident, $other:ident) => { compile_error!(concat!("unsupported type: ", stringify!($other))) };
 
-    (@$val:ident, $pattern:pat => $ret:expr) => {
+    // Collection types
+    ($val:ident, List ( $($inner:tt)* )) => {
+        unpack_val!(@$val, (List ( $($inner)* )), $crate::ValueData::List(l) => {
+            std::sync::Arc::unwrap_or_clone(l)
+                .into_iter()
+                .map(|elem| {
+                    unpack_val!(let e = elem, $($inner)*);
+                    Ok(e)
+                })
+                .collect::<std::result::Result<Vec<_>, _>>()?
+        })
+    };
+
+    (@$val:ident, ($($expected_ty:tt)*), $pattern:pat => $ret:expr) => {
         match $val.data {
             $pattern => $ret,
-            _ => unreachable!("uncaught type error"),
+            _ => return Err($val.type_error(ty_from_tokens!($($expected_ty)*))),
         }
     };
 }
 
 pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([
-        hps_fn!("str", |arg: Any| -> Str { eco_format!("{}", arg) }),
+        // String conversion
+        hps_fn!("str", |arg: Any| -> Str { eco_format!("{arg}") }),
+        hps_fn!("repr", |arg: Any| -> Str { eco_format!("{:?}", arg.data) }),
         // Number operators
         hps_fn!("+", |a: Num, b: Num| -> Num { a + b }),
         hps_fn!("-", |a: Num, b: Num| -> Num { a - b }),
@@ -83,51 +138,150 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
         hps_fn!("/", |a: Num, b: Num| -> Num { a / b }),
         hps_fn!("%", |a: Num, b: Num| -> Num { a.rem_euclid(b) }),
         hps_fn!("**", |a: Num, b: Num| -> Num { a.powf(b) }),
+        hps_fn!("sqrt", |x: Num| -> Num { x.sqrt() }),
+        // General comparisons
+        hps_fn!("==", |ctx, a: Any, b: Any| -> Bool {
+            a.eq(&b, ctx.caller_span)?
+        }),
+        hps_fn!("!=", |ctx, a: Any, b: Any| -> Bool {
+            !a.eq(&b, ctx.caller_span)?
+        }),
         // Number comparisons
-        hps_fn!("==", |a: Num, b: Num| -> Bool { approx_eq(&a, &b) }),
-        hps_fn!("!=", |a: Num, b: Num| -> Bool { !approx_eq(&a, &b) }),
         hps_fn!("<", |a: Num, b: Num| -> Bool { approx_lt(&a, &b) }),
         hps_fn!(">", |a: Num, b: Num| -> Bool { approx_gt(&a, &b) }),
         hps_fn!("<=", |a: Num, b: Num| -> Bool { approx_lt_eq(&a, &b) }),
         hps_fn!(">=", |a: Num, b: Num| -> Bool { approx_gt_eq(&a, &b) }),
-        // String comparisons
-        hps_fn!("==", |a: Str, b: Str| -> Bool { a == b }),
-        hps_fn!("!=", |a: Str, b: Str| -> Bool { a != b }),
+        // Output
+        hps_fn!("print", (None, Type::Null), |ctx, args| {
+            ctx.runtime.info_str(args.iter().join(" "));
+        }),
+        hps_fn!("warn", (None, Type::Null), |ctx, args| {
+            ctx.runtime.warn_str(args.iter().join(" "));
+        }),
+        hps_fn!("error", (None, Type::Null), |ctx, args| {
+            let msg = if args.is_empty() {
+                "runtime error".into()
+            } else {
+                args.iter().join(" ").into()
+            };
+            Err::<(), _>(ErrorMsg::User(msg).at(ctx.caller_span))?
+        }),
+        // Assertions
+        hps_fn!("assert", |ctx, cond: Bool| -> Null {
+            assert(cond, || "assertion failed", ctx.caller_span)?
+        }),
+        hps_fn!("assert", |ctx, cond: Bool, msg: Any| -> Null {
+            assert(
+                cond,
+                || eco_format!("assertion failed: {msg}"),
+                ctx.caller_span,
+            )?
+        }),
+        hps_fn!("assert_eq", |ctx, a: Any, b: Any| -> Null {
+            assert_cmp(
+                a.eq(&b, ctx.caller_span)?,
+                (a, b),
+                || eco_format!("assertion failed"),
+                ctx.caller_span,
+            )?
+        }),
+        hps_fn!("assert_eq", |ctx, a: Any, b: Any, msg: Any| -> Null {
+            assert_cmp(
+                a.eq(&b, ctx.caller_span)?,
+                (a, b),
+                || eco_format!("assertion failed: {msg}"),
+                ctx.caller_span,
+            )?
+        }),
+        hps_fn!("assert_neq", |ctx, a: Any, b: Any| -> Null {
+            assert_cmp(
+                !a.eq(&b, ctx.caller_span)?,
+                (a, b),
+                || eco_format!("assertion failed"),
+                ctx.caller_span,
+            )?
+        }),
+        hps_fn!("assert_neq", |ctx, a: Any, b: Any, msg: Any| -> Null {
+            assert_cmp(
+                !a.eq(&b, ctx.caller_span)?,
+                (a, b),
+                || eco_format!("assertion failed: {msg}"),
+                ctx.caller_span,
+            )?
+        }),
+        hps_fn!("__eval_to_error", |ctx, f: Fn| -> Str {
+            match f.call(ctx.caller_span, ctx.caller_span, ctx, vec![]) {
+                Ok(value) => Err(ErrorMsg::User(eco_format!(
+                    "expected error; got {}",
+                    value.repr()
+                ))
+                .at(ctx.caller_span)),
+                Err(e) => Ok(EcoString::from(e.msg.code_and_msg_str().1)),
+            }?
+        }),
+        // Vector construction
+        hps_fn!("vec", |nums: List(Num)| -> Vec {
+            hypermath::Vector(nums.into())
+        }),
+        hps_fn!("vec", || -> Vec { hypermath::Vector(smallvec![]) }),
+        hps_fn!("vec", |x: Num| -> Vec { hypermath::Vector(smallvec![x]) }),
+        hps_fn!("vec", |x: Num, y: Num| -> Vec {
+            hypermath::Vector(smallvec![x, y])
+        }),
+        hps_fn!("vec", |x: Num, y: Num, z: Num| -> Vec {
+            hypermath::Vector(smallvec![x, y, z])
+        }),
+        hps_fn!("vec", |x: Num, y: Num, z: Num, w: Num| -> Vec {
+            hypermath::Vector(smallvec![x, y, z, w])
+        }),
+        hps_fn!("vec", |x: Num, y: Num, z: Num, w: Num, v: Num| -> Vec {
+            hypermath::Vector(smallvec![x, y, z, w, v])
+        }),
+        hps_fn!("vec", |x: Num,
+                        y: Num,
+                        z: Num,
+                        w: Num,
+                        v: Num,
+                        u: Num|
+         -> Vec {
+            hypermath::Vector(smallvec![x, y, z, w, v, u])
+        }),
+        hps_fn!("vec", |x: Num,
+                        y: Num,
+                        z: Num,
+                        w: Num,
+                        v: Num,
+                        u: Num,
+                        t: Num|
+         -> Vec {
+            hypermath::Vector(smallvec![x, y, z, w, v, u, t])
+        }),
+        //
+        hps_fn!("add_puzzle", |args: Map| -> Null {
+            let x = match args.get("ndim") {
+                Some(val) => val.as_u8()?,
+                None => 0,
+            };
+        }),
     ])?;
 
-    // scope.set(
-    //     "^".into(),
-    //     Value {
-    //         data: ValueData::Fn(Arc::new(FnValue::default())),
-    //         span: crate::BUILTIN_SPAN,
-    //     },
-    // );
-
-    scope.register_func(
-        crate::BUILTIN_SPAN,
-        Substr::from("print"),
-        FnOverload {
-            ty: FnType {
-                params: None,
-                ret: Type::Null,
-            },
-            call: Arc::new(|_ctx, args| {
-                let mut stdout = std::io::stdout().lock();
-                let mut is_first = true;
-                for arg in args {
-                    if is_first {
-                        is_first = false;
-                    } else {
-                        write!(stdout, " ").unwrap();
-                    }
-                    write!(stdout, "{}", arg.to_string()).unwrap();
-                }
-                writeln!(stdout).unwrap();
-                Ok(ValueData::Null.at(crate::BUILTIN_SPAN))
-            }),
-            debug_info: crate::FnDebugInfo::Internal("print"),
-        },
-    )?;
-
     Ok(())
+}
+
+fn assert<S: Into<EcoString>>(condition: bool, msg: impl FnOnce() -> S, span: Span) -> Result<()> {
+    match condition {
+        true => Ok(()),
+        false => Err(ErrorMsg::Assert(msg().into()).at(span)),
+    }
+}
+fn assert_cmp<S: Into<EcoString>>(
+    condition: bool,
+    (l, r): (Value, Value),
+    msg: impl FnOnce() -> S,
+    span: Span,
+) -> Result<()> {
+    match condition {
+        true => Ok(()),
+        false => Err(ErrorMsg::AssertCompare(Box::new(l), Box::new(r), msg().into()).at(span)),
+    }
 }

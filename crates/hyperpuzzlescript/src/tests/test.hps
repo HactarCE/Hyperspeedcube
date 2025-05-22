@@ -1,0 +1,43 @@
+add_puzzle(#{
+    ndim: 4
+})
+
+
+
+
+fn whatev() {
+
+}
+
+
+
+m = whatev()
+
+
+fn get_ndim_from_somewhere() { "3" }
+
+
+params = #{
+    ndim: "3"
+}
+
+
+// add_puzzle(params)
+
+fn a() {
+    b()
+}
+
+fn c() {
+    a(3)
+}
+
+fn a(n: Num) {
+    error(n)
+}
+
+fn b() {
+    c()
+}
+
+a()
