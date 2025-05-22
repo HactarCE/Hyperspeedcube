@@ -1,7 +1,7 @@
 use chumsky::prelude::*;
 use itertools::Itertools;
 
-use crate::{FullDiagnostic, DiagMsg, FileId, Span, ast};
+use crate::{DiagMsg, FileId, FullDiagnostic, Span, ast};
 
 mod lexer;
 mod parser;

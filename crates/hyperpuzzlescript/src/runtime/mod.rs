@@ -1,14 +1,17 @@
-use std::{fmt, ops::Index, sync::Arc};
+use std::fmt;
+use std::ops::Index;
+use std::sync::Arc;
 
 mod ctx;
 mod file_store;
 mod scope;
 
-use crate::{FileId, FullDiagnostic, Result, Span, Value, ast};
 use arcstr::{ArcStr, Substr};
 pub use ctx::EvalCtx;
 pub use file_store::FileStore;
 pub use scope::Scope;
+
+use crate::{FileId, FullDiagnostic, Result, Span, Value, ast};
 
 /// Script runtime.
 pub struct Runtime {
@@ -67,8 +70,8 @@ impl Runtime {
         }
     }
 
-    /// Parses any files that have not yet been parsed and executes any files that
-    /// have not yet been executed.
+    /// Parses any files that have not yet been parsed and executes any files
+    /// that have not yet been executed.
     pub fn exec_all_files(&mut self) {
         for i in 0..self.files.len() {
             self.file_ret(i as FileId);

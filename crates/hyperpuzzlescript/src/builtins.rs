@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use ecow::{EcoString, eco_format};
 use hypermath::{approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
 use itertools::Itertools;
 use smallvec::smallvec;
-use std::sync::Arc;
 
 use crate::{DiagMsg, Result, Scope, Span, Type, Value};
 

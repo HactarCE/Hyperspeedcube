@@ -1,4 +1,7 @@
-use std::{fmt, ops::Index, path::Path, sync::Arc};
+use std::fmt;
+use std::ops::Index;
+use std::path::Path;
+use std::sync::Arc;
 
 use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;

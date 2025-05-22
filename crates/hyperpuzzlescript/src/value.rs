@@ -1,9 +1,7 @@
-use std::{
-    borrow::{Borrow, Cow},
-    fmt,
-    hash::Hash,
-    sync::Arc,
-};
+use std::borrow::{Borrow, Cow};
+use std::fmt;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use arcstr::Substr;
 use ecow::EcoString;

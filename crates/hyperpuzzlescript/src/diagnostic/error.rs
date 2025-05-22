@@ -4,12 +4,9 @@ use ecow::EcoString;
 use itertools::Itertools;
 use thiserror::Error;
 
-use crate::{
-    FileId, FnDebugInfo, FnType, Span, Spanned, Type, Value,
-    parse::{LexError, ParseError},
-};
-
 use super::ReportBuilder;
+use crate::parse::{LexError, ParseError};
+use crate::{FileId, FnDebugInfo, FnType, Span, Spanned, Type, Value};
 
 /// Error or warning, with primary span and traceback.
 #[derive(Debug, Clone)]

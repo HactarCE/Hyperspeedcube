@@ -2,6 +2,8 @@
 
 #![warn(variant_size_differences)]
 
+use std::path::Path;
+
 mod ast;
 mod builtins;
 mod diagnostic;
@@ -11,10 +13,8 @@ mod ty;
 mod util;
 mod value;
 
-pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
-use std::path::Path;
-
 pub use diagnostic::{DiagMsg, FullDiagnostic, ImmutReason, TracebackLine};
+pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
 pub use ty::{FnType, Type};
 use value::{FnDebugInfo, FnOverload, FnValue, Index, MapKey, Value, ValueData};
 

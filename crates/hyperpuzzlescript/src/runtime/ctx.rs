@@ -391,12 +391,10 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::Continue => Err(DiagMsg::Continue),
             ast::NodeContents::Break => Err(DiagMsg::Break),
-            ast::NodeContents::Return(ret_expr) => {
-                Err(DiagMsg::Return(Box::new(match ret_expr {
-                    Some(expr) => self.eval(expr)?,
-                    None => null.at(span),
-                })))
-            }
+            ast::NodeContents::Return(ret_expr) => Err(DiagMsg::Return(Box::new(match ret_expr {
+                Some(expr) => self.eval(expr)?,
+                None => null.at(span),
+            }))),
             ast::NodeContents::Ident(ident_span) => Ok(self
                 .scope
                 .get(&self[*ident_span])

@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, hash_map},
-    sync::Arc,
-};
+use std::collections::{HashMap, hash_map};
+use std::sync::Arc;
 
 use arcstr::Substr;
 use parking_lot::Mutex;
