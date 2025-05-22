@@ -632,7 +632,7 @@ impl<T: PresetData> PresetsList<T> {
     ///
     /// # Panics
     ///
-    /// This method panicks if `to` is greater than or equal to number of user
+    /// This method panics if `to` is greater than or equal to number of user
     /// presets.
     pub fn move_index(&mut self, from: usize, to: usize) {
         self.user.move_index(from, to);
