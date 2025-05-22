@@ -19,7 +19,11 @@ pub struct FullDiagnostic {
 impl FullDiagnostic {
     /// Adds a caller span to the error message.
     pub(crate) fn at_caller(mut self, traceback_line: TracebackLine) -> FullDiagnostic {
-        self.traceback.push(traceback_line);
+        if self.span == crate::BUILTIN_SPAN {
+            self.span = traceback_line.call_span;
+        } else {
+            self.traceback.push(traceback_line);
+        }
         self
     }
 

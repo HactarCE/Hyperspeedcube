@@ -227,7 +227,7 @@ impl Motor {
     }
     /// Returns the underlying array of coefficients of the motor. Avoid using
     /// these for anything other than hashing.
-    pub(crate) fn coefs(&self) -> impl '_ + Clone + Iterator<Item = Float> {
+    pub fn coefs(&self) -> impl '_ + Clone + Iterator<Item = Float> {
         self.coefficients.iter().copied()
     }
     /// Lifts the motor into at least `ndim`-dimensional space.

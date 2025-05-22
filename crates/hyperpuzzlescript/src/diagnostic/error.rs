@@ -20,11 +20,17 @@ pub enum Error {
     #[error("type error")]
     TypeError { expected: Type, got: Type },
     #[error("immutable value")]
-    ExpectedType { ast_node_kind: &'static str },
-    #[error("expected type")]
-    ExpectedCollectionType,
-    #[error("expected collection type")]
     Immut { reason: ImmutReason },
+    #[error("expected type")]
+    ExpectedType { got_ast_node_kind: &'static str },
+    #[error("expected identifier, assignment, or function definition")]
+    ExpectedExportable { got_ast_node_kind: &'static str },
+    #[error("expected identifier")]
+    ExpectedExportableVar { got_ast_node_kind: &'static str },
+    #[error("cannot export with compound assignment")]
+    CompoundAssignmentNotAllowed,
+    #[error("expected collection type")]
+    ExpectedCollectionType,
     #[error("conflicting function overload")]
     FnOverloadConflict {
         new_ty: Box<FnType>,
@@ -90,6 +96,10 @@ pub enum Error {
     CannotIndex(Type),
     #[error("cannot iterate over this type")]
     CannotIterate(Type),
+    #[error("domain error")]
+    NaN,
+    #[error("infinity")]
+    Infinity,
 
     // TODO: make sure we're handling AST error node properly
     #[error("syntax error prevents evaluation")]
@@ -137,9 +147,17 @@ impl Error {
             Self::Immut { reason } => {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }
-            Self::ExpectedType { ast_node_kind } => report_builder
-                .main_label(format!("this is a \x02{ast_node_kind}\x03"))
+            Self::ExpectedType { got_ast_node_kind } => report_builder
+                .main_label(format!("this is a \x02{got_ast_node_kind}\x03"))
                 .help("try a type like `Str` or `List[Num]`"),
+            Self::ExpectedExportable { got_ast_node_kind }
+            | Self::ExpectedExportableVar { got_ast_node_kind } => {
+                report_builder.main_label(format!("this is a \x02{got_ast_node_kind}\x03"))
+            }
+            Self::CompoundAssignmentNotAllowed => report_builder
+                .main_label("compound assignment operator")
+                .note("compound assignment operators are not allowed in `export` statements")
+                .help("modify the variable first, then export it on another line"),
             Self::ExpectedCollectionType { .. } => report_builder
                 .main_label(format!("this is not a collection type"))
                 .help("try a collection type like `List` or `Map`"),
@@ -236,6 +254,12 @@ impl Error {
             }
             Self::CannotIndex(ty) => report_builder.main_label(format!("this is a \x02{ty}\x03")),
             Self::CannotIterate(ty) => report_builder.main_label(format!("this is a \x02{ty}\x03")),
+            Self::NaN => report_builder
+                .main_label("not a number")
+                .help("check for division by zero or other invalid operation"),
+            Self::Infinity => report_builder
+                .main_label("infinity is not allowed here")
+                .help("check for division by zero"),
 
             Self::AstErrorNode => report_builder.help("see earlier errors for a syntax error"),
             Self::Internal(msg) => report_builder.main_label(msg),

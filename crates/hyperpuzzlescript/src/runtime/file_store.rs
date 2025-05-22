@@ -14,7 +14,7 @@ use crate::{FILE_EXTENSION, FileId, Result, Span, Value, ast};
 
 lazy_static! {
     static ref INTERNAL_SOURCE: ariadne::Source<ArcStr> =
-        ariadne::Source::from(ArcStr::from("<builtin>"));
+        ariadne::Source::from(ArcStr::from("<internal>"));
 }
 
 #[derive(Debug)]

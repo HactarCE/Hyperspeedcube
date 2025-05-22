@@ -105,7 +105,6 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             "not" => Token::Not,
 
             "inf" => Token::NumberLiteral,
-            "nan" => Token::NumberLiteral,
 
             _ => Token::Ident,
         });

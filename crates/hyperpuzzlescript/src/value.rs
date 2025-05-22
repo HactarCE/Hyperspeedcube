@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use arcstr::Substr;
 use ecow::EcoString;
-use hypermath::Vector;
+use hypermath::{Vector, VectorRef};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
@@ -109,6 +109,26 @@ impl Value {
             got: self.ty(),
         }
         .at(self.span)
+    }
+
+    /// Checks the type for invalid floating-point values.
+    ///
+    /// This only performs a shallow check, so lists and maps are not checked.
+    /// It's called after internal functions, which are the only ones that can
+    /// actually generate new primitive values.
+    pub(crate) fn check_for_invalid_floats(&self) -> Result<()> {
+        match &self.data {
+            ValueData::Num(n) => ensure_non_nan_number(*n, self.span),
+            ValueData::Vec(v) | ValueData::EuclidPoint(hypermath::Point(v)) => {
+                ensure_finite_numbers(v.iter(), self.span)
+            }
+            ValueData::EuclidTransform(t) => ensure_finite_numbers(t.coefs(), self.span),
+            ValueData::EuclidPlane(p) => {
+                ensure_finite_number(p.distance(), self.span)?;
+                ensure_finite_numbers(p.normal().iter(), self.span)
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Check that a value has this type, and return an error if it doesn't.
@@ -654,6 +674,12 @@ impl FnValue {
         };
         let return_value = (overload.call)(&mut call_ctx, args)
             .or_else(FullDiagnostic::try_resolve_return_value)
+            .and_then(|return_value| {
+                if matches!(overload.debug_info, FnDebugInfo::Internal(_)) {
+                    return_value.check_for_invalid_floats()?;
+                }
+                Ok(return_value)
+            })
             .map_err(|e| {
                 e.at_caller(TracebackLine {
                     fn_name: self.name.clone(),
@@ -732,6 +758,31 @@ fn fmt_comma_sep_numbers(
             write!(f, ", ")?;
         }
         ValueData::Num(n).fmt_internal(f, is_debug)?;
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn ensure_non_nan_number(n: f64, span: Span) -> Result<()> {
+    if n.is_nan() {
+        Err(Error::NaN.at(span))
+    } else {
+        Ok(())
+    }
+}
+#[inline(always)]
+fn ensure_finite_number(n: f64, span: Span) -> Result<()> {
+    ensure_non_nan_number(n, span)?;
+    if n.is_infinite() {
+        Err(Error::Infinity.at(span))
+    } else {
+        Ok(())
+    }
+}
+#[inline(always)]
+fn ensure_finite_numbers(ns: impl Iterator<Item = f64>, span: Span) -> Result<()> {
+    for n in ns {
+        ensure_finite_number(n, span)?;
     }
     Ok(())
 }
