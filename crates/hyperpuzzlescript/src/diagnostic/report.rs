@@ -7,28 +7,20 @@ pub struct ReportBuilder {
     label_count: i32,
 }
 impl ReportBuilder {
-    fn new(
+    pub fn new(
         kind: ariadne::ReportKind<'static>,
         msg: impl ToString,
-        code: u32,
         span: impl Into<AriadneSpan>,
     ) -> Self {
         let span = span.into();
         Self {
             builder: ariadne::Report::build(kind, span)
-                .with_code(code)
                 .with_message(msg)
                 .with_config(ariadne::Config::new()),
             main_span: span,
             next_color: Box::new(color_generator()),
             label_count: 0,
         }
-    }
-    pub fn error(code: u32, msg: impl ToString, span: impl Into<AriadneSpan>) -> Self {
-        Self::new(ariadne::ReportKind::Error, msg, code, span)
-    }
-    pub fn warning(code: u32, msg: impl ToString, span: impl Into<AriadneSpan>) -> Self {
-        Self::new(ariadne::ReportKind::Warning, msg, code, span)
     }
 
     pub fn main_label(self, msg: impl ToString) -> Self {

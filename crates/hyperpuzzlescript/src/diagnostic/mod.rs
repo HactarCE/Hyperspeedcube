@@ -1,7 +1,5 @@
 mod error;
 mod report;
-mod warning;
 
-pub use error::{Error, ErrorMsg, ImmutReason, TracebackLine};
+pub use error::{DiagMsg, FullDiagnostic, ImmutReason, TracebackLine};
 use report::ReportBuilder;
-pub use warning::Warning;

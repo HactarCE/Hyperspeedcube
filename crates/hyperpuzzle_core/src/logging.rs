@@ -28,7 +28,11 @@ impl Logger {
         self.lines.lock().push(line);
     }
     fn log_with_level(&self, level: Level, msg: String) {
-        self.log(LogLine { level, msg });
+        self.log(LogLine {
+            level,
+            msg,
+            full: None,
+        });
     }
 
     /// Logs a line with [`Level::Error`].
@@ -67,8 +71,12 @@ impl Logger {
 pub struct LogLine {
     /// Log level.
     pub level: Level,
-    /// Log message.
+    /// Brief log message.
     pub msg: String,
+    /// Full error message, if any.
+    ///
+    /// This may use ANSI escape codes for setting text foreground color.
+    pub full: Option<String>,
 }
 impl LogLine {
     /// Returns whether the line matches a filter string entered by the user.

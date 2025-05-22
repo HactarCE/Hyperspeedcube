@@ -4,7 +4,7 @@ use itertools::Itertools;
 use smallvec::smallvec;
 use std::sync::Arc;
 
-use crate::{ErrorMsg, Result, Scope, Span, Type, Value};
+use crate::{DiagMsg, Result, Scope, Span, Type, Value};
 
 pub fn new_builtins_scope() -> Arc<Scope> {
     let scope = Scope::new();
@@ -153,10 +153,12 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
         hps_fn!(">=", |a: Num, b: Num| -> Bool { approx_gt_eq(&a, &b) }),
         // Output
         hps_fn!("print", (None, Type::Null), |ctx, args| {
-            ctx.runtime.info_str(args.iter().join(" "));
+            ctx.runtime.print(args.iter().join(" "));
         }),
         hps_fn!("warn", (None, Type::Null), |ctx, args| {
-            ctx.runtime.warn_str(args.iter().join(" "));
+            ctx.runtime.report_diagnostic(
+                DiagMsg::UserWarning(args.iter().join(" ").into()).at(ctx.caller_span),
+            );
         }),
         hps_fn!("error", (None, Type::Null), |ctx, args| {
             let msg = if args.is_empty() {
@@ -164,7 +166,7 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
             } else {
                 args.iter().join(" ").into()
             };
-            Err::<(), _>(ErrorMsg::User(msg).at(ctx.caller_span))?
+            Err::<(), _>(DiagMsg::UserError(msg).at(ctx.caller_span))?
         }),
         // Assertions
         hps_fn!("assert", |ctx, cond: Bool| -> Null {
@@ -211,12 +213,12 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
         }),
         hps_fn!("__eval_to_error", |ctx, f: Fn| -> Str {
             match f.call(ctx.caller_span, ctx.caller_span, ctx, vec![]) {
-                Ok(value) => Err(ErrorMsg::User(eco_format!(
+                Ok(value) => Err(DiagMsg::UserError(eco_format!(
                     "expected error; got {}",
                     value.repr()
                 ))
                 .at(ctx.caller_span)),
-                Err(e) => Ok(EcoString::from(e.msg.code_and_msg_str().1)),
+                Err(e) => Ok(EcoString::from(e.msg.overview().1)),
             }?
         }),
         // Vector construction
@@ -271,7 +273,7 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
 fn assert<S: Into<EcoString>>(condition: bool, msg: impl FnOnce() -> S, span: Span) -> Result<()> {
     match condition {
         true => Ok(()),
-        false => Err(ErrorMsg::Assert(msg().into()).at(span)),
+        false => Err(DiagMsg::Assert(msg().into()).at(span)),
     }
 }
 fn assert_cmp<S: Into<EcoString>>(
@@ -282,6 +284,6 @@ fn assert_cmp<S: Into<EcoString>>(
 ) -> Result<()> {
     match condition {
         true => Ok(()),
-        false => Err(ErrorMsg::AssertCompare(Box::new(l), Box::new(r), msg().into()).at(span)),
+        false => Err(DiagMsg::AssertCompare(Box::new(l), Box::new(r), msg().into()).at(span)),
     }
 }

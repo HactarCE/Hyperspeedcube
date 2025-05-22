@@ -11,9 +11,9 @@ use crate::{
 
 use super::ReportBuilder;
 
-/// Error type for the language.
+/// Error or warning, with primary span and traceback.
 #[derive(Debug, Clone)]
-pub struct Error {
+pub struct FullDiagnostic {
     /// Primary span.
     ///
     /// `msg` may contain more spans.
@@ -21,44 +21,48 @@ pub struct Error {
     /// Caller spans.
     pub traceback: Vec<TracebackLine>,
     /// Error message.
-    pub msg: ErrorMsg,
+    pub msg: DiagMsg,
 }
-impl Error {
+impl FullDiagnostic {
     /// Adds a caller span to the error message.
-    pub fn at_caller(mut self, traceback_line: TracebackLine) -> Error {
+    pub fn at_caller(mut self, traceback_line: TracebackLine) -> FullDiagnostic {
         self.traceback.push(traceback_line);
         self
     }
 
+    pub fn kind(&self) -> ariadne::ReportKind<'_> {
+        self.msg.overview().0
+    }
+
     /// Returns the error as a string with ANSI escape codes.
     pub fn to_string(&self, mut files: impl ariadne::Cache<FileId>) -> String {
-        let (code, msg) = self.msg.code_and_msg_str();
-        let report_builder = ReportBuilder::error(code, msg, self.span);
+        let (kind, msg) = self.msg.overview();
+        let report_builder = ReportBuilder::new(kind, msg, self.span);
 
         match &self.msg {
-            ErrorMsg::LexError(e) => report_builder.main_label(e.reason()).labels(
+            DiagMsg::LexError(e) => report_builder.main_label(e.reason()).labels(
                 e.contexts()
                     .map(|(pat, sp)| ((self.span.context, *sp), pat)),
             ),
-            ErrorMsg::ParseError(e) => report_builder
+            DiagMsg::ParseError(e) => report_builder
                 .main_label(e.reason())
                 .labels(e.contexts().map(|(pat, sp)| (sp, pat))),
-            ErrorMsg::Unimplemented(_) => {
+            DiagMsg::Unimplemented(_) => {
                 report_builder.main_label("this feature isn't implemented yet")
             }
-            ErrorMsg::TypeError { expected, got } => {
+            DiagMsg::TypeError { expected, got } => {
                 report_builder.main_label(format!("expected \x02{expected}\x03, got \x02{got}\x03"))
             }
-            ErrorMsg::Immut { reason } => {
+            DiagMsg::Immut { reason } => {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }
-            ErrorMsg::ExpectedType { ast_node_kind } => report_builder
+            DiagMsg::ExpectedType { ast_node_kind } => report_builder
                 .main_label(format!("this is a \x02{ast_node_kind}\x03"))
                 .help("try a type like `Str` or `List[Num]`"),
-            ErrorMsg::ExpectedCollectionType { .. } => report_builder
+            DiagMsg::ExpectedCollectionType { .. } => report_builder
                 .main_label(format!("this is not a collection type"))
                 .help("try a collection type like `List` or `Map`"),
-            ErrorMsg::FnOverloadConflict {
+            DiagMsg::FnOverloadConflict {
                 new_ty,
                 old_ty,
                 old_span,
@@ -69,17 +73,17 @@ impl Error {
                     format!("previous overload has type \x02{old_ty}\x03"),
                 )
                 .note("overloads may be ambiguous when passed an empty `List` or `Map`"),
-            ErrorMsg::CannotAssignToExpr { kind } => {
+            DiagMsg::CannotAssignToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not assignable"))
             }
-            ErrorMsg::Undefined => report_builder
+            DiagMsg::Undefined => report_builder
                 .main_label("this is undefined")
                 .help("it may be defined somewhere, but isn't accessible from here")
                 .help("try assigning `null` to define the variable in an outer scope"),
-            ErrorMsg::UnknownType => report_builder
+            DiagMsg::UnknownType => report_builder
                 .main_label("unknown type")
                 .help("try using a type name like `Num` or `Str`"),
-            ErrorMsg::WrongNumberOfIndices {
+            DiagMsg::WrongNumberOfIndices {
                 obj_span,
                 count,
                 min,
@@ -88,7 +92,7 @@ impl Error {
                 .main_label(format!("found {count} index value(s)"))
                 .label(obj_span, "when indexing this")
                 .help(there_should_be_min_max_msg(*min, *max)),
-            ErrorMsg::WrongNumberOfLoopVars {
+            DiagMsg::WrongNumberOfLoopVars {
                 iter_span,
                 count,
                 min,
@@ -97,11 +101,11 @@ impl Error {
                 .main_label(format!("found {count} loop variable(s)"))
                 .label(iter_span, "when iterating over this")
                 .help(there_should_be_min_max_msg(*min, *max)),
-            ErrorMsg::UnsupportedOperator => report_builder
+            DiagMsg::UnsupportedOperator => report_builder
                 .main_label("this operator is not supported")
                 .help("contact the developer if you have a use case for it"),
-            ErrorMsg::NoFnWithName => report_builder.main_label("no function with this name"),
-            ErrorMsg::BadArgTypes {
+            DiagMsg::NoFnWithName => report_builder.main_label("no function with this name"),
+            DiagMsg::BadArgTypes {
                 arg_types,
                 overloads,
             } => report_builder
@@ -112,7 +116,7 @@ impl Error {
                 } else {
                     format!("try one of these:\n{}", overloads.iter().join("\n"))
                 }),
-            ErrorMsg::AmbiguousFnCall {
+            DiagMsg::AmbiguousFnCall {
                 arg_types,
                 overloads,
             } => report_builder
@@ -123,25 +127,25 @@ impl Error {
                         .iter()
                         .map(|candidate| format!("could be {candidate}")),
                 ),
-            ErrorMsg::ExpectedMapKey => report_builder
+            DiagMsg::ExpectedMapKey => report_builder
                 .main_label("expected map key")
                 .help("convert a value to a string to use it as a map key: `\"${my_value}\"`"),
-            ErrorMsg::BreakOutsideLoop | ErrorMsg::ContinueOutsideLoop => {
+            DiagMsg::BreakOutsideLoop | DiagMsg::ContinueOutsideLoop => {
                 report_builder.main_label("not in a loop")
             }
-            ErrorMsg::NoField { obj } => report_builder
+            DiagMsg::NoField { obj } => report_builder
                 .main_label("this field does not exist")
                 .label(obj, "on this object"),
-            ErrorMsg::CannotSetField { obj } => report_builder
+            DiagMsg::CannotSetField { obj } => report_builder
                 .main_label("cannot set this field")
                 .label(obj, "on this object"),
-            ErrorMsg::NormalizeZeroVector => report_builder.main_label("vector is zero"),
-            ErrorMsg::InvalidComparison(ty1, ty2) => report_builder
+            DiagMsg::NormalizeZeroVector => report_builder.main_label("vector is zero"),
+            DiagMsg::InvalidComparison(ty1, ty2) => report_builder
                 .main_label("this comparison operator is unsupported on those types")
                 .label_type(ty1)
                 .label_type(ty2),
-            ErrorMsg::ExpectedInteger(n) => report_builder.main_label(n),
-            ErrorMsg::IndexOutOfBounds { got, bounds } => {
+            DiagMsg::ExpectedInteger(n) => report_builder.main_label(n),
+            DiagMsg::IndexOutOfBounds { got, bounds } => {
                 report_builder.main_label(got).note(match bounds {
                     Some((min, max)) => {
                         format!("expected integer between {min} and {max} (inclusive)")
@@ -149,20 +153,21 @@ impl Error {
                     None => format!("collection is empty"),
                 })
             }
-            ErrorMsg::CannotIndex(ty) => {
+            DiagMsg::CannotIndex(ty) => {
                 report_builder.main_label(format!("this is a \x02{ty}\x03"))
             }
-            ErrorMsg::CannotIterate(ty) => {
+            DiagMsg::CannotIterate(ty) => {
                 report_builder.main_label(format!("this is a \x02{ty}\x03"))
             }
 
-            ErrorMsg::AstErrorNode => report_builder.help("see earlier errors for a syntax error"),
-            ErrorMsg::Internal(msg) => report_builder.main_label(msg),
-            ErrorMsg::User(_) => report_builder.main_label("error reported here"),
-            ErrorMsg::Assert(_) => report_builder.main_label("error reported here"),
-            ErrorMsg::AssertCompare(l, r, _) => report_builder.label_values([&**l, &**r]),
+            DiagMsg::AstErrorNode => report_builder.help("see earlier errors for a syntax error"),
+            DiagMsg::Internal(msg) => report_builder.main_label(msg),
+            DiagMsg::UserError(_) => report_builder.main_label("error reported here"),
+            DiagMsg::UserWarning(_) => report_builder.main_label("warning reported here"),
+            DiagMsg::Assert(_) => report_builder.main_label("error reported here"),
+            DiagMsg::AssertCompare(l, r, _) => report_builder.label_values([&**l, &**r]),
 
-            ErrorMsg::Return(_) | ErrorMsg::Break | ErrorMsg::Continue => {
+            DiagMsg::Return(_) | DiagMsg::Break | DiagMsg::Continue => {
                 report_builder.main_label("leaked control flow")
             }
         }
@@ -187,9 +192,9 @@ impl Error {
 
     pub fn try_resolve_return_value(mut self) -> Result<Value, Self> {
         match &mut self.msg {
-            ErrorMsg::Return(ret_val) => Ok(std::mem::take(ret_val)),
-            ErrorMsg::Break => Err(ErrorMsg::BreakOutsideLoop.at(self.span)),
-            ErrorMsg::Continue => Err(ErrorMsg::ContinueOutsideLoop.at(self.span)),
+            DiagMsg::Return(ret_val) => Ok(std::mem::take(ret_val)),
+            DiagMsg::Break => Err(DiagMsg::BreakOutsideLoop.at(self.span)),
+            DiagMsg::Continue => Err(DiagMsg::ContinueOutsideLoop.at(self.span)),
             _ => Err(self),
         }
     }
@@ -254,11 +259,11 @@ fn display_span(span: Span, mut files: impl ariadne::Cache<FileId>) -> String {
     }
 }
 
-/// Error type for the language, without a primary span.
+/// Error or warning, without a primary span or traceback.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 #[allow(missing_docs)]
-pub enum ErrorMsg {
+pub enum DiagMsg {
     LexError(LexError<'static>),
     ParseError(ParseError<'static>),
     Unimplemented(&'static str),
@@ -327,7 +332,8 @@ pub enum ErrorMsg {
     // TODO: make sure we're handling AST error node properly
     AstErrorNode,
     Internal(&'static str),
-    User(EcoString),
+    UserError(EcoString),
+    UserWarning(EcoString),
     Assert(EcoString),
     AssertCompare(Box<Value>, Box<Value>, EcoString),
 
@@ -338,10 +344,10 @@ pub enum ErrorMsg {
     /// Not actually an error; used for ordinary continue statements.
     Continue,
 }
-impl ErrorMsg {
+impl DiagMsg {
     /// Adds a primary span to the error.
-    pub fn at(self, span: impl Into<Span>) -> Error {
-        Error {
+    pub fn at(self, span: impl Into<Span>) -> FullDiagnostic {
+        FullDiagnostic {
             span: span.into(),
             traceback: vec![],
             msg: self,
@@ -352,7 +358,7 @@ impl ErrorMsg {
     ///
     /// This produces slightly error messages on built-in functions, and panics
     /// in debug mode.
-    pub fn debug_at(self, debug: FnDebugInfo) -> Error {
+    pub fn debug_at(self, debug: FnDebugInfo) -> FullDiagnostic {
         match debug {
             FnDebugInfo::Span(span) => self.at(span),
             FnDebugInfo::Internal(name) => {
@@ -365,43 +371,45 @@ impl ErrorMsg {
         }
     }
 
-    pub fn code_and_msg_str(&self) -> (u32, &str) {
+    pub fn overview(&self) -> (ariadne::ReportKind<'static>, &str) {
+        use ariadne::ReportKind::{Error as E, Warning as W};
         match self {
-            Self::LexError(_) | Self::ParseError(_) => (1, "syntax error"),
-            Self::Unimplemented(_) => (2, "unimplemented"),
-            Self::TypeError { .. } => (3, "type error"),
-            Self::Immut { .. } => (4, "immutable value"),
-            Self::ExpectedType { .. } => (5, "expected type"),
-            Self::ExpectedCollectionType { .. } => (6, "expected collection type"),
-            Self::FnOverloadConflict { .. } => (7, "conflicting function overload"),
-            Self::CannotAssignToExpr { .. } => (8, "non-assignable expression"),
-            Self::Undefined => (9, "undefined"),
-            Self::UnknownType => (10, "unknown type"),
-            Self::WrongNumberOfIndices { .. } => (11, "wrong number of indices"),
-            Self::WrongNumberOfLoopVars { .. } => (12, "wrnog number of loop variables"),
-            Self::UnsupportedOperator => (13, "unsupported operator"),
-            Self::NoFnWithName => (14, "no function with name"),
-            Self::BadArgTypes { .. } => (15, "bad argument types"),
-            Self::AmbiguousFnCall { .. } => (16, "ambiguous function call"),
-            Self::ExpectedMapKey => (17, "expected map key"),
-            Self::BreakOutsideLoop => (18, "'break' used outside loop"),
-            Self::ContinueOutsideLoop => (19, "'continue' used outside loop"),
-            Self::NoField { .. } => (20, "field does not exist"),
-            Self::CannotSetField { .. } => (21, "field does not exist"),
-            Self::NormalizeZeroVector { .. } => (22, "cannot normalize zero vector"),
-            Self::InvalidComparison(_, _) => (23, "invalid comparison"),
-            Self::ExpectedInteger(_) => (24, "expected integer"),
-            Self::IndexOutOfBounds { .. } => (25, "index out of bounds"),
-            Self::CannotIndex(_) => (26, "cannot index this type"),
-            Self::CannotIterate(_) => (27, "cannot iterate over this type"),
+            Self::LexError(_) | Self::ParseError(_) => (E, "syntax error"),
+            Self::Unimplemented(_) => (E, "unimplemented"),
+            Self::TypeError { .. } => (E, "type error"),
+            Self::Immut { .. } => (E, "immutable value"),
+            Self::ExpectedType { .. } => (E, "expected type"),
+            Self::ExpectedCollectionType { .. } => (E, "expected collection type"),
+            Self::FnOverloadConflict { .. } => (E, "conflicting function overload"),
+            Self::CannotAssignToExpr { .. } => (E, "non-assignable expression"),
+            Self::Undefined => (E, "undefined"),
+            Self::UnknownType => (E, "unknown type"),
+            Self::WrongNumberOfIndices { .. } => (E, "wrong number of indices"),
+            Self::WrongNumberOfLoopVars { .. } => (E, "wrnog number of loop variables"),
+            Self::UnsupportedOperator => (E, "unsupported operator"),
+            Self::NoFnWithName => (E, "no function with name"),
+            Self::BadArgTypes { .. } => (E, "bad argument types"),
+            Self::AmbiguousFnCall { .. } => (E, "ambiguous function call"),
+            Self::ExpectedMapKey => (E, "expected map key"),
+            Self::BreakOutsideLoop => (E, "'break' used outside loop"),
+            Self::ContinueOutsideLoop => (E, "'continue' used outside loop"),
+            Self::NoField { .. } => (E, "field does not exist"),
+            Self::CannotSetField { .. } => (E, "field does not exist"),
+            Self::NormalizeZeroVector { .. } => (E, "cannot normalize zero vector"),
+            Self::InvalidComparison(_, _) => (E, "invalid comparison"),
+            Self::ExpectedInteger(_) => (E, "expected integer"),
+            Self::IndexOutOfBounds { .. } => (E, "index out of bounds"),
+            Self::CannotIndex(_) => (E, "cannot index this type"),
+            Self::CannotIterate(_) => (E, "cannot iterate over this type"),
 
-            Self::AstErrorNode => (99, "syntax error prevents evaluation"),
-            Self::Internal(_) => (100, "internal error"),
-            Self::User(msg) => (0, msg.as_str()),
-            Self::Assert(msg) => (0, msg.as_str()),
-            Self::AssertCompare(_, _, msg) => (0, msg.as_str()),
+            Self::AstErrorNode => (E, "syntax error prevents evaluation"),
+            Self::Internal(_) => (E, "internal error"),
+            Self::UserError(msg) => (E, msg.as_str()),
+            Self::UserWarning(msg) => (W, msg.as_str()),
+            Self::Assert(msg) => (E, msg.as_str()),
+            Self::AssertCompare(_, _, msg) => (E, msg.as_str()),
 
-            Self::Return(_) | Self::Break | Self::Continue => (100, "internal error"),
+            Self::Return(_) | Self::Break | Self::Continue => (E, "internal error"),
         }
     }
 }

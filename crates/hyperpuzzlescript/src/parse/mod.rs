@@ -1,7 +1,7 @@
 use chumsky::prelude::*;
 use itertools::Itertools;
 
-use crate::{Error, ErrorMsg, FileId, Span, ast};
+use crate::{FullDiagnostic, DiagMsg, FileId, Span, ast};
 
 mod lexer;
 mod parser;
@@ -11,7 +11,7 @@ use lexer::{LexExtra, Token};
 pub(crate) use parser::ParseError;
 use parser::{ParseExtra, ParserInput};
 
-pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<Error>> {
+pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<FullDiagnostic>> {
     let full_span = Span {
         start: 0,
         end: file_contents.len() as u32,
@@ -33,7 +33,7 @@ pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<Erro
                         end: e.span().end as u32,
                         context: file_id,
                     };
-                    ErrorMsg::LexError(e.into_owned()).at(span)
+                    DiagMsg::LexError(e.into_owned()).at(span)
                 })
                 .collect_vec()
         })?;
@@ -53,7 +53,7 @@ pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<Erro
             errs.into_iter()
                 .map(|e| {
                     let span = *e.span();
-                    ErrorMsg::ParseError(e.into_owned()).at(span)
+                    DiagMsg::ParseError(e.into_owned()).at(span)
                 })
                 .collect_vec()
         })

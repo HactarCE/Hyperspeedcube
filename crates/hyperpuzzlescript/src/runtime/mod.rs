@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt, ops::Index, sync::Arc};
+use std::{fmt, ops::Index, sync::Arc};
 
 mod ctx;
 mod file_store;
 mod scope;
 
-use crate::{Error, FileId, Result, Span, Value, Warning, ast};
+use crate::{FileId, FullDiagnostic, Result, Span, Value, ast};
 use arcstr::{ArcStr, Substr};
 pub use ctx::EvalCtx;
 pub use file_store::FileStore;
@@ -14,13 +14,16 @@ pub use scope::Scope;
 pub struct Runtime {
     /// Source file names and contents.
     pub files: FileStore,
-
-    /// Prelude to be imported into every file.
-    prelude: HashMap<String, ()>,
-
+    /// Built-ins to be imported into every file.
     builtins: Arc<Scope>,
 
-    pub any_errors: bool,
+    /// Function to call on print.
+    pub on_print: Box<dyn FnMut(String)>,
+    /// Function to call on warning or error.
+    pub on_diagnostic: Box<dyn FnMut(&FileStore, FullDiagnostic)>,
+    /// Number of warnings and errors reported since the last time this counter
+    /// was reset.
+    pub diagnostic_count: usize,
 }
 
 impl fmt::Debug for Runtime {
@@ -33,9 +36,11 @@ impl Default for Runtime {
     fn default() -> Self {
         Self {
             files: Default::default(),
-            prelude: Default::default(),
             builtins: crate::builtins::new_builtins_scope(),
-            any_errors: Default::default(),
+
+            on_print: Box::new(|s| println!("[INFO] {s}")),
+            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.to_string(files))),
+            diagnostic_count: 0,
         }
     }
 }
@@ -79,7 +84,7 @@ impl Runtime {
                 let contents = file.contents.clone();
                 let ast =
                     crate::parse::parse(file_id as FileId, &contents).unwrap_or_else(|errors| {
-                        self.errors(errors);
+                        self.report_diagnostics(errors);
                         let span = Span {
                             start: 0,
                             end: contents.len() as u32,
@@ -108,8 +113,8 @@ impl Runtime {
                     caller_span: crate::BUILTIN_SPAN,
                 }
                 .eval(&ast)
-                .or_else(Error::try_resolve_return_value)
-                .map_err(|e| self.error(e));
+                .or_else(FullDiagnostic::try_resolve_return_value)
+                .map_err(|e| self.report_diagnostic(e));
                 let file = self.files.get_mut(file_id)?;
                 file.result = Some(result);
                 file.result.as_ref()
@@ -121,27 +126,21 @@ impl Runtime {
         self.files.substr(span)
     }
 
-    pub fn info_str(&mut self, s: impl fmt::Display) {
-        println!("[INFO] {s}");
+    /// Calls [`Self::on_print`], which by default prints a message to stdout.
+    pub fn print(&mut self, s: impl ToString) {
+        (self.on_print)(s.to_string())
+    }
+    /// Calls [`Self::on_diagnostic`], which by default prints a message to
+    /// stderr.
+    pub fn report_diagnostic(&mut self, e: FullDiagnostic) {
+        self.diagnostic_count += 1;
+        (self.on_diagnostic)(&mut self.files, e)
     }
 
-    pub fn warn_str(&mut self, s: impl fmt::Display) {
-        eprintln!("[WARN] {s}");
-    }
-    pub fn warn(&mut self, w: Warning) {
-        self.warn_str(w.to_string(&*self));
-    }
-
-    pub fn error_str(&mut self, s: impl fmt::Display) {
-        eprintln!("[ERROR] {s}");
-    }
-    pub fn error(&mut self, e: Error) {
-        self.any_errors = true;
-        self.error_str(e.to_string(&*self));
-    }
-    pub fn errors(&mut self, errors: impl IntoIterator<Item = Error>) {
+    /// Calls [`Self::report_diagnostic`] on each error.
+    pub fn report_diagnostics(&mut self, errors: impl IntoIterator<Item = FullDiagnostic>) {
         for e in errors {
-            self.error(e);
+            self.report_diagnostic(e);
         }
     }
 }

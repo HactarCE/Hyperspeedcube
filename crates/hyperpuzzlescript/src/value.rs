@@ -11,7 +11,9 @@ use hypermath::Vector;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use crate::{Error, ErrorMsg, EvalCtx, FnType, Result, Scope, Span, Spanned, TracebackLine, Type};
+use crate::{
+    DiagMsg, EvalCtx, FnType, FullDiagnostic, Result, Scope, Span, Spanned, TracebackLine, Type,
+};
 
 /// Value in the language, with an optional associated span.
 ///
@@ -83,7 +85,7 @@ impl Value {
                 Ok(hypermath::approx_eq(&**plane1, &**plane2))
             }
 
-            _ => Err(ErrorMsg::InvalidComparison(
+            _ => Err(DiagMsg::InvalidComparison(
                 Box::new((self.ty(), self.span)),
                 Box::new((other.ty(), other.span)),
             )
@@ -95,8 +97,8 @@ impl Value {
         format!("{:?}", self.data)
     }
 
-    pub fn type_error(&self, expected: Type) -> Error {
-        ErrorMsg::TypeError {
+    pub fn type_error(&self, expected: Type) -> FullDiagnostic {
+        DiagMsg::TypeError {
             expected,
             got: self.ty(),
         }
@@ -186,7 +188,7 @@ impl Value {
     }
     pub(crate) fn as_int(&self) -> Result<i64> {
         let n = self.as_num()?;
-        hypermath::to_approx_integer(n).ok_or(ErrorMsg::ExpectedInteger(n).at(self.span))
+        hypermath::to_approx_integer(n).ok_or(DiagMsg::ExpectedInteger(n).at(self.span))
     }
     pub(crate) fn as_index(&self) -> Result<Index> {
         Ok(Index::from(self.as_int()?))
@@ -195,7 +197,7 @@ impl Value {
         let i = self.as_int()?;
         i.try_into().map_err(|_| {
             let bounds = Some((u8::MIN as i64, u8::MAX as i64));
-            ErrorMsg::IndexOutOfBounds { got: i, bounds }.at(self.span)
+            DiagMsg::IndexOutOfBounds { got: i, bounds }.at(self.span)
         })
     }
 }
@@ -230,8 +232,8 @@ impl Index {
             Index::Back(_) => None,
         }
     }
-    pub fn out_of_bounds_only_pos_err(self, len: usize) -> ErrorMsg {
-        ErrorMsg::IndexOutOfBounds {
+    pub fn out_of_bounds_only_pos_err(self, len: usize) -> DiagMsg {
+        DiagMsg::IndexOutOfBounds {
             got: self.to_i64(),
             bounds: len.checked_sub(1).and_then(|max| {
                 let max: i64 = max.try_into().unwrap_or(i64::MAX);
@@ -239,8 +241,8 @@ impl Index {
             }),
         }
     }
-    pub fn out_of_bounds_pos_neg_err(self, len: usize) -> ErrorMsg {
-        ErrorMsg::IndexOutOfBounds {
+    pub fn out_of_bounds_pos_neg_err(self, len: usize) -> DiagMsg {
+        DiagMsg::IndexOutOfBounds {
             got: self.to_i64(),
             bounds: len.checked_sub(1).and_then(|max| {
                 let max: i64 = max.try_into().unwrap_or(i64::MAX);
@@ -532,7 +534,7 @@ impl FnValue {
             .iter()
             .filter(|func| func.ty.would_take(args));
         let first_match = matching_dispatches.next().ok_or_else(|| {
-            ErrorMsg::BadArgTypes {
+            DiagMsg::BadArgTypes {
                 arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: self.overloads.iter().map(|f| f.ty.clone()).collect(),
             }
@@ -541,7 +543,7 @@ impl FnValue {
         let mut remaining = matching_dispatches.map(|func| &func.ty).collect_vec();
         if !remaining.is_empty() {
             remaining.insert(0, &first_match.ty);
-            return Err(ErrorMsg::AmbiguousFnCall {
+            return Err(DiagMsg::AmbiguousFnCall {
                 arg_types: args.iter().map(|arg| (arg.ty(), arg.span)).collect(),
                 overloads: remaining.into_iter().cloned().collect(),
             }
@@ -556,7 +558,7 @@ impl FnValue {
             .iter()
             .find(|existing| existing.ty.might_conflict_with(&overload.ty))
         {
-            return Err(ErrorMsg::FnOverloadConflict {
+            return Err(DiagMsg::FnOverloadConflict {
                 new_ty: Box::new(overload.ty),
                 old_ty: Box::new(conflict.ty.clone()),
                 old_span: match conflict.debug_info {
@@ -589,7 +591,7 @@ impl FnValue {
             caller_span: call_span,
         };
         let return_value = (overload.call)(&mut call_ctx, args)
-            .or_else(Error::try_resolve_return_value)
+            .or_else(FullDiagnostic::try_resolve_return_value)
             .map_err(|e| {
                 e.at_caller(TracebackLine {
                     fn_name: self.name.clone(),

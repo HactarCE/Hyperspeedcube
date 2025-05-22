@@ -14,11 +14,11 @@ mod value;
 pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
 use std::path::Path;
 
-pub use diagnostic::{Error, ErrorMsg, ImmutReason, TracebackLine, Warning};
+pub use diagnostic::{DiagMsg, FullDiagnostic, ImmutReason, TracebackLine};
 pub use ty::{FnType, Type};
 use value::{FnDebugInfo, FnOverload, FnValue, Index, MapKey, Value, ValueData};
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T, E = FullDiagnostic> = std::result::Result<T, E>;
 
 /// Numeric ID for a Hyperpuzzlescript file.
 pub type FileId = u32;
@@ -50,14 +50,6 @@ pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_co
     Runtime::with_default_files().exec_all_files();
 }
 
-#[test]
-fn test_all() {
-    load_puzzles(
-        &hyperpuzzle_core::Catalog::new(),
-        &hyperpuzzle_core::Logger::new(),
-    );
-}
-
 /// Extracts the built-in Hyperpuzzlescript files to the specified path.
 pub fn extract_builtin_files(base_path: &Path) -> std::io::Result<()> {
     HPS_BUILTIN_DIR.extract(base_path)
@@ -65,17 +57,6 @@ pub fn extract_builtin_files(base_path: &Path) -> std::io::Result<()> {
 
 /// Maximum period of a twist.
 const MAX_TWIST_REPEAT: usize = 50;
-
-#[test]
-pub fn test_eval() {
-    let src = include_str!("../resources/hps/test.hps");
-    // let ast = parser::parse(src).unwrap();
-    // let mut ctx = Ctx {
-    //     src: src.into(),
-    //     globals: HashMap::new(),
-    // };
-    // println!("{:?}", ctx.eval(&ast))
-}
 
 #[cfg(test)]
 mod tests;

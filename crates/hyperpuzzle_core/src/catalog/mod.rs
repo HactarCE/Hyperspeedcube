@@ -275,6 +275,7 @@ impl Catalog {
                     self.default_logger.log(LogLine {
                         level: log::Level::Error,
                         msg,
+                        full: None,
                     });
                     CacheEntry::Err(e)
                 }
