@@ -134,6 +134,8 @@ pub fn add_builtin_functions(scope: &Scope) -> Result<()> {
         hps_fn!("str", |arg: Any| -> Str { eco_format!("{arg}") }),
         hps_fn!("repr", |arg: Any| -> Str { eco_format!("{:?}", arg.data) }),
         // Number operators
+        hps_fn!("+", |n: Num| -> Num { n }),
+        hps_fn!("-", |n: Num| -> Num { -n }),
         hps_fn!("+", |a: Num, b: Num| -> Num { a + b }),
         hps_fn!("-", |a: Num, b: Num| -> Num { a - b }),
         hps_fn!("*", |a: Num, b: Num| -> Num { a * b }),

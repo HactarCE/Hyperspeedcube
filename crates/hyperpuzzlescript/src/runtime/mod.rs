@@ -11,7 +11,7 @@ pub use ctx::EvalCtx;
 pub use file_store::FileStore;
 pub use scope::Scope;
 
-use crate::{FileId, FullDiagnostic, Result, Span, Value, ast};
+use crate::{FileId, FullDiagnostic, Result, Span, Value, ValueData, ast};
 
 /// Script runtime.
 pub struct Runtime {
@@ -121,14 +121,21 @@ impl Runtime {
             None => {
                 let ast = self.file_ast(file_id)?;
                 let scope = Scope::new_top_level(&self.builtins);
-                let result = EvalCtx {
+                let mut exports = None;
+                let mut ctx = EvalCtx {
                     scope: &scope,
                     runtime: self,
                     caller_span: crate::BUILTIN_SPAN,
-                }
-                .eval(&ast)
-                .or_else(FullDiagnostic::try_resolve_return_value)
-                .map_err(|e| self.report_diagnostic(e));
+                    exports: &mut exports,
+                };
+                let result = ctx
+                    .eval(&ast)
+                    .or_else(FullDiagnostic::try_resolve_return_value)
+                    .map(|return_value| match exports.take() {
+                        Some(exports) => ValueData::Map(Arc::new(exports)).at(ast.1),
+                        None => return_value,
+                    })
+                    .map_err(|e| self.report_diagnostic(e));
                 let file = self.files.get_mut(file_id)?;
                 file.result = Some(result);
                 file.result.as_ref()

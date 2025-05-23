@@ -182,10 +182,10 @@ impl Value {
         }
     }
     /// Returns the function. If this value wasn't a function before, this
-    /// function will make it become one.
-    pub fn as_func_mut(&mut self, span: Span) -> &mut FnValue {
+    /// function will make it become one with the given name.
+    pub fn as_func_mut(&mut self, span: Span, name: Option<Substr>) -> &mut FnValue {
         if !matches!(self.data, ValueData::Fn(_)) {
-            *self = ValueData::Fn(Arc::new(FnValue::default())).at(span);
+            *self = ValueData::Fn(Arc::new(FnValue::new(name))).at(span);
         }
         match &mut self.data {
             ValueData::Fn(f) => Arc::make_mut(f),
@@ -558,7 +558,7 @@ impl From<hypermath::Point> for ValueData {
 }
 
 /// Script function.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct FnValue {
     /// Name of the function, or `None` if it is anonymous.
     pub name: Option<Substr>,
@@ -566,6 +566,12 @@ pub struct FnValue {
     pub overloads: Vec<FnOverload>,
 }
 impl FnValue {
+    /// Constructs a new function value with no overloads.
+    pub fn new(name: Option<Substr>) -> Self {
+        let overloads = vec![];
+        Self { name, overloads }
+    }
+
     /// Guesses the return type, given a list of arguments. Returns `None` if
     /// there is no overload matching the argument type.
     pub fn guess_return_type(&self, arg_types: &[Type]) -> Option<Type> {
@@ -667,12 +673,14 @@ impl FnValue {
             )),
             false => Cow::Borrowed(ctx.scope),
         };
+        let mut exports = None;
         let mut call_ctx = EvalCtx {
             scope: &*fn_scope,
             runtime: ctx.runtime,
             caller_span: call_span,
+            exports: &mut exports,
         };
-        let return_value = (overload.call)(&mut call_ctx, args)
+        let mut return_value = (overload.call)(&mut call_ctx, args)
             .or_else(FullDiagnostic::try_resolve_return_value)
             .and_then(|return_value| {
                 if matches!(overload.debug_info, FnDebugInfo::Internal(_)) {
@@ -687,6 +695,9 @@ impl FnValue {
                     call_span,
                 })
             })?;
+        if let Some(exports) = call_ctx.exports.take() {
+            return_value = ValueData::Map(Arc::new(exports)).at(call_span);
+        }
         return_value.typecheck(&overload.ty.ret).map_err(|e| {
             if let FnDebugInfo::Internal(name) = overload.debug_info {
                 if cfg!(debug_assertions) {

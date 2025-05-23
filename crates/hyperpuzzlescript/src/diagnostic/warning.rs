@@ -10,6 +10,9 @@ use crate::Span;
 pub enum Warning {
     #[error("{0}")]
     User(EcoString),
+
+    #[error("loop variable shadows outer scope")]
+    LoopVarShadows { original: Span },
 }
 
 impl Warning {
@@ -25,6 +28,11 @@ impl Warning {
     pub(super) fn report(&self, report_builder: ReportBuilder) -> ReportBuilder {
         match self {
             Self::User(_) => report_builder.main_label("warning reported here"),
+            Self::LoopVarShadows { original } => report_builder
+                .main_label("loop variable defined here")
+                .label(original, "this variable is shadowed by the loop variable")
+                .help("only the loop variable can be accessed inside the loop")
+                .help("try renaming one of them"),
         }
     }
 }

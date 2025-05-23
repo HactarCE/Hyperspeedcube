@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use hypermath::VectorRef;
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{Runtime, Scope};
@@ -21,6 +22,8 @@ pub struct EvalCtx<'a> {
     ///
     /// This is used as the span when an error occurs in a built-in function.
     pub caller_span: Span,
+    /// Exports from the current function/file.
+    pub exports: &'a mut Option<IndexMap<MapKey, Value>>,
 }
 
 impl Index<Span> for EvalCtx<'_> {
@@ -116,7 +119,7 @@ impl EvalCtx<'_> {
             },
             _ => None,
         }
-        .ok_or(Error::NoField { obj: obj.span }.at(field))
+        .ok_or(Error::NoField((obj.ty(), obj.span)).at(field))
     }
     fn field_set(&mut self, obj: &mut Value, field: Span, new_value: Value) -> Result<()> {
         match &mut obj.data {
@@ -144,7 +147,7 @@ impl EvalCtx<'_> {
             }
             _ => (),
         }
-        Err(Error::CannotSetField { obj: obj.span }.at(field))
+        Err(Error::CannotSetField((obj.ty(), obj.span)).at(field))
     }
     fn index_get(&mut self, obj: &Value, index: Vec<Value>, index_span: Span) -> Result<ValueData> {
         let index_value = index.iter().exactly_one().map_err(|_| {
@@ -271,8 +274,50 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::Export(inner) => {
-                // TODO: exports
-                Ok(self.eval(inner)?.data)
+                let &(ref inner_contents, inner_span) = &**inner;
+                match inner_contents {
+                    ast::NodeContents::Assign {
+                        var, assign_symbol, ..
+                    } => {
+                        let &(ref var_contents, var_span) = &**var;
+                        let ast::NodeContents::Ident(ident_span) = var_contents else {
+                            return Err(Error::ExpectedExportableVar {
+                                got_ast_node_kind: var_contents.kind_str(),
+                            }
+                            .at(var_span));
+                        };
+                        if &self.runtime[*assign_symbol] != "=" {
+                            return Err(Error::CompoundAssignmentExport.at(*assign_symbol));
+                        }
+                        self.eval(inner)?;
+                        self.export_var(*ident_span)?;
+                    }
+                    ast::NodeContents::FnDef { name, contents } => {
+                        let new_overload = self.eval_fn_contents(inner_span, &**contents)?;
+                        let fn_name = self.runtime.substr(*name);
+                        self.scope.register_func(
+                            inner_span,
+                            fn_name.clone(),
+                            new_overload.clone(),
+                        )?;
+                        self.exports
+                            .get_or_insert_default()
+                            .entry(MapKey::Substr(fn_name.clone()))
+                            .or_default()
+                            .as_func_mut(inner_span, Some(fn_name))
+                            .push_overload(new_overload)?;
+                    }
+                    ast::NodeContents::Ident(ident_span) => {
+                        self.export_var(*ident_span)?;
+                    }
+                    _ => {
+                        return Err(Error::ExpectedExportable {
+                            got_ast_node_kind: contents.kind_str(),
+                        }
+                        .at(inner_span));
+                    }
+                }
+                Ok(null)
             }
             ast::NodeContents::FnDef { name, contents } => {
                 let new_overload = self.eval_fn_contents(span, &**contents)?;
@@ -374,7 +419,13 @@ impl EvalCtx<'_> {
             ast::NodeContents::Continue => Err(Error::Continue),
             ast::NodeContents::Break => Err(Error::Break),
             ast::NodeContents::Return(ret_expr) => Err(Error::Return(Box::new(match ret_expr {
-                Some(expr) => self.eval(expr)?,
+                Some(expr) => {
+                    if let Some(exports) = &self.exports {
+                        let export_spans = exports.values().map(|v| v.span).collect();
+                        return Err(Error::ReturnAfterExport { export_spans }.at(span));
+                    }
+                    self.eval(expr)?
+                }
                 None => null.at(span),
             }))),
             ast::NodeContents::Ident(ident_span) => Ok(self
@@ -554,7 +605,7 @@ impl EvalCtx<'_> {
                 }
             }
             _ => Err(Error::ExpectedType {
-                ast_node_kind: contents.kind_str(),
+                got_ast_node_kind: contents.kind_str(),
             }
             .at(*span)),
         }
@@ -569,6 +620,12 @@ impl EvalCtx<'_> {
             .collect::<Result<Vec<Type>>>()?;
         let return_type = self.eval_opt_ty(contents.return_type.as_deref())?;
         let fn_body = Arc::clone(&contents.body);
+
+        // If the user annotated `-> Null` and there is only one statement in
+        // the function, do not implicitly return it.
+        let ignore_return_value = return_type == Type::Null
+            && matches!(&fn_body.0, ast::NodeContents::Block(statements) if statements.len() == 1);
+
         Ok(FnOverload {
             ty: FnType {
                 params: Some(param_types),
@@ -582,7 +639,12 @@ impl EvalCtx<'_> {
                     )?;
                     ctx.scope.set(param_name, std::mem::take(arg_value));
                 }
-                let return_value = ctx.eval(&fn_body)?;
+
+                let mut return_value = ctx.eval(&fn_body)?;
+                if ignore_return_value {
+                    return_value = ValueData::Null.at(fn_body.1);
+                }
+
                 return_value.typecheck(&return_type)?;
                 Ok(return_value)
             }),
@@ -651,6 +713,19 @@ impl EvalCtx<'_> {
             scope: &Scope::new_block(Arc::clone(self.scope)),
             runtime: self.runtime,
             caller_span: self.caller_span,
+            exports: self.exports,
         })
+    }
+
+    fn export_var(&mut self, ident_span: Span) -> Result<()> {
+        self.exports.get_or_insert_default().insert(
+            MapKey::Substr(self.runtime.substr(ident_span)),
+            self.scope
+                .get(&self.runtime[ident_span])
+                .ok_or(Error::Undefined.at(ident_span))?
+                .data
+                .at(ident_span),
+        );
+        Ok(())
     }
 }

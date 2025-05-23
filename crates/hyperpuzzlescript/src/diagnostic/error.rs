@@ -27,8 +27,10 @@ pub enum Error {
     ExpectedExportable { got_ast_node_kind: &'static str },
     #[error("expected identifier")]
     ExpectedExportableVar { got_ast_node_kind: &'static str },
+    #[error("return statement after export")]
+    ReturnAfterExport { export_spans: Vec<Span> },
     #[error("cannot export with compound assignment")]
-    CompoundAssignmentNotAllowed,
+    CompoundAssignmentExport,
     #[error("expected collection type")]
     ExpectedCollectionType,
     #[error("conflicting function overload")]
@@ -78,9 +80,9 @@ pub enum Error {
     #[error("'continue' used outside loop")]
     ContinueOutsideLoop,
     #[error("field does not exist")]
-    NoField { obj: Span },
+    NoField(Spanned<Type>),
     #[error("field does not exist")]
-    CannotSetField { obj: Span },
+    CannotSetField(Spanned<Type>),
     #[error("cannot normalize zero vector")]
     NormalizeZeroVector,
     #[error("invalid comparison")]
@@ -148,35 +150,43 @@ impl Error {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }
             Self::ExpectedType { got_ast_node_kind } => report_builder
-                .main_label(format!("this is a \x02{got_ast_node_kind}\x03"))
+                .main_label(format!("\x02this\x03 is a \x02{got_ast_node_kind}\x03"))
                 .help("try a type like `Str` or `List[Num]`"),
             Self::ExpectedExportable { got_ast_node_kind }
             | Self::ExpectedExportableVar { got_ast_node_kind } => {
                 report_builder.main_label(format!("this is a \x02{got_ast_node_kind}\x03"))
             }
-            Self::CompoundAssignmentNotAllowed => report_builder
+            Self::ReturnAfterExport { export_spans } => report_builder
+                .main_label("before \x02this return statement\x03")
+                .labels(
+                    export_spans
+                        .iter()
+                        .map(|span| (span, "\x02this value\x03 was previously exported")),
+                )
+                .note("returing a value and exporting values are mutually exclusive"),
+            Self::CompoundAssignmentExport => report_builder
                 .main_label("compound assignment operator")
                 .note("compound assignment operators are not allowed in `export` statements")
                 .help("modify the variable first, then export it on another line"),
             Self::ExpectedCollectionType { .. } => report_builder
-                .main_label(format!("this is not a collection type"))
+                .main_label(format!("\x02this\x03 is not a collection type"))
                 .help("try a collection type like `List` or `Map`"),
             Self::FnOverloadConflict {
                 new_ty,
                 old_ty,
                 old_span,
             } => report_builder
-                .main_label(format!("this has type \x02{new_ty}\x03"))
+                .main_label(format!("\x02new overload\x03 has type \x02{new_ty}\x03"))
                 .label_or_note(
                     *old_span,
-                    format!("previous overload has type \x02{old_ty}\x03"),
+                    format!("\x02previous overload\x03 has type \x02{old_ty}\x03"),
                 )
                 .note("overloads may be ambiguous when passed an empty `List` or `Map`"),
             Self::CannotAssignToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not assignable"))
             }
             Self::Undefined => report_builder
-                .main_label("this is undefined")
+                .main_label("\x02this\x03 is undefined")
                 .help("it may be defined somewhere, but isn't accessible from here")
                 .help("try assigning `null` to define the variable in an outer scope"),
             Self::UnknownType => report_builder
@@ -188,8 +198,8 @@ impl Error {
                 min,
                 max,
             } => report_builder
-                .main_label(format!("found {count} index value(s)"))
-                .label(obj_span, "when indexing this")
+                .main_label(format!("found \x02{count} index value(s)\x03"))
+                .label(obj_span, "when indexing \x02this\x03")
                 .help(there_should_be_min_max_msg(*min, *max)),
             Self::WrongNumberOfLoopVars {
                 iter_span,
@@ -197,18 +207,18 @@ impl Error {
                 min,
                 max,
             } => report_builder
-                .main_label(format!("found {count} loop variable(s)"))
-                .label(iter_span, "when iterating over this")
+                .main_label(format!("found \x02{count} loop variable(s)\x03"))
+                .label(iter_span, "when iterating over \x02this\x03")
                 .help(there_should_be_min_max_msg(*min, *max)),
             Self::UnsupportedOperator => report_builder
-                .main_label("this operator is not supported")
+                .main_label("\x02this operator\x03 is not supported")
                 .help("contact the developer if you have a use case for it"),
             Self::NoFnWithName => report_builder.main_label("no function with this name"),
             Self::BadArgTypes {
                 arg_types,
                 overloads,
             } => report_builder
-                .main_label("for this function")
+                .main_label("for \x02this function\x03")
                 .label_types(arg_types)
                 .help(if overloads.is_empty() {
                     "this function cannot be called".to_owned()
@@ -219,7 +229,7 @@ impl Error {
                 arg_types,
                 overloads,
             } => report_builder
-                .main_label("for this function")
+                .main_label("for \x02this function\x03")
                 .label_types(arg_types)
                 .notes(
                     overloads
@@ -232,15 +242,15 @@ impl Error {
             Self::BreakOutsideLoop | Self::ContinueOutsideLoop => {
                 report_builder.main_label("not in a loop")
             }
-            Self::NoField { obj } => report_builder
-                .main_label("this field does not exist")
-                .label(obj, "on this object"),
-            Self::CannotSetField { obj } => report_builder
-                .main_label("cannot set this field")
-                .label(obj, "on this object"),
+            Self::NoField((obj_ty, obj_span)) => report_builder
+                .main_label("\x02this field\x03 does not exist")
+                .label(obj_span, format!("on this object of type \x02{obj_ty}\x03")),
+            Self::CannotSetField((obj_ty, obj_span)) => report_builder
+                .main_label("cannot set \x02this field\x03")
+                .label(obj_span, format!("on this object of type \x02{obj_ty}\x03")),
             Self::NormalizeZeroVector => report_builder.main_label("vector is zero"),
             Self::InvalidComparison(ty1, ty2) => report_builder
-                .main_label("this comparison operator is unsupported on those types")
+                .main_label("\x02this comparison operator\x03 is unsupported on these types")
                 .label_type(ty1)
                 .label_type(ty2),
             Self::ExpectedInteger(n) => report_builder.main_label(n),

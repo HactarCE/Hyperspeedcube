@@ -4,7 +4,7 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, FnValue, ImmutReason, Result, Span, Value, ValueData};
+use crate::{FnOverload, ImmutReason, Result, Span, Value};
 
 #[derive(Debug)]
 pub struct ScopeRef {
@@ -111,89 +111,25 @@ impl Scope {
         }
     }
 
-    // /// Applies `modify` to the value of a variable in the current scope. If the
-    // /// variable is undefined, then `create` is called **instead** and the
-    // /// result is assinged to variable.
-    // ///
-    // /// - If the variable is from an immutable parent scope, then it is first
-    // ///   copied into the outermost mutable scope and then modified.
-    // /// - If the value itself is immutable, then an error is emitted.
-    // ///
-    // /// `modify` and `create` **must not** access the current scope.
-    // #[deprecated]
-    // pub fn modify(
-    //     &self,
-    //     name: Substr,
-    //     modify: impl FnOnce(&mut Value) -> Result<()>,
-    //     create: impl FnOnce() -> Result<Option<Value>>,
-    // ) -> Result<()> {
-    //     match self.names.lock().entry(name.clone()) {
-    //         // Exists in this scope
-    //         hash_map::Entry::Occupied(mut e) => modify(e.get_mut()),
-
-    //         // Doesn't exist in this scope
-    //         hash_map::Entry::Vacant(e) => {
-    //             let mut is_undefined = false;
-    //             match &self.parent {
-    //                 Some(parent) => match parent.immut_reason.clone() {
-    //                     // Parent scope is immutable
-    //                     Some(_) => {
-    //                         match parent.scope.get(&name) {
-    //                             // Exists in the immutable parent scope
-    //                             Some(mut value) => {
-    //                                 // Copy to this scope and modify
-    //                                 modify(&mut value)?;
-    //                                 self.set(name, value);
-    //                                 return Ok(());
-    //                             }
-    //                             // Doesn't exist
-    //                             None => is_undefined = true,
-    //                         }
-    //                     }
-
-    //                     // Parent scope is mutable
-    //                     None => parent.scope.modify(name, modify, || {
-    //                         is_undefined = true;
-    //                         Ok(None)
-    //                     })?,
-    //                 },
-
-    //                 // No parent scope
-    //                 _ => is_undefined = true,
-    //             }
-    //             if is_undefined {
-    //                 if let Some(new_value) = create()? {
-    //                     e.insert(new_value);
-    //                 }
-    //             }
-    //             Ok(())
-    //         }
-    //     }
-    // }
-
-    /// Applies `modify` to the value of a variable in the current scope. If the
-    /// variable is undefined, then `create` is called **instead** and the
-    /// result is assinged to variable.
+    /// Applies `f` to the value of a variable in the current scope, first
+    /// assigning `default` if it is not yet defined.
     ///
-    /// `modify` and `create` **must not** access the current scope.
-    pub fn atomic_modify(
+    /// `f` **must not** access the variable being modified via the current
+    /// scope.
+    fn atomic_modify(
         &self,
         name: Substr,
-        modify: impl FnOnce(&mut Value) -> Result<()>,
-        create: impl FnOnce() -> Result<Option<Value>>,
+        f: impl FnOnce(&mut Value) -> Result<()>,
+        default: Option<Value>,
     ) -> Result<()> {
-        match self.set_if_defined(name.clone(), Value::NULL) {
-            Ok(mut existing_value) => {
-                let result = modify(&mut existing_value);
-                self.set(name, existing_value);
+        let existing_value = self.set_if_defined(name.clone(), Value::NULL);
+        match existing_value.ok().or(default) {
+            Some(mut value) => {
+                let result = f(&mut value);
+                self.set(name, value);
                 result
             }
-            Err(_) => {
-                if let Some(new_value) = create()? {
-                    self.set(name, new_value);
-                }
-                Ok(())
-            }
+            None => Ok(()),
         }
     }
 
@@ -201,14 +137,8 @@ impl Scope {
     pub fn register_func(&self, span: Span, name: Substr, overload: FnOverload) -> Result<()> {
         self.atomic_modify(
             name.clone(),
-            |val| val.as_func_mut(span).push_overload(overload.clone()),
-            || {
-                let fn_value = ValueData::Fn(Arc::new(FnValue {
-                    name: Some(name),
-                    overloads: vec![overload.clone()],
-                }));
-                Ok(Some(fn_value.at(span)))
-            },
+            |val| val.as_func_mut(span, Some(name)).push_overload(overload),
+            Some(Value::NULL),
         )
     }
 
