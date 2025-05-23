@@ -78,7 +78,7 @@ impl FileStore {
                         let path = file.path();
                         if path.extension().is_some_and(|ext| ext == FILE_EXTENSION) {
                             match file.contents_utf8() {
-                                Some(contents) => self.add_file(&path, contents),
+                                Some(contents) => self.add_file(path, contents),
                                 None => log::error!("error loading built-in file {path:?}"),
                             }
                         }
@@ -146,6 +146,10 @@ impl FileStore {
         }
     }
 
+    /// Returns whether the file store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
     /// Returns the number of files in the store.
     pub fn len(&self) -> usize {
         self.0.len()

@@ -162,7 +162,7 @@ impl Value {
         if matches!(expected, Type::Any) {
             return true;
         }
-        match (&self.data, &*expected) {
+        match (&self.data, expected) {
             (ValueData::List(list), Type::List(expected_inner_ty)) => {
                 list.iter().all(|elem| elem.is_type(expected_inner_ty))
             }
@@ -170,7 +170,7 @@ impl Value {
                 map.values().all(|value| value.is_type(expected_inner_ty))
             }
             (ValueData::Fn(f), Type::Fn(fn_type)) => f.any_overload_is_subtype_of(fn_type),
-            _ => self.data.ty().is_subtype_of(&expected),
+            _ => self.data.ty().is_subtype_of(expected),
         }
     }
 
@@ -178,7 +178,7 @@ impl Value {
     pub fn as_func(&self) -> Result<&Arc<FnValue>> {
         match &self.data {
             ValueData::Fn(f) => Ok(f),
-            _ => Err(self.type_error(Type::Fn(Box::new(FnType::default())))),
+            _ => Err(self.type_error(Type::Fn(Default::default()))),
         }
     }
     /// Returns the function. If this value wasn't a function before, this
@@ -303,8 +303,8 @@ pub enum MapKey {
 impl AsRef<str> for MapKey {
     fn as_ref(&self) -> &str {
         match self {
-            MapKey::Substr(s) => &s,
-            MapKey::String(s) => &s,
+            MapKey::Substr(s) => s,
+            MapKey::String(s) => s,
         }
     }
 }
@@ -667,15 +667,12 @@ impl FnValue {
         let overload = self.get_overload(fn_span, &args)?;
 
         let fn_scope = match overload.new_scope {
-            true => Cow::Owned(Scope::new_closure(
-                Arc::clone(&ctx.scope),
-                self.name.clone(),
-            )),
+            true => Cow::Owned(Scope::new_closure(Arc::clone(ctx.scope), self.name.clone())),
             false => Cow::Borrowed(ctx.scope),
         };
         let mut exports = None;
         let mut call_ctx = EvalCtx {
-            scope: &*fn_scope,
+            scope: &fn_scope,
             runtime: ctx.runtime,
             caller_span: call_span,
             exports: &mut exports,

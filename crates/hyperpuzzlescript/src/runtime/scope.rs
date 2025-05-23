@@ -97,7 +97,7 @@ impl Scope {
             hash_map::Entry::Vacant(e) => {
                 if let Some(parent) = &self.parent {
                     if parent.is_mutable() {
-                        return parent.scope.set_if_defined(name, value);
+                        parent.scope.set_if_defined(name, value)
                     } else if let Some(old_value) = parent.scope.get(&name) {
                         e.insert(value);
                         Ok(old_value)

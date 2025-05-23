@@ -26,13 +26,13 @@ fn inside_here<'src>(
     span: SimpleSpan,
     _state: &mut LexState,
 ) -> LexError<'src> {
-    chumsky::label::LabelError::<&str, _>::in_context(&mut e, format!("inside here"), span);
+    chumsky::label::LabelError::<&str, _>::in_context(&mut e, "inside here".to_string(), span);
     e
 }
 
 /// Returns a [`Span`] from chumsky "extra" data.
-fn span_from_extra<'src, 'b>(
-    extra: &mut chumsky::input::MapExtra<'src, 'b, &'src str, LexExtraInternal<'src>>,
+fn span_from_extra<'src>(
+    extra: &mut chumsky::input::MapExtra<'src, '_, &'src str, LexExtraInternal<'src>>,
 ) -> Span {
     super::span_with_file(**extra.state(), extra.span())
 }

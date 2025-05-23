@@ -73,7 +73,7 @@ macro_rules! hps_fn {
 
 macro_rules! ty_from_tokens {
     (Fn) => {
-        $crate::Type::Fn(std::boxed::Box::new($crate::FnType::default()))
+        $crate::Type::Fn(std::default::Default::default())
     };
     (List) => {
         $crate::Type::List(std::boxed::Box::new($crate::Type::Any))

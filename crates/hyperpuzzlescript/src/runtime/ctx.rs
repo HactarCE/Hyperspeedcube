@@ -293,7 +293,7 @@ impl EvalCtx<'_> {
                         self.export_var(*ident_span)?;
                     }
                     ast::NodeContents::FnDef { name, contents } => {
-                        let new_overload = self.eval_fn_contents(inner_span, &**contents)?;
+                        let new_overload = self.eval_fn_contents(inner_span, contents)?;
                         let fn_name = self.runtime.substr(*name);
                         self.scope.register_func(
                             inner_span,
@@ -320,7 +320,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::FnDef { name, contents } => {
-                let new_overload = self.eval_fn_contents(span, &**contents)?;
+                let new_overload = self.eval_fn_contents(span, contents)?;
                 let fn_name = self.runtime.substr(*name);
                 self.scope.register_func(span, fn_name, new_overload)?;
                 Ok(null)
@@ -332,7 +332,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::UseAllFrom(_) => todo!(),
             ast::NodeContents::UseFrom(simple_spans, _) => todo!(),
             ast::NodeContents::Block(items) => {
-                return Ok(self.exec_in_child_scope(|ctx| {
+                return self.exec_in_child_scope(|ctx| {
                     if items.len() == 1 {
                         ctx.eval(&items[0])
                     } else {
@@ -341,7 +341,7 @@ impl EvalCtx<'_> {
                         }
                         Ok(null.at(span))
                     }
-                })?);
+                });
             }
             ast::NodeContents::IfElse {
                 if_cases,
@@ -404,7 +404,7 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::WhileLoop { condition, body } => {
                 Ok(self.exec_in_child_scope(|ctx| {
-                    while ctx.eval(&condition)?.as_bool()? {
+                    while ctx.eval(condition)?.as_bool()? {
                         match ctx.eval(body) {
                             Ok(_) => (),
                             Err(e) => match e.try_resolve_loop_control_flow()? {
@@ -447,7 +447,7 @@ impl EvalCtx<'_> {
                     if let &(ast::NodeContents::Access { ref obj, field }, obj_method_span) =
                         &**func
                     {
-                        let obj = self.eval(&obj)?;
+                        let obj = self.eval(obj)?;
                         // TODO: warn if ambiguous
                         let maybe_method = self.scope.get(&self[field]).filter(|method_value| {
                             method_value
@@ -667,9 +667,9 @@ impl EvalCtx<'_> {
     ) -> Result<()> {
         let elems = elems.into_iter().map(|e| e.into());
         let &(ref loop_var_idents, loop_vars_span) = loop_vars;
-        match loop_var_idents.as_slice() {
-            &[elem_var] => self.exec_for_loop(elems.into_iter().map(|e| [(elem_var, e)]), body),
-            &[index_var, elem_var] => self.exec_for_loop(
+        match *loop_var_idents.as_slice() {
+            [elem_var] => self.exec_for_loop(elems.into_iter().map(|e| [(elem_var, e)]), body),
+            [index_var, elem_var] => self.exec_for_loop(
                 elems
                     .into_iter()
                     .enumerate()

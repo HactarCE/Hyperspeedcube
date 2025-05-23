@@ -77,7 +77,7 @@ impl FullDiagnostic {
             }
             s
         }))
-        .to_string_with_ansi_escapes(files)
+        .into_string_with_ansi_escapes(files)
     }
 }
 

@@ -88,7 +88,7 @@ impl ReportBuilder {
         }
     }
 
-    pub fn to_string_with_ansi_escapes(self, files: impl ariadne::Cache<FileId>) -> String {
+    pub fn into_string_with_ansi_escapes(self, files: impl ariadne::Cache<FileId>) -> String {
         let mut out = vec![];
         match self.builder.finish().write(files, &mut out) {
             Ok(()) => String::from_utf8_lossy(&out).into_owned(),
@@ -156,5 +156,5 @@ fn color_generator() -> impl FnMut() -> ariadne::Color {
         std::iter::from_fn(move || Some(ariadne_color_generator.next())),
     );
 
-    move || iter.next().unwrap()
+    move || iter.next().expect("ran out of colors")
 }

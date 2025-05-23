@@ -169,7 +169,7 @@ impl Error {
                 .note("compound assignment operators are not allowed in `export` statements")
                 .help("modify the variable first, then export it on another line"),
             Self::ExpectedCollectionType { .. } => report_builder
-                .main_label(format!("\x02this\x03 is not a collection type"))
+                .main_label("\x02this\x03 is not a collection type".to_string())
                 .help("try a collection type like `List` or `Map`"),
             Self::FnOverloadConflict {
                 new_ty,
@@ -259,7 +259,7 @@ impl Error {
                     Some((min, max)) => {
                         format!("expected integer between {min} and {max} (inclusive)")
                     }
-                    None => format!("collection is empty"),
+                    None => "collection is empty".to_string(),
                 })
             }
             Self::CannotIndex(ty) => report_builder.main_label(format!("this is a \x02{ty}\x03")),

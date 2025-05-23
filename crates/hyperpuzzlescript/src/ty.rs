@@ -131,7 +131,7 @@ impl From<FnType> for Type {
         Type::Fn(Box::new(value))
     }
 }
-impl<'a> From<Type> for Cow<'a, Type> {
+impl From<Type> for Cow<'_, Type> {
     fn from(value: Type) -> Self {
         Cow::Owned(value)
     }

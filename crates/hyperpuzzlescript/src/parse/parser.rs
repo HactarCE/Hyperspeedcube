@@ -38,7 +38,7 @@ fn inside_this<'src>(
 }
 
 /// Converts `&[Spanned<Token>]` to [`ParserInput`].
-pub fn make_input<'src>(eoi: Span, toks: &'src [Spanned<Token>]) -> ParserInput<'src> {
+pub fn make_input(eoi: Span, toks: &[Spanned<Token>]) -> ParserInput<'_> {
     toks.map(eoi, |(t, s)| (t, s))
 }
 

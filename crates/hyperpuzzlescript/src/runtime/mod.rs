@@ -150,13 +150,13 @@ impl Runtime {
 
     /// Calls [`Self::on_print`], which by default prints a message to stdout.
     pub fn print(&mut self, s: impl ToString) {
-        (self.on_print)(s.to_string())
+        (self.on_print)(s.to_string());
     }
     /// Calls [`Self::on_diagnostic`], which by default prints a message to
     /// stderr.
     pub fn report_diagnostic(&mut self, e: FullDiagnostic) {
         self.diagnostic_count += 1;
-        (self.on_diagnostic)(&mut self.files, e)
+        (self.on_diagnostic)(&mut self.files, e);
     }
 
     /// Calls [`Self::report_diagnostic`] on each error.

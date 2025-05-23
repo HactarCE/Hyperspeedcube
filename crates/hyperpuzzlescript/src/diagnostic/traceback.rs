@@ -35,7 +35,7 @@ impl TracebackLine {
                 .to_string();
             *out += ")";
         } else {
-            *out += " (built-in function)"
+            *out += " (built-in function)";
         }
         *out += if is_last { "\n   " } else { "\n│  " };
         *out += "  called at ";
@@ -53,7 +53,7 @@ fn display_span(span: Span, mut files: impl ariadne::Cache<FileId>) -> String {
             let location_suffix = (|| {
                 let source = files.fetch(&span.context).ok()?;
                 let (line, line_idx, col_idx) = source.get_byte_line(span.start as usize)?;
-                let line_text = source.get_line_text(line).unwrap();
+                let line_text = source.get_line_text(line)?;
                 let col_char_idx = line_text[..col_idx.min(line_text.len())].chars().count();
                 let line_number = line_idx + 1 + source.display_line_offset();
                 let column_number = col_char_idx + 1;
