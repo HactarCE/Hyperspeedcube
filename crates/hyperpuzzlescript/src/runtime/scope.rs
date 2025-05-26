@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 
 use crate::{FnOverload, ImmutReason, Result, Span, Value};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScopeRef {
     pub scope: Arc<Scope>,
     pub immut_reason: Option<ImmutReason>,

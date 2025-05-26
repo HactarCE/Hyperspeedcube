@@ -59,7 +59,7 @@ macro_rules! hps_fn {
                     Ok($crate::ValueData::from(output).at($crate::BUILTIN_SPAN))
                 }),
                 debug_info: $crate::FnDebugInfo::Internal($fn_name),
-                new_scope: false, // built-in functions never modify local variables
+                parent_scope: None, // built-in functions never modify local variables
             },
         )
     };

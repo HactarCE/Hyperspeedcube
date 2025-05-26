@@ -666,9 +666,9 @@ impl FnValue {
     ) -> Result<Value> {
         let overload = self.get_overload(fn_span, &args)?;
 
-        let fn_scope = match overload.new_scope {
-            true => Cow::Owned(Scope::new_closure(Arc::clone(ctx.scope), self.name.clone())),
-            false => Cow::Borrowed(ctx.scope),
+        let fn_scope = match &overload.parent_scope {
+            Some(parent) => Cow::Owned(Scope::new_closure(Arc::clone(parent), self.name.clone())),
+            None => Cow::Borrowed(ctx.scope),
         };
         let mut exports = None;
         let mut call_ctx = EvalCtx {
@@ -716,12 +716,10 @@ pub struct FnOverload {
     pub call: Arc<dyn Send + Sync + Fn(&mut EvalCtx<'_>, Vec<Value>) -> Result<Value>>,
     /// Debug info about the source of the function.
     pub debug_info: FnDebugInfo,
-    /// Whether to construct a new scope when calling the function.
-    ///
-    /// This should be `true` if the function uses local variables. Setting this
-    /// to `false` is an optimization that is only valid for for built-in
-    /// functions.
-    pub new_scope: bool,
+    /// Parent scope to use for the function. If this is `None`, then the
+    /// function uses the caller's scope, which is an optimization that is only
+    /// valid for for built-in functions.
+    pub parent_scope: Option<Arc<Scope>>,
 }
 impl fmt::Debug for FnOverload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

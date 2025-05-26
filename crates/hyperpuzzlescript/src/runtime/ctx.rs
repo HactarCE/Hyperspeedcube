@@ -649,7 +649,7 @@ impl EvalCtx<'_> {
                 Ok(return_value)
             }),
             debug_info: span.into(),
-            new_scope: true,
+            parent_scope: Some(Arc::clone(self.scope)),
         })
     }
 

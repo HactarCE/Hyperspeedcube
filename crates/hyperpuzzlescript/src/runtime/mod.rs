@@ -9,7 +9,7 @@ mod scope;
 use arcstr::{ArcStr, Substr};
 pub use ctx::EvalCtx;
 pub use file_store::FileStore;
-pub use scope::Scope;
+pub use scope::{Scope, ScopeRef};
 
 use crate::{FileId, FullDiagnostic, Result, Span, Value, ValueData, ast};
 

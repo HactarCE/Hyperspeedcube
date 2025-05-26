@@ -14,7 +14,7 @@ mod value;
 
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
-pub use runtime::{EvalCtx, FileStore, Runtime, Scope};
+pub use runtime::{EvalCtx, FileStore, Runtime, Scope, ScopeRef};
 pub use ty::{FnType, Type};
 pub use value::{FnDebugInfo, FnOverload, FnValue, MapKey, Value, ValueData};
 

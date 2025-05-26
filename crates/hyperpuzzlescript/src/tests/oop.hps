@@ -1,0 +1,28 @@
+params = #{
+    a: 3,
+    b: 5,
+}
+
+
+fn new_from_params(params) {
+    a = params.a
+    b = params.b
+
+    export c = a + b
+
+    export fn with_a(a) {
+        params.a = a
+        return new_from_params(params)
+    }
+    export fn with_b(b) {
+        params.b = b
+        return new_from_params(params)
+    }
+}
+
+ret = new_from_params(params)
+assert_eq(8, ret.c)
+assert_eq(15, ret.with_a(10).c)
+assert_eq(18, ret.with_b(15).c)
+assert_eq(25, ret.with_a(10).with_b(15).c)
+assert_eq(25, ret.with_a(10).with_b(15).c)
