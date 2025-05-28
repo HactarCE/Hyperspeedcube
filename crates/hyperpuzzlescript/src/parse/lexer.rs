@@ -205,6 +205,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .to(Token::CompoundAssign),
             choice([
                 just("\n").to(Token::Newline),
+                just("++").to(Token::DoublePlus),
                 just("**").to(Token::DoubleStar),
                 just("&&").to(Token::DoubleAmpersand),
                 just("||").to(Token::DoublePipe),
@@ -304,6 +305,7 @@ pub enum Token {
     Pipe,
     Caret,
     Tilde,
+    DoublePlus,
     DoubleStar,
     DoubleAmpersand,
     DoublePipe,
@@ -377,6 +379,7 @@ impl fmt::Display for Token {
             Self::Pipe => "|",
             Self::Caret => "^",
             Self::Tilde => "~",
+            Self::DoublePlus => "++",
             Self::DoubleStar => "**",
             Self::DoubleAmpersand => "&&",
             Self::DoublePipe => "||",

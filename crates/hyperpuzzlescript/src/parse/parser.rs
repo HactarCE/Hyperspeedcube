@@ -292,6 +292,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 // Ranges
                 infix(left(30), Token::RangeExclusive),
                 infix(left(30), Token::RangeInclusive),
+                // Concatenation
+                infix(left(25), Token::DoublePlus),
                 // Null-coalescing
                 infix(left(20), Token::DoubleQuestionMark),
                 // Comparison
