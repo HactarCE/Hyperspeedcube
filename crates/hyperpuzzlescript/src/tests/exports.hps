@@ -25,6 +25,6 @@ export q = 10
 r = 15
 export r
 export fn s() { 20 }
-export * from #{ t: 25, u: 30 }
-export v, x as xx from #{ v: 35, w: 40, x: 45 }
-export (y, z) from #{ y: 50, z: 55 }
+export * from #{ t = 25, u = 30 }
+export v, x as xx from #{ v = 35, w = 40, x = 45 }
+export (y, z) from #{ y = 50, z = 55 }

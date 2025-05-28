@@ -3,12 +3,12 @@ exports = @exports
 assert_eq(exports.s(), 20)
 exports.s = null
 assert_eq(exports, #{
-    q: 10,
-    r: 15,
-    t: 25,
-    u: 30,
-    v: 35,
-    xx: 45,
-    y: 50,
-    z: 55,
+    q = 10,
+    r = 15,
+    t = 25,
+    u = 30,
+    v = 35,
+    xx = 45,
+    y = 50,
+    z = 55,
 })

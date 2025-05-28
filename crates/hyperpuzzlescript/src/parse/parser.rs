@@ -174,7 +174,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let map_literal = choice((ident_expr.clone(), string_literal.clone()))
             .map_with(|x, e| (x, e.span()))
-            .then_ignore(just(Token::Colon))
+            .then_ignore(just(Token::Assign))
             .then(expr.clone())
             .separated_by(comma_sep.clone())
             .allow_trailing()
