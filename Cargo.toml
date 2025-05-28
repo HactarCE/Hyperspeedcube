@@ -72,6 +72,7 @@ hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
 hyperpuzzle_rhai = { path = "crates/hyperpuzzle_rhai" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
+hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
 hyperstats = { path = "crates/hyperstats" }
 hyperstrings = { path = "crates/hyperstrings" }

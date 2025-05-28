@@ -2355,7 +2355,7 @@ dependencies = [
  "hyperpuzzle_core",
  "hyperpuzzle_impl_nd_euclid",
  "hyperpuzzle_log",
- "hyperpuzzle_rhai",
+ "hyperpuzzlescript",
  "lazy_static",
  "parking_lot",
 ]

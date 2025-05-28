@@ -60,7 +60,7 @@ pub fn load_global_catalog() {
 
 /// Loads all puzzle backends into a catalog.
 pub fn load_catalog(catalog: &Catalog) {
-    hyperpuzzle_rhai::load_puzzles(catalog, catalog.default_logger());
+    hyperpuzzlescript::load_puzzles(catalog, catalog.default_logger());
 }
 
 #[cfg(test)]
