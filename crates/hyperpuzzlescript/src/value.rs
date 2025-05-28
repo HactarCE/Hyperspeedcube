@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
-    Error, EvalCtx, FnType, FullDiagnostic, Key, Result, Scope, Span, TracebackLine, Type,
+    Error, EvalCtx, FnType, FullDiagnostic, Key, Result, Scope, Span, Spanned, TracebackLine, Type,
 };
 
 /// Value in the language, with an optional associated span.
@@ -224,6 +224,13 @@ impl Value {
     pub(crate) fn as_int(&self) -> Result<i64> {
         let n = self.as_num()?;
         hypermath::to_approx_integer(n).ok_or(Error::ExpectedInteger(n).at(self.span))
+    }
+    /// Returns the number as an `u64`, or an error if this isn't an integer
+    /// that fits within an `u64`.
+    pub(crate) fn as_uint(&self) -> Result<u64> {
+        let n = self.as_num()?;
+        hypermath::to_approx_unsigned_integer(n)
+            .ok_or(Error::ExpectedNonnegativeInteger(n).at(self.span))
     }
     /// Returns the integer as a `u8`, or an error if this isn't an integer that
     /// fits with in a `u8`.
@@ -507,6 +514,19 @@ impl<K: Into<Key>> FromIterator<(K, Value)> for ValueData {
     fn from_iter<T: IntoIterator<Item = (K, Value)>>(iter: T) -> Self {
         Self::Map(Arc::new(
             iter.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+        ))
+    }
+}
+impl<V: Into<ValueData>> From<Vec<Spanned<V>>> for ValueData {
+    fn from(value: Vec<Spanned<V>>) -> Self {
+        Self::List(Arc::new(
+            value
+                .into_iter()
+                .map(|(data, span)| Value {
+                    data: data.into(),
+                    span,
+                })
+                .collect(),
         ))
     }
 }

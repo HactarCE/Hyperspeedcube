@@ -89,6 +89,8 @@ pub enum Error {
     InvalidComparison(Box<Spanned<Type>>, Box<Spanned<Type>>),
     #[error("expected integer")]
     ExpectedInteger(f64),
+    #[error("expected nonnegative integer")]
+    ExpectedNonnegativeInteger(f64),
     #[error("index out of bounds")]
     IndexOutOfBounds {
         got: i64,
@@ -262,6 +264,7 @@ impl Error {
                 .label_type(ty1)
                 .label_type(ty2),
             Self::ExpectedInteger(n) => report_builder.main_label(n),
+            Self::ExpectedNonnegativeInteger(n) => report_builder.main_label(n),
             Self::IndexOutOfBounds { got, bounds } => {
                 report_builder.main_label(got).note(match bounds {
                     Some((min, max)) => {

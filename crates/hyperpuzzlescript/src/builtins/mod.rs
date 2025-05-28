@@ -3,6 +3,7 @@ use std::sync::Arc;
 #[macro_use]
 mod macros;
 mod assertions;
+mod bases;
 mod collections;
 mod constants;
 mod geometry;
@@ -18,6 +19,7 @@ pub fn new_builtins_scope() -> Arc<Scope> {
     (|| -> Result<_> {
         let scope = Scope::new();
         assertions::define_in(&scope)?;
+        bases::define_in(&scope)?;
         collections::define_in(&scope)?;
         constants::define_in(&scope)?;
         math::define_in(&scope)?;

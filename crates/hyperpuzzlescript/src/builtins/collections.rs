@@ -49,5 +49,11 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         hps_fn!("is_empty", |l: List| -> Bool { l.is_empty() }),
         hps_fn!("is_empty", |m: Map| -> Bool { m.is_empty() }),
         hps_fn!("is_empty", |s: Str| -> Bool { s.is_empty() }),
+        // Other operations
+        hps_fn!("rev", |l: List| -> List {
+            let mut l = Arc::unwrap_or_clone(l);
+            l.reverse();
+            l
+        }),
     ])
 }

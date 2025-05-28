@@ -69,6 +69,7 @@ macro_rules! ty_from_tokens {
     };
     // Special predicates
     (Int) => { $crate::Type::Num };
+    (Uint) => { $crate::Type::Num };
 
     ($collection_ty:ident ( $($inner:tt)* )) => {
         $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
@@ -96,6 +97,7 @@ macro_rules! unpack_val {
     ($val:ident, Vec)  => { unpack_val!(@$val, (Vec),  $crate::ValueData::Vec(v) => v) };
     // Special predicates
     ($val:ident, Int)  => { $val.as_int()? };
+    ($val:ident, Uint)  => { $val.as_uint()? };
     // Fallback
     ($val:ident, $other:ident) => { compile_error!(concat!("unsupported type: ", stringify!($other))) };
 

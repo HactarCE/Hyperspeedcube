@@ -50,27 +50,10 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 .map(|sub| ValueData::Str(sub.into()).at(ctx.caller_span))
                 .collect_vec()
         }),
-        // Base conversion
-        hps_fn!("to_digits", |n: Int, base: Int| -> List(Int) {}),
-        hps_fn!("from_digits", |digits: List(Int), base: Int| -> Int {}),
-        hps_fn!("to_digits_bijective", |n: Int, base: Int| -> List(Int) {}),
-        hps_fn!("from_digits_bijective", |digits: List(Int),
-                                          base: Int|
-         -> Int {}),
-        hps_fn!("to_base", |n: Int, base: Int| -> Str {}),
-        hps_fn!("to_base", |n: Int, digits: Str| -> Str {}),
-        hps_fn!("to_base", |n: Int, digits: List(Str)| -> Str {}),
-        hps_fn!("to_base_bijective", |n: Int, base: Int| -> Str {}),
-        hps_fn!("to_base_bijective", |n: Int, digits: Str| -> Str {}),
-        hps_fn!("to_base_bijective", |n: Int, digits: List(Str)| -> Str {}),
-        hps_fn!("from_base", |s: Str, base: Int| -> Int {}),
-        hps_fn!("from_base", |s: Str, digits: Str| -> Int {}),
-        hps_fn!("from_base", |s: Str, digits: List(Str)| -> Int {}),
-        hps_fn!("from_base_bijective", |s: Str, base: Int| -> Int {}),
-        hps_fn!("from_base_bijective", |s: Str, digits: Str| -> Int {}),
-        hps_fn!("from_base_bijective", |s: Str, digits: List(Str)| -> Int {}),
-        hps_fn!("to_a1z26", |n: Int| -> Str {}),
-        hps_fn!("from_a1z26", |n: Int| -> Str {}),
+        // Other operations
+        hps_fn!("rev", |s: Str| -> Str {
+            s.chars().rev().collect::<EcoString>()
+        }),
     ])
 }
 
@@ -79,45 +62,4 @@ fn int_to_char(n: i64, n_span: Span) -> Result<char> {
         .ok()
         .and_then(char::from_u32)
         .ok_or(Error::User(eco_format!("invalid codepoint {n}")).at(n_span))
-}
-
-fn to_base(span: Span, mut n: i64, digits: &[&str]) -> Result<EcoString> {
-    let base = digits.len() as i64;
-    if base < 2 {
-        return Err(Error::User(eco_format!("expected at least 2 digits; got {base}")).at(span));
-    }
-
-    let mut s = EcoString::new();
-    if n < 0 {
-        s.push('-');
-    }
-    if n == 0 {
-        s += digits[0];
-    }
-    while n != 0 {
-        s += digits[(n % base).unsigned_abs() as usize];
-        n /= base;
-    }
-    Ok(s)
-}
-
-fn to_base_bijective(span: Span, mut n: i64, digits: &[&str]) -> Result<EcoString> {
-    todo!()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_to_base() {
-        // assert_eq!("A", to_base(crate::BUILTIN_SPAN, 0, "ABCD").unwrap());
-        // assert_eq!("B", to_base(crate::BUILTIN_SPAN, 1, "ABCD").unwrap());
-        // assert_eq!("C", to_base(crate::BUILTIN_SPAN, 2, "ABCD").unwrap());
-        // assert_eq!("D", to_base(crate::BUILTIN_SPAN, 3, "ABCD").unwrap());
-        // assert_eq!("BA", to_base(crate::BUILTIN_SPAN, 4, "ABCD").unwrap());
-        // assert_eq!("DD", to_base(crate::BUILTIN_SPAN, 15, "ABCD").unwrap());
-        // assert_eq!("BAA", to_base(crate::BUILTIN_SPAN, 16, "ABCD").unwrap());
-        todo!()
-    }
 }
