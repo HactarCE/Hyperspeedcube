@@ -56,7 +56,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
     let comma_sep = just(Token::Comma).recover_with(skip_then_retry_until(
         any().ignored(),
-        just(Token::Comma).ignored(),
+        one_of([Token::Comma, Token::Newline]).ignored(),
     ));
 
     let parens = select_ref! { Token::Parens(toks) = e => make_input(e.span(), toks) };
