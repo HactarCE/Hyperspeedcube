@@ -54,6 +54,9 @@ pub const FILE_EXTENSION: &str = "hps";
 /// Name of the "index" script in a directory, not including the file extension.
 pub const INDEX_FILE_NAME: &str = "index";
 
+/// Name of the `nd_euclid` engine.
+pub const ND_EUCLID: &str = "euclid";
+
 #[cfg(feature = "hyperpaths")]
 const BAKE_HPS_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;
 #[cfg(not(feature = "hyperpaths"))]

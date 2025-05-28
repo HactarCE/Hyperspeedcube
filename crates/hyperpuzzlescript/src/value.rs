@@ -10,7 +10,8 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
-    Error, EvalCtx, FnType, FullDiagnostic, Key, Result, Scope, Span, Spanned, TracebackLine, Type,
+    Error, EvalCtx, FnType, FullDiagnostic, Key, ND_EUCLID, Result, Scope, Span, Spanned,
+    TracebackLine, Type,
 };
 
 /// Value in the language, with an optional associated span.
@@ -418,13 +419,13 @@ impl ValueData {
                 Ok(())
             }
             Self::EuclidPoint(point) => {
-                write!(f, "point(")?;
+                write!(f, "{ND_EUCLID}.point(")?;
                 fmt_comma_sep_numbers(&point.0.0, f, is_debug)?;
                 write!(f, ")")?;
                 Ok(())
             }
-            Self::EuclidTransform(motor) => todo!("display motor"),
-            Self::EuclidPlane(hyperplane) => todo!("display hyperplane"),
+            Self::EuclidTransform(motor) => write!(f, "{ND_EUCLID}.motor({motor})"),
+            Self::EuclidPlane(hyperplane) => write!(f, "{ND_EUCLID}.plane({hyperplane})"),
             Self::EuclidRegion(region) => todo!("display region"),
         }
     }
@@ -468,6 +469,11 @@ impl ValueData {
 impl From<()> for ValueData {
     fn from((): ()) -> Self {
         ValueData::Null
+    }
+}
+impl From<Value> for ValueData {
+    fn from(value: Value) -> Self {
+        value.data
     }
 }
 impl From<bool> for ValueData {
@@ -548,6 +554,29 @@ impl From<Vector> for ValueData {
 impl From<hypermath::Point> for ValueData {
     fn from(value: hypermath::Point) -> Self {
         Self::EuclidPoint(value)
+    }
+}
+impl From<hypermath::pga::Motor> for ValueData {
+    fn from(value: hypermath::pga::Motor) -> Self {
+        Self::EuclidTransform(value)
+    }
+}
+impl From<hypermath::Hyperplane> for ValueData {
+    fn from(value: hypermath::Hyperplane) -> Self {
+        Self::EuclidPlane(Box::new(value))
+    }
+}
+impl From<&Scope> for ValueData {
+    fn from(value: &Scope) -> Self {
+        Self::Map(Arc::new(
+            value
+                .names
+                .lock()
+                .iter()
+                .map(|(name, value)| (name.clone(), value.clone()))
+                .sorted_by(|(name1, _), (name2, _)| name1.cmp(name2))
+                .collect(),
+        ))
     }
 }
 

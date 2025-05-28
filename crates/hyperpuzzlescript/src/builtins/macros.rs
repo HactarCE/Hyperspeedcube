@@ -70,6 +70,11 @@ macro_rules! ty_from_tokens {
     // Special predicates
     (Int) => { $crate::Type::Num };
     (Uint) => { $crate::Type::Num };
+    // Euclid types
+    (EPoint) => { $crate::Type::EuclidPoint };
+    (ETransform) => { $crate::Type::EuclidTransform };
+    (EPlane) => { $crate::Type::EuclidPlane };
+    (ERegion) => { $crate::Type::EuclidRegion };
 
     ($collection_ty:ident ( $($inner:tt)* )) => {
         $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
@@ -95,6 +100,19 @@ macro_rules! unpack_val {
     ($val:ident, Map)  => { unpack_val!(@$val, (Map),  $crate::ValueData::Map(m) => m) };
     ($val:ident, Fn)   => { unpack_val!(@$val, (Fn),   $crate::ValueData::Fn(f) => f) };
     ($val:ident, Vec)  => { unpack_val!(@$val, (Vec),  $crate::ValueData::Vec(v) => v) };
+    // Euclid types
+    ($val:ident, EPoint) => {
+        unpack_val!(@$val, (EPoint),  $crate::ValueData::EuclidPoint(v) => v)
+    };
+    ($val:ident, ETransform) => {
+        unpack_val!(@$val, (ETransform),  $crate::ValueData::EuclidTransform(v) => v)
+    };
+    ($val:ident, EPlane) => {
+        unpack_val!(@$val, (EPlane),  $crate::ValueData::EuclidPlane(v) => v)
+    };
+    ($val:ident, ERegion) => {
+        unpack_val!(@$val, (ERegion),  $crate::ValueData::EuclidRegion(v) => v)
+    };
     // Special predicates
     ($val:ident, Int)  => { $val.as_int()? };
     ($val:ident, Uint)  => { $val.as_uint()? };

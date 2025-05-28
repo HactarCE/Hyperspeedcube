@@ -1,7 +1,7 @@
 use ecow::eco_format;
 use hypermath::approx_cmp;
 
-use crate::{Error, Result, Scope, ValueData};
+use crate::{Error, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([
@@ -20,11 +20,8 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         hps_fn!("cbrt", |x: Num| -> Num { x.cbrt() }),
         hps_fn!("factorial", |(x, x_span): Int| -> Num {
             if x < 0 {
-                return Err(Error::BadArgument {
-                    value: ValueData::Num(x as f64).repr(),
-                    note: Some("input cannot be negative".to_owned()),
-                }
-                .at(x_span));
+                let msg = "input cannot be negative";
+                return Err(Error::bad_arg(x as f64, Some(msg)).at(x_span));
             }
             // convert to float to guard against integer overflow
             (2..=x).map(|x| x as f64).product::<f64>()
@@ -46,6 +43,14 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                     .at(ctx.caller_span));
                 }
             }
+        }),
+        // Interpolation
+        hps_fn!("lerp", |a: Num, b: Num, t: Num| -> Num {
+            let t = t.clamp(0.0, 1.0);
+            a * (1.0 - t) + b * t
+        }),
+        hps_fn!("lerp_unbounded", |a: Num, b: Num, t: Num| -> Num {
+            a * (1.0 - t) + b * t
         }),
         // Trigonometric functions
         hps_fn!("sin", |x: Num| -> Num { x.sin() }),

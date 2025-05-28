@@ -1,6 +1,6 @@
 use hypermath::prelude::*;
 
-use crate::{Error, Result, Scope, ValueData};
+use crate::{Error, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([
@@ -44,14 +44,18 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         hps_fn!("cross", |(a, a_span): Vec, (b, b_span): Vec| -> Vec {
             for (v, v_span) in [(&a, a_span), (&b, b_span)] {
                 if v.iter_nonzero().any(|(i, _)| i >= 3) {
-                    return Err(Error::BadArgument {
-                        value: ValueData::Vec(v.clone()).repr(),
-                        note: Some("cross product is undefined beyond 3D".to_owned()),
-                    }
-                    .at(v_span));
+                    let msg = "cross product is undefined beyond 3D";
+                    return Err(Error::bad_arg(v.clone(), Some(msg)).at(v_span));
                 }
             }
             a.cross_product_3d(b)
+        }),
+        // Interpolation
+        hps_fn!("lerp", |a: Vec, b: Vec, t: Num| -> Vec {
+            hypermath::util::lerp(a, b, t.clamp(0.0, 1.0))
+        }),
+        hps_fn!("lerp_unbounded", |a: Vec, b: Vec, t: Num| -> Vec {
+            hypermath::util::lerp(a, b, t)
         }),
     ])
 }

@@ -105,31 +105,28 @@ impl EvalCtx<'_> {
             ValueData::Vec(v) => match field_name {
                 "angle" => {
                     if v.iter_nonzero().any(|(i, _)| i >= 2) {
-                        return Err(Error::BadArgument {
-                            value: obj.repr(),
-                            note: Some("`angle` is undefined beyond 2D".to_owned()),
-                        }
-                        .at(obj.span));
+                        let msg = "`angle` is undefined beyond 2D";
+                        return Err(Error::bad_arg(obj.clone(), Some(msg)).at(obj.span));
                     } else if approx_eq(v, &vector![]) {
-                        return Err(Error::BadArgument {
-                            value: obj.repr(),
-                            note: Some("`angle` is undefined for zero vector".to_owned()),
-                        }
-                        .at(obj.span));
+                        let msg = "`angle` is undefined for zero vector";
+                        return Err(Error::bad_arg(obj.clone(), Some(msg)).at(obj.span));
                     }
                     Some(ValueData::Num(v.get(1).atan2(v.get(0))))
                 }
                 "unit" => Some(ValueData::Vec(
                     v.normalize().ok_or(
-                        Error::BadArgument {
-                            value: obj.repr(),
-                            note: Some("cannot normalize the zero vector".to_owned()),
-                        }
-                        .at(obj.span),
+                        Error::bad_arg(obj.clone(), Some("cannot normalize the zero vector"))
+                            .at(obj.span),
                     )?,
                 )),
                 "mag2" => Some(ValueData::Num(v.mag2())),
                 "mag" => Some(ValueData::Num(v.mag())),
+                _ => None,
+            },
+            ValueData::EuclidPlane(p) => match field_name {
+                "flip" => Some(ValueData::EuclidPlane(Box::new(p.flip()))),
+                "normal" => Some(ValueData::Vec(p.normal().clone())),
+                "distance" => Some(ValueData::Num(p.distance())),
                 _ => None,
             },
             _ => None,

@@ -3,7 +3,7 @@ use itertools::Itertools;
 
 use crate::{Error, Result, Scope, Span};
 
-const A1Z26: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const A0Z25: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DEFAULT_BASE_DIGITS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 pub fn define_in(scope: &Scope) -> Result<()> {
@@ -98,13 +98,13 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             let digits = str_to_digits(&s, s_span, &base_digits)?;
             from_digits(&digits, s_span, base, base_span, true)?
         }),
-        // a1z26
-        hps_fn!("to_a1z26", |(n, n_span): Uint| -> Str {
+        // base26
+        hps_fn!("to_base26", |(n, n_span): Uint| -> Str {
             let digits = to_digits(n, 26, crate::BUILTIN_SPAN, true)?;
-            digits_to_str(&digits, n_span, A1Z26)?
+            digits_to_str(&digits, n_span, A0Z25)?
         }),
-        hps_fn!("from_a1z26", |(s, s_span): Str| -> Uint {
-            let digits = str_to_digits(&s, s_span, A1Z26)?;
+        hps_fn!("from_base26", |(s, s_span): Str| -> Uint {
+            let digits = str_to_digits(&s, s_span, A0Z25)?;
             from_digits(&digits, s_span, 26, crate::BUILTIN_SPAN, true)?
         }),
     ])

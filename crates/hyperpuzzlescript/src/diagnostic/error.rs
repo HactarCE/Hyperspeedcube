@@ -3,7 +3,7 @@ use ecow::EcoString;
 use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
-use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value};
+use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value, ValueData};
 
 /// Error message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -141,6 +141,13 @@ impl Error {
             msg: self.into(),
             span: span.into(),
             traceback: vec![],
+        }
+    }
+
+    pub(crate) fn bad_arg(v: impl Into<ValueData>, note: Option<impl ToString>) -> Self {
+        Self::BadArgument {
+            value: v.into().repr(),
+            note: note.map(|n| n.to_string()),
         }
     }
 
