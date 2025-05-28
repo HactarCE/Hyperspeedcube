@@ -349,26 +349,14 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let bare_name_as_alias_list = name_as_alias
             .clone()
             .separated_by(comma_sep.clone())
-            .at_least(1)
-            .collect();
-        let name_as_alias_list_in_parens = bare_name_as_alias_list.clone().nested_in(parens);
-        let name_as_alias_list = choice((bare_name_as_alias_list, name_as_alias_list_in_parens));
-        let use_body = |use_all: fn(_) -> ast::NodeContents,
-                        use_members: fn(_) -> ast::NodeContents| {
-            choice((
-                // use * from expr
-                just(Token::Star)
-                    .ignore_then(boxed_expr.clone())
-                    .map(use_all),
-                // use a, b as c from expr
-                name_as_alias_list
-                    .clone()
-                    .then_ignore(just(Token::From))
-                    .then(boxed_expr.clone())
-                    .map(use_members),
-            ))
-        };
-
+            .at_least(1);
+        let name_as_alias_list = choice((
+            bare_name_as_alias_list.clone().collect(),
+            bare_name_as_alias_list
+                .allow_trailing()
+                .collect()
+                .nested_in(parens),
+        ));
         let fn_declaration_contents = just(Token::Fn)
             .ignore_then(ident.clone())
             .then(fn_contents.clone().map(Box::new))
@@ -378,24 +366,48 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .map(|(name, contents)| ast::NodeContents::FnDef { name, contents });
 
         let export_statement = just(Token::Export).ignore_then(choice((
+            // export fn f(...) { ... }
             fn_declaration_contents
                 .map(|(name, contents)| ast::NodeContents::ExportFnDef { name, contents }),
+            // export a = expr
+            // export a: Type = expr
             ident
                 .clone()
                 .then(opt_type_annotation)
                 .then_ignore(just(Token::Assign))
                 .then(boxed_expr.clone())
                 .map(|((name, ty), value)| ast::NodeContents::ExportAssign { name, ty, value }),
-            use_body(ast::NodeContents::ExportAllFrom, |(members, expr)| {
-                ast::NodeContents::ExportFrom(members, expr)
-            }),
+            // export * from expr
+            just(Token::Star)
+                .then_ignore(just(Token::From))
+                .ignore_then(boxed_expr.clone())
+                .map(ast::NodeContents::ExportAllFrom),
+            // export a, b as c from expr
+            // export (a, b as c) from expr
+            name_as_alias_list
+                .clone()
+                .then_ignore(just(Token::From))
+                .then(boxed_expr.clone())
+                .map(|(members, expr)| ast::NodeContents::ExportFrom(members, expr)),
+            // export a
+            // export a as b
             name_as_alias.map(ast::NodeContents::ExportAs),
         )));
 
-        let use_statement = just(Token::Use).ignore_then(use_body(
-            ast::NodeContents::UseAllFrom,
-            |(members, expr)| ast::NodeContents::UseFrom(members, expr),
-        ));
+        let use_statement = just(Token::Use).ignore_then(choice((
+            // use * from expr
+            just(Token::Star)
+                .then_ignore(just(Token::From))
+                .ignore_then(boxed_expr.clone())
+                .map(ast::NodeContents::UseAllFrom),
+            // use a, b as c from expr
+            // use (a, b as c) from expr
+            name_as_alias_list
+                .clone()
+                .then_ignore(just(Token::From))
+                .then(boxed_expr.clone())
+                .map(|(members, expr)| ast::NodeContents::UseFrom(members, expr)),
+        )));
 
         let if_else_statement = just(Token::If)
             .ignore_then(boxed_expr.clone())
