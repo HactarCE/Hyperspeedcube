@@ -51,6 +51,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
     let mut expr = Recursive::declare();
     let mut statement = Recursive::declare();
 
+    let boxed_expr = expr.clone().map(Box::new);
+    let ident = just(Token::Ident).to_span();
+
     let comma_sep = just(Token::Comma).recover_with(skip_then_retry_until(
         any().ignored(),
         just(Token::Comma).ignored(),
@@ -80,12 +83,12 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .boxed();
 
     let opt_type_annotation = just(Token::Colon)
-        .ignore_then(expr.clone())
-        .map(Box::new)
+        .ignore_then(boxed_expr.clone())
         .or_not()
         .boxed();
 
-    let fn_params = (just(Token::Ident).to_span())
+    let fn_params = ident
+        .clone()
         .then(opt_type_annotation.clone())
         .map(|(name, ty)| ast::FnParam { name, ty })
         .separated_by(comma_sep.clone())
@@ -96,11 +99,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
     let fn_contents = fn_params
         .clone()
-        .then(
-            just(Token::Arrow)
-                .ignore_then(expr.clone().map(Box::new))
-                .or_not(),
-        )
+        .then(just(Token::Arrow).ignore_then(boxed_expr.clone()).or_not())
         .then(spanned_statement_block.clone())
         .map(|((params, return_type), body)| ast::FnContents {
             params,
@@ -115,7 +114,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .allow_trailing()
             .collect();
 
-        let ident = just(Token::Ident).to_span().map(ast::NodeContents::Ident);
+        let ident_expr = ident.clone().map(ast::NodeContents::Ident);
 
         let expr_clone = expr.clone();
         let string_literal_contents =
@@ -171,7 +170,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .nested_in(brackets)
             .map(ast::NodeContents::ListLiteral);
 
-        let map_literal = choice((ident.clone(), string_literal.clone()))
+        let map_literal = choice((ident_expr.clone(), string_literal.clone()))
             .map_with(|x, e| (x, e.span()))
             .then_ignore(just(Token::Colon))
             .then(expr.clone())
@@ -183,14 +182,14 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .nested_in(map_literal);
 
         let if_else_expr = just(Token::If)
-            .ignore_then(expr.clone().map(Box::new))
-            .then(expr.clone().map(Box::new).nested_in(braces))
+            .ignore_then(boxed_expr.clone())
+            .then(boxed_expr.clone().nested_in(braces))
             .separated_by(just(Token::Else))
             .at_least(1)
             .collect()
             .then(
                 just(Token::Else)
-                    .ignore_then(expr.clone().map(Box::new).nested_in(braces))
+                    .ignore_then(boxed_expr.clone().nested_in(braces))
                     .or_not(),
             )
             .map(|(if_cases, else_case)| ast::NodeContents::IfElse {
@@ -203,14 +202,13 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .map(ast::NodeContents::Fn)
             .map_err_with_state(inside_this("function"));
 
-        let paren_expr = expr
+        let paren_expr = boxed_expr
             .clone()
             .nested_in(parens)
-            .map(Box::new)
             .map(ast::NodeContents::Paren);
 
         let atom = choice((
-            ident,
+            ident_expr,
             literal,
             string_literal,
             list_literal,
@@ -237,7 +235,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         };
 
         let postfix_dot_access = |binding_power| {
-            let dot_then_ident = just(Token::Period).ignore_then(just(Token::Ident).to_span());
+            let dot_then_ident = just(Token::Period).ignore_then(ident.clone());
             chumsky::pratt::postfix(binding_power, dot_then_ident, |lhs, field, extra| {
                 let obj = Box::new(lhs);
                 (ast::NodeContents::Access { obj, field }, extra.span())
@@ -341,13 +339,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 },
             });
 
-        let name_as_alias = just(Token::Ident)
-            .to_span()
-            .then(
-                just(Token::As)
-                    .ignore_then(just(Token::Ident).to_span())
-                    .or_not(),
-            )
+        let name_as_alias = ident
+            .clone()
+            .then(just(Token::As).ignore_then(ident.clone()).or_not())
             .map(|(target, alias)| ast::IdentAs { target, alias });
 
         let bare_name_as_alias_list = name_as_alias
@@ -362,19 +356,19 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             choice((
                 // use * from expr
                 just(Token::Star)
-                    .ignore_then(expr.clone().map(Box::new))
+                    .ignore_then(boxed_expr.clone())
                     .map(use_all),
                 // use a, b as c from expr
                 name_as_alias_list
                     .clone()
                     .then_ignore(just(Token::From))
-                    .then(expr.clone().map(Box::new))
+                    .then(boxed_expr.clone())
                     .map(use_members),
             ))
         };
 
         let fn_declaration_contents = just(Token::Fn)
-            .ignore_then(just(Token::Ident).to_span())
+            .ignore_then(ident.clone())
             .then(fn_contents.clone().map(Box::new))
             .map_err_with_state(inside_this("function"));
         let fn_declaration = fn_declaration_contents
@@ -384,11 +378,11 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let export_statement = just(Token::Export).ignore_then(choice((
             fn_declaration_contents
                 .map(|(name, contents)| ast::NodeContents::ExportFnDef { name, contents }),
-            just(Token::Ident)
-                .to_span()
+            ident
+                .clone()
                 .then(opt_type_annotation)
                 .then_ignore(just(Token::Assign))
-                .then(expr.clone().map(Box::new))
+                .then(boxed_expr.clone())
                 .map(|((name, ty), value)| ast::NodeContents::ExportAssign { name, ty, value }),
             use_body(ast::NodeContents::ExportAllFrom, |(members, expr)| {
                 ast::NodeContents::ExportFrom(members, expr)
@@ -402,7 +396,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         ));
 
         let if_else_statement = just(Token::If)
-            .ignore_then(expr.clone().map(Box::new))
+            .ignore_then(boxed_expr.clone())
             .then(spanned_statement_block.clone())
             .separated_by(just(Token::Else))
             .at_least(1)
@@ -417,15 +411,15 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 else_case,
             });
 
-        let ident_list = just(Token::Ident)
-            .to_span()
+        let ident_list = ident
+            .clone()
             .separated_by(just(Token::Comma))
             .at_least(1)
             .collect();
         let for_loop = just(Token::For)
             .ignore_then(ident_list.map_with(|idents, e| Box::new((idents, e.span()))))
             .then_ignore(just(Token::In))
-            .then(expr.clone().map(Box::new))
+            .then(boxed_expr.clone())
             .then(spanned_statement_block.clone())
             .map(|((loop_vars, iterator), body)| ast::NodeContents::ForLoop {
                 loop_vars,
@@ -434,14 +428,14 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             });
 
         let while_loop = just(Token::While)
-            .ignore_then(expr.clone().map(Box::new))
+            .ignore_then(boxed_expr.clone())
             .then(spanned_statement_block.clone())
             .map(|(condition, body)| ast::NodeContents::WhileLoop { condition, body });
 
         let continue_statement = just(Token::Continue).map(|_| ast::NodeContents::Continue);
         let break_statement = just(Token::Break).map(|_| ast::NodeContents::Break);
         let return_statement = just(Token::Return)
-            .ignore_then(expr.clone().map(Box::new).or_not())
+            .ignore_then(boxed_expr.clone().or_not())
             .map(ast::NodeContents::Return);
 
         choice((
