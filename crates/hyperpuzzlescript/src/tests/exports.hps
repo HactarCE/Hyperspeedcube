@@ -20,3 +20,7 @@ fn dubious() {
     return 10
 }
 assert_eq("return statement after export", __eval_to_error(dubious))
+
+export q = 10
+export r = 15
+export s = 20

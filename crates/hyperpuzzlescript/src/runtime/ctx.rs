@@ -1,15 +1,15 @@
 use std::ops::Index;
 use std::sync::Arc;
 
-use ecow::eco_format;
+use arcstr::Substr;
 use hypermath::VectorRef;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{Runtime, Scope};
 use crate::{
-    Error, FnOverload, FnType, FnValue, LoopControlFlow, MapKey, Result, Span, Spanned, Type,
-    Value, ValueData, ast,
+    Error, FnOverload, FnType, FnValue, Key, LoopControlFlow, Result, Span, Spanned, Type, Value,
+    ValueData, Warning, ast,
 };
 
 /// Evaluation context.
@@ -23,15 +23,7 @@ pub struct EvalCtx<'a> {
     /// This is used as the span when an error occurs in a built-in function.
     pub caller_span: Span,
     /// Exports from the current function/file.
-    pub exports: &'a mut Option<IndexMap<MapKey, Value>>,
-}
-
-impl Index<Span> for EvalCtx<'_> {
-    type Output = str;
-
-    fn index(&self, index: Span) -> &Self::Output {
-        &self.runtime[index]
-    }
+    pub exports: &'a mut Option<IndexMap<Key, Value>>,
 }
 
 impl EvalCtx<'_> {
@@ -45,7 +37,7 @@ impl EvalCtx<'_> {
         let &(ref contents, span) = node;
         match contents {
             ast::NodeContents::Ident(ident_span) => {
-                let name = self.runtime.substr(*ident_span);
+                let name = self.substr(*ident_span);
                 let old_value = self.scope.get(&name);
                 let new_value = update_fn(self, span, old_value)?;
                 self.scope.set(name, new_value);
@@ -54,7 +46,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::Access { obj, field } => self.modify(
                 obj,
                 Box::new(|ctx, obj_span, obj| {
-                    let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
+                    let mut obj = obj.ok_or(Error::UndefinedIn(obj_span).at(*field))?;
                     let old_value = ctx.field_get(&obj, *field)?.at(span);
                     let new_value = update_fn(ctx, span, Some(old_value))?;
                     ctx.field_set(&mut obj, *field, new_value)?;
@@ -126,9 +118,9 @@ impl EvalCtx<'_> {
             ValueData::Map(map) => {
                 let map = Arc::make_mut(map);
                 if new_value.is_null() {
-                    map.swap_remove(&self.runtime[field]);
+                    map.swap_remove(&self[field]);
                 } else {
-                    map.insert(MapKey::Substr(self.runtime.substr(field)), new_value);
+                    map.insert(self.substr(field), new_value);
                 }
                 return Ok(());
             }
@@ -215,7 +207,7 @@ impl EvalCtx<'_> {
                     if new_value.is_null() {
                         map.swap_remove(s.as_str());
                     } else {
-                        map.insert(MapKey::String(s.clone()), new_value);
+                        map.insert(s.as_str().into(), new_value);
                     }
                     Ok(())
                 }
@@ -273,64 +265,79 @@ impl EvalCtx<'_> {
 
                 Ok(null)
             }
-            ast::NodeContents::Export(inner) => {
-                let &(ref inner_contents, inner_span) = &**inner;
-                match inner_contents {
-                    ast::NodeContents::Assign {
-                        var, assign_symbol, ..
-                    } => {
-                        let &(ref var_contents, var_span) = &**var;
-                        let ast::NodeContents::Ident(ident_span) = var_contents else {
-                            return Err(Error::ExpectedExportableVar {
-                                got_ast_node_kind: var_contents.kind_str(),
-                            }
-                            .at(var_span));
-                        };
-                        if &self.runtime[*assign_symbol] != "=" {
-                            return Err(Error::CompoundAssignmentExport.at(*assign_symbol));
-                        }
-                        self.eval(inner)?;
-                        self.export_var(*ident_span)?;
-                    }
-                    ast::NodeContents::FnDef { name, contents } => {
-                        let new_overload = self.eval_fn_contents(inner_span, contents)?;
-                        let fn_name = self.runtime.substr(*name);
-                        self.scope.register_func(
-                            inner_span,
-                            fn_name.clone(),
-                            new_overload.clone(),
-                        )?;
-                        self.exports
-                            .get_or_insert_default()
-                            .entry(MapKey::Substr(fn_name.clone()))
-                            .or_default()
-                            .as_func_mut(inner_span, Some(fn_name))
-                            .push_overload(new_overload)?;
-                    }
-                    ast::NodeContents::Ident(ident_span) => {
-                        self.export_var(*ident_span)?;
-                    }
-                    _ => {
-                        return Err(Error::ExpectedExportable {
-                            got_ast_node_kind: contents.kind_str(),
-                        }
-                        .at(inner_span));
-                    }
-                }
-                Ok(null)
-            }
             ast::NodeContents::FnDef { name, contents } => {
                 let new_overload = self.eval_fn_contents(span, contents)?;
-                let fn_name = self.runtime.substr(*name);
+                let fn_name = self.substr(*name);
                 self.scope.register_func(span, fn_name, new_overload)?;
                 Ok(null)
             }
-            ast::NodeContents::ImportAllFrom(import_path) => todo!(),
-            ast::NodeContents::ImportFrom(simple_spans, import_path) => todo!(),
-            ast::NodeContents::ImportAs(import_path, simple_span) => todo!(),
-            ast::NodeContents::Import(simple_span) => todo!(),
-            ast::NodeContents::UseAllFrom(_) => todo!(),
-            ast::NodeContents::UseFrom(simple_spans, _) => todo!(),
+            ast::NodeContents::ExportAllFrom(source) => {
+                self.for_all_from_map(source, |this, k, v| {
+                    this.export(span, k, v);
+                    Ok(())
+                })?;
+                Ok(null)
+            }
+            ast::NodeContents::ExportFrom(items, source) => {
+                self.for_each_item_from_map(items, source, |this, k, v| {
+                    this.export(span, k, v);
+                    Ok(())
+                })?;
+                Ok(null)
+            }
+            ast::NodeContents::ExportAs(item) => {
+                let key = self.substr(item.alias());
+                let value = self.get_var(item.target)?;
+                self.export(span, key, value);
+                Ok(null)
+            }
+            ast::NodeContents::ExportAssign { name, ty, value } => {
+                let key = self.substr(*name);
+                let new_value = self.eval(value)?;
+                if let Some(ty_node) = ty {
+                    new_value.typecheck(self.eval_ty(ty_node)?)?;
+                }
+                self.scope.set(key.clone(), new_value.clone());
+                self.export(span, key, new_value);
+                Ok(null)
+            }
+            ast::NodeContents::ExportFnDef { name, contents } => {
+                let new_overload = self.eval_fn_contents(span, contents)?;
+                let fn_name = self.substr(*name);
+                self.scope
+                    .register_func(span, fn_name.clone(), new_overload.clone())?;
+                self.exports
+                    .get_or_insert_default()
+                    .entry(fn_name.clone())
+                    .or_default()
+                    .as_func_mut(span, Some(fn_name))
+                    .push_overload(new_overload)?;
+                Ok(null)
+            }
+            ast::NodeContents::UseAllFrom(source) => {
+                self.for_all_from_map(source, |this, k, v| {
+                    if let Some(old_var) = self.scope.get(&k) {
+                        this.runtime.report_diagnostic(
+                            Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
+                        )
+                    }
+                    self.scope.set(k, v);
+                    Ok(())
+                })?;
+                Ok(null)
+            }
+            ast::NodeContents::UseFrom(items, source) => {
+                self.for_each_item_from_map(items, source, |this, k, v| {
+                    if let Some(old_var) = self.scope.get(&k) {
+                        this.runtime.report_diagnostic(
+                            Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
+                        )
+                    }
+                    self.scope.set(k, v);
+                    Ok(())
+                })?;
+                Ok(null)
+            }
             ast::NodeContents::Block(items) => {
                 return self.exec_in_child_scope(|ctx| {
                     if items.len() == 1 {
@@ -390,7 +397,7 @@ impl EvalCtx<'_> {
                             .at(vars_span));
                         };
                         let iterations = map.iter().map(|(k, v)| {
-                            [(key_var, k.as_ref().into()), (value_var, v.data.clone())]
+                            [(key_var, k.as_str().into()), (value_var, v.data.clone())]
                         });
                         self.exec_for_loop(iterations, body)?;
                         Ok(null)
@@ -428,11 +435,7 @@ impl EvalCtx<'_> {
                 }
                 None => null.at(span),
             }))),
-            ast::NodeContents::Ident(ident_span) => Ok(self
-                .scope
-                .get(&self[*ident_span])
-                .ok_or(Error::Undefined.at(*ident_span))?
-                .data),
+            ast::NodeContents::Ident(ident_span) => Ok(self.get_var(*ident_span)?.data),
             ast::NodeContents::Op { op, args } => {
                 let f = self
                     .scope
@@ -485,6 +488,36 @@ impl EvalCtx<'_> {
                 name: None,
                 overloads: vec![self.eval_fn_contents(span, contents)?],
             }))),
+            ast::NodeContents::FilePath(span) => {
+                let mut path = self[*span]
+                    .strip_prefix('@')
+                    .ok_or(Error::Internal("missing '@'").at(*span))?;
+
+                let resolved_path;
+                let is_relative;
+                if path.starts_with(['^', '/']) {
+                    let mut base = self
+                        .runtime
+                        .files
+                        .get_path(self.caller_span.context)
+                        .ok_or(Error::Internal("relative import with no path").at(*span))?;
+                    while let Some(rest) = path.strip_prefix('^') {
+                        path = rest;
+                        let (parent, _) =
+                            base.rsplit_once('/').ok_or(Error::BeyondRoot.at(*span))?;
+                        base = parent;
+                    }
+                    // `base` does not contain a trailing slash.
+                    // `path` contains a leading slash.
+                    resolved_path = format!("{base}{path}");
+                    is_relative = true;
+                } else {
+                    resolved_path = path.to_owned();
+                    is_relative = false;
+                };
+
+                Ok(self.import(*span, resolved_path, is_relative)?.data)
+            }
             ast::NodeContents::NullLiteral => Ok(null),
             ast::NodeContents::BoolLiteral(b) => Ok(ValueData::Bool(*b)),
             ast::NodeContents::NumberLiteral(n) => Ok(ValueData::Num(*n)),
@@ -514,11 +547,9 @@ impl EvalCtx<'_> {
                     .map(|(key_node, value_node)| {
                         let (key_contents, key_span) = key_node;
                         let key = match key_contents {
-                            ast::NodeContents::Ident(ident_span) => {
-                                MapKey::Substr(self.runtime.substr(*ident_span))
-                            }
+                            ast::NodeContents::Ident(ident_span) => self.substr(*ident_span),
                             ast::NodeContents::StringLiteral(_) => {
-                                MapKey::String(eco_format!("{}", self.eval(key_node)?))
+                                self.eval(key_node)?.as_str()?.as_str().into()
                             }
                             _ => return Err(Error::ExpectedMapKey.at(*key_span)),
                         };
@@ -633,7 +664,7 @@ impl EvalCtx<'_> {
             },
             call: Arc::new(move |ctx, mut args| {
                 for (i, &param_span) in param_names.iter().enumerate() {
-                    let param_name = ctx.runtime.substr(param_span);
+                    let param_name = ctx.substr(param_span);
                     let arg_value = args.get_mut(i).ok_or(
                         Error::Internal("missing this function argument in call").at(param_span),
                     )?;
@@ -654,8 +685,7 @@ impl EvalCtx<'_> {
     }
 
     fn set_var(&self, span: Span, value: impl Into<ValueData>) {
-        self.scope
-            .set(self.runtime.substr(span), value.into().at(span));
+        self.scope.set(self.substr(span), value.into().at(span));
     }
 
     fn exec_for_loop_indexed<T: Into<ValueData>>(
@@ -717,15 +747,112 @@ impl EvalCtx<'_> {
         })
     }
 
-    fn export_var(&mut self, ident_span: Span) -> Result<()> {
-        self.exports.get_or_insert_default().insert(
-            MapKey::Substr(self.runtime.substr(ident_span)),
-            self.scope
-                .get(&self.runtime[ident_span])
-                .ok_or(Error::Undefined.at(ident_span))?
-                .data
-                .at(ident_span),
-        );
+    fn get_var(&self, ident_span: Span) -> Result<Value> {
+        Ok(self
+            .scope
+            .get(&self[ident_span])
+            .ok_or(Error::Undefined.at(ident_span))?
+            .data
+            .at(ident_span))
+    }
+
+    fn export(&mut self, span: Span, key: Key, value: Value) {
+        let old = self
+            .exports
+            .get_or_insert_default()
+            .insert(key.clone(), value);
+        if let Some(old_exported_value) = old {
+            self.runtime
+                .report_diagnostic(Warning::DubiousShadow((key, old_exported_value.span)).at(span));
+        }
+    }
+
+    fn for_all_from_map(
+        &mut self,
+        source: &ast::Node,
+        mut f: impl FnMut(&mut Self, Key, Value) -> Result<()>,
+    ) -> Result<()> {
+        let source = self.eval(source)?;
+        let m = &**source.as_map()?;
+        for (k, v) in m {
+            f(self, k.clone(), v.clone())?;
+        }
         Ok(())
     }
+    fn for_each_item_from_map(
+        &mut self,
+        items: &[ast::IdentAs],
+        source: &ast::Node,
+        mut f: impl FnMut(&mut Self, Key, Value) -> Result<()>,
+    ) -> Result<()> {
+        let source = self.eval(source)?;
+        let m = &**source.as_map()?;
+        for item in items {
+            let alias = self.substr(item.alias());
+            let value = m
+                .get(&self[item.target])
+                .ok_or(Error::UndefinedIn(source.span).at(item.target))?;
+            f(self, alias, value.clone())?;
+        }
+        Ok(())
+    }
+
+    /// Imports a file and returns its return value.
+    fn import(&mut self, span: Span, path: String, is_relative: bool) -> Result<Value> {
+        let file_id_to_import = self.runtime.files.id_from_module_name(&path);
+        match file_id_to_import.and_then(|id| self.runtime.load_module(id)) {
+            Some(Ok(value)) => Ok(value.clone()),
+            Some(Err(())) => Err(Error::SilentImportError.at(span)),
+            None => Err(Error::ModuleNotFound { path, is_relative }.at(span)),
+        }
+    }
+
+    // /// Imports a file. Returns the name of the file imported and the value
+    // /// returned by the file.
+    // fn import(&mut self, span: Span, import_path: &ast::PathAsIdent) ->
+    // Result<(String, Value)> {     let current_file_name = self
+    //         .runtime
+    //         .files
+    //         .file_path(span.context)
+    //         .ok_or(Error::Internal("cannot import user file from within
+    // internals").at(span))?;     let file_name_to_import =
+    // import_path.resolve_to_file_name(current_file_name);
+    //     let file_id_to_import =
+    // self.runtime.files.id_from_name(&file_name_to_import);
+    //     match file_id_to_import.and_then(|id| self.runtime.file_ret(id)) {
+    //         Some(Ok(value)) => Ok((file_name_to_import, value.clone())),
+    //         Some(Err(())) => Err(Error::SilentImportError.at(span)),
+    //         None => Err(Error::FileNotFound {
+    //             file_name: file_name_to_import,
+    //             is_relative: import_path.is_relative,
+    //         }
+    //         .at(span)),
+    //     }
+    // }
+
+    /// Returns a [`Substr`] from a [`Span`]. If the span is invalid, returns an
+    /// empty string.
+    pub fn substr(&self, span: Span) -> Substr {
+        match self.runtime.files.get_contents(span.context) {
+            Some(contents) => contents.substr(span.start as usize..span.end as usize),
+            None => Substr::new(),
+        }
+    }
+}
+
+impl Index<Span> for EvalCtx<'_> {
+    type Output = str;
+
+    fn index(&self, span: Span) -> &Self::Output {
+        match self.runtime.files.get_contents(span.context) {
+            Some(contents) => &contents[span.start as usize..span.end as usize],
+            None => "",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum PathOrValue {
+    Path(Spanned<String>),
+    Value(Value),
 }

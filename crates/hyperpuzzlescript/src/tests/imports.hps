@@ -1,0 +1,5 @@
+assert_eq(@exports, #{
+    q: 10,
+    r: 15,
+    s: 20,
+})

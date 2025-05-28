@@ -1,16 +1,14 @@
 use std::fmt;
-use std::ops::Index;
 use std::path::Path;
 use std::sync::Arc;
 
 use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;
-use itertools::Itertools;
 use lazy_static::lazy_static;
 
 #[cfg(feature = "hyperpaths")]
 use crate::LANGUAGE_NAME;
-use crate::{FILE_EXTENSION, FileId, Result, Span, Value, ast};
+use crate::{FILE_EXTENSION, FileId, INDEX_FILE_NAME, Result, Value, ast};
 
 lazy_static! {
     static ref INTERNAL_SOURCE: ariadne::Source<ArcStr> =
@@ -18,15 +16,19 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct File {
+pub struct Module {
+    pub file_path: Substr,
+    pub submodules: Vec<FileId>,
     pub contents: ArcStr,
     pub source: ariadne::Source<ArcStr>,
     pub ast: Option<Arc<ast::Node>>,
     pub result: Option<Result<Value, ()>>,
 }
-impl File {
-    fn new(source: ArcStr) -> Self {
+impl Module {
+    fn new(file_path: Substr, source: ArcStr) -> Self {
         Self {
+            file_path,
+            submodules: vec![],
             contents: source.clone(),
             source: ariadne::Source::from(source),
             ast: None,
@@ -37,16 +39,32 @@ impl File {
 
 /// Source files.
 ///
-/// The "name" of a file is typically a relative path using `/` as separator and
-/// excluding the file extension.
+/// The path of a file is its location on disk, relative to the root folder.
+/// Example: `puzzles/ft_cubic.hps`
+///
+/// The path of a module is the same as its file path, without the trailing
+/// `/index.hps` or `.hps` extension. Modules are stored in a key-value store
+/// where the key is their path.
+///
+/// Examples:
+///
+/// | File path               | Module path        |
+/// | ----------------------- | ------------------ |
+/// | `test.hps`              | `test`             |
+/// | `puzzles/ft_cubic.hps`  | `puzzles/ft_cubic` |
+/// | `piece_types/index.hps` | `piece_types`      |
+///
+/// If `some_module/index.hps` and `some_module.hps` both exist, then only one
+/// of them is used and an error is logged using the global logging
+/// infrastructure.
 #[derive(Debug, Default)]
-pub struct FileStore(IndexMap<String, File>);
+pub struct Modules(IndexMap<Substr, Module>);
 
-impl FileStore {
+impl Modules {
     /// Constructs a new file store with built-in files and user files (if
     /// feature `hyperpaths` is enabled).
     pub fn with_default_files() -> Self {
-        let mut ret = Self(IndexMap::new());
+        let mut ret = Self::default();
 
         // Load built-in files.
         ret.add_builtin_files();
@@ -107,43 +125,90 @@ impl FileStore {
         }
     }
 
-    /// Adds a file to the file store.
+    /// Adds a file to the file store and returns the `FileId`.
+    ///
+    /// `path` must be relative to the script directory.
     pub fn add_file(&mut self, path: &Path, contents: impl Into<ArcStr>) {
-        let path_string = path
-            .with_extension("")
-            .components()
-            .map(|path_component| path_component.as_os_str().to_string_lossy())
-            .join("/")
-            .chars()
-            .filter(|&c| c != '"' && c != '\\') // dubious chars
-            .collect();
-        self.0.insert(path_string, File::new(contents.into()));
+        let file_path = Substr::from(path.to_string_lossy());
+
+        let mut module_path = path.with_extension("");
+        if module_path.ends_with(INDEX_FILE_NAME) {
+            module_path.pop();
+        }
+
+        let new_file_id;
+        let mut module = Module::new(file_path, contents.into());
+        match self.0.entry(Substr::from(module_path.to_string_lossy())) {
+            indexmap::map::Entry::Occupied(e) if !e.get().contents.is_empty() => {
+                new_file_id = e.index() as FileId;
+                log::warn!(
+                    "files {:?} and {:?} have the same module path of {:?}",
+                    e.get().file_path,
+                    module.file_path,
+                    module_path.clone(),
+                );
+            }
+            indexmap::map::Entry::Occupied(mut e) => {
+                new_file_id = e.index() as FileId;
+                module.submodules = std::mem::take(&mut e.get_mut().submodules);
+                e.insert(module);
+            }
+            indexmap::map::Entry::Vacant(e) => {
+                new_file_id = e.index() as FileId;
+                e.insert(module);
+            }
+        };
+
+        let mut file_id_of_child = new_file_id;
+        for parent in module_path.ancestors().skip(1) {
+            let dir_str = Substr::from(parent.to_string_lossy());
+            match self.0.entry(dir_str.clone()) {
+                indexmap::map::Entry::Occupied(mut e) => {
+                    e.get_mut().submodules.push(file_id_of_child);
+                    break;
+                }
+                indexmap::map::Entry::Vacant(e) => {
+                    let new_id = e.index() as FileId;
+                    let m = e.insert(Module::new(dir_str, ArcStr::new()));
+                    m.submodules.push(file_id_of_child);
+                    file_id_of_child = new_id;
+                }
+            }
+        }
     }
 
-    /// Returns the ID of the file with the given name.
-    pub fn id_from_name(&self, name: &str) -> Option<FileId> {
-        Some(self.0.get_index_of(name)? as FileId)
+    /// Returns whether `path` exists in the module tree.
+    pub fn has_module(&self, path: &str) -> bool {
+        self.0.contains_key(path)
     }
 
-    /// Returns the name of a file.
-    pub fn file_name(&self, id: FileId) -> Option<&str> {
-        Some(self.0.get_index(id as usize)?.0)
+    /// Returns the ID of the file containing the given module.
+    pub fn id_from_module_name(&self, path: &str) -> Option<FileId> {
+        Some(self.0.get_index_of(path)? as FileId)
+    }
+
+    /// Returns the path of a file.
+    pub fn get_path(&self, id: FileId) -> Option<&str> {
+        Some(&self.0.get_index(id as usize)?.1.file_path)
     }
     /// Returns the contents of a file.
-    pub fn file_contents(&self, id: FileId) -> Option<&ArcStr> {
+    pub fn get_contents(&self, id: FileId) -> Option<&ArcStr> {
         Some(&self.0.get_index(id as usize)?.1.contents)
     }
-
-    pub(crate) fn get_mut(&mut self, id: FileId) -> Option<&mut File> {
-        Some(self.0.get_index_mut(id as usize)?.1)
+    /// Returns the module name for a file (last component of the module path).
+    pub fn module_name(&self, id: FileId) -> Option<Substr> {
+        let module_path = self.0.get_index(id as usize)?.0;
+        match module_path.rsplit_once('/') {
+            Some((_parent_path, child_name)) => Some(module_path.substr_from(child_name)),
+            None => Some(module_path.substr(..)),
+        }
     }
 
-    /// Returns a [`Substr`] from `span`.
-    pub fn substr(&self, span: Span) -> Substr {
-        match self.file_contents(span.context) {
-            Some(contents) => contents.substr(span.start as usize..span.end as usize),
-            None => Substr::new(),
-        }
+    pub(crate) fn get(&mut self, id: FileId) -> Option<&Module> {
+        Some(self.0.get_index(id as usize)?.1)
+    }
+    pub(crate) fn get_mut(&mut self, id: FileId) -> Option<&mut Module> {
+        Some(self.0.get_index_mut(id as usize)?.1)
     }
 
     /// Returns whether the file store is empty.
@@ -163,7 +228,7 @@ impl FileStore {
             return Ok(&INTERNAL_SOURCE);
         }
         match self.0.get_index(id as usize) {
-            Some((_name, file)) => Ok(&file.source),
+            Some((_path, file)) => Ok(&file.source),
             None => Err(Box::new(format!("no file with ID {id}"))),
         }
     }
@@ -171,22 +236,11 @@ impl FileStore {
         if id == FileId::MAX {
             return Some("<builtin>".to_owned());
         }
-        self.file_name(id).map(|s| format!("{s}.{FILE_EXTENSION}"))
+        self.get_path(id).map(str::to_owned)
     }
 }
 
-impl Index<Span> for FileStore {
-    type Output = str;
-
-    fn index(&self, span: Span) -> &Self::Output {
-        match self.file_contents(span.context) {
-            Some(contents) => &contents[span.start as usize..span.end as usize],
-            None => "",
-        }
-    }
-}
-
-impl ariadne::Cache<FileId> for &FileStore {
+impl ariadne::Cache<FileId> for &Modules {
     type Storage = ArcStr;
 
     fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source<ArcStr>, impl fmt::Debug> {
@@ -195,5 +249,57 @@ impl ariadne::Cache<FileId> for &FileStore {
 
     fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
         self.ariadne_display(*id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn test_file_store() {
+        let mut mods = Modules::default();
+        mods.add_file(&PathBuf::from("dir1.hps"), "this is the index");
+        mods.add_file(&PathBuf::from("dir1/dir2/hello.hps"), "hello, world!");
+        mods.add_file(&PathBuf::from("dir1/dir3/index.hps"), "dir3 index");
+
+        let root = mods.id_from_module_name("").unwrap();
+        let dir1 = mods.id_from_module_name("dir1").unwrap();
+        let dir2 = mods.id_from_module_name("dir1/dir2").unwrap();
+        let hello = mods.id_from_module_name("dir1/dir2/hello").unwrap();
+        let dir3 = mods.id_from_module_name("dir1/dir3").unwrap();
+        assert_eq!(mods.0.len(), 5);
+
+        assert_eq!(mods.module_name(root).unwrap(), "");
+        let f = mods.get_mut(root).unwrap();
+        assert_eq!(f.submodules, vec![dir1]);
+        assert_eq!(f.file_path, "");
+        assert_eq!(f.contents, "");
+
+        assert_eq!(mods.module_name(dir1).unwrap(), "dir1");
+        let f = mods.get_mut(dir1).unwrap();
+        assert_eq!(f.submodules, vec![dir2, dir3]);
+        assert_eq!(f.file_path, "dir1.hps");
+        assert_eq!(f.contents, "this is the index");
+
+        assert_eq!(mods.module_name(dir2).unwrap(), "dir2");
+        let f = mods.get_mut(dir2).unwrap();
+        assert_eq!(f.submodules, vec![hello]);
+        assert_eq!(f.file_path, "dir1/dir2");
+        assert_eq!(f.contents, "");
+
+        assert_eq!(mods.module_name(hello).unwrap(), "hello");
+        let f = mods.get_mut(hello).unwrap();
+        assert_eq!(f.submodules, vec![]);
+        assert_eq!(f.file_path, "dir1/dir2/hello.hps");
+        assert_eq!(f.contents, "hello, world!");
+
+        assert_eq!(mods.module_name(dir3).unwrap(), "dir3");
+        let f = mods.get_mut(dir3).unwrap();
+        assert_eq!(f.submodules, vec![]);
+        assert_eq!(f.file_path, "dir1/dir3/index.hps");
+        assert_eq!(f.contents, "dir3 index");
     }
 }

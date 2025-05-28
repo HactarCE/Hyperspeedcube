@@ -13,17 +13,36 @@ pub enum NodeContents {
         assign_symbol: Span,
         value: Box<Node>,
     },
-    Export(Box<Node>),
+    /// - `fn ident(...) { ... }`
     FnDef {
         name: Span,
         contents: Box<FnContents>,
     },
-    ImportAllFrom(ImportPath),
-    ImportFrom(Vec<Span>, ImportPath),
-    ImportAs(ImportPath, Span),
-    Import(Span),
+    /// - `export * from expr`
+    ExportAllFrom(Box<Node>),
+    /// - `export ident1, ident2 as ident3 from expr`
+    /// - `export (ident1, ident2 as ident3) from expr`
+    ExportFrom(Vec<IdentAs>, Box<Node>),
+    /// - `export ident`
+    /// - `export expr as ident`
+    ExportAs(IdentAs),
+    /// - `export ident = expr`
+    /// - `export ident: Type = expr`
+    ExportAssign {
+        name: Span,
+        ty: Option<Box<Node>>,
+        value: Box<Node>,
+    },
+    /// - `export fn ident(...) { ... }`
+    ExportFnDef {
+        name: Span,
+        contents: Box<FnContents>,
+    },
+    /// - `use * from expr`
     UseAllFrom(Box<Node>),
-    UseFrom(Vec<Span>, Box<Node>),
+    /// - `use ident1, ident2 as ident3 from expr`
+    /// - `use (ident1, ident2 as ident3) from expr`
+    UseFrom(Vec<IdentAs>, Box<Node>),
 
     // Control flow
     Block(Vec<Node>),
@@ -64,6 +83,13 @@ pub enum NodeContents {
         args: Box<Spanned<Vec<Node>>>,
     },
     Fn(FnContents),
+    /// - `@dir1/dir2/file`
+    /// - `@/relative_dir/file`
+    /// - `@^/dir_in_parent/file`
+    /// - `@^^/dir_in_grandparent/file`
+    ///
+    /// The `@` is included in the span.
+    FilePath(Span),
 
     // Literals
     NullLiteral,
@@ -80,12 +106,12 @@ impl NodeContents {
     pub(crate) fn kind_str(&self) -> &'static str {
         match self {
             NodeContents::Assign { .. } => "assignment statement",
-            NodeContents::Export(_) => "'export' statement",
             NodeContents::FnDef { .. } => "named function definition",
-            NodeContents::ImportAllFrom(_)
-            | NodeContents::ImportFrom(_, _)
-            | NodeContents::ImportAs(_, _)
-            | NodeContents::Import(_) => "'import' statement",
+            NodeContents::ExportAllFrom(_)
+            | NodeContents::ExportFrom(_, _)
+            | NodeContents::ExportAs(_)
+            | NodeContents::ExportAssign { .. }
+            | NodeContents::ExportFnDef { .. } => "'export' statement",
             NodeContents::UseAllFrom(_) | NodeContents::UseFrom(_, _) => "'use' statement",
             NodeContents::Block(_) => "statement block",
             NodeContents::IfElse { .. } => "if statement",
@@ -101,6 +127,7 @@ impl NodeContents {
             NodeContents::Access { .. } => "access expression",
             NodeContents::Index { .. } => "indexing expression",
             NodeContents::Fn(_) => "anonymous function expression",
+            NodeContents::FilePath(_) => "file path",
             NodeContents::NullLiteral => "null literal",
             NodeContents::BoolLiteral(_) => "boolean literal",
             NodeContents::NumberLiteral(_) => "number literal",
@@ -132,5 +159,18 @@ pub enum StringSegment {
     Interpolation(Node),
 }
 
+/// AST node for `ident1 as ident2` syntax structure (where `as ident2` is
+/// optional).
 #[derive(Debug)]
-pub struct ImportPath(pub Vec<Span>);
+pub struct IdentAs {
+    /// Target to get.
+    pub target: Span,
+    /// Alias to import/export as.
+    pub alias: Option<Span>,
+}
+impl IdentAs {
+    /// Returns `alias` or, if it is `None`, `target`.
+    pub fn alias(&self) -> Span {
+        self.alias.unwrap_or(self.target)
+    }
+}

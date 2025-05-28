@@ -12,14 +12,18 @@ mod runtime;
 mod ty;
 mod value;
 
+use arcstr::Substr;
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
-pub use runtime::{EvalCtx, FileStore, Runtime, Scope, ScopeRef};
+pub use runtime::{EvalCtx, Modules, Runtime, Scope, ScopeRef};
 pub use ty::{FnType, Type};
-pub use value::{FnDebugInfo, FnOverload, FnValue, MapKey, Value, ValueData};
+pub use value::{FnDebugInfo, FnOverload, FnValue, Value, ValueData};
 
 /// Result type supporting a single [`FullDiagnostic`].
 pub type Result<T, E = FullDiagnostic> = std::result::Result<T, E>;
+
+/// Type used for keys in [`ValueData::Map`].
+pub type Key = Substr;
 
 /// Numeric ID for a Hyperpuzzlescript file.
 pub type FileId = u32;
@@ -47,6 +51,8 @@ const CHECK_FN_OVERLOAD_CONFLICTS: bool = true;
 pub const LANGUAGE_NAME: &str = "Hyperpuzzlescript";
 /// File extension for scripts in the language.
 pub const FILE_EXTENSION: &str = "hps";
+/// Name of the "index" script in a directory, not including the file extension.
+pub const INDEX_FILE_NAME: &str = "index";
 
 #[cfg(feature = "hyperpaths")]
 const BAKE_HPS_PATHS: bool = hyperpaths::IS_OFFICIAL_BUILD;

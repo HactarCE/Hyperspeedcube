@@ -7,6 +7,7 @@ use crate::{Error, FileId, FullDiagnostic, Span, ast};
 mod lexer;
 mod parser;
 
+pub use lexer::is_valid_ident;
 use lexer::{LexExtra, Token};
 use parser::{ParseExtra, ParserInput};
 

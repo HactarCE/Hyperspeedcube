@@ -1,6 +1,6 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::fmt;
-use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use arcstr::Substr;
@@ -9,7 +9,9 @@ use hypermath::{Vector, VectorRef};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use crate::{Error, EvalCtx, FnType, FullDiagnostic, Result, Scope, Span, TracebackLine, Type};
+use crate::{
+    Error, EvalCtx, FnType, FullDiagnostic, Key, Result, Scope, Span, TracebackLine, Type,
+};
 
 /// Value in the language, with an optional associated span.
 ///
@@ -24,14 +26,14 @@ pub struct Value {
     /// Span where the value was constructed.
     pub span: Span,
 }
-impl std::ops::Deref for Value {
+impl Deref for Value {
     type Target = ValueData;
 
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
-impl std::ops::DerefMut for Value {
+impl DerefMut for Value {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
@@ -174,6 +176,13 @@ impl Value {
         }
     }
 
+    /// Returns the map, or an error if this isn't a map.
+    pub fn as_map(&self) -> Result<&Arc<IndexMap<Key, Value>>> {
+        match &self.data {
+            ValueData::Map(m) => Ok(m),
+            _ => Err(self.type_error(Type::Map(Default::default()))),
+        }
+    }
     /// Returns the function, or an error if this isn't a function.
     pub fn as_func(&self) -> Result<&Arc<FnValue>> {
         match &self.data {
@@ -289,47 +298,6 @@ impl Value {
     }
 }
 
-/// String key in a [`ValueData::Map`].
-///
-/// This is always a string, but we might store it differently for optimization
-/// reasons.
-#[derive(Debug, Clone)]
-pub enum MapKey {
-    /// Substring of program source code.
-    Substr(Substr),
-    /// Dynamically-constructed string.
-    String(EcoString),
-}
-impl AsRef<str> for MapKey {
-    fn as_ref(&self) -> &str {
-        match self {
-            MapKey::Substr(s) => s,
-            MapKey::String(s) => s,
-        }
-    }
-}
-impl Borrow<str> for MapKey {
-    fn borrow(&self) -> &str {
-        self.as_ref()
-    }
-}
-impl PartialEq for MapKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_ref() == other.as_ref()
-    }
-}
-impl Eq for MapKey {}
-impl fmt::Display for MapKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_ref().fmt(f)
-    }
-}
-impl Hash for MapKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_ref().hash(state);
-    }
-}
-
 /// Value in the language.
 ///
 /// This type is relatively cheap to clone, especially for common types.
@@ -350,7 +318,7 @@ pub enum ValueData {
     /// Copy-on-write list of values.
     List(Arc<Vec<Value>>), // TODO: use rpds::Vector
     /// Copy-on-write dictionary with string keys.
-    Map(Arc<IndexMap<MapKey, Value>>), // TODO: use rpds::RedBlackTreeMap
+    Map(Arc<IndexMap<Key, Value>>), // TODO: use rpds::RedBlackTreeMap
     /// Function with a copy-on-write list of overloads.
     Fn(Arc<FnValue>), // TODO: use rpds::Vector
 
@@ -423,9 +391,10 @@ impl ValueData {
                     if !std::mem::take(&mut first) {
                         write!(f, ", ")?;
                     }
-                    match k {
-                        MapKey::Substr(k) => write!(f, "{k}")?,
-                        MapKey::String(k) => write!(f, "{:?}", Self::Str(k.clone()))?,
+                    if crate::parse::is_valid_ident(k) {
+                        write!(f, "{k}")?;
+                    } else {
+                        write!(f, "{k:?}")?;
                     }
                     write!(f, ": ")?;
                     v.fmt_internal(f, is_debug)?;
@@ -529,7 +498,7 @@ impl FromIterator<Value> for ValueData {
         Self::List(Arc::new(iter.into_iter().collect()))
     }
 }
-impl<K: Into<MapKey>> FromIterator<(K, Value)> for ValueData {
+impl<K: Into<Key>> FromIterator<(K, Value)> for ValueData {
     fn from_iter<T: IntoIterator<Item = (K, Value)>>(iter: T) -> Self {
         Self::Map(Arc::new(
             iter.into_iter().map(|(k, v)| (k.into(), v)).collect(),

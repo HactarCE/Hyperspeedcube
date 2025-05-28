@@ -4,7 +4,7 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, ImmutReason, Result, Span, Value};
+use crate::{FnOverload, ImmutReason, Key, Result, Span, Value};
 
 #[derive(Debug, Clone)]
 pub struct ScopeRef {
@@ -29,7 +29,7 @@ pub struct Scope {
     /// Parent scope.
     pub parent: Option<ScopeRef>,
     /// Names in this scope.
-    pub names: Mutex<HashMap<Substr, Value>>,
+    pub names: Mutex<HashMap<Key, Value>>,
 }
 impl Scope {
     /// Constructs a new top-level scope.
@@ -73,7 +73,8 @@ impl Scope {
     }
 
     /// Sets a variable, creating a new one if it does not already exist.
-    pub fn set(&self, name: Substr, value: Value) {
+    pub fn set(&self, name: impl Into<Key>, value: Value) {
+        let name = name.into();
         match self.names.lock().entry(name.clone()) {
             hash_map::Entry::Occupied(mut e) => {
                 e.insert(value);
@@ -91,7 +92,8 @@ impl Scope {
     /// Sets the value of a variable and returns `Ok` containing the old value
     /// if it is already defined, or does nothing and returns `Err` containing
     /// `value` if it is not defined.
-    fn set_if_defined(&self, name: Substr, value: Value) -> Result<Value, Value> {
+    fn set_if_defined(&self, name: impl Into<Key>, value: Value) -> Result<Value, Value> {
+        let name = name.into();
         match self.names.lock().entry(name.clone()) {
             hash_map::Entry::Occupied(mut e) => Ok(e.insert(value)),
             hash_map::Entry::Vacant(e) => {
@@ -118,10 +120,11 @@ impl Scope {
     /// scope.
     fn atomic_modify(
         &self,
-        name: Substr,
+        name: impl Into<Key>,
         f: impl FnOnce(&mut Value) -> Result<()>,
         default: Option<Value>,
     ) -> Result<()> {
+        let name = name.into();
         let existing_value = self.set_if_defined(name.clone(), Value::NULL);
         match existing_value.ok().or(default) {
             Some(mut value) => {

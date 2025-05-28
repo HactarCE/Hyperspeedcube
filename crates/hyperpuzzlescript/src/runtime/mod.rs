@@ -8,22 +8,24 @@ mod scope;
 
 use arcstr::{ArcStr, Substr};
 pub use ctx::EvalCtx;
-pub use file_store::FileStore;
+pub use file_store::Modules;
+use indexmap::IndexMap;
 pub use scope::{Scope, ScopeRef};
 
-use crate::{FileId, FullDiagnostic, Result, Span, Value, ValueData, ast};
+use crate::{FileId, FullDiagnostic, Key, Result, Span, Value, ValueData, ast};
 
 /// Script runtime.
 pub struct Runtime {
     /// Source file names and contents.
-    pub files: FileStore,
+    // TODO: rename to `modules`
+    pub files: Modules,
     /// Built-ins to be imported into every file.
     builtins: Arc<Scope>,
 
     /// Function to call on print.
     pub on_print: Box<dyn FnMut(String)>,
     /// Function to call on warning or error.
-    pub on_diagnostic: Box<dyn FnMut(&FileStore, FullDiagnostic)>,
+    pub on_diagnostic: Box<dyn FnMut(&Modules, FullDiagnostic)>,
     /// Number of warnings and errors reported since the last time this counter
     /// was reset.
     pub diagnostic_count: usize,
@@ -58,7 +60,7 @@ impl Runtime {
     /// `hyperpaths` is enabled).
     pub fn with_default_files() -> Self {
         Self {
-            files: FileStore::with_default_files(),
+            files: Modules::with_default_files(),
             ..Self::default()
         }
     }
@@ -83,7 +85,7 @@ impl Runtime {
     /// Files are executed in an unspecified order.
     pub fn exec_all_files(&mut self) {
         for i in 0..self.files.len() {
-            self.file_ret(i as FileId);
+            self.load_module(i as FileId);
         }
     }
 
@@ -113,39 +115,58 @@ impl Runtime {
 
     /// Executes a file if it has not yet been executed, and then returns its
     /// return value / exports.
-    pub fn file_ret(&mut self, file_id: FileId) -> Option<&Result<Value, ()>> {
-        let file = self.files.get_mut(file_id)?;
+    ///
+    /// Returns `None` if the file doesn't exist. Returns `Err(())` if the file
+    /// failed to load (in which case an error has already been reported).
+    pub fn load_module(&mut self, file_id: FileId) -> Option<&Result<Value, ()>> {
+        let file = self.files.get(file_id)?;
         match file.result {
             // extra lookup is necessary to appease borrowchecker
-            Some(_) => self.files.get_mut(file_id)?.result.as_ref(),
+            Some(_) => self.files.get(file_id)?.result.as_ref(),
             None => {
-                let ast = self.file_ast(file_id)?;
-                let scope = Scope::new_top_level(&self.builtins);
-                let mut exports = None;
-                let mut ctx = EvalCtx {
-                    scope: &scope,
-                    runtime: self,
-                    caller_span: crate::BUILTIN_SPAN,
-                    exports: &mut exports,
-                };
-                let result = ctx
-                    .eval(&ast)
-                    .or_else(FullDiagnostic::try_resolve_return_value)
-                    .map(|return_value| match exports.take() {
-                        Some(exports) => ValueData::Map(Arc::new(exports)).at(ast.1),
-                        None => return_value,
-                    })
-                    .map_err(|e| self.report_diagnostic(e));
+                let result = self.load_module_uncached(file_id)?;
                 let file = self.files.get_mut(file_id)?;
                 file.result = Some(result);
                 file.result.as_ref()
             }
         }
     }
-
-    /// Returns a substring from a [`Span`].
-    pub fn substr(&self, span: Span) -> Substr {
-        self.files.substr(span)
+    fn load_module_uncached(&mut self, file_id: FileId) -> Option<Result<Value, ()>> {
+        let file = self.files.get(file_id)?;
+        let submodules = file.submodules.clone();
+        let mut exports: Option<IndexMap<Key, Value>> = None;
+        for submodule_id in submodules {
+            match self.load_module(submodule_id).cloned() {
+                Some(Ok(submodule_return_value)) => {
+                    exports.get_or_insert_default().insert(
+                        self.files.module_name(submodule_id)?,
+                        submodule_return_value,
+                    );
+                }
+                _ => return Some(Err(())), // submodule failed to load or doesn't exist
+            }
+        }
+        let ast = self.file_ast(file_id)?;
+        let scope = Scope::new_top_level(&self.builtins);
+        let mut ctx = EvalCtx {
+            scope: &scope,
+            runtime: self,
+            caller_span: crate::BUILTIN_SPAN,
+            exports: &mut exports,
+        };
+        let result = ctx
+            .eval(&ast)
+            .or_else(FullDiagnostic::try_resolve_return_value)
+            .map(|return_value| match exports.take() {
+                Some(exports) => ValueData::Map(Arc::new(exports)).at(ast.1),
+                None => return_value,
+            })
+            .map_err(|e| {
+                if !e.is_silent() {
+                    self.report_diagnostic(e)
+                }
+            });
+        Some(result)
     }
 
     /// Calls [`Self::on_print`], which by default prints a message to stdout.
@@ -164,14 +185,6 @@ impl Runtime {
         for e in errors {
             self.report_diagnostic(e);
         }
-    }
-}
-
-impl Index<Span> for Runtime {
-    type Output = str;
-
-    fn index(&self, index: Span) -> &Self::Output {
-        &self.files[index]
     }
 }
 

@@ -37,6 +37,44 @@ fn span_from_extra<'src>(
     super::span_with_file(**extra.state(), extra.span())
 }
 
+fn ident_or_keyword<'src, E: extra::ParserExtra<'src, &'src str, Error = LexError<'src>>>()
+-> impl Clone + Parser<'src, &'src str, Token, E> {
+    chumsky::text::unicode::ident().map(|s: &'src str| match s {
+        "null" => Token::Null,
+        "true" => Token::True,
+        "false" => Token::False,
+        "if" => Token::If,
+        "else" => Token::Else,
+        "do" => Token::Do,
+        "while" => Token::While,
+        "for" => Token::For,
+        "in" => Token::In,
+        "continue" => Token::Continue,
+        "break" => Token::Break,
+        "return" => Token::Return,
+        "use" => Token::Use,
+        "import" => Token::Import,
+        "export" => Token::Export,
+        "fn" => Token::Fn,
+        "mut" => Token::Mut,
+        "from" => Token::From,
+        "as" => Token::As,
+        "is" => Token::Is,
+        "and" => Token::And,
+        "or" => Token::Or,
+        "xor" => Token::Xor,
+        "not" => Token::Not,
+
+        "inf" => Token::NumberLiteral,
+
+        _ => Token::Ident,
+    })
+}
+
+pub fn is_valid_ident(s: &str) -> bool {
+    ident_or_keyword::<extra::Err<_>>().parse(s).output() == Some(&Token::Ident)
+}
+
 pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExtra<'src>> {
     recursive(|tokens| {
         let line_comment = just("//").then(any().and_is(just('\n').not()).repeated());
@@ -78,37 +116,6 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                     }),
             );
 
-        let ident_or_keyword = chumsky::text::unicode::ident().map(|s: &'src str| match s {
-            "null" => Token::Null,
-            "true" => Token::True,
-            "false" => Token::False,
-            "if" => Token::If,
-            "else" => Token::Else,
-            "do" => Token::Do,
-            "while" => Token::While,
-            "for" => Token::For,
-            "in" => Token::In,
-            "continue" => Token::Continue,
-            "break" => Token::Break,
-            "return" => Token::Return,
-            "use" => Token::Use,
-            "import" => Token::Import,
-            "export" => Token::Export,
-            "fn" => Token::Fn,
-            "mut" => Token::Mut,
-            "from" => Token::From,
-            "as" => Token::As,
-            "is" => Token::Is,
-            "and" => Token::And,
-            "or" => Token::Or,
-            "xor" => Token::Xor,
-            "not" => Token::Not,
-
-            "inf" => Token::NumberLiteral,
-
-            _ => Token::Ident,
-        });
-
         let numeric_literal = choice((
             text::int(10)
                 .then(just('.').then(text::digits(10)).or_not())
@@ -147,11 +154,21 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .delimited_by(just("#{"), just('}'))
             .map(Token::MapLiteral);
 
+        let file_path = just('@')
+            .then(just('^').repeated())
+            .then(
+                chumsky::text::unicode::ident()
+                    .separated_by(just('/'))
+                    .allow_leading(),
+            )
+            .to(Token::FilePath);
+
         choice((
-            ident_or_keyword,
+            ident_or_keyword(),
             numeric_literal,
             string_literal,
             map_literal,
+            file_path,
             // For string interpolation to work correctly, we need to parse
             // bracket pairs during lexing.
             tokens
@@ -238,6 +255,7 @@ pub enum Token {
     NumberLiteral,
     StringLiteral(Vec<Spanned<StringSegmentToken>>),
     MapLiteral(Vec<Spanned<Token>>),
+    FilePath,
 
     Parens(Vec<Spanned<Token>>),
     Brackets(Vec<Spanned<Token>>),
@@ -320,6 +338,7 @@ impl fmt::Display for Token {
             Self::NumberLiteral => "<number literal>",
             Self::StringLiteral(_) => "<string literal>",
             Self::MapLiteral(_) => "#{...}",
+            Self::FilePath => "file path",
             Self::Parens(_) => "(...)",
             Self::Brackets(_) => "[...]",
             Self::Braces(_) => "{...}",

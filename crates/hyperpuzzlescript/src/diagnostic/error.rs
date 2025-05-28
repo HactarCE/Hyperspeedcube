@@ -3,7 +3,7 @@ use ecow::EcoString;
 use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
-use crate::{FnType, Span, Spanned, Type, Value};
+use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value};
 
 /// Error message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -29,8 +29,6 @@ pub enum Error {
     ExpectedExportableVar { got_ast_node_kind: &'static str },
     #[error("return statement after export")]
     ReturnAfterExport { export_spans: Vec<Span> },
-    #[error("cannot export with compound assignment")]
-    CompoundAssignmentExport,
     #[error("expected collection type")]
     ExpectedCollectionType,
     #[error("conflicting function overload")]
@@ -43,6 +41,8 @@ pub enum Error {
     CannotAssignToExpr { kind: &'static str },
     #[error("undefined")]
     Undefined,
+    #[error("undefined in map")]
+    UndefinedIn(Span),
     #[error("unknown type")]
     UnknownType,
     #[error("wrong number of indices")]
@@ -102,6 +102,10 @@ pub enum Error {
     NaN,
     #[error("infinity")]
     Infinity,
+    #[error("file not found")]
+    ModuleNotFound { path: String, is_relative: bool },
+    #[error("path accesses beyond root")]
+    BeyondRoot,
 
     // TODO: make sure we're handling AST error node properly
     #[error("syntax error prevents evaluation")]
@@ -116,14 +120,17 @@ pub enum Error {
     AssertCompare(Box<Value>, Box<Value>, EcoString),
 
     /// Not actually an error; used for ordinary return statements.
-    #[error("internal")]
+    #[error("internal: leaked 'return'")]
     Return(Box<Value>),
     /// Not actually an error; used for ordinary break statements.
-    #[error("internal")]
+    #[error("internal: leaked 'break'")]
     Break,
     /// Not actually an error; used for ordinary continue statements.
-    #[error("internal")]
+    #[error("internal: leaked 'continue'")]
     Continue,
+    /// Imported file failed to load; do not report an error here.
+    #[error("internal: leaked import error")]
+    SilentImportError,
 }
 impl Error {
     /// Adds a primary span to the error.
@@ -164,10 +171,6 @@ impl Error {
                         .map(|span| (span, "\x02this value\x03 was previously exported")),
                 )
                 .note("returing a value and exporting values are mutually exclusive"),
-            Self::CompoundAssignmentExport => report_builder
-                .main_label("compound assignment operator")
-                .note("compound assignment operators are not allowed in `export` statements")
-                .help("modify the variable first, then export it on another line"),
             Self::ExpectedCollectionType { .. } => report_builder
                 .main_label("\x02this\x03 is not a collection type".to_string())
                 .help("try a collection type like `List` or `Map`"),
@@ -189,6 +192,9 @@ impl Error {
                 .main_label("\x02this\x03 is undefined")
                 .help("it may be defined somewhere, but isn't accessible from here")
                 .help("try assigning `null` to define the variable in an outer scope"),
+            Self::UndefinedIn(map_span) => report_builder
+                .main_label("\x02this\x03 is undefined")
+                .label(map_span, "in \x02this map\x03"),
             Self::UnknownType => report_builder
                 .main_label("unknown type")
                 .help("try using a type name like `Num` or `Str`"),
@@ -270,15 +276,27 @@ impl Error {
             Self::Infinity => report_builder
                 .main_label("infinity is not allowed here")
                 .help("check for division by zero"),
-
+            Self::ModuleNotFound { path, is_relative } => report_builder
+                .main_label(format!("failed to find module \x02{path}\x03"))
+                .help(match is_relative {
+                    true => "this is a relative path; remove the first `/` to make it absolute",
+                    false => "this is an absolute path; add a `/` after `@` to make it relative to the current file",
+                })
+                .help(format!(
+                    "expected at one of these locations:\n\
+                     \x02{path}.{FILE_EXTENSION}\x03\n\
+                     \x02{path}/{INDEX_FILE_NAME}.{FILE_EXTENSION}\x03"
+                )),
+            Self::BeyondRoot => report_builder
+                .main_label("\x02this relative path\x03 reaches beyond the root directory")
+                .help("try removing some `^`s"),
             Self::AstErrorNode => report_builder.help("see earlier errors for a syntax error"),
             Self::Internal(msg) => report_builder.main_label(msg),
-            Self::User(_) => report_builder.main_label("error reported here"),
-            Self::Assert(_) => report_builder.main_label("error reported here"),
+            Self::User(_) | Self::Assert(_) => report_builder.main_label("error reported here"),
             Self::AssertCompare(l, r, _) => report_builder.label_values([&**l, &**r]),
 
-            Self::Return(_) | Self::Break | Self::Continue => {
-                report_builder.main_label("leaked control flow")
+            Self::Return(_) | Self::Break | Self::Continue | Self::SilentImportError => {
+                report_builder.main_label("error reported here")
             }
         }
     }

@@ -1,7 +1,7 @@
 use ecow::EcoString;
 
 use super::{FullDiagnostic, ReportBuilder};
-use crate::Span;
+use crate::{Key, Span, Spanned};
 
 /// Warning message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -11,8 +11,8 @@ pub enum Warning {
     #[error("{0}")]
     User(EcoString),
 
-    #[error("loop variable shadows outer scope")]
-    LoopVarShadows { original: Span },
+    #[error("variable is shadowed")]
+    DubiousShadow(Spanned<Key>),
 }
 
 impl Warning {
@@ -28,10 +28,14 @@ impl Warning {
     pub(super) fn report(&self, report_builder: ReportBuilder) -> ReportBuilder {
         match self {
             Self::User(_) => report_builder.main_label("warning reported here"),
-            Self::LoopVarShadows { original } => report_builder
-                .main_label("loop variable defined here")
-                .label(original, "this variable is shadowed by the loop variable")
-                .help("only the loop variable can be accessed inside the loop")
+            Self::DubiousShadow((shadowed_name, original_span)) => report_builder
+                .main_label(format!("this shadows \x02{shadowed_name}\x03"))
+                .label(original_span, "originally defined here")
+                .note("while the new variable is in scope, the original one will be inaccessible")
+                .note(
+                    "this may be intentional, but Milo Jacquet asked for \
+                     this warning and currently there's no way to supress it",
+                )
                 .help("try renaming one of them"),
         }
     }

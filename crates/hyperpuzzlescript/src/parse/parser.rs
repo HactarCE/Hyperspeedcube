@@ -161,6 +161,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                     format!("invalid number literal: {err}"),
                 )),
             },
+            Token::FilePath = e => Ok(ast::NodeContents::FilePath(e.span())),
         }
         .try_map(|result, _span| result);
 
@@ -340,73 +341,65 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 },
             });
 
-        let import_path = just(Token::Ident)
+        let name_as_alias = just(Token::Ident)
             .to_span()
-            .separated_by(just(Token::Period))
-            .at_least(1)
-            .collect()
-            .map(ast::ImportPath);
+            .then(
+                just(Token::As)
+                    .ignore_then(just(Token::Ident).to_span())
+                    .or_not(),
+            )
+            .map(|(target, alias)| ast::IdentAs { target, alias });
 
-        let bare_ident_list = just(Token::Ident)
-            .to_span()
+        let bare_name_as_alias_list = name_as_alias
+            .clone()
             .separated_by(comma_sep.clone())
             .at_least(1)
             .collect();
-        let ident_list_in_parens = just(Token::Ident)
-            .to_span()
-            .separated_by(comma_sep.clone())
-            .allow_trailing()
-            .at_least(1)
-            .collect()
-            .nested_in(parens);
-        let ident_list = choice((bare_ident_list, ident_list_in_parens));
+        let name_as_alias_list_in_parens = bare_name_as_alias_list.clone().nested_in(parens);
+        let name_as_alias_list = choice((bare_name_as_alias_list, name_as_alias_list_in_parens));
+        let use_body = |use_all: fn(_) -> ast::NodeContents,
+                        use_members: fn(_) -> ast::NodeContents| {
+            choice((
+                // use * from expr
+                just(Token::Star)
+                    .ignore_then(expr.clone().map(Box::new))
+                    .map(use_all),
+                // use a, b as c from expr
+                name_as_alias_list
+                    .clone()
+                    .then_ignore(just(Token::From))
+                    .then(expr.clone().map(Box::new))
+                    .map(use_members),
+            ))
+        };
 
-        let fn_declaration = just(Token::Fn)
+        let fn_declaration_contents = just(Token::Fn)
             .ignore_then(just(Token::Ident).to_span())
             .then(fn_contents.clone().map(Box::new))
-            .map(|(name, contents)| ast::NodeContents::FnDef { name, contents })
             .map_err_with_state(inside_this("function"));
+        let fn_declaration = fn_declaration_contents
+            .clone()
+            .map(|(name, contents)| ast::NodeContents::FnDef { name, contents });
 
-        let export_statement = just(Token::Export)
-            .ignore_then(
-                (expr_or_assignment.clone())
-                    .or(fn_declaration.clone())
-                    .map_with(|node, e| Box::new((node, e.span()))),
-            )
-            .map(ast::NodeContents::Export);
-
-        let import_statement = just(Token::Import).ignore_then(choice((
-            // import * from path.to.source
-            just(Token::Star)
-                .ignore_then(import_path.clone())
-                .map(ast::NodeContents::ImportAllFrom),
-            // import path.to.source as name
-            (import_path.clone())
-                .then_ignore(just(Token::As))
-                .then(just(Token::Ident).to_span())
-                .map(|(path, name)| ast::NodeContents::ImportAs(path, name)),
-            // import a, b, c from path.to.source
-            // import (a, b, c) from path.to.source
-            (ident_list.clone())
-                .then_ignore(just(Token::From))
-                .then(import_path.clone())
-                .map(|(members, path)| ast::NodeContents::ImportFrom(members, path)),
-            // import source
-            just(Token::Ident).to_span().map(ast::NodeContents::Import),
-        )));
-
-        let use_statement = just(Token::Use).ignore_then(choice((
-            // use * from expr
-            just(Token::Star)
-                .ignore_then(expr.clone().map(Box::new))
-                .map(ast::NodeContents::UseAllFrom),
-            // use a, b, c from expr
-            ident_list
-                .clone()
-                .then_ignore(just(Token::From))
+        let export_statement = just(Token::Export).ignore_then(choice((
+            fn_declaration_contents
+                .map(|(name, contents)| ast::NodeContents::ExportFnDef { name, contents }),
+            just(Token::Ident)
+                .to_span()
+                .then(opt_type_annotation)
+                .then_ignore(just(Token::Assign))
                 .then(expr.clone().map(Box::new))
-                .map(|(members, expr)| ast::NodeContents::UseFrom(members, expr)),
+                .map(|((name, ty), value)| ast::NodeContents::ExportAssign { name, ty, value }),
+            use_body(ast::NodeContents::ExportAllFrom, |(members, expr)| {
+                ast::NodeContents::ExportFrom(members, expr)
+            }),
+            name_as_alias.map(ast::NodeContents::ExportAs),
         )));
+
+        let use_statement = just(Token::Use).ignore_then(use_body(
+            ast::NodeContents::UseAllFrom,
+            |(members, expr)| ast::NodeContents::UseFrom(members, expr),
+        ));
 
         let if_else_statement = just(Token::If)
             .ignore_then(expr.clone().map(Box::new))
@@ -424,6 +417,11 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 else_case,
             });
 
+        let ident_list = just(Token::Ident)
+            .to_span()
+            .separated_by(just(Token::Comma))
+            .at_least(1)
+            .collect();
         let for_loop = just(Token::For)
             .ignore_then(ident_list.map_with(|idents, e| Box::new((idents, e.span()))))
             .then_ignore(just(Token::In))
@@ -448,9 +446,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         choice((
             // Declarations
-            export_statement,
             fn_declaration,
-            import_statement,
+            export_statement,
             use_statement,
             // Control flow
             statement_block,

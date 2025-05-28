@@ -47,6 +47,12 @@ impl FullDiagnostic {
         }
     }
 
+    /// Returns whether the diagnostic is silent and so should never be
+    /// reported.
+    pub(crate) fn is_silent(&self) -> bool {
+        matches!(self.msg, Diagnostic::Error(Error::SilentImportError))
+    }
+
     /// Returns the error as a string with ANSI escape codes.
     pub fn to_string(&self, mut files: impl ariadne::Cache<FileId>) -> String {
         match &self.msg {
