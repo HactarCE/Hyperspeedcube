@@ -9,7 +9,7 @@ mod parser;
 
 pub use lexer::is_valid_ident;
 use lexer::{LexExtra, Token};
-use parser::{ParseExtra, ParserInput};
+use parser::{ParseExtra, ParserInput, specialize_error};
 
 pub(crate) const CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS: &str = "\"\\$";
 
@@ -26,7 +26,7 @@ pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<Full
     let tokens = lexer
         .parse_with_state(file_contents, &mut lex_state)
         .into_result()
-        .map_err(|errs| errors_from_rich_errors(errs, |&s| span_with_file(file_id, s)))?;
+        .map_err(|errs| errors_from_rich_errors(errs, |e| e, |&s| span_with_file(file_id, s)))?;
 
     // Build parser.
     let parser: Boxed<'_, '_, ParserInput<'_>, ast::Node, ParseExtra<'_>> =
@@ -37,14 +37,16 @@ pub fn parse(file_id: FileId, file_contents: &str) -> Result<ast::Node, Vec<Full
     parser
         .parse_with_state(parser::make_input(full_span, &tokens), &mut parse_state)
         .into_result()
-        .map_err(|errs| errors_from_rich_errors(errs, |&s| s))
+        .map_err(|errs| errors_from_rich_errors(errs, specialize_error, |&s| s))
 }
 
 fn errors_from_rich_errors<T: fmt::Display, S: fmt::Display>(
     errs: Vec<Rich<'_, T, S>>,
+    map_err: impl Fn(Rich<'_, T, S>) -> Rich<'_, T, S>,
     make_span: impl Fn(&S) -> Span,
 ) -> Vec<FullDiagnostic> {
     errs.into_iter()
+        .map(map_err)
         .map(|e| {
             let reason = e.reason().to_string();
             let contexts = e

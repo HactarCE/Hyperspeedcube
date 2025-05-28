@@ -1,7 +1,9 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use chumsky::pratt::{left, right};
 use chumsky::prelude::*;
+use itertools::Itertools;
 
 use super::lexer::{StringSegmentToken, Token};
 use crate::{Span, Spanned, ast};
@@ -479,4 +481,16 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
     });
 
     statement_list.map_with(|block, e| (block, e.span()))
+}
+
+pub fn specialize_error(e: ParseError<'_>) -> ParseError<'_> {
+    if matches!(e.found(), Some(Token::Braces(_))) {
+        if e.expected()
+            .contains(&chumsky::error::RichPattern::Label(Cow::Borrowed("value")))
+        {
+            return ParseError::custom(*e.span(), "missing `#` on map literal");
+        }
+    }
+
+    e
 }
