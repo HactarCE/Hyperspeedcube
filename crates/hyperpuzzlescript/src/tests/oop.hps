@@ -9,7 +9,6 @@ fn new_from_params(params) {
     b = params.b
 
     export c = a + b
-
     export fn with_a(a) {
         params.a = a
         return new_from_params(params)

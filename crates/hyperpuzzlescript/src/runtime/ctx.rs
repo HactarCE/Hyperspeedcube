@@ -318,7 +318,7 @@ impl EvalCtx<'_> {
                 self.for_all_from_map(source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
                         this.runtime.report_diagnostic(
-                            Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
+                            Warning::ShadowedVariable((k.clone(), old_var.span), true).at(span),
                         );
                     }
                     self.scope.set(k, v);
@@ -330,7 +330,7 @@ impl EvalCtx<'_> {
                 self.for_each_item_from_map(items, source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
                         this.runtime.report_diagnostic(
-                            Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
+                            Warning::ShadowedVariable((k.clone(), old_var.span), false).at(span),
                         );
                     }
                     self.scope.set(k, v);
@@ -762,8 +762,9 @@ impl EvalCtx<'_> {
             .get_or_insert_default()
             .insert(key.clone(), value);
         if let Some(old_exported_value) = old {
-            self.runtime
-                .report_diagnostic(Warning::DubiousShadow((key, old_exported_value.span)).at(span));
+            self.runtime.report_diagnostic(
+                Warning::ShadowedExport((key, old_exported_value.span)).at(span),
+            );
         }
     }
 

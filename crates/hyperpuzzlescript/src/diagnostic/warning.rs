@@ -12,7 +12,9 @@ pub enum Warning {
     User(EcoString),
 
     #[error("variable is shadowed")]
-    DubiousShadow(Spanned<Key>),
+    ShadowedVariable(Spanned<Key>, bool),
+    #[error("export is shadowed")]
+    ShadowedExport(Spanned<Key>),
 }
 
 impl Warning {
@@ -28,15 +30,19 @@ impl Warning {
     pub(super) fn report(&self, report_builder: ReportBuilder) -> ReportBuilder {
         match self {
             Self::User(_) => report_builder.main_label("warning reported here"),
-            Self::DubiousShadow((shadowed_name, original_span)) => report_builder
+            Self::ShadowedVariable((shadowed_name, original_span), blame_milo) => report_builder
                 .main_label(format!("this shadows \x02{shadowed_name}\x03"))
                 .label(original_span, "originally defined here")
                 .note("while the new variable is in scope, the original one will be inaccessible")
-                .note(
+                .notes(blame_milo.then_some(
                     "this may be intentional, but Milo Jacquet asked for \
                      this warning and currently there's no way to supress it",
-                )
+                ))
                 .help("try renaming one of them"),
+            Self::ShadowedExport((shadowed_name, original_span)) => report_builder
+                .main_label(format!("this shadows \x02{shadowed_name}\x03"))
+                .label(original_span, "originally defined here")
+                .help("store the result in a variable, then export it once"),
         }
     }
 }
