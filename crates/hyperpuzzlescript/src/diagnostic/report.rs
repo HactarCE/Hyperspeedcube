@@ -16,7 +16,7 @@ impl ReportBuilder {
         Self {
             builder: ariadne::Report::build(kind, span)
                 .with_message(msg)
-                .with_config(ariadne::Config::new()),
+                .with_config(ariadne::Config::new().with_index_type(ariadne::IndexType::Byte)),
             main_span: span,
             next_color: Box::new(color_generator()),
             label_count: 0,

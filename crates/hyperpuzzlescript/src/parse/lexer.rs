@@ -65,8 +65,6 @@ fn ident_or_keyword<'src, E: extra::ParserExtra<'src, &'src str, Error = LexErro
         "xor" => Token::Xor,
         "not" => Token::Not,
 
-        "inf" => Token::NumberLiteral,
-
         _ => Token::Ident,
     })
 }
@@ -189,6 +187,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 .delimited_by(just('{'), just('}'))
                 .map(Token::Braces),
             choice([
+                just("++="),
                 just("**="),
                 just("<<="),
                 just(">>="),
@@ -238,6 +237,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 just("#").to(Token::Hash),
                 just(":").to(Token::Colon),
                 just(".").to(Token::Period),
+                just("√").to(Token::Sqrt),
             ]),
         ))
         .labelled("token")
@@ -332,6 +332,8 @@ pub enum Token {
 
     Assign,
     CompoundAssign,
+
+    Sqrt,
 }
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -403,6 +405,7 @@ impl fmt::Display for Token {
             Self::Gte => ">=",
             Self::CompoundAssign => "<compound assignment operator>",
             Self::Assign => "=",
+            Self::Sqrt => "√",
         };
         write!(f, "{s}")
     }

@@ -99,11 +99,6 @@ impl Value {
         }
     }
 
-    /// Returns a debug representation of the value that is useful to the user.
-    pub fn repr(&self) -> String {
-        format!("{:?}", self.data)
-    }
-
     /// Returns a type error saying that this value has the wrong type.
     pub fn type_error(&self, expected: Type) -> FullDiagnostic {
         Error::TypeError {
@@ -427,6 +422,11 @@ impl ValueData {
         }
     }
 
+    /// Returns a debug representation of the value that is useful to the user.
+    pub fn repr(&self) -> String {
+        format!("{self:?}")
+    }
+
     /// Returns the type of the value.
     pub fn ty(&self) -> Type {
         match self {
@@ -480,6 +480,11 @@ impl From<EcoString> for ValueData {
 }
 impl From<&str> for ValueData {
     fn from(value: &str) -> Self {
+        ValueData::Str(value.into())
+    }
+}
+impl From<String> for ValueData {
+    fn from(value: String) -> Self {
         ValueData::Str(value.into())
     }
 }

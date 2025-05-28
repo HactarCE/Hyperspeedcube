@@ -2,15 +2,15 @@ macro_rules! hps_fn {
     ($fn_name:expr, || $($rest:tt)*) => {
         hps_fn!($fn_name, |_ctx| $($rest)*)
     };
-    ($fn_name:expr, |$($param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?),*| -> $ret_ty:ident { $($body:tt)* }) => {
-        hps_fn!($fn_name, |_ctx, $($param : $param_ty $( ( $($param_ty_contents)* ) )?),*| -> $ret_ty { $($body)* })
+    ($fn_name:expr, |$($param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?),*| -> $ret_ty:ident $( ( $($ret_ty_contents:tt)* ) )? { $($body:tt)* }) => {
+        hps_fn!($fn_name, |_ctx, $($param : $param_ty $( ( $($param_ty_contents)* ) )?),*| -> $ret_ty $( ( $($ret_ty_contents)* ) )? { $($body)* })
     };
-    ($fn_name:expr, |$ctx:ident $(, $param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?)* $(,)?| -> $ret_ty:ident { $($body:tt)* }) => {
+    ($fn_name:expr, |$ctx:ident $(, $param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )?)* $(,)?| -> $ret_ty:ident $( ( $($ret_ty_contents:tt)* ) )? { $($body:tt)* }) => {
         hps_fn!(
             $fn_name,
             (
                 Some(vec![$(ty_from_tokens!($param_ty $( ( $($param_ty_contents)* ) )?)),*]),
-                $crate::Type::$ret_ty
+                ty_from_tokens!($ret_ty $( ( $($ret_ty_contents)* ) )?),
             ),
             |$ctx, args| {
                 #[allow(unused)]
@@ -57,6 +57,7 @@ macro_rules! hps_fn {
 }
 
 macro_rules! ty_from_tokens {
+    // Standard types
     (Fn) => {
         $crate::Type::Fn(std::default::Default::default())
     };
@@ -66,6 +67,9 @@ macro_rules! ty_from_tokens {
     (Map) => {
         $crate::Type::Map(std::boxed::Box::new($crate::Type::Any))
     };
+    // Special predicates
+    (Int) => { $crate::Type::Num };
+
     ($collection_ty:ident ( $($inner:tt)* )) => {
         $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
     };
@@ -80,6 +84,7 @@ macro_rules! unpack_val {
         let $dst = unpack_val!(val, $($ty)*);
     };
 
+    // Standard types
     ($val:ident, Any)  => { $val };
     ($val:ident, Null) => { unpack_val!(@$val, (Null), $crate::ValueData::Null => ()) };
     ($val:ident, Bool) => { unpack_val!(@$val, (Bool), $crate::ValueData::Bool(b) => b) };
@@ -89,7 +94,9 @@ macro_rules! unpack_val {
     ($val:ident, Map)  => { unpack_val!(@$val, (Map),  $crate::ValueData::Map(m) => m) };
     ($val:ident, Fn)   => { unpack_val!(@$val, (Fn),   $crate::ValueData::Fn(f) => f) };
     ($val:ident, Vec)  => { unpack_val!(@$val, (Vec),  $crate::ValueData::Vec(v) => v) };
-    // TODO: more types, including integers
+    // Special predicates
+    ($val:ident, Int)  => { $val.as_int()? };
+    // Fallback
     ($val:ident, $other:ident) => { compile_error!(concat!("unsupported type: ", stringify!($other))) };
 
     // Collection types

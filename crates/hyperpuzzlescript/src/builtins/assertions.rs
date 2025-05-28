@@ -1,5 +1,6 @@
-use crate::{Diagnostic, Error, Result, Scope, Span, Value};
 use ecow::{EcoString, eco_format};
+
+use crate::{Diagnostic, Error, Result, Scope, Span, Value};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([

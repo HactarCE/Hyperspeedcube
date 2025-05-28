@@ -1,6 +1,6 @@
 use hypermath::prelude::*;
 
-use crate::{Result, Scope};
+use crate::{Error, Result, Scope, ValueData};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([
@@ -31,5 +31,27 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                         u: Num,
                         t: Num|
          -> Vec { vector![x, y, z, w, v, u, t] }),
+        // Operators
+        hps_fn!("+", |v: Vec| -> Vec { v }),
+        hps_fn!("-", |v: Vec| -> Vec { -v }),
+        hps_fn!("+", |a: Vec, b: Vec| -> Vec { a + b }),
+        hps_fn!("-", |a: Vec, b: Vec| -> Vec { a - b }),
+        hps_fn!("*", |v: Vec, n: Num| -> Vec { v * n }),
+        hps_fn!("*", |n: Num, v: Vec| -> Vec { v * n }),
+        hps_fn!("/", |v: Vec, n: Num| -> Vec { v / n }),
+        // Functions
+        hps_fn!("dot", |a: Vec, b: Vec| -> Vec { a.dot(b) }),
+        hps_fn!("cross", |(a, a_span): Vec, (b, b_span): Vec| -> Vec {
+            for (v, v_span) in [(&a, a_span), (&b, b_span)] {
+                if v.iter_nonzero().any(|(i, _)| i >= 3) {
+                    return Err(Error::BadArgument {
+                        value: ValueData::Vec(v.clone()).repr(),
+                        note: Some("cross product is undefined beyond 3D".to_owned()),
+                    }
+                    .at(v_span));
+                }
+            }
+            a.cross_product_3d(b)
+        }),
     ])
 }

@@ -270,6 +270,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 prefix(60, Token::Minus),
                 prefix(60, Token::Bang),
                 prefix(60, Token::Tilde), // bitwise/setwise complement
+                prefix(60, Token::Sqrt),
                 // Arithmetic
                 vec![
                     infix(right(52), Token::DoubleStar),

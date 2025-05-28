@@ -1,0 +1,8 @@
+assert_eq("bad argument", __eval_to_error(fn () { vec().angle }))
+assert_eq("bad argument", __eval_to_error(fn () { vec(0,0,1).angle }))
+assert_eq(0, vec(1, 0).angle)
+assert_eq(pi/2, vec(0, 1).angle)
+assert_eq(pi, vec(-1, 0).angle)
+assert_eq(τ, 2*π)
+assert_eq(√2, sqrt(2))
+assert_eq(√2, 2.sqrt())

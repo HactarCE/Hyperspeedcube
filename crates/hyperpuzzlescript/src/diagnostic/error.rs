@@ -83,8 +83,8 @@ pub enum Error {
     NoField(Spanned<Type>),
     #[error("field does not exist")]
     CannotSetField(Spanned<Type>),
-    #[error("cannot normalize zero vector")]
-    NormalizeZeroVector,
+    #[error("bad argument")]
+    BadArgument { value: String, note: Option<String> },
     #[error("invalid comparison")]
     InvalidComparison(Box<Spanned<Type>>, Box<Spanned<Type>>),
     #[error("expected integer")]
@@ -254,7 +254,9 @@ impl Error {
             Self::CannotSetField((obj_ty, obj_span)) => report_builder
                 .main_label("cannot set \x02this field\x03")
                 .label(obj_span, format!("on this object of type \x02{obj_ty}\x03")),
-            Self::NormalizeZeroVector => report_builder.main_label("vector is zero"),
+            Self::BadArgument { value, note } => report_builder
+                .main_label(format!("bad argument: \x02{value}\x03"))
+                .notes(note),
             Self::InvalidComparison(ty1, ty2) => report_builder
                 .main_label("\x02this comparison operator\x03 is unsupported on these types")
                 .label_type(ty1)
@@ -278,9 +280,12 @@ impl Error {
                 .help("check for division by zero"),
             Self::ModuleNotFound { path, is_relative } => report_builder
                 .main_label(format!("failed to find module \x02{path}\x03"))
-                .help(match is_relative {
-                    true => "this is a relative path; remove the first `/` to make it absolute",
-                    false => "this is an absolute path; add a `/` after `@` to make it relative to the current file",
+                .help(if *is_relative {
+                    "this is a relative path; remove \
+                     the first `/` to make it absolute"
+                } else {
+                    "this is an absolute path; add a `/` after \
+                     `@` to make it relative to the current file"
                 })
                 .help(format!(
                     "expected at one of these locations:\n\

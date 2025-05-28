@@ -15,7 +15,7 @@ mod value;
 use arcstr::Substr;
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
-pub use runtime::{EvalCtx, Modules, Runtime, Scope, ParentScope};
+pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope};
 pub use ty::{FnType, Type};
 pub use value::{FnDebugInfo, FnOverload, FnValue, Value, ValueData};
 

@@ -2,7 +2,7 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use arcstr::Substr;
-use hypermath::VectorRef;
+use hypermath::{VectorRef, approx_eq, vector};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
@@ -89,10 +89,12 @@ impl EvalCtx<'_> {
             }
 
             ValueData::Str(s) => match field_name {
+                "is_empty" => Some(ValueData::Bool(s.is_empty())),
                 "len" => Some(ValueData::Num(s.len() as f64)),
                 _ => None,
             },
             ValueData::List(l) => match field_name {
+                "is_empty" => Some(ValueData::Bool(l.is_empty())),
                 "len" => Some(ValueData::Num(l.len() as f64)),
                 _ => None,
             },
@@ -101,9 +103,30 @@ impl EvalCtx<'_> {
                 None => Some(ValueData::Null),
             },
             ValueData::Vec(v) => match field_name {
+                "angle" => {
+                    if v.iter_nonzero().any(|(i, _)| i >= 2) {
+                        return Err(Error::BadArgument {
+                            value: obj.repr(),
+                            note: Some("`angle` is undefined beyond 2D".to_owned()),
+                        }
+                        .at(obj.span));
+                    } else if approx_eq(v, &vector![]) {
+                        return Err(Error::BadArgument {
+                            value: obj.repr(),
+                            note: Some("`angle` is undefined for zero vector".to_owned()),
+                        }
+                        .at(obj.span));
+                    }
+                    Some(ValueData::Num(v.get(1).atan2(v.get(0))))
+                }
                 "unit" => Some(ValueData::Vec(
-                    v.normalize()
-                        .ok_or(Error::NormalizeZeroVector.at(obj.span))?,
+                    v.normalize().ok_or(
+                        Error::BadArgument {
+                            value: obj.repr(),
+                            note: Some("cannot normalize the zero vector".to_owned()),
+                        }
+                        .at(obj.span),
+                    )?,
                 )),
                 "mag2" => Some(ValueData::Num(v.mag2())),
                 "mag" => Some(ValueData::Num(v.mag())),
@@ -244,6 +267,12 @@ impl EvalCtx<'_> {
                     .ok_or(Error::Internal("invalid operator").at(*assign_symbol))?;
                 let assign_op = match assign_op_str {
                     "" => None,
+                    "??" => {
+                        return Err(Error::Unimplemented(
+                            "short-circuiting null-coalesce assignment",
+                        )
+                        .at(*assign_symbol));
+                    }
                     _ => Some(
                         self.scope
                             .get(assign_op_str)
@@ -437,12 +466,23 @@ impl EvalCtx<'_> {
             }))),
             ast::NodeContents::Ident(ident_span) => Ok(self.get_var(*ident_span)?.data),
             ast::NodeContents::Op { op, args } => {
-                let f = self
-                    .scope
-                    .get(&self[*op])
-                    .ok_or(Error::UnsupportedOperator.at(*op))?;
-                let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
-                Ok(f.as_func()?.call(span, *op, self, args)?.data)
+                if &self[*op] == "??" {
+                    if let Ok([l, r]) = <&[_; 2]>::try_from(args.as_slice()) {
+                        match self.eval(l)?.data {
+                            ValueData::Null => Ok(self.eval(r)?.data),
+                            other => Ok(other),
+                        }
+                    } else {
+                        return Err(Error::UnsupportedOperator.at(*op));
+                    }
+                } else {
+                    let f = self
+                        .scope
+                        .get(&self[*op])
+                        .ok_or(Error::UnsupportedOperator.at(*op))?;
+                    let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
+                    Ok(f.as_func()?.call(span, *op, self, args)?.data)
+                }
             }
             ast::NodeContents::FnCall { func, args } => {
                 let mut arg_values = Vec::with_capacity(args.len() + 1);
