@@ -319,7 +319,7 @@ impl EvalCtx<'_> {
                     if let Some(old_var) = self.scope.get(&k) {
                         this.runtime.report_diagnostic(
                             Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
-                        )
+                        );
                     }
                     self.scope.set(k, v);
                     Ok(())
@@ -331,7 +331,7 @@ impl EvalCtx<'_> {
                     if let Some(old_var) = self.scope.get(&k) {
                         this.runtime.report_diagnostic(
                             Warning::DubiousShadow((k.clone(), old_var.span)).at(span),
-                        )
+                        );
                     }
                     self.scope.set(k, v);
                     Ok(())
@@ -849,10 +849,4 @@ impl Index<Span> for EvalCtx<'_> {
             None => "",
         }
     }
-}
-
-#[derive(Debug, Clone)]
-enum PathOrValue {
-    Path(Spanned<String>),
-    Value(Value),
 }

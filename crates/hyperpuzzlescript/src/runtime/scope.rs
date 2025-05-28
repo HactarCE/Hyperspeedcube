@@ -6,18 +6,17 @@ use parking_lot::Mutex;
 
 use crate::{FnOverload, ImmutReason, Key, Result, Span, Value};
 
+/// Reference to a parent scope.
 #[derive(Debug, Clone)]
-pub struct ScopeRef {
+pub struct ParentScope {
+    /// Parent scope.
     pub scope: Arc<Scope>,
+    /// Reason that the parent scope is immutable, or `None` if the parent scope
+    /// is mutable.
     pub immut_reason: Option<ImmutReason>,
 }
-impl ScopeRef {
-    pub fn new_parent(self) -> Arc<Scope> {
-        Arc::new(Scope {
-            names: Mutex::new(HashMap::new()),
-            parent: Some(self),
-        })
-    }
+impl ParentScope {
+    /// Returns whether the parent scope is mutable.
     pub fn is_mutable(&self) -> bool {
         self.immut_reason.is_none()
     }
@@ -27,7 +26,7 @@ impl ScopeRef {
 #[derive(Debug, Default)]
 pub struct Scope {
     /// Parent scope.
-    pub parent: Option<ScopeRef>,
+    pub parent: Option<ParentScope>,
     /// Names in this scope.
     pub names: Mutex<HashMap<Key, Value>>,
 }
@@ -59,7 +58,7 @@ impl Scope {
     fn new_with_parent(parent_scope: Arc<Scope>, immut_reason: Option<ImmutReason>) -> Arc<Scope> {
         Arc::new(Scope {
             names: Mutex::new(HashMap::new()),
-            parent: Some(ScopeRef {
+            parent: Some(ParentScope {
                 scope: parent_scope,
                 immut_reason,
             }),

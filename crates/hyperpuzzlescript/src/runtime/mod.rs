@@ -1,16 +1,15 @@
 use std::fmt;
-use std::ops::Index;
 use std::sync::Arc;
 
 mod ctx;
 mod file_store;
 mod scope;
 
-use arcstr::{ArcStr, Substr};
+use arcstr::ArcStr;
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
 use indexmap::IndexMap;
-pub use scope::{Scope, ScopeRef};
+pub use scope::{ParentScope, Scope};
 
 use crate::{FileId, FullDiagnostic, Key, Result, Span, Value, ValueData, ast};
 
@@ -163,7 +162,7 @@ impl Runtime {
             })
             .map_err(|e| {
                 if !e.is_silent() {
-                    self.report_diagnostic(e)
+                    self.report_diagnostic(e);
                 }
             });
         Some(result)
