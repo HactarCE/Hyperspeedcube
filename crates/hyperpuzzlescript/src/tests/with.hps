@@ -1,0 +1,8 @@
+assert_eq("number of dimensions is undefined", __eval_to_error(fn() { #ndim }))
+with #ndim = 3 {
+    assert_eq(#ndim, 3)
+    with #ndim = 5 {
+        assert_eq(#ndim, 5)
+    }
+    assert_eq(#ndim, 3)
+}

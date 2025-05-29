@@ -4,7 +4,7 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, ImmutReason, Key, Result, Span, Value};
+use crate::{FnOverload, ImmutReason, Key, Result, Span, SpecialVariables, Value};
 
 /// Reference to a parent scope.
 #[derive(Debug, Clone)]
@@ -29,6 +29,8 @@ pub struct Scope {
     pub parent: Option<ParentScope>,
     /// Names in this scope.
     pub names: Mutex<HashMap<Key, Value>>,
+    /// Special variables.
+    pub special: SpecialVariables,
 }
 impl Scope {
     /// Constructs a new top-level scope.
@@ -39,7 +41,18 @@ impl Scope {
     ///
     /// The parent scope is **mutable**.
     pub fn new_block(parent_scope: Arc<Scope>) -> Arc<Scope> {
-        Self::new_with_parent(parent_scope, None)
+        Arc::new(Self::new_with_parent(parent_scope, None))
+    }
+    /// Constructs a new block scope with different special variables.
+    ///
+    /// The parent scope is **mutable**.
+    pub fn new_with_block(
+        parent_scope: Arc<Scope>,
+        modify_special: impl FnOnce(&mut SpecialVariables) -> Result<()>,
+    ) -> Result<Arc<Scope>> {
+        let mut ret = Self::new_with_parent(parent_scope, None);
+        modify_special(&mut ret.special)?;
+        Ok(Arc::new(ret))
     }
     /// Constructs a new function scope.
     ///
@@ -49,20 +62,25 @@ impl Scope {
             Some(name) => ImmutReason::NamedFn(name),
             None => ImmutReason::AnonymousFn,
         };
-        Self::new_with_parent(parent_scope, Some(immut_reason))
+        Arc::new(Self::new_with_parent(parent_scope, Some(immut_reason)))
     }
     /// Constructs a new top-level file scope.
     pub fn new_top_level(builtins: &Arc<Scope>) -> Arc<Scope> {
-        Self::new_with_parent(Arc::clone(builtins), Some(ImmutReason::Builtin))
+        Arc::new(Self::new_with_parent(
+            Arc::clone(builtins),
+            Some(ImmutReason::Builtin),
+        ))
     }
-    fn new_with_parent(parent_scope: Arc<Scope>, immut_reason: Option<ImmutReason>) -> Arc<Scope> {
-        Arc::new(Scope {
+    fn new_with_parent(parent_scope: Arc<Scope>, immut_reason: Option<ImmutReason>) -> Scope {
+        let registry = parent_scope.special.clone();
+        Scope {
             names: Mutex::new(HashMap::new()),
             parent: Some(ParentScope {
                 scope: parent_scope,
                 immut_reason,
             }),
-        })
+            special: registry,
+        }
     }
 
     /// Returns the value of a variable.

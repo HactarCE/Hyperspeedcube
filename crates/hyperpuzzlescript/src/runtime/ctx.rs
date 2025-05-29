@@ -461,7 +461,26 @@ impl EvalCtx<'_> {
                 }
                 None => null.at(span),
             }))),
+            ast::NodeContents::With(ident, expr, body) => {
+                let new_value = self.eval(expr)?;
+                let scope = Scope::new_with_block(Arc::clone(self.scope), |special| {
+                    special.set(*ident, new_value)
+                })?;
+
+                Ok(EvalCtx {
+                    scope: &scope,
+                    runtime: self.runtime,
+                    caller_span: self.caller_span,
+                    exports: self.exports,
+                }
+                .eval(body)?
+                .data)
+            }
             ast::NodeContents::Ident(ident_span) => Ok(self.get_var(*ident_span)?.data),
+            ast::NodeContents::SpecialIdent(special_ident) => Ok(match special_ident {
+                ast::SpecialVar::Ndim => self.scope.special.ndim(span)?.into(),
+                ast::SpecialVar::Sym => todo!("#sym"),
+            }),
             ast::NodeContents::Op { op, args } => {
                 if &self[*op] == "??" {
                     if let Ok([l, r]) = <&[_; 2]>::try_from(args.as_slice()) {

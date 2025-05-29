@@ -109,6 +109,11 @@ pub enum Error {
     #[error("path accesses beyond root")]
     BeyondRoot,
 
+    #[error("number of dimensions is undefined")]
+    NoNdim,
+    #[error("symmetry is undefined")]
+    NoSym,
+
     // TODO: make sure we're handling AST error node properly
     #[error("syntax error prevents evaluation")]
     AstErrorNode,
@@ -305,6 +310,10 @@ impl Error {
             Self::BeyondRoot => report_builder
                 .main_label("\x02this relative path\x03 reaches beyond the root directory")
                 .help("try removing some `^`s"),
+
+            Self::NoNdim => report_builder.main_label("this requires `#ndim` to be defined"),
+            Self::NoSym => report_builder.main_label("this requires `#sym` to be defined"),
+
             Self::AstErrorNode => report_builder.help("see earlier errors for a syntax error"),
             Self::Internal(msg) => report_builder.main_label(msg),
             Self::User(_) | Self::Assert(_) => report_builder.main_label("error reported here"),

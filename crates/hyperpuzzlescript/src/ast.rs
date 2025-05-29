@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::{Span, Spanned};
 
@@ -62,9 +62,11 @@ pub enum NodeContents {
     Continue,
     Break,
     Return(Option<Box<Node>>),
+    With(SpecialVar, Box<Node>, Box<Node>),
 
     // Expressions
     Ident(Span),
+    SpecialIdent(SpecialVar),
     Op {
         op: Span,
         args: Vec<Node>,
@@ -120,7 +122,9 @@ impl NodeContents {
             NodeContents::Continue => "'continue' statement",
             NodeContents::Break => "'break' statement",
             NodeContents::Return(_) => "'return' statement",
+            NodeContents::With(_, _, _) => "'with' block",
             NodeContents::Ident(_) => "identifier",
+            NodeContents::SpecialIdent(_) => "special identifier",
             NodeContents::Op { .. } => "operator expression",
             NodeContents::FnCall { .. } => "function call expression",
             NodeContents::Paren(_) => "parenthetical expression",
@@ -172,5 +176,22 @@ impl IdentAs {
     /// Returns `alias` or, if it is `None`, `target`.
     pub fn alias(&self) -> Span {
         self.alias.unwrap_or(self.target)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum SpecialVar {
+    Ndim,
+    Sym,
+}
+impl FromStr for SpecialVar {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "#ndim" => Ok(Self::Ndim),
+            "#sym" => Ok(Self::Sym),
+            _ => Err(()),
+        }
     }
 }

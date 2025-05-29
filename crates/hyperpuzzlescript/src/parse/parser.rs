@@ -109,6 +109,12 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             body: Arc::new(*body),
         });
 
+    let special_ident = just(Token::SpecialIdent).try_map_with(|_, e| {
+        span_to_str(e.span(), e.state())
+            .parse::<ast::SpecialVar>()
+            .map_err(|()| Rich::custom(e.span(), "invalid special identifier"))
+    });
+
     expr.define({
         let expr_list = expr
             .clone()
@@ -117,6 +123,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .collect();
 
         let ident_expr = ident.clone().map(ast::NodeContents::Ident);
+
+        let special_ident_expr = special_ident.clone().map(ast::NodeContents::SpecialIdent);
 
         let expr_clone = expr.clone();
         let string_literal_contents =
@@ -211,6 +219,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let atom = choice((
             ident_expr,
+            special_ident_expr,
             literal,
             string_literal,
             list_literal,
@@ -455,6 +464,13 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .ignore_then(boxed_expr.clone().or_not())
             .map(ast::NodeContents::Return);
 
+        let with_statement = just(Token::With)
+            .ignore_then(special_ident)
+            .then_ignore(just(Token::Assign))
+            .then(boxed_expr.clone())
+            .then(spanned_statement_block.clone())
+            .map(|((ident, expr), body)| ast::NodeContents::With(ident, expr, body));
+
         choice((
             // Declarations
             fn_declaration,
@@ -468,6 +484,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             continue_statement,
             break_statement,
             return_statement,
+            with_statement,
             // Assignment (last because it doesn't start with a keyword)
             expr_or_assignment,
         ))

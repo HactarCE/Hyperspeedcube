@@ -1,8 +1,9 @@
-params = #{
-    a = 3,
-    b = 5,
+fn new() {
+    new_from_params(#{
+        a = 3,
+        b = 5,
+    })
 }
-
 
 fn new_from_params(params) {
     a = params.a
@@ -19,7 +20,7 @@ fn new_from_params(params) {
     }
 }
 
-ret = new_from_params(params)
+ret = new()
 assert_eq(8, ret.c)
 assert_eq(15, ret.with_a(10).c)
 assert_eq(18, ret.with_b(15).c)

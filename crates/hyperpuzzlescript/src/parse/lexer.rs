@@ -56,7 +56,7 @@ fn ident_or_keyword<'src, E: extra::ParserExtra<'src, &'src str, Error = LexErro
         "import" => Token::Import,
         "export" => Token::Export,
         "fn" => Token::Fn,
-        "mut" => Token::Mut,
+        "with" => Token::With,
         "from" => Token::From,
         "as" => Token::As,
         "is" => Token::Is,
@@ -114,6 +114,12 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                     }),
             );
 
+        let ident_or_keyword = ident_or_keyword();
+
+        let special_ident = just('#')
+            .then(ident_or_keyword.clone())
+            .to(Token::SpecialIdent);
+
         let numeric_literal = choice((
             text::int(10)
                 .then(just('.').then(text::digits(10)).or_not())
@@ -162,7 +168,8 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .to(Token::FilePath);
 
         choice((
-            ident_or_keyword(),
+            ident_or_keyword,
+            special_ident,
             numeric_literal,
             string_literal,
             map_literal,
@@ -253,6 +260,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     Ident,
+    SpecialIdent,
     NumberLiteral,
     StringLiteral(Vec<Spanned<StringSegmentToken>>),
     MapLiteral(Vec<Spanned<Token>>),
@@ -280,7 +288,7 @@ pub enum Token {
     Import,
     Export,
     Fn,
-    Mut,
+    With,
 
     From,
     As,
@@ -339,6 +347,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::Ident => "<identifier>",
+            Self::SpecialIdent => "<special identifier>",
             Self::NumberLiteral => "<number literal>",
             Self::StringLiteral(_) => "<string literal>",
             Self::MapLiteral(_) => "#{...}",
@@ -362,7 +371,7 @@ impl fmt::Display for Token {
             Self::Import => "import",
             Self::Export => "export",
             Self::Fn => "fn",
-            Self::Mut => "mut",
+            Self::With => "with",
             Self::From => "from",
             Self::As => "as",
             Self::Is => "is",

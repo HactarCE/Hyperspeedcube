@@ -486,6 +486,11 @@ impl From<f64> for ValueData {
         ValueData::Num(value)
     }
 }
+impl From<u8> for ValueData {
+    fn from(value: u8) -> Self {
+        ValueData::Num(value as f64)
+    }
+}
 impl From<EcoString> for ValueData {
     fn from(value: EcoString) -> Self {
         ValueData::Str(value)
