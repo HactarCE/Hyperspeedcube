@@ -99,7 +99,7 @@ pub enum NodeContents {
     NumberLiteral(f64),
     StringLiteral(Vec<StringSegment>),
     ListLiteral(Vec<Node>),
-    MapLiteral(Vec<(Node, Node)>),
+    MapLiteral(Vec<MapEntry>),
 
     // Parse error
     Error,
@@ -141,6 +141,13 @@ impl NodeContents {
             NodeContents::Error => "error",
         }
     }
+}
+
+#[derive(Debug)]
+pub struct MapEntry {
+    pub key: Node,
+    pub ty: Option<Box<Node>>,
+    pub value: Node,
 }
 
 #[derive(Debug)]

@@ -182,8 +182,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let map_literal = choice((ident_expr.clone(), string_literal.clone()))
             .map_with(|x, e| (x, e.span()))
+            .then(opt_type_annotation.clone())
             .then_ignore(just(Token::Assign))
             .then(expr.clone())
+            .map(|((key, ty), value)| (ast::MapEntry { key, ty, value }))
             .separated_by(comma_sep.clone())
             .allow_trailing()
             .collect()

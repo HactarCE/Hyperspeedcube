@@ -255,9 +255,7 @@ impl EvalCtx<'_> {
                 let new_value = self.eval(value)?;
 
                 // Check type.
-                if let Some(ty_node) = ty {
-                    new_value.typecheck(self.eval_ty(ty_node)?)?;
-                }
+                new_value.typecheck(self.eval_opt_ty(ty.as_deref())?)?;
 
                 let assign_op_str = self[*assign_symbol]
                     .strip_suffix("=")
@@ -320,9 +318,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::ExportAssign { name, ty, value } => {
                 let key = self.substr(*name);
                 let new_value = self.eval(value)?;
-                if let Some(ty_node) = ty {
-                    new_value.typecheck(self.eval_ty(ty_node)?)?;
-                }
+                new_value.typecheck(self.eval_opt_ty(ty.as_deref())?)?;
                 self.scope.set(key.clone(), new_value.clone());
                 self.export(span, key, new_value);
                 Ok(null)
@@ -600,16 +596,17 @@ impl EvalCtx<'_> {
             ast::NodeContents::MapLiteral(items) => Ok(ValueData::Map(Arc::new(
                 items
                     .iter()
-                    .map(|(key_node, value_node)| {
-                        let (key_contents, key_span) = key_node;
+                    .map(|entry| {
+                        let (key_contents, key_span) = &entry.key;
                         let key = match key_contents {
                             ast::NodeContents::Ident(ident_span) => self.substr(*ident_span),
                             ast::NodeContents::StringLiteral(_) => {
-                                self.eval(key_node)?.as_str()?.as_str().into()
+                                self.eval(&entry.key)?.as_str()?.as_str().into()
                             }
                             _ => return Err(Error::ExpectedMapKey.at(*key_span)),
                         };
-                        let value = self.eval(value_node)?;
+                        let value = self.eval(&entry.value)?;
+                        value.typecheck(self.eval_opt_ty(entry.ty.as_deref())?)?;
                         Ok((key, value))
                     })
                     .filter_ok(|(_k, v)| !v.is_null())
