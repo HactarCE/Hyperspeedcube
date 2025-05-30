@@ -1,0 +1,46 @@
+m = #{a = 10, b = 20}
+l = [10, 20, 30]
+
+// basic destructuring with type annotations
+#{a: Num, b, c, d: Null} = m
+assert_eq(a, 10)
+assert_eq(b, 20)
+assert_eq(c, null)
+assert_eq(d, null)
+a = null
+b = null
+[q, r, s] = l
+assert_eq([q, r, s], [10, 20, 30])
+[q, r, s] = [null, null, null]
+assert_eq([q, r, s], [null, null, null])
+assert_eq("list length mismatch", __eval_to_error(fn() { [q, r] = l }))
+assert_eq("list length mismatch", __eval_to_error(fn() { [q, r, s, t] = l }))
+
+// destructuring with splat
+#{**rest} = m
+assert_eq(rest, m)
+#{a, c, **rest} = m
+assert_eq(a, 10)
+assert_eq(rest, #{b = 20})
+[*rest] = l
+assert_eq(rest, [10, 20, 30])
+[q, *rest] = l
+assert_eq([q, rest], [10, [20, 30]])
+[q, r, *rest] = l
+assert_eq([q, r, rest], [10, 20, [30]])
+[q, r, s, *rest] = l
+assert_eq([q, r, s, rest], [10, 20, 30, []])
+assert_eq("list length mismatch", __eval_to_error(fn() { [q, r, s, t, *rest] = l }))
+
+// wrong type
+assert_eq("type error", __eval_to_error(fn() { #{a: Str, b} = m }))
+assert_eq("type error", __eval_to_error(fn() { #{a: Str, b, c: Num} = m }))
+// default value not allowed
+assert_eq("non-assignable expression", __eval_to_error(fn() { #{a = 1, b} = m }))
+assert_eq("non-assignable expression", __eval_to_error(fn() { #{a: Num = 1, b} = m }))
+// missing key
+assert_eq("map contains extra keys not present in pattern", __eval_to_error(fn() { #{a} = m }))
+assert_eq("map contains extra keys not present in pattern", __eval_to_error(fn() { #{b} = m }))
+// duplicate key
+assert_eq("duplicate map key", __eval_to_error(fn() { #{a, a, b} = m }))
+assert_eq("duplicate map key", __eval_to_error(fn() { #{a, a} = m }))

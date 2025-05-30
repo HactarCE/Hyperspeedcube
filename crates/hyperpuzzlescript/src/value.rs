@@ -172,9 +172,30 @@ impl Value {
         }
     }
 
+    /// Returns the list, or an error if this isn't a list.
+    pub fn as_list(&self) -> Result<&Arc<Vec<Value>>> {
+        match &self.data {
+            ValueData::List(l) => Ok(l),
+            _ => Err(self.type_error(Type::List(Default::default()))),
+        }
+    }
+    /// Returns the list, or an error if this isn't a list.
+    pub fn into_list(self) -> Result<Arc<Vec<Value>>> {
+        match self.data {
+            ValueData::List(values) => Ok(values),
+            _ => Err(self.type_error(Type::List(Default::default()))),
+        }
+    }
     /// Returns the map, or an error if this isn't a map.
     pub fn as_map(&self) -> Result<&Arc<IndexMap<Key, Value>>> {
         match &self.data {
+            ValueData::Map(m) => Ok(m),
+            _ => Err(self.type_error(Type::Map(Default::default()))),
+        }
+    }
+    /// Returns the map, or an error if this isn't a map.
+    pub fn into_map(self) -> Result<Arc<IndexMap<Key, Value>>> {
+        match self.data {
             ValueData::Map(m) => Ok(m),
             _ => Err(self.type_error(Type::Map(Default::default()))),
         }

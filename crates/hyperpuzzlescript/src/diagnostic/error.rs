@@ -3,7 +3,9 @@ use ecow::EcoString;
 use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
-use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value, ValueData, ast};
+use crate::{
+    FILE_EXTENSION, FnType, INDEX_FILE_NAME, Key, Span, Spanned, Type, Value, ValueData, ast,
+};
 
 /// Error message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -39,6 +41,24 @@ pub enum Error {
     },
     #[error("non-assignable expression")]
     CannotAssignToExpr { kind: &'static str },
+    #[error("non-destructurable expression")]
+    CannotDestructureToExpr { kind: &'static str },
+    #[error("splat before end")]
+    SplatBeforeEnd { pattern_span: Span },
+    #[error("list length mismatch")]
+    ListLengthMismatch {
+        pattern_span: Span,
+        pattern_len: usize,
+        allow_excess: bool,
+        value_len: usize,
+    },
+    #[error("map contains extra keys not present in pattern")]
+    UnusedMapKeys {
+        pattern_span: Span,
+        keys: Vec<Spanned<Key>>,
+    },
+    #[error("duplicate map key")]
+    DuplicateMapKey { previous_span: Span },
     #[error("undefined")]
     Undefined,
     #[error("undefined in map")]
@@ -75,6 +95,8 @@ pub enum Error {
     },
     #[error("expected map key")]
     ExpectedMapKey,
+    #[error("missing map value")]
+    MissingMapValue,
     #[error("'break' used outside loop")]
     BreakOutsideLoop,
     #[error("'continue' used outside loop")]
@@ -204,6 +226,38 @@ impl Error {
             Self::CannotAssignToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not assignable"))
             }
+            Self::CannotDestructureToExpr { kind } => {
+                report_builder.main_label(format!("\x02{kind}\x03 is not destructurable"))
+            }
+            Self::SplatBeforeEnd { pattern_span } => report_builder
+                .main_label("\x02splat\x03 is only allowed at end")
+                .label(pattern_span, "in \x02this pattern\x03")
+                .help("splat pattern gathers unused entries"),
+            Self::ListLengthMismatch {
+                pattern_span,
+                pattern_len,
+                allow_excess,
+                value_len,
+            } => report_builder
+                .main_label(format!("\x02this value\x03 has length \x02{value_len}\x03"))
+                .label(
+                    pattern_span,
+                    format!(
+                        "\x02this pattern\x03 expects length \x02{}{pattern_len}\x03",
+                        if *allow_excess { "at least " } else { "" },
+                    ),
+                ),
+            Self::UnusedMapKeys { pattern_span, keys } => report_builder
+                .main_label("from \x02this map\x03")
+                .label(pattern_span, "in \x02this pattern\x03")
+                .labels(
+                    keys.iter()
+                        .map(|(k, span)| (span, format!("unused entry with key {k:?}"))),
+                )
+                .help("add `**extra` to the pattern to put unused keys into a new map"),
+            Self::DuplicateMapKey { previous_span } => report_builder
+                .main_label("duplicate key")
+                .label(previous_span, "previous occurrence"),
             Self::Undefined => report_builder
                 .main_label("\x02this\x03 is undefined")
                 .help("it may be defined somewhere, but isn't accessible from here")
@@ -261,6 +315,9 @@ impl Error {
             Self::ExpectedMapKey => report_builder
                 .main_label("expected map key")
                 .help("convert a value to a string to use it as a map key: `\"${my_value}\"`"),
+            Self::MissingMapValue => report_builder
+                .main_label("missing map value")
+                .help("add `= value`"),
             Self::BreakOutsideLoop | Self::ContinueOutsideLoop => {
                 report_builder.main_label("not in a loop")
             }

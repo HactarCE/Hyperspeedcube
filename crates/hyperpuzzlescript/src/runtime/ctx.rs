@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Index;
 use std::sync::Arc;
 
@@ -28,6 +29,15 @@ pub struct EvalCtx<'a> {
 
 impl EvalCtx<'_> {
     fn assign(&mut self, node: &ast::Node, new_value: Value) -> Result<()> {
+        match &node.0 {
+            ast::NodeContents::Ident(_)
+            | ast::NodeContents::ListLiteral(_)
+            | ast::NodeContents::MapLiteral(_) => self.assign_destructure(node, new_value),
+            _ => self.assign_path(node, new_value),
+        }
+    }
+
+    fn assign_path(&mut self, node: &ast::Node, new_value: Value) -> Result<()> {
         let &(ref contents, span) = node;
         match contents {
             ast::NodeContents::Ident(ident_span) => {
@@ -54,8 +64,6 @@ impl EvalCtx<'_> {
                     }),
                 )
             }
-            ast::NodeContents::ListLiteral(items) => todo!("list destructuring"),
-            ast::NodeContents::MapLiteral(items) => todo!("map destructuring"),
 
             ast::NodeContents::SpecialIdent(special_var) => {
                 Err(Error::CannotAssignToSpecialVar(*special_var).at(span))
@@ -64,6 +72,125 @@ impl EvalCtx<'_> {
                 kind: node_contents.kind_str(),
             }
             .at(span)),
+        }
+    }
+
+    fn assign_destructure(&mut self, node: &ast::Node, new_value: Value) -> Result<()> {
+        let new_value_span = new_value.span;
+        let &(ref contents, pattern_span) = node;
+        match contents {
+            ast::NodeContents::Ident(ident_span) => {
+                self.set_var(*ident_span, new_value.data);
+                Ok(())
+            }
+            ast::NodeContents::ListLiteral(items) => {
+                let mut new_values_iter = Arc::unwrap_or_clone(new_value.into_list()?).into_iter();
+
+                let mut items_iter = items.iter();
+                let rest = items.last().and_then(|(item, _)| item.as_list_splat(self));
+                if rest.is_some() {
+                    items_iter.next_back();
+                }
+
+                let pattern_len = items_iter.len();
+                let value_len = new_values_iter.len();
+                let error = || {
+                    Error::ListLengthMismatch {
+                        pattern_span,
+                        pattern_len,
+                        allow_excess: rest.is_some(),
+                        value_len,
+                    }
+                    .at(new_value_span)
+                };
+
+                for item in items_iter {
+                    if item.0.as_list_splat(self).is_some() {
+                        return Err(Error::SplatBeforeEnd { pattern_span }.at(item.1));
+                    }
+                    self.assign_destructure(item, new_values_iter.next().ok_or_else(error)?)?;
+                }
+                if let Some(rest) = rest {
+                    let remaining_values = Arc::new(new_values_iter.collect_vec());
+                    let &(_, rest_span) = rest;
+                    self.assign_destructure(rest, ValueData::List(remaining_values).at(rest_span))?;
+                } else {
+                    if new_values_iter.next().is_some() {
+                        return Err(error());
+                    }
+                }
+
+                Ok(())
+            }
+            ast::NodeContents::MapLiteral(entries) => {
+                let mut new_values_map = Arc::unwrap_or_clone(new_value.into_map()?);
+
+                let mut entries_iter = entries.iter();
+                let rest = match entries.last() {
+                    Some(ast::MapEntry::Splat { span: _, values }) => Some(values),
+                    _ => None,
+                };
+                if rest.is_some() {
+                    entries_iter.next_back();
+                }
+
+                let mut seen_keys = HashMap::new();
+
+                for entry in entries_iter {
+                    match entry {
+                        ast::MapEntry::KeyValue {
+                            key: key_node @ (_, key_span),
+                            ty,
+                            value: value_node,
+                        } => {
+                            let key = self.eval_map_key(key_node)?;
+                            if let Some(previous_span) = seen_keys.insert(key.clone(), *key_span) {
+                                return Err(Error::DuplicateMapKey { previous_span }.at(*key_span));
+                            }
+                            let new_value = new_values_map
+                                .insert(key, ValueData::Null.at(*key_span))
+                                .unwrap_or(ValueData::Null.at(*key_span));
+                            new_value.typecheck(self.eval_opt_ty(ty.as_deref())?)?;
+                            self.assign_destructure(
+                                value_node.as_deref().unwrap_or(key_node),
+                                new_value,
+                            )?;
+                        }
+                        ast::MapEntry::Splat { span, .. } => {
+                            return Err(Error::SplatBeforeEnd { pattern_span }.at(*span));
+                        }
+                    }
+                }
+
+                new_values_map.retain(|_k, v| !v.is_null());
+                if let Some(rest) = rest {
+                    self.assign_destructure(
+                        rest,
+                        ValueData::Map(Arc::new(new_values_map)).at(rest.1),
+                    )?;
+                } else {
+                    if !new_values_map.is_empty() {
+                        return Err(Error::UnusedMapKeys {
+                            pattern_span,
+                            keys: new_values_map
+                                .into_iter()
+                                .map(|(k, v)| (k, v.span))
+                                .collect(),
+                        }
+                        .at(new_value_span));
+                    }
+                };
+
+                Ok(())
+            }
+
+            ast::NodeContents::SpecialIdent(special_var) => {
+                Err(Error::CannotAssignToSpecialVar(*special_var).at(pattern_span))
+            }
+            node_contents => Err(Error::CannotAssignToExpr {
+                kind: node_contents.kind_str(),
+            }
+            .at(pattern_span)),
         }
     }
 
@@ -633,28 +760,45 @@ impl EvalCtx<'_> {
                 }
                 ValueData::Str(s.into())
             }),
-            ast::NodeContents::ListLiteral(items) => Ok(ValueData::List(Arc::new(
-                items.iter().map(|node| self.eval(node)).try_collect()?,
-            ))),
-            ast::NodeContents::MapLiteral(items) => Ok(ValueData::Map(Arc::new(
-                items
-                    .iter()
-                    .map(|entry| {
-                        let (key_contents, key_span) = &entry.key;
-                        let key = match key_contents {
-                            ast::NodeContents::Ident(ident_span) => self.substr(*ident_span),
-                            ast::NodeContents::StringLiteral(_) => {
-                                self.eval(&entry.key)?.as_str()?.as_str().into()
+            ast::NodeContents::ListLiteral(items) => Ok(ValueData::List(Arc::new({
+                let mut ret = vec![];
+                for item @ (item_contents, _) in items {
+                    if let Some(inner) = item_contents.as_list_splat(self) {
+                        ret.extend(Arc::unwrap_or_clone(self.eval(inner)?.into_list()?))
+                    } else {
+                        ret.push(self.eval(item)?)
+                    }
+                }
+                ret
+            }))),
+            ast::NodeContents::MapLiteral(entries) => Ok(ValueData::Map(Arc::new({
+                // TODO: handle duplicate keys (maybe let splat be fallback?)
+                let mut ret = IndexMap::new();
+                for entry in entries {
+                    match entry {
+                        ast::MapEntry::Splat { span: _, values } => {
+                            ret.extend(Arc::unwrap_or_clone(self.eval(values)?.into_map()?));
+                        }
+
+                        ast::MapEntry::KeyValue {
+                            key: key_node,
+                            ty: ty_node,
+                            value: value_node,
+                        } => {
+                            let key = self.eval_map_key(key_node)?;
+                            let Some(value_node) = value_node else {
+                                return Err(Error::MissingMapValue.at(key_node.1));
+                            };
+                            let value = self.eval(value_node)?;
+                            value.typecheck(self.eval_opt_ty(ty_node.as_deref())?)?;
+                            if !value.is_null() {
+                                ret.insert(key, value);
                             }
-                            _ => return Err(Error::ExpectedMapKey.at(*key_span)),
-                        };
-                        let value = self.eval(&entry.value)?;
-                        value.typecheck(self.eval_opt_ty(entry.ty.as_deref())?)?;
-                        Ok((key, value))
-                    })
-                    .filter_ok(|(_k, v)| !v.is_null())
-                    .try_collect()?,
-            ))),
+                        }
+                    }
+                }
+                ret
+            }))),
 
             ast::NodeContents::Error => Err(Error::AstErrorNode),
         }
@@ -841,6 +985,15 @@ impl EvalCtx<'_> {
             caller_span: self.caller_span,
             exports: self.exports,
         })
+    }
+
+    fn eval_map_key(&mut self, node: &ast::Node) -> Result<Key> {
+        let (node_contents, node_span) = node;
+        match node_contents {
+            ast::NodeContents::Ident(ident_span) => Ok(self.substr(*ident_span)),
+            ast::NodeContents::StringLiteral(_) => Ok(self.eval(node)?.as_str()?.as_str().into()),
+            _ => return Err(Error::ExpectedMapKey.at(*node_span)),
+        }
     }
 
     fn get_var(&self, ident_span: Span) -> Result<Value> {

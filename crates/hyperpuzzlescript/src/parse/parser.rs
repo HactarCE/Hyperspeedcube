@@ -180,18 +180,23 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .nested_in(brackets)
             .map(ast::NodeContents::ListLiteral);
 
-        let map_literal = choice((ident_expr.clone(), string_literal.clone()))
-            .map_with(|x, e| (x, e.span()))
-            .then(opt_type_annotation.clone())
-            .then_ignore(just(Token::Assign))
-            .then(expr.clone())
-            .map(|((key, ty), value)| (ast::MapEntry { key, ty, value }))
-            .separated_by(comma_sep.clone())
-            .allow_trailing()
-            .collect()
-            .map_err_with_state(inside_this("map"))
-            .map(ast::NodeContents::MapLiteral)
-            .nested_in(map_literal);
+        let map_literal = choice((
+            just(Token::DoubleStar)
+                .ignore_then(expr.clone())
+                .map_with(|values, e| (values, e.span()))
+                .map(|(values, span)| ast::MapEntry::Splat { span, values }),
+            choice((ident_expr.clone(), string_literal.clone()))
+                .map_with(|x, e| (x, e.span()))
+                .then(opt_type_annotation.clone())
+                .then(just(Token::Assign).ignore_then(boxed_expr.clone()).or_not())
+                .map(|((key, ty), value)| (ast::MapEntry::KeyValue { key, ty, value })),
+        ))
+        .separated_by(comma_sep.clone())
+        .allow_trailing()
+        .collect()
+        .map_err_with_state(inside_this("map"))
+        .map(ast::NodeContents::MapLiteral)
+        .nested_in(map_literal);
 
         let if_else_expr = just(Token::If)
             .ignore_then(boxed_expr.clone())
@@ -284,6 +289,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 prefix(60, Token::Bang),
                 prefix(60, Token::Tilde), // bitwise/setwise complement
                 prefix(60, Token::Sqrt),
+                prefix(60, Token::Star),
+                prefix(60, Token::DoubleStar),
                 // Arithmetic
                 vec![
                     infix(right(52), Token::DoubleStar),

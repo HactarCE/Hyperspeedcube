@@ -1,4 +1,9 @@
-use std::{fmt, str::FromStr, sync::Arc};
+use std::fmt;
+use std::ops::Index;
+use std::str::FromStr;
+use std::sync::Arc;
+
+use itertools::Itertools;
 
 use crate::{Span, Spanned};
 
@@ -141,13 +146,26 @@ impl NodeContents {
             NodeContents::Error => "error",
         }
     }
+
+    pub(crate) fn as_list_splat(&self, ctx: &impl Index<Span, Output = str>) -> Option<&Node> {
+        match self {
+            NodeContents::Op { op, args } if &ctx[*op] == "*" => args.iter().exactly_one().ok(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
-pub struct MapEntry {
-    pub key: Node,
-    pub ty: Option<Box<Node>>,
-    pub value: Node,
+pub enum MapEntry {
+    KeyValue {
+        key: Node,
+        ty: Option<Box<Node>>,
+        value: Option<Box<Node>>,
+    },
+    Splat {
+        span: Span,
+        values: Node,
+    },
 }
 
 #[derive(Debug)]
