@@ -3,7 +3,7 @@ use ecow::EcoString;
 use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
-use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value, ValueData};
+use crate::{FILE_EXTENSION, FnType, INDEX_FILE_NAME, Span, Spanned, Type, Value, ValueData, ast};
 
 /// Error message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -109,6 +109,8 @@ pub enum Error {
     #[error("path accesses beyond root")]
     BeyondRoot,
 
+    #[error("cannot assign to special value")]
+    CannotAssignToSpecialVar(ast::SpecialVar),
     #[error("number of dimensions is undefined")]
     NoNdim,
     #[error("symmetry is undefined")]
@@ -311,6 +313,9 @@ impl Error {
                 .main_label("\x02this relative path\x03 reaches beyond the root directory")
                 .help("try removing some `^`s"),
 
+            Self::CannotAssignToSpecialVar(var) => report_builder
+                .main_label("cannot assign to \x02this\x03")
+                .help(format!("use `with {var} = ... {{ ... }}`")),
             Self::NoNdim => report_builder.main_label("this requires `#ndim` to be defined"),
             Self::NoSym => report_builder.main_label("this requires `#sym` to be defined"),
 

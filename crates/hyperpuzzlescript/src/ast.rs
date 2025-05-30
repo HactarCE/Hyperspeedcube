@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{fmt, str::FromStr, sync::Arc};
 
 use crate::{Span, Spanned};
 
@@ -190,6 +190,14 @@ impl IdentAs {
 pub enum SpecialVar {
     Ndim,
     Sym,
+}
+impl fmt::Display for SpecialVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SpecialVar::Ndim => write!(f, "#ndim"),
+            SpecialVar::Sym => write!(f, "#sym"),
+        }
+    }
 }
 impl FromStr for SpecialVar {
     type Err = ();

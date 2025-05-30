@@ -27,12 +27,51 @@ pub struct EvalCtx<'a> {
 }
 
 impl EvalCtx<'_> {
+    fn assign(&mut self, node: &ast::Node, new_value: Value) -> Result<()> {
+        let &(ref contents, span) = node;
+        match contents {
+            ast::NodeContents::Ident(ident_span) => {
+                self.set_var(*ident_span, new_value.data);
+                Ok(())
+            }
+            ast::NodeContents::Access { obj, field } => self.modify(
+                obj,
+                Box::new(|ctx, obj_span, obj| {
+                    let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
+                    ctx.field_set(&mut obj, *field, new_value)?;
+                    Ok(obj)
+                }),
+            ),
+            ast::NodeContents::Index { obj, args } => {
+                let &(ref args_nodes, _args_span) = &**args;
+                let args: Vec<Value> = args_nodes.iter().map(|arg| self.eval(arg)).try_collect()?;
+                self.modify(
+                    obj,
+                    Box::new(|ctx, obj_span, obj| {
+                        let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
+                        ctx.index_set(span, &mut obj, args, new_value)?;
+                        Ok(obj)
+                    }),
+                )
+            }
+            ast::NodeContents::ListLiteral(items) => todo!("list destructuring"),
+            ast::NodeContents::MapLiteral(items) => todo!("map destructuring"),
+
+            ast::NodeContents::SpecialIdent(special_var) => {
+                Err(Error::CannotAssignToSpecialVar(*special_var).at(span))
+            }
+            node_contents => Err(Error::CannotAssignToExpr {
+                kind: node_contents.kind_str(),
+            }
+            .at(span)),
+        }
+    }
+
     fn modify(
         &mut self,
         node: &ast::Node,
         update_fn: Box<dyn '_ + FnOnce(&mut EvalCtx<'_>, Span, Option<Value>) -> Result<Value>>,
     ) -> Result<()> {
-        // TODO: avoid accessing old value unless it is actually used
         // TODO: avoid having multiple references active unless actually necessary
         let &(ref contents, span) = node;
         match contents {
@@ -46,7 +85,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::Access { obj, field } => self.modify(
                 obj,
                 Box::new(|ctx, obj_span, obj| {
-                    let mut obj = obj.ok_or(Error::UndefinedIn(obj_span).at(*field))?;
+                    let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
                     let old_value = ctx.field_get(&obj, *field)?.at(span);
                     let new_value = update_fn(ctx, span, Some(old_value))?;
                     ctx.field_set(&mut obj, *field, new_value)?;
@@ -66,6 +105,10 @@ impl EvalCtx<'_> {
                         Ok(obj)
                     }),
                 )
+            }
+
+            ast::NodeContents::SpecialIdent(special_var) => {
+                Err(Error::CannotAssignToSpecialVar(*special_var).at(span))
             }
             node_contents => Err(Error::CannotAssignToExpr {
                 kind: node_contents.kind_str(),
@@ -252,40 +295,40 @@ impl EvalCtx<'_> {
                 assign_symbol,
                 value,
             } => {
-                let new_value = self.eval(value)?;
-
-                // Check type.
-                new_value.typecheck(self.eval_opt_ty(ty.as_deref())?)?;
-
                 let assign_op_str = self[*assign_symbol]
                     .strip_suffix("=")
-                    .ok_or(Error::Internal("invalid operator").at(*assign_symbol))?;
-                let assign_op = match assign_op_str {
-                    "" => None,
-                    "??" => {
-                        return Err(Error::Unimplemented(
-                            "short-circuiting null-coalesce assignment",
-                        )
-                        .at(*assign_symbol));
-                    }
-                    _ => Some(
-                        self.scope
-                            .get(assign_op_str)
-                            .ok_or(Error::UnsupportedOperator.at(*assign_symbol))?,
-                    ),
+                    .ok_or(Error::Internal("invalid operator").at(*assign_symbol))?
+                    .to_owned();
+
+                let get_new_value = |this: &mut EvalCtx<'_>| {
+                    let new_value = this.eval(value)?;
+                    new_value.typecheck(this.eval_opt_ty(ty.as_deref())?)?;
+                    Ok(new_value)
                 };
 
-                self.modify(
-                    var,
-                    Box::new(|ctx, old_value_span, old_value| match &assign_op {
-                        Some(op_fn) => {
-                            let old_value = old_value.ok_or(Error::Undefined.at(old_value_span))?;
-                            let args = vec![old_value, new_value];
-                            op_fn.as_func()?.call(span, *assign_symbol, ctx, args)
-                        }
-                        None => Ok(new_value),
-                    }),
-                )?;
+                if assign_op_str.is_empty() {
+                    let new_value = get_new_value(self)?;
+                    self.assign(var, new_value)?;
+                } else {
+                    self.modify(
+                        var,
+                        Box::new(move |ctx, old_value_span, old_value| {
+                            if assign_op_str == "??" {
+                                match old_value.filter(|v| !v.is_null()) {
+                                    Some(v) => Ok(v), // don't eval new value
+                                    None => get_new_value(ctx),
+                                }
+                            } else {
+                                let op_fn = (ctx.scope.get(&assign_op_str))
+                                    .ok_or(Error::UnsupportedOperator.at(*assign_symbol))?;
+                                let old_value =
+                                    old_value.ok_or(Error::Undefined.at(old_value_span))?;
+                                let args = vec![old_value, get_new_value(ctx)?];
+                                op_fn.as_func()?.call(span, *assign_symbol, ctx, args)
+                            }
+                        }),
+                    )?;
+                }
 
                 Ok(null)
             }
@@ -860,29 +903,6 @@ impl EvalCtx<'_> {
             None => Err(Error::ModuleNotFound { path, is_relative }.at(span)),
         }
     }
-
-    // /// Imports a file. Returns the name of the file imported and the value
-    // /// returned by the file.
-    // fn import(&mut self, span: Span, import_path: &ast::PathAsIdent) ->
-    // Result<(String, Value)> {     let current_file_name = self
-    //         .runtime
-    //         .files
-    //         .file_path(span.context)
-    //         .ok_or(Error::Internal("cannot import user file from within
-    // internals").at(span))?;     let file_name_to_import =
-    // import_path.resolve_to_file_name(current_file_name);
-    //     let file_id_to_import =
-    // self.runtime.files.id_from_name(&file_name_to_import);
-    //     match file_id_to_import.and_then(|id| self.runtime.file_ret(id)) {
-    //         Some(Ok(value)) => Ok((file_name_to_import, value.clone())),
-    //         Some(Err(())) => Err(Error::SilentImportError.at(span)),
-    //         None => Err(Error::FileNotFound {
-    //             file_name: file_name_to_import,
-    //             is_relative: import_path.is_relative,
-    //         }
-    //         .at(span)),
-    //     }
-    // }
 
     /// Returns a [`Substr`] from a [`Span`]. If the span is invalid, returns an
     /// empty string.
