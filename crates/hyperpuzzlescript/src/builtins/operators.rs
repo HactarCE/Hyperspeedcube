@@ -20,6 +20,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         hps_fn!("/", |a: Num, b: Num| -> Num { a / b }),
         hps_fn!("%", |a: Num, b: Num| -> Num { a.rem_euclid(b) }),
         hps_fn!("**", |a: Num, b: Num| -> Num { a.powf(b) }),
+        hps_fn!("°", |n: Num| -> Num { n.to_radians() }),
         // Number comparisons
         hps_fn!("<", |a: Num, b: Num| -> Bool { approx_lt(&a, &b) }),
         hps_fn!(">", |a: Num, b: Num| -> Bool { approx_gt(&a, &b) }),

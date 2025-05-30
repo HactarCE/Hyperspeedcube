@@ -251,6 +251,12 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 (ast::NodeContents::Op { op, args }, extra.span())
             })
         };
+        let postfix = |binding_power, op_str| {
+            chumsky::pratt::postfix(binding_power, op_parser(op_str), |lhs, op, extra| {
+                let args = vec![lhs];
+                (ast::NodeContents::Op { op, args }, extra.span())
+            })
+        };
 
         let postfix_dot_access = |binding_power| {
             let dot_then_ident = just(Token::Period).ignore_then(ident.clone());
@@ -283,6 +289,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 postfix_dot_access(70),
                 postfix_function_call(70),
                 postfix_indexing(70),
+                postfix(70, Token::Degrees),
                 // Prefix operators
                 prefix(60, Token::Plus),
                 prefix(60, Token::Minus),

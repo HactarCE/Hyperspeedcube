@@ -245,6 +245,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 just(":").to(Token::Colon),
                 just(".").to(Token::Period),
                 just("√").to(Token::Sqrt),
+                just("°").to(Token::Degrees),
             ]),
         ))
         .labelled("token")
@@ -342,6 +343,7 @@ pub enum Token {
     CompoundAssign,
 
     Sqrt,
+    Degrees,
 }
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -415,6 +417,7 @@ impl fmt::Display for Token {
             Self::CompoundAssign => "<compound assignment operator>",
             Self::Assign => "=",
             Self::Sqrt => "√",
+            Self::Degrees => "°",
         };
         write!(f, "{s}")
     }
