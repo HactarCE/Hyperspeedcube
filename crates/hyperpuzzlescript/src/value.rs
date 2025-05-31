@@ -712,6 +712,7 @@ impl FnValue {
         fn_span: Span,
         ctx: &mut EvalCtx<'_>,
         args: Vec<Value>,
+        kwargs: IndexMap<Key, Value>,
     ) -> Result<Value> {
         let overload = self.get_overload(fn_span, &args)?;
 
@@ -726,7 +727,7 @@ impl FnValue {
             caller_span: call_span,
             exports: &mut exports,
         };
-        let mut return_value = (overload.call)(&mut call_ctx, args)
+        let mut return_value = (overload.call)(&mut call_ctx, args, kwargs)
             .or_else(FullDiagnostic::try_resolve_return_value)
             .and_then(|return_value| {
                 if matches!(overload.debug_info, FnDebugInfo::Internal(_)) {
@@ -762,7 +763,9 @@ pub struct FnOverload {
     /// Function type signature.
     pub ty: FnType,
     /// Function to evaluate the function body.
-    pub call: Arc<dyn Send + Sync + Fn(&mut EvalCtx<'_>, Vec<Value>) -> Result<Value>>,
+    pub call: Arc<
+        dyn Send + Sync + Fn(&mut EvalCtx<'_>, Vec<Value>, IndexMap<Key, Value>) -> Result<Value>,
+    >,
     /// Debug info about the source of the function.
     pub debug_info: FnDebugInfo,
     /// Parent scope to use for the function. If this is `None`, then the

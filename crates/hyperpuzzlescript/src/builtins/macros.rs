@@ -12,7 +12,7 @@ macro_rules! hps_fn {
                 Some(vec![$(ty_from_tokens!($param_ty $( ( $($param_ty_contents)* ) )?)),*]),
                 ty_from_tokens!($ret_ty $( ( $($ret_ty_contents)* ) )?),
             ),
-            |$ctx, args| {
+            |$ctx, args, kwargs| {
                 #[allow(unused)]
                 let mut args = args;
                 #[allow(unused)]
@@ -24,6 +24,7 @@ macro_rules! hps_fn {
                         i += 1;
                     }
                 )*
+                unpack_kwargs!(kwargs);
                 $($body)*
             }
         )
@@ -32,14 +33,14 @@ macro_rules! hps_fn {
         hps_fn!($fn_name, ($params, $ret), | | -> $($rest)*)
     };
     ($fn_name:expr, ($params:expr, $ret:expr $(,)?), |$args:ident $(,)?| { $($body:tt)* }) => {
-        hps_fn!($fn_name, ($params, $ret), |_ctx, $args| { $($body)* })
+        hps_fn!($fn_name, ($params, $ret), |_ctx, $args, kwargs| { $($body)* })
     };
-    ($fn_name:expr, ($params:expr, $ret:expr $(,)?), |$ctx:ident, $args:ident $(,)?| { $($body:tt)* }) => {
+    ($fn_name:expr, ($params:expr, $ret:expr $(,)?), |$ctx:ident, $args:ident, $kwargs:ident $(,)?| { $($body:tt)* }) => {
         (
             $fn_name,
             $crate::FnOverload {
                 ty: $crate::FnType { params: $params, ret: $ret },
-                call: std::sync::Arc::new(|$ctx, $args| {
+                call: std::sync::Arc::new(|$ctx, $args, $kwargs| {
                     let output = { $($body)* };
                     Ok($crate::ValueData::from(output).at($crate::BUILTIN_SPAN))
                 }),
@@ -136,6 +137,34 @@ macro_rules! unpack_val {
         match $val.data {
             $pattern => $ret,
             _ => return Err($val.type_error(ty_from_tokens!($($expected_ty)*))),
+        }
+    };
+}
+
+macro_rules! unpack_kwargs {
+    ($kwargs:expr $(, $name:ident: $ty:ident $( ( $($ty_contents:tt)* ) )? = $default:expr)* $(,)?) => {
+        #[allow(unused_mut)]
+        let mut kwargs = $kwargs;
+        $(
+            let $name = match kwargs.swap_remove(stringify!($name)) {
+                Some(val) => unpack_val!(val, $ty $( ( $($ty_contents)* ) )?);
+                None => {
+                    #[allow(unused_mut)]
+                    let mut val = None;
+                    $( val = Some($default); )?
+                    val.ok_or_else(|| {
+                        $crate::Error::MissingRequiredNamedParameter(stringify!($name).into())
+                            .at(param_span)
+                    })?
+                }
+            }
+        )*
+
+        if !kwargs.is_empty() {
+            return Err($crate::Error::UnusedFnArgs {
+                args: kwargs.into_iter().map(|(k, v)| (k, v.span)).collect(),
+            }
+            .at($crate::BUILTIN_SPAN));
         }
     };
 }

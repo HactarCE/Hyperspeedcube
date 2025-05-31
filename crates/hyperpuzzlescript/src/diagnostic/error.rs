@@ -41,10 +41,10 @@ pub enum Error {
     },
     #[error("non-assignable expression")]
     CannotAssignToExpr { kind: &'static str },
-    #[error("non-destructurable expression")]
+    #[error("non-destructurable expression in pattern")]
     CannotDestructureToExpr { kind: &'static str },
-    #[error("splat before end")]
-    SplatBeforeEnd { pattern_span: Span },
+    #[error("splat before end in pattern")]
+    SplatBeforeEndInPattern { pattern_span: Span },
     #[error("list length mismatch")]
     ListLengthMismatch {
         pattern_span: Span,
@@ -59,6 +59,22 @@ pub enum Error {
     },
     #[error("duplicate map key")]
     DuplicateMapKey { previous_span: Span },
+    #[error("duplicate parameter name")]
+    DuplicateFnParamName { previous_span: Span },
+    #[error("unused function arguments")]
+    UnusedFnArgs { args: Vec<Spanned<Key>> },
+    #[error("default value is not allowed for positional parameter")]
+    DefaultPositionalParamValue,
+    #[error("duplicate 'end of sequence' indicator in function parameters")]
+    DuplicateFnParamSeqEnd { previous_span: Span },
+    #[error("splat before end in function parameters")]
+    FnParamSplatBeforeEnd,
+    #[error("splat before end in function arguments")]
+    FnArgSplatBeforeEnd,
+    #[error("missing required named parameter")]
+    MissingRequiredNamedParameter(Key),
+    #[error("positional parameter after named parameter")]
+    PositionalParamAfterNamedParam,
     #[error("undefined")]
     Undefined,
     #[error("undefined in map")]
@@ -229,7 +245,7 @@ impl Error {
             Self::CannotDestructureToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not destructurable"))
             }
-            Self::SplatBeforeEnd { pattern_span } => report_builder
+            Self::SplatBeforeEndInPattern { pattern_span } => report_builder
                 .main_label("\x02splat\x03 is only allowed at end")
                 .label(pattern_span, "in \x02this pattern\x03")
                 .help("splat pattern gathers unused entries"),
@@ -258,6 +274,30 @@ impl Error {
             Self::DuplicateMapKey { previous_span } => report_builder
                 .main_label("duplicate key")
                 .label(previous_span, "previous occurrence"),
+            Self::DuplicateFnParamName { previous_span } => report_builder
+                .main_label("duplicate parameter name")
+                .label(previous_span, "previous parameter with same name"),
+            Self::UnusedFnArgs { args } => report_builder
+                .main_label("when calling \x02this function\x03")
+                .labels(
+                    args.iter()
+                        .map(|(k, span)| (span, format!("unused argument with key {k:?}"))),
+                ),
+            Self::DefaultPositionalParamValue => report_builder
+                .main_label("for \x02this parameter\x03")
+                .help("add `*,` before the parameter name to make it a named parameter"),
+            Self::DuplicateFnParamSeqEnd { previous_span } => report_builder
+                .main_label("end of sequence parameters")
+                .label(*previous_span, "previous end of sequence parameters"),
+            Self::FnParamSplatBeforeEnd | Self::FnArgSplatBeforeEnd => report_builder
+                .main_label("\x02splat\x03 is only allowed at end")
+                .help("splat pattern gathers unused named parameters"),
+            Self::MissingRequiredNamedParameter(name) => report_builder
+                .main_label(format!("missing required named parameter `\x02{name}\x03`"))
+                .help(format!("add `{name}=value`")),
+            Self::PositionalParamAfterNamedParam => report_builder
+                .main_label("positional parameter occurs after named parameter")
+                .note("all positional parameters must come before the first named parameter"),
             Self::Undefined => report_builder
                 .main_label("\x02this\x03 is undefined")
                 .help("it may be defined somewhere, but isn't accessible from here")

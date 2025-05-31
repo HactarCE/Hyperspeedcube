@@ -89,15 +89,22 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .or_not()
         .boxed();
 
-    let fn_params = ident
-        .clone()
-        .then(opt_type_annotation.clone())
-        .map(|(name, ty)| ast::FnParam { name, ty })
-        .separated_by(comma_sep.clone())
-        .allow_trailing()
-        .collect()
-        .boxed()
-        .nested_in(parens);
+    let fn_params = choice((
+        ident
+            .clone()
+            .then(opt_type_annotation.clone())
+            .then(just(Token::Assign).ignore_then(boxed_expr.clone()).or_not())
+            .map(|((name, ty), default)| (ast::FnParam::Param { name, ty, default })),
+        just(Token::Star).to_span().map(ast::FnParam::SeqEnd),
+        just(Token::DoubleStar)
+            .ignore_then(ident.clone())
+            .map(ast::FnParam::NamedSplat),
+    ))
+    .separated_by(comma_sep.clone())
+    .allow_trailing()
+    .collect()
+    .boxed()
+    .nested_in(parens);
 
     let fn_contents = fn_params
         .clone()
@@ -266,8 +273,15 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             })
         };
         let postfix_function_call = |binding_power| {
-            let paren_expr_list = expr_list.clone().nested_in(parens);
-            chumsky::pratt::postfix(binding_power, paren_expr_list, |lhs, args, extra| {
+            let fn_arg = (ident.clone().then_ignore(just(Token::Assign)).or_not())
+                .then(boxed_expr.clone())
+                .map(|(name, value)| ast::FnArg { name, value });
+            let paren_fn_arg_list = fn_arg
+                .separated_by(comma_sep.clone())
+                .allow_trailing()
+                .collect()
+                .nested_in(parens);
+            chumsky::pratt::postfix(binding_power, paren_fn_arg_list, |lhs, args, extra| {
                 let func = Box::new(lhs);
                 (ast::NodeContents::FnCall { func, args }, extra.span())
             })

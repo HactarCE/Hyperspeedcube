@@ -1,0 +1,27 @@
+fn f(a, b, *, c=10, d) {
+    return a + b + c + d
+}
+
+fn g(a, *, b=10, **kwargs) { #{aa = a, bb = b, **kwargs} }
+
+assert_eq(16, f(1, 2, d=3))
+assert_eq(g(10, b=20, c=3, d=4), #{aa=10, bb=20, c=3, d=4})
+
+// Bad definitions
+assert_eq("duplicate 'end of sequence' indicator in function parameters", __eval_to_error(fn() { fn(a, *, b, *, c) {} }))
+assert_eq("duplicate parameter name", __eval_to_error(fn() { fn(a, a) {} }))
+assert_eq("duplicate parameter name", __eval_to_error(fn() { fn(*, a, a) {} }))
+assert_eq("duplicate parameter name", __eval_to_error(fn() { fn(a, *, a) {} }))
+assert_eq("default value is not allowed for positional parameter", __eval_to_error(fn() { fn(a=4, *, b) {} }))
+assert_eq("default value is not allowed for positional parameter", __eval_to_error(fn() { fn(a=4) {} }))
+
+// Bad calls
+assert_eq("missing required named parameter", __eval_to_error(fn() { f(1, 2, c=3) }))
+assert_eq("positional parameter after named parameter", __eval_to_error(fn() { f(1, c=3, 4) }))
+
+// Map splat
+m = #{d = 3}
+assert_eq(16, f(1, 2, **m))
+assert_eq("missing required named parameter", __eval_to_error(fn() { f(1, 2, **#{c=3}) }))
+assert_eq("unused function arguments", __eval_to_error(fn() { f(1, 2, **#{d=3, f=4}) }))
+assert_eq("splat before end in function arguments", __eval_to_error(fn() { f(1, **m, 4) }))

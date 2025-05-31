@@ -78,7 +78,7 @@ pub enum NodeContents {
     },
     FnCall {
         func: Box<Node>,
-        args: Vec<Node>,
+        args: Vec<FnArg>,
     },
     Paren(Box<Node>),
     Access {
@@ -153,6 +153,12 @@ impl NodeContents {
             _ => None,
         }
     }
+    pub(crate) fn as_map_splat(&self, ctx: &impl Index<Span, Output = str>) -> Option<&Node> {
+        match self {
+            NodeContents::Op { op, args } if &ctx[*op] == "**" => args.iter().exactly_one().ok(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -169,6 +175,12 @@ pub enum MapEntry {
 }
 
 #[derive(Debug)]
+pub struct FnArg {
+    pub name: Option<Span>,
+    pub value: Box<Node>,
+}
+
+#[derive(Debug)]
 pub struct FnContents {
     pub params: Vec<FnParam>,
     pub return_type: Option<Box<Node>>,
@@ -176,9 +188,20 @@ pub struct FnContents {
 }
 
 #[derive(Debug)]
-pub struct FnParam {
-    pub name: Span,
-    pub ty: Option<Box<Node>>,
+pub enum FnParam {
+    /// - `ident`
+    /// - `ident: Type`
+    /// - `ident = expr`
+    /// - `ident: Type = expr`
+    Param {
+        name: Span,
+        ty: Option<Box<Node>>,
+        default: Option<Box<Node>>,
+    },
+    /// - `*`
+    SeqEnd(Span),
+    /// - `**ident`
+    NamedSplat(Span),
 }
 
 #[derive(Debug)]

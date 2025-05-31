@@ -1,4 +1,5 @@
 use ecow::{EcoString, eco_format};
+use indexmap::IndexMap;
 
 use crate::{Diagnostic, Error, Result, Scope, Span, Value};
 
@@ -47,7 +48,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             )?
         }),
         hps_fn!("__eval_to_error", |ctx, f: Fn| -> Str {
-            match f.call(ctx.caller_span, ctx.caller_span, ctx, vec![]) {
+            let args = vec![];
+            let kwargs = IndexMap::default();
+            match f.call(ctx.caller_span, ctx.caller_span, ctx, args, kwargs) {
                 Ok(value) => Err(
                     Error::User(eco_format!("expected error; got {}", value.repr()))
                         .at(ctx.caller_span),
