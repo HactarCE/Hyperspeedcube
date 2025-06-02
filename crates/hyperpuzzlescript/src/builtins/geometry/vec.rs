@@ -1,7 +1,8 @@
+use ecow::eco_format;
 use hypermath::prelude::*;
 use indexmap::IndexMap;
 
-use crate::{Error, Key, Result, Scope, Type, Value, ValueData};
+use crate::{Error, Key, Result, Scope, Span, Type, Value, ValueData};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
@@ -25,8 +26,8 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `vec()` with an existing point will return its
         ///   coordinates as a vector.
         #[kwargs(kwargs)]
-        fn vec(_ctx: EvalCtx, args: Args) -> Vec {
-            construct_vec(&args, kwargs)?
+        fn vec(ctx: EvalCtx, args: Args) -> Vec {
+            construct_vec(ctx.caller_span, &args, kwargs)?
         }
 
         /// `dot()` returns the [dot product] between two vectors.
@@ -76,7 +77,11 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     ])
 }
 
-pub(super) fn construct_vec(args: &[Value], kwargs: IndexMap<Key, Value>) -> Result<Vector> {
+pub(super) fn construct_vec(
+    span: Span,
+    args: &[Value],
+    kwargs: IndexMap<Key, Value>,
+) -> Result<Vector> {
     match args {
         [] => {
             unpack_kwargs!(
@@ -104,6 +109,12 @@ pub(super) fn construct_vec(args: &[Value], kwargs: IndexMap<Key, Value>) -> Res
             ValueData::EuclidPoint(p) => Ok(p.0.clone()),
             _ => Err(arg.type_error(Type::Union(vec![Type::Num, Type::Vec, Type::EuclidPoint]))),
         },
+
+        _ if args.len() > hypermath::MAX_NDIM as usize => Err(Error::User(eco_format!(
+            "vector too long (max is {})",
+            hypermath::MAX_NDIM,
+        ))
+        .at(span)),
 
         _ => args.iter().map(|arg| arg.as_num()).collect(),
     }

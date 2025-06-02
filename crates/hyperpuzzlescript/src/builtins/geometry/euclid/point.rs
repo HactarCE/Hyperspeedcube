@@ -22,8 +22,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `point()` with an existing point will return
         ///   the point unmodified.
         #[kwargs(kwargs)]
-        fn point(_ctx: EvalCtx, args: Args) -> EuclidPoint {
-            crate::builtins::geometry::vec::construct_vec(&args, kwargs).map(Point)?
+        fn point(ctx: EvalCtx, args: Args) -> EuclidPoint {
+            let v = crate::builtins::geometry::vec::construct_vec(ctx.caller_span, &args, kwargs)?;
+            Point(v)
         }
     ])?;
 
