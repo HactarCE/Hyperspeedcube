@@ -6,6 +6,7 @@ mod assertions;
 mod bases;
 mod collections;
 mod constants;
+mod euclid;
 mod geometry;
 mod math;
 mod operators;
@@ -22,6 +23,7 @@ pub fn new_builtins_scope() -> Arc<Scope> {
         bases::define_in(&scope)?;
         collections::define_in(&scope)?;
         constants::define_in(&scope)?;
+        euclid::define_in(&scope)?;
         math::define_in(&scope)?;
         operators::define_in(&scope)?;
         output::define_in(&scope)?;
