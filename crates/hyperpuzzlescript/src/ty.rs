@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 use std::fmt;
 
+use itertools::Itertools;
+
 use crate::Value;
 
-/// Type in the language.
+/// Type in the language, which is a predicate on values.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub enum Type {
@@ -23,6 +25,7 @@ pub enum Type {
     EuclidTransform,
     EuclidPlane,
     EuclidRegion,
+    EuclidBlade,
 
     Cga2dBlade1,
     Cga2dBlade2,
@@ -37,6 +40,8 @@ pub enum Type {
     AxisSystem,
     TwistSystem,
     Puzzle,
+
+    Union(Vec<Type>),
 }
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -66,6 +71,7 @@ impl fmt::Display for Type {
             Type::EuclidTransform => write!(f, "euclid.Transform"),
             Type::EuclidPlane => write!(f, "euclid.Plane"),
             Type::EuclidRegion => write!(f, "euclid.Region"),
+            Type::EuclidBlade => write!(f, "euclid.Blade"),
             Type::Cga2dBlade1 => write!(f, "cga2d.Blade1"),
             Type::Cga2dBlade2 => write!(f, "cga2d.Blade2"),
             Type::Cga2dBlade3 => write!(f, "cga2d.Blade3"),
@@ -77,6 +83,8 @@ impl fmt::Display for Type {
             Type::AxisSystem => write!(f, "AxisSystem"),
             Type::TwistSystem => write!(f, "TwistSystem"),
             Type::Puzzle => write!(f, "Puzzle"),
+
+            Type::Union(union) => write!(f, "{}", union.iter().join(" | ")),
         }
     }
 }
@@ -92,6 +100,7 @@ impl Type {
                 Type::Map(Box::new(Type::unify(*a_elem, *b_elem)))
             }
             (Type::Fn(a_fn), Type::Fn(b_fn)) => Type::Fn(Box::new(FnType::unify(*a_fn, *b_fn))),
+            // TODO: handle unions
             _ => Type::Any,
         }
     }
@@ -105,6 +114,8 @@ impl Type {
                 self_inner.is_subtype_of(other_inner)
             }
             (Type::Fn(self_inner), Type::Fn(other_inner)) => self_inner.is_subtype_of(other_inner),
+            (Type::Union(a), b) => a.iter().all(|a| a.is_subtype_of(b)),
+            (a, Type::Union(b)) => b.iter().any(|b| a.is_subtype_of(b)),
             _ => self == other,
         }
     }
@@ -117,6 +128,7 @@ impl Type {
             (Type::Fn(self_inner), Type::Fn(other_inner)) => {
                 self_inner.might_be_subtype_of(other_inner)
             }
+            (Type::Union(u), a) | (a, Type::Union(u)) => u.iter().any(|b| a.overlaps(b)),
             _ => self == other,
         }
     }
