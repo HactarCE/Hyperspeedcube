@@ -29,5 +29,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 Error::bad_arg(normal, Some("plane normal vector cannot be zero")).at(normal_span)
             })?
         }),
+        // Other functions
+        hps_fn!("distance", |a: EPlane, b: EPoint| -> Num {
+            a.signed_distance_to_point(&b)
+        }),
     ])
 }

@@ -4,6 +4,22 @@ use hypermath::approx_cmp;
 use crate::{Error, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
+    scope.register_builtin_functions(hps_fns![
+        /// `sqrt()` returns the square root of a number.
+        ///
+        /// You can also use the Unicode symbol `√` as a prefix operator to get
+        /// the square root of an expression.
+        ///
+        /// ```title="Examples using sqrt()"
+        /// assert_eq(sqrt(3)/2, (3/4) ** (1/2))
+        /// assert_eq(√2, 2.sqrt())
+        /// ```
+        fn sqrt(n: Num) -> Num {
+            n.sqrt()
+        }
+    ])?;
+    scope.register_builtin_functions([hps_fn!("√", |x: Num| -> Num { x.sqrt() })])?;
+
     scope.register_builtin_functions([
         // Number functions
         hps_fn!("abs", |x: Num| -> Num { x.abs() }),
@@ -15,8 +31,6 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 std::cmp::Ordering::Less => -1.0,
             }
         }),
-        hps_fn!("sqrt", |x: Num| -> Num { x.sqrt() }),
-        hps_fn!("√", |x: Num| -> Num { x.sqrt() }),
         hps_fn!("cbrt", |x: Num| -> Num { x.cbrt() }),
         hps_fn!("factorial", |(x, x_span): Int| -> Num {
             if x < 0 {

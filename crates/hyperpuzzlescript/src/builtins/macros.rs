@@ -1,3 +1,124 @@
+macro_rules! hps_fns {
+    (
+        $(
+            $( #[doc = $doc:literal] )*
+            $( #[kwargs($($kwargs:tt)*)] )?
+            fn $fn_name:ident($( $param:tt : $param_ty:ident $( ( $($param_ty_contents:tt)* ) )? ),* $(,)?)
+                -> $ret_ty:ident $( ( $($ret_ty_contents:tt)* ) )?
+            { $($body:tt)* }
+        )*
+    ) => {
+        [$(
+            // TODO: docs
+            hps_fns!(
+                @ stringify!($fn_name),
+                [ $($doc),* ],
+                [ $( ( $param: ( $param_ty $( ( $($param_ty_contents)* ) )? ) ) )* ],
+                kwargs,
+                ($ret_ty $( ( $($ret_ty_contents)* ) )?),
+                {
+                    unpack_kwargs!(kwargs, $($($kwargs)*)?);
+                    $($body)*
+                }
+            )
+        ),*]
+    };
+    (@ $fn_name:expr, $docs:tt, [ ($ctx:ident: (EvalCtx)) ($args:ident: (Args)) ], $kwargs:ident, $ret_ty:tt, $body:tt) => {
+        hps_builtin_fn!(
+            $fn_name, $docs, $ctx, $args, $kwargs,
+            $crate::FnType { params: None, ret: ty_from_tokens! $ret_ty },
+            $body
+        )
+    };
+    (@ $fn_name:expr, $docs:tt, [ ($ctx:ident: (EvalCtx)) $($args:tt)* ], $($rest:tt)* ) => {
+        hps_builtin_fn!($fn_name, $docs, $ctx, [$($args)*], $($rest)*)
+    };
+    (@ $fn_name:expr, $docs:tt, [ $($args:tt)* ], $($rest:tt)* ) => {
+        hps_builtin_fn!($fn_name, $docs, _ctx, [$($args)*], $($rest)*)
+    };
+}
+
+/// This macro takes a list of function definitions. Each function definition is
+/// a tuple:
+///
+/// ```ignore
+/// (
+///     "fn_name",
+///     |ctx, arg1: Type1, arg2: Type2, ..| -> RetType { .. }
+/// )
+/// ```
+macro_rules! hps_short_fns {
+    [
+        $((
+            $fn_name:literal, |
+                $ctx:tt
+                $(, $param:tt : $param_ty:ident $( ( $($param_ty_inner:tt)* ) )? )*
+            | -> $ret_ty:ident $( ( $($ret_ty_inner:tt)* ) )?
+            { $($body:tt)* }
+        )),* $(,)?
+    ] => {
+        [$(hps_builtin_fn!(
+            $fn_name,
+            [], // docs
+            $ctx,
+            [$( ( $param: ($param_ty $(($($param_ty_inner)*))?) ) )*],
+            kwargs,
+            ($ret_ty $(($($ret_ty_inner)*))?),
+            {
+                unpack_kwargs!(kwargs);
+                $($body)*
+            }
+        )),*]
+    };
+}
+
+/// This macro can be invoked in either of two ways:
+///
+/// - name, docs, ctx, [ param1: (param1_ty), param2: (param2_ty) ], kwargs, (ret_ty), body
+/// - name, docs, ctx, args, kwargs, fn_type, body
+macro_rules! hps_builtin_fn {
+    (
+        $fn_name:expr, $docs:tt, $ctx:tt, [ $( ( $param:tt : $param_ty:tt ) )* ], $kwargs:ident,
+        $ret_ty:tt, $body:tt
+     ) => {
+        hps_builtin_fn!(
+            $fn_name, $docs, $ctx, args, $kwargs,
+            $crate::FnType {
+                params: Some(vec![$( ty_from_tokens! $param_ty ),*]),
+                ret: ty_from_tokens! $ret_ty,
+            },
+            {
+                #[allow(unused)]
+                let mut args = args;
+                #[allow(unused)]
+                let mut i = 0;
+                $(
+                    unpack_val!(let $param = std::mem::take(&mut args[i]), $param_ty);
+                    #[allow(unused_assignments)]
+                    { i += 1; }
+                )*
+                $body
+            }
+        )
+    };
+
+    ( $fn_name:expr, $docs:tt, $ctx:tt, $args:ident, $kwargs:ident, $fn_type:expr, $body:tt ) => {
+        (
+            $fn_name,
+            $crate::FnOverload {
+                ty: $fn_type,
+                call: std::sync::Arc::new(|$ctx, $args, $kwargs| {
+                    let output: $crate::ValueData = $body.into();
+                    Ok(output.at($crate::BUILTIN_SPAN))
+                }),
+                debug_info: $crate::FnDebugInfo::Internal($fn_name),
+                parent_scope: None, // built-in functions never modify local variables
+                docs: Some($docs.as_slice()).filter(|arr| !arr.is_empty()),
+            },
+        )
+     };
+}
+
 macro_rules! hps_fn {
     ($fn_name:expr, || $($rest:tt)*) => {
         hps_fn!($fn_name, |_ctx| $($rest)*)
@@ -46,6 +167,7 @@ macro_rules! hps_fn {
                 }),
                 debug_info: $crate::FnDebugInfo::Internal($fn_name),
                 parent_scope: None, // built-in functions never modify local variables
+                docs: None,
             },
         )
     };
@@ -58,6 +180,8 @@ macro_rules! hps_fn {
 }
 
 macro_rules! ty_from_tokens {
+    ( ( $($inner:tt)* ) ) => { ty_from_tokens!($($inner)*) };
+
     // Standard types
     (Fn) => {
         $crate::Type::Fn(std::default::Default::default())
@@ -76,22 +200,38 @@ macro_rules! ty_from_tokens {
     (ETransform) => { $crate::Type::EuclidTransform };
     (EPlane) => { $crate::Type::EuclidPlane };
     (ERegion) => { $crate::Type::EuclidRegion };
+    ($ty:ident ?) => {
+        $crate::Type::Union(vec![
+            $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*))),
+            ty_from_tokens!(Null),
+        ])
+    };
 
     ($collection_ty:ident ( $($inner:tt)* )) => {
         $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
+    };
+    ($collection_ty:ident ( $($inner:tt)* ) ?) => {
+        $crate::Type::Union(vec![
+            $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*))),
+            ty_from_tokens!(Null),
+        ])
     };
     ($($tok:tt)*) => { $crate::Type::$($tok)* };
 }
 
 macro_rules! unpack_val {
-    (let $dst:ident = $($rest:tt)*) => { unpack_val!(let ($dst, _) = $($rest)*) };
-    (let ($dst:ident, $span:tt) = $val:expr, $($ty:tt)*) => {
+    (let ($dst:tt, $span:tt) = $val:expr, $($ty:tt)*) => {
         let val = $val;
         let $span = val.span;
         let $dst = unpack_val!(val, $($ty)*);
     };
+    (let $dst:tt = $val:expr, $($ty:tt)*) => {
+        let val = $val;
+        let $dst = unpack_val!(val, $($ty)*);
+    };
 
     // Standard types
+    ($val:ident, ($($ty:tt)*)) => { unpack_val!($val, $($ty)*) };
     ($val:ident, Any)  => { $val };
     ($val:ident, Null) => { unpack_val!(@$val, (Null), $crate::ValueData::Null => ()) };
     ($val:ident, Bool) => { unpack_val!(@$val, (Bool), $crate::ValueData::Bool(b) => b) };
@@ -118,7 +258,16 @@ macro_rules! unpack_val {
     ($val:ident, Int)  => { $val.as_int()? };
     ($val:ident, Uint)  => { $val.as_uint()? };
     // Fallback
-    ($val:ident, $other:ident) => { compile_error!(concat!("unsupported type: ", stringify!($other))) };
+    ($val:ident, $other:ident) => { unpack_val!(@$val, ($other), $crate::ValueData::$other(inner) => inner) };
+
+    // Optional
+    ($val:ident, $primitive:ident ?) => {
+        // TODO: error message doesn't say that `Null` is allowed
+        match $val.is_null() {
+            true => None,
+            false => Some(unpack_val!($val, $primitive)),
+        }
+    };
 
     // Collection types
     ($val:ident, List ( $($inner:tt)* )) => {
@@ -142,22 +291,28 @@ macro_rules! unpack_val {
 }
 
 macro_rules! unpack_kwargs {
-    ($kwargs:expr $(, $name:ident: $ty:ident $( ( $($ty_contents:tt)* ) )? = $default:expr)* $(,)?) => {
+    ($kwargs:expr, $target:ident) => {
+        let $target = $kwargs;
+    };
+    ($kwargs:expr $(, $name:ident: $ty:ident $( ( $($ty_contents:tt)* ) )? $( = $default:expr )?)+ $(,)?) => {
+        unpack_kwargs!($kwargs $(, $name: ( $ty $( ( $($ty_contents)* ) )? ) $( = $default )?)+)
+    };
+    ($kwargs:expr $(, $name:ident: ( $($ty:tt)* ) $( = $default:expr )?)* $(,)?) => {
         #[allow(unused_mut)]
         let mut kwargs = $kwargs;
         $(
             let $name = match kwargs.swap_remove(stringify!($name)) {
-                Some(val) => unpack_val!(val, $ty $( ( $($ty_contents)* ) )?);
+                Some(val) => unpack_val!(val, $($ty)*),
                 None => {
-                    #[allow(unused_mut)]
+                    #[allow(unused)]
                     let mut val = None;
                     $( val = Some($default); )?
                     val.ok_or_else(|| {
                         $crate::Error::MissingRequiredNamedParameter(stringify!($name).into())
-                            .at(param_span)
+                            .at($crate::BUILTIN_SPAN)
                     })?
                 }
-            }
+            };
         )*
 
         if !kwargs.is_empty() {

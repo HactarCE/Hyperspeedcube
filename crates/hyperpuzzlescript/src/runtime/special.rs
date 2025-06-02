@@ -1,4 +1,4 @@
-use crate::{Error, Result, Span, Value, ast};
+use crate::{Result, Value, ast};
 
 /// Scoped special variables.
 #[derive(Debug, Default, Clone)]
@@ -7,11 +7,6 @@ pub struct SpecialVariables {
     pub ndim: Option<u8>,
 }
 impl SpecialVariables {
-    /// Returns `#ndim`, or errors if it is undefined.
-    pub fn ndim(&self, span: Span) -> Result<u8> {
-        self.ndim.ok_or(Error::NoNdim.at(span))
-    }
-
     /// Sets a special variable in the `with` block.
     pub fn set(&mut self, ident: ast::SpecialVar, value: Value) -> Result<()> {
         match ident {

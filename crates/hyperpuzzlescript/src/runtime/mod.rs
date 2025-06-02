@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 mod ctx;
 mod file_store;
-mod registry;
 mod scope;
+mod special;
 
 use arcstr::ArcStr;
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
 use indexmap::IndexMap;
-pub use registry::SpecialVariables;
 pub use scope::{ParentScope, Scope};
+pub use special::SpecialVariables;
 
 use crate::{FileId, FullDiagnostic, Key, Result, Span, Value, ValueData, ast};
 

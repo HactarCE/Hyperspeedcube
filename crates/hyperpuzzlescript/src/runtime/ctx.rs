@@ -645,7 +645,7 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::Ident(ident_span) => Ok(self.get_var(*ident_span)?.data),
             ast::NodeContents::SpecialIdent(special_ident) => Ok(match special_ident {
-                ast::SpecialVar::Ndim => self.scope.special.ndim(span)?.into(),
+                ast::SpecialVar::Ndim => self.ndim_at(span)?.into(),
                 ast::SpecialVar::Sym => todo!("#sym"),
             }),
             ast::NodeContents::Op { op, args } => {
@@ -692,27 +692,33 @@ impl EvalCtx<'_> {
                         self.eval(func)?
                     };
                 let f = func_value.as_func()?;
+                let mut args_splat_span = None;
                 let mut kwarg_values = IndexMap::new();
-                let mut splat_span = None;
+                let mut kwargs_splat_span = None;
                 for arg in args {
-                    if let Some(splat_span) = splat_span {
-                        return Err(Error::FnArgSplatBeforeEnd.at(splat_span));
-                    }
-                    match arg.name {
-                        Some(name) => {
-                            kwarg_values.insert(self.substr(name), self.eval(&arg.value)?);
-                        }
-                        None => {
-                            if let Some(splat) = arg.value.0.as_map_splat(self) {
-                                kwarg_values
-                                    .extend(Arc::unwrap_or_clone(self.eval(splat)?.into_map()?));
-                                splat_span = Some(splat.1);
-                            } else if kwarg_values.is_empty() {
-                                arg_values.push(self.eval(&arg.value)?)
-                            } else {
-                                return Err(Error::PositionalParamAfterNamedParam.at(arg.value.1));
-                            }
-                        }
+                    if let Some(sp) = kwargs_splat_span {
+                        // already seen named arguments splat
+                        return Err(Error::FnArgSplatBeforeEnd.at(sp));
+                    } else if let Some(splat) = arg.value.0.as_map_splat(self) {
+                        // named arguments splat
+                        kwarg_values.extend(Arc::unwrap_or_clone(self.eval(splat)?.into_map()?));
+                        kwargs_splat_span = Some(splat.1);
+                    } else if let Some(name) = arg.name {
+                        // named argument
+                        kwarg_values.insert(self.substr(name), self.eval(&arg.value)?);
+                    } else if !kwarg_values.is_empty() {
+                        // already seen named argument
+                        return Err(Error::PositionalParamAfterNamedParam.at(arg.value.1));
+                    } else if let Some(sp) = args_splat_span {
+                        // already seen positional arguments splat
+                        return Err(Error::FnArgSplatBeforeEnd.at(sp)); // TODO: not quite accurate
+                    } else if let Some(splat) = arg.value.0.as_list_splat(self) {
+                        // positional arguments splat
+                        arg_values.extend(Arc::unwrap_or_clone(self.eval(splat)?.into_list()?));
+                        args_splat_span = Some(splat.1);
+                    } else {
+                        // positional argument
+                        arg_values.push(self.eval(&arg.value)?)
                     }
                 }
                 let args = arg_values;
@@ -1022,6 +1028,7 @@ impl EvalCtx<'_> {
             }),
             debug_info: span.into(),
             parent_scope: Some(Arc::clone(self.scope)),
+            docs: None,
         })
     }
 
@@ -1165,6 +1172,16 @@ impl EvalCtx<'_> {
             Some(contents) => contents.substr(span.start as usize..span.end as usize),
             None => Substr::new(),
         }
+    }
+
+    /// Returns `#ndim`, or errors if it is undefined. The error is reported as
+    /// [`Self::caller_span`].
+    pub fn ndim(&self) -> Result<u8> {
+        self.ndim_at(self.caller_span)
+    }
+    /// Returns `#ndim`, or errors if it is undefined.
+    pub fn ndim_at(&self, span: Span) -> Result<u8> {
+        self.scope.special.ndim.ok_or(Error::NoNdim.at(span))
     }
 }
 

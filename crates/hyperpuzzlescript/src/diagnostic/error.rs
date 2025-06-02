@@ -20,7 +20,7 @@ pub enum Error {
     #[error("unimplemented")]
     Unimplemented(&'static str),
     #[error("type error")]
-    TypeError { expected: Type, got: Type },
+    TypeError { expected: Vec<Type>, got: Type },
     #[error("immutable value")]
     Immut { reason: ImmutReason },
     #[error("expected type")]
@@ -204,9 +204,10 @@ impl Error {
             Self::Unimplemented(_) => {
                 report_builder.main_label("this feature isn't implemented yet")
             }
-            Self::TypeError { expected, got } => {
-                report_builder.main_label(format!("expected \x02{expected}\x03, got \x02{got}\x03"))
-            }
+            Self::TypeError { expected, got } => report_builder.main_label(format!(
+                "expected \x02{}\x03, got \x02{got}\x03",
+                join_with_conjunction(expected.iter().map(|ty| ty.to_string()).collect_vec(), "or",)
+            )),
             Self::Immut { reason } => {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }
@@ -334,7 +335,10 @@ impl Error {
                 arg_types,
                 overloads,
             } => report_builder
-                .main_label("for \x02this function\x03")
+                .main_label({
+                    let types = arg_types.iter().map(|(ty, _)| ty).join(", ");
+                    format!("no overload for \x02this function\x03 matches Fn({types})")
+                })
                 .label_types(arg_types)
                 .help(if overloads.is_empty() {
                     "this function cannot be called".to_owned()
@@ -446,5 +450,18 @@ fn there_should_be_min_max_msg(min: usize, max: usize) -> String {
         format!("there should be exactly {min}")
     } else {
         format!("there should be between {min} and {max} (inclusive)")
+    }
+}
+
+fn join_with_conjunction(items: Vec<String>, conjunction: &str) -> String {
+    match items.as_slice() {
+        [] => "<nothing>".to_string(),
+        [a] => a.to_string(),
+        [a, b] => format!("{a} {conjunction} {b}"),
+        rest => {
+            let (last, all_but_last) = rest.split_last().unwrap();
+            let all_but_last = all_but_last.iter().join(", ");
+            format!("{all_but_last}, {conjunction} {last}")
+        }
     }
 }

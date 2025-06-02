@@ -102,6 +102,10 @@ impl Value {
 
     /// Returns a type error saying that this value has the wrong type.
     pub fn type_error(&self, expected: Type) -> FullDiagnostic {
+        self.multi_type_error(vec![expected])
+    }
+    /// Returns a type error saying that this value has the wrong type.
+    pub fn multi_type_error(&self, expected: Vec<Type>) -> FullDiagnostic {
         Error::TypeError {
             expected,
             got: self.ty(),
@@ -264,6 +268,26 @@ impl Value {
         })
     }
 
+    /// Converts the value to a vector.
+    pub(crate) fn to_vector(&self) -> Result<Vector> {
+        match &self.data {
+            ValueData::Vec(v) => Ok(v.clone()),
+            _ => Err(self.multi_type_error(vec![Type::Vec])),
+        }
+    }
+    /// Converts the value to a PGA blade.
+    pub(crate) fn to_pga_blade(&self) -> Result<hypermath::pga::Blade> {
+        match &self.data {
+            ValueData::Vec(v) => Ok(hypermath::pga::Blade::from_vector(v)),
+            ValueData::EuclidBlade(b) => Ok(b.clone()),
+            _ => Err(self.multi_type_error(vec![Type::EuclidBlade])),
+        }
+    }
+
+    pub(crate) fn as_opt(&self) -> Option<&Self> {
+        (!self.is_null()).then_some(self)
+    }
+
     /// Converts the value to an integer and then uses it to index a
     /// double-ended collection.
     ///
@@ -362,6 +386,8 @@ pub enum ValueData {
     EuclidPlane(Box<hypermath::Hyperplane>),
     /// Region of Euclidean space.
     EuclidRegion(std::convert::Infallible),
+    /// PGA blade in Euclidean space.
+    EuclidBlade(hypermath::pga::Blade),
 }
 impl fmt::Debug for ValueData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -448,6 +474,7 @@ impl ValueData {
             Self::EuclidTransform(motor) => write!(f, "{ND_EUCLID}.motor({motor})"),
             Self::EuclidPlane(hyperplane) => write!(f, "{ND_EUCLID}.plane({hyperplane})"),
             Self::EuclidRegion(region) => todo!("display region"),
+            Self::EuclidBlade(blade) => write!(f, "{ND_EUCLID}.blade({blade})"),
         }
     }
 
@@ -474,6 +501,7 @@ impl ValueData {
             Self::EuclidTransform(_) => Type::EuclidTransform,
             Self::EuclidPlane(_) => Type::EuclidPlane,
             Self::EuclidRegion(_) => Type::EuclidRegion,
+            Self::EuclidBlade(_) => Type::EuclidBlade,
         }
     }
 
@@ -772,6 +800,8 @@ pub struct FnOverload {
     /// function uses the caller's scope, which is an optimization that is only
     /// valid for for built-in functions.
     pub parent_scope: Option<Arc<Scope>>,
+    /// Documentation lines.
+    pub docs: Option<&'static [&'static str]>,
 }
 impl fmt::Debug for FnOverload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
