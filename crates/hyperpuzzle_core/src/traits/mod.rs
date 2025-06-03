@@ -1,3 +1,6 @@
+/// Defines a wrapper struct around `Box<dyn Trait>` that allows downcasting to
+/// anything that implements the trait.
+#[macro_export]
 macro_rules! box_dyn_wrapper_struct {
     {
         $(#[$attr:meta])*
@@ -41,6 +44,8 @@ macro_rules! box_dyn_wrapper_struct {
     };
 }
 
+/// Implements `Clone` for a `box_dyn_wrapper_struct!`.
+#[macro_export]
 macro_rules! impl_dyn_clone {
     (for $struct_name:ident) => {
         impl Clone for $struct_name {

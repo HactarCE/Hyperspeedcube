@@ -1,6 +1,11 @@
 fn f(a: Num) -> Str { a }
+assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: Num) -> Num { 15 } }))
+assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: Int) -> Num { 15 } }))
+assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: Nat) -> Num { 15 } }))
+
 fn f(a: List[Num]) -> Str { "hello" }
 assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: List[Str]) -> Str { "hello" } }))
+assert_eq("conflicting function overload", __eval_to_error(fn() { fn f(a: NonEmptyList[Nat]) -> Str { "hello" } }))
 
 assert_eq("hello", f([]))
 assert_eq("type error", __eval_to_error(fn() { f(3) }))
@@ -10,3 +15,26 @@ assert_eq("bad argument types", __eval_to_error(fn() { f([["abc"]]) }))
 assert_eq("bad argument types", __eval_to_error(fn() { f([[10]]) }))
 assert_eq("hello", f([10]))
 assert_eq("hello", f([]))
+
+fn f(a: NonEmptyList[Str]) -> Str { "hello" } // ok
+
+fn g() -> Str { "no args" }
+fn g(a: Num | Str) -> Str { "num or str" }
+fn g(a: EmptyList) -> Str { "empty list" }
+fn g(a: NonEmptyList[Nat]?) -> Str { "naturals" }
+fn g(a: NonEmptyList[Str]) -> Str { "strings" }
+
+assert_eq("no args", g())
+assert_eq("naturals", g(null))
+assert_eq("num or str", g(3))
+assert_eq("num or str", g("hello"))
+assert_eq("empty list", g([]))
+assert_eq("naturals", g([1]))
+assert_eq("naturals", g([1, 2, 3]))
+assert_eq("strings", g(["a"]))
+assert_eq("strings", g(["a", "b", "c"]))
+assert_eq("bad argument types", __eval_to_error(fn() { g([-5]) }))
+assert_eq("bad argument types", __eval_to_error(fn() { g(["a", 12, "c"]) }))
+
+assert_eq("Num", str(Nat | Num | Int))
+assert_eq("Num?", str(Nat | Num | Int | Null))

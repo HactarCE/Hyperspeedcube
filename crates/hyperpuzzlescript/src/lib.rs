@@ -6,6 +6,7 @@ use std::path::Path;
 
 mod ast;
 mod builtins;
+mod custom_value;
 mod diagnostic;
 mod parse;
 mod runtime;
@@ -13,6 +14,7 @@ mod ty;
 mod value;
 
 use arcstr::Substr;
+pub use custom_value::{BoxDynValue, CustomValue};
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
 pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};

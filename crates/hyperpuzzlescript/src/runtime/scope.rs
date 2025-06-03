@@ -130,6 +130,22 @@ impl Scope {
         }
     }
 
+    /// Adds a value to the current scope.
+    ///
+    /// This is equivalent to `set` for all values except functions, for which
+    /// it merges the overrides. Conflicting overrides cause an error.
+    pub fn add(&self, name: impl Into<Key>, value: Value) -> Result<()> {
+        if let Ok(f) = value.as_func() {
+            let name = name.into();
+            for o in &f.overloads {
+                self.register_func(value.span, name.clone(), o.clone())?;
+            }
+        } else {
+            self.set(name, value);
+        }
+        Ok(())
+    }
+
     /// Applies `f` to the value of a variable in the current scope, first
     /// assigning `default` if it is not yet defined.
     ///

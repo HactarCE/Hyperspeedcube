@@ -30,18 +30,26 @@ pub fn define_in(scope: &Scope) -> Result<()> {
 
     scope.register_builtin_functions([
         // Operators
-        hps_fn!("+", |a: EPoint, b: Vec| -> EPoint { a + b }),
-        hps_fn!("+", |a: Vec, b: EPoint| -> EPoint { b + a }),
-        hps_fn!("-", |a: EPoint, b: Vec| -> EPoint { a - b }),
-        hps_fn!("-", |a: EPoint, b: EPoint| -> Vec { a - b }),
+        hps_fn!("+", |a: EuclidPoint, b: Vec| -> EuclidPoint { a + b }),
+        hps_fn!("+", |a: Vec, b: EuclidPoint| -> EuclidPoint { b + a }),
+        hps_fn!("-", |a: EuclidPoint, b: Vec| -> EuclidPoint { a - b }),
+        hps_fn!("-", |a: EuclidPoint, b: EuclidPoint| -> Vec { a - b }),
         // Interpolation
-        hps_fn!("lerp", |a: EPoint, b: EPoint, t: Num| -> EPoint {
+        hps_fn!("lerp", |a: EuclidPoint,
+                         b: EuclidPoint,
+                         t: Num|
+         -> EuclidPoint {
             Point(hypermath::util::lerp(a.0, b.0, t.clamp(0.0, 1.0)))
         }),
-        hps_fn!("lerp_unbounded", |a: EPoint, b: EPoint, t: Num| -> EPoint {
+        hps_fn!("lerp_unbounded", |a: EuclidPoint,
+                                   b: EuclidPoint,
+                                   t: Num|
+         -> EuclidPoint {
             Point(hypermath::util::lerp(a.0, b.0, t))
         }),
         // Other functions
-        hps_fn!("distance", |a: EPoint, b: EPoint| -> Num { (a - b).mag2() }),
+        hps_fn!("distance", |a: EuclidPoint, b: EuclidPoint| -> Num {
+            (a - b).mag2()
+        }),
     ])
 }

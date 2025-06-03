@@ -10,23 +10,23 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions([
         // Digits
         hps_fn!("to_digits", |ctx,
-                              n: Uint,
-                              (base, base_span): Uint|
-         -> List(Uint) {
+                              n: Nat,
+                              (base, base_span): Nat|
+         -> List(Nat) {
             to_digits(n, base, base_span, false)?
                 .into_iter()
                 .map(|digit| (digit as f64, ctx.caller_span))
                 .collect_vec()
         }),
-        hps_fn!("from_digits", |(digits, digits_span): List(Uint),
-                                (base, base_span): Uint|
-         -> Uint {
+        hps_fn!("from_digits", |(digits, digits_span): List(Nat),
+                                (base, base_span): Nat|
+         -> Nat {
             from_digits(&digits, digits_span, base, base_span, false)?
         }),
         hps_fn!("to_digits_bijective", |ctx,
-                                        n: Uint,
-                                        (base, base_span): Uint|
-         -> List(Uint) {
+                                        n: Nat,
+                                        (base, base_span): Nat|
+         -> List(Nat) {
             to_digits(n, base, base_span, true)?
                 .into_iter()
                 .map(|digit| (digit as f64, ctx.caller_span))
@@ -34,19 +34,19 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         }),
         hps_fn!(
             "from_digits_bijective",
-            |(digits, digits_span): List(Uint), (base, base_span): Uint| -> Uint {
+            |(digits, digits_span): List(Nat), (base, base_span): Nat| -> Nat {
                 from_digits(&digits, digits_span, base, base_span, true)?
             }
         ),
         // to_base
-        hps_fn!("to_base", |(n, n_span): Uint,
-                            (base, base_span): Uint|
+        hps_fn!("to_base", |(n, n_span): Nat,
+                            (base, base_span): Nat|
          -> Str {
             let base_digits = default_base_digits(base, base_span)?;
             let digits = to_digits(n, base, base_span, false)?;
             digits_to_str(&digits, n_span, base_digits)?
         }),
-        hps_fn!("to_base", |(n, n_span): Uint,
+        hps_fn!("to_base", |(n, n_span): Nat,
                             (base_digits, base_span): Str|
          -> Str {
             let base = base_digits.chars().count() as u64;
@@ -54,14 +54,14 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             digits_to_str(&digits, n_span, &base_digits)?
         }),
         // to_base_bijective
-        hps_fn!("to_base_bijective", |(n, n_span): Uint,
-                                      (base, base_span): Uint|
+        hps_fn!("to_base_bijective", |(n, n_span): Nat,
+                                      (base, base_span): Nat|
          -> Str {
             let base_digits = default_base_digits(base, base_span)?;
             let digits = to_digits(n, base, base_span, true)?;
             digits_to_str(&digits, n_span, base_digits)?
         }),
-        hps_fn!("to_base_bijective", |(n, n_span): Uint,
+        hps_fn!("to_base_bijective", |(n, n_span): Nat,
                                       (base_digits, base_span): Str|
          -> Str {
             let base = base_digits.chars().count() as u64;
@@ -70,40 +70,40 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         }),
         // from_base
         hps_fn!("from_base", |(s, s_span): Str,
-                              (base, base_span): Uint|
-         -> Uint {
+                              (base, base_span): Nat|
+         -> Nat {
             let base_digits = default_base_digits(base, base_span)?;
             let digits = str_to_digits(&s, s_span, base_digits)?;
             from_digits(&digits, s_span, base, base_span, false)?
         }),
         hps_fn!("from_base", |(s, s_span): Str,
                               (base_digits, base_span): Str|
-         -> Uint {
+         -> Nat {
             let base = base_digits.chars().count() as u64;
             let digits = str_to_digits(&s, s_span, &base_digits)?;
             from_digits(&digits, s_span, base, base_span, false)?
         }),
         // from_base_bijective
         hps_fn!("from_base_bijective", |(s, s_span): Str,
-                                        (base, base_span): Uint|
-         -> Uint {
+                                        (base, base_span): Nat|
+         -> Nat {
             let base_digits = default_base_digits(base, base_span)?;
             let digits = str_to_digits(&s, s_span, base_digits)?;
             from_digits(&digits, s_span, base, base_span, true)?
         }),
         hps_fn!("from_base_bijective", |(s, s_span): Str,
                                         (base_digits, base_span): Str|
-         -> Uint {
+         -> Nat {
             let base = base_digits.chars().count() as u64;
             let digits = str_to_digits(&s, s_span, &base_digits)?;
             from_digits(&digits, s_span, base, base_span, true)?
         }),
         // base26
-        hps_fn!("to_base26", |(n, n_span): Uint| -> Str {
+        hps_fn!("to_base26", |(n, n_span): Nat| -> Str {
             let digits = to_digits(n, 26, crate::BUILTIN_SPAN, true)?;
             digits_to_str(&digits, n_span, A0Z25)?
         }),
-        hps_fn!("from_base26", |(s, s_span): Str| -> Uint {
+        hps_fn!("from_base26", |(s, s_span): Str| -> Nat {
             let digits = str_to_digits(&s, s_span, A0Z25)?;
             from_digits(&digits, s_span, 26, crate::BUILTIN_SPAN, true)?
         }),

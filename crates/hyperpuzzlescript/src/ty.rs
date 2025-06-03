@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use itertools::Itertools;
@@ -6,7 +7,9 @@ use itertools::Itertools;
 use crate::Value;
 
 /// Type in the language, which is a predicate on values.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+///
+/// These predicates may overlap.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[allow(missing_docs)]
 pub enum Type {
     #[default]
@@ -15,9 +18,16 @@ pub enum Type {
     Bool,
     Num,
     Str,
-    List(Box<Type>),
-    Map(Box<Type>),
-    Fn(Box<FnType>),
+    List(Option<Box<Type>>),
+    Map,
+    Fn,
+    Type,
+
+    // More specific predicates
+    Int,
+    Nat, // includes zero
+    EmptyList,
+    NonEmptyList(Option<Box<Type>>),
 
     Vec,
 
@@ -39,9 +49,10 @@ pub enum Type {
 
     AxisSystem,
     TwistSystem,
-    Puzzle,
 
-    Union(Vec<Type>),
+    Union(TypeUnion),
+
+    Custom(&'static str),
 }
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -51,21 +62,16 @@ impl fmt::Display for Type {
             Type::Bool => write!(f, "Bool"),
             Type::Num => write!(f, "Num"),
             Type::Str => write!(f, "Str"),
-            Type::List(inner) => {
-                write!(f, "List")?;
-                if **inner != Type::Any {
-                    write!(f, "[{inner}]")?;
-                }
-                Ok(())
-            }
-            Type::Map(inner) => {
-                write!(f, "Map")?;
-                if **inner != Type::Any {
-                    write!(f, "[{inner}]")?;
-                }
-                Ok(())
-            }
-            Type::Fn(fn_type) => write!(f, "{fn_type}"),
+            Type::List(None) => write!(f, "List"),
+            Type::List(Some(inner)) => write!(f, "List[{inner}]"),
+            Type::Map => write!(f, "Map"),
+            Type::Fn => write!(f, "Fn"),
+            Type::Type => write!(f, "Type"),
+            Type::Int => write!(f, "Int"),
+            Type::Nat => write!(f, "Nat"),
+            Type::EmptyList => write!(f, "EmptyList"),
+            Type::NonEmptyList(None) => write!(f, "NonEmptyList"),
+            Type::NonEmptyList(Some(inner)) => write!(f, "NonEmptyList[{inner}]"),
             Type::Vec => write!(f, "Vec"),
             Type::EuclidPoint => write!(f, "euclid.Point"),
             Type::EuclidTransform => write!(f, "euclid.Transform"),
@@ -82,9 +88,14 @@ impl fmt::Display for Type {
             Type::Twist => write!(f, "Twist"),
             Type::AxisSystem => write!(f, "AxisSystem"),
             Type::TwistSystem => write!(f, "TwistSystem"),
-            Type::Puzzle => write!(f, "Puzzle"),
 
-            Type::Union(union) => write!(f, "{}", union.iter().join(" | ")),
+            Type::Union(union) => match union.try_to_nullable_single_type() {
+                Ok(nullable_single_type) => write!(f, "{nullable_single_type}?"),
+
+                Err(types_list) => write!(f, "{}", types_list.iter().join(" | ")),
+            },
+
+            Type::Custom(name) => write!(f, "{name}"),
         }
     }
 }
@@ -93,15 +104,22 @@ impl Type {
     pub fn unify(a: Type, b: Type) -> Type {
         match (a, b) {
             (a, b) if a == b => a,
-            (Type::List(a_elem), Type::List(b_elem)) => {
-                Type::List(Box::new(Type::unify(*a_elem, *b_elem)))
+            (a, b) if a.is_subtype_of(&b) => b,
+            (b, a) if a.is_subtype_of(&b) => b,
+            (Type::List(a_elem), Type::List(b_elem)) => Type::List(
+                Option::zip(a_elem, b_elem)
+                    .map(|(a_elem, b_elem)| Box::new(Type::unify(*a_elem, *b_elem))),
+            ),
+            (Type::Union(mut u), other) | (other, Type::Union(mut u)) => {
+                u.insert(other);
+                Type::Union(u)
             }
-            (Type::Map(a_elem), Type::Map(b_elem)) => {
-                Type::Map(Box::new(Type::unify(*a_elem, *b_elem)))
+            (a, b) => {
+                let mut u = TypeUnion::default();
+                u.insert(a);
+                u.insert(b);
+                Type::Union(u)
             }
-            (Type::Fn(a_fn), Type::Fn(b_fn)) => Type::Fn(Box::new(FnType::unify(*a_fn, *b_fn))),
-            // TODO: handle unions
-            _ => Type::Any,
         }
     }
 
@@ -109,38 +127,51 @@ impl Type {
     pub fn is_subtype_of(&self, other: &Type) -> bool {
         match (self, other) {
             (_, Type::Any) => true,
+
             (Type::List(self_inner), Type::List(other_inner))
-            | (Type::Map(self_inner), Type::Map(other_inner)) => {
-                self_inner.is_subtype_of(other_inner)
+            | (Type::NonEmptyList(self_inner), Type::List(other_inner))
+            | (Type::NonEmptyList(self_inner), Type::NonEmptyList(other_inner)) => {
+                match (&self_inner, &other_inner) {
+                    (Some(a), Some(b)) => a.is_subtype_of(b),
+                    _ => other_inner.is_none(),
+                }
             }
-            (Type::Fn(self_inner), Type::Fn(other_inner)) => self_inner.is_subtype_of(other_inner),
-            (Type::Union(a), b) => a.iter().all(|a| a.is_subtype_of(b)),
-            (a, Type::Union(b)) => b.iter().any(|b| a.is_subtype_of(b)),
+            (Type::EmptyList, Type::List(_)) => true,
+
+            (Type::Nat, Type::Int) | (Type::Nat, Type::Num) | (Type::Int, Type::Num) => true,
+
+            (Type::Union(a), b) => a.to_vec().iter().all(|a| a.is_subtype_of(b)),
+            (a, Type::Union(b)) => b.to_vec().iter().any(|b| a.is_subtype_of(b)),
             _ => self == other,
         }
     }
-    /// Returns whether there is any value that has type `self` and type
+    /// Returns whether there is some value that has type `self` and type
     /// `other`.
     pub fn overlaps(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Any, _) | (_, Type::Any) => true,
-            (Type::List(_), Type::List(_)) | (Type::Map(_), Type::Map(_)) => true,
-            (Type::Fn(self_inner), Type::Fn(other_inner)) => {
-                self_inner.might_be_subtype_of(other_inner)
-            }
-            (Type::Union(u), a) | (a, Type::Union(u)) => u.iter().any(|b| a.overlaps(b)),
+
+            (Type::Num | Type::Int | Type::Nat, Type::Num | Type::Int | Type::Nat) => true,
+
+            (Type::List(_) | Type::EmptyList, Type::List(_) | Type::EmptyList) => true,
+            (
+                Type::List(Some(a)) | Type::NonEmptyList(Some(a)),
+                Type::List(Some(b)) | Type::NonEmptyList(Some(b)),
+            ) => a.overlaps(&b),
+
+            (Type::Union(u), a) | (a, Type::Union(u)) => u.to_vec().iter().any(|b| a.overlaps(b)),
             _ => self == other,
         }
+    }
+
+    /// Returns a union of this type with `Type::Null`.
+    pub fn optional(self) -> Type {
+        Self::unify(self, Type::Null)
     }
 }
 impl FromIterator<Type> for Type {
     fn from_iter<T: IntoIterator<Item = Type>>(iter: T) -> Self {
         iter.into_iter().reduce(Type::unify).unwrap_or_default()
-    }
-}
-impl From<FnType> for Type {
-    fn from(value: FnType) -> Self {
-        Type::Fn(Box::new(value))
     }
 }
 impl From<Type> for Cow<'_, Type> {
@@ -276,6 +307,143 @@ impl FnType {
                     && std::iter::zip(params, args).all(|(param, arg)| arg.is_type(param))
             }
             None => true,
+        }
+    }
+}
+
+/// Union of list types.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct ListTypeUnion {
+    empty: bool,
+    non_empty: Option<Box<TypeUnion>>,
+}
+impl ListTypeUnion {
+    fn any() -> Self {
+        Self {
+            empty: true,
+            non_empty: Some(Box::new(TypeUnion::Any)),
+        }
+    }
+
+    fn insert(&mut self, elem: Type) {
+        self.insert_empty();
+        self.insert_nonempty(elem);
+    }
+    fn insert_empty(&mut self) {
+        self.empty = true;
+    }
+    fn insert_nonempty(&mut self, elem: Type) {
+        self.non_empty.get_or_insert_default().insert(elem);
+    }
+
+    fn to_vec(&self) -> Vec<Type> {
+        let get_empty_list_types = || match self.empty {
+            true => vec![Type::EmptyList],
+            false => vec![],
+        };
+        let list_type_fn = match self.empty {
+            true => Type::List,
+            false => Type::NonEmptyList,
+        };
+
+        match &self.non_empty {
+            None => get_empty_list_types(),
+            Some(elem_union) if elem_union.is_any() => vec![list_type_fn(None)],
+            Some(elem_union) if elem_union.is_empty() => get_empty_list_types(),
+            Some(elem_union) => elem_union
+                .to_vec()
+                .into_iter()
+                .map(|ty| list_type_fn(Some(Box::new(ty))))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum TypeUnion {
+    Any,
+    Specific {
+        lists: ListTypeUnion,
+        other_types: BTreeSet<Type>,
+    },
+}
+impl Default for TypeUnion {
+    fn default() -> Self {
+        Self::Specific {
+            lists: ListTypeUnion::default(),
+            other_types: BTreeSet::new(),
+        }
+    }
+}
+impl TypeUnion {
+    pub fn insert(&mut self, ty: Type) {
+        let Self::Specific { lists, other_types } = self else {
+            return;
+        };
+
+        match ty {
+            Type::Any => *self = Self::Any,
+            Type::List(None) => lists.insert(Type::Any),
+            Type::List(Some(elem)) => lists.insert(*elem),
+            Type::EmptyList => lists.insert_empty(),
+            Type::NonEmptyList(None) => lists.insert_nonempty(Type::Any),
+            Type::NonEmptyList(Some(elem)) => lists.insert_nonempty(*elem),
+            Type::Union(union) => {
+                for ty in union.to_vec() {
+                    self.insert(ty);
+                }
+            }
+            other => {
+                other_types.insert(other);
+            }
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<Type> {
+        match self {
+            TypeUnion::Any => vec![Type::Any],
+            TypeUnion::Specific { lists, other_types } => {
+                itertools::chain(other_types.iter().cloned(), lists.to_vec()).collect()
+            }
+        }
+    }
+
+    pub fn is_any(&self) -> bool {
+        matches!(self, TypeUnion::Any)
+    }
+    pub fn is_empty(&self) -> bool {
+        match self {
+            TypeUnion::Any => false,
+            TypeUnion::Specific { lists, other_types } => {
+                !lists.empty
+                    && lists.non_empty.as_ref().is_none_or(|elem| elem.is_empty())
+                    && other_types.is_empty()
+            }
+        }
+    }
+
+    /// If the union contains only `Null` and one other type, returns `Ok`
+    /// containing that one other type. Otherwise returns `Err` containing all
+    /// types (equivalent to [`Self::to_vec()`]).
+    ///
+    /// Examples:
+    ///
+    /// - empty union returns `Err`
+    /// - `Int` returns `Err`
+    /// - `List[Str]` returns `Err`
+    /// - `Null | Int` returns `Ok(Int)`
+    /// - `Null | List[Null | Str]` returns `Ok(List[Null | Str])`
+    /// - `Null | List | Map` returns `Err`
+    fn try_to_nullable_single_type(&self) -> Result<Type, Vec<Type>> {
+        let types = self.to_vec();
+        if types.len() == 2 && types.contains(&Type::Null) {
+            let non_null_type = types
+                .into_iter()
+                .find(|t| *t != Type::Null)
+                .unwrap_or(Type::Null);
+            Ok(non_null_type)
+        } else {
+            Err(types)
         }
     }
 }

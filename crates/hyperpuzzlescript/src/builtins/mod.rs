@@ -12,6 +12,7 @@ mod math;
 mod operators;
 mod output;
 mod strings;
+mod types;
 
 use crate::{Result, Scope};
 
@@ -29,6 +30,7 @@ pub fn new_builtins_scope() -> Arc<Scope> {
         output::define_in(&scope)?;
         geometry::define_in(&scope)?;
         strings::define_in(&scope)?;
+        types::define_in(&scope)?;
         Ok(scope)
     })()
     .expect("error define built-ins")

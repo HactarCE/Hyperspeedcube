@@ -304,6 +304,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 postfix_function_call(70),
                 postfix_indexing(70),
                 postfix(70, Token::Degrees),
+                postfix(70, Token::QuestionMark),
                 // Prefix operators
                 prefix(60, Token::Plus),
                 prefix(60, Token::Minus),

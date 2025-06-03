@@ -183,36 +183,15 @@ macro_rules! ty_from_tokens {
     ( ( $($inner:tt)* ) ) => { ty_from_tokens!($($inner)*) };
 
     // Standard types
-    (Fn) => {
-        $crate::Type::Fn(std::default::Default::default())
-    };
-    (List) => {
-        $crate::Type::List(std::boxed::Box::new($crate::Type::Any))
-    };
-    (Map) => {
-        $crate::Type::Map(std::boxed::Box::new($crate::Type::Any))
-    };
-    // Special predicates
-    (Int) => { $crate::Type::Num };
-    (Uint) => { $crate::Type::Num };
-    // Euclid types
-    (EPoint) => { $crate::Type::EuclidPoint };
-    (ETransform) => { $crate::Type::EuclidTransform };
-    (EPlane) => { $crate::Type::EuclidPlane };
-    (ERegion) => { $crate::Type::EuclidRegion };
-    ($ty:ident ?) => {
-        $crate::Type::Union(vec![
-            $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*))),
-            ty_from_tokens!(Null),
-        ])
-    };
+    (List) => { $crate::Type::List(None) };
+    ($ty:ident ?) => { ty_from_tokens!($ty).optional() };
 
     ($collection_ty:ident ( $($inner:tt)* )) => {
-        $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*)))
+        $crate::Type::$collection_ty(Some(std::boxed::Box::new(ty_from_tokens!($($inner)*))))
     };
     ($collection_ty:ident ( $($inner:tt)* ) ?) => {
         $crate::Type::Union(vec![
-            $crate::Type::$collection_ty(std::boxed::Box::new(ty_from_tokens!($($inner)*))),
+            $crate::Type::$collection_ty(Some(std::boxed::Box::new(ty_from_tokens!($($inner)*)))),
             ty_from_tokens!(Null),
         ])
     };
@@ -238,25 +217,31 @@ macro_rules! unpack_val {
     ($val:ident, Num)  => { unpack_val!(@$val, (Num),  $crate::ValueData::Num(n) => n) };
     ($val:ident, Str)  => { unpack_val!(@$val, (Str),  $crate::ValueData::Str(s) => s) };
     ($val:ident, List) => { unpack_val!(@$val, (List), $crate::ValueData::List(l) => l) };
+    ($val:ident, EmptyList) => { $val.typecheck(Type::EmptyList)? };
+    ($val:ident, NonEmptyList) => {
+        $val.typecheck(Type::NonEmptyList(None))?;
+        unpack_val!(@$val, (List), $crate::ValueData::List(l) => l)
+    };
     ($val:ident, Map)  => { unpack_val!(@$val, (Map),  $crate::ValueData::Map(m) => m) };
     ($val:ident, Fn)   => { unpack_val!(@$val, (Fn),   $crate::ValueData::Fn(f) => f) };
     ($val:ident, Vec)  => { unpack_val!(@$val, (Vec),  $crate::ValueData::Vec(v) => v) };
+    ($val:ident, Type)  => { unpack_val!(@$val, (Type),  $crate::ValueData::Type(t) => t) };
     // Euclid types
-    ($val:ident, EPoint) => {
-        unpack_val!(@$val, (EPoint),  $crate::ValueData::EuclidPoint(v) => v)
+    ($val:ident, EuclidPoint) => {
+        unpack_val!(@$val, (EuclidPoint),  $crate::ValueData::EuclidPoint(v) => v)
     };
-    ($val:ident, ETransform) => {
-        unpack_val!(@$val, (ETransform),  $crate::ValueData::EuclidTransform(v) => v)
+    ($val:ident, EuclidTransform) => {
+        unpack_val!(@$val, (EuclidTransform),  $crate::ValueData::EuclidTransform(v) => v)
     };
-    ($val:ident, EPlane) => {
-        unpack_val!(@$val, (EPlane),  $crate::ValueData::EuclidPlane(v) => v)
+    ($val:ident, EuclidPlane) => {
+        unpack_val!(@$val, (EuclidPlane),  $crate::ValueData::EuclidPlane(v) => v)
     };
-    ($val:ident, ERegion) => {
-        unpack_val!(@$val, (ERegion),  $crate::ValueData::EuclidRegion(v) => v)
+    ($val:ident, EuclidRegion) => {
+        unpack_val!(@$val, (EuclidRegion),  $crate::ValueData::EuclidRegion(v) => v)
     };
     // Special predicates
     ($val:ident, Int)  => { $val.as_int()? };
-    ($val:ident, Uint)  => { $val.as_uint()? };
+    ($val:ident, Nat)  => { $val.as_uint()? };
     // Fallback
     ($val:ident, $other:ident) => { unpack_val!(@$val, ($other), $crate::ValueData::$other(inner) => inner) };
 

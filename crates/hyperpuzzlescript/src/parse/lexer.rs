@@ -241,6 +241,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 just("^").to(Token::Caret),
                 just("~").to(Token::Tilde),
                 just("!").to(Token::Bang),
+                just("?").to(Token::QuestionMark),
                 just("#").to(Token::Hash),
                 just(":").to(Token::Colon),
                 just(".").to(Token::Period),
@@ -327,6 +328,7 @@ pub enum Token {
     RangeExclusive,
 
     Bang,
+    QuestionMark,
     Hash,
     Colon,
     Period,
@@ -404,6 +406,7 @@ impl fmt::Display for Token {
             Self::RangeInclusive => "..=",
             Self::RangeExclusive => "..",
             Self::Bang => "!",
+            Self::QuestionMark => "?",
             Self::Hash => "#",
             Self::Colon => ":",
             Self::Period => ".",

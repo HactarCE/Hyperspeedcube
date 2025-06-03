@@ -32,7 +32,7 @@ pub enum Error {
     #[error("return statement after export")]
     ReturnAfterExport { export_spans: Vec<Span> },
     #[error("expected collection type")]
-    ExpectedCollectionType,
+    ExpectedCollectionType { got_type: Type },
     #[error("conflicting function overload")]
     FnOverloadConflict {
         new_ty: Box<FnType>,
@@ -226,9 +226,9 @@ impl Error {
                         .map(|span| (span, "\x02this value\x03 was previously exported")),
                 )
                 .note("returing a value and exporting values are mutually exclusive"),
-            Self::ExpectedCollectionType { .. } => report_builder
-                .main_label("\x02this\x03 is not a collection type".to_string())
-                .help("try a collection type like `List` or `Map`"),
+            Self::ExpectedCollectionType { got_type } => report_builder
+                .main_label(format!("\x02{got_type}\x03 is not a collection type"))
+                .help("try a collection type like `List`"),
             Self::FnOverloadConflict {
                 new_ty,
                 old_ty,
@@ -239,7 +239,11 @@ impl Error {
                     *old_span,
                     format!("\x02previous overload\x03 has type \x02{old_ty}\x03"),
                 )
-                .note("overloads may be ambiguous when passed an empty `List` or `Map`"),
+                .note(
+                    "some type overlaps may be non-obvious; for example:\n\
+                     • `List[Str]` and `List[Num]` overlap on the empty list\n\
+                     • `Num`, `Int`, and `Nat` all overlap on non-negative integers",
+                ),
             Self::CannotAssignToExpr { kind } => {
                 report_builder.main_label(format!("\x02{kind}\x03 is not assignable"))
             }

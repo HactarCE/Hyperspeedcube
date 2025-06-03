@@ -356,6 +356,20 @@ impl EvalCtx<'_> {
                 },
                 _ => Err(index_value.type_error(Type::Str)),
             },
+            ValueData::Type(ty) => match ty {
+                Type::List(None) => {
+                    let inner_type = index_value.as_type()?.clone();
+                    Ok(Type::List(Some(Box::new(inner_type))).into())
+                }
+                Type::NonEmptyList(None) => {
+                    let inner_type = index_value.as_type()?.clone();
+                    Ok(Type::NonEmptyList(Some(Box::new(inner_type))).into())
+                }
+                _ => Err(Error::ExpectedCollectionType {
+                    got_type: ty.clone(),
+                }
+                .at(obj.span)),
+            },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
                 Ok(ValueData::Num(vec.get(index_value.as_u8()?)))
             }
@@ -514,8 +528,7 @@ impl EvalCtx<'_> {
                             Warning::ShadowedVariable((k.clone(), old_var.span), true).at(span),
                         );
                     }
-                    self.scope.set(k, v);
-                    Ok(())
+                    self.scope.add(k, v)
                 })?;
                 Ok(null)
             }
@@ -526,8 +539,7 @@ impl EvalCtx<'_> {
                             Warning::ShadowedVariable((k.clone(), old_var.span), false).at(span),
                         );
                     }
-                    self.scope.set(k, v);
-                    Ok(())
+                    self.scope.add(k, v)
                 })?;
                 Ok(null)
             }
@@ -679,7 +691,7 @@ impl EvalCtx<'_> {
                         let maybe_method = self.scope.get(&self[field]).filter(|method_value| {
                             method_value
                                 .as_func()
-                                .is_ok_and(|f| f.can_be_method_of(obj.ty()))
+                                .is_ok_and(|f| f.can_be_method_of(&obj.ty()))
                         });
                         match maybe_method {
                             Some(m) => {
@@ -839,76 +851,10 @@ impl EvalCtx<'_> {
     /// Evaluates an optional AST node to a type annotation.
     ///
     /// Returns [`Type::Any`] if the node is `None`.
-    pub fn eval_opt_ty(&self, opt_node: Option<&ast::Node>) -> Result<Type> {
+    pub fn eval_opt_ty(&mut self, opt_node: Option<&ast::Node>) -> Result<Type> {
         match opt_node {
-            Some(node) => self.eval_ty(node),
+            Some(node) => self.eval(node)?.into_type(),
             None => Ok(Type::Any),
-        }
-    }
-    /// Evaluates an AST node to a type annotation.
-    pub fn eval_ty(&self, node: &ast::Node) -> Result<Type> {
-        let (contents, span) = node;
-        match contents {
-            ast::NodeContents::Ident(ident_span) => match &self[*ident_span] {
-                "Any" => Ok(Type::Any),
-                "Null" => Ok(Type::Null),
-                "Bool" => Ok(Type::Bool),
-                "Num" => Ok(Type::Num),
-                "Str" => Ok(Type::Str),
-                "List" => Ok(Type::List(Default::default())),
-                "Map" => Ok(Type::Map(Default::default())),
-                "Fn" => Ok(Type::Fn(Default::default())),
-
-                "Vec" => Ok(Type::Vec),
-
-                "EuclidPoint" => Ok(Type::EuclidPoint),
-                "EuclidTransform" => Ok(Type::EuclidTransform),
-                "EuclidPlane" => Ok(Type::EuclidPlane),
-                "EuclidRegion" => Ok(Type::EuclidRegion),
-
-                "Cga2dBlade1" => Ok(Type::Cga2dBlade1),
-                "Cga2dBlade2" => Ok(Type::Cga2dBlade2),
-                "Cga2dBlade3" => Ok(Type::Cga2dBlade3),
-                "Cga2dAntiscalar" => Ok(Type::Cga2dAntiscalar),
-                "Cga2dRegion" => Ok(Type::Cga2dRegion),
-
-                "Color" => Ok(Type::Color),
-                "Axis" => Ok(Type::Axis),
-                "Twist" => Ok(Type::Twist),
-
-                "AxisSystem" => Ok(Type::AxisSystem),
-                "TwistSystem" => Ok(Type::TwistSystem),
-                "Puzzle" => Ok(Type::Puzzle),
-
-                _ => Err(Error::UnknownType.at(*span)),
-            },
-            ast::NodeContents::Index { obj, args } => {
-                let &(ref obj_node, obj_span) = &**obj;
-                let &(ref args_nodes, args_span) = &**args;
-                let inner_type_node = args_nodes.iter().exactly_one().map_err(|_| {
-                    Error::WrongNumberOfIndices {
-                        obj_span,
-                        count: args_nodes.len(),
-                        min: 1,
-                        max: 1,
-                    }
-                    .at(args_span)
-                })?;
-                let inner_type = self.eval_ty(inner_type_node)?;
-                match obj_node {
-                    ast::NodeContents::Ident(ident_span) => match &self[*ident_span] {
-                        "List" => Ok(Type::List(Box::new(inner_type))),
-                        "Map" => Ok(Type::Map(Box::new(inner_type))),
-                        "Fn" => Err(Error::Unimplemented("specific function types").at(*span)),
-                        _ => Err(Error::ExpectedCollectionType.at(*ident_span)),
-                    },
-                    _ => Err(Error::ExpectedCollectionType.at(obj_span)),
-                }
-            }
-            _ => Err(Error::ExpectedType {
-                got_ast_node_kind: contents.kind_str(),
-            }
-            .at(*span)),
         }
     }
 
