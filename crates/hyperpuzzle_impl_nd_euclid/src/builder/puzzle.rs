@@ -17,16 +17,13 @@ use crate::prelude::*;
 /// Puzzle being constructed.
 #[derive(Debug)]
 pub struct PuzzleBuilder {
-    /// Reference-counted pointer to this struct.
-    pub this: Weak<Mutex<Self>>,
-
     /// Puzzle metadata.
     pub meta: Arc<PuzzleListMetadata>,
 
     /// Shape of the puzzle.
-    pub shape: ShapeBuilder,
+    pub shape: Arc<Mutex<ShapeBuilder>>,
     /// Twist system of the puzzle.
-    pub twists: TwistSystemBuilder,
+    pub twists: Arc<Mutex<TwistSystemBuilder>>,
 
     /// Layer data for each layer on the axis, in order from outermost to
     /// innermost.
@@ -40,46 +37,35 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(meta: Arc<PuzzleListMetadata>, ndim: u8) -> Result<Arc<Mutex<Self>>> {
+    pub fn new(meta: Arc<PuzzleListMetadata>, ndim: u8) -> Result<Self> {
         let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Space::new(ndim))?;
         let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
-        Ok(Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
+        Ok(Self {
+            meta,
 
-                meta,
+            shape: Arc::new(Mutex::new(shape)),
+            twists: Arc::new(Mutex::new(twists)),
 
-                shape,
-                twists,
+            axis_layers: PerAxis::new(),
 
-                axis_layers: PerAxis::new(),
-
-                full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
-            })
-        }))
-    }
-
-    /// Returns an `Arc` reference to the puzzle builder.
-    pub fn arc(&self) -> Arc<Mutex<Self>> {
-        self.this
-            .upgrade()
-            .expect("`PuzzleBuilder` removed from `Arc`")
+            full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
+        })
     }
 
     /// Returns the nubmer of dimensions of the underlying space the puzzle is
     /// built in. Equivalent to `self.shape.lock().space.ndim()`.
     pub fn ndim(&self) -> u8 {
-        self.shape.space.ndim()
+        self.shape.lock().space.ndim()
     }
     /// Returns the underlying space the puzzle is built in. Equivalent to
     /// `self.shape.lock().space`
     pub fn space(&self) -> Arc<Space> {
-        Arc::clone(&self.shape.space)
+        Arc::clone(&self.shape.lock().space)
     }
 
     /// Returns a mutable reference to the axis layers.
     pub fn axis_layers(&mut self) -> Result<&mut PerAxis<AxisLayersBuilder>> {
-        self.axis_layers.resize(self.twists.axes.len())?;
+        self.axis_layers.resize(self.twists.lock().axes.len())?;
         Ok(&mut self.axis_layers)
     }
 
@@ -92,11 +78,15 @@ impl PuzzleBuilder {
     ) -> Result<Arc<Puzzle>> {
         let opt_id = Some(self.meta.id.as_str());
 
+        let shape_builder = self.shape.lock();
+        let twists_builder = self.twists.lock();
+        let space = &shape_builder.space;
+
         // Build color system. TODO: cache this if unmodified
-        let colors = Arc::new(self.shape.colors.build(build_ctx, opt_id, warn_fn)?);
+        let colors = Arc::new(shape_builder.colors.build(build_ctx, opt_id, warn_fn)?);
 
         // Build twist system. TODO: cache this if unmodified
-        let twists = Arc::new(self.twists.build(build_ctx, opt_id, warn_fn)?);
+        let twists = Arc::new(twists_builder.build(build_ctx, opt_id, warn_fn)?);
 
         if let Some(build_ctx) = build_ctx {
             build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
@@ -113,7 +103,7 @@ impl PuzzleBuilder {
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
-        } = self.shape.build(warn_fn)?;
+        } = shape_builder.build(warn_fn)?;
 
         let mut scramble_twists = twists
             .twists
@@ -135,16 +125,10 @@ impl PuzzleBuilder {
         } = engine_data;
 
         // Build twist gizmos.
-        let gizmo_twists = super::gizmos::build_twist_gizmos(
-            &self.space(),
-            &mut mesh,
-            &twists,
-            engine_data,
-            warn_fn,
-        )?;
+        let gizmo_twists =
+            super::gizmos::build_twist_gizmos(space, &mut mesh, &twists, engine_data, warn_fn)?;
 
         // Build vertex sets.
-        let space = self.space();
         let mut vertex_count = 0;
         let mut vertex_coordinates = vec![];
         let mut vertex_id_map = HashMap::new();
@@ -202,7 +186,7 @@ impl PuzzleBuilder {
                 continue; // already visited it
             }
 
-            if let Some(opposite_axis) = self.twists.axes.vector_to_id(-&axis_vectors[axis]) {
+            if let Some(opposite_axis) = twists_builder.axes.vector_to_id(-&axis_vectors[axis]) {
                 let self_layers = &axis_layers[axis].0;
                 let opposite_layers = &axis_layers[opposite_axis].0;
 
