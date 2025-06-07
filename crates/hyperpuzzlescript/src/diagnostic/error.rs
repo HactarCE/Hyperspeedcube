@@ -310,18 +310,18 @@ impl Error {
                 .main_label("missing required positional parameter")
                 .note(format!("expected positional parameter with type `{ty}`")),
             Self::MissingRequiredNamedParameter { name, ty } => report_builder
-                .main_label(format!("missing required named parameter `\x02{name}\x03"))
-                .help(format!("add `{name}=value` at the call site"))
+                .main_label(format!("missing required named parameter `\x02{name}\x03`"))
+                .help(format!("add `{name} = ...` at the call site"))
                 .note(format!("expected named parameter with type `{ty}`")),
             Self::PositionalParamAfterNamedParam => report_builder
                 .main_label("positional parameter occurs after named parameter")
                 .note("all positional parameters must come before the first named parameter"),
             Self::Undefined => report_builder
-                .main_label("\x02this\x03 is undefined")
+                .main_label("\x02this name\x03 is not defined")
                 .help("it may be defined somewhere, but isn't accessible from here")
                 .help("try assigning `null` to define the variable in an outer scope"),
             Self::UndefinedIn(map_span) => report_builder
-                .main_label("\x02this\x03 is undefined")
+                .main_label("\x02this name\x03 is not defined")
                 .label(map_span, "in \x02this map\x03"),
             Self::UnknownType => report_builder
                 .main_label("unknown type")

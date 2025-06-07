@@ -22,6 +22,11 @@ impl From<EcoString> for Warning {
         Warning::User(value)
     }
 }
+impl From<String> for Warning {
+    fn from(value: String) -> Self {
+        Warning::User(value.into())
+    }
+}
 impl From<&str> for Warning {
     fn from(value: &str) -> Self {
         Warning::User(value.into())
