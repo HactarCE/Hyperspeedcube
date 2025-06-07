@@ -525,7 +525,11 @@ impl FnValue {
         let overload = self.get_overload(fn_span, &args)?;
 
         let fn_scope = match &overload.parent_scope {
-            Some(parent) => Cow::Owned(Scope::new_closure(Arc::clone(parent), self.name.clone())),
+            Some(parent) => Cow::Owned(Scope::new_closure(
+                ctx.scope,
+                Arc::clone(parent),
+                self.name.clone(),
+            )),
             None => Cow::Borrowed(ctx.scope),
         };
         let mut exports = None;

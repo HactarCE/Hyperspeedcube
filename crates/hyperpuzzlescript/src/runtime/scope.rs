@@ -29,7 +29,7 @@ pub struct Scope {
     pub parent: Option<ParentScope>,
     /// Names in this scope.
     pub names: Mutex<HashMap<Key, Value>>,
-    /// Special variables.
+    /// Special variables, which are inherited via the call graph.
     pub special: SpecialVariables,
 }
 impl Scope {
@@ -57,12 +57,18 @@ impl Scope {
     /// Constructs a new function scope.
     ///
     /// The parent scope is **immutable**.
-    pub fn new_closure(parent_scope: Arc<Scope>, fn_name: Option<Substr>) -> Arc<Scope> {
+    pub fn new_closure(
+        caller_scope: &Scope,
+        parent_scope: Arc<Scope>,
+        fn_name: Option<Substr>,
+    ) -> Arc<Scope> {
         let immut_reason = match fn_name {
             Some(name) => ImmutReason::NamedFn(name),
             None => ImmutReason::AnonymousFn,
         };
-        Arc::new(Self::new_with_parent(parent_scope, Some(immut_reason)))
+        let mut ret = Self::new_with_parent(parent_scope, Some(immut_reason));
+        ret.special = caller_scope.special.clone();
+        Arc::new(ret)
     }
     /// Constructs a new top-level file scope.
     pub fn new_top_level(builtins: &Arc<Scope>) -> Arc<Scope> {

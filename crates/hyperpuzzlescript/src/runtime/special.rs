@@ -2,6 +2,7 @@ use crate::{Result, Value, ast};
 
 /// Scoped special variables.
 #[derive(Debug, Default, Clone)]
+#[non_exhaustive]
 pub struct SpecialVariables {
     /// Number of dimensions in the space.
     pub ndim: Option<u8>,
