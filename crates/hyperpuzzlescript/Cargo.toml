@@ -19,8 +19,6 @@ workspace = true
 hypermath = { workspace = true }
 hyperpaths = { workspace = true, optional = true }
 hyperpuzzle_core = { workspace = true }
-hyperpuzzle_impl_nd_euclid = { workspace = true }
-# hypershape = { workspace = true }
 
 arcstr = { workspace = true }
 ariadne = { workspace = true }

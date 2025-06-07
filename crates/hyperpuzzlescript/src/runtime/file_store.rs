@@ -63,11 +63,9 @@ pub struct Modules(IndexMap<Substr, Module>);
 impl Modules {
     /// Constructs a new file store with built-in files and user files (if
     /// feature `hyperpaths` is enabled).
-    pub fn with_default_files() -> Self {
-        let mut ret = Self::default();
-
+    pub fn add_default_files(&mut self) {
         // Load built-in files.
-        ret.add_builtin_files();
+        self.add_builtin_files();
 
         // Load user files.
         #[cfg(feature = "hyperpaths")]
@@ -77,12 +75,10 @@ impl Modules {
                     "reading {LANGUAGE_NAME} files from path {}",
                     hps_dir.to_string_lossy(),
                 );
-                ret.add_from_directory(hps_dir);
+                self.add_from_directory(hps_dir);
             }
             Err(e) => log::error!("error locating {LANGUAGE_NAME} directory: {e}"),
         }
-
-        ret
     }
 
     /// Adds built-in files to the file store.

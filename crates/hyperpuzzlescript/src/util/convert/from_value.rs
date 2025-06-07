@@ -142,6 +142,11 @@ impl_from_value_copyable!(i64 = Type::Int, Num(n) => {
 impl_from_value_copyable!(u64 = Type::Nat, Num(n) => {
     hypermath::to_approx_unsigned_integer(*n).ok_or(Error::ExpectedNonnegativeInteger(*n))
 });
+impl_from_value_copyable!(u32 = Type::Nat, Num(n) => {
+    hypermath::to_approx_unsigned_integer(*n)
+        .and_then(|n| n.try_into().ok())
+        .ok_or(Error::ExpectedNonnegativeInteger(*n))
+});
 impl_from_value_copyable!(u8 = Type::Nat, Num(n) => {
     hypermath::to_approx_integer(*n)
         .and_then(|n| n.try_into().ok())

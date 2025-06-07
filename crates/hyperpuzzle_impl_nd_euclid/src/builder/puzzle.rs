@@ -77,7 +77,7 @@ impl PuzzleBuilder {
     pub fn build(
         &self,
         build_ctx: Option<&BuildCtx>,
-        warn_fn: impl Copy + Fn(eyre::Error),
+        warn_fn: &mut impl FnMut(eyre::Error),
     ) -> Result<Arc<Puzzle>> {
         let opt_id = Some(self.meta.id.as_str());
 

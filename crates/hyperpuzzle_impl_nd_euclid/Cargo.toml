@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 hypermath = { workspace = true }
 hyperpuzzle_core = { workspace = true }
+hyperpuzzlescript = { workspace = true }
 
 eyre = { workspace = true }
 itertools = { workspace = true }

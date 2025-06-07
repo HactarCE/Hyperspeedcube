@@ -1,30 +1,36 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+
+use arcstr::ArcStr;
 
 mod ctx;
 mod file_store;
 mod scope;
 mod special;
 
-use arcstr::ArcStr;
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
 pub use scope::{ParentScope, Scope};
 pub use special::SpecialVariables;
 
-use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast};
+use crate::{
+    FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast, engines::PuzzleEngineCallback,
+};
 
 /// Script runtime.
 pub struct Runtime {
     /// Source file names and contents.
     pub modules: Modules,
     /// Built-ins to be imported into every file.
-    builtins: Arc<Scope>,
+    pub builtins: Arc<Scope>,
+    /// Registered puzzle engines.
+    pub puzzle_engines: HashMap<String, PuzzleEngineCallback>,
 
     /// Function to call on print.
-    pub on_print: Box<dyn FnMut(String)>,
+    pub on_print: Box<dyn Send + Sync + FnMut(String)>,
     /// Function to call on warning or error.
-    pub on_diagnostic: Box<dyn FnMut(&Modules, FullDiagnostic)>,
+    pub on_diagnostic: Box<dyn Send + Sync + FnMut(&Modules, FullDiagnostic)>,
     /// Number of warnings and errors reported since the last time this counter
     /// was reset.
     pub diagnostic_count: usize,
@@ -40,7 +46,8 @@ impl Default for Runtime {
     fn default() -> Self {
         Self {
             modules: Default::default(),
-            builtins: crate::builtins::new_builtins_scope(),
+            builtins: Scope::new(),
+            puzzle_engines: HashMap::new(),
 
             on_print: Box::new(|s| println!("[INFO] {s}")),
             on_diagnostic: Box::new(|files, e| eprintln!("{}", e.to_string(files))),
@@ -53,15 +60,6 @@ impl Runtime {
     /// Constructs a new runtime with no files.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Constructs a runtime with built-in files and user files (if feature
-    /// `hyperpaths` is enabled).
-    pub fn with_default_files() -> Self {
-        Self {
-            modules: Modules::with_default_files(),
-            ..Self::default()
-        }
     }
 
     /// Parses any files that have not yet been parsed.

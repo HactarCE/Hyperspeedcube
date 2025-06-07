@@ -136,7 +136,6 @@ macro_rules! hps_fns {
     };
 }
 
-#[doc(hidden)]
 /// Constructs a [`crate::FnType`] from a list of parameters and a return type.
 #[macro_export]
 macro_rules! fn_type {
@@ -159,7 +158,6 @@ macro_rules! fn_type {
     };
 }
 
-#[doc(hidden)]
 /// Unpacks arguments using [`crate::util::pop_arg()`] and
 /// [`crate::util::expect_end_of_args()`].
 #[macro_export]
@@ -184,12 +182,14 @@ macro_rules! unpack_args {
     };
 }
 
-#[doc(hidden)]
 /// Unpacks keyword arguments using [`pop_kwarg!`] and
 /// [`crate::util::expect_end_of_kwargs()`].
 #[macro_export]
 macro_rules! unpack_kwargs {
-    ($kwargs:expr, $target:ident $(,)?) => { let $target = $kwargs; };
+    ($kwargs:expr, $target:ident $(,)?) => {
+        #[allow(unused_mut)]
+        let mut $target = $kwargs;
+    };
     ($kwargs:expr $(, $param:tt: $param_ty:ty $( = $default:expr )?)* $(,)?) => {
         #[allow(unused_mut)]
         let mut kwargs = $kwargs;
@@ -231,7 +231,7 @@ macro_rules! pop_kwarg {
     ($kwargs:ident, $name:tt: $param_ty:ty = $default:expr) => {
         let $name = $crate::util::pop_kwarg::<Option<$param_ty>>(
             &mut $kwargs,
-            stringify!($name),
+            fn_arg_name!($name),
             $crate::BUILTIN_SPAN,
         )?
         .unwrap_or_else(|| -> $param_ty { $default });
@@ -239,13 +239,23 @@ macro_rules! pop_kwarg {
     ($kwargs:ident, $name:tt: $param_ty:ty) => {
         let $name = $crate::util::pop_kwarg::<fn_arg_ty!($name: $param_ty)>(
             &mut $kwargs,
-            stringify!($name),
+            fn_arg_name!($name),
             $crate::BUILTIN_SPAN,
         )?;
     };
 }
 
-#[doc(hidden)]
+/// Returns the name to use when unpacking an argument.
+#[macro_export]
+macro_rules! fn_arg_name {
+    (($name:ident, $span:ident)) => {
+        stringify!($name)
+    };
+    ($name:tt) => {
+        stringify!($name)
+    };
+}
+
 /// Returns the type to use when unpacking an argument.
 ///
 /// This is either the type `T`, or `Spanned<T>` if the span should be included.

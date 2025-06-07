@@ -17,7 +17,7 @@ pub(super) fn build_twist_gizmos(
     mesh: &mut Mesh,
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
-    warn_fn: impl Copy + Fn(eyre::Report),
+    warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<PerGizmoFace<Twist>> {
     let NdEuclidTwistSystemEngineData {
         axis_vectors,
@@ -94,7 +94,7 @@ fn build_3d_gizmo(
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
     gizmo_poles: &[(Vector, Twist)],
-    warn_fn: impl Fn(eyre::Report),
+    warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
     if twists.is_empty() {
         return Ok(vec![]);
@@ -130,7 +130,7 @@ fn build_4d_gizmo(
     engine_data: &NdEuclidTwistSystemEngineData,
     axis: Axis,
     gimzo_poles: Vec<(Vector, Twist)>,
-    warn_fn: impl Fn(eyre::Report),
+    warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
     use hypershape::flat::*;
 
@@ -181,7 +181,7 @@ fn build_gizmo(
     gizmo_poles: &[(Vector, Twist)],
     gizmo_name: &str,
     mut get_gizmo_surface: impl FnMut(Twist) -> u32,
-    warn_fn: impl Fn(eyre::Report),
+    warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
     use hypershape::flat::*;
 

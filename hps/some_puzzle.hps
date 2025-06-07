@@ -1,0 +1,8 @@
+add_puzzle(
+    id = "test",
+    engine = "euclid",
+    ndim = 3,
+    build = fn(p) {
+
+    },
+)

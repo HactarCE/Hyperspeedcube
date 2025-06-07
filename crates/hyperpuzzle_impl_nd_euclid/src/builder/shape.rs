@@ -311,7 +311,7 @@ impl ShapeBuilder {
         name: &str,
         display: Option<String>,
         has_point: impl Fn(&Point) -> bool,
-        warn_fn: impl Fn(eyre::Error),
+        warn_fn: impl FnOnce(eyre::Error),
     ) -> Result<()> {
         let piece_type = match self.get_or_add_piece_type(name.to_string(), display) {
             Ok(id) => id,
@@ -343,7 +343,11 @@ impl ShapeBuilder {
     }
 
     /// Unifies piece types using the provided generators.
-    pub fn unify_piece_types(&mut self, transforms: &[pga::Motor], warn_fn: impl Fn(eyre::Error)) {
+    pub fn unify_piece_types(
+        &mut self,
+        transforms: &[pga::Motor],
+        warn_fn: &mut impl FnMut(eyre::Error),
+    ) {
         let active_pieces = self.active_pieces.iter().collect_vec();
         let mut disjoint_sets = disjoint::DisjointSet::with_len(active_pieces.len());
 
@@ -413,7 +417,7 @@ impl ShapeBuilder {
     }
 
     /// Deletes pieces without a specific piece type.
-    pub fn delete_untyped_pieces(&mut self, warn_fn: impl Fn(eyre::Error)) {
+    pub fn delete_untyped_pieces(&mut self, warn_fn: &mut impl FnMut(eyre::Error)) {
         let untyped_pieces = self.untyped_pieces();
         if untyped_pieces.is_empty() {
             warn_fn(eyre!("no untyped pieces"));
@@ -430,7 +434,7 @@ impl ShapeBuilder {
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
-    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Error)) -> Result<ShapeBuildOutput> {
+    pub fn build(&self, warn_fn: &mut impl FnMut(eyre::Error)) -> Result<ShapeBuildOutput> {
         let space = &self.space;
         let ndim = space.ndim();
 
@@ -922,7 +926,7 @@ fn compute_sticker_shrink_vectors(
 fn build_piece_type_hierarchy(
     piece_types: &PerPieceType<PieceTypeInfo>,
     piece_type_display_names: &IndexMap<String, String>,
-    warn_fn: impl Fn(eyre::Report),
+    warn_fn: &mut impl FnMut(eyre::Report),
 ) -> PieceTypeHierarchy {
     let mut ret = PieceTypeHierarchy::new(piece_types.len());
 

@@ -5,19 +5,24 @@
 #[macro_use]
 pub mod util;
 mod ast;
-mod builtins;
+pub mod builtins;
 mod custom_value;
 mod diagnostic;
+mod engines;
 mod parse;
+mod request;
 mod runtime;
 mod ty;
 mod value;
 
+pub use ast::SpecialVar;
 pub use custom_value::{BoxDynValue, CustomValue};
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{
     Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine, Warning,
 };
+pub use engines::EngineCallback;
+pub use request::EvalRequestTx;
 pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};
 pub use util::{FromValue, FromValueRef, TypeOf, hps_ty};
@@ -83,14 +88,6 @@ static HPS_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_HPS_PATHS {
 } else {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/hps")
 };
-
-pub(crate) type HpsEvalRequest = Box<dyn Send + Sync + FnOnce(&mut Runtime)>;
-pub(crate) type HpsEvalRequestTx = std::sync::mpsc::Sender<HpsEvalRequest>;
-
-/// Loads all puzzles defined using Hyperpuzzlescript.
-pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_core::Logger) {
-    Runtime::with_default_files().exec_all_files();
-}
 
 /// Extracts the built-in Hyperpuzzlescript files to the specified path.
 pub fn extract_builtin_files(base_path: &std::path::Path) -> std::io::Result<()> {

@@ -16,6 +16,7 @@ mod anim;
 pub mod builder;
 mod engine;
 mod geom;
+pub mod hps;
 mod state;
 mod twist_key;
 mod vantage_group;

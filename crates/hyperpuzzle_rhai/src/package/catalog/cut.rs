@@ -100,7 +100,7 @@ impl RhaiPuzzle {
                         StickerMode::NewColor => Some(match name {
                             Some(name) => shape
                                 .colors
-                                .get_or_add_with_name(name, warnf(ctx))
+                                .get_or_add_with_name(name, &mut warnf(ctx))
                                 .eyrefmt()?,
                             None => shape.colors.add().eyrefmt()?,
                         }),

@@ -1,36 +1,7 @@
-
-x = 5
-print("Hello, world! ${x}")
-
-fn f() { x + 2 }
-fn g(y: Num) -> Num {
-    x += 15
-    return x + y
-}
-
-if true {
-    x = 7
-}
-
-print(f())
-print(g(10))
-print(f())
-
-
-
-print(f())
-print(g(38))
-print(f())
-
-
-fn fib(n: Num) -> Num {
-    if n == 0 { return 1 }
-    if n == 1 { return 1 }
+fn fib(n: Nat) -> Nat {
+    if n == 0 { return 0 }
+    if n <= 2 { return 1 }
     return fib(n - 1) + fib(n - 2)
 }
-print(fib(15))
 
-print(["hello", #{a: 10, b: "world"}])
-
-print(2**16)
-print(2^16)
+print("Hello, world! fib(7)=${fib(7)}")

@@ -1155,6 +1155,11 @@ impl EvalCtx<'_> {
     pub fn warn_at(&mut self, span: Span, w: impl Into<Warning>) {
         self.runtime.report_diagnostic(w.into().at(span));
     }
+
+    /// Returns a function that can be used to report warnings.
+    pub fn warnf<T: ToString>(&mut self) -> impl FnMut(T) {
+        |msg| self.warn(msg.to_string())
+    }
 }
 
 impl Index<Span> for EvalCtx<'_> {

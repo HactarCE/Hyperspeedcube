@@ -754,7 +754,7 @@ pub fn twist_system_spec_from_rhai_map(
 
             builder
                 .lock()?
-                .build(Some(&build_ctx), None, warnf(&ctx))
+                .build(Some(&build_ctx), None, &mut warnf(&ctx))
                 .map(|ok| Redirectable::Direct(Arc::new(ok)))
         },
     );

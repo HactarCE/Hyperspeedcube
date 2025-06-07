@@ -146,7 +146,7 @@ impl ColorSystemBuilder {
     pub fn get_or_add_with_name(
         &mut self,
         name_pattern: String,
-        warn_fn: impl Fn(BadName),
+        warn_fn: &mut impl FnMut(BadName),
     ) -> Result<Color> {
         if let Some(id) = self.names.get_from_pattern(&name_pattern) {
             Ok(id)
@@ -171,7 +171,7 @@ impl ColorSystemBuilder {
         &self,
         build_ctx: Option<&BuildCtx>,
         puzzle_id: Option<&str>,
-        warn_fn: impl Copy + Fn(eyre::Report),
+        warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<ColorSystem> {
         if let Some(build_ctx) = build_ctx {
             build_ctx.progress.lock().task = BuildTask::BuildingColors;

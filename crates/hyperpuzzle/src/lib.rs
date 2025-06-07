@@ -39,9 +39,11 @@ pub mod prelude {
 }
 
 lazy_static! {
-    /// Even though `Catalog` already contains an `Arc<Mutex<T>>` internally, we
-    /// use another layer of `Arc<Mutex<Catalog>>` here so that we can reset the
-    /// catalog without interfering with old references to it.
+    /// Global catalog.
+    ///
+    /// Even though [`Catalog`] already contains an `Arc<Mutex<T>>` internally,
+    /// we use another layer of `Arc<Mutex<Catalog>>` here so that we can reset
+    /// the catalog without interfering with old references to it.
     static ref CATALOG: Arc<Mutex<Catalog>> = Arc::new(Mutex::new(Catalog::new()));
 }
 
@@ -60,7 +62,30 @@ pub fn load_global_catalog() {
 
 /// Loads all puzzle backends into a catalog.
 pub fn load_catalog(catalog: &Catalog) {
-    hyperpuzzlescript::load_puzzles(catalog, catalog.default_logger());
+    let mut runtime = hyperpuzzlescript::Runtime::new();
+
+    let (eval_tx, eval_rx) = hyperpuzzlescript::EvalRequestTx::new();
+
+    // Add built-ins.
+    hyperpuzzlescript::builtins::define_base_in(&runtime.builtins)
+        .expect("error defining HPS built-ins");
+    hyperpuzzlescript::builtins::catalog::define_in(&runtime.builtins, catalog, &eval_tx)
+        .expect("error defining HPS catalog built-ins");
+
+    // Add puzzle engines.
+    runtime.puzzle_engines.insert(
+        "euclid".into(),
+        Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid),
+    );
+
+    // Load user files.
+    runtime.modules.add_default_files();
+    runtime.exec_all_files();
+    std::thread::spawn(move || {
+        for eval_request in eval_rx {
+            eval_request(&mut runtime);
+        }
+    });
 }
 
 #[cfg(test)]

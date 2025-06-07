@@ -153,7 +153,7 @@ impl TwistSystemBuilder {
         &mut self,
         data: TwistBuilder,
         name: Option<String>,
-        warn_fn: impl Fn(String),
+        warn_fn: impl FnOnce(String),
     ) -> Result<Option<Twist>> {
         self.is_modified = true;
 
@@ -191,7 +191,7 @@ impl TwistSystemBuilder {
         &self,
         build_ctx: Option<&BuildCtx>,
         puzzle_id: Option<&str>,
-        warn_fn: impl Copy + Fn(eyre::Report),
+        warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<TwistSystem> {
         if let Some(build_ctx) = build_ctx {
             build_ctx.progress.lock().task = BuildTask::BuildingTwists;

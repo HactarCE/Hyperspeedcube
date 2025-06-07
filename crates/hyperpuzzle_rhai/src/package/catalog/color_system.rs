@@ -11,7 +11,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
     let cat = catalog.clone();
     new_fn("add_color_system").set_into_module(module, move |ctx: Ctx<'_>, map: Map| -> Result {
         let builder = color_system_from_rhai_map(&ctx, map)?;
-        let color_system = builder.build(None, None, warnf(&ctx)).eyrefmt()?;
+        let color_system = builder.build(None, None, &mut warnf(&ctx)).eyrefmt()?;
         cat.add_color_system(Arc::new(color_system)).eyrefmt()
     });
 
@@ -27,7 +27,9 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 gen_map,
                 |ctx, build_ctx, map| {
                     let builder = color_system_from_rhai_map(ctx, map)?;
-                    builder.build(Some(&build_ctx), None, warnf(ctx)).eyrefmt()
+                    builder
+                        .build(Some(&build_ctx), None, &mut warnf(ctx))
+                        .eyrefmt()
                 },
             )?;
             cat.add_color_system_generator(Arc::new(generator))

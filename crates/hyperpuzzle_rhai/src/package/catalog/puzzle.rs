@@ -252,7 +252,7 @@ pub fn puzzle_spec_from_rhai_map(
 
             builder
                 .lock()?
-                .build(Some(&build_ctx), warnf(&ctx))
+                .build(Some(&build_ctx), &mut warnf(&ctx))
                 .map(|ok| Redirectable::Direct(ok))
         },
     );

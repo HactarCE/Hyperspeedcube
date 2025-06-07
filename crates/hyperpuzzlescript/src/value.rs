@@ -281,6 +281,7 @@ pub enum ValueData {
     /// PGA blade in Euclidean space.
     EuclidBlade(hypermath::pga::Blade),
 
+    /// Custom type defined in a downstream crate.
     Custom(BoxDynValue),
 }
 impl fmt::Debug for ValueData {

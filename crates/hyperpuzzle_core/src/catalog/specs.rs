@@ -1,5 +1,18 @@
 use super::*;
 
+/// Output of a `build` or `generate` function.
+pub type BuildResult<T, E = eyre::Report> = Result<Redirectable<Arc<T>>, E>;
+
+/// Type of [`PuzzleSpec::build`].
+pub type PuzzleBuildFn = Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>;
+
+/// Type of [`PuzzleSpecGenerator::generate`].
+pub type PuzzleGenerateFn =
+    Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<PuzzleSpec>>;
+
+/// Type of [`Generator::generate`].
+pub type GenerateFn<T> = Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<T>>;
+
 /// Possible ID redirect.
 #[derive(Debug, Clone)]
 pub enum Redirectable<T> {
@@ -26,9 +39,6 @@ impl BuildCtx {
     }
 }
 
-/// Output of a `build` or `generate` function.
-pub type BuildResult<T, E = eyre::Report> = Result<Redirectable<Arc<T>>, E>;
-
 /// Puzzle type specification.
 pub struct PuzzleSpec {
     /// Basic metadata.
@@ -36,7 +46,7 @@ pub struct PuzzleSpec {
     /// Function to build the puzzle.
     ///
     /// **This may be expensive. Do not call it from the UI thread.**
-    pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>,
+    pub build: PuzzleBuildFn,
 }
 impl fmt::Debug for PuzzleSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -57,7 +67,7 @@ pub struct PuzzleSpecGenerator {
     /// Function to generate the puzzle type specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<PuzzleSpec>>,
+    pub generate: PuzzleGenerateFn,
 }
 impl fmt::Debug for PuzzleSpecGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -101,7 +111,7 @@ pub struct Generator<T> {
     /// Function to generate the object specification.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate: Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<T>>,
+    pub generate: GenerateFn<T>,
 }
 impl fmt::Debug for ColorSystemGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

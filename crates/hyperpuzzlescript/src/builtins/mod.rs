@@ -2,6 +2,7 @@
 
 pub mod assertions;
 pub mod bases;
+pub mod catalog;
 pub mod collections;
 pub mod euclid;
 pub mod math;

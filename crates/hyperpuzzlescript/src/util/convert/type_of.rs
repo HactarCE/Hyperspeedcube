@@ -3,7 +3,24 @@ use std::sync::Arc;
 use crate::{Spanned, Type, Value, ValueData};
 
 /// Generates `impl TypeOf for $ty { ... }`
+///
+/// # Examples
+///
+/// ```
+/// # use hyperpuzzlescript::*;
+/// struct SomeType;
+/// impl_ty!(SomeType = Type::Num);
+///
+/// struct SomeOtherType;
+/// impl_ty!(SomeOtherType = "SomeOtherType");
+/// // equivalent to:
+/// // impl_ty!(SomeOtherType = Type::Custom("SomeOtherType"));
+/// ```
+#[macro_export]
 macro_rules! impl_ty {
+    ($ty:ty = $type_name:literal) => {
+        impl_ty!($ty = $crate::Type::Custom($type_name));
+    };
     ($ty:ty = $hps_ty:expr) => {
         impl TypeOf for $ty {
             fn hps_ty() -> Type {

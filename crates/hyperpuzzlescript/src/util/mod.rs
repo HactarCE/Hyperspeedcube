@@ -1,6 +1,7 @@
 //! Utilities for interop between HPS and Rust.
 
 mod args;
+#[macro_use]
 mod convert;
 #[macro_use]
 mod fn_def;
