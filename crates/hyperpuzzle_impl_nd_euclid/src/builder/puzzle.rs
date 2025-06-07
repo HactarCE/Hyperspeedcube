@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use eyre::{OptionExt, Result, eyre};
+use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
@@ -38,6 +38,9 @@ pub struct PuzzleBuilder {
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
     pub fn new(meta: Arc<PuzzleListMetadata>, ndim: u8) -> Result<Self> {
+        let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
+        ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
+        ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
         let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Space::new(ndim))?;
         let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
         Ok(Self {
