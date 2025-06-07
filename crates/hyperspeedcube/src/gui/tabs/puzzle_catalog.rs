@@ -30,7 +30,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            if hyperpaths::lua_dir().is_ok() {
+            if hyperpaths::hps_dir().is_ok() {
                 let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()

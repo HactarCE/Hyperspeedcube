@@ -9,10 +9,8 @@ use parking_lot::{Mutex, MutexGuard};
 /// puzzle is working correctly, there should be no log entries. Prefer
 /// conventional logging for other uses.
 ///
-/// `hyperpuzzle_lua` has very specific logging needs that are not served well
-/// by any established logging crates (namely the ability to store a file and
-/// traceback unrelated to the line of Rust code that emitted the message) so we
-/// use a custom logger.
+/// `hyperpuzzlescript` has specific logging needs that are not served well by
+/// any established logging crates so we use a custom logger.
 #[derive(Debug, Default, Clone)]
 pub struct Logger {
     lines: Arc<Mutex<Vec<LogLine>>>,
@@ -66,7 +64,7 @@ impl Logger {
     }
 }
 
-/// Log line emitted by Lua code.
+/// Log line emitted by a puzzle backend.
 #[derive(Debug, Clone)]
 pub struct LogLine {
     /// Log level.

@@ -1,7 +1,5 @@
-//! N-dimensional Euclidean puzzle simulation backend for Hyperspeedcube.
-//!
-//! This crate provides the implementation for storing and simulating these
-//! puzzles. See `hyperpuzzle_lua` for generating them.
+//! N-dimensional Euclidean puzzle simulation backend and Hyperpuzzlescript API
+//! for Hyperspeedcube.
 
 #[macro_use]
 extern crate lazy_static;

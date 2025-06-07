@@ -8,11 +8,11 @@ mod camera;
 mod colors;
 mod debug;
 mod dev_tools;
+mod hps_logs;
 mod image_generator;
 mod interaction;
 mod keybinds;
 mod keybinds_reference;
-mod lua_logs;
 mod macros;
 mod modifier_keys;
 mod mousebinds;
@@ -65,7 +65,7 @@ pub enum Tab {
     Timeline,
     Timer,
 
-    LuaLogs,
+    HpsLogs,
     DevTools,
 
     #[allow(unused)]
@@ -109,7 +109,7 @@ impl Tab {
             Tab::Timeline => l.timeline,
             Tab::Timer => l.timer,
 
-            Tab::LuaLogs => l.lua_logs,
+            Tab::HpsLogs => l.hps_logs,
             Tab::DevTools => l.dev_tools,
 
             Tab::Debug => l.debug,
@@ -145,7 +145,7 @@ impl Tab {
             Tab::Timeline => l.timeline.into(),
             Tab::Timer => l.timer.into(),
 
-            Tab::LuaLogs => l.lua_logs.into(),
+            Tab::HpsLogs => l.hps_logs.into(),
             Tab::DevTools => l.dev_tools.into(),
 
             Tab::Debug => l.debug.into(),
@@ -180,7 +180,7 @@ impl Tab {
             Tab::Timeline => timeline::show(ui, app),
             Tab::Timer => timer::show(ui, app),
 
-            Tab::LuaLogs => lua_logs::show(ui, app),
+            Tab::HpsLogs => hps_logs::show(ui, app),
             Tab::DevTools => dev_tools::show(ui, app),
 
             Tab::Debug => debug::show(ui, app),

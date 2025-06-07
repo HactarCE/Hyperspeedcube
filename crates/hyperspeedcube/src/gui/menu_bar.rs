@@ -177,28 +177,28 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         app_ui.app.prefs.needs_save |= r.changed();
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Ok(lua_dir) = hyperpaths::lua_dir() {
-                if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
+            if let Ok(hps_dir) = hyperpaths::hps_dir() {
+                if ui.button(L.menu.puzzles.show_hps_dir).clicked() {
                     ui.close_menu();
-                    crate::open_dir(lua_dir);
+                    crate::open_dir(hps_dir);
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button(L.menu.puzzles.extract_lua).clicked() {
+            if ui.button(L.menu.puzzles.extract_hps).clicked() {
                 ui.close_menu();
                 if let Some(mut dir_path) = rfd::FileDialog::new()
-                    .set_title(L.menu.puzzles.extract_lua)
+                    .set_title(L.menu.puzzles.extract_hps)
                     .pick_folder()
                 {
-                    dir_path.push("lua");
-                    match hyperpuzzle_rhai::extract_builtin_files(&dir_path) {
+                    dir_path.push("hps");
+                    match hyperpuzzlescript::extract_builtin_files(&dir_path) {
                         Ok(()) => crate::open_dir(&dir_path),
-                        Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
+                        Err(e) => log::error!("Error extracting built-in Hps files: {e}"),
                     }
                 }
             }
 
-            show_tab_toggle(ui, app_ui, Tab::LuaLogs);
+            show_tab_toggle(ui, app_ui, Tab::HpsLogs);
             show_tab_toggle(ui, app_ui, Tab::DevTools);
         });
     });

@@ -77,35 +77,27 @@ pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     known
 }
 
-/// Escapes a string to be used as a key in a Lua table literal.
-pub fn escape_lua_table_key(s: &str) -> Cow<'_, str> {
+/// Escapes a string to be used as a key in a Hyperpuzzlescript map literal.
+pub fn escape_hps_map_key(s: &str) -> Cow<'_, str> {
     const RESERVED_WORDS: &[&str] = &[
-        "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if",
-        "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
+        "and", "as", "break", "continue", "do", "else", "export", "false", "fn", "for", "from",
+        "if", "import", "in", "is", "not", "null", "or", "return", "true", "use", "while", "with",
+        "xor",
     ];
     if s.is_empty()
         || s.starts_with(|c: char| c.is_ascii_digit())
         || s.chars().any(|c| !c.is_alphanumeric() && c != '_')
         || RESERVED_WORDS.contains(&s)
     {
-        format!("[{}]", lua_string_literal(s)).into()
+        hps_string_literal(s).into()
     } else {
         s.into()
     }
 }
 
-/// Escapes a string to be used as a Lua string literal.
-pub fn lua_string_literal(s: &str) -> String {
-    // I'm not sure whether Rust string escaping works for Lua, but it's not the
-    // worst thing if this generates invalid Lua code.
-    let s = format!("{s:?}");
-
-    // Prefer single quotes as a matter of style
-    if s.contains('\'') {
-        s
-    } else {
-        format!("'{}'", &s[1..s.len() - 1])
-    }
+/// Escapes a string to be used as a Hyperpuzzlescript string literal.
+pub fn hps_string_literal(s: &str) -> String {
+    format!("{:?}", s.replace('$', "\\$"))
 }
 
 /// Constructs a vantage name with the standard format `r1:r2,r3:r4,r5:r6`

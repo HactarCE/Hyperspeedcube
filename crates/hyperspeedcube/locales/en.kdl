@@ -26,7 +26,7 @@ tabs {
     timeline "Timeline"
     timer "Timer"
 
-    lua_logs "Lua logs"
+    hps_logs "Hyperpuzzlescript logs"
     dev_tools "Developer tools"
 
     debug "Debug output"
@@ -62,7 +62,7 @@ tabs {
     timeline "Timeline"
     timer "Timer"
 
-    lua_logs "Lua Logs"
+    hps_logs "Hyperpuzzlescript Logs"
     dev_tools "Developer Tools"
 
     debug "Debug Output"
@@ -109,8 +109,8 @@ menu {
   puzzles {
     title "Puzzles"
     custom "Custom puzzles"
-    show_lua_dir "Show Lua directory"
-    extract_lua "Extra built-in Lua files…"
+    show_hps_dir "Show HPS directory"
+    extract_hps "Extra built-in HPS files…"
     show_experimental "Show experimental puzzles"
   }
   help {
@@ -554,7 +554,7 @@ _debug {
 
 dev {
   hover_info "Hover info"
-  lua_generator "Lua generator"
+  hps_generator "HPS code generator"
   linter "Linter"
   logs {
     clear "Clear logs"
@@ -746,7 +746,7 @@ eula """
 
   This is a **prerelease** version of Hyperspeedcube. All of the following is unstable and subject to change:
 
-  - Lua API for defining puzzles
+  - API for defining puzzles
   - Built-in puzzles
   - Log file format (so solves may not be readable using future versions)
   - Preferences format (so your configuration may be reset without warning)

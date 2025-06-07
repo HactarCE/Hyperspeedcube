@@ -15,7 +15,7 @@ use crate::gui::util::{EguiTempFlag, EguiTempValue};
 enum DevToolsTab {
     #[default]
     HoverInfo,
-    LuaGenerator,
+    HpsGenerator,
     Linter,
 }
 
@@ -47,8 +47,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             );
             ui.selectable_value(
                 &mut state.current_tab,
-                DevToolsTab::LuaGenerator,
-                L.dev.lua_generator,
+                DevToolsTab::HpsGenerator,
+                L.dev.hps_generator,
             );
             ui.selectable_value(&mut state.current_tab, DevToolsTab::Linter, L.dev.linter);
         });
@@ -62,7 +62,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 .unwrap_or_else(|| {
                     ui.label("No active puzzle");
                 }),
-            DevToolsTab::LuaGenerator => show_lua_generator(ui, app, &mut state),
+            DevToolsTab::HpsGenerator => show_hps_generator(ui, app, &mut state),
             DevToolsTab::Linter => show_linter(ui, &mut state),
         };
     });
@@ -144,7 +144,7 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
     }
 }
 
-fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
     ui.with_layout(
         egui::Layout::top_down_justified(egui::Align::Center),
         |ui| {
@@ -156,7 +156,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
             app.active_puzzle.with_view(|view| {
                 let text_to_copy = r
                     .clicked()
-                    .then(|| color_system_to_lua_code(&view.puzzle().colors, &app.prefs));
+                    .then(|| color_system_to_hps_code(&view.puzzle().colors, &app.prefs));
                 crate::gui::components::copy_on_click(ui, r, text_to_copy);
             });
 
@@ -185,23 +185,23 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                         return;
                     };
 
-                    uis[0].menu_button("Copy Lua code", |ui| {
+                    uis[0].menu_button("Copy Hps code", |ui| {
                         let r = ui.button("Compact");
                         let text_to_copy = r
                             .clicked()
-                            .then(|| loaded_orbit.lua_code(&state.names_and_order, true));
+                            .then(|| loaded_orbit.hps_code(&state.names_and_order, true));
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
 
                         let r = ui.button("Expanded");
                         let text_to_copy = r
                             .clicked()
-                            .then(|| loaded_orbit.lua_code(&state.names_and_order, false));
+                            .then(|| loaded_orbit.hps_code(&state.names_and_order, false));
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
                     });
 
                     if uis[1].button("Clear orbit").clicked() {
                         *state = Default::default();
-                        state.current_tab = DevToolsTab::LuaGenerator;
+                        state.current_tab = DevToolsTab::HpsGenerator;
                     }
                 });
             }
@@ -324,11 +324,11 @@ fn puzzle_color_edit_button(
     });
 }
 
-fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
+fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
     use hyperprefs::MODIFIED_SUFFIX;
-    use hyperpuzzle::util::{escape_lua_table_key, lua_string_literal};
+    use hyperpuzzle::util::{escape_hps_map_key, hps_string_literal};
 
-    let id_string_literal = lua_string_literal(&color_system.id);
+    let id_string_literal = hps_string_literal(&color_system.id);
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
@@ -349,15 +349,15 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         }
     }
 
-    let mut s = "color_systems:add{\n".to_owned();
+    let mut s = "add_color_system(\n".to_owned();
 
-    s += &format!("  id = {id_string_literal},\n");
-    s += &format!("  name = {name_string_literal},\n");
+    s += &format!("    id = {id_string_literal},\n");
+    s += &format!("    name = {name_string_literal},\n");
 
     let has_default_colors = schemes.len() == 1;
 
     let color_name_kv_pairs = pad_to_common_length(color_system.names.iter_values().map(|info| {
-        let string_literal = lua_string_literal(&info.spec);
+        let string_literal = hps_string_literal(&info.spec);
         format!(" name = {string_literal},")
     }));
     let color_display_kv_pairs = pad_to_common_length(
@@ -380,9 +380,9 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
                     .collect_vec()
             });
 
-    s += "\n  colors = {\n";
+    s += "\n    colors = [\n";
     for i in 0..color_system.names.len() {
-        s += "    {";
+        s += "        {";
         s += &color_name_kv_pairs[i];
         if has_default_colors {
             s += &color_display_kv_pairs[i];
@@ -397,27 +397,27 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         }
         s += " },\n";
     }
-    s += "  },\n";
+    s += "    ],\n";
 
     if !has_default_colors {
-        s += "\n  schemes = {\n";
+        s += "\n    schemes = [\n";
         for (name, colors) in &schemes {
-            s += &format!("    {{{name:?}, {{\n");
+            s += &format!("        {{{name:?}, {{\n");
             for (k, v) in colors {
-                let k = escape_lua_table_key(match color_system.names.get(k) {
+                let k = escape_hps_map_key(match color_system.names.get(k) {
                     Ok(name) => &name.spec,
                     Err(_) => "?",
                 });
                 let v = v.to_string();
-                s += &format!("      {k} = {v:?},\n");
+                s += &format!("          {k} = {v:?},\n");
             }
-            s += "    }},\n";
+            s += "        }},\n";
         }
-        s += "  },\n";
-        s += &format!("  default = {default_scheme:?},\n");
+        s += "    ],\n";
+        s += &format!("    default = {default_scheme:?},\n");
     }
 
-    s += "}\n";
+    s += ")\n";
     s
 }
 
@@ -497,7 +497,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                     ));
                 }
                 if !missing_tags.is_empty() {
-                    if ui.button("Copy Lua code to exclude tags").clicked() {
+                    if ui.button("Copy Hps code to exclude tags").clicked() {
                         let text = missing_tags
                             .iter()
                             .filter_map(|tag| tag.iter().exactly_one().ok())

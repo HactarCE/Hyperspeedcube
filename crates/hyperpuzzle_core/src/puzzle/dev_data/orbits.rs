@@ -34,11 +34,12 @@ impl AnyOrbit {
         }
     }
 
-    /// Returns the Lua source code to generate the given naming and ordering.
-    pub fn lua_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
+    /// Returns the Hyperpuzzlescript source code to generate the given naming
+    /// and ordering.
+    pub fn hps_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
         match self {
-            AnyOrbit::Axes(orbit) => orbit.lua_code(new_names_and_order, compact),
-            AnyOrbit::Colors(orbit) => orbit.lua_code(new_names_and_order, compact),
+            AnyOrbit::Axes(orbit) => orbit.hps_code(new_names_and_order, compact),
+            AnyOrbit::Colors(orbit) => orbit.hps_code(new_names_and_order, compact),
         }
     }
 }
@@ -124,8 +125,9 @@ impl<T: PuzzleElement> Orbit<T> {
         self.elements.is_empty()
     }
 
-    /// Returns the Lua source code to generate the given naming and ordering.
-    pub fn lua_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
+    /// Returns the Hyperpuzzlescript source code to generate the given naming
+    /// and ordering.
+    pub fn hps_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
         let mut new_element_names = vec![None; self.elements.len()];
         for (i, new_name) in new_names_and_order {
             if *i < new_element_names.len() {
@@ -133,11 +135,11 @@ impl<T: PuzzleElement> Orbit<T> {
             }
         }
 
-        let mut s = ":named({\n".to_owned();
+        let mut s = "#{\n".to_owned();
         for (i, new_name) in new_names_and_order {
             s += "  ";
-            s += &*crate::util::escape_lua_table_key(new_name);
-            s += " = {";
+            s += &*crate::util::escape_hps_map_key(new_name);
+            s += " = [";
             let mut is_first = true;
             let mut elem_index = *i;
             while let Some(gen_seq) = self.generator_sequences.get(elem_index) {
@@ -153,14 +155,14 @@ impl<T: PuzzleElement> Orbit<T> {
                 elem_index = next;
                 if compact {
                     if let Some(Some(other_name)) = new_element_names.get(elem_index) {
-                        s += &format!(", {}", crate::util::lua_string_literal(other_name));
+                        s += &format!(", {}", crate::util::hps_string_literal(other_name));
                         break;
                     }
                 }
             }
-            s += "},\n";
+            s += "],\n";
         }
-        s += "})";
+        s += "}";
         s
     }
 }

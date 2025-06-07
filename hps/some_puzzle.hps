@@ -3,6 +3,6 @@ add_puzzle(
     engine = "euclid",
     ndim = 3,
     build = fn(p) {
-
+        print(p)
     },
 )

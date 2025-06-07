@@ -1,4 +1,4 @@
-// TODO: this isn't just Lua
+// TODO: this isn't just HPS
 
 use hyperpuzzle::LogLine;
 use log::Level;

@@ -54,7 +54,7 @@ impl AppUi {
         let surface = dock_state.main_surface_mut();
         let [main, left] =
             surface.split_left(main, 0.15, vec![Tab::PuzzleCatalog, Tab::PuzzleControls]);
-        surface.split_below(left, 0.6, vec![Tab::LuaLogs]);
+        surface.split_below(left, 0.6, vec![Tab::HpsLogs]);
         let [_main, right] = surface.split_right(main, 0.65, vec![Tab::Keybinds]);
 
         // Install WindowEvent hook (workaround to get raw keyboard events).
