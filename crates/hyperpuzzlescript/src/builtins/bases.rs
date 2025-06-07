@@ -1,3 +1,5 @@
+//! Base conversion functions.
+
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
@@ -6,6 +8,7 @@ use crate::{Error, ListOf, Num, Result, Scope, Span, Str};
 const A0Z25: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DEFAULT_BASE_DIGITS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+/// Adds the built-in functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         // Digits

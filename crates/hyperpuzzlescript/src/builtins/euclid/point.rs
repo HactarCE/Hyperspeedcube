@@ -23,7 +23,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ///   the point unmodified.
         #[kwargs(kwargs)]
         fn point(ctx: EvalCtx, args: Args) -> Point {
-            let v = crate::builtins::geometry::construct_vec(ctx.caller_span, &args, kwargs)?;
+            let v = crate::builtins::vec::construct_from_args(ctx.caller_span, &args, kwargs)?;
             Point(v)
         }
     ])?;

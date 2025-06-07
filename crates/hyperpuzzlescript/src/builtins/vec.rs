@@ -1,7 +1,11 @@
-use hypermath::prelude::*;
+//! Operators and functions for operating on vectors.
 
-use crate::{Error, Num, Result, Scope};
+use ecow::eco_format;
+use hypermath::{Vector, VectorRef, is_approx_nonzero, vector};
 
+use crate::{Error, Map, Num, Result, Scope, Span, Type, Value, ValueData};
+
+/// Adds the built-in operators and functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         /// `vec()` constructs a [vector](#vectors) and can be called in any of
@@ -25,7 +29,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ///   coordinates as a vector.
         #[kwargs(kwargs)]
         fn vec(ctx: EvalCtx, args: Args) -> Vector {
-            super::construct_vec(ctx.caller_span, &args, kwargs)?
+            construct_from_args(ctx.caller_span, &args, kwargs)?
         }
 
         /// `dot()` returns the [dot product] between two vectors.
@@ -73,4 +77,43 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ("*", |_, n: Num, v: Vector| -> Vector { v * n }),
         ("/", |_, v: Vector, n: Num| -> Vector { v / n }),
     ])
+}
+
+pub(super) fn construct_from_args(span: Span, args: &[Value], kwargs: Map) -> Result<Vector> {
+    match args {
+        [] => {
+            unpack_kwargs!(
+                kwargs,
+                x: Num = 0.0,
+                y: Num = 0.0,
+                z: Num = 0.0,
+                w: Num = 0.0,
+                v: Num = 0.0,
+                u: Num = 0.0,
+                t: Num = 0.0,
+            );
+            let mut ret = vector![];
+            for (i, n) in [x, y, z, w, v, u, t].iter().enumerate() {
+                if is_approx_nonzero(&n) {
+                    ret.resize_and_set(i as u8, n);
+                }
+            }
+            Ok(ret)
+        }
+
+        [arg] => match &arg.data {
+            ValueData::Num(n) => Ok(vector![*n]),
+            ValueData::Vec(v) => Ok(v.clone()),
+            ValueData::EuclidPoint(p) => Ok(p.0.clone()),
+            _ => Err(arg.type_error(Type::from_iter([Type::Num, Type::Vec, Type::EuclidPoint]))),
+        },
+
+        _ if args.len() > hypermath::MAX_NDIM as usize => Err(Error::User(eco_format!(
+            "vector too long (max is {})",
+            hypermath::MAX_NDIM,
+        ))
+        .at(span)),
+
+        _ => args.iter().map(|arg| arg.ref_to::<f64>()).collect(),
+    }
 }

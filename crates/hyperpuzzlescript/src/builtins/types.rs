@@ -1,5 +1,8 @@
+//! Built-in types and the type operators `|` and `?`
+
 use crate::{Result, Scope, Type, ValueData};
 
+/// Adds the built-in operators and functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     for ty in [
         Type::Any,

@@ -1,7 +1,10 @@
+//! Operators and functions for operating on lists and maps.
+
 use std::sync::Arc;
 
 use crate::{List, Map, Result, Scope, Str, ValueData};
 
+/// Adds the built-in operators and functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         // Operators

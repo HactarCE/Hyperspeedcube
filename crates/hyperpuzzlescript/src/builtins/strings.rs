@@ -1,8 +1,11 @@
+//! Operators and functions for operating on lists and maps.
+
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
 use crate::{Error, ListOf, Num, Result, Scope, Span, Str, ValueData};
 
+/// Adds the built-in operators and functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         // Concatenation

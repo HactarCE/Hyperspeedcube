@@ -1,9 +1,12 @@
+//! Assertion functions `assert()`, `assert_eq()`, `assert_neq()`, and `__eval_to_error()`.
+
 use std::sync::Arc;
 
 use ecow::{EcoString, eco_format};
 
 use crate::{Diagnostic, Error, FnValue, Map, Result, Scope, Span, Value, ValueData};
 
+/// Adds the built-in functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         ("assert", |_, (cond, span): bool| -> () {

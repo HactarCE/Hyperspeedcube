@@ -1,7 +1,10 @@
+//! Output functions `print()`, `warn()`, and `error()`.
+
 use itertools::Itertools;
 
 use crate::{Error, Result, Scope, Warning};
 
+/// Adds the built-in functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         /// Prints to the output.

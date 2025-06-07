@@ -3,9 +3,7 @@ use std::borrow::Cow;
 use hypermath::pga::*;
 use hypermath::prelude::*;
 
-use crate::ErrorExt;
-use crate::Num;
-use crate::{Error, Result, Scope};
+use crate::{Error, ErrorExt, Num, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![

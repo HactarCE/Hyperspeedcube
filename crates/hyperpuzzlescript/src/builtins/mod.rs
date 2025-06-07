@@ -1,35 +1,29 @@
-use std::sync::Arc;
+//! Built-in functions and constants.
 
-mod assertions;
-mod bases;
-mod collections;
-mod constants;
-mod euclid;
-mod geometry;
-mod math;
-mod operators;
-mod output;
-mod strings;
-mod types;
+pub mod assertions;
+pub mod bases;
+pub mod collections;
+pub mod euclid;
+pub mod math;
+pub mod operators;
+pub mod output;
+pub mod strings;
+pub mod types;
+pub mod vec;
 
 use crate::{Result, Scope};
 
-pub fn new_builtins_scope() -> Arc<Scope> {
-    // IIFE to mimic try_block
-    (|| -> Result<_> {
-        let scope = Scope::new();
-        assertions::define_in(&scope)?;
-        bases::define_in(&scope)?;
-        collections::define_in(&scope)?;
-        constants::define_in(&scope)?;
-        euclid::define_in(&scope)?;
-        math::define_in(&scope)?;
-        operators::define_in(&scope)?;
-        output::define_in(&scope)?;
-        geometry::define_in(&scope)?;
-        strings::define_in(&scope)?;
-        types::define_in(&scope)?;
-        Ok(scope)
-    })()
-    .expect("error define built-ins")
+/// Defines all base functionality that isn't related to the puzzle catalog.
+pub fn define_base_in(scope: &Scope) -> Result<()> {
+    assertions::define_in(&scope)?;
+    bases::define_in(&scope)?;
+    collections::define_in(&scope)?;
+    euclid::define_in(&scope)?;
+    math::define_in(&scope)?;
+    operators::define_in(&scope)?;
+    output::define_in(&scope)?;
+    strings::define_in(&scope)?;
+    types::define_in(&scope)?;
+    vec::define_in(&scope)?;
+    Ok(())
 }
