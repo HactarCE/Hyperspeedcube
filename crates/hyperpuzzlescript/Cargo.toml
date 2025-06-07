@@ -19,7 +19,7 @@ workspace = true
 hypermath = { workspace = true }
 hyperpaths = { workspace = true, optional = true }
 hyperpuzzle_core = { workspace = true }
-# hyperpuzzle_impl_nd_euclid = { workspace = true }
+hyperpuzzle_impl_nd_euclid = { workspace = true }
 # hypershape = { workspace = true }
 
 arcstr = { workspace = true }
@@ -27,7 +27,7 @@ ariadne = { workspace = true }
 chumsky = { workspace = true }
 # disjoint = { workspace = true }
 ecow = { workspace = true }
-# eyre = { workspace = true }
+eyre = { workspace = true } # TODO: make this optional if factoring puzzle construction into another crate
 # float-ord = { workspace = true }
 include_dir = { workspace = true }
 indexmap = { workspace = true }

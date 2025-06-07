@@ -17,6 +17,17 @@ pub enum Warning {
     ShadowedExport(Spanned<Key>),
 }
 
+impl From<EcoString> for Warning {
+    fn from(value: EcoString) -> Self {
+        Warning::User(value)
+    }
+}
+impl From<&str> for Warning {
+    fn from(value: &str) -> Self {
+        Warning::User(value.into())
+    }
+}
+
 impl Warning {
     /// Adds a primary span to the warning.
     pub fn at(self, span: impl Into<Span>) -> FullDiagnostic {

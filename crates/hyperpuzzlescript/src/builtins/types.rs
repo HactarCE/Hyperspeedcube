@@ -20,8 +20,8 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         scope.set(ty.to_string(), ValueData::Type(ty).at(crate::BUILTIN_SPAN));
     }
 
-    scope.register_builtin_functions(hps_short_fns![
-        ("|", |_ctx, a: Type, b: Type| -> Type { Type::unify(a, b) }),
-        ("?", |_ctx, t: Type| -> Type { t.optional() })
+    scope.register_builtin_functions(hps_fns![
+        ("|", |_, a: Type, b: Type| -> Type { Type::unify(a, b) }),
+        ("?", |_, t: Type| -> Type { t.optional() })
     ])
 }

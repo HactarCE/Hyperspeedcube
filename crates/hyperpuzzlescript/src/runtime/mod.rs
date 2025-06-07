@@ -9,11 +9,10 @@ mod special;
 use arcstr::ArcStr;
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
-use indexmap::IndexMap;
 pub use scope::{ParentScope, Scope};
 pub use special::SpecialVariables;
 
-use crate::{FileId, FullDiagnostic, Key, Result, Span, Value, ValueData, ast};
+use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast};
 
 /// Script runtime.
 pub struct Runtime {
@@ -135,7 +134,7 @@ impl Runtime {
     fn load_module_uncached(&mut self, file_id: FileId) -> Option<Result<Value, ()>> {
         let file = self.files.get(file_id)?;
         let submodules = file.submodules.clone();
-        let mut exports: Option<IndexMap<Key, Value>> = None;
+        let mut exports: Option<Map> = None;
         for submodule_id in submodules {
             match self.load_module(submodule_id).cloned() {
                 Some(Ok(submodule_return_value)) => {

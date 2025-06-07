@@ -4,7 +4,7 @@ mod report;
 mod traceback;
 mod warning;
 
-pub use error::{Error, ImmutReason};
+pub use error::{Error, ErrorExt, ImmutReason};
 pub use full::FullDiagnostic;
 pub(crate) use full::LoopControlFlow;
 use report::ReportBuilder;

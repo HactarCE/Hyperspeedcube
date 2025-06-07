@@ -1,7 +1,7 @@
 use ecow::eco_format;
 use hypermath::approx_cmp;
 
-use crate::{Error, Result, Scope};
+use crate::{Error, Num, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
@@ -18,12 +18,12 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             n.sqrt()
         }
     ])?;
-    scope.register_builtin_functions([hps_fn!("√", |x: Num| -> Num { x.sqrt() })])?;
+    scope.register_builtin_functions(hps_fns![("√", |_ctx, x: Num| -> Num { x.sqrt() })])?;
 
-    scope.register_builtin_functions([
+    scope.register_builtin_functions(hps_fns![
         // Number functions
-        hps_fn!("abs", |x: Num| -> Num { x.abs() }),
-        hps_fn!("sign", |x: Num| -> Num {
+        ("abs", |_, x: Num| -> Num { x.abs() }),
+        ("sign", |_, x: Num| -> Num {
             match approx_cmp(&x, &0.0) {
                 std::cmp::Ordering::Greater => 1.0,
                 std::cmp::Ordering::Equal if x.is_sign_positive() => 0.0,
@@ -31,8 +31,8 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 std::cmp::Ordering::Less => -1.0,
             }
         }),
-        hps_fn!("cbrt", |x: Num| -> Num { x.cbrt() }),
-        hps_fn!("factorial", |(x, x_span): Int| -> Num {
+        ("cbrt", |_, x: Num| -> Num { x.cbrt() }),
+        ("factorial", |_, (x, x_span): i64| -> Num {
             if x < 0 {
                 let msg = "input cannot be negative";
                 return Err(Error::bad_arg(x as f64, Some(msg)).at(x_span));
@@ -40,13 +40,13 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             // convert to float to guard against integer overflow
             (2..=x).map(|x| x as f64).product::<f64>()
         }),
-        hps_fn!("is_even", |x: Int| -> Bool { x % 2 == 0 }),
-        hps_fn!("is_odd", |x: Int| -> Bool { x % 2 != 0 }),
-        hps_fn!("min", |a: Num, b: Num| -> Num { a.min(b) }),
-        hps_fn!("max", |a: Num, b: Num| -> Num { a.max(b) }),
-        hps_fn!("at_least", |a: Num, b: Num| -> Num { a.max(b) }),
-        hps_fn!("at_most", |a: Num, b: Num| -> Num { a.min(b) }),
-        hps_fn!("clamp", |ctx, x: Num, bound1: Num, bound2: Num| -> Num {
+        ("is_even", |_, x: i64| -> bool { x % 2 == 0 }),
+        ("is_odd", |_, x: i64| -> bool { x % 2 != 0 }),
+        ("min", |_, a: Num, b: Num| -> Num { a.min(b) }),
+        ("max", |_, a: Num, b: Num| -> Num { a.max(b) }),
+        ("at_least", |_, a: Num, b: Num| -> Num { a.max(b) }),
+        ("at_most", |_, a: Num, b: Num| -> Num { a.min(b) }),
+        ("clamp", |ctx, x: Num, bound1: Num, bound2: Num| -> Num {
             match approx_cmp(&bound1, &bound2) {
                 std::cmp::Ordering::Less => x.clamp(bound1, bound2),
                 std::cmp::Ordering::Equal => bound1,
@@ -59,69 +59,69 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             }
         }),
         // Interpolation
-        hps_fn!("lerp", |a: Num, b: Num, t: Num| -> Num {
+        ("lerp", |_, a: Num, b: Num, t: Num| -> Num {
             let t = t.clamp(0.0, 1.0);
             a * (1.0 - t) + b * t
         }),
-        hps_fn!("lerp_unbounded", |a: Num, b: Num, t: Num| -> Num {
+        ("lerp_unbounded", |_, a: Num, b: Num, t: Num| -> Num {
             a * (1.0 - t) + b * t
         }),
         // Trigonometric functions
-        hps_fn!("sin", |x: Num| -> Num { x.sin() }),
-        hps_fn!("cos", |x: Num| -> Num { x.cos() }),
-        hps_fn!("tan", |x: Num| -> Num { x.tan() }),
-        hps_fn!("sinh", |x: Num| -> Num { x.sinh() }),
-        hps_fn!("cosh", |x: Num| -> Num { x.cosh() }),
-        hps_fn!("tanh", |x: Num| -> Num { x.tanh() }),
+        ("sin", |_, x: Num| -> Num { x.sin() }),
+        ("cos", |_, x: Num| -> Num { x.cos() }),
+        ("tan", |_, x: Num| -> Num { x.tan() }),
+        ("sinh", |_, x: Num| -> Num { x.sinh() }),
+        ("cosh", |_, x: Num| -> Num { x.cosh() }),
+        ("tanh", |_, x: Num| -> Num { x.tanh() }),
         // Inverse trigonometric functions (short names)
-        hps_fn!("asin", |x: Num| -> Num { x.asin() }),
-        hps_fn!("acos", |x: Num| -> Num { x.acos() }),
-        hps_fn!("atan", |x: Num| -> Num { x.atan() }),
-        hps_fn!("asinh", |x: Num| -> Num { x.asinh() }),
-        hps_fn!("acosh", |x: Num| -> Num { x.acosh() }),
-        hps_fn!("atanh", |x: Num| -> Num { x.atanh() }),
+        ("asin", |_, x: Num| -> Num { x.asin() }),
+        ("acos", |_, x: Num| -> Num { x.acos() }),
+        ("atan", |_, x: Num| -> Num { x.atan() }),
+        ("asinh", |_, x: Num| -> Num { x.asinh() }),
+        ("acosh", |_, x: Num| -> Num { x.acosh() }),
+        ("atanh", |_, x: Num| -> Num { x.atanh() }),
         // Inverse trigonometric functions (long names)
-        hps_fn!("arcsin", |x: Num| -> Num { x.asin() }),
-        hps_fn!("arccos", |x: Num| -> Num { x.acos() }),
-        hps_fn!("arctan", |x: Num| -> Num { x.atan() }),
-        hps_fn!("arsinh", |x: Num| -> Num { x.asinh() }),
-        hps_fn!("arcosh", |x: Num| -> Num { x.acosh() }),
-        hps_fn!("artanh", |x: Num| -> Num { x.atanh() }),
+        ("arcsin", |_, x: Num| -> Num { x.asin() }),
+        ("arccos", |_, x: Num| -> Num { x.acos() }),
+        ("arctan", |_, x: Num| -> Num { x.atan() }),
+        ("arsinh", |_, x: Num| -> Num { x.asinh() }),
+        ("arcosh", |_, x: Num| -> Num { x.acosh() }),
+        ("artanh", |_, x: Num| -> Num { x.atanh() }),
         // Reciprocal trigonometric functions
-        hps_fn!("csc", |x: Num| -> Num { x.sin().recip() }),
-        hps_fn!("sec", |x: Num| -> Num { x.cos().recip() }),
-        hps_fn!("cot", |x: Num| -> Num { x.tan().recip() }),
-        hps_fn!("csch", |x: Num| -> Num { x.sinh().recip() }),
-        hps_fn!("sech", |x: Num| -> Num { x.cosh().recip() }),
-        hps_fn!("coth", |x: Num| -> Num { x.tanh().recip() }),
+        ("csc", |_, x: Num| -> Num { x.sin().recip() }),
+        ("sec", |_, x: Num| -> Num { x.cos().recip() }),
+        ("cot", |_, x: Num| -> Num { x.tan().recip() }),
+        ("csch", |_, x: Num| -> Num { x.sinh().recip() }),
+        ("sech", |_, x: Num| -> Num { x.cosh().recip() }),
+        ("coth", |_, x: Num| -> Num { x.tanh().recip() }),
         // Inverse reciprocal trigonometric functions (short names)
-        hps_fn!("acsc", |x: Num| -> Num { x.recip().asin() }),
-        hps_fn!("asec", |x: Num| -> Num { x.recip().acos() }),
-        hps_fn!("acot", |x: Num| -> Num { x.recip().atan() }),
-        hps_fn!("acsch", |x: Num| -> Num { x.recip().asinh() }),
-        hps_fn!("asech", |x: Num| -> Num { x.recip().acosh() }),
-        hps_fn!("acoth", |x: Num| -> Num { x.recip().atanh() }),
+        ("acsc", |_, x: Num| -> Num { x.recip().asin() }),
+        ("asec", |_, x: Num| -> Num { x.recip().acos() }),
+        ("acot", |_, x: Num| -> Num { x.recip().atan() }),
+        ("acsch", |_, x: Num| -> Num { x.recip().asinh() }),
+        ("asech", |_, x: Num| -> Num { x.recip().acosh() }),
+        ("acoth", |_, x: Num| -> Num { x.recip().atanh() }),
         // Inverse reciprocal trigonometric functions (long names)
-        hps_fn!("arccsc", |x: Num| -> Num { x.recip().asin() }),
-        hps_fn!("arcsec", |x: Num| -> Num { x.recip().acos() }),
-        hps_fn!("arccot", |x: Num| -> Num { x.recip().atan() }),
-        hps_fn!("arcsch", |x: Num| -> Num { x.recip().asinh() }),
-        hps_fn!("arsech", |x: Num| -> Num { x.recip().acosh() }),
-        hps_fn!("arcoth", |x: Num| -> Num { x.recip().atanh() }),
+        ("arccsc", |_, x: Num| -> Num { x.recip().asin() }),
+        ("arcsec", |_, x: Num| -> Num { x.recip().acos() }),
+        ("arccot", |_, x: Num| -> Num { x.recip().atan() }),
+        ("arcsch", |_, x: Num| -> Num { x.recip().asinh() }),
+        ("arsech", |_, x: Num| -> Num { x.recip().acosh() }),
+        ("arcoth", |_, x: Num| -> Num { x.recip().atanh() }),
         // Exponentials and logarithms
-        hps_fn!("exp", |x: Num| -> Num { x.exp() }),
-        hps_fn!("exp2", |x: Num| -> Num { x.exp2() }),
-        hps_fn!("ln", |x: Num| -> Num { x.ln() }),
-        hps_fn!("log2", |x: Num| -> Num { x.log2() }),
-        hps_fn!("log10", |x: Num| -> Num { x.log10() }),
+        ("exp", |_, x: Num| -> Num { x.exp() }),
+        ("exp2", |_, x: Num| -> Num { x.exp2() }),
+        ("ln", |_, x: Num| -> Num { x.ln() }),
+        ("log2", |_, x: Num| -> Num { x.log2() }),
+        ("log10", |_, x: Num| -> Num { x.log10() }),
         // Rounding
-        hps_fn!("round", |x: Num| -> Num { x.round() }),
-        hps_fn!("floor", |x: Num| -> Num { x.floor() }),
-        hps_fn!("ceil", |x: Num| -> Num { x.ceil() }),
-        hps_fn!("ceiling", |x: Num| -> Num { x.ceil() }),
-        hps_fn!("trunc", |x: Num| -> Num { x.trunc() }),
+        ("round", |_, x: Num| -> Num { x.round() }),
+        ("floor", |_, x: Num| -> Num { x.floor() }),
+        ("ceil", |_, x: Num| -> Num { x.ceil() }),
+        ("ceiling", |_, x: Num| -> Num { x.ceil() }),
+        ("trunc", |_, x: Num| -> Num { x.trunc() }),
         // Infinity
-        hps_fn!("is_infinite", |x: Num| -> Num { x.is_infinite() }),
-        hps_fn!("is_finite", |x: Num| -> Num { x.is_finite() }),
+        ("is_infinite", |_, x: Num| -> bool { x.is_infinite() }),
+        ("is_finite", |_, x: Num| -> bool { x.is_finite() }),
     ])
 }

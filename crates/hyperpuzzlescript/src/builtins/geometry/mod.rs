@@ -1,8 +1,7 @@
 use ecow::eco_format;
 use hypermath::{Vector, is_approx_nonzero, vector};
-use indexmap::IndexMap;
 
-use crate::{Error, Key, Result, Scope, Span, Type, Value, ValueData};
+use crate::{Error, Map, Num, Result, Scope, Span, Type, Value, ValueData};
 
 mod vec;
 
@@ -11,11 +10,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn construct_vec(
-    span: Span,
-    args: &[Value],
-    kwargs: IndexMap<Key, Value>,
-) -> Result<Vector> {
+pub(super) fn construct_vec(span: Span, args: &[Value], kwargs: Map) -> Result<Vector> {
     match args {
         [] => {
             unpack_kwargs!(
@@ -41,7 +36,7 @@ pub(super) fn construct_vec(
             ValueData::Num(n) => Ok(vector![*n]),
             ValueData::Vec(v) => Ok(v.clone()),
             ValueData::EuclidPoint(p) => Ok(p.0.clone()),
-            _ => Err(arg.multi_type_error(vec![Type::Num, Type::Vec, Type::EuclidPoint])),
+            _ => Err(arg.type_error(Type::from_iter([Type::Num, Type::Vec, Type::EuclidPoint]))),
         },
 
         _ if args.len() > hypermath::MAX_NDIM as usize => Err(Error::User(eco_format!(
@@ -50,6 +45,6 @@ pub(super) fn construct_vec(
         ))
         .at(span)),
 
-        _ => args.iter().map(|arg| arg.as_num()).collect(),
+        _ => args.iter().map(|arg| arg.ref_to::<f64>()).collect(),
     }
 }

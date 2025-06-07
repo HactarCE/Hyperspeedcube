@@ -85,6 +85,16 @@ impl FullDiagnostic {
         }))
         .into_string_with_ansi_escapes(files)
     }
+
+    /// Sets the `expected` type of [`Error::TypeError`]; other error types are
+    /// unmodified.
+    #[must_use]
+    pub(crate) fn with_expected_type(mut self, t: crate::Type) -> Self {
+        if let Diagnostic::Error(Error::TypeError { expected, .. }) = &mut self.msg {
+            *expected = t;
+        }
+        self
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 use hypermath::prelude::*;
 
-use crate::{Result, Scope};
+use crate::{Num, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
@@ -22,33 +22,27 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `point()` with an existing point will return
         ///   the point unmodified.
         #[kwargs(kwargs)]
-        fn point(ctx: EvalCtx, args: Args) -> EuclidPoint {
+        fn point(ctx: EvalCtx, args: Args) -> Point {
             let v = crate::builtins::geometry::construct_vec(ctx.caller_span, &args, kwargs)?;
             Point(v)
         }
     ])?;
 
-    scope.register_builtin_functions([
+    scope.register_builtin_functions(hps_fns![
         // Operators
-        hps_fn!("+", |a: EuclidPoint, b: Vec| -> EuclidPoint { a + b }),
-        hps_fn!("+", |a: Vec, b: EuclidPoint| -> EuclidPoint { b + a }),
-        hps_fn!("-", |a: EuclidPoint, b: Vec| -> EuclidPoint { a - b }),
-        hps_fn!("-", |a: EuclidPoint, b: EuclidPoint| -> Vec { a - b }),
+        ("+", |_, a: Point, b: Vector| -> Point { a + b }),
+        ("+", |_, a: Vector, b: Point| -> Point { b + a }),
+        ("-", |_, a: Point, b: Vector| -> Point { a - b }),
+        ("-", |_, a: Point, b: Point| -> Vector { a - b }),
         // Interpolation
-        hps_fn!("lerp", |a: EuclidPoint,
-                         b: EuclidPoint,
-                         t: Num|
-         -> EuclidPoint {
+        ("lerp", |_, a: Point, b: Point, t: Num| -> Point {
             Point(hypermath::util::lerp(a.0, b.0, t.clamp(0.0, 1.0)))
         }),
-        hps_fn!("lerp_unbounded", |a: EuclidPoint,
-                                   b: EuclidPoint,
-                                   t: Num|
-         -> EuclidPoint {
+        ("lerp_unbounded", |_, a: Point, b: Point, t: Num| -> Point {
             Point(hypermath::util::lerp(a.0, b.0, t))
         }),
         // Other functions
-        hps_fn!("distance", |a: EuclidPoint, b: EuclidPoint| -> Num {
+        ("distance", |_, a: Point, b: Point| -> Num {
             (a - b).mag2()
         }),
     ])

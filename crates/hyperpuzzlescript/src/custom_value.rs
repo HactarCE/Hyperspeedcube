@@ -1,4 +1,5 @@
-use std::{any::Any, fmt};
+use std::any::Any;
+use std::fmt;
 
 use hyperpuzzle_core::{box_dyn_wrapper_struct, impl_dyn_clone};
 

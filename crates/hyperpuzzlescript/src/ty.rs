@@ -157,7 +157,7 @@ impl Type {
             (
                 Type::List(Some(a)) | Type::NonEmptyList(Some(a)),
                 Type::List(Some(b)) | Type::NonEmptyList(Some(b)),
-            ) => a.overlaps(&b),
+            ) => a.overlaps(b),
 
             (Type::Union(u), a) | (a, Type::Union(u)) => u.to_vec().iter().any(|b| a.overlaps(b)),
             _ => self == other,
@@ -188,8 +188,10 @@ impl<'a> From<&'a Type> for Cow<'a, Type> {
 /// Function type.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct FnType {
-    /// Parameter types, or `None` if the number of parameters is unknown.
-    pub params: Option<Vec<Type>>,
+    /// Sequence parameter types.
+    pub params: Vec<Type>,
+    /// Whether the function accepts variadic parameters.
+    pub is_variadic: bool,
     /// Return type.
     pub ret: Type,
 }
@@ -197,17 +199,21 @@ impl fmt::Display for FnType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fn(")?;
 
-        if let Some(param_types) = &self.params {
-            let mut is_first = true;
-            for param_ty in param_types {
-                if is_first {
-                    is_first = false;
-                } else {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{param_ty}")?;
+        let mut is_first = true;
+        let mut write_comma_after_first = |f: &mut fmt::Formatter<'_>| match is_first {
+            true => {
+                is_first = false;
+                Ok(())
             }
-        } else {
+            false => write!(f, ", "),
+        };
+
+        for param_ty in &self.params {
+            write_comma_after_first(f)?;
+            write!(f, "{param_ty}")?;
+        }
+        if self.is_variadic {
+            write_comma_after_first(f)?;
             write!(f, "...")?;
         }
 
@@ -221,21 +227,14 @@ impl fmt::Display for FnType {
     }
 }
 impl FnType {
-    /// Constructs a function type from an optional parameter list and a return
-    /// type.
-    pub fn new(params: Option<Vec<Type>>, ret: Type) -> Self {
-        Self { params, ret }
-    }
-
     fn unify(a: FnType, b: FnType) -> FnType {
+        let variadic = a.is_variadic || b.is_variadic || a.params.len() != b.params.len();
+        let params = std::iter::zip(a.params, b.params)
+            .map(|(a_param, b_param)| Type::unify(a_param, b_param))
+            .collect();
         FnType {
-            params: Option::zip(a.params, b.params)
-                .filter(|(a_params, b_params)| a_params.len() == b_params.len())
-                .map(|(a_params, b_params)| {
-                    std::iter::zip(a_params, b_params)
-                        .map(|(a_param, b_param)| Type::unify(a_param, b_param))
-                        .collect()
-                }),
+            params,
+            is_variadic: variadic,
             ret: Type::unify(a.ret, b.ret),
         }
     }
@@ -243,71 +242,47 @@ impl FnType {
     /// Returns whether this function might conflict with `other` if they were
     /// both overloads assigned to the same name.
     pub fn might_conflict_with(&self, other: &FnType) -> bool {
-        // If either function is missing arg types, then there is definitely a
-        // conflict.
-        let Some(self_params) = &self.params else {
-            return true;
-        };
-        let Some(other_params) = &other.params else {
-            return true;
-        };
-
         // If the parameter lists have different lengths, there is definitely
         // NOT a conflict.
-        if self_params.len() != other_params.len() {
+        if !self.is_variadic && self.params.len() < other.params.len()
+            || !other.is_variadic && other.params.len() < self.params.len()
+        {
             return false;
         }
 
-        std::iter::zip(self_params, other_params)
+        // Iff all overlapping arguments overlap, then there is an conflict.
+        std::iter::zip(&self.params, &other.params)
             .all(|(self_param, other_param)| self_param.overlaps(other_param))
     }
 
     /// Returns whether `self` is definitely a subtype of `other`.
     pub fn is_subtype_of(&self, other: &FnType) -> bool {
-        self.ret.is_subtype_of(&other.ret)
-            && match (&self.params, &other.params) {
-                (Some(self_params), Some(other_params)) => {
-                    // contravariance!
-                    self_params.len() == other_params.len()
-                        && std::iter::zip(self_params, other_params)
-                            .all(|(self_param, other_param)| other_param.is_subtype_of(self_param))
+        (self.is_variadic || !other.is_variadic)
+            && other.params.iter().enumerate().all(|(i, other_ty)| {
+                // contravariance!
+                match self.params.get(i) {
+                    Some(self_ty) => other_ty.is_subtype_of(self_ty),
+                    None => self.is_variadic,
                 }
-                (Some(_self_params), None) => true,
-                (None, _maybe_other_params) => false,
-            }
-    }
-    /// Returns whether `self` might be a subtype of `other`.
-    pub fn might_be_subtype_of(&self, other: &FnType) -> bool {
-        self.ret.overlaps(&other.ret)
-            && match (&self.params, &other.params) {
-                (Some(self_params), Some(other_params)) => {
-                    self_params.len() == other_params.len()
-                        && std::iter::zip(self_params, other_params)
-                            .all(|(self_param, other_param)| other_param.overlaps(self_param))
-                }
-                _ => true,
-            }
+            })
+            && self.ret.is_subtype_of(&other.ret)
     }
 
     /// Returns whether this function might take `args` as arguments.
-    pub fn might_take(&self, arg_types: &[Type]) -> bool {
-        match &self.params {
-            Some(params) => {
-                params.len() == arg_types.len()
-                    && std::iter::zip(params, arg_types).all(|(param, arg)| arg.overlaps(param))
-            }
-            None => true,
+    pub fn might_take(&self, mut arg_types: &[Type]) -> bool {
+        if self.is_variadic && arg_types.len() > self.params.len() {
+            arg_types = &arg_types[..self.params.len()]; // Ignore variadic args
         }
+        self.params.len() == arg_types.len()
+            && std::iter::zip(&self.params, arg_types).all(|(param, arg)| arg.overlaps(param))
     }
     /// Returns whether this function would definitely take `args` as arguments.
-    pub fn would_take(&self, args: &[Value]) -> bool {
-        match &self.params {
-            Some(params) => {
-                params.len() == args.len()
-                    && std::iter::zip(params, args).all(|(param, arg)| arg.is_type(param))
-            }
-            None => true,
+    pub fn would_take(&self, mut args: &[Value]) -> bool {
+        if self.is_variadic && args.len() > self.params.len() {
+            args = &args[..self.params.len()]; // Ignore variadic args
         }
+        self.params.len() == args.len()
+            && std::iter::zip(&self.params, args).all(|(param, arg)| arg.is_type(param))
     }
 }
 
@@ -318,13 +293,6 @@ struct ListTypeUnion {
     non_empty: Option<Box<TypeUnion>>,
 }
 impl ListTypeUnion {
-    fn any() -> Self {
-        Self {
-            empty: true,
-            non_empty: Some(Box::new(TypeUnion::Any)),
-        }
-    }
-
     fn insert(&mut self, elem: Type) {
         self.insert_empty();
         self.insert_nonempty(elem);

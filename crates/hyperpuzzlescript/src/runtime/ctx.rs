@@ -4,13 +4,12 @@ use std::sync::Arc;
 
 use arcstr::Substr;
 use hypermath::{VectorRef, approx_eq, vector};
-use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{Runtime, Scope};
 use crate::{
-    Error, FnOverload, FnType, FnValue, Key, LoopControlFlow, Result, Span, Spanned, Type, Value,
-    ValueData, Warning, ast,
+    Error, FnOverload, FnType, FnValue, Key, List, LoopControlFlow, Map, Result, Span, Spanned,
+    Type, Value, ValueData, Warning, ast,
 };
 
 /// Evaluation context.
@@ -24,7 +23,7 @@ pub struct EvalCtx<'a> {
     /// This is used as the span when an error occurs in a built-in function.
     pub caller_span: Span,
     /// Exports from the current function/file.
-    pub exports: &'a mut Option<IndexMap<Key, Value>>,
+    pub exports: &'a mut Option<Map>,
 }
 
 impl EvalCtx<'_> {
@@ -84,7 +83,7 @@ impl EvalCtx<'_> {
                 Ok(())
             }
             ast::NodeContents::ListLiteral(items) => {
-                let mut new_values_iter = Arc::unwrap_or_clone(new_value.into_list()?).into_iter();
+                let mut new_values_iter = new_value.unwrap_or_clone_arc::<Vec<_>>()?.into_iter();
 
                 let mut items_iter = items.iter();
                 let rest = items.last().and_then(|(item, _)| item.as_list_splat(self));
@@ -114,16 +113,14 @@ impl EvalCtx<'_> {
                     let remaining_values = Arc::new(new_values_iter.collect_vec());
                     let &(_, rest_span) = rest;
                     self.assign_destructure(rest, ValueData::List(remaining_values).at(rest_span))?;
-                } else {
-                    if new_values_iter.next().is_some() {
-                        return Err(error());
-                    }
+                } else if new_values_iter.next().is_some() {
+                    return Err(error());
                 }
 
                 Ok(())
             }
             ast::NodeContents::MapLiteral(entries) => {
-                let mut new_values_map = Arc::unwrap_or_clone(new_value.into_map()?);
+                let mut new_values_map = new_value.unwrap_or_clone_arc::<Map>()?;
 
                 let mut entries_iter = entries.iter();
                 let rest = match entries.last() {
@@ -320,7 +317,7 @@ impl EvalCtx<'_> {
                         .next()
                         .and_then(hypermath::axis_from_char)
                     {
-                        v[i] = new_value.as_num()?;
+                        v[i] = new_value.to()?;
                         return Ok(());
                     }
                 }
@@ -358,11 +355,11 @@ impl EvalCtx<'_> {
             },
             ValueData::Type(ty) => match ty {
                 Type::List(None) => {
-                    let inner_type = index_value.as_type()?.clone();
+                    let inner_type = index_value.clone_to()?;
                     Ok(Type::List(Some(Box::new(inner_type))).into())
                 }
                 Type::NonEmptyList(None) => {
-                    let inner_type = index_value.as_type()?.clone();
+                    let inner_type = index_value.clone_to()?;
                     Ok(Type::NonEmptyList(Some(Box::new(inner_type))).into())
                 }
                 _ => Err(Error::ExpectedCollectionType {
@@ -371,7 +368,7 @@ impl EvalCtx<'_> {
                 .at(obj.span)),
             },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
-                Ok(ValueData::Num(vec.get(index_value.as_u8()?)))
+                Ok(ValueData::Num(vec.get(index_value.ref_to()?)))
             }
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
@@ -416,7 +413,7 @@ impl EvalCtx<'_> {
                 _ => Err(index_value.type_error(Type::Str)),
             },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
-                vec.resize_and_set(index_value.as_u8()?, new_value.as_num()?);
+                vec.resize_and_set(index_value.ref_to()?, new_value.ref_to()?);
                 Ok(())
             }
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
@@ -463,10 +460,9 @@ impl EvalCtx<'_> {
                                 let old_value =
                                     old_value.ok_or(Error::Undefined.at(old_value_span))?;
                                 let args = vec![old_value, get_new_value(ctx)?];
-                                let kwargs = IndexMap::new();
-                                op_fn
-                                    .as_func()?
-                                    .call(span, *assign_symbol, ctx, args, kwargs)
+                                let kwargs = Map::new();
+                                let f = op_fn.as_ref::<FnValue>()?;
+                                f.call(span, *assign_symbol, ctx, args, kwargs)
                             }
                         }),
                     )?;
@@ -563,7 +559,7 @@ impl EvalCtx<'_> {
                 return Ok(loop {
                     match if_cases.next() {
                         Some((cond, body)) => {
-                            if self.eval(cond)?.as_bool()? {
+                            if self.eval(cond)?.to::<bool>()? {
                                 break self.eval(body)?;
                             }
                         }
@@ -616,7 +612,7 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::WhileLoop { condition, body } => {
                 Ok(self.exec_in_child_scope(|ctx| {
-                    while ctx.eval(condition)?.as_bool()? {
+                    while ctx.eval(condition)?.to::<bool>()? {
                         match ctx.eval(body) {
                             Ok(_) => (),
                             Err(e) => match e.try_resolve_loop_control_flow()? {
@@ -671,13 +667,14 @@ impl EvalCtx<'_> {
                         return Err(Error::UnsupportedOperator.at(*op));
                     }
                 } else {
-                    let f = self
+                    let op_fn = self
                         .scope
                         .get(&self[*op])
                         .ok_or(Error::UnsupportedOperator.at(*op))?;
                     let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
-                    let kwargs = IndexMap::new();
-                    Ok(f.as_func()?.call(span, *op, self, args, kwargs)?.data)
+                    let kwargs = Map::new();
+                    let f = op_fn.as_ref::<FnValue>()?;
+                    Ok(f.call(span, *op, self, args, kwargs)?.data)
                 }
             }
             ast::NodeContents::FnCall { func, args } => {
@@ -690,7 +687,7 @@ impl EvalCtx<'_> {
                         // TODO: warn if ambiguous
                         let maybe_method = self.scope.get(&self[field]).filter(|method_value| {
                             method_value
-                                .as_func()
+                                .as_ref::<FnValue>()
                                 .is_ok_and(|f| f.can_be_method_of(&obj.ty()))
                         });
                         match maybe_method {
@@ -703,9 +700,9 @@ impl EvalCtx<'_> {
                     } else {
                         self.eval(func)?
                     };
-                let f = func_value.as_func()?;
+                let f = func_value.as_ref::<FnValue>()?;
                 let mut args_splat_span = None;
-                let mut kwarg_values = IndexMap::new();
+                let mut kwarg_values = Map::new();
                 let mut kwargs_splat_span = None;
                 for arg in args {
                     if let Some(sp) = kwargs_splat_span {
@@ -713,7 +710,7 @@ impl EvalCtx<'_> {
                         return Err(Error::FnArgSplatBeforeEnd.at(sp));
                     } else if let Some(splat) = arg.value.0.as_map_splat(self) {
                         // named arguments splat
-                        kwarg_values.extend(Arc::unwrap_or_clone(self.eval(splat)?.into_map()?));
+                        kwarg_values.extend(self.eval(splat)?.unwrap_or_clone_arc::<Map>()?);
                         kwargs_splat_span = Some(splat.1);
                     } else if let Some(name) = arg.name {
                         // named argument
@@ -726,11 +723,11 @@ impl EvalCtx<'_> {
                         return Err(Error::FnArgSplatBeforeEnd.at(sp)); // TODO: not quite accurate
                     } else if let Some(splat) = arg.value.0.as_list_splat(self) {
                         // positional arguments splat
-                        arg_values.extend(Arc::unwrap_or_clone(self.eval(splat)?.into_list()?));
+                        arg_values.extend(self.eval(splat)?.unwrap_or_clone_arc::<List>()?);
                         args_splat_span = Some(splat.1);
                     } else {
                         // positional argument
-                        arg_values.push(self.eval(&arg.value)?)
+                        arg_values.push(self.eval(&arg.value)?);
                     }
                 }
                 let args = arg_values;
@@ -806,20 +803,20 @@ impl EvalCtx<'_> {
                 let mut ret = vec![];
                 for item @ (item_contents, _) in items {
                     if let Some(inner) = item_contents.as_list_splat(self) {
-                        ret.extend(Arc::unwrap_or_clone(self.eval(inner)?.into_list()?))
+                        ret.extend(self.eval(inner)?.unwrap_or_clone_arc::<List>()?);
                     } else {
-                        ret.push(self.eval(item)?)
+                        ret.push(self.eval(item)?);
                     }
                 }
                 ret
             }))),
             ast::NodeContents::MapLiteral(entries) => Ok(ValueData::Map(Arc::new({
                 // TODO: handle duplicate keys (maybe let splat be fallback?)
-                let mut ret = IndexMap::new();
+                let mut ret = Map::new();
                 for entry in entries {
                     match entry {
                         ast::MapEntry::Splat { span: _, values } => {
-                            ret.extend(Arc::unwrap_or_clone(self.eval(values)?.into_map()?));
+                            ret.extend(self.eval(values)?.unwrap_or_clone_arc::<Map>()?);
                         }
 
                         ast::MapEntry::KeyValue {
@@ -853,7 +850,7 @@ impl EvalCtx<'_> {
     /// Returns [`Type::Any`] if the node is `None`.
     pub fn eval_opt_ty(&mut self, opt_node: Option<&ast::Node>) -> Result<Type> {
         match opt_node {
-            Some(node) => self.eval(node)?.into_type(),
+            Some(node) => self.eval(node)?.to::<Type>(),
             None => Ok(Type::Any),
         }
     }
@@ -861,6 +858,7 @@ impl EvalCtx<'_> {
     fn eval_fn_contents(&mut self, span: Span, contents: &ast::FnContents) -> Result<FnOverload> {
         // Parse parameters.
         let mut seq_params = vec![];
+        let mut seq_splat = None;
         let mut seq_end = None;
         let mut named_params = vec![];
         let mut named_splat = None;
@@ -886,10 +884,19 @@ impl EvalCtx<'_> {
                                 }),
                                 None => None,
                             };
-                            named_params.push((*name, ty, default))
+                            named_params.push((*name, ty, default));
                         }
                     }
                 }
+                ast::FnParam::SeqSplat(name) => match seq_end {
+                    None => {
+                        seq_splat = Some(*name);
+                        seq_end = Some(*name);
+                    }
+                    Some(previous_span) => {
+                        return Err(Error::DuplicateFnParamSeqEnd { previous_span }.at(*name));
+                    }
+                },
                 ast::FnParam::SeqEnd(new_span) => match seq_end {
                     None => seq_end = Some(*new_span),
                     Some(previous_span) => {
@@ -903,14 +910,14 @@ impl EvalCtx<'_> {
             }
         }
 
-        let (seq_param_names, seq_param_types): (Vec<_>, Vec<_>) = seq_params.into_iter().unzip();
         let return_type = self.eval_opt_ty(contents.return_type.as_deref())?;
         let fn_body = Arc::clone(&contents.body);
 
         // Check for duplicates.
         let mut names_seen = HashMap::new();
-        for &span in seq_param_names
+        for &span in seq_params
             .iter()
+            .map(|(span, _)| span)
             .chain(named_params.iter().map(|(name, _, _)| name))
             .chain(&named_splat)
         {
@@ -926,16 +933,25 @@ impl EvalCtx<'_> {
 
         Ok(FnOverload {
             ty: FnType {
-                params: Some(seq_param_types),
+                params: seq_params.iter().map(|(_, ty)| ty.clone()).collect(),
+                is_variadic: false,
                 ret: return_type.clone(),
             },
-            call: Arc::new(move |ctx, mut args, mut kwargs| {
-                for (i, &param_span) in seq_param_names.iter().enumerate() {
-                    let param_name = ctx.substr(param_span);
-                    let arg_value = args.get_mut(i).ok_or(
-                        Error::Internal("missing this function argument in call").at(param_span),
-                    )?;
-                    ctx.scope.set(param_name, std::mem::take(arg_value));
+            call: Arc::new(move |ctx, args, mut kwargs| {
+                let mut args = args.into_iter();
+                for &(param_span, ref ty) in &seq_params {
+                    let arg_value = args.next().ok_or_else(|| {
+                        Error::MissingRequiredPositionalParameter { ty: ty.clone() }.at(param_span)
+                    })?;
+                    ctx.scope.set(ctx.substr(param_span), arg_value);
+                }
+                if let Some(seq_splat) = seq_splat {
+                    ctx.scope.set(
+                        ctx.substr(seq_splat),
+                        ValueData::List(Arc::new(args.collect())).at(seq_splat),
+                    );
+                } else {
+                    crate::util::expect_end_of_args(args)?;
                 }
 
                 for &(param_span, ref ty, ref default) in &named_params {
@@ -946,7 +962,11 @@ impl EvalCtx<'_> {
                             arg
                         }
                         None => default.clone().ok_or_else(|| {
-                            Error::MissingRequiredNamedParameter(param_name.clone()).at(param_span)
+                            Error::MissingRequiredNamedParameter {
+                                name: param_name.clone(),
+                                ty: ty.clone(),
+                            }
+                            .at(param_span)
                         })?,
                     };
                     ctx.scope.set(param_name, arg_value.clone());
@@ -958,10 +978,7 @@ impl EvalCtx<'_> {
                         ValueData::Map(Arc::new(kwargs)).at(splat_var),
                     );
                 } else if !kwargs.is_empty() {
-                    return Err(Error::UnusedFnArgs {
-                        args: kwargs.into_iter().map(|(k, v)| (k, v.span)).collect(),
-                    }
-                    .at(span));
+                    crate::util::expect_end_of_kwargs(kwargs, span)?;
                 }
 
                 let mut return_value = ctx.eval(&fn_body)?;
@@ -1045,8 +1062,8 @@ impl EvalCtx<'_> {
         let (node_contents, node_span) = node;
         match node_contents {
             ast::NodeContents::Ident(ident_span) => Ok(self.substr(*ident_span)),
-            ast::NodeContents::StringLiteral(_) => Ok(self.eval(node)?.as_str()?.as_str().into()),
-            _ => return Err(Error::ExpectedMapKey.at(*node_span)),
+            ast::NodeContents::StringLiteral(_) => self.eval(node)?.to::<Key>(),
+            _ => Err(Error::ExpectedMapKey.at(*node_span)),
         }
     }
 
@@ -1076,8 +1093,7 @@ impl EvalCtx<'_> {
         source: &ast::Node,
         mut f: impl FnMut(&mut Self, Key, Value) -> Result<()>,
     ) -> Result<()> {
-        let source = self.eval(source)?;
-        let m = &**source.as_map()?;
+        let m = self.eval(source)?.unwrap_or_clone_arc::<Map>()?;
         for (k, v) in m {
             f(self, k.clone(), v.clone())?;
         }
@@ -1090,12 +1106,13 @@ impl EvalCtx<'_> {
         mut f: impl FnMut(&mut Self, Key, Value) -> Result<()>,
     ) -> Result<()> {
         let source = self.eval(source)?;
-        let m = &**source.as_map()?;
+        let source_span = source.span;
+        let m = source.unwrap_or_clone_arc::<Map>()?;
         for item in items {
             let alias = self.substr(item.alias());
             let value = m
                 .get(&self[item.target])
-                .ok_or(Error::UndefinedIn(source.span).at(item.target))?;
+                .ok_or(Error::UndefinedIn(source_span).at(item.target))?;
             f(self, alias, value.clone())?;
         }
         Ok(())
@@ -1128,6 +1145,15 @@ impl EvalCtx<'_> {
     /// Returns `#ndim`, or errors if it is undefined.
     pub fn ndim_at(&self, span: Span) -> Result<u8> {
         self.scope.special.ndim.ok_or(Error::NoNdim.at(span))
+    }
+
+    /// Reports a warning at [`Self::caller_span`].
+    pub fn warn(&mut self, w: impl Into<Warning>) {
+        self.warn_at(self.caller_span, w);
+    }
+    /// Reports a warning.
+    pub fn warn_at(&mut self, span: Span, w: impl Into<Warning>) {
+        self.runtime.report_diagnostic(w.into().at(span));
     }
 }
 

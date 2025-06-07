@@ -6,12 +6,11 @@ use std::sync::Arc;
 use arcstr::Substr;
 use ecow::EcoString;
 use hypermath::{Vector, VectorRef};
-use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
-    BoxDynValue, Error, EvalCtx, FnType, FullDiagnostic, Key, ND_EUCLID, Result, Scope, Span,
-    Spanned, TracebackLine, Type,
+    BoxDynValue, Error, EvalCtx, FnType, FullDiagnostic, List, Map, ND_EUCLID, Result, Scope, Span,
+    TracebackLine, Type,
 };
 
 /// Value in the language, with an optional associated span.
@@ -102,10 +101,6 @@ impl Value {
 
     /// Returns a type error saying that this value has the wrong type.
     pub fn type_error(&self, expected: Type) -> FullDiagnostic {
-        self.multi_type_error(vec![expected])
-    }
-    /// Returns a type error saying that this value has the wrong type.
-    pub fn multi_type_error(&self, expected: Vec<Type>) -> FullDiagnostic {
         Error::TypeError {
             expected,
             got: self.ty(),
@@ -138,8 +133,10 @@ impl Value {
         let expected: Cow<'a, Type> = expected.into();
 
         if let Type::List(Some(inner)) | Type::NonEmptyList(Some(inner)) = &*expected {
-            for elem in &**self.as_list_with_expected(&*expected)? {
-                elem.typecheck(&**inner)?;
+            if let Ok(l) = self.as_ref::<List>() {
+                for elem in &**l {
+                    elem.typecheck(&**inner)?;
+                }
             }
         }
 
@@ -147,15 +144,15 @@ impl Value {
             Type::Any => true,
 
             Type::List(_) => matches!(self.data, ValueData::List(_)),
-            Type::EmptyList => self.as_list_with_expected(&*expected)?.is_empty(),
-            Type::NonEmptyList(_) => !self.as_list_with_expected(&*expected)?.is_empty(),
+            Type::EmptyList => matches!(&self.data, ValueData::List(l) if l.is_empty()),
+            Type::NonEmptyList(_) => matches!(&self.data, ValueData::List(l) if !l.is_empty()),
 
             Type::Int => {
-                self.as_int()?;
+                self.ref_to::<i64>()?;
                 true
             }
             Type::Nat => {
-                self.as_uint()?;
+                self.ref_to::<u64>()?;
                 true
             }
 
@@ -165,7 +162,7 @@ impl Value {
                 matches!(&self.data, ValueData::Custom(v) if v.type_name() == *s)
             }
 
-            _ => self.ty().is_subtype_of(&*expected),
+            _ => self.ty().is_subtype_of(&expected),
         };
 
         if is_same_type {
@@ -178,136 +175,6 @@ impl Value {
     pub fn is_type(&self, expected: &Type) -> bool {
         // This could be faster by not constructing an error message.
         self.typecheck(expected).is_ok()
-    }
-
-    /// Returns the list, or an error if this isn't a list.
-    pub fn as_list(&self) -> Result<&Arc<Vec<Value>>> {
-        self.as_list_with_expected(&Type::List(None))
-    }
-    fn as_list_with_expected(&self, expected: &Type) -> Result<&Arc<Vec<Value>>> {
-        match &self.data {
-            ValueData::List(l) => Ok(l),
-            _ => Err(self.type_error(expected.clone())),
-        }
-    }
-    /// Returns the list, or an error if this isn't a list.
-    pub fn into_list(self) -> Result<Arc<Vec<Value>>> {
-        match self.data {
-            ValueData::List(values) => Ok(values),
-            _ => Err(self.type_error(Type::List(None))),
-        }
-    }
-    /// Returns the map, or an error if this isn't a map.
-    pub fn as_map(&self) -> Result<&Arc<IndexMap<Key, Value>>> {
-        match &self.data {
-            ValueData::Map(m) => Ok(m),
-            _ => Err(self.type_error(Type::Map)),
-        }
-    }
-    /// Returns the map, or an error if this isn't a map.
-    pub fn into_map(self) -> Result<Arc<IndexMap<Key, Value>>> {
-        match self.data {
-            ValueData::Map(m) => Ok(m),
-            _ => Err(self.type_error(Type::Map)),
-        }
-    }
-    /// Returns the function, or an error if this isn't a function.
-    pub fn as_func(&self) -> Result<&Arc<FnValue>> {
-        match &self.data {
-            ValueData::Fn(f) => Ok(f),
-            _ => Err(self.type_error(Type::Fn)),
-        }
-    }
-    /// Returns the function. If this value wasn't a function before, this
-    /// function will make it become one with the given name.
-    pub fn as_func_mut(&mut self, span: Span, name: Option<Substr>) -> &mut FnValue {
-        if !matches!(self.data, ValueData::Fn(_)) {
-            *self = ValueData::Fn(Arc::new(FnValue::new(name))).at(span);
-        }
-        match &mut self.data {
-            ValueData::Fn(f) => Arc::make_mut(f),
-            _ => unreachable!(),
-        }
-    }
-    /// Returns the string, or an error if this isn't a string. This does not
-    /// convert other types to a string.
-    pub fn as_str(&self) -> Result<&EcoString> {
-        match &self.data {
-            ValueData::Str(s) => Ok(s),
-            _ => Err(self.type_error(Type::Str)),
-        }
-    }
-    /// Returns the boolean, or an error if this isn't a boolean. This does not
-    /// convert other types to a boolean.
-    pub(crate) fn as_bool(&self) -> Result<bool> {
-        match &self.data {
-            ValueData::Bool(b) => Ok(*b),
-            _ => Err(self.type_error(Type::Bool)),
-        }
-    }
-    /// Returns the number, or an error if this isn't a number.
-    pub(crate) fn as_num(&self) -> Result<f64> {
-        match &self.data {
-            ValueData::Num(n) => Ok(*n),
-            _ => Err(self.type_error(Type::Num)),
-        }
-    }
-    /// Returns the number as an `i64`, or an error if this isn't an integer
-    /// that fits within an `i64`.
-    pub(crate) fn as_int(&self) -> Result<i64> {
-        let n = self.as_num()?;
-        hypermath::to_approx_integer(n).ok_or(Error::ExpectedInteger(n).at(self.span))
-    }
-    /// Returns the number as an `u64`, or an error if this isn't an integer
-    /// that fits within an `u64`.
-    pub(crate) fn as_uint(&self) -> Result<u64> {
-        let n = self.as_num()?;
-        hypermath::to_approx_unsigned_integer(n)
-            .ok_or(Error::ExpectedNonnegativeInteger(n).at(self.span))
-    }
-    /// Returns the integer as a `u8`, or an error if this isn't an integer that
-    /// fits with in a `u8`.
-    pub(crate) fn as_u8(&self) -> Result<u8> {
-        let i = self.as_int()?;
-        i.try_into().map_err(|_| {
-            let bounds = Some((u8::MIN as i64, u8::MAX as i64));
-            Error::IndexOutOfBounds { got: i, bounds }.at(self.span)
-        })
-    }
-
-    /// Returns the type, or an error if this value isn't a type.
-    pub(crate) fn as_type(&self) -> Result<&Type> {
-        match &self.data {
-            ValueData::Type(ty) => Ok(ty),
-            _ => Err(self.type_error(Type::Type)),
-        }
-    }
-    /// Returns the type, or an error if this value isn't a type.
-    pub(crate) fn into_type(self) -> Result<Type> {
-        match self.data {
-            ValueData::Type(ty) => Ok(ty),
-            _ => Err(self.type_error(Type::Type)),
-        }
-    }
-
-    /// Converts the value to a vector.
-    pub(crate) fn to_vector(&self) -> Result<Vector> {
-        match &self.data {
-            ValueData::Vec(v) => Ok(v.clone()),
-            _ => Err(self.multi_type_error(vec![Type::Vec])),
-        }
-    }
-    /// Converts the value to a PGA blade.
-    pub(crate) fn to_pga_blade(&self) -> Result<hypermath::pga::Blade> {
-        match &self.data {
-            ValueData::Vec(v) => Ok(hypermath::pga::Blade::from_vector(v)),
-            ValueData::EuclidBlade(b) => Ok(b.clone()),
-            _ => Err(self.multi_type_error(vec![Type::EuclidBlade])),
-        }
-    }
-
-    pub(crate) fn as_opt(&self) -> Option<&Self> {
-        (!self.is_null()).then_some(self)
     }
 
     /// Converts the value to an integer and then uses it to index a
@@ -349,7 +216,7 @@ impl Value {
         get_len: impl FnOnce() -> usize,
     ) -> Result<T> {
         let allow_negatives = get_back.is_some();
-        let i = self.as_int()?;
+        let i: i64 = self.ref_to()?;
         match i {
             0.. => get_front(collection, i.try_into().unwrap_or(usize::MAX)),
             ..0 => get_back.and_then(|f| f(collection, (-i - 1).try_into().unwrap_or(usize::MAX))),
@@ -386,9 +253,9 @@ pub enum ValueData {
     /// Copy-on-write Unicode string.
     Str(EcoString),
     /// Copy-on-write list of values.
-    List(Arc<Vec<Value>>), // TODO: use rpds::Vector
+    List(Arc<List>), // TODO: use rpds::Vector
     /// Copy-on-write dictionary with string keys.
-    Map(Arc<IndexMap<Key, Value>>), // TODO: use rpds::RedBlackTreeMap
+    Map(Arc<Map>), // TODO: use rpds::RedBlackTreeMap
     /// Function with a copy-on-write list of overloads.
     Fn(Arc<FnValue>), // TODO: use rpds::Vector
 
@@ -546,129 +413,6 @@ impl ValueData {
         matches!(self, Self::Null)
     }
 }
-impl From<()> for ValueData {
-    fn from((): ()) -> Self {
-        ValueData::Null
-    }
-}
-impl From<Value> for ValueData {
-    fn from(value: Value) -> Self {
-        value.data
-    }
-}
-impl From<bool> for ValueData {
-    fn from(value: bool) -> Self {
-        ValueData::Bool(value)
-    }
-}
-impl From<f64> for ValueData {
-    fn from(value: f64) -> Self {
-        ValueData::Num(value)
-    }
-}
-impl From<u8> for ValueData {
-    fn from(value: u8) -> Self {
-        ValueData::Num(value as f64)
-    }
-}
-impl From<EcoString> for ValueData {
-    fn from(value: EcoString) -> Self {
-        ValueData::Str(value)
-    }
-}
-impl From<&str> for ValueData {
-    fn from(value: &str) -> Self {
-        ValueData::Str(value.into())
-    }
-}
-impl From<String> for ValueData {
-    fn from(value: String) -> Self {
-        ValueData::Str(value.into())
-    }
-}
-impl From<usize> for ValueData {
-    fn from(value: usize) -> Self {
-        ValueData::Num(value as f64)
-    }
-}
-impl From<char> for ValueData {
-    fn from(value: char) -> Self {
-        ValueData::Str(value.into())
-    }
-}
-impl FromIterator<Value> for ValueData {
-    fn from_iter<T: IntoIterator<Item = Value>>(iter: T) -> Self {
-        Self::List(Arc::new(iter.into_iter().collect()))
-    }
-}
-impl<K: Into<Key>> FromIterator<(K, Value)> for ValueData {
-    fn from_iter<T: IntoIterator<Item = (K, Value)>>(iter: T) -> Self {
-        Self::Map(Arc::new(
-            iter.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-        ))
-    }
-}
-impl<V: Into<ValueData>> From<Vec<Spanned<V>>> for ValueData {
-    fn from(value: Vec<Spanned<V>>) -> Self {
-        Self::List(Arc::new(
-            value
-                .into_iter()
-                .map(|(data, span)| Value {
-                    data: data.into(),
-                    span,
-                })
-                .collect(),
-        ))
-    }
-}
-impl From<Vec<Value>> for ValueData {
-    fn from(value: Vec<Value>) -> Self {
-        Self::List(Arc::new(value))
-    }
-}
-impl From<Arc<Vec<Value>>> for ValueData {
-    fn from(value: Arc<Vec<Value>>) -> Self {
-        Self::List(value)
-    }
-}
-impl From<Vector> for ValueData {
-    fn from(value: Vector) -> Self {
-        Self::Vec(value)
-    }
-}
-impl From<Type> for ValueData {
-    fn from(value: Type) -> Self {
-        Self::Type(value)
-    }
-}
-impl From<hypermath::Point> for ValueData {
-    fn from(value: hypermath::Point) -> Self {
-        Self::EuclidPoint(value)
-    }
-}
-impl From<hypermath::pga::Motor> for ValueData {
-    fn from(value: hypermath::pga::Motor) -> Self {
-        Self::EuclidTransform(value)
-    }
-}
-impl From<hypermath::Hyperplane> for ValueData {
-    fn from(value: hypermath::Hyperplane) -> Self {
-        Self::EuclidPlane(Box::new(value))
-    }
-}
-impl From<&Scope> for ValueData {
-    fn from(value: &Scope) -> Self {
-        Self::Map(Arc::new(
-            value
-                .names
-                .lock()
-                .iter()
-                .map(|(name, value)| (name.clone(), value.clone()))
-                .sorted_by(|(name1, _), (name2, _)| name1.cmp(name2))
-                .collect(),
-        ))
-    }
-}
 
 /// Script function.
 #[derive(Debug, Clone)]
@@ -698,13 +442,13 @@ impl FnValue {
     /// type `ty`.
     pub fn can_be_method_of(&self, ty: &Type) -> bool {
         !matches!(ty, Type::Map)
-            && self.overloads.iter().any(|func| {
-                func.ty.params.as_ref().is_none_or(|param_types| {
-                    param_types
-                        .first()
-                        .is_some_and(|param_type| ty.is_subtype_of(param_type))
+            && self
+                .overloads
+                .iter()
+                .any(|func| match func.ty.params.first() {
+                    None => func.ty.is_variadic,
+                    Some(first_param_ty) => ty.is_subtype_of(first_param_ty),
                 })
-            })
     }
     /// Returns whether any overload of the function is a subtype of `fn_type`.
     pub fn any_overload_is_subtype_of(&self, fn_type: &FnType) -> bool {
@@ -775,8 +519,8 @@ impl FnValue {
         call_span: Span,
         fn_span: Span,
         ctx: &mut EvalCtx<'_>,
-        args: Vec<Value>,
-        kwargs: IndexMap<Key, Value>,
+        args: List,
+        kwargs: Map,
     ) -> Result<Value> {
         let overload = self.get_overload(fn_span, &args)?;
 
@@ -827,9 +571,7 @@ pub struct FnOverload {
     /// Function type signature.
     pub ty: FnType,
     /// Function to evaluate the function body.
-    pub call: Arc<
-        dyn Send + Sync + Fn(&mut EvalCtx<'_>, Vec<Value>, IndexMap<Key, Value>) -> Result<Value>,
-    >,
+    pub call: Arc<dyn Send + Sync + Fn(&mut EvalCtx<'_>, List, Map) -> Result<Value>>,
     /// Debug info about the source of the function.
     pub debug_info: FnDebugInfo,
     /// Parent scope to use for the function. If this is `None`, then the

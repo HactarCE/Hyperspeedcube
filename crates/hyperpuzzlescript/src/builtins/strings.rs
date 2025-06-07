@@ -1,33 +1,33 @@
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
-use crate::{Error, Result, Scope, Span, ValueData};
+use crate::{Error, ListOf, Num, Result, Scope, Span, Str, ValueData};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions([
+    scope.register_builtin_functions(hps_fns![
         // Concatenation
-        hps_fn!("++", |s1: Str, s2: Str| -> Str { s1 + s2 }),
-        hps_fn!("join", |strings: List(Str)| -> Str {
+        ("++", |_, s1: Str, s2: Str| -> Str { s1 + s2 }),
+        ("join", |_, strings: Vec<Str>| -> String {
             strings.into_iter().join("")
         }),
-        hps_fn!("join", |strings: List(Str), sep: Str| -> Str {
+        ("join", |_, strings: Vec<Str>, sep: Str| -> String {
             strings.into_iter().join(&sep)
         }),
         // String conversion
-        hps_fn!("str", |arg: Any| -> Str { eco_format!("{arg}") }),
-        hps_fn!("repr", |arg: Any| -> Str { eco_format!("{:?}", arg.data) }),
-        // Case conversion
-        hps_fn!("upper", |s: Str| -> Str { s.to_uppercase() }),
-        hps_fn!("lower", |s: Str| -> Str { s.to_lowercase() }),
-        // Unicode
-        hps_fn!("chars", |ctx, s: Str| -> List(Str) {
-            s.chars()
-                .map(|c| ValueData::Str(c.into()).at(ctx.caller_span))
-                .collect_vec()
+        ("str", |_, arg: ValueData| -> Str { eco_format!("{arg}") }),
+        ("repr", |_, arg: ValueData| -> Str {
+            eco_format!("{arg:?}")
         }),
-        hps_fn!("ord", |(s, s_span): Str| -> Int {
+        // Case conversion
+        ("upper", |_, s: Str| -> Str { s.to_uppercase() }),
+        ("lower", |_, s: Str| -> Str { s.to_lowercase() }),
+        // Unicode
+        ("chars", |ctx, s: Str| -> ListOf<Str> {
+            s.chars().map(|c| (c.into(), ctx.caller_span)).collect_vec()
+        }),
+        ("ord", |_, (s, s_span): Str| -> Num {
             match s.chars().exactly_one() {
-                Ok(c) => c as u32 as f64,
+                Ok(c) => c as u32 as Num,
                 Err(_) => {
                     return Err(Error::BadArgument {
                         value: ValueData::Str(s).repr(),
@@ -41,17 +41,17 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 }
             }
         }),
-        hps_fn!("chr", |(n, n_span): Int| -> Str {
+        ("chr", |_, (n, n_span): i64| -> Str {
             eco_format!("{}", int_to_char(n, n_span)?)
         }),
         // Splitting
-        hps_fn!("split", |ctx, s: Str, pattern: Str| -> List(Str) {
+        ("split", |ctx, s: Str, pattern: Str| -> ListOf<&str> {
             s.split(&*pattern)
-                .map(|sub| ValueData::Str(sub.into()).at(ctx.caller_span))
+                .map(|sub| (sub, ctx.caller_span))
                 .collect_vec()
         }),
         // Other operations
-        hps_fn!("rev", |s: Str| -> Str {
+        ("rev", |_, s: Str| -> Str {
             s.chars().rev().collect::<EcoString>()
         }),
     ])

@@ -2,8 +2,8 @@
 
 #![warn(variant_size_differences)]
 
-use std::path::Path;
-
+#[macro_use]
+pub mod util;
 mod ast;
 mod builtins;
 mod custom_value;
@@ -13,19 +13,32 @@ mod runtime;
 mod ty;
 mod value;
 
-use arcstr::Substr;
 pub use custom_value::{BoxDynValue, CustomValue};
 use diagnostic::LoopControlFlow;
-pub use diagnostic::{Diagnostic, Error, FullDiagnostic, ImmutReason, TracebackLine, Warning};
+pub use diagnostic::{
+    Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine, Warning,
+};
 pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};
+pub use util::{FromValue, FromValueRef, TypeOf, hps_ty};
 pub use value::{FnDebugInfo, FnOverload, FnValue, Value, ValueData};
 
 /// Result type supporting a single [`FullDiagnostic`].
 pub type Result<T, E = FullDiagnostic> = std::result::Result<T, E>;
 
+/// Type used for [`ValueData::Num`].
+pub type Num = f64;
+/// Type used for [`ValueData::Str`].
+pub type Str = ecow::EcoString;
+/// Type used for [`ValueData::List`].
+pub type List = Vec<Value>;
+/// Type used for [`ValueData::List`] with a specific type.
+pub type ListOf<T> = Vec<Spanned<T>>;
+/// Type used for [`ValueData::Map`].
+pub type Map = indexmap::IndexMap<Key, Value>;
+
 /// Type used for keys in [`ValueData::Map`].
-pub type Key = Substr;
+pub type Key = arcstr::Substr;
 
 /// Numeric ID for a Hyperpuzzlescript file.
 pub type FileId = u32;
@@ -71,13 +84,16 @@ static HPS_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_HPS_PATHS {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/hps")
 };
 
+pub(crate) type HpsEvalRequest = Box<dyn Send + Sync + FnOnce(&mut Runtime)>;
+pub(crate) type HpsEvalRequestTx = std::sync::mpsc::Sender<HpsEvalRequest>;
+
 /// Loads all puzzles defined using Hyperpuzzlescript.
 pub fn load_puzzles(catalog: &hyperpuzzle_core::Catalog, logger: &hyperpuzzle_core::Logger) {
     Runtime::with_default_files().exec_all_files();
 }
 
 /// Extracts the built-in Hyperpuzzlescript files to the specified path.
-pub fn extract_builtin_files(base_path: &Path) -> std::io::Result<()> {
+pub fn extract_builtin_files(base_path: &std::path::Path) -> std::io::Result<()> {
     HPS_BUILTIN_DIR.extract(base_path)
 }
 

@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-#[macro_use]
-mod macros;
 mod assertions;
 mod bases;
 mod collections;

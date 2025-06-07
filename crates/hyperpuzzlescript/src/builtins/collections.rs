@@ -1,57 +1,47 @@
 use std::sync::Arc;
 
-use itertools::Itertools;
-
-use crate::{Result, Scope, ValueData};
+use crate::{List, Map, Result, Scope, Str, ValueData};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions([
+    scope.register_builtin_functions(hps_fns![
         // Operators
-        hps_fn!("++", |l1: List, l2: List| -> List {
-            itertools::chain(&**l1, &**l2).cloned().collect_vec()
+        ("++", |_, l1: List, l2: List| -> List {
+            itertools::chain(l1, l2).collect()
         }),
-        hps_fn!("concat", |lists: List(List)| -> List {
-            lists
-                .into_iter()
-                .flat_map(Arc::unwrap_or_clone)
-                .collect_vec()
+        ("concat", |_, lists: Vec<List>| -> List {
+            lists.into_iter().flatten().collect()
         }),
-        // Getters (TODO: nullable return type for all of these)
-        hps_fn!("get", |l: List, i: Int| -> Any {
+        // Getters
+        ("get", |_, l: Arc<List>, i: i64| -> Option<ValueData> {
             i.try_into()
                 .ok()
                 .and_then(|i: usize| Some(l.get(i)?.data.clone()))
-                .unwrap_or(ValueData::Null)
         }),
-        hps_fn!("get", |m: Map, k: Str| -> Any {
-            m.get(k.as_str())
-                .map(|v| v.data.clone())
-                .unwrap_or(ValueData::Null)
+        ("get", |_, m: Arc<Map>, k: Str| -> Option<ValueData> {
+            m.get(k.as_str()).map(|v| v.data.clone())
         }),
-        hps_fn!("get", |s: Str, i: Int| -> Any {
-            i.try_into()
-                .ok()
-                .and_then(|i| s.chars().nth(i))
-                .map(|c| ValueData::Str(c.into()))
-                .unwrap_or(ValueData::Null)
+        ("get", |_, s: Str, i: i64| -> Option<char> {
+            i.try_into().ok().and_then(|i| s.chars().nth(i))
         }),
-        hps_fn!("get_cyclic", |l: List, i: Int| -> Any {
-            i.rem_euclid(l.len() as i64)
-                .try_into()
-                .ok()
-                .and_then(|i: usize| Some(l.get(i)?.data.clone()))
-                .unwrap_or(ValueData::Null)
-        }),
+        (
+            "get_cyclic",
+            |_, l: Arc<List>, i: i64| -> Option<ValueData> {
+                i.rem_euclid(l.len() as i64)
+                    .try_into()
+                    .ok()
+                    .and_then(|i: usize| Some(l.get(i)?.data.clone()))
+            }
+        ),
         // Length getters
-        hps_fn!("len", |l: List| -> Bool { l.len() }),
-        hps_fn!("len", |m: Map| -> Bool { m.len() }),
-        hps_fn!("len", |s: Str| -> Bool { s.len() }),
-        hps_fn!("is_empty", |l: List| -> Bool { l.is_empty() }),
-        hps_fn!("is_empty", |m: Map| -> Bool { m.is_empty() }),
-        hps_fn!("is_empty", |s: Str| -> Bool { s.is_empty() }),
+        ("len", |_, l: Arc<List>| -> usize { l.len() }),
+        ("len", |_, m: Arc<Map>| -> usize { m.len() }),
+        ("len", |_, s: Str| -> usize { s.len() }),
+        ("is_empty", |_, l: Arc<List>| -> bool { l.is_empty() }),
+        ("is_empty", |_, m: Arc<Map>| -> bool { m.is_empty() }),
+        ("is_empty", |_, s: Str| -> bool { s.is_empty() }),
         // Other operations
-        hps_fn!("rev", |l: List| -> List {
-            let mut l = Arc::unwrap_or_clone(l);
+        ("rev", |_, l: List| -> List {
+            let mut l = l;
             l.reverse();
             l
         }),

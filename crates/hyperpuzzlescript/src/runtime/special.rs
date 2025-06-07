@@ -10,7 +10,7 @@ impl SpecialVariables {
     /// Sets a special variable in the `with` block.
     pub fn set(&mut self, ident: ast::SpecialVar, value: Value) -> Result<()> {
         match ident {
-            ast::SpecialVar::Ndim => self.ndim = Some(value.as_u8()?),
+            ast::SpecialVar::Ndim => self.ndim = Some(value.to()?),
             ast::SpecialVar::Sym => todo!("set sym"),
         }
         Ok(())

@@ -198,6 +198,8 @@ pub enum FnParam {
         ty: Option<Box<Node>>,
         default: Option<Box<Node>>,
     },
+    /// - `*ident`
+    SeqSplat(Span),
     /// - `*`
     SeqEnd(Span),
     /// - `**ident`

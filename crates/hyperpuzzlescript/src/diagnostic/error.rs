@@ -1,5 +1,7 @@
+use std::borrow::Cow;
+
 use arcstr::Substr;
-use ecow::EcoString;
+use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
@@ -20,7 +22,7 @@ pub enum Error {
     #[error("unimplemented")]
     Unimplemented(&'static str),
     #[error("type error")]
-    TypeError { expected: Vec<Type>, got: Type },
+    TypeError { expected: Type, got: Type },
     #[error("immutable value")]
     Immut { reason: ImmutReason },
     #[error("expected type")]
@@ -62,7 +64,9 @@ pub enum Error {
     #[error("duplicate parameter name")]
     DuplicateFnParamName { previous_span: Span },
     #[error("unused function arguments")]
-    UnusedFnArgs { args: Vec<Spanned<Key>> },
+    UnusedPositionalFnArgs,
+    #[error("unused function arguments")]
+    UnusedNamedFnArgs { names: Vec<Spanned<Key>> },
     #[error("default value is not allowed for positional parameter")]
     DefaultPositionalParamValue,
     #[error("duplicate 'end of sequence' indicator in function parameters")]
@@ -71,8 +75,10 @@ pub enum Error {
     FnParamSplatBeforeEnd,
     #[error("splat before end in function arguments")]
     FnArgSplatBeforeEnd,
+    #[error("missing required positional parameter")]
+    MissingRequiredPositionalParameter { ty: Type },
     #[error("missing required named parameter")]
-    MissingRequiredNamedParameter(Key),
+    MissingRequiredNamedParameter { name: Key, ty: Type },
     #[error("positional parameter after named parameter")]
     PositionalParamAfterNamedParam,
     #[error("undefined")]
@@ -129,6 +135,8 @@ pub enum Error {
     ExpectedInteger(f64),
     #[error("expected nonnegative integer")]
     ExpectedNonnegativeInteger(f64),
+    #[error("expected nonnegative integer < 256")]
+    ExpectedSmallNonnegativeInteger(f64),
     #[error("index out of bounds")]
     IndexOutOfBounds {
         got: i64,
@@ -204,10 +212,9 @@ impl Error {
             Self::Unimplemented(_) => {
                 report_builder.main_label("this feature isn't implemented yet")
             }
-            Self::TypeError { expected, got } => report_builder.main_label(format!(
-                "expected \x02{}\x03, got \x02{got}\x03",
-                join_with_conjunction(expected.iter().map(|ty| ty.to_string()).collect_vec(), "or",)
-            )),
+            Self::TypeError { expected, got } => {
+                report_builder.main_label(format!("expected \x02{expected}\x03, got \x02{got}\x03"))
+            }
             Self::Immut { reason } => {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }
@@ -282,10 +289,12 @@ impl Error {
             Self::DuplicateFnParamName { previous_span } => report_builder
                 .main_label("duplicate parameter name")
                 .label(previous_span, "previous parameter with same name"),
-            Self::UnusedFnArgs { args } => report_builder
+            Self::UnusedPositionalFnArgs => report_builder.main_label("first unused argument"),
+            Self::UnusedNamedFnArgs { names } => report_builder
                 .main_label("when calling \x02this function\x03")
                 .labels(
-                    args.iter()
+                    names
+                        .iter()
                         .map(|(k, span)| (span, format!("unused argument with key {k:?}"))),
                 ),
             Self::DefaultPositionalParamValue => report_builder
@@ -297,9 +306,13 @@ impl Error {
             Self::FnParamSplatBeforeEnd | Self::FnArgSplatBeforeEnd => report_builder
                 .main_label("\x02splat\x03 is only allowed at end")
                 .help("splat pattern gathers unused named parameters"),
-            Self::MissingRequiredNamedParameter(name) => report_builder
-                .main_label(format!("missing required named parameter `\x02{name}\x03`"))
-                .help(format!("add `{name}=value`")),
+            Self::MissingRequiredPositionalParameter { ty } => report_builder
+                .main_label("missing required positional parameter")
+                .note(format!("expected positional parameter with type `{ty}`")),
+            Self::MissingRequiredNamedParameter { name, ty } => report_builder
+                .main_label(format!("missing required named parameter `\x02{name}\x03"))
+                .help(format!("add `{name}=value` at the call site"))
+                .note(format!("expected named parameter with type `{ty}`")),
             Self::PositionalParamAfterNamedParam => report_builder
                 .main_label("positional parameter occurs after named parameter")
                 .note("all positional parameters must come before the first named parameter"),
@@ -382,8 +395,10 @@ impl Error {
                 .main_label("\x02this comparison operator\x03 is unsupported on these types")
                 .label_type(ty1)
                 .label_type(ty2),
-            Self::ExpectedInteger(n) => report_builder.main_label(n),
-            Self::ExpectedNonnegativeInteger(n) => report_builder.main_label(n),
+            Self::ExpectedInteger(n)
+            | Self::ExpectedNonnegativeInteger(n)
+            | Self::ExpectedSmallNonnegativeInteger(n) => report_builder.main_label(n),
+
             Self::IndexOutOfBounds { got, bounds } => {
                 report_builder.main_label(got).note(match bounds {
                     Some((min, max)) => {
@@ -392,8 +407,9 @@ impl Error {
                     None => "collection is empty".to_string(),
                 })
             }
-            Self::CannotIndex(ty) => report_builder.main_label(format!("this is a \x02{ty}\x03")),
-            Self::CannotIterate(ty) => report_builder.main_label(format!("this is a \x02{ty}\x03")),
+            Self::CannotIndex(ty) | Self::CannotIterate(ty) => {
+                report_builder.main_label(format!("this is a \x02{ty}\x03"))
+            }
             Self::NaN => report_builder
                 .main_label("not a number")
                 .help("check for division by zero or other invalid operation"),
@@ -457,15 +473,44 @@ fn there_should_be_min_max_msg(min: usize, max: usize) -> String {
     }
 }
 
-fn join_with_conjunction(items: Vec<String>, conjunction: &str) -> String {
-    match items.as_slice() {
-        [] => "<nothing>".to_string(),
-        [a] => a.to_string(),
-        [a, b] => format!("{a} {conjunction} {b}"),
-        rest => {
-            let (last, all_but_last) = rest.split_last().unwrap();
-            let all_but_last = all_but_last.iter().join(", ");
-            format!("{all_but_last}, {conjunction} {last}")
-        }
+impl From<eyre::Report> for Error {
+    fn from(e: eyre::Report) -> Self {
+        Error::User(eco_format!("{e:#}"))
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Error {
+    fn from(value: Cow<'a, str>) -> Self {
+        Error::User(value.into())
+    }
+}
+
+impl<'a> From<&'a str> for Error {
+    fn from(value: &'a str) -> Self {
+        Error::User(value.into())
+    }
+}
+
+/// Extension trait for [`Error`]-compatible errors and results.
+pub trait ErrorExt {
+    /// [`FullDiagnostic`] or [`crate::Result<T>`].
+    type Output;
+
+    /// Attaches a span to the error.
+    fn at(self, span: Span) -> Self::Output;
+}
+impl<E: Into<Error>> ErrorExt for E {
+    type Output = FullDiagnostic;
+
+    fn at(self, span: Span) -> Self::Output {
+        let e: Error = self.into();
+        e.at(span)
+    }
+}
+impl<T, E: Into<Error>> ErrorExt for Result<T, E> {
+    type Output = Result<T, FullDiagnostic>;
+
+    fn at(self, span: Span) -> Self::Output {
+        self.map_err(|e| e.at(span))
     }
 }

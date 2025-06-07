@@ -85,8 +85,8 @@ impl RhaiPuzzle {
             // region,
         } = self.unpack_cut_args(ctx, args, cut_mode, default_sticker_mode)?;
 
-        let mut puz = self.lock()?;
-        let shape = &mut puz.shape;
+        let puz = self.lock()?;
+        let mut shape = puz.shape.lock();
         let mut gen_seqs = vec![];
         let mut colors_assigned = vec![];
         match RhaiSymmetry::get(ctx) {

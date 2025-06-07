@@ -88,30 +88,37 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
         module,
         |ctx: Ctx<'_>, puzzle: &mut RhaiPuzzle, axis: RhaiAxis, depths: Array| -> Result<()> {
             let depths: Vec<f32> = from_rhai_array(&ctx, depths)?;
+            let mut puz = puzzle.lock()?;
+            let twists = puz.twists.lock();
             let axes = match RhaiSymmetry::get(&ctx) {
                 Some(sym) => {
                     let vector = axis.vector()?;
-                    let puz = puzzle.lock()?;
                     sym.orbit(vector)
                         .iter()
-                        .filter_map(|(_, _, v)| puz.twists.axes.vector_to_id(v))
+                        .filter_map(|(_, _, v)| twists.axes.vector_to_id(v))
                         .collect()
                 }
                 None => {
                     vec![axis.id]
                 }
             };
-            let mut puz = puzzle.lock()?;
+            drop(twists);
             for axis in axes {
-                let Ok(axis_info) = puz.twists.axes.get(axis) else {
+                let twists = puz.twists.lock();
+                let Ok(axis_info) = twists.axes.get(axis) else {
                     break;
                 };
                 let vector = axis_info.vector().clone();
+                drop(twists);
+
+                let mut shape = puz.shape.lock();
                 for &depth in &depths {
                     let plane = Hyperplane::new(&vector, depth as _)
                         .ok_or("invalid hyperplane (axis vector may be zero)")?;
-                    puz.shape.slice(None, plane, None).eyrefmt()?;
+                    shape.slice(None, plane, None).eyrefmt()?;
                 }
+                drop(shape);
+
                 let axis_layers = &mut puz.axis_layers().eyrefmt()?[axis].0;
                 for layer in depths.windows(2) {
                     axis_layers
@@ -191,14 +198,17 @@ pub fn puzzle_spec_from_rhai_map(
 
     // Part of the puzzle-building process that happens on non-Rhai thread
     let create_puzzle_builder = move |build_ctx: &BuildCtx| -> eyre::Result<RhaiPuzzle> {
-        let builder = RhaiPuzzle(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
+        let builder = RhaiPuzzle(Arc::new(Mutex::new(PuzzleBuilder::new(
+            Arc::clone(&meta),
+            ndim,
+        )?)));
 
         if let Some(color_system_id) = &colors {
             build_ctx.progress.lock().task = BuildTask::BuildingColors;
             let colors = catalog
                 .build_blocking(color_system_id)
                 .map_err(|e| eyre!("{e}"))?;
-            builder.lock()?.shape.colors = ColorSystemBuilder::unbuild(&colors)?;
+            builder.lock()?.shape.lock().colors = ColorSystemBuilder::unbuild(&colors)?;
         }
 
         if let Some(twist_system_id) = &twists {
@@ -206,13 +216,13 @@ pub fn puzzle_spec_from_rhai_map(
             let twists = catalog
                 .build_blocking(twist_system_id)
                 .map_err(|e| eyre!("{e}"))?;
-            builder.lock()?.twists = TwistSystemBuilder::unbuild(&twists)?;
+            *builder.lock()?.twists.lock() = TwistSystemBuilder::unbuild(&twists)?;
         }
 
         build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
 
         if let Some(remove_internals) = remove_internals {
-            builder.lock()?.shape.remove_internals = remove_internals;
+            builder.lock()?.shape.lock().remove_internals = remove_internals;
         }
         if let Some(full_scramble_length) = scramble {
             builder.lock()?.full_scramble_length = full_scramble_length
@@ -238,7 +248,7 @@ pub fn puzzle_spec_from_rhai_map(
             })?;
 
             // Assign default piece type to remaining pieces.
-            builder.lock()?.shape.mark_untyped_pieces()?;
+            builder.lock()?.shape.lock().mark_untyped_pieces()?;
 
             builder
                 .lock()?
@@ -272,13 +282,11 @@ impl LockAs<PuzzleBuilder> for RhaiPuzzle {
 }
 impl LockAs<TwistSystemBuilder> for RhaiPuzzle {
     fn lock(&self) -> Result<MappedMutexGuard<'_, TwistSystemBuilder>> {
-        MutexGuard::try_map(self.0.lock(), |contents| Some(&mut contents.twists))
-            .map_err(|_| "no puzzle".into())
+        unimplemented!()
     }
 }
 impl LockAs<AxisSystemBuilder> for RhaiPuzzle {
     fn lock(&self) -> Result<MappedMutexGuard<'_, AxisSystemBuilder>> {
-        MutexGuard::try_map(self.0.lock(), |contents| Some(&mut contents.twists.axes))
-            .map_err(|_| "no puzzle".into())
+        unimplemented!()
     }
 }

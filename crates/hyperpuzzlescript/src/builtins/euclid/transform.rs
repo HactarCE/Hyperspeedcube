@@ -3,46 +3,49 @@ use std::borrow::Cow;
 use hypermath::pga::*;
 use hypermath::prelude::*;
 
-use crate::Error;
-use crate::{Result, Scope};
+use crate::ErrorExt;
+use crate::Num;
+use crate::{Error, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
         /// `ident()` constructs the identity transformation. It requires
         /// `#ndim` to be defined.
-        fn ident(ctx: EvalCtx) -> EuclidTransform {
+        fn ident(ctx: EvalCtx) -> Motor {
             Motor::ident(ctx.ndim()?)
         }
 
-        /// `refl()` constructs a transform representing a [reflection] or [point
-        /// reflection] and can be called in any of several ways:
+        /// `refl()` constructs a transform representing a [reflection] or
+        /// [point reflection] and can be called in any of several ways:
         ///
-        /// - **No arguments.** Calling `refl()` with no arguments constructs a point
-        ///   reflection across the origin.
-        /// - **Point.** Calling `refl()` with a [point] constructs a point reflection
-        ///   across that point. For example, `refl(point(0, -2))` constructs a point
-        ///   reflection across the point $\langle 0, -2, 0 \rangle$.
-        /// - **Vector.** Calling `refl()` with a [vector] constructs a reflection
-        ///   through that vector. The magnitude of the vector is ignored. For example,
-        ///   `refl(point(0, -2))` constructs a reflection across the plane $y=0$.
+        /// - **No arguments.** Calling `refl()` with no arguments constructs a
+        ///   point reflection across the origin.
+        /// - **Point.** Calling `refl()` with a [point] constructs a point
+        ///   reflection across that point. For example, `refl(point(0, -2))`
+        ///   constructs a point reflection across the point $\langle 0, -2, 0
+        ///   \rangle$.
+        /// - **Vector.** Calling `refl()` with a [vector] constructs a
+        ///   reflection through that vector. The magnitude of the vector is
+        ///   ignored. For example, `refl(point(0, -2))` constructs a reflection
+        ///   across the plane $y=0$.
         /// - **Hyperplane.** Calling `refl()` with a [hyperplane] constructs a
         ///   reflection across that hyperplane. The orientation of the plane is
-        ///   ignored. For example, `refl(plane('z', 1/2))` constructs a reflection
-        ///   across the plane $z = 0.5$.
-        fn refl(ctx: EvalCtx) -> EuclidTransform {
+        ///   ignored. For example, `refl(plane('z', 1/2))` constructs a
+        ///   reflection across the plane $z = 0.5$.
+        fn refl(ctx: EvalCtx) -> Motor {
             Motor::point_reflection(ctx.ndim()?, &Point::ORIGIN)
                 .ok_or(Error::User("dimension mismatch".into()).at(ctx.caller_span))?
         }
-        fn refl(ctx: EvalCtx, (p, p_span): EuclidPoint) -> EuclidTransform {
+        fn refl(ctx: EvalCtx, (p, p_span): Point) -> Motor {
             Motor::point_reflection(ctx.ndim()?, &p)
                 .ok_or(Error::User("dimension mismatch".into()).at(p_span))?
         }
-        fn refl(ctx: EvalCtx, (v, v_span): Vec) -> EuclidTransform {
+        fn refl(ctx: EvalCtx, (v, v_span): Vector) -> Motor {
             ctx.ndim()?; // for consistency
             Motor::vector_reflection(v)
                 .ok_or(Error::User("dimension mismatch".into()).at(v_span))?
         }
-        fn refl(ctx: EvalCtx, (h, h_span): EuclidPlane) -> EuclidTransform {
+        fn refl(ctx: EvalCtx, (h, h_span): Hyperplane) -> Motor {
             Motor::plane_reflection(ctx.ndim()?, &h)
                 .ok_or(Error::User("dimension mismatch".into()).at(h_span))?
         }
@@ -123,25 +126,19 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// // 90-degree rotation around an edge of a cube
         /// rot(fix = vec(1, 1, 0), from = 'x', to = 'z')
         /// ```
-        #[kwargs(fix: Any, start: Any, end: Any, angle: Num)]
-        fn rot(ctx: EvalCtx) -> EuclidTransform {
+        #[kwargs(
+            fix: Blade = Blade::one(),
+            start: Option<Vector>,
+            end: Option<Vector>,
+            angle: Num,
+        )]
+        fn rot(ctx: EvalCtx) -> Motor {
             let ndim = ctx.ndim()?;
-
-            let fix = match fix.as_opt() {
-                Some(v) => v.to_pga_blade()?,
-                None => Blade::one(),
-            };
-            let start = start.as_opt().map(|v| v.to_vector()).transpose()?;
-            let end = end.as_opt().map(|v| v.to_vector()).transpose()?;
-
-            construct_rotation(ndim, fix, start, end, Some(angle))
-                .map_err(|e| Error::User(e.as_ref().into()).at(ctx.caller_span))?
+            construct_rotation(ndim, fix, start, end, Some(angle)).at(ctx.caller_span)?
         }
-        fn rot(ctx: EvalCtx, angle: Num) -> EuclidTransform {
+        fn rot(ctx: EvalCtx, angle: Num) -> Motor {
             if ctx.ndim()? != 2 {
-                return Err(
-                    Error::User("`rot(angle)` is only allowed in 2D".into()).at(ctx.caller_span)
-                );
+                return Err("`rot(angle)` is only allowed in 2D".at(ctx.caller_span));
             }
             Motor::from_angle_in_axis_plane(0, 1, angle)
         }
@@ -203,11 +200,11 @@ fn construct_rotation(
                     &Blade::from_vector(&dual_basis[0]),
                     &Blade::from_vector(&dual_basis[1]),
                 )
-                .ok_or_else(|| "bad basis")?,
+                .ok_or("bad basis")?,
                 &fix,
             )
-            .ok_or_else(|| "bad basis")?;
-            if pss[pga::Axes::antiscalar(ndim)].is_sign_negative() {
+            .ok_or("bad basis")?;
+            if pss[Axes::antiscalar(ndim)].is_sign_negative() {
                 dual_basis.reverse();
             }
 
@@ -237,19 +234,19 @@ mod tests {
         for ndim in 2..8 {
             println!("Testing {ndim}D");
 
-            let fix = Blade::from_term(pga::Term::unit(
+            let fix = Blade::from_term(Term::unit(
                 (2..ndim)
-                    .map(|i| pga::Axes::euclidean(i))
-                    .fold(pga::Axes::empty(), |a, b| a | b),
+                    .map(|i| Axes::euclidean(i))
+                    .fold(Axes::empty(), |a, b| a | b),
             ));
             let t = construct_rotation(ndim, fix, None, None, Some(std::f64::consts::FRAC_PI_2))
                 .unwrap();
             assert_approx_eq!(t.transform_vector(vector![1.0]), vector![0.0, 1.0]);
 
-            let fix = Blade::from_term(pga::Term::unit(
+            let fix = Blade::from_term(Term::unit(
                 (1..ndim - 1)
-                    .map(|i| pga::Axes::euclidean(i))
-                    .fold(pga::Axes::empty(), |a, b| a | b),
+                    .map(|i| Axes::euclidean(i))
+                    .fold(Axes::empty(), |a, b| a | b),
             ));
             let t = construct_rotation(ndim, fix, None, None, Some(std::f64::consts::FRAC_PI_2))
                 .unwrap();

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, ImmutReason, Key, Result, Span, SpecialVariables, Value};
+use crate::{FnOverload, FnValue, ImmutReason, Key, Result, Span, SpecialVariables, Value};
 
 /// Reference to a parent scope.
 #[derive(Debug, Clone)]
@@ -135,7 +135,7 @@ impl Scope {
     /// This is equivalent to `set` for all values except functions, for which
     /// it merges the overrides. Conflicting overrides cause an error.
     pub fn add(&self, name: impl Into<Key>, value: Value) -> Result<()> {
-        if let Ok(f) = value.as_func() {
+        if let Ok(f) = value.as_ref::<FnValue>() {
             let name = name.into();
             for o in &f.overloads {
                 self.register_func(value.span, name.clone(), o.clone())?;

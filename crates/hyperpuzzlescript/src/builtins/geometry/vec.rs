@@ -1,6 +1,6 @@
 use hypermath::prelude::*;
 
-use crate::{Error, Result, Scope};
+use crate::{Error, Num, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
@@ -24,7 +24,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `vec()` with an existing point will return its
         ///   coordinates as a vector.
         #[kwargs(kwargs)]
-        fn vec(ctx: EvalCtx, args: Args) -> Vec {
+        fn vec(ctx: EvalCtx, args: Args) -> Vector {
             super::construct_vec(ctx.caller_span, &args, kwargs)?
         }
 
@@ -32,14 +32,14 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ///
         /// [dot product]:
         ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Dot_products#Dot_Product
-        fn dot(a: Vec, b: Vec) -> Vec {
+        fn dot(a: Vector, b: Vector) -> Num {
             a.dot(b)
         }
 
         /// `cross()` returns the 3D cross product between the two vectors. It
         /// returns an error if either vector has components outside the XYZ
         /// subspace.
-        fn cross((a, a_span): Vec, (b, b_span): Vec) -> Vec {
+        fn cross((a, a_span): Vector, (b, b_span): Vector) -> Vector {
             for (v, v_span) in [(&a, a_span), (&b, b_span)] {
                 if v.iter_nonzero().any(|(i, _)| i >= 3) {
                     let msg = "cross product is undefined beyond 3D";
@@ -52,25 +52,25 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// `lerp()` returns the linear interpolation between two vectors `a`
         /// and `b`, computed as $a (1-t) + b t$ where $t$ is clamped between
         /// `0` and `1`
-        fn lerp(a: Vec, b: Vec, t: Num) -> Vec {
+        fn lerp(a: Vector, b: Vector, t: Num) -> Vector {
             hypermath::util::lerp(a, b, t.clamp(0.0, 1.0))
         }
 
         /// `lerp_unbounded()` returns the unbounded linear interpolation
         /// between two vectors `a` and `b`, computed as $a (1-t) + b t$.
-        fn lerp_unbounded(a: Vec, b: Vec, t: Num) -> Vec {
+        fn lerp_unbounded(a: Vector, b: Vector, t: Num) -> Vector {
             hypermath::util::lerp(a, b, t)
         }
     ])?;
 
     // Operators
-    scope.register_builtin_functions(hps_short_fns![
-        ("+", |_, v: Vec| -> Vec { v }),
-        ("-", |_, v: Vec| -> Vec { -v }),
-        ("+", |_, a: Vec, b: Vec| -> Vec { a + b }),
-        ("-", |_, a: Vec, b: Vec| -> Vec { a - b }),
-        ("*", |_, v: Vec, n: Num| -> Vec { v * n }),
-        ("*", |_, n: Num, v: Vec| -> Vec { v * n }),
-        ("/", |_, v: Vec, n: Num| -> Vec { v / n }),
+    scope.register_builtin_functions(hps_fns![
+        ("+", |_, v: Vector| -> Vector { v }),
+        ("-", |_, v: Vector| -> Vector { -v }),
+        ("+", |_, a: Vector, b: Vector| -> Vector { a + b }),
+        ("-", |_, a: Vector, b: Vector| -> Vector { a - b }),
+        ("*", |_, v: Vector, n: Num| -> Vector { v * n }),
+        ("*", |_, n: Num, v: Vector| -> Vector { v * n }),
+        ("/", |_, v: Vector, n: Num| -> Vector { v / n }),
     ])
 }
