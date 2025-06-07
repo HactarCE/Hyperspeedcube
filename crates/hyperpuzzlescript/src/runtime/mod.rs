@@ -17,8 +17,7 @@ use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast};
 /// Script runtime.
 pub struct Runtime {
     /// Source file names and contents.
-    // TODO: rename to `modules`
-    pub files: Modules,
+    pub modules: Modules,
     /// Built-ins to be imported into every file.
     builtins: Arc<Scope>,
 
@@ -40,7 +39,7 @@ impl fmt::Debug for Runtime {
 impl Default for Runtime {
     fn default() -> Self {
         Self {
-            files: Default::default(),
+            modules: Default::default(),
             builtins: crate::builtins::new_builtins_scope(),
 
             on_print: Box::new(|s| println!("[INFO] {s}")),
@@ -60,7 +59,7 @@ impl Runtime {
     /// `hyperpaths` is enabled).
     pub fn with_default_files() -> Self {
         Self {
-            files: Modules::with_default_files(),
+            modules: Modules::with_default_files(),
             ..Self::default()
         }
     }
@@ -70,7 +69,7 @@ impl Runtime {
     /// Files are parsed automatically as they are needed, but it may be more
     /// efficient to call this method first.
     pub fn parse_all(&mut self) {
-        for i in 0..self.files.len() {
+        for i in 0..self.modules.len() {
             self.file_ast(i as FileId);
         }
     }
@@ -84,14 +83,14 @@ impl Runtime {
     ///
     /// Files are executed in an unspecified order.
     pub fn exec_all_files(&mut self) {
-        for i in 0..self.files.len() {
+        for i in 0..self.modules.len() {
             self.load_module(i as FileId);
         }
     }
 
     /// Returns the top-level AST for a file, or `None` if it doesn't exist.
     pub fn file_ast(&mut self, file_id: FileId) -> Option<Arc<ast::Node>> {
-        let file = self.files.get_mut(file_id)?;
+        let file = self.modules.get_mut(file_id)?;
         match file.ast.clone() {
             Some(ast) => Some(ast),
             None => {
@@ -106,7 +105,7 @@ impl Runtime {
                         };
                         (ast::NodeContents::Error, span)
                     });
-                let file = self.files.get_mut(file_id)?;
+                let file = self.modules.get_mut(file_id)?;
                 file.ast = Some(Arc::new(ast));
                 file.ast.clone()
             }
@@ -119,27 +118,27 @@ impl Runtime {
     /// Returns `None` if the file doesn't exist. Returns `Err(())` if the file
     /// failed to load (in which case an error has already been reported).
     pub fn load_module(&mut self, file_id: FileId) -> Option<&Result<Value, ()>> {
-        let file = self.files.get(file_id)?;
+        let file = self.modules.get(file_id)?;
         match file.result {
             // extra lookup is necessary to appease borrowchecker
-            Some(_) => self.files.get(file_id)?.result.as_ref(),
+            Some(_) => self.modules.get(file_id)?.result.as_ref(),
             None => {
                 let result = self.load_module_uncached(file_id)?;
-                let file = self.files.get_mut(file_id)?;
+                let file = self.modules.get_mut(file_id)?;
                 file.result = Some(result);
                 file.result.as_ref()
             }
         }
     }
     fn load_module_uncached(&mut self, file_id: FileId) -> Option<Result<Value, ()>> {
-        let file = self.files.get(file_id)?;
+        let file = self.modules.get(file_id)?;
         let submodules = file.submodules.clone();
         let mut exports: Option<Map> = None;
         for submodule_id in submodules {
             match self.load_module(submodule_id).cloned() {
                 Some(Ok(submodule_return_value)) => {
                     exports.get_or_insert_default().insert(
-                        self.files.module_name(submodule_id)?,
+                        self.modules.module_name(submodule_id)?,
                         submodule_return_value,
                     );
                 }
@@ -177,7 +176,7 @@ impl Runtime {
     /// stderr.
     pub fn report_diagnostic(&mut self, e: FullDiagnostic) {
         self.diagnostic_count += 1;
-        (self.on_diagnostic)(&mut self.files, e);
+        (self.on_diagnostic)(&mut self.modules, e);
     }
 
     /// Calls [`Self::report_diagnostic`] on each error.
@@ -192,10 +191,10 @@ impl ariadne::Cache<FileId> for &Runtime {
     type Storage = ArcStr;
 
     fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source<ArcStr>, impl fmt::Debug> {
-        self.files.ariadne_source(*id)
+        self.modules.ariadne_source(*id)
     }
 
     fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
-        self.files.ariadne_display(*id)
+        self.modules.ariadne_display(*id)
     }
 }

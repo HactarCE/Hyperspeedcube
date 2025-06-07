@@ -759,7 +759,7 @@ impl EvalCtx<'_> {
                 if path.starts_with(['^', '/']) {
                     let mut base = self
                         .runtime
-                        .files
+                        .modules
                         .get_path(self.caller_span.context)
                         .ok_or(Error::Internal("relative import with no path").at(*span))?;
                     while let Some(rest) = path.strip_prefix('^') {
@@ -1120,7 +1120,7 @@ impl EvalCtx<'_> {
 
     /// Imports a file and returns its return value.
     fn import(&mut self, span: Span, path: String, is_relative: bool) -> Result<Value> {
-        let file_id_to_import = self.runtime.files.id_from_module_name(&path);
+        let file_id_to_import = self.runtime.modules.id_from_module_name(&path);
         match file_id_to_import.and_then(|id| self.runtime.load_module(id)) {
             Some(Ok(value)) => Ok(value.clone()),
             Some(Err(())) => Err(Error::SilentImportError.at(span)),
@@ -1131,7 +1131,7 @@ impl EvalCtx<'_> {
     /// Returns a [`Substr`] from a [`Span`]. If the span is invalid, returns an
     /// empty string.
     pub fn substr(&self, span: Span) -> Substr {
-        match self.runtime.files.get_contents(span.context) {
+        match self.runtime.modules.get_contents(span.context) {
             Some(contents) => contents.substr(span.start as usize..span.end as usize),
             None => Substr::new(),
         }
@@ -1161,7 +1161,7 @@ impl Index<Span> for EvalCtx<'_> {
     type Output = str;
 
     fn index(&self, span: Span) -> &Self::Output {
-        match self.runtime.files.get_contents(span.context) {
+        match self.runtime.modules.get_contents(span.context) {
             Some(contents) => &contents[span.start as usize..span.end as usize],
             None => "",
         }
