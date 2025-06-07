@@ -39,14 +39,20 @@ impl fmt::Debug for Space {
 }
 
 impl Space {
+    /// Minimum number of dimensions.
+    pub const MIN_NDIM: u8 = 1;
+    /// Maximum number of dimensions.
+    pub const MAX_NDIM: u8 = 7;
+
     /// Constructs a new space containing no polytopes.
     ///
     /// # Panics
     ///
-    /// Panics if `ndim > 7`.
+    /// Panics if `ndim` is not within `MIN_NDIM..=MAX_NDIM`.
     pub fn new(ndim: u8) -> Arc<Self> {
-        assert!(ndim >= 1, "ndim={ndim} is below min value of 1");
-        assert!(ndim <= 7, "ndim={ndim} exceeds max value of 7");
+        let (min, max) = (Self::MIN_NDIM, Self::MAX_NDIM);
+        assert!(ndim >= min, "ndim={ndim} is below min value of {min}");
+        assert!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
         Arc::new_cyclic(|this| Self {
             ndim,
             this: this.clone(),
