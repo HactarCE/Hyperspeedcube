@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 hyperpuzzle_core = { workspace = true }
 hyperpuzzle_impl_nd_euclid = { workspace = true }
-hyperpuzzlescript = { workspace = true, features = ["hyperpaths"] }
+hyperpuzzlescript = { workspace = true }
 
 lazy_static = { workspace = true }
 parking_lot = { workspace = true }

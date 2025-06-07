@@ -2539,6 +2539,7 @@ dependencies = [
  "hyperpuzzle_log",
  "hyperpuzzle_rhai",
  "hyperpuzzle_view",
+ "hyperpuzzlescript",
  "hyperstats",
  "hyperstrings",
  "itertools 0.14.0",

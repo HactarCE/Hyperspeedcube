@@ -14,14 +14,13 @@
 //! assert_eq!("2x2x2", puzzle.meta.name);
 //! ```
 //!
-//! # Dynamically loading Rhai files
+//! # Dynamically loading Hyperpuzzlescript files
 //!
-//! By default, the built-in files are dynamically loaded. To bake them into the
-//! executable , add this to your `Cargo.toml` and build with the environment
-//! variable `HSC_OFFICIAL_BUILD=1`:
+//! By default, the built-in files are baked in. To load them at runtime, add
+//! this to your `Cargo.toml`:
 //!
 //! ```toml
-//! hyperpuzzle_rhai = { version = "*", features = ["hyperpaths"] }
+//! hyperpuzzlescript = { version = "*", features = ["hyperpaths"] }
 //! ```
 
 use std::sync::Arc;
