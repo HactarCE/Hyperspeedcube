@@ -229,9 +229,12 @@ impl IdentAs {
     }
 }
 
+/// Special variable, which is inherited via the call graph instead of scope.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SpecialVar {
+    /// Number of dimensions of the space.
     Ndim,
+    /// Symmetry group to apply for puzzle operations.
     Sym,
 }
 impl fmt::Display for SpecialVar {
