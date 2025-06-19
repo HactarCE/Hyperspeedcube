@@ -52,7 +52,7 @@ impl<T: TypeOf> TypeOf for Spanned<T> {
 }
 impl<T: TypeOf> TypeOf for Option<T> {
     fn hps_ty() -> Type {
-        Type::unify(Type::Null, T::hps_ty())
+        Type::Null | T::hps_ty()
     }
 }
 impl<T: TypeOf + ?Sized> TypeOf for Arc<T> {

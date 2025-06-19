@@ -2,7 +2,7 @@
 
 use crate::{Result, Scope, Type, ValueData};
 
-/// Adds the built-in operators and functions to the scope.
+/// Adds the built-in types and operators to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
     for ty in [
         Type::Any,
@@ -24,7 +24,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     }
 
     scope.register_builtin_functions(hps_fns![
-        ("|", |_, a: Type, b: Type| -> Type { Type::unify(a, b) }),
+        ("|", |_, a: Type, b: Type| -> Type { a | b }),
         ("?", |_, t: Type| -> Type { t.optional() })
     ])
 }

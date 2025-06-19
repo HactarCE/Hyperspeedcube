@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt;
+use std::ops::BitOr;
 
 use itertools::Itertools;
 
@@ -182,6 +183,14 @@ impl From<Type> for Cow<'_, Type> {
 impl<'a> From<&'a Type> for Cow<'a, Type> {
     fn from(value: &'a Type) -> Self {
         Cow::Borrowed(value)
+    }
+}
+
+impl BitOr for Type {
+    type Output = Type;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self::unify(self, rhs)
     }
 }
 

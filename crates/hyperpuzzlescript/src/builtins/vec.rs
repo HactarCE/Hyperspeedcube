@@ -105,7 +105,7 @@ pub(super) fn construct_from_args(span: Span, args: &[Value], kwargs: Map) -> Re
             ValueData::Num(n) => Ok(vector![*n]),
             ValueData::Vec(v) => Ok(v.clone()),
             ValueData::EuclidPoint(p) => Ok(p.0.clone()),
-            _ => Err(arg.type_error(Type::from_iter([Type::Num, Type::Vec, Type::EuclidPoint]))),
+            _ => Err(arg.type_error(Type::Num | Type::Vec | Type::EuclidPoint)),
         },
 
         _ if args.len() > hypermath::MAX_NDIM as usize => Err(Error::User(eco_format!(

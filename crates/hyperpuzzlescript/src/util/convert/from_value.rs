@@ -215,9 +215,7 @@ impl_from_value_borrowable!(hypermath::Point = Type::EuclidPoint, EuclidPoint(p)
 impl_from_value_borrowable!(hypermath::pga::Motor = Type::EuclidTransform, EuclidTransform(t) => Ok(t));
 impl_from_value_ref!(for<'a> &'a hypermath::Hyperplane, EuclidPlane(h) => Ok(h));
 impl_from_value!(hypermath::Hyperplane = Type::EuclidPlane, EuclidPlane(h) => Ok(*h));
-impl_ty!(
-    hypermath::pga::Blade = Type::from_iter([Type::Vec, Type::EuclidPoint, Type::EuclidBlade])
-);
+impl_ty!(hypermath::pga::Blade = Type::Vec | Type::EuclidPoint | Type::EuclidBlade);
 impl<'a> FromValueRef<'a> for hypermath::pga::Blade {
     fn from_value_ref(value: &'a Value) -> Result<Self> {
         match &value.data {
