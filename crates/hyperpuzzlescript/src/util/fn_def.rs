@@ -89,12 +89,12 @@ macro_rules! hps_fns {
             (
                 stringify!($fn_name),
                 $crate::FnOverload {
-                    ty: fn_type!([$($params)*] -> $ret),
+                    ty: $crate::fn_type!([$($params)*] -> $ret),
                     call: std::sync::Arc::new(move |ctx, args, kwargs| {
                         #[allow(unused, clippy::redundant_locals)]
                         let ctx = ctx;
-                        unpack_args!(ctx, args, [$($params)*]);
-                        unpack_kwargs!(kwargs$(, $($kwargs)*)?);
+                        $crate::unpack_args!(ctx, args, [$($params)*]);
+                        $crate::unpack_kwargs!(kwargs$(, $($kwargs)*)?);
                         let ret: $ret = $body;
                         Ok($crate::ValueData::from(ret).at($crate::BUILTIN_SPAN))
                     }),
@@ -121,9 +121,9 @@ macro_rules! hps_fns {
                     call: std::sync::Arc::new(move |ctx, args, kwargs| {
                         // `$param_ty:ty` makes the literal identifier `Args`
                         // opaque so we can't do variadics here.,
-                        unpack_args!(ctx, args, [$($($param: $param_ty),*)?]);
+                        $crate::unpack_args!(ctx, args, [$($($param: $param_ty),*)?]);
                         let $ctx = ctx;
-                        unpack_kwargs!(kwargs);
+                        $crate::unpack_kwargs!(kwargs);
                         let ret: $ret = $body;
                         Ok($crate::ValueData::from(ret).at($crate::BUILTIN_SPAN))
                     }),
@@ -164,7 +164,7 @@ macro_rules! fn_type {
 macro_rules! unpack_args {
     ($ctx:ident, $args:ident, [$ctx_out:tt : EvalCtx $(, $($rest:tt)*)?]) => {
         let $ctx_out = $ctx;
-        unpack_args!($ctx, $args, [$($($rest)*)?]);
+        $crate::unpack_args!($ctx, $args, [$($($rest)*)?]);
     };
     ($ctx:ident, $args:ident, [$args_out:tt : Args $(,)?]) => {
         let $args_out = $args;
@@ -173,7 +173,7 @@ macro_rules! unpack_args {
         #[allow(unused_mut)]
         let mut args = $args.into_iter();
         $(
-            let $param = $crate::util::pop_arg::<fn_arg_ty!($param: $param_ty)>(
+            let $param = $crate::util::pop_arg::<$crate::fn_arg_ty!($param: $param_ty)>(
                 &mut args,
                 $crate::BUILTIN_SPAN,
             )?;
@@ -194,7 +194,7 @@ macro_rules! unpack_kwargs {
         #[allow(unused_mut)]
         let mut kwargs = $kwargs;
         $(
-            pop_kwarg!(kwargs, $param: $param_ty $( = $default )?);
+            $crate::pop_kwarg!(kwargs, $param: $param_ty $( = $default )?);
         )*
         $crate::util::expect_end_of_kwargs(kwargs, $crate::BUILTIN_SPAN)?;
     };
@@ -231,7 +231,7 @@ macro_rules! pop_kwarg {
     ($kwargs:ident, $name:tt: $param_ty:ty = $default:expr) => {
         let $name = $crate::util::pop_kwarg::<Option<$param_ty>>(
             &mut $kwargs,
-            fn_arg_name!($name),
+            $crate::fn_arg_name!($name),
             $crate::BUILTIN_SPAN,
         )?
         .unwrap_or_else(|| -> $param_ty { $default });
@@ -239,7 +239,7 @@ macro_rules! pop_kwarg {
     ($kwargs:ident, $name:tt: $param_ty:ty) => {
         let $name = $crate::util::pop_kwarg::<fn_arg_ty!($name: $param_ty)>(
             &mut $kwargs,
-            fn_arg_name!($name),
+            $crate::fn_arg_name!($name),
             $crate::BUILTIN_SPAN,
         )?;
     };
@@ -249,10 +249,12 @@ macro_rules! pop_kwarg {
 #[macro_export]
 macro_rules! fn_arg_name {
     (($name:ident, $span:ident)) => {
-        stringify!($name)
+        $crate::fn_arg_name!($name)
     };
     ($name:tt) => {
         stringify!($name)
+            .strip_prefix("r#")
+            .unwrap_or(stringify!($name))
     };
 }
 

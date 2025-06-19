@@ -19,11 +19,11 @@ use crate::{Spanned, Type, Value, ValueData};
 #[macro_export]
 macro_rules! impl_ty {
     ($ty:ty = $type_name:literal) => {
-        impl_ty!($ty = $crate::Type::Custom($type_name));
+        $crate::impl_ty!($ty = $crate::Type::Custom($type_name));
     };
     ($ty:ty = $hps_ty:expr) => {
-        impl TypeOf for $ty {
-            fn hps_ty() -> Type {
+        impl $crate::TypeOf for $ty {
+            fn hps_ty() -> $crate::Type {
                 $hps_ty
             }
         }
