@@ -133,10 +133,14 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .clone()
             .with_ctx(LexCtx::IGNORE_NEWLINES)
             .delimited_by(just("${"), just('}'));
-        let string_escape = just("\\").ignore_then(any()).ignore_then(choice((
-            choice((just('\\'), just('$'), just('"'), just('\''))),
-            just('n').to('\n'),
-        )));
+        let string_escape = just("\\").ignore_then(any().try_map_with(|c, e| match c {
+            'n' => Ok('\n'),
+            _ if c.is_ascii_punctuation() => Ok(c),
+            _ => Err(Rich::custom(
+                e.span(),
+                format!("unknown escape character: {c:?}"),
+            )),
+        }));
         let string_literal = choice((
             none_of(super::CHARS_THAT_MUST_BE_ESCAPED_IN_STRING_LITERALS)
                 .repeated()

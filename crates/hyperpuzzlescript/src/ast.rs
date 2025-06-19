@@ -102,7 +102,7 @@ pub enum NodeContents {
     NullLiteral,
     BoolLiteral(bool),
     NumberLiteral(f64),
-    StringLiteral(Vec<StringSegment>),
+    StringLiteral(Vec<Spanned<StringSegment>>),
     ListLiteral(Vec<Node>),
     MapLiteral(Vec<MapEntry>),
 
@@ -208,8 +208,12 @@ pub enum FnParam {
 
 #[derive(Debug)]
 pub enum StringSegment {
-    Literal(Span),
+    /// Literal string segment.
+    Literal,
+    /// Escape sequence. The contained character is the character that should
+    /// appear in the output string.
     Char(char),
+    /// Expression interpolation.
     Interpolation(Node),
 }
 

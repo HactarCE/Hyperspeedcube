@@ -9,7 +9,7 @@ use itertools::Itertools;
 use super::{Runtime, Scope};
 use crate::{
     Error, FnOverload, FnType, FnValue, Key, List, LoopControlFlow, Map, Result, Span, Spanned,
-    Type, Value, ValueData, Warning, ast,
+    Str, Type, Value, ValueData, Warning, ast,
 };
 
 /// Evaluation context.
@@ -520,9 +520,10 @@ impl EvalCtx<'_> {
             ast::NodeContents::UseAllFrom(source) => {
                 self.for_all_from_map(source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
-                        this.runtime.report_diagnostic(
-                            Warning::ShadowedVariable((k.clone(), old_var.span), true).at(span),
-                        );
+                        if !(old_var.is_func() && v.is_func()) {
+                            let w = Warning::ShadowedVariable((k.clone(), old_var.span), true);
+                            this.runtime.report_diagnostic(w.at(span));
+                        }
                     }
                     self.scope.add(k, v)
                 })?;
@@ -531,9 +532,10 @@ impl EvalCtx<'_> {
             ast::NodeContents::UseFrom(items, source) => {
                 self.for_each_item_from_map(items, source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
-                        this.runtime.report_diagnostic(
-                            Warning::ShadowedVariable((k.clone(), old_var.span), false).at(span),
-                        );
+                        if !(old_var.is_func() && v.is_func()) {
+                            let w = Warning::ShadowedVariable((k.clone(), old_var.span), false);
+                            this.runtime.report_diagnostic(w.at(span));
+                        }
                     }
                     self.scope.add(k, v)
                 })?;
@@ -782,23 +784,9 @@ impl EvalCtx<'_> {
             ast::NodeContents::NullLiteral => Ok(null),
             ast::NodeContents::BoolLiteral(b) => Ok(ValueData::Bool(*b)),
             ast::NodeContents::NumberLiteral(n) => Ok(ValueData::Num(*n)),
-            ast::NodeContents::StringLiteral(string_segments) => Ok({
-                let mut s = String::new();
-                for segment in string_segments {
-                    match segment {
-                        ast::StringSegment::Literal(simple_span) => {
-                            s.push_str(&self[*simple_span]);
-                        }
-                        ast::StringSegment::Char(c) => {
-                            s.push(*c);
-                        }
-                        ast::StringSegment::Interpolation(expr) => {
-                            s.push_str(&self.eval(expr)?.to_string());
-                        }
-                    }
-                }
-                ValueData::Str(s.into())
-            }),
+            ast::NodeContents::StringLiteral(string_segments) => Ok(self
+                .eval_string_literal_contents(span, string_segments)?
+                .data),
             ast::NodeContents::ListLiteral(items) => Ok(ValueData::List(Arc::new({
                 let mut ret = vec![];
                 for item @ (item_contents, _) in items {
@@ -995,6 +983,38 @@ impl EvalCtx<'_> {
         })
     }
 
+    fn eval_string_literal_contents(
+        &mut self,
+        whole_span: Span,
+        segments: &[Spanned<ast::StringSegment>],
+    ) -> Result<Value> {
+        let mut interp_fn = LazyBuiltinOperator::new("$");
+        let mut concat_fn = LazyBuiltinOperator::new("++");
+
+        let mut output = InterpolatedString::default();
+        for &(ref segment, span) in segments {
+            match segment {
+                ast::StringSegment::Literal => output.push_str(&self[span], span),
+                ast::StringSegment::Char(c) => output.push_char(*c, span),
+                ast::StringSegment::Interpolation(expr) => {
+                    let value = self.eval(expr)?;
+
+                    let f = interp_fn.get(self)?;
+                    if f.get_overload(span, std::slice::from_ref(&value)).is_ok() {
+                        output.push_value(f.call_at(span, span, self, vec![value], Map::new())?);
+                    } else {
+                        output.push_str(&value.to_string(), span);
+                    }
+                }
+            }
+        }
+
+        output.into_string(whole_span, |a, b| {
+            let f = concat_fn.get(self)?;
+            f.call_at(whole_span, whole_span, self, vec![a, b], Map::new())
+        })
+    }
+
     fn set_var(&self, span: Span, value: impl Into<ValueData>) {
         self.scope.set(self.substr(span), value.into().at(span));
     }
@@ -1169,6 +1189,90 @@ impl Index<Span> for EvalCtx<'_> {
         match self.runtime.modules.get_contents(span.context) {
             Some(contents) => &contents[span.start as usize..span.end as usize],
             None => "",
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct InterpolatedString {
+    segment_values: Vec<Value>,
+}
+impl InterpolatedString {
+    pub fn push_str(&mut self, s: &str, span: Span) {
+        self.last_segment_as_str(span).push_str(s);
+    }
+    pub fn push_char(&mut self, c: char, span: Span) {
+        self.last_segment_as_str(span).push(c);
+    }
+    pub fn push_value(&mut self, v: Value) {
+        if let ValueData::Str(s) = &v.data {
+            self.push_str(s, v.span);
+        } else {
+            self.segment_values.push(v);
+        }
+    }
+
+    fn last_segment_as_str(&mut self, new_span: Span) -> &mut Str {
+        if !matches!(
+            self.segment_values.last().map(|v| &v.data),
+            Some(ValueData::Str(_)),
+        ) {
+            self.segment_values
+                .push(ValueData::Str(Str::new()).at(new_span));
+        }
+
+        match self.segment_values.last_mut() {
+            Some(Value {
+                data: ValueData::Str(s),
+                span,
+            }) => {
+                // Extend `span` to include `new_span`
+                *span = Span {
+                    start: span.start,
+                    end: new_span.end,
+                    context: span.context,
+                };
+                s
+            }
+
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn into_string(
+        self,
+        whole_span: Span,
+        mut concat: impl FnMut(Value, Value) -> Result<Value>,
+    ) -> Result<Value> {
+        self.segment_values
+            .into_iter()
+            .map(Ok)
+            .reduce(|a, b| concat(a?, b?))
+            .unwrap_or(Ok(ValueData::Str(Str::new()).at(whole_span)))
+    }
+}
+
+#[derive(Debug)]
+enum LazyBuiltinOperator {
+    /// Uninitialized.
+    Uninit(&'static str),
+    /// Initialized.
+    Init(Arc<FnValue>),
+}
+impl LazyBuiltinOperator {
+    pub fn new(op_str: &'static str) -> Self {
+        Self::Uninit(op_str)
+    }
+    pub fn get(&mut self, ctx: &EvalCtx<'_>) -> Result<&FnValue> {
+        match self {
+            Self::Init(f) => Ok(f),
+            Self::Uninit(op_str) => {
+                *self = Self::Init(match ctx.scope.get(op_str) {
+                    Some(v) => v.to::<Arc<FnValue>>()?,
+                    None => Arc::new(FnValue::new(Some("$".into()))),
+                });
+                self.get(ctx)
+            }
         }
     }
 }

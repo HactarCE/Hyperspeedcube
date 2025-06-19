@@ -1,0 +1,13 @@
+fn override_concat(a: Str, b: Num) -> Num { a.len + b }
+fn override_concat(a: Num, b: Num) -> Num { a + b }
+fn override_concat(a: Num, b: Str) -> Str { str(a) ++ b }
+fn override_interp(l: List) -> Num { l.len }
+
+overrides = #{}
+overrides["++"] = override_concat
+overrides["\$"] = override_interp
+
+use * from overrides
+
+assert_eq("a ${"b"} c", "a b c")
+assert_eq("a ${[1, 2, 3]}${4} b ${"q"} c", "54 b q c")

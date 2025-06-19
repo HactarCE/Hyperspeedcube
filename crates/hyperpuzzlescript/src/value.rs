@@ -413,6 +413,10 @@ impl ValueData {
     pub fn is_null(&self) -> bool {
         matches!(self, Self::Null)
     }
+    /// Returns whether the value is a function.
+    pub fn is_func(&self) -> bool {
+        matches!(self, Self::Fn(_))
+    }
 }
 
 /// Script function.

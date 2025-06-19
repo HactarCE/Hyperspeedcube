@@ -3,10 +3,7 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{
-    FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, TypeOf, Value,
-    ValueData,
-};
+use crate::{FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, Value};
 
 /// Reference to a parent scope.
 #[derive(Debug, Clone)]
@@ -177,8 +174,20 @@ impl Scope {
         }
     }
 
+    /// Registers a function in the scope but adds no overloads.
+    pub fn register_empty_func(&self, span: Span, name: Key) -> Result<()> {
+        self.atomic_modify(
+            name.clone(),
+            |val| {
+                val.as_func_mut(span, Some(name));
+                Ok(())
+            },
+            Some(Value::NULL),
+        )
+    }
+
     /// Registers a function in the scope.
-    pub fn register_func(&self, span: Span, name: Substr, overload: FnOverload) -> Result<()> {
+    pub fn register_func(&self, span: Span, name: Key, overload: FnOverload) -> Result<()> {
         self.atomic_modify(
             name.clone(),
             |val| val.as_func_mut(span, Some(name)).push_overload(overload),

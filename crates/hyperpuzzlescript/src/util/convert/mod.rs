@@ -65,7 +65,7 @@ impl Value {
     /// Returns the function. If the value wasn't a function before, replaces it
     /// with a new function with the given name.
     pub fn as_func_mut(&mut self, span: Span, name: Option<Substr>) -> &mut FnValue {
-        if !matches!(self.data, ValueData::Fn(_)) {
+        if !self.is_func() {
             *self = ValueData::Fn(Arc::new(FnValue::new(name))).at(span);
         }
         match &mut self.data {

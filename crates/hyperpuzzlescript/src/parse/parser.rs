@@ -138,25 +138,19 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             move |contents: &'src [Spanned<StringSegmentToken>], state: &mut ParseState<'src>| {
                 contents
                     .iter()
-                    .map(|(token, span)| match token {
-                        StringSegmentToken::Literal => Ok(ast::StringSegment::Literal(*span)),
-                        StringSegmentToken::Escape(c) => match c {
-                            'n' => Ok(ast::StringSegment::Char('\n')),
-                            c if c.is_ascii_punctuation() => Ok(ast::StringSegment::Char(*c)),
-                            c => {
-                                let msg = format!("unknown escape character: {c:?}");
-                                Err(Rich::custom(*span, msg))
-                            }
-                        },
-                        StringSegmentToken::Interpolation(items) => {
-                            Ok(ast::StringSegment::Interpolation(
-                                expr_clone
-                                    .parse_with_state(make_input(*span, items), state)
-                                    .into_result()
-                                    .map_err(|e| e.into_iter().next().expect("empty errors"))?,
-                            ))
-                        }
+                    .map(|&(ref token, span)| {
+                        let segment = match token {
+                            StringSegmentToken::Literal => ast::StringSegment::Literal,
+                            StringSegmentToken::Escape(c) => ast::StringSegment::Char(*c),
+                            StringSegmentToken::Interpolation(items) => expr_clone
+                                .parse_with_state(make_input(span, items), state)
+                                .into_result()
+                                .map_err(|e| e.into_iter().next().expect("empty errors"))
+                                .map(ast::StringSegment::Interpolation)?,
+                        };
+                        Ok((segment, span))
                     })
+                    .map(|a| if a.is_err() { dbg!(a) } else { a })
                     .collect::<Result<_, _>>()
                     .map(ast::NodeContents::StringLiteral)
             };

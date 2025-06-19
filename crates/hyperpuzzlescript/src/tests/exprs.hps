@@ -36,3 +36,6 @@ assert_eq(null, null ?? null)
 
 assert_eq(vec( ), vec(
 ))
+
+assert_eq("\n", "
+")
