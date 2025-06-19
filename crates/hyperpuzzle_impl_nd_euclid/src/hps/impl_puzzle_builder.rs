@@ -91,7 +91,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                         exports: &mut None,
                     };
                     build_fn
-                        .call(
+                        .call_at(
                             build_span,
                             build_span,
                             &mut ctx,
