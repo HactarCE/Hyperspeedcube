@@ -514,8 +514,18 @@ impl FnValue {
 
         Ok(())
     }
-    /// Calls the function.
+    /// Calls the function, using the built-in span for the call site.
     pub fn call(
+        &self,
+        fn_span: Span,
+        ctx: &mut EvalCtx<'_>,
+        args: List,
+        kwargs: Map,
+    ) -> Result<Value> {
+        self.call_at(crate::BUILTIN_SPAN, fn_span, ctx, args, kwargs)
+    }
+    /// Calls the function.
+    pub fn call_at(
         &self,
         call_span: Span,
         fn_span: Span,

@@ -462,7 +462,7 @@ impl EvalCtx<'_> {
                                 let args = vec![old_value, get_new_value(ctx)?];
                                 let kwargs = Map::new();
                                 let f = op_fn.as_ref::<FnValue>()?;
-                                f.call(span, *assign_symbol, ctx, args, kwargs)
+                                f.call_at(span, *assign_symbol, ctx, args, kwargs)
                             }
                         }),
                     )?;
@@ -674,7 +674,7 @@ impl EvalCtx<'_> {
                     let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
                     let kwargs = Map::new();
                     let f = op_fn.as_ref::<FnValue>()?;
-                    Ok(f.call(span, *op, self, args, kwargs)?.data)
+                    Ok(f.call_at(span, *op, self, args, kwargs)?.data)
                 }
             }
             ast::NodeContents::FnCall { func, args } => {
@@ -732,7 +732,7 @@ impl EvalCtx<'_> {
                 }
                 let args = arg_values;
                 let kwargs = kwarg_values;
-                Ok(f.call(span, func_value.span, self, args, kwargs)?.data)
+                Ok(f.call_at(span, func_value.span, self, args, kwargs)?.data)
             }
             ast::NodeContents::Paren(expr) => Ok(self.eval(expr)?.data),
             ast::NodeContents::Access { obj, field } => {

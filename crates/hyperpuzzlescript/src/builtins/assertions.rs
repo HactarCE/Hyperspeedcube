@@ -56,7 +56,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ("__eval_to_error", |ctx, f: Arc<FnValue>| -> String {
             let args = vec![];
             let kwargs = Map::default();
-            match f.call(ctx.caller_span, ctx.caller_span, ctx, args, kwargs) {
+            match f.call_at(ctx.caller_span, ctx.caller_span, ctx, args, kwargs) {
                 Ok(value) => Err(
                     Error::User(eco_format!("expected error; got {}", value.repr()))
                         .at(ctx.caller_span),
