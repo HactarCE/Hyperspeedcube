@@ -1,10 +1,12 @@
-use std::collections::{HashMap, hash_map};
 use std::sync::Arc;
 
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, FnValue, ImmutReason, Key, Result, Span, SpecialVariables, Value};
+use crate::{
+    FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, TypeOf, Value,
+    ValueData,
+};
 
 /// Reference to a parent scope.
 #[derive(Debug, Clone)]
@@ -28,7 +30,7 @@ pub struct Scope {
     /// Parent scope.
     pub parent: Option<ParentScope>,
     /// Names in this scope.
-    pub names: Mutex<HashMap<Key, Value>>,
+    pub names: Mutex<Map>,
     /// Special variables, which are inherited via the call graph.
     pub special: SpecialVariables,
 }
@@ -80,7 +82,7 @@ impl Scope {
     fn new_with_parent(parent_scope: Arc<Scope>, immut_reason: Option<ImmutReason>) -> Scope {
         let registry = parent_scope.special.clone();
         Scope {
-            names: Mutex::new(HashMap::new()),
+            names: Mutex::new(Map::new()),
             parent: Some(ParentScope {
                 scope: parent_scope,
                 immut_reason,
@@ -99,10 +101,10 @@ impl Scope {
     pub fn set(&self, name: impl Into<Key>, value: Value) {
         let name = name.into();
         match self.names.lock().entry(name.clone()) {
-            hash_map::Entry::Occupied(mut e) => {
+            indexmap::map::Entry::Occupied(mut e) => {
                 e.insert(value);
             }
-            hash_map::Entry::Vacant(e) => {
+            indexmap::map::Entry::Vacant(e) => {
                 if let Some(parent) = &self.parent {
                     if parent.is_mutable() {
                         return parent.scope.set(name, value);
@@ -118,8 +120,8 @@ impl Scope {
     fn set_if_defined(&self, name: impl Into<Key>, value: Value) -> Result<Value, Value> {
         let name = name.into();
         match self.names.lock().entry(name.clone()) {
-            hash_map::Entry::Occupied(mut e) => Ok(e.insert(value)),
-            hash_map::Entry::Vacant(e) => {
+            indexmap::map::Entry::Occupied(mut e) => Ok(e.insert(value)),
+            indexmap::map::Entry::Vacant(e) => {
                 if let Some(parent) = &self.parent {
                     if parent.is_mutable() {
                         parent.scope.set_if_defined(name, value)

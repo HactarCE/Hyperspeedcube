@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 
 use arcstr::Substr;
 use ecow::{EcoString, eco_format};
@@ -48,14 +48,14 @@ pub enum Error {
     #[error("splat before end in pattern")]
     SplatBeforeEndInPattern { pattern_span: Span },
     #[error("list length mismatch")]
-    ListLengthMismatch {
+    ListLengthMismatchInPattern {
         pattern_span: Span,
         pattern_len: usize,
         allow_excess: bool,
         value_len: usize,
     },
     #[error("map contains extra keys not present in pattern")]
-    UnusedMapKeys {
+    UnusedMapKeysInPattern {
         pattern_span: Span,
         keys: Vec<Spanned<Key>>,
     },
@@ -81,6 +81,10 @@ pub enum Error {
     MissingRequiredNamedParameter { name: Key, ty: Type },
     #[error("positional parameter after named parameter")]
     PositionalParamAfterNamedParam,
+    #[error("unused map keys")]
+    UnusedMapKeys { keys: Vec<Spanned<Key>> },
+    #[error("missing required key")]
+    MissingRequiredMapKey { key: Key },
     #[error("undefined")]
     Undefined,
     #[error("undefined in map")]
@@ -261,7 +265,7 @@ impl Error {
                 .main_label("\x02splat\x03 is only allowed at end")
                 .label(pattern_span, "in \x02this pattern\x03")
                 .help("splat pattern gathers unused entries"),
-            Self::ListLengthMismatch {
+            Self::ListLengthMismatchInPattern {
                 pattern_span,
                 pattern_len,
                 allow_excess,
@@ -275,7 +279,7 @@ impl Error {
                         if *allow_excess { "at least " } else { "" },
                     ),
                 ),
-            Self::UnusedMapKeys { pattern_span, keys } => report_builder
+            Self::UnusedMapKeysInPattern { pattern_span, keys } => report_builder
                 .main_label("from \x02this map\x03")
                 .label(pattern_span, "in \x02this pattern\x03")
                 .labels(
@@ -316,6 +320,15 @@ impl Error {
             Self::PositionalParamAfterNamedParam => report_builder
                 .main_label("positional parameter occurs after named parameter")
                 .note("all positional parameters must come before the first named parameter"),
+            Self::UnusedMapKeys { keys } => {
+                report_builder.main_label("in \x02this map\x03").labels(
+                    keys.iter()
+                        .map(|(k, span)| (span, format!("unused entry with key {k:?}"))),
+                )
+            }
+            Self::MissingRequiredMapKey { key } => {
+                report_builder.main_label(format!("expected \x02this map\x03 to have {key:?}"))
+            }
             Self::Undefined => report_builder
                 .main_label("\x02this name\x03 is not defined")
                 .help("it may be defined somewhere, but isn't accessible from here")
@@ -507,10 +520,11 @@ impl<E: Into<Error>> ErrorExt for E {
         e.at(span)
     }
 }
-impl<T, E: Into<Error>> ErrorExt for Result<T, E> {
+impl<T, E: fmt::Display> ErrorExt for Result<T, E> {
     type Output = Result<T, FullDiagnostic>;
 
     fn at(self, span: Span) -> Self::Output {
-        self.map_err(|e| e.at(span))
+        // Alternate formatting includes more detail for `eyre::Report`s.
+        self.map_err(|e| Error::User(eco_format!("{e:#}")).at(span))
     }
 }

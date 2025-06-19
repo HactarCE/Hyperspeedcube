@@ -94,7 +94,7 @@ impl EvalCtx<'_> {
                 let pattern_len = items_iter.len();
                 let value_len = new_values_iter.len();
                 let error = || {
-                    Error::ListLengthMismatch {
+                    Error::ListLengthMismatchInPattern {
                         pattern_span,
                         pattern_len,
                         allow_excess: rest.is_some(),
@@ -166,7 +166,7 @@ impl EvalCtx<'_> {
                         ValueData::Map(Arc::new(new_values_map)).at(rest.1),
                     )?;
                 } else if !new_values_map.is_empty() {
-                    return Err(Error::UnusedMapKeys {
+                    return Err(Error::UnusedMapKeysInPattern {
                         pattern_span,
                         keys: new_values_map
                             .into_iter()
