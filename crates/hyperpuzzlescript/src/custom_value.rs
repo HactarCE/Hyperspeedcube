@@ -4,6 +4,44 @@ use hyperpuzzle_core::{box_dyn_wrapper_struct, impl_dyn_clone};
 
 use crate::{Error, FromValue, FromValueRef, Result, Span, TypeOf, Value, ValueData};
 
+/// Implements a custom type
+#[macro_export]
+macro_rules! impl_simple_custom_type {
+    ($ty:ty = $name:literal $(,)?) => {
+        $crate::impl_simple_custom_type!($ty = $name, |_, _| None);
+    };
+    ($ty:ty = $name:literal, |$this:tt, $field:tt| $get_field_body:expr $(,)?) => {
+        $crate::impl_ty!($ty = $name);
+        impl $crate::CustomValue for $ty {
+            fn type_name(&self) -> &'static str {
+                $name
+            }
+
+            fn clone_dyn(&self) -> $crate::BoxDynValue {
+                self.clone().into()
+            }
+
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>, is_repr: bool) -> std::fmt::Result {
+                match is_repr {
+                    false => write!(f, "{self:?}"),
+                    true => write!(f, "{self}"),
+                }
+            }
+
+            fn field_get(
+                &self,
+                self_span: $crate::Span,
+                field: &str,
+                field_span: $crate::Span,
+            ) -> $crate::Result<Option<$crate::ValueData>> {
+                let $this = (self, self_span);
+                let $field = (field, field_span);
+                $crate::Result::Ok($get_field_body)
+            }
+        }
+    };
+}
+
 box_dyn_wrapper_struct! {
     /// Wrapper around `Box<dyn CustomValue>` that can be downcast to a concrete
     /// puzzle state type. It also implements `Clone` for convenience.
@@ -25,6 +63,7 @@ impl_dyn_clone!(for BoxDynValue);
 /// # fn type_name(&self) -> &'static str { unimplemented!() }
 /// # fn clone_dyn(&self) -> BoxDynValue { unimplemented!() }
 /// # fn fmt(&self, f: &mut std::fmt::Formatter<'_>, is_debug: bool) -> std::fmt::Result { unimplemented!() }
+/// # fn field_get(&self, self_span: Span, field: &str, field_span: Span) -> Result<Option<ValueData>> { unimplemented!() }
 /// }
 /// ```
 pub trait CustomValue: Any + Send + Sync {
@@ -55,6 +94,14 @@ pub trait CustomValue: Any + Send + Sync {
     {
         ValueData::Custom(BoxDynValue::new(self)).at(span)
     }
+
+    /// Returns a field of the type.
+    fn field_get(
+        &self,
+        self_span: Span,
+        field: &str,
+        field_span: Span,
+    ) -> Result<Option<ValueData>>;
 }
 
 impl<'a, T: CustomValue + TypeOf> FromValueRef<'a> for &'a T {

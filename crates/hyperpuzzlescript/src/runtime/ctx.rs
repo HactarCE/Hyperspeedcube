@@ -294,6 +294,7 @@ impl EvalCtx<'_> {
                 "distance" => Some(ValueData::Num(p.distance())),
                 _ => None,
             },
+            ValueData::Custom(v) => v.field_get(obj.span, field_name, field)?,
             _ => None,
         }
         .ok_or(Error::NoField((obj.ty(), obj.span)).at(field))
