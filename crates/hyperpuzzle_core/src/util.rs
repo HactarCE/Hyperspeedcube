@@ -1,6 +1,5 @@
 //! Common utility functions that didn't fit anywhere else.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -75,29 +74,6 @@ pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     }
 
     known
-}
-
-/// Escapes a string to be used as a key in a Hyperpuzzlescript map literal.
-pub fn escape_hps_map_key(s: &str) -> Cow<'_, str> {
-    const RESERVED_WORDS: &[&str] = &[
-        "and", "as", "break", "continue", "do", "else", "export", "false", "fn", "for", "from",
-        "if", "import", "in", "is", "not", "null", "or", "return", "true", "use", "while", "with",
-        "xor",
-    ];
-    if s.is_empty()
-        || s.starts_with(|c: char| c.is_ascii_digit())
-        || s.chars().any(|c| !c.is_alphanumeric() && c != '_')
-        || RESERVED_WORDS.contains(&s)
-    {
-        hps_string_literal(s).into()
-    } else {
-        s.into()
-    }
-}
-
-/// Escapes a string to be used as a Hyperpuzzlescript string literal.
-pub fn hps_string_literal(s: &str) -> String {
-    format!("{:?}", s.replace('$', "\\$"))
 }
 
 /// Constructs a vantage name with the standard format `r1:r2,r3:r4,r5:r6`

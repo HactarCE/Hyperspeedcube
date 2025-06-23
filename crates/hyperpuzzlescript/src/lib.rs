@@ -6,6 +6,7 @@
 pub mod util;
 mod ast;
 pub mod builtins;
+pub mod codegen;
 mod custom_value;
 mod diagnostic;
 mod engines;

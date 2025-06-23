@@ -20,6 +20,9 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
+/// Re-export of `hypershape`.
+pub use hypershape;
+
 pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 

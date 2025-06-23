@@ -187,15 +187,23 @@ fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
                     uis[0].menu_button("Copy Hps code", |ui| {
                         let r = ui.button("Compact");
-                        let text_to_copy = r
-                            .clicked()
-                            .then(|| loaded_orbit.hps_code(&state.names_and_order, true));
+                        let text_to_copy = r.clicked().then(|| {
+                            hyperpuzzlescript::codegen::orbit_hps_code(
+                                loaded_orbit,
+                                &state.names_and_order,
+                                true,
+                            )
+                        });
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
 
                         let r = ui.button("Expanded");
-                        let text_to_copy = r
-                            .clicked()
-                            .then(|| loaded_orbit.hps_code(&state.names_and_order, false));
+                        let text_to_copy = r.clicked().then(|| {
+                            hyperpuzzlescript::codegen::orbit_hps_code(
+                                loaded_orbit,
+                                &state.names_and_order,
+                                false,
+                            )
+                        });
                         crate::gui::components::copy_on_click(ui, &r, text_to_copy);
                     });
 
@@ -326,9 +334,8 @@ fn puzzle_color_edit_button(
 
 fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
     use hyperprefs::MODIFIED_SUFFIX;
-    use hyperpuzzle::util::{escape_hps_map_key, hps_string_literal};
 
-    let id_string_literal = hps_string_literal(&color_system.id);
+    let id_string_literal = hyperpuzzlescript::codegen::to_str_literal(&color_system.id);
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
@@ -357,7 +364,7 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     let has_default_colors = schemes.len() == 1;
 
     let color_name_kv_pairs = pad_to_common_length(color_system.names.iter_values().map(|info| {
-        let string_literal = hps_string_literal(&info.spec);
+        let string_literal = hyperpuzzlescript::codegen::to_str_literal(&info.spec);
         format!(" name = {string_literal},")
     }));
     let color_display_kv_pairs = pad_to_common_length(
@@ -404,7 +411,7 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         for (name, colors) in &schemes {
             s += &format!("        {{{name:?}, {{\n");
             for (k, v) in colors {
-                let k = escape_hps_map_key(match color_system.names.get(k) {
+                let k = hyperpuzzlescript::codegen::to_map_key(match color_system.names.get(k) {
                     Ok(name) => &name.spec,
                     Err(_) => "?",
                 });

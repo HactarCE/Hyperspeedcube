@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use hypershape::{AbbrGenSeq, GeneratorId};
+use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::*;
@@ -31,15 +31,6 @@ impl AnyOrbit {
         match self {
             AnyOrbit::Axes(orbit) => orbit.sorted_ids_and_names(puz),
             AnyOrbit::Colors(orbit) => orbit.sorted_ids_and_names(puz),
-        }
-    }
-
-    /// Returns the Hyperpuzzlescript source code to generate the given naming
-    /// and ordering.
-    pub fn hps_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
-        match self {
-            AnyOrbit::Axes(orbit) => orbit.hps_code(new_names_and_order, compact),
-            AnyOrbit::Colors(orbit) => orbit.hps_code(new_names_and_order, compact),
         }
     }
 }
@@ -123,46 +114,5 @@ impl<T: PuzzleElement> Orbit<T> {
     /// useful when using `DevOrbit::default()` to stand in for an empty value.
     pub fn is_empty(&self) -> bool {
         self.elements.is_empty()
-    }
-
-    /// Returns the Hyperpuzzlescript source code to generate the given naming
-    /// and ordering.
-    pub fn hps_code(&self, new_names_and_order: &[(usize, String)], compact: bool) -> String {
-        let mut new_element_names = vec![None; self.elements.len()];
-        for (i, new_name) in new_names_and_order {
-            if *i < new_element_names.len() {
-                new_element_names[*i] = Some(new_name);
-            }
-        }
-
-        let mut s = "#{\n".to_owned();
-        for (i, new_name) in new_names_and_order {
-            s += "  ";
-            s += &*crate::util::escape_hps_map_key(new_name);
-            s += " = [";
-            let mut is_first = true;
-            let mut elem_index = *i;
-            while let Some(gen_seq) = self.generator_sequences.get(elem_index) {
-                for GeneratorId(g) in &gen_seq.generators.0 {
-                    if is_first {
-                        is_first = false;
-                    } else {
-                        s += ", ";
-                    }
-                    s += &format!("{}", g + 1); // 1-indexed
-                }
-                let Some(next) = gen_seq.end else { break };
-                elem_index = next;
-                if compact {
-                    if let Some(Some(other_name)) = new_element_names.get(elem_index) {
-                        s += &format!(", {}", crate::util::hps_string_literal(other_name));
-                        break;
-                    }
-                }
-            }
-            s += "],\n";
-        }
-        s += "}";
-        s
     }
 }
