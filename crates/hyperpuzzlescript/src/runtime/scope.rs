@@ -3,7 +3,10 @@ use std::sync::Arc;
 use arcstr::Substr;
 use parking_lot::Mutex;
 
-use crate::{FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, Value};
+use crate::{
+    FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, TypeOf, Value,
+    ValueData,
+};
 
 /// Reference to a parent scope.
 #[derive(Debug, Clone)]
@@ -172,6 +175,35 @@ impl Scope {
             }
             None => Ok(()),
         }
+    }
+
+    /// Adds a custom type to the scope.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `T::hps_ty()` is not `Type::Custom(_)`.
+    pub fn register_custom_type<T: TypeOf>(&self) {
+        let crate::Type::Custom(type_name) = T::hps_ty() else {
+            panic!("expected custom type; got {}", T::hps_ty());
+        };
+
+        let mut path = type_name.split('.');
+        let type_name = path
+            .next_back()
+            .expect("empty split() result is impossible");
+
+        let mut guard = self.names.lock();
+        let mut m = &mut *guard;
+        for segment in path {
+            m = m
+                .entry(segment.into())
+                .or_default()
+                .as_map_mut(crate::BUILTIN_SPAN);
+        }
+        m.insert(
+            type_name.into(),
+            ValueData::Type(T::hps_ty()).at(crate::BUILTIN_SPAN),
+        );
     }
 
     /// Registers a function in the scope but adds no overloads.

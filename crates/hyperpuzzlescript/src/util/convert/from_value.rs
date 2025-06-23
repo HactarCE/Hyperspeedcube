@@ -173,6 +173,11 @@ impl<T: TypeOf> TypeOf for Vec<T> {
         Type::List(inner_type.map(Box::new))
     }
 }
+impl<T: TypeOf> TypeOf for [T] {
+    fn hps_ty() -> Type {
+        Vec::<T>::hps_ty()
+    }
+}
 impl<'a, T: FromValueRef<'a>> FromValueRef<'a> for Vec<T> {
     fn from_value_ref(value: &'a Value) -> Result<Self> {
         value
@@ -209,6 +214,7 @@ impl<T: FromValue> FromValue for Vec<T> {
             .collect()
     }
 }
+impl_from_value_ref!(for<'a> &'a [Value], List(l) => Ok(l));
 
 // hypermath
 impl_from_value_borrowable!(hypermath::Point = Type::EuclidPoint, EuclidPoint(p) => Ok(p));

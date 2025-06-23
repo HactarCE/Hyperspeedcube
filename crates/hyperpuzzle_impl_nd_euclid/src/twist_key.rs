@@ -1,3 +1,5 @@
+use std::fmt;
+
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::{ApproxHashMapKey, Float, pga};
 use hyperpuzzle_core::Axis;
@@ -30,5 +32,12 @@ impl TwistKey {
     pub fn new(axis: Axis, transform: &pga::Motor) -> Option<TwistKey> {
         let transform = transform.canonicalize_up_to_180()?;
         Some(Self { axis, transform })
+    }
+}
+
+impl fmt::Display for TwistKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { axis, transform } = self;
+        write!(f, "twist with axis {axis} and transform {transform}")
     }
 }

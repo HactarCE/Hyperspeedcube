@@ -1,12 +1,27 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use eyre::{Context, eyre};
+use hypermath::Hyperplane;
 use hyperpuzzle_core::{catalog::BuildTask, prelude::*};
 use hyperpuzzlescript::*;
+use itertools::Itertools;
 
+use super::{
+    ArcMut, HpsColor, HpsNdEuclid, HpsOrbitNames, HpsPuzzleBuilder, HpsShapeBuilder, HpsSymmetry,
+};
 use crate::builder::*;
 
-use super::{ArcMut, HpsNdEuclid};
+impl_simple_custom_type!(HpsPuzzleBuilder = "euclid.Puzzle");
+impl fmt::Debug for HpsPuzzleBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+impl fmt::Display for HpsPuzzleBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}(id = {:?})", self.type_name(), self.lock().meta.id)
+    }
+}
 
 impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNdEuclid {
     fn new(
@@ -91,8 +106,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                         exports: &mut None,
                     };
                     build_fn
-                        .call_at(
-                            build_span,
+                        .call(
                             build_span,
                             &mut ctx,
                             vec![builder.clone().at(caller_span)],
@@ -117,24 +131,190 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
     }
 }
 
-impl CustomValue for ArcMut<PuzzleBuilder> {
-    fn type_name(&self) -> &'static str {
-        "euclid.PuzzleBuilder"
+/// Adds the built-ins to the scope.
+pub fn define_in(scope: &Scope) -> Result<()> {
+    scope.register_custom_type::<HpsPuzzleBuilder>();
+
+    scope.register_builtin_functions(hps_fns![
+        fn carve(ctx: EvalCtx, this: HpsPuzzleBuilder, plane: Hyperplane) -> Option<HpsColor> {
+            let args = CutArgs::carve(StickerMode::NewColor);
+            ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
+        }
+        fn carve(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            plane: Hyperplane,
+            color_names: Names,
+        ) -> Option<HpsColor> {
+            let args = CutArgs::carve(StickerMode::FromNames(color_names));
+            ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
+        }
+
+        fn slice(ctx: EvalCtx, this: HpsPuzzleBuilder, plane: Hyperplane) -> Option<HpsColor> {
+            let args = CutArgs::slice(StickerMode::None);
+            ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
+        }
+        fn slice(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            plane: Hyperplane,
+            color_names: Names,
+        ) -> Option<HpsColor> {
+            let args = CutArgs::slice(StickerMode::FromNames(color_names));
+            ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
+        }
+    ])
+}
+
+impl HpsShapeBuilder {
+    fn cut(
+        &self,
+        ctx: &mut EvalCtx<'_>,
+        plane: Hyperplane,
+        args: CutArgs,
+    ) -> Result<Option<HpsColor>> {
+        let span = ctx.caller_span;
+        let sym = ctx.scope.special.sym.as_ref::<HpsSymmetry>()?;
+        let mut this = self.lock();
+
+        let (gen_seqs, transforms, cut_planes): (Vec<_>, Vec<_>, Vec<_>) =
+            sym.orbit(plane).into_iter().multiunzip();
+
+        let mut fixed_color: Option<Color> = None;
+        let mut color_list: Option<Vec<Option<Color>>> = None;
+        match args.stickers {
+            StickerMode::NewColor => {
+                color_list = Some(
+                    (0..cut_planes.len())
+                        .map(|_| this.colors.add().map(Some))
+                        .try_collect()
+                        .at(span)?,
+                );
+            }
+            StickerMode::None => fixed_color = None,
+            StickerMode::FixedColor(c) => fixed_color = Some(c.id),
+            StickerMode::FromNames(names) => {
+                let color_names = names.0.to_strings(ctx, &transforms, span)?;
+                color_list = Some(
+                    color_names
+                        .into_iter()
+                        .map(|name_spec| {
+                            this.colors
+                                .get_or_add_with_name_spec(name_spec, &mut ctx.warnf())
+                                .map(Some)
+                        })
+                        .try_collect()
+                        .at(span)?,
+                );
+            }
+        };
+
+        Ok(match color_list {
+            Some(colors) => {
+                this.colors.orbits.push(Orbit {
+                    elements: Arc::new(colors.clone()),
+                    generator_sequences: Arc::new(gen_seqs),
+                });
+                drop(this);
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+            }
+            None => {
+                let colors = std::iter::repeat(fixed_color);
+                drop(this);
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+            }
+        }
+        .at(span)?
+        .map(|id| {
+            let shape = self.clone();
+            HpsColor { id, shape }
+        }))
     }
 
-    fn clone_dyn(&self) -> BoxDynValue {
-        self.clone().into()
-    }
+    fn cut_all(
+        &self,
+        mode: CutMode,
+        orbit: impl IntoIterator<Item = (Hyperplane, Option<Color>)>,
+    ) -> eyre::Result<Option<Color>> {
+        let mut first_color = None;
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _is_repr: bool) -> std::fmt::Result {
-        let p = self.lock();
-        write!(
-            f,
-            "{}(id = {:?}, name = {:?}, ndim = {:?})",
-            self.type_name(),
-            p.meta.id,
-            p.meta.name,
-            p.ndim()
-        )
+        let mut this = self.lock();
+        for (cut_plane, color) in orbit {
+            first_color.get_or_insert(color);
+            match mode {
+                CutMode::Carve => this.carve(None, cut_plane, color)?,
+                CutMode::Slice => this.slice(None, cut_plane, color)?,
+            }
+        }
+
+        Ok(first_color.flatten())
+    }
+}
+
+/// Cut arguments.
+#[derive(Debug)]
+struct CutArgs {
+    mode: CutMode,
+    stickers: StickerMode,
+    region: Option<std::convert::Infallible>, // TODO
+}
+impl CutArgs {
+    pub fn carve(stickers: StickerMode) -> Self {
+        Self {
+            mode: CutMode::Carve,
+            stickers,
+            region: None,
+        }
+    }
+    pub fn slice(stickers: StickerMode) -> Self {
+        Self {
+            mode: CutMode::Slice,
+            stickers,
+            region: None,
+        }
+    }
+    pub fn with_region(mut self, region: Option<std::convert::Infallible>) -> Self {
+        self.region = region;
+        self
+    }
+}
+
+/// Which pieces to keep when cutting the shape.
+#[derive(Debug)]
+enum CutMode {
+    /// Delete any pieces outside the cut; keep only pieces inside the cut.
+    Carve,
+    /// Keep all pieces on both sides of the cut.
+    Slice,
+}
+
+/// How to sticker new facets created by a cut.
+#[derive(Debug, Default)]
+enum StickerMode {
+    /// Add a new color for each cut and create new stickers with that color on
+    /// both sides of the cut.
+    #[default]
+    NewColor,
+    /// Do not add new stickers.
+    None,
+    /// Add new stickers using an existing color.
+    FixedColor(HpsColor),
+    /// Add new stickers using orbit names.
+    FromNames(Names),
+}
+
+#[derive(Debug, Clone)]
+pub struct Names(HpsOrbitNames);
+impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty());
+impl FromValue for Names {
+    fn from_value(value: Value) -> Result<Self> {
+        let span = value.span;
+        if value.as_ref::<str>().is_ok() {
+            Ok(Self(HpsOrbitNames::from((value.to::<Str>()?.into(), span))))
+        } else if value.as_ref::<HpsOrbitNames>().is_ok() {
+            Ok(Self(value.to::<HpsOrbitNames>()?))
+        } else {
+            Err(value.type_error(Self::hps_ty()))
+        }
     }
 }
