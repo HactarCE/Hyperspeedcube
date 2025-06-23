@@ -339,14 +339,20 @@ impl EvalCtx<'_> {
         })?;
         match &obj.data {
             // Index string by character (O(n))
-            ValueData::Str(s) => Ok(index_value
-                .index_double_ended(s.chars(), || s.chars().count())?
-                .into()),
+            ValueData::Str(s) => Ok(crate::util::index_double_ended(
+                s.chars(),
+                || s.chars().count(),
+                index_value.ref_to()?,
+            )?
+            .into()),
             // Index list by element (O(1))
-            ValueData::List(list) => Ok(index_value
-                .index_double_ended(list.iter(), || list.len())?
-                .data
-                .clone()),
+            ValueData::List(list) => Ok(crate::util::index_double_ended(
+                list.iter(),
+                || list.len(),
+                index_value.ref_to()?,
+            )?
+            .data
+            .clone()),
             ValueData::Map(map) => match &index_value.data {
                 ValueData::Str(s) => match map.get(s.as_str()) {
                     Some(v) => Ok(v.data.clone()),
@@ -397,8 +403,12 @@ impl EvalCtx<'_> {
             .at(span)),
             ValueData::List(list) => {
                 let len = list.len();
-                *index_value.index_double_ended(Arc::make_mut(list).iter_mut(), || len)? =
-                    new_value;
+                let mut_ref_value_in_list = crate::util::index_double_ended(
+                    Arc::make_mut(list).iter_mut(),
+                    || len,
+                    index_value.ref_to()?,
+                )?;
+                *mut_ref_value_in_list = new_value;
                 Ok(())
             }
             ValueData::Map(map) => match &index_value.data {

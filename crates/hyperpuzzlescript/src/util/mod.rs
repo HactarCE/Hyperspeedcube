@@ -5,6 +5,8 @@ mod args;
 mod convert;
 #[macro_use]
 mod fn_def;
+mod index;
 
 pub use args::*;
 pub use convert::*;
+pub use index::*;
