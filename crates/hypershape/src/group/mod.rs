@@ -13,6 +13,23 @@ pub use coxeter_group::*;
 pub use finite_coxeter_group::FiniteCoxeterGroup;
 pub use isometry_group::IsometryGroup;
 
+/// Parses a single character of a vector in limited Dynkin notation, where `o`
+/// represents `0` and `x` represents `1`. Returns `None` for all other
+/// characters.
+///
+/// Source: https://bendwavy.org/klitzing/explain/dynkin-notation.htm
+pub fn dynkin_char(c: char) -> Option<hypermath::Float> {
+    match c {
+        'o' => Some(0.0),
+        'x' => Some(1.0),
+        // Other characters exist, but we don't have a use for them yet.
+        // 'q' => Some(std::f64::consts::SQRT_2),
+        // 'f' => Some((5.0_f64.sqrt() + 1.0) * 0.5), // phi
+        // 'u' => Some(2.0),
+        _ => None,
+    }
+}
+
 /// Parses a vector in Dynkin notation. For example, `oox` represents `[0, 0,
 /// 1]`.
 pub fn parse_dynkin_notation(
@@ -27,15 +44,7 @@ pub fn parse_dynkin_notation(
         });
     }
     s.chars()
-        .map(|c| match c {
-            // Source: https://web.archive.org/web/20230410033043/https://bendwavy.org/klitzing//explain/dynkin-notation.htm
-            'o' => Ok(0.0),
-            'x' => Ok(1.0),
-            'q' => Ok(std::f64::consts::SQRT_2),
-            'f' => Ok((5.0_f64.sqrt() + 1.0) * 0.5), // phi
-            'u' => Ok(2.0),
-            _ => Err(DynkinNotationError::BadChar(c)),
-        })
+        .map(|c| dynkin_char(c).ok_or(DynkinNotationError::BadChar(c)))
         .collect()
 }
 
