@@ -38,8 +38,24 @@ macro_rules! impl_simple_custom_type {
                 let $field = (field, field_span);
                 $crate::Result::Ok($get_field_body)
             }
+
+            fn eq(&self, other: &$crate::BoxDynValue) -> Option<bool> {
+                $crate::TryEq::try_eq(self, other.downcast_ref::<Self>()?)
+            }
         }
     };
+}
+
+/// Trait for values that may or may not be possible to compare for equality.
+pub trait TryEq {
+    /// Returns whether two values are equal, or returns `None` if they cannot
+    /// be compared.
+    fn try_eq(&self, other: &Self) -> Option<bool>;
+}
+impl<T: PartialEq> TryEq for T {
+    fn try_eq(&self, other: &Self) -> Option<bool> {
+        Some(self == other)
+    }
 }
 
 box_dyn_wrapper_struct! {
@@ -102,6 +118,10 @@ pub trait CustomValue: Any + Send + Sync {
         field: &str,
         field_span: Span,
     ) -> Result<Option<ValueData>>;
+
+    /// Returns whether two values are equal, or returns `None` if they cannot
+    /// be compared.
+    fn eq(&self, other: &BoxDynValue) -> Option<bool>;
 }
 
 impl<'a, T: CustomValue + TypeOf> FromValueRef<'a> for &'a T {

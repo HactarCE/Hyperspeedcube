@@ -17,7 +17,7 @@ mod ty;
 mod value;
 
 pub use ast::SpecialVar;
-pub use custom_value::{BoxDynValue, CustomValue};
+pub use custom_value::{BoxDynValue, CustomValue, TryEq};
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{
     Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine, Warning,

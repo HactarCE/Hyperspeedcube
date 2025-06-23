@@ -62,6 +62,14 @@ impl Value {
             return Ok(false);
         }
 
+        let invalid_comparison_error = || {
+            Error::InvalidComparison(
+                Box::new((self.ty(), self.span)),
+                Box::new((other.ty(), other.span)),
+            )
+            .at(span)
+        };
+
         match (&self.data, &other.data) {
             (ValueData::Null, ValueData::Null) => Ok(true),
             (ValueData::Bool(b1), ValueData::Bool(b2)) => Ok(b1 == b2),
@@ -90,12 +98,11 @@ impl Value {
             (ValueData::EuclidPlane(plane1), ValueData::EuclidPlane(plane2)) => {
                 Ok(hypermath::approx_eq(&**plane1, &**plane2))
             }
+            (ValueData::Custom(c1), ValueData::Custom(c2)) => {
+                c1.eq(c2).ok_or_else(invalid_comparison_error)
+            }
 
-            _ => Err(Error::InvalidComparison(
-                Box::new((self.ty(), self.span)),
-                Box::new((other.ty(), other.span)),
-            )
-            .at(span)),
+            _ => Err(invalid_comparison_error()),
         }
     }
 
@@ -175,63 +182,6 @@ impl Value {
     pub fn is_type(&self, expected: &Type) -> bool {
         // This could be faster by not constructing an error message.
         self.typecheck(expected).is_ok()
-    }
-
-    /// Converts the value to an integer and then uses it to index a
-    /// double-ended collection.
-    ///
-    /// This may be take O(n) time with respect to the size of the collection,
-    /// but many double-ended iterators in Rust have O(1) implementations of
-    /// `.nth()` and `.nth_back()` so it is often performant.
-    pub(crate) fn index_double_ended<I: IntoIterator>(
-        &self,
-        iter: I,
-        get_len: impl FnOnce() -> usize,
-    ) -> Result<I::Item>
-    where
-        I::IntoIter: DoubleEndedIterator,
-    {
-        self.index(
-            iter.into_iter(),
-            |mut it: I::IntoIter, i| it.nth(i),
-            Some(|mut it: I::IntoIter, i| it.nth_back(i)),
-            get_len,
-        )
-    }
-
-    /// Converts the value to an integer and then uses it to index a collection.
-    ///
-    /// - `get_front` should return the `i`th value from the front of the
-    ///   collection (starting at zero)
-    /// - `get_back` should return the `i`th value from the back of the
-    ///   collection (starting at zero).
-    /// - `get_back` should be `None` if the collection does not support
-    ///   indexing from the back.
-    /// - `get_len` should return the length of the collection.
-    pub(crate) fn index<C, T>(
-        &self,
-        collection: C,
-        get_front: impl FnOnce(C, usize) -> Option<T>,
-        get_back: Option<impl FnOnce(C, usize) -> Option<T>>,
-        get_len: impl FnOnce() -> usize,
-    ) -> Result<T> {
-        let allow_negatives = get_back.is_some();
-        let i: i64 = self.ref_to()?;
-        match i {
-            0.. => get_front(collection, i.try_into().unwrap_or(usize::MAX)),
-            ..0 => get_back.and_then(|f| f(collection, (-i - 1).try_into().unwrap_or(usize::MAX))),
-        }
-        .ok_or_else(|| {
-            Error::IndexOutOfBounds {
-                got: i,
-                bounds: (|| {
-                    let max = get_len().checked_sub(1)? as i64;
-                    let min = if allow_negatives { -max - 1 } else { 0 };
-                    Some((min, max))
-                })(),
-            }
-            .at(self.span)
-        })
     }
 }
 
@@ -529,6 +479,12 @@ impl FnValue {
         self.call_at(crate::BUILTIN_SPAN, fn_span, ctx, args, kwargs)
     }
     /// Calls the function.
+    ///
+    /// - `call_span` should be a span containing the function being called and
+    ///   its arguments.
+    /// - `fn_span` should be a span containing one of:
+    ///     - the function value where it is called
+    ///     - the function's definition
     pub fn call_at(
         &self,
         call_span: Span,
