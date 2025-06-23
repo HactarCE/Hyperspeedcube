@@ -143,16 +143,16 @@ impl ColorSystemBuilder {
 
     /// Returns the ID for the color with the given name, adding it to the color
     /// system if it does not already exist.
-    pub fn get_or_add_with_name(
+    pub fn get_or_add_with_name_spec(
         &mut self,
-        name_pattern: String,
+        name_spec: String,
         warn_fn: &mut impl FnMut(BadName),
     ) -> Result<Color> {
-        if let Some(id) = self.names.get_from_pattern(&name_pattern) {
+        if let Some(id) = self.names.get_from_name_spec(&name_spec) {
             Ok(id)
         } else {
             let id = self.add()?;
-            if let Err(e) = self.names.set(id, Some(name_pattern)) {
+            if let Err(e) = self.names.set(id, Some(name_spec)) {
                 warn_fn(e);
             }
             Ok(id)

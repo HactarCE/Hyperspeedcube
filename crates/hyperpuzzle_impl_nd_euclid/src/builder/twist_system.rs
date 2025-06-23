@@ -177,13 +177,13 @@ impl TwistSystemBuilder {
     }
 
     /// Returns a twist ID from its axis and transform.
-    pub fn data_to_id(&self, key: &TwistKey) -> Option<Twist> {
+    pub fn key_to_id(&self, key: &TwistKey) -> Option<Twist> {
         self.data_to_id.get(key).copied()
     }
 
     /// Returns the inverse of a twist, or an error if the ID is out of range.
     pub fn inverse(&self, id: Twist) -> Result<Option<Twist>> {
-        Ok(self.data_to_id(&self.get(id)?.rev_key()?))
+        Ok(self.key_to_id(&self.get(id)?.rev_key()?))
     }
 
     /// Validates and constructs a twist system.
@@ -255,7 +255,7 @@ impl TwistSystemBuilder {
             let twist_transforms = &twist_transforms[id];
             let twist_key = TwistKey::new(twist.axis, &twist_transforms.reverse())
                 .ok_or(BadTwist::BadTransform)?;
-            match self.data_to_id(&twist_key) {
+            match self.key_to_id(&twist_key) {
                 Some(reverse_twist) => twist.reverse = reverse_twist,
                 None => twists_without_reverse.push(id),
             }

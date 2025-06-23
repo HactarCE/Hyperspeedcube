@@ -119,7 +119,7 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
     /// `name_spec`.
     ///
     /// This does not guarantee that the whole pattern is unique.
-    pub fn get_from_pattern(&self, name_spec: &str) -> Option<I> {
+    pub fn get_from_name_spec(&self, name_spec: &str) -> Option<I> {
         self.id_from_string(&preferred_name_from_name_spec(name_spec))
     }
 
