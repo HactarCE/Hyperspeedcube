@@ -53,21 +53,30 @@ pub fn define_in(scope: &Scope) -> Result<()> {
                 )?;
             }
         ),
-        ("__eval_to_error", |ctx, f: Arc<FnValue>| -> String {
-            let args = vec![];
-            let kwargs = Map::default();
-            match f.call_at(ctx.caller_span, ctx.caller_span, ctx, args, kwargs) {
-                Ok(value) => Err(
-                    Error::User(eco_format!("expected error; got {}", value.repr()))
-                        .at(ctx.caller_span),
-                ),
-                Err(e) => Ok(match e.msg {
-                    Diagnostic::Error(e) => e.to_string(),
-                    Diagnostic::Warning(w) => w.to_string(),
-                }),
-            }?
-        }),
-    ])
+    ])?;
+
+    if super::INCLUDE_DEBUG_FNS {
+        scope.register_builtin_functions(hps_fns![(
+            "__eval_to_error",
+            |ctx, f: Arc<FnValue>| -> String {
+                let args = vec![];
+                let kwargs = Map::default();
+                match f.call_at(ctx.caller_span, ctx.caller_span, ctx, args, kwargs) {
+                    Ok(value) => Err(Error::User(eco_format!(
+                        "expected error; got {}",
+                        value.repr()
+                    ))
+                    .at(ctx.caller_span)),
+                    Err(e) => Ok(match e.msg {
+                        Diagnostic::Error(e) => e.to_string(),
+                        Diagnostic::Warning(w) => w.to_string(),
+                    }),
+                }?
+            }
+        )])?;
+    }
+
+    Ok(())
 }
 
 fn assert<S: Into<EcoString>>(condition: bool, msg: impl FnOnce() -> S, span: Span) -> Result<()> {

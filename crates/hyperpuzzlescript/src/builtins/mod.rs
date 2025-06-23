@@ -14,6 +14,11 @@ pub mod vec;
 
 use crate::{Result, Scope};
 
+#[cfg(feature = "hyperpaths")]
+const INCLUDE_DEBUG_FNS: bool = !hyperpaths::IS_OFFICIAL_BUILD;
+#[cfg(not(feature = "hyperpaths"))]
+const INCLUDE_DEBUG_FNS: bool = true;
+
 /// Defines all base functionality that isn't related to the puzzle catalog.
 pub fn define_base_in(scope: &Scope) -> Result<()> {
     assertions::define_in(&scope)?;
@@ -26,5 +31,15 @@ pub fn define_base_in(scope: &Scope) -> Result<()> {
     strings::define_in(&scope)?;
     types::define_in(&scope)?;
     vec::define_in(&scope)?;
+
+    if INCLUDE_DEBUG_FNS {
+        scope.register_builtin_functions(hps_fns![("time", |_| -> u64 {
+            std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as u64
+        })])?;
+    }
+
     Ok(())
 }
