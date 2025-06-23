@@ -84,6 +84,7 @@ impl PuzzleBuilder {
         let shape_builder = self.shape.lock();
         let twists_builder = self.twists.lock();
         let space = &shape_builder.space;
+        let ndim = space.ndim();
 
         // Build color system. TODO: cache this if unmodified
         let colors = Arc::new(shape_builder.colors.build(build_ctx, opt_id, warn_fn)?);
@@ -230,7 +231,7 @@ impl PuzzleBuilder {
             meta: self.meta.clone(),
 
             view_prefs_set: Some(PuzzleViewPreferencesSet::Perspective(
-                PerspectiveDim::from_ndim(self.ndim()),
+                PerspectiveDim::from_ndim(ndim),
             )),
 
             pieces,
