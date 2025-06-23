@@ -1,6 +1,6 @@
 use hypermath::prelude::*;
 
-use crate::{Num, Result, Scope};
+use crate::{FnType, Map, Num, Result, Scope, Type, builtins::vec::construct_from_args};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_builtin_functions(hps_fns![
@@ -22,9 +22,20 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `point()` with an existing point will return
         ///   the point unmodified.
         #[kwargs(kwargs)]
+        fn point(ctx: EvalCtx) -> Point {
+            Point(construct_from_args(ctx.caller_span, &[], kwargs)?)
+        }
+        #[fn_type(FnType { params: vec![Type::Num], is_variadic: true, ret: Type::EuclidPoint })]
         fn point(ctx: EvalCtx, args: Args) -> Point {
-            let v = crate::builtins::vec::construct_from_args(ctx.caller_span, &args, kwargs)?;
-            Point(v)
+            Point(construct_from_args(ctx.caller_span, &args, Map::new())?)
+        }
+        #[fn_type(FnType { params: vec![Type::Vec], is_variadic: false, ret: Type::EuclidPoint })]
+        fn point(ctx: EvalCtx, args: Args) -> Point {
+            Point(construct_from_args(ctx.caller_span, &args, Map::new())?)
+        }
+        #[fn_type(FnType { params: vec![Type::EuclidPoint], is_variadic: false, ret: Type::EuclidPoint })]
+        fn point(ctx: EvalCtx, args: Args) -> Point {
+            Point(construct_from_args(ctx.caller_span, &args, Map::new())?)
         }
     ])?;
 

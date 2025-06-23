@@ -3,7 +3,7 @@
 use ecow::eco_format;
 use hypermath::{Vector, VectorRef, is_approx_nonzero, vector};
 
-use crate::{Error, Map, Num, Result, Scope, Span, Type, Value, ValueData};
+use crate::{Error, FnType, Map, Num, Result, Scope, Span, Type, Value, ValueData};
 
 /// Adds the built-in operators and functions to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
@@ -28,8 +28,20 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         /// - **Point.** Calling `vec()` with an existing point will return its
         ///   coordinates as a vector.
         #[kwargs(kwargs)]
+        fn vec(ctx: EvalCtx) -> Vector {
+            construct_from_args(ctx.caller_span, &[], kwargs)?
+        }
+        #[fn_type(FnType { params: vec![Type::Num], is_variadic: true, ret: Type::Vec })]
         fn vec(ctx: EvalCtx, args: Args) -> Vector {
-            construct_from_args(ctx.caller_span, &args, kwargs)?
+            construct_from_args(ctx.caller_span, &args, Map::new())?
+        }
+        #[fn_type(FnType { params: vec![Type::Vec], is_variadic: false, ret: Type::Vec })]
+        fn vec(ctx: EvalCtx, args: Args) -> Vector {
+            construct_from_args(ctx.caller_span, &args, Map::new())?
+        }
+        #[fn_type(FnType { params: vec![Type::EuclidPoint], is_variadic: false, ret: Type::Vec })]
+        fn vec(ctx: EvalCtx, args: Args) -> Vector {
+            construct_from_args(ctx.caller_span, &args, Map::new())?
         }
 
         /// `dot()` returns the [dot product] between two vectors.
@@ -101,19 +113,28 @@ pub(super) fn construct_from_args(span: Span, args: &[Value], kwargs: Map) -> Re
             Ok(ret)
         }
 
-        [arg] => match &arg.data {
-            ValueData::Num(n) => Ok(vector![*n]),
-            ValueData::Vec(v) => Ok(v.clone()),
-            ValueData::EuclidPoint(p) => Ok(p.0.clone()),
-            _ => Err(arg.type_error(Type::Num | Type::Vec | Type::EuclidPoint)),
-        },
+        [arg] => {
+            unpack_kwargs!(kwargs);
+            match &arg.data {
+                ValueData::Num(n) => Ok(vector![*n]),
+                ValueData::Vec(v) => Ok(v.clone()),
+                ValueData::EuclidPoint(p) => Ok(p.0.clone()),
+                _ => Err(arg.type_error(Type::Num | Type::Vec | Type::EuclidPoint)),
+            }
+        }
 
-        _ if args.len() > hypermath::MAX_NDIM as usize => Err(Error::User(eco_format!(
-            "vector too long (max is {})",
-            hypermath::MAX_NDIM,
-        ))
-        .at(span)),
+        _ if args.len() > hypermath::MAX_NDIM as usize => {
+            unpack_kwargs!(kwargs);
+            Err(Error::User(eco_format!(
+                "vector too long (max is {})",
+                hypermath::MAX_NDIM,
+            ))
+            .at(span))
+        }
 
-        _ => args.iter().map(|arg| arg.ref_to::<f64>()).collect(),
+        _ => {
+            unpack_kwargs!(kwargs);
+            args.iter().map(|arg| arg.ref_to::<f64>()).collect()
+        }
     }
 }

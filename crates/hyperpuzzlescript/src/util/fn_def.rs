@@ -41,6 +41,15 @@
 ///     fn variadic(var_containing_args: Args) -> usize {
 ///         var_containing_args.len() + var_containing_kwargs.len()
 ///     }
+///     // Function type signature can be overwritten
+///     #[fn_type(FnType {
+///         params: vec![Type::Str],
+///         is_variadic: true,
+///         ret: Type::Null,
+///     })]
+///     fn my_function(args: Args) -> () { // return type doesn't actually matter
+///         println!("{}", args.len());
+///     }
 /// ])
 /// .expect("error defining built-in functions");
 /// ```
@@ -81,6 +90,7 @@ macro_rules! hps_fns {
         $(
             $( #[doc = $doc:literal] )*
             $( #[kwargs($($kwargs:tt)*)] )?
+            $( #[fn_type($fn_type:expr)] )?
             fn $fn_name:ident($($params:tt)*) -> $ret:ty
             $body:block
         )*
@@ -89,7 +99,7 @@ macro_rules! hps_fns {
             (
                 stringify!($fn_name),
                 $crate::FnOverload {
-                    ty: $crate::fn_type!([$($params)*] -> $ret),
+                    ty: $crate::fn_type!($(@ $fn_type;)? [$($params)*] -> $ret),
                     call: std::sync::Arc::new(move |ctx, args, kwargs| {
                         #[allow(unused, clippy::redundant_locals)]
                         let ctx = ctx;
@@ -117,7 +127,7 @@ macro_rules! hps_fns {
             (
                 $fn_name,
                 $crate::FnOverload {
-                    ty: fn_type!([$($($param: $param_ty),*)?] -> $ret),
+                    ty: $crate::fn_type!([$($($param: $param_ty),*)?] -> $ret),
                     call: std::sync::Arc::new(move |ctx, args, kwargs| {
                         // `$param_ty:ty` makes the literal identifier `Args`
                         // opaque so we can't do variadics here.,
@@ -140,7 +150,7 @@ macro_rules! hps_fns {
 #[macro_export]
 macro_rules! fn_type {
     ([$ctx:tt: EvalCtx $(, $($rest:tt)*)?] -> $ret:ty) => {
-        fn_type!([$($($rest)*)?] -> $ret)
+        $crate::fn_type!([$($($rest)*)?] -> $ret)
     };
     ([$args:tt: Args $(,)?] -> $ret:ty) => {
         $crate::FnType {
@@ -156,6 +166,9 @@ macro_rules! fn_type {
             ret: $crate::hps_ty::<$ret>(),
         }
     };
+    (@ $fn_type:expr; $($_:tt)*) => {
+        $fn_type
+    }
 }
 
 /// Unpacks arguments using [`crate::util::pop_arg()`] and
