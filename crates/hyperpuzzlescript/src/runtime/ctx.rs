@@ -667,7 +667,7 @@ impl EvalCtx<'_> {
             ast::NodeContents::Ident(ident_span) => Ok(self.get_var(*ident_span)?.data),
             ast::NodeContents::SpecialIdent(special_ident) => Ok(match special_ident {
                 ast::SpecialVar::Ndim => self.ndim_at(span)?.into(),
-                ast::SpecialVar::Sym => todo!("#sym"),
+                ast::SpecialVar::Sym => self.scope.special.sym.data.clone(),
             }),
             ast::NodeContents::Op { op, args } => {
                 if &self[*op] == "??" {
@@ -706,7 +706,7 @@ impl EvalCtx<'_> {
                         match maybe_method {
                             Some(m) => {
                                 arg_values.push(obj);
-                                m
+                                m.data.at(field)
                             }
                             None => self.field_get(&obj, field)?.at(obj_method_span),
                         }
