@@ -134,6 +134,8 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .with_ctx(LexCtx::IGNORE_NEWLINES)
             .delimited_by(just("${"), just('}'));
         let string_escape = just("\\").ignore_then(any().try_map_with(|c, e| match c {
+            't' => Ok('\t'),
+            'r' => Ok('\r'),
             'n' => Ok('\n'),
             _ if c.is_ascii_punctuation() => Ok(c),
             _ => Err(Rich::custom(
