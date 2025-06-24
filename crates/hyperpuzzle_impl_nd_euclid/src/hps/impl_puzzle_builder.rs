@@ -1,15 +1,16 @@
 use std::{fmt, sync::Arc};
 
 use eyre::{Context, eyre};
-use hypermath::Hyperplane;
+use hypermath::{Hyperplane, Vector, pga::Motor};
 use hyperpuzzle_core::{catalog::BuildTask, prelude::*};
 use hyperpuzzlescript::*;
+use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::{
     ArcMut, HpsColor, HpsNdEuclid, HpsOrbitNames, HpsPuzzleBuilder, HpsShapeBuilder, HpsSymmetry,
 };
-use crate::builder::*;
+use crate::{builder::*, hps::axis::HpsAxis};
 
 impl_simple_custom_type!(HpsPuzzleBuilder = "euclid.Puzzle");
 impl fmt::Debug for HpsPuzzleBuilder {
@@ -149,6 +150,15 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             let args = CutArgs::carve(StickerMode::FromNames(color_names));
             ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
         }
+        fn carve(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            plane: Hyperplane,
+            color: Option<HpsColor>,
+        ) -> Option<HpsColor> {
+            let args = CutArgs::carve(color.map_or(StickerMode::None, StickerMode::FixedColor));
+            ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
+        }
 
         fn slice(ctx: EvalCtx, this: HpsPuzzleBuilder, plane: Hyperplane) -> Option<HpsColor> {
             let args = CutArgs::slice(StickerMode::None);
@@ -163,6 +173,47 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             let args = CutArgs::slice(StickerMode::FromNames(color_names));
             ArcMut(Arc::clone(&this.lock().shape)).cut(ctx, plane, args)?
         }
+
+        fn add_axis(ctx: EvalCtx, this: HpsPuzzleBuilder, vector: Vector) -> Option<HpsAxis> {
+            this.add_axes(ctx, vector, None, vec![], false)?
+        }
+        fn add_axis(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            vector: Vector,
+            names: Names,
+        ) -> Option<HpsAxis> {
+            this.add_axes(ctx, vector, Some(names), vec![], false)?
+        }
+        #[kwargs(slice: Option<bool>)]
+        fn add_axis(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            vector: Vector,
+            layers: Vec<Num>,
+        ) -> Option<HpsAxis> {
+            this.add_axes(ctx, vector, None, layers, slice.unwrap_or(true))?
+        }
+        #[kwargs(slice: Option<bool>)]
+        fn add_axis(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            vector: Vector,
+            names: Names,
+            layers: Vec<Num>,
+        ) -> Option<HpsAxis> {
+            this.add_axes(ctx, vector, Some(names), layers, slice.unwrap_or(true))?
+        }
+        #[kwargs(slice: Option<bool>)]
+        fn add_axis(
+            ctx: EvalCtx,
+            this: HpsPuzzleBuilder,
+            names: Names,
+            vector: Vector,
+            layers: Vec<Num>,
+        ) -> Option<HpsAxis> {
+            this.add_axes(ctx, vector, Some(names), layers, slice.unwrap_or(true))?
+        }
     ])
 }
 
@@ -174,11 +225,17 @@ impl HpsShapeBuilder {
         args: CutArgs,
     ) -> Result<Option<HpsColor>> {
         let span = ctx.caller_span;
-        let sym = ctx.scope.special.sym.as_ref::<HpsSymmetry>()?;
+        let ctx_symmetry = ctx.scope.special.sym.ref_to::<Option<&HpsSymmetry>>()?;
         let mut this = self.lock();
 
-        let (gen_seqs, transforms, cut_planes): (Vec<_>, Vec<_>, Vec<_>) =
-            sym.orbit(plane).into_iter().multiunzip();
+        let (gen_seqs, transforms, cut_planes): (Vec<_>, Vec<_>, Vec<_>) = match ctx_symmetry {
+            Some(sym) => sym.orbit(plane).into_iter().multiunzip(),
+            None => (
+                vec![AbbrGenSeq::INIT],
+                vec![Motor::ident(this.ndim())],
+                vec![plane],
+            ),
+        };
 
         let mut fixed_color: Option<Color> = None;
         let mut color_list: Option<Vec<Option<Color>>> = None;
@@ -211,10 +268,12 @@ impl HpsShapeBuilder {
 
         Ok(match color_list {
             Some(colors) => {
-                this.colors.orbits.push(Orbit {
-                    elements: Arc::new(colors.clone()),
-                    generator_sequences: Arc::new(gen_seqs),
-                });
+                if ctx_symmetry.is_some() {
+                    this.colors.orbits.push(Orbit {
+                        elements: Arc::new(colors.clone()),
+                        generator_sequences: Arc::new(gen_seqs),
+                    });
+                }
                 drop(this);
                 self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
             }
@@ -248,6 +307,85 @@ impl HpsShapeBuilder {
         }
 
         Ok(first_color.flatten())
+    }
+}
+
+impl HpsPuzzleBuilder {
+    fn add_axes(
+        &self,
+        ctx: &mut EvalCtx<'_>,
+        vector: Vector,
+        names: Option<Names>,
+        layers: Vec<f64>,
+        slice: bool,
+    ) -> Result<Option<HpsAxis>> {
+        let span = ctx.caller_span;
+        let ctx_symmetry = ctx.scope.special.sym.ref_to::<Option<&HpsSymmetry>>()?;
+        let mut this = self.lock();
+        let mut twists = this.twists.lock();
+
+        let (gen_seqs, transforms, vectors) = match ctx_symmetry {
+            Some(sym) => sym.orbit(vector).into_iter().multiunzip(),
+            None => (
+                vec![AbbrGenSeq::INIT],
+                vec![Motor::ident(this.ndim())],
+                vec![vector],
+            ),
+        };
+
+        let names = match names {
+            Some(names) => names.0.to_strings(ctx, &transforms, span)?,
+            None => vec![],
+        }
+        .into_iter()
+        .map(Some)
+        .chain(std::iter::repeat(None));
+
+        // Add & name axes.
+        let mut axes_list = vec![];
+        for (transformed_vector, name) in std::iter::zip(&vectors, names) {
+            let new_axis = twists.axes.add(transformed_vector.clone()).at(span)?;
+            twists.axes.names.set(new_axis, name).at(span)?;
+            axes_list.push(Some(new_axis));
+        }
+        let first_axis = axes_list.get(0).copied().flatten();
+        drop(twists);
+
+        // Add layers.
+        let axis_layers = this.axis_layers().at(span)?;
+        for &axis in axes_list.iter().filter_map(Option::as_ref) {
+            let axis_layers = &mut axis_layers[axis].0;
+            for (&top, &bottom) in layers.iter().tuple_windows() {
+                axis_layers
+                    .push(AxisLayerBuilder { top, bottom })
+                    .at(span)?;
+            }
+        }
+
+        // Slice layers.
+        if slice {
+            for axis_vector in vectors {
+                let mut shape = this.shape.lock();
+                for &distance in &layers {
+                    let layer_slice_plane = Hyperplane::new(&axis_vector, distance)
+                        .ok_or("bad cut plane")
+                        .at(span)?;
+                    shape.slice(None, layer_slice_plane, None).at(span)?;
+                }
+            }
+        }
+
+        if ctx_symmetry.is_some() {
+            this.twists.lock().axes.orbits.push(Orbit {
+                elements: Arc::new(axes_list),
+                generator_sequences: Arc::new(gen_seqs),
+            });
+        }
+
+        Ok(first_axis.map(|id| HpsAxis {
+            id,
+            twists: ArcMut(Arc::clone(&this.twists)),
+        }))
     }
 }
 
