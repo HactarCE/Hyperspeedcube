@@ -2,9 +2,14 @@
 
 use std::sync::Arc;
 
+use hypermath::{Point, Vector};
+use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use parking_lot::{Mutex, MutexGuard};
 
-use crate::builder::{PuzzleBuilder, ShapeBuilder, TwistSystemBuilder};
+use crate::{
+    TwistKey,
+    builder::{AxisSystemBuilder, PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
+};
 
 mod axis;
 mod color;
@@ -16,7 +21,7 @@ mod twist;
 // use name_strategy::{HpsNameFn, HpsNameStrategy};
 use axis::HpsAxis;
 use color::HpsColor;
-use orbit_names::HpsOrbitNames;
+use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent};
 use symmetry::HpsSymmetry;
 use twist::HpsTwist;
 
@@ -35,11 +40,11 @@ pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<
 }
 
 /// HPS puzzle builder.
-type HpsPuzzleBuilder = ArcMut<PuzzleBuilder>;
+type HpsPuzzle = ArcMut<PuzzleBuilder>;
 /// HPS twist system builder.
 type HpsTwistSystem = ArcMut<TwistSystemBuilder>;
 /// HPS shape builder.
-type HpsShapeBuilder = ArcMut<ShapeBuilder>;
+type HpsShape = ArcMut<ShapeBuilder>;
 
 /// Shared mutable wrapper for HPS builder types.
 #[derive(Default)]
@@ -70,10 +75,54 @@ impl<T> ArcMut<T> {
 }
 
 impl ArcMut<PuzzleBuilder> {
-    fn shape(&self) -> Arc<Mutex<ShapeBuilder>> {
-        Arc::clone(&self.lock().shape)
+    fn shape(&self) -> HpsShape {
+        ArcMut(Arc::clone(&self.lock().shape))
     }
-    fn twists(&self) -> Arc<Mutex<TwistSystemBuilder>> {
-        Arc::clone(&self.lock().twists)
+    fn twists(&self) -> HpsTwistSystem {
+        ArcMut(Arc::clone(&self.lock().twists))
     }
+}
+
+fn axis_from_vector(axes: &AxisSystemBuilder, vector: &Vector) -> Result<Axis, OrbitNamesError> {
+    axes.vector_to_id(&vector)
+        .ok_or_else(|| OrbitNamesError::NoAxis(vector.clone()))
+}
+
+fn axis_name_from_vector<'a>(
+    axes: &'a AxisSystemBuilder,
+    vector: &Vector,
+) -> Result<&'a NameSpec, OrbitNamesError> {
+    let id = axis_from_vector(axes, vector)?;
+    axes.names
+        .get(id)
+        .ok_or_else(|| OrbitNamesError::UnnamedAxis(id, vector.clone()))
+}
+
+fn twist_name_from_key<'a>(
+    twists: &'a TwistSystemBuilder,
+    key: &TwistKey,
+) -> Result<&'a NameSpec, OrbitNamesError> {
+    let id = twists
+        .key_to_id(key)
+        .ok_or_else(|| OrbitNamesError::NoTwist(key.clone()))?;
+    twists
+        .names
+        .get(id)
+        .ok_or_else(|| OrbitNamesError::UnnamedTwist(id, key.clone()))
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+enum OrbitNamesError {
+    #[error("no axis with vector {0}")]
+    NoAxis(Vector),
+    #[error("axis {0} with vector {1} has no name")]
+    UnnamedAxis(Axis, Vector),
+    #[error("no {0}")]
+    NoTwist(TwistKey),
+    #[error("{0} has no name")]
+    UnnamedTwist(Twist, TwistKey),
+    #[error("bad twist transform")]
+    BadTwistTransform,
+    #[error("missing coset {0}")]
+    MissingCoset(Point),
 }

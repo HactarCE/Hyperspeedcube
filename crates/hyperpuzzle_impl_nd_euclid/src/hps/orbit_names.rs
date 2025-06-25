@@ -1,20 +1,17 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, ops::Add, sync::Arc};
 
-use hypermath::{ApproxHashMap, Point, Vector, pga::Motor};
-use hyperpuzzle_core::{Axis, NameSpec, NameSpecMap, Twist};
+use hypermath::{ApproxHashMap, Point, pga::Motor};
+use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
-    CustomValue, ErrorExt, EvalCtx, Map, Result, Scope, Span, Spanned, Str, TryEq, Type, Value,
-    hps_fns, impl_simple_custom_type,
+    CustomValue, ErrorExt, EvalCtx, FnValue, Map, Result, Scope, Span, Spanned, Str, TryEq, Type,
+    Value, ValueData, hps_fns, impl_simple_custom_type,
 };
 use hypershape::{GenSeq, GeneratorId};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{HpsAxis, HpsSymmetry, HpsTwist};
-use crate::{
-    TwistKey,
-    builder::{AxisSystemBuilder, TwistSystemBuilder},
-};
+use super::{HpsAxis, HpsSymmetry, HpsTwist, OrbitNamesError};
+use crate::TwistKey;
 
 /// Adds the built-ins to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
@@ -102,6 +99,14 @@ impl From<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
         }
     }
 }
+impl From<&str> for HpsOrbitNames {
+    fn from(value: &str) -> Self {
+        Self::from((
+            HpsOrbitNamesComponent::Str(value.into()),
+            hyperpuzzlescript::BUILTIN_SPAN,
+        ))
+    }
+}
 impl HpsOrbitNames {
     pub fn to_strings(
         &self,
@@ -111,6 +116,7 @@ impl HpsOrbitNames {
     ) -> Result<Vec<String>> {
         let mut strings = vec![String::new(); transforms.len()];
         for &(ref component, component_span) in &self.components {
+            let strings_and_transforms = std::iter::zip(&mut strings, transforms);
             match component {
                 HpsOrbitNamesComponent::Str(new_str) => {
                     for s in &mut strings {
@@ -121,9 +127,10 @@ impl HpsOrbitNames {
                     let twists = axis.twists.lock();
                     let axes = &twists.axes;
                     let init_vector = axes.get(axis.id).at(component_span)?.vector();
-                    for (s, t) in std::iter::zip(&mut strings, transforms) {
+                    for (s, t) in strings_and_transforms {
                         let transformed_axis_name =
-                            axis_name_from_vector(axes, &t.transform(init_vector)).at(span)?;
+                            super::axis_name_from_vector(axes, &t.transform(init_vector))
+                                .at(span)?;
                         s.push_str(&transformed_axis_name.spec);
                     }
                 }
@@ -133,15 +140,15 @@ impl HpsOrbitNames {
                     let init_twist = twists.get(twist.id).at(component_span)?;
                     let init_vector = axes.get(init_twist.axis).at(component_span)?.vector();
                     let init_transform = &init_twist.transform;
-                    for (s, t) in std::iter::zip(&mut strings, transforms) {
+                    for (s, t) in strings_and_transforms {
                         let transformed_axis =
-                            axis_from_vector(axes, &t.transform(init_vector)).at(span)?;
+                            super::axis_from_vector(axes, &t.transform(init_vector)).at(span)?;
                         let transformed_transform = &t.transform(init_transform);
                         let key = TwistKey::new(transformed_axis, transformed_transform)
                             .ok_or(OrbitNamesError::BadTwistTransform)
                             .at(span)?;
                         let transformed_twist_name =
-                            twist_name_from_key(&*twists, &key).at(span)?;
+                            super::twist_name_from_key(&*twists, &key).at(span)?;
                         s.push_str(&transformed_twist_name.spec);
                     }
                 }
@@ -150,7 +157,7 @@ impl HpsOrbitNames {
                     let mut lazy_coset_map_guard = lazy_coset_map.lock();
                     let (initial_coset_point, coset_names) = lazy_coset_map_guard.compute(ctx)?;
 
-                    for (s, t) in std::iter::zip(&mut strings, transforms) {
+                    for (s, t) in strings_and_transforms {
                         let transformed_coset_point = t.transform(initial_coset_point);
                         let coset_str = coset_names
                             .get(&transformed_coset_point)
@@ -159,9 +166,30 @@ impl HpsOrbitNames {
                         s.push_str(coset_str);
                     }
                 }
+                HpsOrbitNamesComponent::Fn(f) => {
+                    for (s, t) in strings_and_transforms {
+                        let args = vec![ValueData::EuclidTransform(t.clone()).at(span)];
+                        s.push_str(
+                            f.call(component_span, ctx, args, Map::new())?
+                                .as_ref::<str>()?,
+                        );
+                    }
+                }
             }
         }
         Ok(strings)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.components
+            .iter()
+            .all(|(component, _span)| match component {
+                HpsOrbitNamesComponent::Str(s) => s.is_empty(),
+                HpsOrbitNamesComponent::Axis(_)
+                | HpsOrbitNamesComponent::Twist(_)
+                | HpsOrbitNamesComponent::Cosets(_)
+                | HpsOrbitNamesComponent::Fn(_) => false,
+            })
     }
 }
 
@@ -171,6 +199,7 @@ pub(super) enum HpsOrbitNamesComponent {
     Axis(HpsAxis),
     Twist(HpsTwist),
     Cosets(Arc<Mutex<LazyCosetMap>>),
+    Fn(Arc<FnValue>),
 }
 impl From<Str> for HpsOrbitNamesComponent {
     fn from(value: Str) -> Self {
@@ -185,6 +214,19 @@ impl From<HpsAxis> for HpsOrbitNamesComponent {
 impl From<HpsTwist> for HpsOrbitNamesComponent {
     fn from(value: HpsTwist) -> Self {
         Self::Twist(value)
+    }
+}
+impl From<Arc<FnValue>> for HpsOrbitNamesComponent {
+    fn from(value: Arc<FnValue>) -> Self {
+        Self::Fn(value)
+    }
+}
+impl Add<HpsOrbitNames> for HpsOrbitNames {
+    type Output = HpsOrbitNames;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.components.extend(rhs.components);
+        self
     }
 }
 
@@ -287,48 +329,4 @@ impl LazyCosetMap {
         };
         Ok((initial_coset_point, coset_names))
     }
-}
-
-#[derive(thiserror::Error, Debug, Clone)]
-enum OrbitNamesError {
-    #[error("no axis with vector {0}")]
-    NoAxis(Vector),
-    #[error("axis {0} with vector {1} has no name")]
-    UnnamedAxis(Axis, Vector),
-    #[error("no {0}")]
-    NoTwist(TwistKey),
-    #[error("{0} has no name")]
-    UnnamedTwist(Twist, TwistKey),
-    #[error("bad twist transform")]
-    BadTwistTransform,
-    #[error("missing coset {0}")]
-    MissingCoset(Point),
-}
-
-fn axis_from_vector(axes: &AxisSystemBuilder, vector: &Vector) -> Result<Axis, OrbitNamesError> {
-    axes.vector_to_id(&vector)
-        .ok_or_else(|| OrbitNamesError::NoAxis(vector.clone()))
-}
-
-fn axis_name_from_vector<'a>(
-    axes: &'a AxisSystemBuilder,
-    vector: &Vector,
-) -> Result<&'a NameSpec, OrbitNamesError> {
-    let id = axis_from_vector(axes, vector)?;
-    axes.names
-        .get(id)
-        .ok_or_else(|| OrbitNamesError::UnnamedAxis(id, vector.clone()))
-}
-
-fn twist_name_from_key<'a>(
-    twists: &'a TwistSystemBuilder,
-    key: &TwistKey,
-) -> Result<&'a NameSpec, OrbitNamesError> {
-    let id = twists
-        .key_to_id(key)
-        .ok_or_else(|| OrbitNamesError::NoTwist(key.clone()))?;
-    twists
-        .names
-        .get(id)
-        .ok_or_else(|| OrbitNamesError::UnnamedTwist(id, key.clone()))
 }

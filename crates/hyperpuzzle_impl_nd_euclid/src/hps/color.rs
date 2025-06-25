@@ -4,12 +4,12 @@ use hypermath::IndexNewtype;
 use hyperpuzzle_core::{Color, NameSpec};
 use hyperpuzzlescript::impl_simple_custom_type;
 
-use super::HpsShapeBuilder;
+use super::HpsShape;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsColor {
     pub id: Color,
-    pub shape: HpsShapeBuilder,
+    pub shape: HpsShape,
 }
 impl_simple_custom_type!(
     HpsColor = "euclid.Color",

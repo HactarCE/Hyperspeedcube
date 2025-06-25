@@ -32,6 +32,9 @@ pub use vantage_group::{
 /// Prefix for ad-hoc color system and twist system IDs.
 const PUZZLE_PREFIX: &str = "puzzle:";
 
+/// Maximum period of a twist.
+const MAX_TWIST_REPEAT: usize = 50;
+
 /// Prelude of common imports.
 pub mod prelude {
     pub use crate::{

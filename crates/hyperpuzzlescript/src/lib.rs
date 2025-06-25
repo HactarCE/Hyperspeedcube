@@ -95,8 +95,5 @@ pub fn extract_builtin_files(base_path: &std::path::Path) -> std::io::Result<()>
     HPS_BUILTIN_DIR.extract(base_path)
 }
 
-/// Maximum period of a twist.
-const MAX_TWIST_REPEAT: usize = 50;
-
 #[cfg(test)]
 mod tests;
