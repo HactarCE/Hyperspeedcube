@@ -74,7 +74,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
 
 #[derive(Debug, Clone)]
 pub struct Names(pub HpsOrbitNames);
-impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty());
+impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty() | Type::Fn);
 impl FromValue for Names {
     fn from_value(value: Value) -> Result<Self> {
         let span = value.span;

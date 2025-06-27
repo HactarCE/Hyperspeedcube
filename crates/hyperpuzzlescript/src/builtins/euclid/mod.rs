@@ -1,6 +1,6 @@
 //! N-dimensional Euclidean geometry functionality.
 
-use crate::{Result, Scope, ValueData};
+use crate::{Result, Scope, Type, ValueData};
 
 mod plane;
 mod point;
@@ -14,6 +14,16 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     plane::define_in(&euclid_scope)?;
     point::define_in(&euclid_scope)?;
     transform::define_in(&euclid_scope)?;
+
+    for (name, ty) in [
+        ("Point", Type::EuclidPoint),
+        ("Transform", Type::EuclidTransform),
+        ("Plane", Type::EuclidPlane),
+        ("Region", Type::EuclidRegion),
+        ("Blade", Type::EuclidBlade),
+    ] {
+        euclid_scope.set(name, ValueData::Type(ty).at(crate::BUILTIN_SPAN));
+    }
 
     let euclid = ValueData::from(&*euclid_scope).at(crate::BUILTIN_SPAN);
     scope.set("euclid", euclid);

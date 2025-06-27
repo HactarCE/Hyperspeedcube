@@ -141,8 +141,12 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     scope.register_custom_type::<HpsPuzzle>();
 
     scope.register_builtin_functions(hps_fns![
+        #[kwargs(color: Option<HpsColor>)]
         fn carve(ctx: EvalCtx, this: HpsPuzzle, plane: Hyperplane) -> Option<HpsColor> {
-            let args = CutArgs::carve(StickerMode::NewColor);
+            let args = CutArgs::carve(match color {
+                None => StickerMode::NewColor,
+                Some(c) => StickerMode::FixedColor(c),
+            });
             this.shape().cut(ctx, plane, args)?
         }
         fn carve(
@@ -152,15 +156,6 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             color_names: Names,
         ) -> Option<HpsColor> {
             let args = CutArgs::carve(StickerMode::FromNames(color_names));
-            this.shape().cut(ctx, plane, args)?
-        }
-        fn carve(
-            ctx: EvalCtx,
-            this: HpsPuzzle,
-            plane: Hyperplane,
-            color: Option<HpsColor>,
-        ) -> Option<HpsColor> {
-            let args = CutArgs::carve(color.map_or(StickerMode::None, StickerMode::FixedColor));
             this.shape().cut(ctx, plane, args)?
         }
 
