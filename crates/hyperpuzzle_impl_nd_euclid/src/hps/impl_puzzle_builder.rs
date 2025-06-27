@@ -240,6 +240,22 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             this.twists()
                 .add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
         }
+        #[kwargs(kwargs)]
+        fn add_twist(
+            ctx: EvalCtx,
+            this: HpsPuzzle,
+            axis: HpsAxis,
+            transform: Motor,
+            (name, name_span): Names,
+        ) -> Option<HpsTwist> {
+            if let Some(old_value) =
+                kwargs.insert("name".into(), ValueData::from(name.0).at(name_span))
+            {
+                return Err("duplicate `name` argument".at(old_value.span));
+            };
+            this.twists()
+                .add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
+        }
     ])
 }
 

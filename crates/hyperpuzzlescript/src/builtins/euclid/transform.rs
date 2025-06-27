@@ -140,6 +140,27 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             }
             Motor::from_angle_in_axis_plane(0, 1, angle)
         }
+
+        /// Transforms an object.
+        fn transform(transform: Motor, object: Motor) -> Motor {
+            transform.transform(&object)
+        }
+        fn transform(transform: Motor, object: Vector) -> Vector {
+            transform.transform(&object)
+        }
+        fn transform(transform: Motor, object: Point) -> Point {
+            transform.transform(&object)
+        }
+
+        /// Transforms a motor, preserving its orientation.
+        fn transform_oriented(transform: Motor, object: Motor) -> Motor {
+            let t = transform.transform(&object);
+            if transform.is_reflection() {
+                t.reverse()
+            } else {
+                t
+            }
+        }
     ])
 }
 

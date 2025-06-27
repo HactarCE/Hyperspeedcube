@@ -2,13 +2,15 @@
 
 use std::sync::Arc;
 
-use hypermath::{Point, Vector};
+use hypermath::{Point, Vector, pga::Motor};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
+use hyperpuzzlescript::{ErrorExt, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
     TwistKey,
     builder::{AxisSystemBuilder, PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
+    hps::impl_puzzle_builder::Names,
 };
 
 mod axis;
@@ -36,6 +38,28 @@ pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<
     orbit_names::define_in(scope)?;
     symmetry::define_in(scope)?;
     scope.register_custom_type::<HpsTwist>();
+
+    scope.register_builtin_functions(hps_fns![
+        fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsAxis) -> HpsAxis {
+            let v = object.vector().at(object_span)?;
+            let id = axis_from_vector(&object.twists.lock().axes, &transform.transform(&v))
+                .at(ctx.caller_span)?;
+            HpsAxis {
+                id,
+                twists: object.twists.clone(),
+            }
+        }
+        fn transform(transform: Motor, object: HpsTwist) -> HpsTwist {
+            todo!("transform twist")
+        }
+        fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
+            todo!("transform names")
+        }
+        fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
+            todo!("transform symmetry")
+        }
+    ])?;
+
     Ok(())
 }
 
