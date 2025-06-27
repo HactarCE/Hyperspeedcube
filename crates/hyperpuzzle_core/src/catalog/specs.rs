@@ -21,6 +21,15 @@ pub enum Redirectable<T> {
     /// Redirect to a different ID.
     Redirect(String),
 }
+impl<T> Redirectable<T> {
+    /// Applies a function to the contained `T`.
+    pub fn try_map<U, E>(self, f: impl FnOnce(T) -> Result<U, E>) -> Result<Redirectable<U>, E> {
+        Ok(match self {
+            Redirectable::Direct(inner) => Redirectable::Direct(f(inner)?),
+            Redirectable::Redirect(id) => Redirectable::Redirect(id),
+        })
+    }
+}
 
 /// Context when building an object in the catalog.
 #[derive(Clone)]

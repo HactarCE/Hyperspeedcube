@@ -4,6 +4,7 @@ use ecow::eco_format;
 use hyperpuzzle_core::{Catalog, Version};
 
 mod color_systems;
+mod generators;
 mod puzzles;
 
 use crate::{EvalCtx, EvalRequestTx, Result, Scope};
