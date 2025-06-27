@@ -1,4 +1,4 @@
-export fn cube() {
+export fn cube() -> Map {
     use * from euclid
 
     export name = "Cube"

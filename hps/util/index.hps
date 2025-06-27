@@ -1,0 +1,3 @@
+export fn axis_vec(axis_name: Str) -> Vec {
+    vec(**#{"${axis_name}" = 1})
+}

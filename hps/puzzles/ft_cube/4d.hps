@@ -1,0 +1,98 @@
+use * from euclid
+
+export GIZMO_EDGE_FACTOR = 0.8
+
+fn add_ft_hypercube_twists(self) -> Map {
+    with #sym = cd("bc4") {
+        export facet_axis = self.add_axis(#sym.ooox, @symmetries/bc4.hypercube().facet_names)
+        a0 = facet_axis
+        a1 = #sym.thru(3).transform(a0)
+        a2 = #sym.thru(2).transform(a1)
+        a3 = #sym.thru(1).transform(a2)
+        self.add_twist(a0, #sym.thru([0, 1]), "${a1}", gizmo_pole_distance = 1)
+        self.add_twist(a0, #sym.thru([0, 2]), "{${a1}${a2}}", gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / √2)
+        self.add_twist(a0, #sym.thru([1, 2]), "{${a1}${a2}${a3}}", gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / √3)
+    }
+}
+
+fn add_hypercubic_vantage_group(self) {
+    sym = cd("bc4")
+    self.add_vantage_group(
+        id = "hypercubic",
+        symmetry = sym,
+        refs = [[sym.ooox, @symmetries/bc4.hypercube().facet_names]],
+        init = ["I", "F", "U"],
+    )
+}
+
+fn add_facet_centered_hypercubic_vantage_set(self) {
+    basis = #{x = vec(x=1), y = vec(y=1), z = vec(z=1), w = vec(w=1)}
+    rots = #{}
+    for a in "xyzw" {
+        for b in "xyzw" {
+            if a != b {
+                rots["${a}${b}"] = rot(start = @util.axis_vec(a), end = @util.axis_vec(b))
+            }
+        }
+    }
+    use I, O from self.axes
+    self.add_vantage_set(
+        name = "Face-centered",
+        group = "hypercubic",
+        view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 45°)
+                    * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+        transforms = rots,
+        axes = "*",
+        directions = #{
+            I = #{
+                "x"  = self["IR"], "y"  = self["IU"], "z"  = self["IF"],
+                "x'" = self["IL"], "y'" = self["ID"], "z'" = self["IB"],
+            },
+        },
+        inherit_directions = fn(axis_vector: Vec) -> Transform? {
+            if axis_vector == I.vec {
+                null
+            } else if axis_vector == O.vec {
+                refl()
+            } else {
+                rot(start = axis_vector, end = I.vec)
+            }
+        },
+    )
+}
+
+add_twist_system(
+    id = "ft_hypercubic",
+    name = "Hypercubic",
+    ndim = 4,
+    engine = "euclid",
+    build = fn(self) {
+        export * from self.add_ft_hypercube_twists()
+        self.add_hypercubic_vantage_group()
+        self.add_facet_centered_hypercubic_vantage_set()
+    },
+)
+
+add_puzzle_generator(
+    id = "ft_hypercube",
+    name = "NxNxNxN Facet-Turning Cube",
+    aliases = ["N^4"],
+    params = [
+        #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
+    ],
+    colors = "hypercube",
+    twists = "ft_hypercubic",
+    engine = "euclid",
+    gen = fn(n) {
+        return #{
+            name = "${n}x${n}x${n}x${n}",
+            ndim = 4,
+            build = fn(self) {
+                with #sym = cd("bc4") {
+                    self.carve(plane(#sym.ooox.unit), @symmetries/bc4.hypercube().facet_names)
+                    self.add_layers(self.twists.facet_axis, @^/common.cut_depths(4, n))
+                }
+            },
+        }
+    },
+)

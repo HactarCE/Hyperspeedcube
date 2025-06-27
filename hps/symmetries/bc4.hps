@@ -1,0 +1,36 @@
+export fn hypercube() {
+    use * from euclid
+
+    export name = "Hypercube"
+    export aliases = ["4-Cube", "Octachoron", "1x1x1x1"]
+    export facet_colors = "hypercube"
+    export sym = cd("bc4")
+
+    export facet_pole = sym.ooox.unit
+    export facet_names = sym.names(point(facet_pole), #{
+        O = [],
+        F = [3, "O"],
+        U = [2, "F"],
+        R = [1, "U"],
+        L = [0, "R"],
+        D = [1, "L"],
+        B = [2, "D"],
+        I = [3, "B"],
+    })
+}
+
+// Hypercube
+add_color_system(
+    id = "hypercube",
+    name = "Hypercube",
+    colors = [
+        #{ name = "R", display = "Right", default = "Red" },
+        #{ name = "L", display = "Left",  default = "Orange" },
+        #{ name = "U", display = "Up",    default = "White" },
+        #{ name = "D", display = "Down",  default = "Yellow" },
+        #{ name = "F", display = "Front", default = "Green" },
+        #{ name = "B", display = "Back",  default = "Blue" },
+        #{ name = "O", display = "Out",   default = "Pink" },
+        #{ name = "I", display = "In",    default = "Purple" },
+    ],
+)
