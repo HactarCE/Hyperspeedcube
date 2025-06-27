@@ -1,9 +1,9 @@
 //! Built-in types and the type operators `|` and `?`
 
-use crate::{Result, Scope, Type, ValueData};
+use crate::{Builtins, Result, Type};
 
-/// Adds the built-in types and operators to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
+/// Adds the built-in types and operators.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     for ty in [
         Type::Any,
         Type::Null,
@@ -13,17 +13,25 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         Type::List(None),
         Type::Map,
         Type::Fn,
+        Type::Type,
         Type::Int,
         Type::Nat,
         Type::EmptyList,
         Type::NonEmptyList(None),
         Type::Vec,
-        Type::Type,
+        Type::EuclidPoint,
+        Type::EuclidTransform,
+        Type::EuclidPlane,
+        Type::EuclidBlade,
+        Type::Cga2dBlade1,
+        Type::Cga2dBlade2,
+        Type::Cga2dBlade3,
+        Type::Cga2dAntiscalar,
     ] {
-        scope.set(ty.to_string(), ValueData::Type(ty).at(crate::BUILTIN_SPAN));
+        builtins.set(ty.to_string(), ty)?;
     }
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         ("|", |_, a: Type, b: Type| -> Type { a | b }),
         ("?", |_, t: Type| -> Type { t.optional() })
     ])

@@ -3,11 +3,11 @@
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
-use crate::{Error, ListOf, Num, Result, Scope, Span, Str, ValueData};
+use crate::{Builtins, Error, ListOf, Num, Result, Span, Str, ValueData};
 
-/// Adds the built-in operators and functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in operators and functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         // Concatenation
         ("++", |_, s1: Str, s2: Str| -> Str { s1 + s2 }),
         ("join", |_, strings: Vec<Str>| -> String {

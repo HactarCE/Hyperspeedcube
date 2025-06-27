@@ -15,8 +15,9 @@
 /// ```
 /// # use hyperpuzzlescript::*;
 /// # use std::sync::Arc;
-/// let mut scope = Scope::new();
-/// scope.register_builtin_functions(hps_fns![
+/// let mut m = Map::new();
+/// let mut builtins = Builtins(&mut m);
+/// builtins.set_fns(hps_fns![
 ///     /// This is user-facing documentation.
 ///     ///
 ///     /// Wonderful!
@@ -63,8 +64,9 @@
 /// ```
 /// # use hyperpuzzlescript::*;
 /// # use std::sync::Arc;
-/// let mut scope = Scope::new();
-/// scope.register_builtin_functions(hps_fns![
+/// let mut m = Map::new();
+/// let mut builtins = Builtins(&mut m);
+/// builtins.set_fns(hps_fns![
 ///     // For overloads, just add more definitions of the same function.
 ///     // `ctx` is **required** and must **not** have a type annotation.
 ///     // Return type annotations are required. Use `()` for `Type::Null`.

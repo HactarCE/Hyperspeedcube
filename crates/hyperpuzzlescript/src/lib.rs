@@ -24,7 +24,7 @@ pub use diagnostic::{
 };
 pub use engines::{EngineCallback, IdAndName, PuzzleEngineCallback};
 pub use request::EvalRequestTx;
-pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
+pub use runtime::{Builtins, EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};
 pub use util::{FromValue, FromValueRef, TypeOf, hps_ty};
 pub use value::{FnDebugInfo, FnOverload, FnValue, Value, ValueData};

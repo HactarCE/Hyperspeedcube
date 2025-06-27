@@ -1,9 +1,9 @@
 use hypermath::prelude::*;
 
-use crate::{FnType, Map, Num, Result, Scope, Type, builtins::vec::construct_from_args};
+use crate::{Builtins, FnType, Map, Num, Result, Type, builtins::vec::construct_from_args};
 
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.namespace("euclid")?.set_fns(hps_fns![
         /// `point()` constructs a [point](#points) in Euclidean space and can
         /// be called in any of several ways:
         ///
@@ -39,7 +39,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         }
     ])?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         // Operators
         ("+", |_, a: Point, b: Vector| -> Point { a + b }),
         ("+", |_, a: Vector, b: Point| -> Point { b + a }),

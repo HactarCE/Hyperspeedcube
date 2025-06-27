@@ -11,7 +11,7 @@ mod special;
 
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
-pub use scope::{ParentScope, Scope};
+pub use scope::{Builtins, ParentScope, Scope};
 pub use special::SpecialVariables;
 
 use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast, engines};
@@ -183,6 +183,11 @@ impl Runtime {
         for e in errors {
             self.report_diagnostic(e);
         }
+    }
+
+    /// Locks the map of built-ins and executes a closure with it.
+    pub fn with_builtins<R>(&mut self, f: impl FnOnce(&mut Builtins<'_>) -> R) -> R {
+        f(&mut Builtins(&mut *self.builtins.names.lock()))
     }
 
     /// Registers a puzzle engine for the runtime.

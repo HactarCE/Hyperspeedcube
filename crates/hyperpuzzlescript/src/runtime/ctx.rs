@@ -526,7 +526,7 @@ impl EvalCtx<'_> {
                     .get_or_insert_default()
                     .entry(fn_name.clone())
                     .or_default()
-                    .as_func_mut(span, Some(fn_name))
+                    .as_func_mut(span, Some(fn_name))?
                     .push_overload(new_overload)?;
                 Ok(null)
             }

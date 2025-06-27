@@ -3,14 +3,14 @@ use std::borrow::Cow;
 use hypermath::pga::*;
 use hypermath::prelude::*;
 
-use crate::{Error, ErrorExt, Num, Result, Scope};
+use crate::{Builtins, Error, ErrorExt, Num, Result};
 
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![("*", |_, t1: Motor, t2: Motor| -> Motor {
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![("*", |_, t1: Motor, t2: Motor| -> Motor {
         t1 * t2
     })])?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.namespace("euclid")?.set_fns(hps_fns![
         /// `ident()` constructs the identity transformation. It requires
         /// `#ndim` to be defined.
         fn ident(ctx: EvalCtx) -> Motor {
@@ -144,7 +144,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             }
             Motor::from_angle_in_axis_plane(0, 1, angle)
         }
+    ])?;
 
+    builtins.set_fns(hps_fns![
         /// Returns the reverse transformation.
         fn rev(transform: Motor) -> Motor {
             transform.reverse()

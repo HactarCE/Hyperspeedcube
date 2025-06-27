@@ -1,0 +1,13 @@
+assert_eq(1..5, [1, 2, 3, 4])
+assert_eq(-1..5, [-1, 0, 1, 2, 3, 4])
+assert_eq(1..-5, [])
+assert_eq(-3..-3, [])
+assert_eq("bad argument types", __eval_to_error(fn() { 3.5 .. 4 }))
+assert_eq("range exceeds maximum length", __eval_to_error(fn() { -99999999 .. 9999999 }))
+
+assert_eq(1..=5, [1, 2, 3, 4, 5])
+assert_eq(-1..=5, [-1, 0, 1, 2, 3, 4, 5])
+assert_eq(1..=-5, [])
+assert_eq(-3..=-3, [-3])
+assert_eq("bad argument types", __eval_to_error(fn() { 3.5 ..= 4 }))
+assert_eq("range exceeds maximum length", __eval_to_error(fn() { -99999999 ..= 9999999 }))

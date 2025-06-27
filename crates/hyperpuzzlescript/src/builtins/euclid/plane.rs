@@ -1,9 +1,9 @@
 use hypermath::prelude::*;
 
-use crate::{Error, Num, Result, Scope};
+use crate::{Builtins, Error, Num, Result};
 
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.namespace("euclid")?.set_fns(hps_fns![
         // Construction
         ("plane", |_, (pole, pole_span): Vector| -> Hyperplane {
             Hyperplane::from_pole(&pole).ok_or_else(|| {

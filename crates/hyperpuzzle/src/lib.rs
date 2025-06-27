@@ -61,28 +61,32 @@ pub fn load_global_catalog() {
 
 /// Loads all puzzle backends into a catalog.
 pub fn load_catalog(catalog: &Catalog) {
-    let mut runtime = hyperpuzzlescript::Runtime::new();
+    let mut rt = hyperpuzzlescript::Runtime::new();
 
     let (eval_tx, eval_rx) = hyperpuzzlescript::EvalRequestTx::new();
 
-    // Add built-ins.
-    hyperpuzzlescript::builtins::define_base_in(&runtime.builtins)
+    // Add base built-ins.
+    rt.with_builtins(hyperpuzzlescript::builtins::define_base_in)
         .expect("error defining HPS built-ins");
-    hyperpuzzlescript::builtins::catalog::define_in(&runtime.builtins, catalog, &eval_tx)
-        .expect("error defining HPS catalog built-ins");
 
-    // Add puzzle engines.
-    hyperpuzzle_impl_nd_euclid::hps::define_in(&runtime.builtins)
+    // Add catalog built-ins.
+    rt.with_builtins(|builtins| {
+        hyperpuzzlescript::builtins::catalog::define_in(builtins, catalog, &eval_tx)
+    })
+    .expect("error defining HPS catalog built-ins");
+
+    // Add NdEuclid built-ins.
+    rt.register_puzzle_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
+    rt.register_twist_system_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
+    rt.with_builtins(hyperpuzzle_impl_nd_euclid::hps::define_in)
         .expect("error defining HPS euclid built-ins");
-    runtime.register_puzzle_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
-    runtime.register_twist_system_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
 
     // Load user files.
-    runtime.modules.add_default_files();
-    runtime.exec_all_files();
+    rt.modules.add_default_files();
+    rt.exec_all_files();
     std::thread::spawn(move || {
         for eval_request in eval_rx {
-            eval_request(&mut runtime);
+            eval_request(&mut rt);
         }
     });
 }

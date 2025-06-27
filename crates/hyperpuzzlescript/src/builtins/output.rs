@@ -2,11 +2,11 @@
 
 use itertools::Itertools;
 
-use crate::{Error, Result, Scope, Warning};
+use crate::{Builtins, Error, Result, Warning};
 
-/// Adds the built-in functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         /// Prints to the output.
         ///
         /// The arguments are converted to strings using `str()` and those

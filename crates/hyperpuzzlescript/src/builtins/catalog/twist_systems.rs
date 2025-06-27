@@ -8,13 +8,19 @@ use hyperpuzzle_core::{
 };
 use itertools::Itertools;
 
-use crate::{ErrorExt, EvalCtx, EvalRequestTx, FnValue, Map, Result, Scope, Spanned, Str};
+use crate::{
+    Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, Map, Result, Scope, Spanned, Str,
+};
 
-/// Adds the built-in functions to the scope.
-pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> Result<()> {
+/// Adds the built-in functions.
+pub fn define_in(
+    builtins: &mut Builtins<'_>,
+    catalog: &Catalog,
+    eval_tx: &EvalRequestTx,
+) -> Result<()> {
     let cat = catalog.clone();
     let tx = eval_tx.clone();
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         /// Adds a twist system to the catalog.
         ///
         /// This function takes the following named arguments:
@@ -34,7 +40,7 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
 
     let cat = catalog.clone();
     let tx = eval_tx.clone();
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         /// Adds a twist system generator to the catalog.
         ///
         /// This function takes the following named arguments:

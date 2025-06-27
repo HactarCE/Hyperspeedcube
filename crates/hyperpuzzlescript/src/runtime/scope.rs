@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use arcstr::Substr;
+use indexmap::map::Entry;
 use parking_lot::Mutex;
 
 use crate::{
-    FnOverload, FnValue, ImmutReason, Key, Map, Result, Span, SpecialVariables, TypeOf, Value,
-    ValueData,
+    BUILTIN_SPAN, ErrorExt, FnOverload, FnValue, ImmutReason, Key, Map, Result, Span,
+    SpecialVariables, Type, TypeOf, Value, ValueData,
 };
 
 /// Reference to a parent scope.
@@ -159,12 +160,12 @@ impl Scope {
     ///
     /// `f` **must not** access the variable being modified via the current
     /// scope.
-    fn atomic_modify(
+    pub(crate) fn atomic_modify<E>(
         &self,
         name: impl Into<Key>,
-        f: impl FnOnce(&mut Value) -> Result<()>,
         default: Option<Value>,
-    ) -> Result<()> {
+        f: impl FnOnce(&mut Value) -> Result<(), E>,
+    ) -> Result<(), E> {
         let name = name.into();
         let existing_value = self.set_if_defined(name.clone(), Value::NULL);
         match existing_value.ok().or(default) {
@@ -177,64 +178,94 @@ impl Scope {
         }
     }
 
-    /// Adds a custom type to the scope.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `T::hps_ty()` is not `Type::Custom(_)`.
-    pub fn register_custom_type<T: TypeOf>(&self) {
-        let crate::Type::Custom(type_name) = T::hps_ty() else {
-            panic!("expected custom type; got {}", T::hps_ty());
-        };
-
-        let mut path = type_name.split('.');
-        let type_name = path
-            .next_back()
-            .expect("empty split() result is impossible");
-
-        let mut guard = self.names.lock();
-        let mut m = &mut *guard;
-        for segment in path {
-            m = m
-                .entry(segment.into())
-                .or_default()
-                .as_map_mut(crate::BUILTIN_SPAN);
-        }
-        m.insert(
-            type_name.into(),
-            ValueData::Type(T::hps_ty()).at(crate::BUILTIN_SPAN),
-        );
-    }
-
-    /// Registers a function in the scope but adds no overloads.
-    pub fn register_empty_func(&self, span: Span, name: Key) -> Result<()> {
-        self.atomic_modify(
-            name.clone(),
-            |val| {
-                val.as_func_mut(span, Some(name));
-                Ok(())
-            },
-            Some(Value::NULL),
-        )
-    }
-
     /// Registers a function in the scope.
     pub fn register_func(&self, span: Span, name: Key, overload: FnOverload) -> Result<()> {
-        self.atomic_modify(
-            name.clone(),
-            |val| val.as_func_mut(span, Some(name)).push_overload(overload),
-            Some(Value::NULL),
-        )
+        self.atomic_modify(name.clone(), Some(Value::NULL), |val| {
+            val.as_func_mut(span, Some(name))?.push_overload(overload)
+        })
+    }
+}
+
+/// Wrapper for initializing built-in functions, types, constants, etc. in a
+/// namespace.
+pub struct Builtins<'a>(pub &'a mut Map);
+impl Builtins<'_> {
+    /// Returns a namespace at the given `.`-delimited path.
+    ///
+    /// Returns an error if any entry along the path is already defined as
+    /// something other than a map.
+    pub fn namespace(&mut self, path: impl Into<Key>) -> Result<Builtins<'_>> {
+        let path = path.into();
+        let mut m = &mut *self.0;
+        for component in path.split('.').map(|s| path.substr_from(s)) {
+            m = m.entry(component).or_default().as_map_mut(BUILTIN_SPAN)?;
+        }
+        Ok(Builtins(m))
+    }
+    /// Sets the value at the given `.`-delimited path.
+    ///
+    /// Returns an error if the full path is already defined or if any entry
+    /// along the path is already defined as something other than a map.
+    pub fn set(&mut self, path: impl Into<Key>, value: impl Into<ValueData>) -> Result<()> {
+        let v = self.entry(path)?.or_default();
+        if v.is_null() {
+            *v = value.into().at(BUILTIN_SPAN);
+            Ok(())
+        } else {
+            Err(v.type_error(Type::Null))
+        }
     }
 
-    /// Registers a built-in function in the scope.
-    pub fn register_builtin_functions(
-        &self,
+    /// Sets a custom type into the scope.
+    ///
+    /// Returns an error if the full path is already defined or if any entry
+    /// along the path is already defined as something other than a map.
+    ///
+    /// Returns an error if `T::hps_ty()` is not [`Type::Custom`].
+    pub fn set_custom_ty<T: TypeOf>(&mut self) -> Result<()> {
+        let crate::Type::Custom(type_name) = T::hps_ty() else {
+            return Err(format!("expected custom type; got {}", T::hps_ty()).at(BUILTIN_SPAN));
+        };
+        self.set(type_name, T::hps_ty())
+    }
+
+    /// Set a function overload into the scope.
+    ///
+    /// Returns an error if the full path is already defined as something other
+    /// than a function or if any entry along the path is already defined as
+    /// something other than a map.
+    pub fn set_fn(&mut self, path: impl Into<Key>, overload: FnOverload) -> Result<()> {
+        let path = path.into();
+        let (m, name) = match path.rsplit_once('.') {
+            None => (&mut *self.0, path),
+
+            // Special handling for operators containing `.`
+            Some(_) if path == ".." || path == "..=" => (&mut *self.0, path),
+
+            Some((parent_path, name)) => (self.namespace(parent_path)?.0, path.substr_from(name)),
+        };
+        m.entry(name.clone())
+            .or_default()
+            .as_func_mut(BUILTIN_SPAN, Some(name))?
+            .push_overload(overload)
+    }
+    /// Sets multiple function overloads into the scope by calling
+    /// [`Self::set_fn()`] on each one.
+    pub fn set_fns(
+        &mut self,
         funcs: impl IntoIterator<Item = (&'static str, FnOverload)>,
     ) -> Result<()> {
         for (name, overload) in funcs {
-            self.register_func(crate::BUILTIN_SPAN, name.into(), overload)?;
+            self.set_fn(name, overload)?;
         }
         Ok(())
+    }
+
+    fn entry(&mut self, path: impl Into<Key>) -> Result<Entry<'_, Key, Value>> {
+        let path = path.into();
+        match path.rsplit_once('.') {
+            Some((l, r)) => Ok(self.namespace(l)?.0.entry(path.substr_from(r))),
+            None => Ok(self.0.entry(path)),
+        }
     }
 }

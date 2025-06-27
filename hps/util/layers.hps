@@ -23,12 +23,12 @@ export fn inclusive(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
 ///
 /// Expects `start > stop`.
 export fn even_odd(start: Num, stop: Num, layer_count: Nat) {
-  half_layer_size = (stop - start) / layer_count
-  if layer_count.is_odd() {
-    stop = stop - half_layer_size
-  }
+    half_layer_size = (stop - start) / layer_count
+    if layer_count.is_odd() {
+        stop = stop - half_layer_size
+    }
 
-  return inclusive(start, stop, floor(layer_count/2))
+    return inclusive(start, stop, floor(layer_count/2))
 }
 
 /// Returns evenly-spaced layer depths, including both endpoints and with `inf`

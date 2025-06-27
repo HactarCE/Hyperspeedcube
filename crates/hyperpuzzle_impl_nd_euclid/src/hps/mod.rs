@@ -4,7 +4,7 @@ use std::{fmt, sync::Arc};
 
 use hypermath::{Point, Vector, pga::Motor};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
-use hyperpuzzlescript::{ErrorExt, hps_fns};
+use hyperpuzzlescript::{Builtins, ErrorExt, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
@@ -35,17 +35,17 @@ impl fmt::Display for HpsNdEuclid {
     }
 }
 
-/// Adds the built-ins to the scope.
-pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<()> {
-    scope.register_custom_type::<HpsAxis>();
-    scope.register_custom_type::<HpsColor>();
-    impl_puzzle_builder::define_in(scope)?;
-    impl_twist_system_builder::define_in(scope)?;
-    orbit_names::define_in(scope)?;
-    symmetry::define_in(scope)?;
-    scope.register_custom_type::<HpsTwist>();
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
+    builtins.set_custom_ty::<HpsAxis>()?;
+    builtins.set_custom_ty::<HpsColor>()?;
+    impl_puzzle_builder::define_in(builtins)?;
+    impl_twist_system_builder::define_in(builtins)?;
+    orbit_names::define_in(builtins)?;
+    symmetry::define_in(builtins)?;
+    builtins.set_custom_ty::<HpsTwist>()?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsAxis) -> HpsAxis {
             let v = object.vector().at(object_span)?;
             let id = axis_from_vector(&object.twists.lock().axes, &transform.transform(&v))

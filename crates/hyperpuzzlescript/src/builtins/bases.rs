@@ -3,14 +3,14 @@
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
-use crate::{Error, ListOf, Num, Result, Scope, Span, Str};
+use crate::{Builtins, Error, ListOf, Num, Result, Span, Str};
 
 const A0Z25: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DEFAULT_BASE_DIGITS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-/// Adds the built-in functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         // Digits
         (
             "to_digits",

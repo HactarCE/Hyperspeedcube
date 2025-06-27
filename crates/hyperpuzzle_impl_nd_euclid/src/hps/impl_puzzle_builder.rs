@@ -136,11 +136,11 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
     }
 }
 
-/// Adds the built-ins to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_custom_type::<HpsPuzzle>();
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_custom_ty::<HpsPuzzle>()?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         #[kwargs(color: Option<HpsColor>)]
         fn carve(ctx: EvalCtx, this: HpsPuzzle, plane: Hyperplane) -> Option<HpsColor> {
             let args = CutArgs::carve(match color {

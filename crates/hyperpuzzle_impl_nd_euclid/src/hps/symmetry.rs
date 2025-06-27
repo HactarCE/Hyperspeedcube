@@ -6,7 +6,7 @@ use std::sync::Arc;
 use hypermath::pga::Motor;
 use hypermath::{ApproxHashMapKey, Point, TransformByMotor, Vector, VectorRef, approx_eq};
 use hyperpuzzlescript::{
-    ErrorExt, Result, Span, Spanned, Str, ValueData, hps_fns, impl_simple_custom_type,
+    Builtins, ErrorExt, Result, Span, Spanned, Str, ValueData, hps_fns, impl_simple_custom_type,
 };
 use hypershape::{
     AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
@@ -42,11 +42,11 @@ impl fmt::Display for HpsSymmetry {
     }
 }
 
-/// Adds the built-ins to the scope.
-pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<()> {
-    scope.register_custom_type::<HpsSymmetry>();
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
+    builtins.set_custom_ty::<HpsSymmetry>()?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.namespace("euclid")?.set_fns(hps_fns![
         fn cd((name, name_span): Str) -> HpsSymmetry {
             HpsSymmetry::from_cd_str(&name, name_span)?
         }

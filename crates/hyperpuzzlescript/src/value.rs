@@ -226,8 +226,6 @@ pub enum ValueData {
     ///
     /// In an N-dimensional space, this represents an (N-1)-dimensional plane.
     EuclidPlane(Box<hypermath::Hyperplane>),
-    /// Region of Euclidean space.
-    EuclidRegion(std::convert::Infallible),
     /// PGA blade in Euclidean space.
     EuclidBlade(hypermath::pga::Blade),
 
@@ -319,7 +317,6 @@ impl ValueData {
             }
             Self::EuclidTransform(motor) => write!(f, "{ND_EUCLID}.motor({motor})"),
             Self::EuclidPlane(hyperplane) => write!(f, "{ND_EUCLID}.plane({hyperplane})"),
-            Self::EuclidRegion(region) => todo!("display region"),
             Self::EuclidBlade(blade) => write!(f, "{ND_EUCLID}.blade({blade})"),
             Self::Custom(value) => value.fmt(f, is_debug),
         }
@@ -348,7 +345,6 @@ impl ValueData {
             Self::EuclidPoint(_) => Type::EuclidPoint,
             Self::EuclidTransform(_) => Type::EuclidTransform,
             Self::EuclidPlane(_) => Type::EuclidPlane,
-            Self::EuclidRegion(_) => Type::EuclidRegion,
             Self::EuclidBlade(_) => Type::EuclidBlade,
             Self::Custom(value) => Type::Custom(value.type_name()),
         }

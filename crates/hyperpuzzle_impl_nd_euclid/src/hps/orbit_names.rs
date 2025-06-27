@@ -3,7 +3,7 @@ use std::{fmt, ops::Add, sync::Arc};
 use hypermath::{ApproxHashMap, Point, pga::Motor};
 use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
-    CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Scope, Span, Spanned, Str,
+    Builtins, CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Span, Spanned, Str,
     TryEq, Type, TypeOf, Value, ValueData, hps_fns, impl_simple_custom_type, impl_ty,
 };
 use hypershape::{GenSeq, GeneratorId};
@@ -13,11 +13,11 @@ use parking_lot::Mutex;
 use super::{HpsAxis, HpsSymmetry, HpsTwist, OrbitNamesError};
 use crate::TwistKey;
 
-/// Adds the built-ins to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_custom_type::<HpsOrbitNames>();
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_custom_ty::<HpsOrbitNames>()?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         ("$", |ctx, axis: HpsAxis| -> HpsOrbitNames {
             HpsOrbitNames::from((axis.into(), ctx.caller_span))
         }),
@@ -50,7 +50,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ),
     ])?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         fn names(
             ctx: EvalCtx,
             symmetry: HpsSymmetry,

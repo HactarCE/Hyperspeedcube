@@ -35,21 +35,12 @@ pub enum Type {
     EuclidPoint,
     EuclidTransform,
     EuclidPlane,
-    EuclidRegion,
     EuclidBlade,
 
     Cga2dBlade1,
     Cga2dBlade2,
     Cga2dBlade3,
     Cga2dAntiscalar,
-    Cga2dRegion,
-
-    Color,
-    Axis,
-    Twist,
-
-    AxisSystem,
-    TwistSystem,
 
     Union(TypeUnion),
 
@@ -74,21 +65,16 @@ impl fmt::Display for Type {
             Type::NonEmptyList(None) => write!(f, "NonEmptyList"),
             Type::NonEmptyList(Some(inner)) => write!(f, "NonEmptyList[{inner}]"),
             Type::Vec => write!(f, "Vec"),
+
             Type::EuclidPoint => write!(f, "euclid.Point"),
             Type::EuclidTransform => write!(f, "euclid.Transform"),
             Type::EuclidPlane => write!(f, "euclid.Plane"),
-            Type::EuclidRegion => write!(f, "euclid.Region"),
             Type::EuclidBlade => write!(f, "euclid.Blade"),
+
             Type::Cga2dBlade1 => write!(f, "cga2d.Blade1"),
             Type::Cga2dBlade2 => write!(f, "cga2d.Blade2"),
             Type::Cga2dBlade3 => write!(f, "cga2d.Blade3"),
             Type::Cga2dAntiscalar => write!(f, "cga2d.Antiscalar"),
-            Type::Cga2dRegion => write!(f, "cga2d.Region"),
-            Type::Color => write!(f, "Color"),
-            Type::Axis => write!(f, "Axis"),
-            Type::Twist => write!(f, "Twist"),
-            Type::AxisSystem => write!(f, "AxisSystem"),
-            Type::TwistSystem => write!(f, "TwistSystem"),
 
             Type::Union(union) => match union.try_to_nullable_single_type() {
                 Ok(nullable_single_type) => write!(f, "{nullable_single_type}?"),

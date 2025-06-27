@@ -6,7 +6,9 @@ use crate::Runtime;
 fn test_pure_hps() {
     let mut runtime = Runtime::new();
 
-    crate::builtins::define_base_in(&runtime.builtins).expect("error defining built-ins");
+    runtime
+        .with_builtins(crate::builtins::define_base_in)
+        .expect("error defining built-ins");
     runtime
         .modules
         .add_from_directory(&PathBuf::from("src/tests"));

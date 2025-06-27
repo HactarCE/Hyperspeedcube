@@ -9,14 +9,18 @@ use hyperpuzzle_core::{
 use indexmap::IndexMap;
 
 use crate::{
-    Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned, Str,
-    util::pop_map_key,
+    Builtins, Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned,
+    Str, util::pop_map_key,
 };
 
-/// Adds the built-in functions to the scope.
-pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> Result<()> {
+/// Adds the built-in functions.
+pub fn define_in(
+    builtins: &mut Builtins<'_>,
+    catalog: &Catalog,
+    eval_tx: &EvalRequestTx,
+) -> Result<()> {
     let cat = catalog.clone();
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         /// Adds a color system to the catalog.
         ///
         /// This function takes the following named arguments:
@@ -35,7 +39,7 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
 
     let cat = catalog.clone();
     let tx = eval_tx.clone();
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         /// Adds a color system generator to the catalog.
         ///
         /// This function takes the following named arguments:

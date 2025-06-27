@@ -5,25 +5,25 @@ use std::f64::consts::{PI, TAU};
 use ecow::eco_format;
 use hypermath::{approx_cmp, approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
 
-use crate::{BUILTIN_SPAN, Error, Num, Result, Scope, ValueData};
+use crate::{Builtins, Error, Num, Result};
 
 const PHI: f64 = 1.618_033_988_749_895_f64;
 
-/// Adds the built-in constants, operators, and functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
+/// Adds the built-in constants, operators, and functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     // Constants
-    scope.set("pi", ValueData::Num(PI).at(BUILTIN_SPAN));
-    scope.set("π", ValueData::Num(PI).at(BUILTIN_SPAN));
-    scope.set("tau", ValueData::Num(TAU).at(BUILTIN_SPAN));
-    scope.set("τ", ValueData::Num(TAU).at(BUILTIN_SPAN));
-    scope.set("phi", ValueData::Num(PHI).at(BUILTIN_SPAN));
-    scope.set("φ", ValueData::Num(PHI).at(BUILTIN_SPAN));
-    scope.set("deg", ValueData::Num(1.0_f64.to_radians()).at(BUILTIN_SPAN));
-    scope.set("inf", ValueData::Num(f64::INFINITY).at(BUILTIN_SPAN));
-    scope.set("∞", ValueData::Num(f64::INFINITY).at(BUILTIN_SPAN));
+    builtins.set("pi", PI)?;
+    builtins.set("π", PI)?;
+    builtins.set("tau", TAU)?;
+    builtins.set("τ", TAU)?;
+    builtins.set("phi", PHI)?;
+    builtins.set("φ", PHI)?;
+    builtins.set("deg", 1.0_f64.to_radians())?;
+    builtins.set("inf", f64::INFINITY)?;
+    builtins.set("∞", f64::INFINITY)?;
 
     // Operators
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         // Number operators
         ("+", |_, n: Num| -> Num { n }),
         ("-", |_, n: Num| -> Num { -n }),
@@ -41,7 +41,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         (">=", |_, a: Num, b: Num| -> bool { approx_gt_eq(&a, &b) }),
     ])?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         /// `sqrt()` returns the square root of a number.
         ///
         /// You can also use the Unicode symbol `√` as a prefix operator to get
@@ -55,9 +55,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             n.sqrt()
         }
     ])?;
-    scope.register_builtin_functions(hps_fns![("√", |_ctx, x: Num| -> Num { x.sqrt() })])?;
+    builtins.set_fns(hps_fns![("√", |_ctx, x: Num| -> Num { x.sqrt() })])?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         // Number functions
         ("abs", |_, x: Num| -> Num { x.abs() }),
         ("sign", |_, x: Num| -> Num {

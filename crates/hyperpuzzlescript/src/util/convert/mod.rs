@@ -12,7 +12,7 @@ mod to_value;
 pub use from_value::{FromValue, FromValueRef};
 pub use type_of::{TypeOf, hps_ty};
 
-use crate::{FnValue, Map, Result, Span, Value, ValueData};
+use crate::{FnValue, Map, Result, Span, Type, Value, ValueData};
 
 impl Value {
     /// Takes ownership of the value and returns `T` or a type error.
@@ -62,26 +62,31 @@ impl Value {
         self.to::<Arc<T>>().map(Arc::unwrap_or_clone)
     }
 
-    /// Returns the function. If the value wasn't a function before, replaces it
-    /// with a new function with the given name.
-    pub fn as_func_mut(&mut self, span: Span, name: Option<Substr>) -> &mut FnValue {
-        if !self.is_func() {
+    /// Returns the function. If the value was `null`, replaces it with a new
+    /// function with the given name. If the value was anything else, returns an
+    /// error.
+    pub fn as_func_mut(&mut self, span: Span, name: Option<Substr>) -> Result<&mut FnValue> {
+        if self.is_null() {
             *self = ValueData::Fn(Arc::new(FnValue::new(name))).at(span);
+        } else if !self.is::<FnValue>() {
+            return Err(self.type_error(Type::Fn.optional()));
         }
         match &mut self.data {
-            ValueData::Fn(f) => Arc::make_mut(f),
+            ValueData::Fn(f) => Ok(Arc::make_mut(f)),
             _ => unreachable!(),
         }
     }
 
-    /// Returns the map. If the value wasn't a map before, replaces it with a
-    /// new map.
-    pub fn as_map_mut(&mut self, span: Span) -> &mut Map {
-        if !matches!(self.data, ValueData::Map(_)) {
+    /// Returns the map. If the value was `null`, replaces it with a new map. If
+    /// the value was anything else, returns an error.
+    pub(crate) fn as_map_mut(&mut self, span: Span) -> Result<&mut Map> {
+        if self.is_null() {
             *self = ValueData::Map(Arc::new(Map::new())).at(span);
+        } else if !self.is::<Map>() {
+            return Err(self.type_error(Type::Map.optional()));
         }
         match &mut self.data {
-            ValueData::Map(m) => Arc::make_mut(m),
+            ValueData::Map(m) => Ok(Arc::make_mut(m)),
             _ => unreachable!(),
         }
     }

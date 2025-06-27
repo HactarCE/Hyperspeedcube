@@ -120,12 +120,12 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
     }
 }
 
-/// Adds the built-ins to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_custom_type::<HpsTwistSystem>();
-    scope.register_custom_type::<HpsAxisSystem>();
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_custom_ty::<HpsTwistSystem>()?;
+    builtins.set_custom_ty::<HpsAxisSystem>()?;
 
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         fn add_axis(ctx: EvalCtx, this: HpsTwistSystem, vector: Vector) -> Option<HpsAxis> {
             this.add_axes_return_first(ctx, vector, None)?
         }

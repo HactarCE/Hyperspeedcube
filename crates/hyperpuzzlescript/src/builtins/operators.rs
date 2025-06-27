@@ -2,13 +2,13 @@
 
 use itertools::Itertools;
 
-use crate::{Error, Result, Scope, Span, Spanned, Value};
+use crate::{Builtins, Error, Result, Span, Spanned, Value};
 
 const MAX_RANGE_SIZE: usize = 65535;
 
-/// Adds the built-in operators to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in operators.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         ("==", |ctx, a: Value, b: Value| -> bool {
             a.eq(&b, ctx.caller_span)?
         }),

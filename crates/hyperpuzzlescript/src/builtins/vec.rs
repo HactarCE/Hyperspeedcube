@@ -3,11 +3,11 @@
 use ecow::eco_format;
 use hypermath::{Vector, VectorRef, is_approx_nonzero, vector};
 
-use crate::{Error, FnType, Map, Num, Result, Scope, Span, Type, Value, ValueData};
+use crate::{Builtins, Error, FnType, Map, Num, Result, Span, Type, Value, ValueData};
 
-/// Adds the built-in operators and functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in operators and functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         /// `vec()` constructs a [vector](#vectors) and can be called in any of
         /// several ways:
         ///
@@ -80,7 +80,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     ])?;
 
     // Operators
-    scope.register_builtin_functions(hps_fns![
+    builtins.set_fns(hps_fns![
         ("+", |_, v: Vector| -> Vector { v }),
         ("-", |_, v: Vector| -> Vector { -v }),
         ("+", |_, a: Vector, b: Vector| -> Vector { a + b }),

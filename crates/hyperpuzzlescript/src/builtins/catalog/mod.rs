@@ -8,13 +8,17 @@ mod generators;
 mod puzzles;
 mod twist_systems;
 
-use crate::{EvalCtx, EvalRequestTx, Result, Scope};
+use crate::{Builtins, EvalCtx, EvalRequestTx, Result};
 
-/// Adds the built-in functions to the scope.
-pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> Result<()> {
-    color_systems::define_in(scope, catalog, eval_tx)?;
-    puzzles::define_in(scope, catalog, eval_tx)?;
-    twist_systems::define_in(scope, catalog, eval_tx)?;
+/// Adds the built-in functions.
+pub fn define_in(
+    builtins: &mut Builtins<'_>,
+    catalog: &Catalog,
+    eval_tx: &EvalRequestTx,
+) -> Result<()> {
+    color_systems::define_in(builtins, catalog, eval_tx)?;
+    puzzles::define_in(builtins, catalog, eval_tx)?;
+    twist_systems::define_in(builtins, catalog, eval_tx)?;
     Ok(())
 }
 

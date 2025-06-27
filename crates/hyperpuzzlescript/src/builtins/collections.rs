@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::{List, Map, Result, Scope, Str, ValueData};
+use crate::{Builtins, List, Map, Result, Str, ValueData};
 
-/// Adds the built-in operators and functions to the scope.
-pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_builtin_functions(hps_fns![
+/// Adds the built-in operators and functions.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_fns(hps_fns![
         // Operators
         ("++", |_, l1: List, l2: List| -> List {
             itertools::chain(l1, l2).collect()
