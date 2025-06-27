@@ -31,7 +31,7 @@ impl HpsColor {
 }
 impl fmt::Debug for HpsColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "axis #{}", self.id)
+        write!(f, "color {}", self.id)
     }
 }
 impl fmt::Display for HpsColor {

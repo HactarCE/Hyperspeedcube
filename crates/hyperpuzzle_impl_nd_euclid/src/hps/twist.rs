@@ -42,7 +42,7 @@ impl HpsTwist {
 }
 impl fmt::Debug for HpsTwist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "axis #{}", self.id)
+        write!(f, "twist {}", self.id)
     }
 }
 impl fmt::Display for HpsTwist {

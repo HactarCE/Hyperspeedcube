@@ -150,7 +150,6 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                         };
                         Ok((segment, span))
                     })
-                    .map(|a| if a.is_err() { dbg!(a) } else { a })
                     .collect::<Result<_, _>>()
                     .map(ast::NodeContents::StringLiteral)
             };

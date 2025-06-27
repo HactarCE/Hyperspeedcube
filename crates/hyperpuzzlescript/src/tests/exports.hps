@@ -1,6 +1,6 @@
 a = 3
 
-fn export_stuff() {
+fn export_stuff() -> Map {
     export a
     export b = 4
     c = 5
@@ -9,7 +9,7 @@ fn export_stuff() {
     return // ok because no value
 }
 
-m = export_stuff()
+m: Map = export_stuff()
 assert_eq(m.a, 3)
 assert_eq(m.b, 4)
 assert_eq(m.c, 5)
@@ -20,6 +20,14 @@ fn dubious() {
     return 10
 }
 assert_eq("return statement after export", __eval_to_error(dubious))
+
+fn no_ret() -> Map {
+    export a = 1
+    export b = 4
+}
+m: Map = no_ret()
+assert_eq(m.a, 1)
+assert_eq(m.b, 4)
 
 export q = 10
 r = 15

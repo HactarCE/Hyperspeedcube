@@ -34,7 +34,7 @@ impl HpsAxis {
 }
 impl fmt::Debug for HpsAxis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "axis #{}", self.id)
+        write!(f, "axis {}", self.id)
     }
 }
 impl fmt::Display for HpsAxis {

@@ -775,7 +775,7 @@ impl EvalCtx<'_> {
                     let mut base = self
                         .runtime
                         .modules
-                        .get_path(self.caller_span.context)
+                        .get_path(span.context)
                         .ok_or(Error::Internal("relative import with no path").at(*span))?;
                     while let Some(rest) = path.strip_prefix('^') {
                         path = rest;
@@ -986,8 +986,7 @@ impl EvalCtx<'_> {
                 if ignore_return_value {
                     return_value = ValueData::Null.at(fn_body.1);
                 }
-
-                return_value.typecheck(&return_type)?;
+                // Don't typecheck return value because it might be a map of exports
                 Ok(return_value)
             }),
             debug_info: span.into(),
