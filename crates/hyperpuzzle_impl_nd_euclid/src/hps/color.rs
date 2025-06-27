@@ -1,6 +1,5 @@
 use std::fmt;
 
-use hypermath::IndexNewtype;
 use hyperpuzzle_core::{Color, NameSpec};
 use hyperpuzzlescript::{Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
@@ -36,24 +35,6 @@ impl fmt::Debug for HpsColor {
 }
 impl fmt::Display for HpsColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_puzzle_element(f, self.name(), self.id)
-    }
-}
-
-fn fmt_puzzle_element(
-    f: &mut fmt::Formatter<'_>,
-    name: Option<NameSpec>,
-    id: impl IndexNewtype,
-) -> fmt::Result {
-    match name {
-        Some(name) => {
-            let k = hyperpuzzlescript::codegen::to_map_key(&name.preferred);
-            if k.starts_with('"') {
-                write!(f, "colors[{k}]")
-            } else {
-                write!(f, "colors.{k}")
-            }
-        }
-        None => write!(f, "colors[{}]", id),
+        super::fmt_puzzle_element(f, "colors", self.name(), self.id)
     }
 }

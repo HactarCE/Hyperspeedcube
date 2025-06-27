@@ -1,10 +1,12 @@
 use std::fmt;
 
-use hypermath::{IndexNewtype, IndexOutOfRange, Vector};
+use hypermath::{IndexOutOfRange, Vector, pga::Motor};
 use hyperpuzzle_core::{Axis, NameSpec};
 use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
-use super::HpsTwistSystem;
+use crate::builder::AxisSystemBuilder;
+
+use super::{HpsEuclidError, HpsTwistSystem};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsAxis {
@@ -39,24 +41,35 @@ impl fmt::Debug for HpsAxis {
 }
 impl fmt::Display for HpsAxis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_puzzle_element(f, self.name(), self.id)
+        super::fmt_puzzle_element(f, "axes", self.name(), self.id)
     }
 }
 
-fn fmt_puzzle_element(
-    f: &mut fmt::Formatter<'_>,
-    name: Option<NameSpec>,
-    id: impl IndexNewtype,
-) -> fmt::Result {
-    match name {
-        Some(name) => {
-            let k = hyperpuzzlescript::codegen::to_map_key(&name.preferred);
-            if k.starts_with('"') {
-                write!(f, "axes[{k}]")
-            } else {
-                write!(f, "axes.{k}")
-            }
+pub(super) fn axis_from_vector(
+    axes: &AxisSystemBuilder,
+    vector: &Vector,
+) -> Result<Axis, HpsEuclidError> {
+    axes.vector_to_id(&vector)
+        .ok_or_else(|| HpsEuclidError::NoAxis(vector.clone()))
+}
+
+pub(super) fn transform_axis(
+    span: Span,
+    axes: &AxisSystemBuilder,
+    t: &Motor,
+    (axis, axis_span): Spanned<Axis>,
+) -> Result<Axis> {
+    let old_vector = axes.get(axis).at(axis_span)?.vector();
+    let new_vector = t.transform(old_vector);
+    axis_from_vector(axes, &new_vector).at(span)
+}
+
+pub(super) fn axis_name(span: Span, axes: &AxisSystemBuilder, axis: Axis) -> Result<&NameSpec> {
+    match axes.names.get(axis) {
+        Some(name) => Ok(name),
+        None => {
+            let axis_vector = axes.get(axis).at(span)?.vector().clone();
+            Err(HpsEuclidError::UnnamedAxis(axis, axis_vector)).at(span)
         }
-        None => write!(f, "axes[{}]", id),
     }
 }

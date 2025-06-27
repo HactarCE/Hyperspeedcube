@@ -1,10 +1,12 @@
 use std::fmt;
 
-use hypermath::{IndexNewtype, IndexOutOfRange, pga::Motor};
+use hypermath::{IndexOutOfRange, pga::Motor};
 use hyperpuzzle_core::{NameSpec, Twist};
 use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
-use super::{HpsAxis, HpsTwistSystem};
+use crate::{TwistKey, builder::TwistSystemBuilder};
+
+use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsTwist {
@@ -47,24 +49,39 @@ impl fmt::Debug for HpsTwist {
 }
 impl fmt::Display for HpsTwist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_puzzle_element(f, self.name(), self.id)
+        super::fmt_puzzle_element(f, "twists", self.name(), self.id)
     }
 }
 
-fn fmt_puzzle_element(
-    f: &mut fmt::Formatter<'_>,
-    name: Option<NameSpec>,
-    id: impl IndexNewtype,
-) -> fmt::Result {
-    match name {
-        Some(name) => {
-            let k = hyperpuzzlescript::codegen::to_map_key(&name.preferred);
-            if k.starts_with('"') {
-                write!(f, "twists[{k}]")
-            } else {
-                write!(f, "twists.{k}")
-            }
+pub(super) fn transform_twist(
+    span: Span,
+    twists: &TwistSystemBuilder,
+    t: &Motor,
+    (twist, twist_span): Spanned<Twist>,
+) -> Result<Twist> {
+    let old_twist_info = twists.get(twist).at(twist_span)?;
+    let new_twist_axis =
+        super::transform_axis(span, &twists.axes, &t, (old_twist_info.axis, twist_span))?;
+    let new_twist_transform = t.transform(&old_twist_info.transform);
+    let new_twist_key = TwistKey::new(new_twist_axis, &new_twist_transform)
+        .ok_or(HpsEuclidError::BadTwistTransform)
+        .at(span)?;
+    twists
+        .key_to_id(&new_twist_key)
+        .ok_or(HpsEuclidError::NoTwist(new_twist_key))
+        .at(span)
+}
+
+pub(super) fn twist_name(
+    span: Span,
+    twists: &TwistSystemBuilder,
+    twist: Twist,
+) -> Result<&NameSpec> {
+    match twists.names.get(twist) {
+        Some(name) => Ok(name),
+        None => {
+            let twist_key = twists.get(twist).at(span)?.key().at(span)?;
+            Err(HpsEuclidError::UnnamedTwist(twist, twist_key)).at(span)
         }
-        None => write!(f, "twists[{}]", id),
     }
 }

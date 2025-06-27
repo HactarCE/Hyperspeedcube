@@ -10,8 +10,7 @@ use hypershape::{GenSeq, GeneratorId};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{HpsAxis, HpsSymmetry, HpsTwist, OrbitNamesError};
-use crate::TwistKey;
+use super::{HpsAxis, HpsEuclidError, HpsSymmetry, HpsTwist};
 
 /// Adds the built-ins.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
@@ -147,29 +146,20 @@ impl HpsOrbitNames {
                 HpsOrbitNamesComponent::Axis(axis) => {
                     let twists = axis.twists.lock();
                     let axes = &twists.axes;
-                    let init_vector = axes.get(axis.id).at(component_span)?.vector();
                     for (s, t) in strings_and_transforms {
-                        let transformed_axis_name =
-                            super::axis_name_from_vector(axes, &t.transform(init_vector))
-                                .at(span)?;
+                        let transformed_axis =
+                            super::transform_axis(span, &axes, t, (axis.id, component_span))?;
+                        let transformed_axis_name = super::axis_name(span, axes, transformed_axis)?;
                         s.push_str(&transformed_axis_name.spec);
                     }
                 }
                 HpsOrbitNamesComponent::Twist(twist) => {
                     let twists = twist.twists.lock();
-                    let axes = &twists.axes;
-                    let init_twist = twists.get(twist.id).at(component_span)?;
-                    let init_vector = axes.get(init_twist.axis).at(component_span)?.vector();
-                    let init_transform = &init_twist.transform;
                     for (s, t) in strings_and_transforms {
-                        let transformed_axis =
-                            super::axis_from_vector(axes, &t.transform(init_vector)).at(span)?;
-                        let transformed_transform = &t.transform(init_transform);
-                        let key = TwistKey::new(transformed_axis, transformed_transform)
-                            .ok_or(OrbitNamesError::BadTwistTransform)
-                            .at(span)?;
+                        let transformed_twist =
+                            super::transform_twist(span, &twists, t, (twist.id, component_span))?;
                         let transformed_twist_name =
-                            super::twist_name_from_key(&*twists, &key).at(span)?;
+                            super::twist_name(span, &twists, transformed_twist)?;
                         s.push_str(&transformed_twist_name.spec);
                     }
                 }
@@ -182,7 +172,7 @@ impl HpsOrbitNames {
                         let transformed_coset_point = t.transform(initial_coset_point);
                         let coset_str = coset_names
                             .get(&transformed_coset_point)
-                            .ok_or(OrbitNamesError::MissingCoset(transformed_coset_point))
+                            .ok_or(HpsEuclidError::MissingCoset(transformed_coset_point))
                             .at(span)?;
                         s.push_str(coset_str);
                     }

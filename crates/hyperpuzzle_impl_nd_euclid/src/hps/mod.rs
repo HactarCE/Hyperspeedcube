@@ -2,14 +2,14 @@
 
 use std::{fmt, sync::Arc};
 
-use hypermath::{Point, Vector, pga::Motor};
+use hypermath::{IndexNewtype, Point, Vector, pga::Motor};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use hyperpuzzlescript::{Builtins, ErrorExt, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
     TwistKey,
-    builder::{AxisSystemBuilder, PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
+    builder::{PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
 };
 
 mod axis;
@@ -20,12 +20,11 @@ mod orbit_names;
 mod symmetry;
 mod twist;
 
-// use name_strategy::{HpsNameFn, HpsNameStrategy};
-use axis::HpsAxis;
+use axis::{HpsAxis, axis_from_vector, axis_name, transform_axis};
 use color::HpsColor;
 use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
 use symmetry::HpsSymmetry;
-use twist::HpsTwist;
+use twist::{HpsTwist, transform_twist, twist_name};
 
 /// Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
 pub struct HpsNdEuclid;
@@ -47,23 +46,27 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
 
     builtins.set_fns(hps_fns![
         fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsAxis) -> HpsAxis {
-            let v = object.vector().at(object_span)?;
-            let id = axis_from_vector(&object.twists.lock().axes, &transform.transform(&v))
-                .at(ctx.caller_span)?;
-            HpsAxis {
-                id,
-                twists: object.twists.clone(),
-            }
+            let span = ctx.caller_span;
+            let twists = object.twists.lock();
+            let id = transform_axis(span, &twists.axes, &transform, (object.id, object_span))?;
+            drop(twists);
+            let twists = object.twists;
+            HpsAxis { id, twists }
         }
-        fn transform(transform: Motor, object: HpsTwist) -> HpsTwist {
-            todo!("transform twist")
+        fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsTwist) -> HpsTwist {
+            let span = ctx.caller_span;
+            let twists = object.twists.lock();
+            let id = transform_twist(span, &twists, &transform, (object.id, object_span))?;
+            drop(twists);
+            let twists = object.twists;
+            HpsTwist { id, twists }
         }
-        fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
-            todo!("transform names")
-        }
-        fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
-            todo!("transform symmetry")
-        }
+        // fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
+        //     todo!("transform names")
+        // }
+        // fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
+        //     todo!("transform symmetry")
+        // }
 
         fn rev(ctx: EvalCtx, twist: HpsTwist) -> Option<HpsTwist> {
             let rev_id = twist.twists.lock().inverse(twist.id).at(ctx.caller_span)?;
@@ -121,36 +124,27 @@ impl ArcMut<PuzzleBuilder> {
     }
 }
 
-fn axis_from_vector(axes: &AxisSystemBuilder, vector: &Vector) -> Result<Axis, OrbitNamesError> {
-    axes.vector_to_id(&vector)
-        .ok_or_else(|| OrbitNamesError::NoAxis(vector.clone()))
-}
-
-fn axis_name_from_vector<'a>(
-    axes: &'a AxisSystemBuilder,
-    vector: &Vector,
-) -> Result<&'a NameSpec, OrbitNamesError> {
-    let id = axis_from_vector(axes, vector)?;
-    axes.names
-        .get(id)
-        .ok_or_else(|| OrbitNamesError::UnnamedAxis(id, vector.clone()))
-}
-
-fn twist_name_from_key<'a>(
-    twists: &'a TwistSystemBuilder,
-    key: &TwistKey,
-) -> Result<&'a NameSpec, OrbitNamesError> {
-    let id = twists
-        .key_to_id(key)
-        .ok_or_else(|| OrbitNamesError::NoTwist(key.clone()))?;
-    twists
-        .names
-        .get(id)
-        .ok_or_else(|| OrbitNamesError::UnnamedTwist(id, key.clone()))
+fn fmt_puzzle_element(
+    f: &mut fmt::Formatter<'_>,
+    array_name: &str,
+    name: Option<NameSpec>,
+    id: impl IndexNewtype,
+) -> fmt::Result {
+    match name {
+        Some(name) => {
+            let k = hyperpuzzlescript::codegen::to_map_key(&name.preferred);
+            if k.starts_with('"') {
+                write!(f, "{array_name}[{k}]")
+            } else {
+                write!(f, "{array_name}.{k}")
+            }
+        }
+        None => write!(f, "{array_name}[{}]", id),
+    }
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
-enum OrbitNamesError {
+enum HpsEuclidError {
     #[error("no axis with vector {0}")]
     NoAxis(Vector),
     #[error("axis {0} with vector {1} has no name")]
