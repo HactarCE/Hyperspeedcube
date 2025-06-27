@@ -56,7 +56,6 @@ pub fn define_in(
                 ctx.warn(eco_format!("missing `name` for twist system generator `{id}`"));
                 id.clone()
             },
-            version: Option<String>,
             params: Vec<Spanned<Arc<Map>>> ,
             (r#gen, gen_span): Arc<FnValue>,
         )]
@@ -65,12 +64,6 @@ pub fn define_in(
 
             let cat2 = cat.clone();
             let tx = tx.clone();
-
-            let version = super::parse_version(
-                ctx,
-                &format!("twist system generator `{id}`"),
-                version.as_deref(),
-            )?;
 
             let meta = super::generators::GeneratorMeta {
                 id,
@@ -132,10 +125,7 @@ fn twist_system_from_kwargs(
         ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
         id.clone()
     });
-    pop_kwarg!(kwargs, version: Option<String>);
     pop_kwarg!(kwargs, (engine, engine_span): Str);
-
-    let version = super::parse_version(ctx, &format!("twist system `{id}`"), version.as_deref())?;
 
     let meta = crate::IdAndName { id, name };
 

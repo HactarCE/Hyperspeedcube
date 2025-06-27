@@ -222,18 +222,6 @@ impl fmt::Display for FnType {
     }
 }
 impl FnType {
-    fn unify(a: FnType, b: FnType) -> FnType {
-        let variadic = a.is_variadic || b.is_variadic || a.params.len() != b.params.len();
-        let params = std::iter::zip(a.params, b.params)
-            .map(|(a_param, b_param)| Type::unify(a_param, b_param))
-            .collect();
-        FnType {
-            params,
-            is_variadic: variadic,
-            ret: Type::unify(a.ret, b.ret),
-        }
-    }
-
     /// Returns whether this function might conflict with `other` if they were
     /// both overloads assigned to the same name.
     pub fn might_conflict_with(&self, other: &FnType) -> bool {
