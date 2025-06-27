@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::{Catalog, PuzzleListMetadata, PuzzleSpec, catalog::TwistSystemSpec};
+use hyperpuzzle_core::catalog::TwistSystemSpec;
+use hyperpuzzle_core::{Catalog, PuzzleListMetadata, PuzzleSpec};
 
 use crate::{EvalCtx, EvalRequestTx, Map, Result};
 

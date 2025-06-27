@@ -1,4 +1,5 @@
-//! Assertion functions `assert()`, `assert_eq()`, `assert_neq()`, and `__eval_to_error()`.
+//! Assertion functions `assert()`, `assert_eq()`, `assert_neq()`, and
+//! `__eval_to_error()`.
 
 use std::sync::Arc;
 

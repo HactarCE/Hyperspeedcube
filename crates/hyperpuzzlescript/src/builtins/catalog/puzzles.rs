@@ -1,10 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use ecow::eco_format;
 use eyre::eyre;
-use hyperpuzzle_core::{
-    Catalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, TagSet, catalog::BuildTask,
-};
+use hyperpuzzle_core::catalog::BuildTask;
+use hyperpuzzle_core::{Catalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, TagSet};
 use itertools::Itertools;
 
 use crate::{

@@ -1,16 +1,18 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
+use std::sync::Arc;
 
 use ecow::eco_format;
 use eyre::eyre;
+use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
     Catalog, ColorSystem, ColorSystemGenerator, DefaultColor, NameSpecBiMapBuilder, PerColor,
-    catalog::BuildTask,
 };
 use indexmap::IndexMap;
 
+use crate::util::pop_map_key;
 use crate::{
     Builtins, Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned,
-    Str, util::pop_map_key,
+    Str,
 };
 
 /// Adds the built-in functions.

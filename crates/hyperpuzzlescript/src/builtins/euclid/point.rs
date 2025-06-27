@@ -1,6 +1,7 @@
 use hypermath::prelude::*;
 
-use crate::{Builtins, FnType, Map, Num, Result, Type, builtins::vec::construct_from_args};
+use crate::builtins::vec::construct_from_args;
+use crate::{Builtins, FnType, Map, Num, Result, Type};
 
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.namespace("euclid")?.set_fns(hps_fns![

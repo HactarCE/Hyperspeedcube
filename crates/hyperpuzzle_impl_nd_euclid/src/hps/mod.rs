@@ -1,16 +1,16 @@
 //! Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
 
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
-use hypermath::{IndexNewtype, Point, Vector, pga::Motor};
+use hypermath::pga::Motor;
+use hypermath::{IndexNewtype, Point, Vector};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use hyperpuzzlescript::{Builtins, ErrorExt, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
 
-use crate::{
-    TwistKey,
-    builder::{PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
-};
+use crate::TwistKey;
+use crate::builder::{PuzzleBuilder, ShapeBuilder, TwistSystemBuilder};
 
 mod axis;
 mod color;

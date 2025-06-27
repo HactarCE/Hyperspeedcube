@@ -2,10 +2,8 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use eyre::eyre;
-use hyperpuzzle_core::{
-    Catalog,
-    catalog::{BuildTask, Generator, TwistSystemSpec},
-};
+use hyperpuzzle_core::Catalog;
+use hyperpuzzle_core::catalog::{BuildTask, Generator, TwistSystemSpec};
 use itertools::Itertools;
 
 use crate::{

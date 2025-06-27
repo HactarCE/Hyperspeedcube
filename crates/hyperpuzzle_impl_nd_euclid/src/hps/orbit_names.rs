@@ -1,6 +1,9 @@
-use std::{fmt, ops::Add, sync::Arc};
+use std::fmt;
+use std::ops::Add;
+use std::sync::Arc;
 
-use hypermath::{ApproxHashMap, Point, pga::Motor};
+use hypermath::pga::Motor;
+use hypermath::{ApproxHashMap, Point};
 use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Span, Spanned, Str,

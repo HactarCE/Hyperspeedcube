@@ -1,8 +1,11 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
 use eyre::{Context, eyre};
-use hypermath::{Float, Hyperplane, Vector, pga::Motor};
-use hyperpuzzle_core::{catalog::BuildTask, prelude::*};
+use hypermath::pga::Motor;
+use hypermath::{Float, Hyperplane, Vector};
+use hyperpuzzle_core::catalog::BuildTask;
+use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
 use hypershape::AbbrGenSeq;
 use itertools::Itertools;

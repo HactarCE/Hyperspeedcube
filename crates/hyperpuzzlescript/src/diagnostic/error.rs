@@ -1,4 +1,5 @@
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
 
 use arcstr::Substr;
 use ecow::{EcoString, eco_format};

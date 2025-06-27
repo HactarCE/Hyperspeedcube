@@ -7,9 +7,9 @@ use std::sync::Arc;
 use hyperpuzzle_core::{GeneratorParam, GeneratorParamType, GeneratorParamValue, Redirectable};
 use itertools::Itertools;
 
+use crate::util::pop_map_key;
 use crate::{
     ErrorExt, EvalCtx, FnValue, Map, Num, Result, Span, Spanned, Str, Type, Value, ValueData,
-    util::pop_map_key,
 };
 
 #[derive(Debug, Clone)]

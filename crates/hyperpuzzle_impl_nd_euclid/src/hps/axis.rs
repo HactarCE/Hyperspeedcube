@@ -1,12 +1,12 @@
 use std::fmt;
 
-use hypermath::{IndexOutOfRange, Vector, pga::Motor};
+use hypermath::pga::Motor;
+use hypermath::{IndexOutOfRange, Vector};
 use hyperpuzzle_core::{Axis, NameSpec};
 use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
-use crate::builder::AxisSystemBuilder;
-
 use super::{HpsEuclidError, HpsTwistSystem};
+use crate::builder::AxisSystemBuilder;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsAxis {

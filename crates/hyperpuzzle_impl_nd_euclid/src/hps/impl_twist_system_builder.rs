@@ -1,10 +1,11 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
 use eyre::eyre;
-use hypermath::{
-    AbsDiffEq, ApproxHashMapKey, Float, IndexNewtype, TransformByMotor, Vector, pga::Motor,
-};
-use hyperpuzzle_core::{catalog::TwistSystemSpec, prelude::*};
+use hypermath::pga::Motor;
+use hypermath::{AbsDiffEq, ApproxHashMapKey, Float, IndexNewtype, TransformByMotor, Vector};
+use hyperpuzzle_core::catalog::TwistSystemSpec;
+use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
 use hypershape::AbbrGenSeq;
 use itertools::Itertools;
@@ -13,7 +14,8 @@ use super::{
     ArcMut, HpsAxis, HpsNdEuclid, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist,
     HpsTwistSystem, Names,
 };
-use crate::{PerReferenceVector, builder::*};
+use crate::PerReferenceVector;
+use crate::builder::*;
 
 impl_simple_custom_type!(
     HpsTwistSystem = "euclid.TwistSystem",

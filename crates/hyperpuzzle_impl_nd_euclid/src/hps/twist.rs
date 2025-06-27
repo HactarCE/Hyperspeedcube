@@ -1,12 +1,13 @@
 use std::fmt;
 
-use hypermath::{IndexOutOfRange, pga::Motor};
+use hypermath::IndexOutOfRange;
+use hypermath::pga::Motor;
 use hyperpuzzle_core::{NameSpec, Twist};
 use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
-use crate::{TwistKey, builder::TwistSystemBuilder};
-
 use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
+use crate::TwistKey;
+use crate::builder::TwistSystemBuilder;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsTwist {
