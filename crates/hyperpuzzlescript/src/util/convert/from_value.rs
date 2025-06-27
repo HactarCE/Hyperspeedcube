@@ -216,6 +216,20 @@ impl<T: FromValue> FromValue for Vec<T> {
 }
 impl_from_value_ref!(for<'a> &'a [Value], List(l) => Ok(l));
 
+impl<const N: usize, T: TypeOf> TypeOf for [T; N] {
+    fn hps_ty() -> Type {
+        Vec::<T>::hps_ty()
+    }
+}
+impl<const N: usize, T: FromValue> FromValue for [T; N] {
+    fn from_value(value: Value) -> Result<Self> {
+        let span = value.span;
+        let vec = Vec::<T>::from_value(value)?;
+        let got = vec.len();
+        <[T; N]>::try_from(vec).map_err(|_| Error::ListLengthError { expected: N, got }.at(span))
+    }
+}
+
 // hypermath
 impl_from_value_borrowable!(hypermath::Point = Type::EuclidPoint, EuclidPoint(p) => Ok(p));
 impl_from_value_borrowable!(hypermath::pga::Motor = Type::EuclidTransform, EuclidTransform(t) => Ok(t));

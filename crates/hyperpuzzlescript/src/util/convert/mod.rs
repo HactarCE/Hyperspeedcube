@@ -85,4 +85,12 @@ impl Value {
             _ => unreachable!(),
         }
     }
+
+    /// Returns whether the value is the given type.
+    pub fn is<T: ?Sized>(&self) -> bool
+    where
+        for<'a> &'a T: FromValueRef<'a>,
+    {
+        self.as_ref::<T>().is_ok()
+    }
 }

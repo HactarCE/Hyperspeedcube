@@ -367,6 +367,10 @@ impl ValueData {
     pub fn is_func(&self) -> bool {
         matches!(self, Self::Fn(_))
     }
+    /// Returns whether the value is a string.
+    pub fn is_str(&self) -> bool {
+        matches!(self, Self::Str(_))
+    }
 }
 
 /// Script function.

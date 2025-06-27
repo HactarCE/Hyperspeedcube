@@ -48,20 +48,23 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
         /// - `params: List[Map]`
         /// - `examples: List[Map]`
         /// - `gen: Fn(..) -> Map`
-        #[kwargs(
-            id: String,
-            name: String = {
+        ///
+        /// Other keyword arguments are copied into the output of `gen`. TODO: do this for other functions
+        #[kwargs(kwargs)]
+        fn add_puzzle_generator(ctx: EvalCtx) -> () {
+            pop_kwarg!(kwargs, id: String);
+            pop_kwarg!(kwargs, name: String = {
                 ctx.warn(eco_format!("missing `name` for puzzle generator `{id}`"));
                 id.clone()
-            },
-            aliases: Vec<String> = vec![],
-            version: Option<String>,
-            tags: Option<Arc<Map>>,
-            params: Vec<Spanned<Arc<Map>>> ,
-            examples: Vec<Spanned<Arc<Map>>> = vec![],
-            (r#gen, gen_span): Arc<FnValue>,
-        )]
-        fn add_puzzle_generator(ctx: EvalCtx) -> () {
+            });
+            pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
+            pop_kwarg!(kwargs, version: Option<String>);
+            pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
+            pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>> );
+            pop_kwarg!(kwargs, examples: Vec<Spanned<Arc<Map>>> = vec![]);
+            pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
+            let remaining_kwargs = Arc::new(kwargs);
+
             let caller_span = ctx.caller_span;
 
             let cat2 = cat.clone();
@@ -94,6 +97,7 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
 
                     let cat2 = cat2.clone();
                     let tx2 = tx.clone();
+                    let remaining_kwargs = Arc::clone(&remaining_kwargs);
 
                     let scope = Scope::new();
                     let meta = meta.clone();
@@ -108,10 +112,19 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
 
                         // IIFE to mimic try_block
                         (|| {
-                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
-                                // TODO: add tags
-                                puzzle_spec_from_kwargs(&mut ctx, spec, &cat2, &tx2).map(Arc::new)
-                            })
+                            meta.generate_spec(&mut ctx, param_values)?
+                                .try_map(|mut spec| {
+                                    for (k, v) in remaining_kwargs.iter() {
+                                        if spec.insert(k.clone(), v.clone()).is_some() {
+                                            ctx.warn(format!(
+                                                "overwriting key `{k}` with generator value"
+                                            ));
+                                        }
+                                    }
+                                    // TODO: add tags
+                                    puzzle_spec_from_kwargs(&mut ctx, spec, &cat2, &tx2)
+                                        .map(Arc::new)
+                                })
                         })()
                         .map_err(|e| {
                             let s = e.to_string(&*ctx.runtime);

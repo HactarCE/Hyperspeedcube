@@ -2,7 +2,7 @@ use std::fmt;
 
 use hypermath::{IndexNewtype, IndexOutOfRange, Vector};
 use hyperpuzzle_core::{Axis, NameSpec};
-use hyperpuzzlescript::{ErrorExt, impl_simple_custom_type};
+use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::HpsTwistSystem;
 
@@ -11,18 +11,20 @@ pub struct HpsAxis {
     pub id: Axis,
     pub twists: HpsTwistSystem,
 }
-impl_simple_custom_type!(
-    HpsAxis = "euclid.Axis",
-    |(this, this_span), (field, _field_span)| {
-        match field {
-            "id" => Some((this.id.0 as u64).into()),
-            "vec" => Some(this.vector().at(this_span)?.into()),
-            "name" => Some(this.name().map(|name| name.preferred).into()),
-            _ => None,
-        }
-    }
-);
+impl_simple_custom_type!(HpsAxis = "euclid.Axis", field_get = Self::field_get);
 impl HpsAxis {
+    pub fn field_get(
+        &self,
+        self_span: Span,
+        (field, _field_span): Spanned<&str>,
+    ) -> Result<Option<ValueData>> {
+        Ok(match field {
+            "id" => Some((self.id.0 as u64).into()),
+            "vec" => Some(self.vector().at(self_span)?.into()),
+            "name" => Some(self.name().map(|name| name.preferred).into()),
+            _ => None,
+        })
+    }
     pub fn vector(&self) -> Result<Vector, IndexOutOfRange> {
         Ok(self.twists.lock().axes.get(self.id)?.vector().clone())
     }

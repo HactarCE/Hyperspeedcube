@@ -12,7 +12,7 @@ use super::{
 };
 use crate::builder::*;
 
-impl_simple_custom_type!(HpsPuzzle = "euclid.Puzzle");
+impl_simple_custom_type!(HpsPuzzle = "euclid.Puzzle", field_get = Self::field_get);
 impl fmt::Debug for HpsPuzzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
@@ -237,9 +237,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             transform: Motor,
             (name, name_span): Names,
         ) -> Option<HpsTwist> {
-            if let Some(old_value) =
-                kwargs.insert("name".into(), ValueData::from(name.0).at(name_span))
-            {
+            if let Some(old_value) = kwargs.insert("name".into(), name.0.at(name_span)) {
                 return Err("duplicate `name` argument".at(old_value.span));
             };
             this.twists()
@@ -342,6 +340,19 @@ impl HpsShape {
 }
 
 impl HpsPuzzle {
+    fn field_get(
+        &self,
+        _span: Span,
+        (field, field_span): Spanned<&str>,
+    ) -> Result<Option<ValueData>> {
+        Ok(match field {
+            "axes" => Some(ValueData::Map(Arc::new(
+                self.twists().axis_name_map(field_span),
+            ))),
+            _ => None,
+        })
+    }
+
     fn add_layered_axes(
         &self,
         ctx: &mut EvalCtx<'_>,

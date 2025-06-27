@@ -128,11 +128,11 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             fix: Blade = Blade::one(),
             start: Option<Vector>,
             end: Option<Vector>,
-            angle: Num,
+            angle: Option<Num>,
         )]
         fn rot(ctx: EvalCtx) -> Motor {
             let ndim = ctx.ndim()?;
-            construct_rotation(ndim, fix, start, end, Some(angle)).at(ctx.caller_span)?
+            construct_rotation(ndim, fix, start, end, angle).at(ctx.caller_span)?
         }
         fn rot(ctx: EvalCtx, angle: Num) -> Motor {
             if ctx.ndim()? != 2 {
@@ -141,7 +141,12 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             Motor::from_angle_in_axis_plane(0, 1, angle)
         }
 
-        /// Transforms an object.
+        /// Returns the reverse transformation.
+        fn rev(transform: Motor) -> Motor {
+            transform.reverse()
+        }
+
+        /// Returns a transformed object.
         fn transform(transform: Motor, object: Motor) -> Motor {
             transform.transform(&object)
         }
@@ -152,7 +157,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             transform.transform(&object)
         }
 
-        /// Transforms a motor, preserving its orientation.
+        /// Returns a transformed motor, preserving its orientation.
         fn transform_oriented(transform: Motor, object: Motor) -> Motor {
             let t = transform.transform(&object);
             if transform.is_reflection() {

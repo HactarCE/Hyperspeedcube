@@ -2,15 +2,14 @@ use std::any::Any;
 
 use hyperpuzzle_core::{box_dyn_wrapper_struct, impl_dyn_clone};
 
-use crate::{Error, FromValue, FromValueRef, Result, Span, TypeOf, Value, ValueData};
+use crate::{
+    Error, FromValue, FromValueRef, Result, Span, Spanned, Type, TypeOf, Value, ValueData,
+};
 
 /// Implements a custom type
 #[macro_export]
 macro_rules! impl_simple_custom_type {
-    ($ty:ty = $name:literal $(,)?) => {
-        $crate::impl_simple_custom_type!($ty = $name, |_, _| None);
-    };
-    ($ty:ty = $name:literal, |$this:tt, $field:tt| $get_field_body:expr $(,)?) => {
+    ($ty:ty = $name:literal $(, $method_name:ident = $impl_name:expr)* $(,)?) => {
         $crate::impl_ty!($ty = $name);
         impl $crate::CustomValue for $ty {
             fn type_name(&self) -> &'static str {
@@ -28,20 +27,23 @@ macro_rules! impl_simple_custom_type {
                 }
             }
 
-            fn field_get(
-                &self,
-                self_span: $crate::Span,
-                field: &str,
-                field_span: $crate::Span,
-            ) -> $crate::Result<Option<$crate::ValueData>> {
-                let $this = (self, self_span);
-                let $field = (field, field_span);
-                $crate::Result::Ok($get_field_body)
-            }
+            $(
+                $crate::impl_simple_custom_type!(@method $method_name = $impl_name);
+            )*
 
             fn eq(&self, other: &$crate::BoxDynValue) -> Option<bool> {
                 $crate::TryEq::try_eq(self, other.downcast_ref::<Self>()?)
             }
+        }
+    };
+    (@method field_get = $method_impl:expr) => {
+        fn field_get(&self, self_span: Span, field: Spanned<&str>) -> Result<Option<ValueData>> {
+            $method_impl(self, self_span, field)
+        }
+    };
+    (@method index_get = $method_impl:expr) => {
+        fn index_get(&self, self_span: Span, index: &Value) -> Result<ValueData> {
+            $method_impl(self, self_span, index)
         }
     };
 }
@@ -112,12 +114,14 @@ pub trait CustomValue: Any + Send + Sync {
     }
 
     /// Returns a field of the type.
-    fn field_get(
-        &self,
-        self_span: Span,
-        field: &str,
-        field_span: Span,
-    ) -> Result<Option<ValueData>>;
+    fn field_get(&self, _self_span: Span, _field: Spanned<&str>) -> Result<Option<ValueData>> {
+        Ok(None)
+    }
+
+    /// Indexes the type.
+    fn index_get(&self, self_span: Span, _index: &Value) -> Result<ValueData> {
+        Err(Error::CannotIndex(Type::Custom(self.type_name())).at(self_span))
+    }
 
     /// Returns whether two values are equal, or returns `None` if they cannot
     /// be compared.

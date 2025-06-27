@@ -78,11 +78,11 @@ impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty());
 impl FromValue for Names {
     fn from_value(value: Value) -> Result<Self> {
         let span = value.span;
-        if value.as_ref::<str>().is_ok() {
+        if value.is::<str>() {
             Ok(Self(HpsOrbitNames::from((value.to::<Str>()?.into(), span))))
-        } else if value.as_ref::<HpsOrbitNames>().is_ok() {
+        } else if value.is::<HpsOrbitNames>() {
             Ok(Self(value.to::<HpsOrbitNames>()?))
-        } else if value.as_ref::<FnValue>().is_ok() {
+        } else if value.is::<FnValue>() {
             Ok(Self(HpsOrbitNames::from((
                 HpsOrbitNamesComponent::Fn(value.to::<Arc<FnValue>>()?),
                 span,

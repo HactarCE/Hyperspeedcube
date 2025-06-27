@@ -2,7 +2,7 @@ use std::fmt;
 
 use hypermath::IndexNewtype;
 use hyperpuzzle_core::{Color, NameSpec};
-use hyperpuzzlescript::impl_simple_custom_type;
+use hyperpuzzlescript::{Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::HpsShape;
 
@@ -11,17 +11,20 @@ pub struct HpsColor {
     pub id: Color,
     pub shape: HpsShape,
 }
-impl_simple_custom_type!(
-    HpsColor = "euclid.Color",
-    |(this, _this_span), (field, _field_span)| {
-        match field {
-            "id" => Some((this.id.0 as u64).into()),
-            "name" => Some(this.name().map(|name| name.preferred).into()),
-            _ => None,
-        }
-    }
-);
+impl_simple_custom_type!(HpsColor = "euclid.Color", field_get = Self::field_get);
 impl HpsColor {
+    fn field_get(
+        &self,
+        _span: Span,
+        (field, _field_span): Spanned<&str>,
+    ) -> Result<Option<ValueData>> {
+        Ok(match field {
+            "id" => Some((self.id.0 as u64).into()),
+            "name" => Some(self.name().map(|name| name.preferred).into()),
+            _ => None,
+        })
+    }
+
     pub fn name(&self) -> Option<NameSpec> {
         Some(self.shape.lock().colors.names.get(self.id)?.clone())
     }

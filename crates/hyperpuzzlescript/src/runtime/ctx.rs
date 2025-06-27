@@ -294,7 +294,7 @@ impl EvalCtx<'_> {
                 "distance" => Some(ValueData::Num(p.distance())),
                 _ => None,
             },
-            ValueData::Custom(v) => v.field_get(obj.span, field_name, field)?,
+            ValueData::Custom(v) => v.field_get(obj.span, (field_name, field))?,
             _ => None,
         }
         .ok_or(Error::NoField((obj.ty(), obj.span)).at(field))
@@ -377,6 +377,7 @@ impl EvalCtx<'_> {
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
                 Ok(ValueData::Num(vec.get(index_value.ref_to()?)))
             }
+            ValueData::Custom(v) => v.index_get(obj.span, index_value),
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
     }

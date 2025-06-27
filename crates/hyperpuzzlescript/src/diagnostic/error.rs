@@ -23,6 +23,8 @@ pub enum Error {
     Unimplemented(&'static str),
     #[error("type error")]
     TypeError { expected: Type, got: Type },
+    #[error("list length error")]
+    ListLengthError { expected: usize, got: usize },
     #[error("immutable value")]
     Immut { reason: ImmutReason },
     #[error("expected type")]
@@ -221,6 +223,9 @@ impl Error {
             Self::TypeError { expected, got } => {
                 report_builder.main_label(format!("expected \x02{expected}\x03, got \x02{got}\x03"))
             }
+            Self::ListLengthError { expected, got } => report_builder.main_label(format!(
+                "expected \x02{expected}\x03 elements, got \x02{got}\x03 elements"
+            )),
             Self::Immut { reason } => {
                 report_builder.main_label(format!("this cannot be modified because {reason}"))
             }

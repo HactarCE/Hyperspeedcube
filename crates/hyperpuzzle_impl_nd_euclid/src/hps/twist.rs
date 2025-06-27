@@ -2,7 +2,7 @@ use std::fmt;
 
 use hypermath::{IndexNewtype, IndexOutOfRange, pga::Motor};
 use hyperpuzzle_core::{NameSpec, Twist};
-use hyperpuzzlescript::{ErrorExt, impl_simple_custom_type};
+use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::{HpsAxis, HpsTwistSystem};
 
@@ -11,19 +11,22 @@ pub struct HpsTwist {
     pub id: Twist,
     pub twists: HpsTwistSystem,
 }
-impl_simple_custom_type!(
-    HpsTwist = "euclid.Twist",
-    |(this, this_span), (field, _field_span)| {
-        match field {
-            "id" => Some((this.id.0 as u64).into()),
-            "axis" => Some(this.axis().at(this_span)?.into()),
-            "transform" => Some(this.transform().at(this_span)?.into()),
-            "name" => Some(this.name().map(|name| name.preferred).into()),
-            _ => None,
-        }
-    }
-);
+impl_simple_custom_type!(HpsTwist = "euclid.Twist", field_get = Self::field_get);
 impl HpsTwist {
+    fn field_get(
+        &self,
+        span: Span,
+        (field, _field_span): Spanned<&str>,
+    ) -> Result<Option<ValueData>> {
+        Ok(match field {
+            "id" => Some((self.id.0 as u64).into()),
+            "axis" => Some(self.axis().at(span)?.into()),
+            "transform" => Some(self.transform().at(span)?.into()),
+            "name" => Some(self.name().map(|name| name.preferred).into()),
+            _ => None,
+        })
+    }
+
     pub fn axis(&self) -> Result<HpsAxis, IndexOutOfRange> {
         Ok(HpsAxis {
             id: self.twists.lock().get(self.id)?.axis,

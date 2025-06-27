@@ -5,36 +5,15 @@ use std::sync::Arc;
 
 use hypermath::pga::Motor;
 use hypermath::{ApproxHashMapKey, Point, TransformByMotor, Vector, VectorRef, approx_eq};
-use hyperpuzzlescript::{ErrorExt, Result, Span, Str, ValueData, hps_fns, impl_simple_custom_type};
-use hypershape::{AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId};
+use hyperpuzzlescript::{
+    ErrorExt, Result, Span, Spanned, Str, ValueData, hps_fns, impl_simple_custom_type,
+};
+use hypershape::{
+    AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
+};
 use itertools::Itertools;
 
-impl_simple_custom_type!(
-    HpsSymmetry = "euclid.Symmetry",
-    |(this, this_span), (field, field_span)| match field {
-        "ndim" => Some(this.ndim().into()),
-        "chiral" => Some(this.chiral_subgroup().into()),
-        "is_chiral" => Some(this.is_chiral().into()),
-        "mirror_vectors" => Some(
-            this.as_coxeter(this_span)?
-                .mirrors()
-                .iter()
-                .map(|m| ValueData::Vec(m.normal().clone()).at(field_span))
-                .collect_vec()
-                .into()
-        ),
-        "generators" => Some(
-            this.generators
-                .iter()
-                .map(|g| ValueData::EuclidTransform(g.clone()).at(field_span))
-                .collect_vec()
-                .into()
-        ),
-        s if s.chars().all(|c| "ox".contains(c)) =>
-            Some(this.coxeter_dynkin_vector(this_span, s, field_span)?.into()),
-        _ => None,
-    },
-);
+impl_simple_custom_type!(HpsSymmetry = "euclid.Symmetry", field_get = Self::field_get);
 impl fmt::Debug for HpsSymmetry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
@@ -129,6 +108,38 @@ impl PartialEq for HpsSymmetry {
 }
 
 impl HpsSymmetry {
+    fn field_get(
+        &self,
+        _span: Span,
+        (field, field_span): Spanned<&str>,
+    ) -> Result<Option<ValueData>> {
+        Ok(match field {
+            "ndim" => Some(self.ndim().into()),
+            "chiral" => Some(self.chiral_subgroup().into()),
+            "is_chiral" => Some(self.is_chiral().into()),
+            "mirror_vectors" => Some(
+                self.as_coxeter(field_span)?
+                    .mirrors()
+                    .iter()
+                    .map(|m| ValueData::Vec(m.normal().clone()).at(field_span))
+                    .collect_vec()
+                    .into(),
+            ),
+            "generators" => Some(
+                self.generators
+                    .iter()
+                    .map(|g| ValueData::EuclidTransform(g.clone()).at(field_span))
+                    .collect_vec()
+                    .into(),
+            ),
+            s if s.chars().all(|c| "ox".contains(c)) => Some(
+                self.coxeter_dynkin_vector(field_span, s, field_span)?
+                    .into(),
+            ),
+            _ => None,
+        })
+    }
+
     /// Constructs a symmetry object from a Coxeter group.
     pub fn from_coxeter(coxeter: CoxeterGroup) -> Self {
         Self {
@@ -277,5 +288,10 @@ impl HpsSymmetry {
                 .collect_vec(),
             object,
         )
+    }
+
+    /// Returns the isometry group of the symmetry.
+    pub fn isometry_group(&self) -> GroupResult<IsometryGroup> {
+        IsometryGroup::from_generators(&self.generators)
     }
 }
