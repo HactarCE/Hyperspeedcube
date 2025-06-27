@@ -1,65 +1,5 @@
 use * from euclid
 
-fn add_ft_cube_twists(self) -> Map {
-    with #sym = cd("bc3") {
-        export face_axis = self.add_axis(#sym.oox, @symmetries/bc3.cube().face_names)
-        use F, U, R from self.axes
-        self.add_twist(F, #sym.thru([1, 0]), gizmo_pole_distance = 1)
-    }
-
-    fn cw(axis) { self[axis.name] }
-    fn ccw(axis) { self[axis.name].rev() }
-
-    self.add_twist_direction("CW", fn(ax) { [cw(ax)] })
-    self.add_twist_direction("CW2", fn(ax) { [cw(ax), cw(ax)] })
-    self.add_twist_direction("CCW", fn(ax) { [ccw(ax)] })
-    self.add_twist_direction("CCW2", fn(ax) { [ccw(ax), ccw(ax)] })
-}
-
-fn add_cubic_vantage_group(self) {
-    sym = cd("bc3")
-    self.add_vantage_group(
-        id = "cubic",
-        symmetry = sym,
-        refs = [[sym.oox, @symmetries/bc3.cube().face_names]],
-        init = ["F", "U"],
-    )
-}
-
-fn add_face_centered_cubic_vantage_set(self) {
-    sym = cd("bc3")
-    F = sym.oox
-    U = sym.thru(2).transform(F)
-    R = sym.thru(1).transform(U)
-    x = rot(fix = U, start = R, end = F)
-    y = rot(fix = R, start = F, end = U)
-    z = rot(fix = F, start = U, end = R)
-    self.add_vantage_set(
-        name = "Face-centered",
-        group = "cubic",
-        view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-                    * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-        transforms = #{
-            x = x, "x'" = x.rev(),
-            y = y, "y'" = y.rev(),
-            z = z, "z'" = z.rev(),
-        },
-        axes = "*",
-    )
-}
-
-add_twist_system(
-    id = "ft_cubic",
-    name = "Cubic",
-    ndim = 3,
-    engine = "euclid",
-    build = fn(self) {
-        export * from self.add_ft_cube_twists()
-        self.add_cubic_vantage_group()
-        self.add_face_centered_cubic_vantage_set()
-    },
-)
-
 add_puzzle_generator(
     id = "ft_cube",
     name = "NxNxN Face-Turning Cube",
@@ -76,10 +16,66 @@ add_puzzle_generator(
             ndim = 3,
             build = fn(self) {
                 with #sym = cd("bc3") {
+                    // Carve shape
                     self.carve(plane(#sym.oox.unit), @symmetries/bc3.cube().face_names)
+
+                    // Slice layers
                     self.add_layers(self.twists.face_axis, @^/common.cut_depths(3, n))
                 }
             },
         }
+    },
+)
+
+add_twist_system(
+    id = "ft_cubic",
+    name = "Cubic",
+    ndim = 3,
+    engine = "euclid",
+    build = fn(self) {
+        sym = cd("bc3")
+
+        // Add axes and twists
+        with #sym = sym {
+            export face_axis = self.add_axis(#sym.oox, @symmetries/bc3.cube().face_names)
+            use F, U, R from self.axes
+            self.add_twist(F, #sym.thru([1, 0]), gizmo_pole_distance = 1)
+        }
+
+        // Add global twist directions
+        fn cw(axis) { self[axis.name] }
+        fn ccw(axis) { self[axis.name].rev() }
+        self.add_twist_direction("CW", fn(ax) { [cw(ax)] })
+        self.add_twist_direction("CW2", fn(ax) { [cw(ax), cw(ax)] })
+        self.add_twist_direction("CCW", fn(ax) { [ccw(ax)] })
+        self.add_twist_direction("CCW2", fn(ax) { [ccw(ax), ccw(ax)] })
+
+        // Add cubic vantage group
+        self.add_vantage_group(
+            id = "cubic",
+            symmetry = sym,
+            refs = [[sym.oox, @symmetries/bc3.cube().face_names]],
+            init = ["F", "U"],
+        )
+
+        // Add face-centered cubic vantage set
+        F = sym.oox
+        U = sym.thru(2).transform(F)
+        R = sym.thru(1).transform(U)
+        x = rot(fix = U, start = R, end = F)
+        y = rot(fix = R, start = F, end = U)
+        z = rot(fix = F, start = U, end = R)
+        self.add_vantage_set(
+            name = "Face-centered",
+            group = "cubic",
+            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+            transforms = #{
+                x = x, "x'" = x.rev(),
+                y = y, "y'" = y.rev(),
+                z = z, "z'" = z.rev(),
+            },
+            axes = "*",
+        )
     },
 )
