@@ -297,7 +297,7 @@ impl FnType {
 
 /// Union of list types.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct ListTypeUnion {
+pub struct ListTypeUnion {
     empty: bool,
     non_empty: Option<Box<TypeUnion>>,
 }
