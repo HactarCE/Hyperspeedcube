@@ -154,6 +154,8 @@ pub enum Error {
     NaN,
     #[error("infinity")]
     Infinity,
+    #[error("range exceeds maximum length")]
+    RangeTooBig { len: usize },
     #[error("file not found")]
     ModuleNotFound { path: String, is_relative: bool },
     #[error("path accesses beyond root")]
@@ -429,6 +431,9 @@ impl Error {
             Self::Infinity => report_builder
                 .main_label("infinity is not allowed here")
                 .help("check for division by zero"),
+            Self::RangeTooBig { len } => report_builder
+                .main_label("\x02this range\x03 is too big")
+                .note(format!("max range length is {len}")),
             Self::ModuleNotFound { path, is_relative } => report_builder
                 .main_label(format!("failed to find module \x02{path}\x03"))
                 .help(if *is_relative {

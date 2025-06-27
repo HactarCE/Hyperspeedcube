@@ -1,0 +1,61 @@
+/// Returns evenly-spaced layer depths from 1 to -1, including both endpoints.
+export fn inclusive(layer_count: Nat) -> List[Num] { inclusive(1, -1, layer_count) }
+
+/// Returns evenly-spaced layer depths, including both endpoints.
+///
+/// Typically, `start > stop`.
+export fn inclusive(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
+    if layer_count < 1 {
+        return []
+    }
+
+    ret = []
+    for i in 0..=layer_count {
+        ret ++= [lerp(start, stop, i / layer_count)]
+    }
+    return ret
+}
+
+/// Returns evenly-spaced layer depths for half of a puzzle.
+///
+/// - For even numbers of layers, includes both endpoints.
+/// - For odd numbers of layers, includes `start` but not `stop`.
+///
+/// Expects `start > stop`.
+export fn even_odd(start: Num, stop: Num, layer_count: Nat) {
+  half_layer_size = (stop - start) / layer_count
+  if layer_count.is_odd() {
+    stop = stop - half_layer_size
+  }
+
+  return inclusive(start, stop, floor(layer_count/2))
+}
+
+/// Returns evenly-spaced layer depths, including both endpoints and with `inf`
+/// and `-inf` on either side.
+export fn inclusive_inf(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
+    if layer_count < 1 {
+        return []
+    } else if layer_count == 1 {
+        return [inf, -inf]
+    } else if layer_count == 2 {
+        return [inf, (start + stop) / 2, -inf]
+    } else {
+        return [inf] ++ inclusive(start, stop, layer_count - 2) ++ [-inf]
+    }
+}
+
+/// Returns evenly-spaced layer depths, excluding both endpoints and with `inf`
+/// on one side.
+export fn exclusive_centered(center: Num, half_range: Num, cut_count: Nat) -> List[Num] {
+    if cut_count == 0 {
+        return []
+    } else if cut_count == 1 {
+        return [center]
+    } else {
+        half_layer_height = half_range / (cut_count + 1)
+        outermost_cut = center + half_range - half_layer_height
+        innermost_cut = center - half_range + half_layer_height
+        return inclusive(outermost_cut, innermost_cut, cut_count - 1)
+    }
+}
