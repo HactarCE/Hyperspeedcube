@@ -50,16 +50,18 @@ pub fn define_in(
         /// - `name: Str?`
         /// - `params: List[Map]`
         /// - `gen: Fn(..) -> Map`
-        #[kwargs(
-            id: String,
-            name: String = {
+        ///
+        /// Other keyword arguments are copied into the output of `gen`.
+        #[kwargs(kwargs)]
+        fn add_color_system_generator(ctx: EvalCtx) -> () {
+            pop_kwarg!(kwargs, id: String);
+            pop_kwarg!(kwargs, name: String = {
                 ctx.warn(eco_format!("missing `name` for color system generator `{id}`"));
                 id.clone()
-            },
-            params: Vec<Spanned<Arc<Map>>>,
-            (r#gen, gen_span): Arc<FnValue>,
-        )]
-        fn add_color_system_generator(ctx: EvalCtx) -> () {
+            });
+            pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>>);
+            pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
+
             let caller_span = ctx.caller_span;
 
             let tx = tx.clone();
@@ -69,6 +71,7 @@ pub fn define_in(
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
                 gen_span,
+                extra: kwargs,
             };
 
             let generator = ColorSystemGenerator {

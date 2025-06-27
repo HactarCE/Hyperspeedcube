@@ -18,6 +18,7 @@ pub(super) struct GeneratorMeta {
     pub params: Vec<GeneratorParam>,
     pub gen_fn: Arc<FnValue>,
     pub gen_span: Span,
+    pub extra: Map,
 }
 impl GeneratorMeta {
     pub(super) fn generate_spec(
@@ -65,6 +66,11 @@ impl GeneratorMeta {
                 let id = ValueData::Str(id_str.into()).at(crate::BUILTIN_SPAN);
                 if let Some(old_id) = params.insert("id".into(), id) {
                     ctx.warn_at(old_id.span, "overwriting `id` from generator");
+                }
+                for (k, v) in &self.extra {
+                    if let Some(old_val) = params.insert(k.clone(), v.clone()) {
+                        ctx.warn_at(old_val.span, format!("overwriting `{k}` from generator"));
+                    }
                 }
                 Ok(Redirectable::Direct(params))
             }

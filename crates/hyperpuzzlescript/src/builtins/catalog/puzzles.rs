@@ -55,7 +55,7 @@ pub fn define_in(
         /// - `examples: List[Map]`
         /// - `gen: Fn(..) -> Map`
         ///
-        /// Other keyword arguments are copied into the output of `gen`. TODO: do this for other functions
+        /// Other keyword arguments are copied into the output of `gen`.
         #[kwargs(kwargs)]
         fn add_puzzle_generator(ctx: EvalCtx) -> () {
             pop_kwarg!(kwargs, id: String);
@@ -69,7 +69,6 @@ pub fn define_in(
             pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>> );
             pop_kwarg!(kwargs, examples: Vec<Spanned<Arc<Map>>> = vec![]);
             pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
-            let remaining_kwargs = Arc::new(kwargs);
 
             let caller_span = ctx.caller_span;
 
@@ -86,6 +85,7 @@ pub fn define_in(
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
                 gen_span,
+                extra: kwargs,
             };
 
             let spec = PuzzleSpecGenerator {
@@ -103,7 +103,6 @@ pub fn define_in(
 
                     let cat2 = cat2.clone();
                     let tx2 = tx.clone();
-                    let remaining_kwargs = Arc::clone(&remaining_kwargs);
 
                     let scope = Scope::new();
                     let meta = meta.clone();
@@ -118,19 +117,10 @@ pub fn define_in(
 
                         // IIFE to mimic try_block
                         (|| {
-                            meta.generate_spec(&mut ctx, param_values)?
-                                .try_map(|mut spec| {
-                                    for (k, v) in remaining_kwargs.iter() {
-                                        if spec.insert(k.clone(), v.clone()).is_some() {
-                                            ctx.warn(format!(
-                                                "overwriting key `{k}` with generator value"
-                                            ));
-                                        }
-                                    }
-                                    // TODO: add tags
-                                    puzzle_spec_from_kwargs(&mut ctx, spec, &cat2, &tx2)
-                                        .map(Arc::new)
-                                })
+                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
+                                // TODO: add tags
+                                puzzle_spec_from_kwargs(&mut ctx, spec, &cat2, &tx2).map(Arc::new)
+                            })
                         })()
                         .map_err(|e| {
                             let s = e.to_string(&*ctx.runtime);
