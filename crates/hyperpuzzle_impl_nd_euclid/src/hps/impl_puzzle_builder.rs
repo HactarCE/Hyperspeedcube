@@ -1,7 +1,7 @@
 use std::{fmt, sync::Arc};
 
 use eyre::{Context, eyre};
-use hypermath::{Hyperplane, Vector, pga::Motor};
+use hypermath::{Float, Hyperplane, Vector, pga::Motor};
 use hyperpuzzle_core::{catalog::BuildTask, prelude::*};
 use hyperpuzzlescript::*;
 use hypershape::AbbrGenSeq;
@@ -189,16 +189,16 @@ pub fn define_in(scope: &Scope) -> Result<()> {
         ) -> Option<HpsAxis> {
             this.add_layered_axes(ctx, vector, Some(names), vec![], false)?
         }
-        #[kwargs(slice: Option<bool>)]
+        #[kwargs(slice: bool = true)]
         fn add_axis(
             ctx: EvalCtx,
             this: HpsPuzzle,
             vector: Vector,
             layers: Vec<Num>,
         ) -> Option<HpsAxis> {
-            this.add_layered_axes(ctx, vector, None, layers, slice.unwrap_or(true))?
+            this.add_layered_axes(ctx, vector, None, layers, slice)?
         }
-        #[kwargs(slice: Option<bool>)]
+        #[kwargs(slice: bool = true)]
         fn add_axis(
             ctx: EvalCtx,
             this: HpsPuzzle,
@@ -206,9 +206,9 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             names: Names,
             layers: Vec<Num>,
         ) -> Option<HpsAxis> {
-            this.add_layered_axes(ctx, vector, Some(names), layers, slice.unwrap_or(true))?
+            this.add_layered_axes(ctx, vector, Some(names), layers, slice)?
         }
-        #[kwargs(slice: Option<bool>)]
+        #[kwargs(slice: bool = true)]
         fn add_axis(
             ctx: EvalCtx,
             this: HpsPuzzle,
@@ -216,7 +216,7 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             vector: Vector,
             layers: Vec<Num>,
         ) -> Option<HpsAxis> {
-            this.add_layered_axes(ctx, vector, Some(names), layers, slice.unwrap_or(true))?
+            this.add_layered_axes(ctx, vector, Some(names), layers, slice)?
         }
 
         #[kwargs(kwargs)]
@@ -242,6 +242,16 @@ pub fn define_in(scope: &Scope) -> Result<()> {
             };
             this.twists()
                 .add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
+        }
+
+        #[kwargs(slice: bool = true)]
+        fn add_layers(
+            ctx: EvalCtx,
+            this: HpsPuzzle,
+            (axis, axis_span): HpsAxis,
+            layers: Vec<Num>,
+        ) -> () {
+            this.add_layers(ctx, (axis, axis_span), layers, slice)?;
         }
     ])
 }
@@ -346,6 +356,7 @@ impl HpsPuzzle {
         (field, field_span): Spanned<&str>,
     ) -> Result<Option<ValueData>> {
         Ok(match field {
+            "twists" => Some(self.twists().into()),
             "axes" => Some(ValueData::Map(Arc::new(
                 self.twists().axis_name_map(field_span),
             ))),
@@ -361,6 +372,8 @@ impl HpsPuzzle {
         layers: Vec<f64>,
         slice: bool,
     ) -> Result<Option<HpsAxis>> {
+        // TODO: simplify this function. just call `add_axes()` and `add_layers()`
+
         // Add axes.
         let axes_list = self.twists().add_axes(ctx, vector, names)?;
 
@@ -401,6 +414,64 @@ impl HpsPuzzle {
             id,
             twists: ArcMut(Arc::clone(&this.twists)),
         }))
+    }
+
+    fn add_layers(
+        &self,
+        ctx: &mut EvalCtx<'_>,
+        (axis, axis_span): Spanned<HpsAxis>,
+        layers: Vec<Float>,
+        slice: bool,
+    ) -> Result<()> {
+        let span = ctx.caller_span;
+        let ctx_symmetry = ctx.scope.special.sym.ref_to::<Option<&HpsSymmetry>>()?;
+
+        let axis_vector = axis.vector().at(axis_span)?;
+
+        let axis_vectors: Vec<Vector> = match ctx_symmetry {
+            Some(sym) => sym
+                .orbit(axis_vector)
+                .into_iter()
+                .map(|(_gen_seq, _transform, v)| v)
+                .collect(),
+            None => vec![axis_vector],
+        };
+
+        let mut this = self.lock();
+        let twists = this.twists.lock();
+        let axes = &twists.axes;
+        let axes: Vec<Axis> = axis_vectors
+            .iter()
+            .map(|v| super::axis_from_vector(axes, v))
+            .try_collect()
+            .at(span)?;
+        drop(twists);
+
+        // Add layers.
+        let axis_layers = this.axis_layers().at(span)?;
+        for axis in axes {
+            let axis_layers = &mut axis_layers[axis].0;
+            for (&top, &bottom) in layers.iter().tuple_windows() {
+                axis_layers
+                    .push(AxisLayerBuilder { top, bottom })
+                    .at(span)?;
+            }
+        }
+
+        // Slice layers.
+        if slice {
+            let mut shape = this.shape.lock();
+            for v in axis_vectors {
+                for &distance in &layers {
+                    let layer_slice_plane = Hyperplane::new(&v, distance)
+                        .ok_or("bad cut plane")
+                        .at(span)?;
+                    shape.slice(None, layer_slice_plane, None).at(span)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

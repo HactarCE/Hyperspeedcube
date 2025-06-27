@@ -221,7 +221,7 @@ impl EvalCtx<'_> {
                     obj,
                     Box::new(|ctx, obj_span, obj| {
                         let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
-                        let old_value = ctx.index_get(&obj, args.clone(), args_span)?.at(span);
+                        let old_value = ctx.index_get(&obj, args.clone(), args_span)?.data.at(span);
                         let new_value = update_fn(ctx, span, Some(old_value.clone()))?;
                         ctx.index_set(span, &mut obj, args, new_value)?;
                         Ok(obj)
@@ -327,7 +327,7 @@ impl EvalCtx<'_> {
         }
         Err(Error::CannotSetField((obj.ty(), obj.span)).at(field))
     }
-    fn index_get(&mut self, obj: &Value, index: Vec<Value>, index_span: Span) -> Result<ValueData> {
+    fn index_get(&mut self, obj: &Value, index: Vec<Value>, index_span: Span) -> Result<Value> {
         let index_value = index.iter().exactly_one().map_err(|_| {
             Error::WrongNumberOfIndices {
                 obj_span: obj.span,
@@ -339,35 +339,36 @@ impl EvalCtx<'_> {
         })?;
         match &obj.data {
             // Index string by character (O(n))
-            ValueData::Str(s) => Ok(crate::util::index_double_ended(
+            ValueData::Str(s) => Ok(ValueData::from(crate::util::index_double_ended(
                 s.chars(),
                 || s.chars().count(),
                 index_value.ref_to()?,
-            )?
-            .into()),
+            )?)
+            .at(index_span)),
             // Index list by element (O(1))
             ValueData::List(list) => Ok(crate::util::index_double_ended(
                 list.iter(),
                 || list.len(),
                 index_value.ref_to()?,
             )?
-            .data
             .clone()),
             ValueData::Map(map) => match &index_value.data {
                 ValueData::Str(s) => match map.get(s.as_str()) {
-                    Some(v) => Ok(v.data.clone()),
-                    None => Ok(ValueData::Null),
+                    Some(v) => Ok(v.clone()),
+                    None => Ok(ValueData::Null.at(index_span)),
                 },
                 _ => Err(index_value.type_error(Type::Str)),
             },
             ValueData::Type(ty) => match ty {
                 Type::List(None) => {
                     let inner_type = index_value.clone_to()?;
-                    Ok(Type::List(Some(Box::new(inner_type))).into())
+                    let ty = Type::List(Some(Box::new(inner_type)));
+                    Ok(ValueData::Type(ty).at(index_span))
                 }
                 Type::NonEmptyList(None) => {
                     let inner_type = index_value.clone_to()?;
-                    Ok(Type::NonEmptyList(Some(Box::new(inner_type))).into())
+                    let ty = Type::NonEmptyList(Some(Box::new(inner_type)));
+                    Ok(ValueData::Type(ty).at(index_span))
                 }
                 _ => Err(Error::ExpectedCollectionType {
                     got_type: ty.clone(),
@@ -375,7 +376,7 @@ impl EvalCtx<'_> {
                 .at(obj.span)),
             },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
-                Ok(ValueData::Num(vec.get(index_value.ref_to()?)))
+                Ok(ValueData::Num(vec.get(index_value.ref_to()?)).at(index_span))
             }
             ValueData::Custom(v) => v.index_get(obj.span, index_value),
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
@@ -496,7 +497,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::ExportFrom(items, source) => {
-                self.for_each_item_from_map(items, source, |this, k, v| {
+                self.for_each_item_from_obj(items, source, |this, k, v| {
                     this.export(span, k, v);
                     Ok(())
                 })?;
@@ -542,7 +543,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::UseFrom(items, source) => {
-                self.for_each_item_from_map(items, source, |this, k, v| {
+                self.for_each_item_from_obj(items, source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
                         if !(old_var.is_func() && v.is_func()) {
                             let w = Warning::ShadowedVariable((k.clone(), old_var.span), false);
@@ -757,7 +758,7 @@ impl EvalCtx<'_> {
                 let &(ref args_nodes, args_span) = &**args;
                 let obj_value = self.eval(obj)?;
                 let arg_values = args_nodes.iter().map(|arg| self.eval(arg)).try_collect()?;
-                Ok(self.index_get(&obj_value, arg_values, args_span)?)
+                Ok(self.index_get(&obj_value, arg_values, args_span)?.data)
             }
             ast::NodeContents::Fn(contents) => Ok(ValueData::Fn(Arc::new(FnValue {
                 name: None,
@@ -1131,7 +1132,7 @@ impl EvalCtx<'_> {
         }
         Ok(())
     }
-    fn for_each_item_from_map(
+    fn for_each_item_from_obj(
         &mut self,
         items: &[ast::IdentAs],
         source: &ast::Node,
@@ -1139,13 +1140,17 @@ impl EvalCtx<'_> {
     ) -> Result<()> {
         let source = self.eval(source)?;
         let source_span = source.span;
-        let m = source.unwrap_or_clone_arc::<Map>()?;
         for item in items {
             let alias = self.substr(item.alias());
-            let value = m
-                .get(&self[item.target])
-                .ok_or(Error::UndefinedIn(source_span).at(item.target))?;
-            f(self, alias, value.clone())?;
+            let value = self.index_get(
+                &source,
+                vec![ValueData::Str(self[item.target].into()).at(item.target)],
+                item.target,
+            )?;
+            if value.is_null() {
+                return Err(Error::UndefinedIn(source_span).at(item.target));
+            };
+            f(self, alias, value)?;
         }
         Ok(())
     }

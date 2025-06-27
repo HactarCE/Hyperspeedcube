@@ -37,12 +37,12 @@ macro_rules! impl_simple_custom_type {
         }
     };
     (@method field_get = $method_impl:expr) => {
-        fn field_get(&self, self_span: Span, field: Spanned<&str>) -> Result<Option<ValueData>> {
+        fn field_get(&self, self_span: $crate::Span, field: $crate::Spanned<&str>) -> $crate::Result<Option<$crate::ValueData>> {
             $method_impl(self, self_span, field)
         }
     };
     (@method index_get = $method_impl:expr) => {
-        fn index_get(&self, self_span: Span, index: &Value) -> Result<ValueData> {
+        fn index_get(&self, self_span: $crate::Span, index: &$crate::Value) -> Result<$crate::Value> {
             $method_impl(self, self_span, index)
         }
     };
@@ -78,10 +78,10 @@ impl_dyn_clone!(for BoxDynValue);
 /// impl_ty!(MyCustomType = "MyCustomType");
 /// impl CustomValue for MyCustomType {
 ///     // ...
-/// # fn type_name(&self) -> &'static str { unimplemented!() }
-/// # fn clone_dyn(&self) -> BoxDynValue { unimplemented!() }
-/// # fn fmt(&self, f: &mut std::fmt::Formatter<'_>, is_debug: bool) -> std::fmt::Result { unimplemented!() }
-/// # fn field_get(&self, self_span: Span, field: &str, field_span: Span) -> Result<Option<ValueData>> { unimplemented!() }
+/// #   fn type_name(&self) -> &'static str { unimplemented!() }
+/// #   fn clone_dyn(&self) -> BoxDynValue { unimplemented!() }
+/// #   fn fmt(&self, f: &mut std::fmt::Formatter<'_>, is_debug: bool) -> std::fmt::Result { unimplemented!() }
+/// #   fn eq(&self, other: &BoxDynValue) -> Option<bool> { unimplemented!() }
 /// }
 /// ```
 pub trait CustomValue: Any + Send + Sync {
@@ -119,7 +119,7 @@ pub trait CustomValue: Any + Send + Sync {
     }
 
     /// Indexes the type.
-    fn index_get(&self, self_span: Span, _index: &Value) -> Result<ValueData> {
+    fn index_get(&self, self_span: Span, _index: &Value) -> Result<Value> {
         Err(Error::CannotIndex(Type::Custom(self.type_name())).at(self_span))
     }
 

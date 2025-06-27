@@ -6,6 +6,10 @@ use hypermath::prelude::*;
 use crate::{Error, ErrorExt, Num, Result, Scope};
 
 pub fn define_in(scope: &Scope) -> Result<()> {
+    scope.register_builtin_functions(hps_fns![("*", |_, t1: Motor, t2: Motor| -> Motor {
+        t1 * t2
+    })])?;
+
     scope.register_builtin_functions(hps_fns![
         /// `ident()` constructs the identity transformation. It requires
         /// `#ndim` to be defined.

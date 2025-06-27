@@ -64,6 +64,14 @@ pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<
         fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
             todo!("transform symmetry")
         }
+
+        fn rev(ctx: EvalCtx, twist: HpsTwist) -> Option<HpsTwist> {
+            let rev_id = twist.twists.lock().inverse(twist.id).at(ctx.caller_span)?;
+            rev_id.map(|id| HpsTwist {
+                id,
+                twists: twist.twists.clone(),
+            })
+        }
     ])?;
 
     Ok(())

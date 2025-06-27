@@ -75,6 +75,9 @@ pub struct TwistSystemBuilder {
     /// Whether the twist system is shared (as opposed to ad-hoc defined for a
     /// single puzzle).
     pub is_shared: bool,
+
+    /// Exports from the Hyperpuzzlescript `build` function.
+    pub hps_exports: Arc<hyperpuzzlescript::Map>,
 }
 impl TwistSystemBuilder {
     /// Constructs a new shared twist system.
@@ -108,6 +111,7 @@ impl TwistSystemBuilder {
             directions: IndexMap::new(),
             is_modified: false,
             is_shared: false,
+            hps_exports: Arc::new(hyperpuzzlescript::Map::new()),
         }
     }
 
@@ -305,6 +309,8 @@ impl TwistSystemBuilder {
             twist_from_transform: Arc::new(twist_from_transform),
 
             gizmo_pole_distances: Arc::new(gizmo_pole_distances),
+
+            hps_exports: Arc::clone(&self.hps_exports),
         };
 
         let twist_axes = Arc::new(twists.map_ref(|_, twist_info| twist_info.axis));
@@ -419,6 +425,8 @@ impl TwistSystemBuilder {
 
             is_modified: false,
             is_shared: true,
+
+            hps_exports: Arc::clone(&engine_data.hps_exports),
         })
     }
 }

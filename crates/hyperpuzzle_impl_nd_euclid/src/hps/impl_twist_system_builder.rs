@@ -10,14 +10,15 @@ use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::{
-    ArcMut, HpsAxis, HpsNdEuclid, HpsOrbitNames, HpsOrbitNamesComponent, HpsPuzzle, HpsSymmetry,
-    HpsTwist, HpsTwistSystem, Names,
+    ArcMut, HpsAxis, HpsNdEuclid, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist,
+    HpsTwistSystem, Names,
 };
 use crate::{PerReferenceVector, builder::*};
 
 impl_simple_custom_type!(
     HpsTwistSystem = "euclid.TwistSystem",
     field_get = Self::field_get,
+    index_get = Self::index_get_twist,
 );
 impl fmt::Debug for HpsTwistSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -27,6 +28,28 @@ impl fmt::Debug for HpsTwistSystem {
 impl fmt::Display for HpsTwistSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}(id = {:?})", self.type_name(), self.lock().id)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct HpsAxisSystem(HpsTwistSystem);
+impl_simple_custom_type!(
+    HpsAxisSystem = "euclid.AxisSystem",
+    index_get = Self::index_get,
+);
+impl fmt::Debug for HpsAxisSystem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+impl fmt::Display for HpsAxisSystem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}(id = {:?})", self.type_name(), self.0.lock().id)
+    }
+}
+impl HpsAxisSystem {
+    fn index_get(&self, span: Span, index: &Value) -> Result<Value> {
+        self.0.index_get_axis(span, index)
     }
 }
 
@@ -70,7 +93,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                         caller_span,
                         exports: &mut None,
                     };
-                    build_fn
+                    let exports = build_fn
                         .call(
                             build_span,
                             &mut ctx,
@@ -83,7 +106,10 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                             eyre!(s)
                         })?;
 
-                    let b = builder.lock();
+                    let mut b = builder.lock();
+                    if let Ok(exports_map) = exports.to::<Arc<Map>>() {
+                        b.hps_exports = exports_map;
+                    }
 
                     let puzzle_id = None;
                     b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
@@ -96,7 +122,8 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
 
 /// Adds the built-ins to the scope.
 pub fn define_in(scope: &Scope) -> Result<()> {
-    scope.register_custom_type::<HpsPuzzle>();
+    scope.register_custom_type::<HpsTwistSystem>();
+    scope.register_custom_type::<HpsAxisSystem>();
 
     scope.register_builtin_functions(hps_fns![
         fn add_axis(ctx: EvalCtx, this: HpsTwistSystem, vector: Vector) -> Option<HpsAxis> {
@@ -385,8 +412,28 @@ impl HpsTwistSystem {
     ) -> Result<Option<ValueData>> {
         Ok(match field {
             "axes" => Some(ValueData::Map(Arc::new(self.axis_name_map(field_span)))),
-            _ => None,
+            other => self.lock().hps_exports.get(other).cloned().map(|v| v.data),
         })
+    }
+    fn index_get_twist(&self, _span: Span, index: &Value) -> Result<Value> {
+        let this = self.lock();
+        match this.names.id_from_string(index.as_ref::<str>()?) {
+            Some(id) => {
+                let twists = self.clone();
+                Ok(HpsTwist { id, twists }.at(BUILTIN_SPAN))
+            }
+            None => Ok(Value::NULL),
+        }
+    }
+    fn index_get_axis(&self, _span: Span, index: &Value) -> Result<Value> {
+        let this = self.lock();
+        match this.axes.names.id_from_string(index.as_ref::<str>()?) {
+            Some(id) => {
+                let twists = self.clone();
+                Ok(HpsAxis { id, twists }.at(BUILTIN_SPAN))
+            }
+            None => Ok(Value::NULL),
+        }
     }
 
     pub fn axis_name_map(&self, span: Span) -> Map {

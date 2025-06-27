@@ -28,6 +28,9 @@ pub struct NdEuclidTwistSystemEngineData {
 
     /// Gizmo pole distance for each twist.
     pub gizmo_pole_distances: Arc<PerTwist<Option<f32>>>,
+
+    /// Exports from the Hyperpuzzlescript `build` function.
+    pub hps_exports: Arc<hyperpuzzlescript::Map>,
 }
 impl TwistSystemEngineData for NdEuclidTwistSystemEngineData {}
 

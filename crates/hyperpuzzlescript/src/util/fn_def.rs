@@ -33,8 +33,8 @@
 ///     // For overloads, just add more definitions of the same function.
 ///     // `ctx` and `#[kwargs(...)]` are optional.
 ///     // Return type annotations are required. Use `()` for `Type::Null`.
-///     fn my_function(arg1: String) -> () {
-///         println!("{arg1}");
+///     fn my_function(arg1: Vec<i64>) -> () {
+///         println!("{arg1:?}");
 ///     }
 ///     // Sequential and/or keyword arguments may be variable.
 ///     #[kwargs(var_containing_kwargs)]
@@ -43,7 +43,7 @@
 ///     }
 ///     // Function type signature can be overwritten
 ///     #[fn_type(FnType {
-///         params: vec![Type::Str],
+///         params: vec![Type::Num],
 ///         is_variadic: true,
 ///         ret: Type::Null,
 ///     })]
