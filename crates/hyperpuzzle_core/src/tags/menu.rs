@@ -63,7 +63,7 @@ impl AllTags {
             list: false,
         };
 
-        // Recursively assemble the othe,r tag indexes from the menu
+        // Recursively assemble the other tag indexes from the menu
         // specification. Order is important for `tags_list`.
         let mut schema = 0;
         let mut stack = vec![&menu];
