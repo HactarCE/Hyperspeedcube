@@ -14,9 +14,7 @@ pub use file_store::Modules;
 pub use scope::{ParentScope, Scope};
 pub use special::SpecialVariables;
 
-use crate::{
-    FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast, engines::PuzzleEngineCallback,
-};
+use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast, engines};
 
 /// Script runtime.
 pub struct Runtime {
@@ -25,7 +23,9 @@ pub struct Runtime {
     /// Built-ins to be imported into every file.
     pub builtins: Arc<Scope>,
     /// Registered puzzle engines.
-    pub puzzle_engines: HashMap<String, PuzzleEngineCallback>,
+    pub puzzle_engines: HashMap<String, engines::PuzzleEngineCallback>,
+    /// Registered twist system engines.
+    pub twist_system_engines: HashMap<String, engines::TwistSystemEngineCallback>,
 
     /// Function to call on print.
     pub on_print: Box<dyn Send + Sync + FnMut(String)>,
@@ -48,6 +48,7 @@ impl Default for Runtime {
             modules: Default::default(),
             builtins: Scope::new(),
             puzzle_engines: HashMap::new(),
+            twist_system_engines: HashMap::new(),
 
             on_print: Box::new(|s| println!("[INFO] {s}")),
             on_diagnostic: Box::new(|files, e| eprintln!("{}", e.to_string(files))),
@@ -182,6 +183,15 @@ impl Runtime {
         for e in errors {
             self.report_diagnostic(e);
         }
+    }
+
+    /// Registers a puzzle engine for the runtime.
+    pub fn register_puzzle_engine(&mut self, callback: engines::PuzzleEngineCallback) {
+        self.puzzle_engines.insert(callback.name(), callback);
+    }
+    /// Registers a twist system engine for the runtime.
+    pub fn register_twist_system_engine(&mut self, callback: engines::TwistSystemEngineCallback) {
+        self.twist_system_engines.insert(callback.name(), callback);
     }
 }
 

@@ -3,8 +3,8 @@ use std::{fmt, ops::Add, sync::Arc};
 use hypermath::{ApproxHashMap, Point, pga::Motor};
 use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
-    CustomValue, ErrorExt, EvalCtx, FnValue, Map, Result, Scope, Span, Spanned, Str, TryEq, Type,
-    Value, ValueData, hps_fns, impl_simple_custom_type,
+    CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Scope, Span, Spanned, Str,
+    TryEq, Type, TypeOf, Value, ValueData, hps_fns, impl_simple_custom_type, impl_ty,
 };
 use hypershape::{GenSeq, GeneratorId};
 use itertools::Itertools;
@@ -70,6 +70,27 @@ pub fn define_in(scope: &Scope) -> Result<()> {
     ])?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct Names(pub HpsOrbitNames);
+impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty());
+impl FromValue for Names {
+    fn from_value(value: Value) -> Result<Self> {
+        let span = value.span;
+        if value.as_ref::<str>().is_ok() {
+            Ok(Self(HpsOrbitNames::from((value.to::<Str>()?.into(), span))))
+        } else if value.as_ref::<HpsOrbitNames>().is_ok() {
+            Ok(Self(value.to::<HpsOrbitNames>()?))
+        } else if value.as_ref::<FnValue>().is_ok() {
+            Ok(Self(HpsOrbitNames::from((
+                HpsOrbitNamesComponent::Fn(value.to::<Arc<FnValue>>()?),
+                span,
+            ))))
+        } else {
+            Err(value.type_error(Self::hps_ty()))
+        }
+    }
 }
 
 #[derive(Default, Clone)]

@@ -97,7 +97,7 @@ pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     human_sort::compare(a, b)
 }
 
-/// Validates an ID string for a catalog entry.
+/// Validates an ID string for a catalog object.
 pub fn validate_id(s: &str) -> eyre::Result<()> {
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
         Ok(())

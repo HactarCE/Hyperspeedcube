@@ -22,7 +22,7 @@ use diagnostic::LoopControlFlow;
 pub use diagnostic::{
     Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine, Warning,
 };
-pub use engines::EngineCallback;
+pub use engines::{EngineCallback, IdAndName, PuzzleEngineCallback};
 pub use request::EvalRequestTx;
 pub use runtime::{EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};

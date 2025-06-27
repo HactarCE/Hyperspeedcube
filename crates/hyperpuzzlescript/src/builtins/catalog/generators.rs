@@ -1,3 +1,7 @@
+//! Utility functions for defining generators for catalog entries.
+//!
+//! This module does not actually define any HPS API.
+
 use std::sync::Arc;
 
 use hyperpuzzle_core::{GeneratorParam, GeneratorParamType, GeneratorParamValue, Redirectable};

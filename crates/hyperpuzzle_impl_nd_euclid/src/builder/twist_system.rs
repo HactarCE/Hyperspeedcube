@@ -78,8 +78,9 @@ pub struct TwistSystemBuilder {
 }
 impl TwistSystemBuilder {
     /// Constructs a new shared twist system.
-    pub fn new_shared(id: String, ndim: u8) -> Self {
+    pub fn new_shared(id: String, name: Option<String>, ndim: u8) -> Self {
         Self {
+            name,
             is_shared: true,
             ..Self::new(id, ndim)
         }

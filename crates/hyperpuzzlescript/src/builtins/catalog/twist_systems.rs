@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use ecow::eco_format;
 use eyre::eyre;
 use hyperpuzzle_core::{
-    Catalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, TagSet, catalog::BuildTask,
+    Catalog,
+    catalog::{BuildTask, Generator, TwistSystemSpec},
 };
 use itertools::Itertools;
 
@@ -14,21 +15,19 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
     let cat = catalog.clone();
     let tx = eval_tx.clone();
     scope.register_builtin_functions(hps_fns![
-        /// Adds a puzzle to the catalog.
+        /// Adds a twist system to the catalog.
         ///
         /// This function takes the following named arguments:
         ///
         /// - `id: Str`
         /// - `name: Str?`
-        /// - `aliases: List[Str]?`
-        /// - `tags: Map?`
         /// - `engine: Str`
         ///
         /// The function takes other keyword arguments depending on the value of
         /// `engine`.
         #[kwargs(kwargs)]
-        fn add_puzzle(ctx: EvalCtx) -> () {
-            cat.add_puzzle(Arc::new(puzzle_spec_from_kwargs(ctx, kwargs, &cat, &tx)?))
+        fn add_twist_system(ctx: EvalCtx) -> () {
+            cat.add_twist_system(Arc::new(twist_system_from_kwargs(ctx, kwargs, &cat, &tx)?))
                 .at(ctx.caller_span)?
         }
     ])?;
@@ -36,41 +35,36 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
     let cat = catalog.clone();
     let tx = eval_tx.clone();
     scope.register_builtin_functions(hps_fns![
-        /// Adds a puzzle generator to the catalog.
+        /// Adds a twist system generator to the catalog.
         ///
         /// This function takes the following named arguments:
         ///
         /// - `id: Str`
         /// - `name: Str?`
-        /// - `aliases: List[Str]?`
         /// - `version: Str?`
-        /// - `tags: Map?`
         /// - `params: List[Map]`
-        /// - `examples: List[Map]`
         /// - `gen: Fn(..) -> Map`
         #[kwargs(
             id: String,
             name: String = {
-                ctx.warn(eco_format!("missing `name` for puzzle generator `{id}`"));
+                ctx.warn(eco_format!("missing `name` for twist system generator `{id}`"));
                 id.clone()
             },
-            aliases: Vec<String> = vec![],
             version: Option<String>,
-            tags: Option<Arc<Map>>,
             params: Vec<Spanned<Arc<Map>>> ,
-            examples: Vec<Spanned<Arc<Map>>> = vec![],
             (r#gen, gen_span): Arc<FnValue>,
         )]
-        fn add_puzzle_generator(ctx: EvalCtx) -> () {
+        fn add_twist_system_generator(ctx: EvalCtx) -> () {
             let caller_span = ctx.caller_span;
 
             let cat2 = cat.clone();
             let tx = tx.clone();
 
-            let version =
-                super::parse_version(ctx, &format!("puzzle generator `{id}`"), version.as_deref())?;
-
-            let tags = TagSet::new(); // TODO
+            let version = super::parse_version(
+                ctx,
+                &format!("twist system generator `{id}`"),
+                version.as_deref(),
+            )?;
 
             let meta = super::generators::GeneratorMeta {
                 id,
@@ -79,16 +73,10 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
                 gen_span,
             };
 
-            let spec = PuzzleSpecGenerator {
-                meta: Arc::new(PuzzleListMetadata {
-                    id: meta.id.clone(),
-                    version,
-                    name,
-                    aliases,
-                    tags,
-                }),
+            let spec = Generator {
+                id: meta.id.clone(),
+                name,
                 params: meta.params.clone(),
-                examples: HashMap::new(), // TODO
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
 
@@ -109,8 +97,7 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
                         // IIFE to mimic try_block
                         (|| {
                             meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
-                                // TODO: add tags
-                                puzzle_spec_from_kwargs(&mut ctx, spec, &cat2, &tx2).map(Arc::new)
+                                twist_system_from_kwargs(&mut ctx, spec, &cat2, &tx2).map(Arc::new)
                             })
                         })()
                         .map_err(|e| {
@@ -122,42 +109,37 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
                 }),
             };
 
-            cat.add_puzzle_generator(Arc::new(spec))
+            cat.add_twist_system_generator(Arc::new(spec))
                 .at(ctx.caller_span)?
         }
     ])
 }
 
-fn puzzle_spec_from_kwargs(
+fn twist_system_from_kwargs(
     ctx: &mut EvalCtx<'_>,
     mut kwargs: Map,
     catalog: &Catalog,
     eval_tx: &EvalRequestTx,
-) -> Result<PuzzleSpec> {
+) -> Result<TwistSystemSpec> {
     pop_kwarg!(kwargs, id: String);
     pop_kwarg!(kwargs, name: String = {
-        ctx.warn(eco_format!("missing `name` for puzzle `{id}`"));
+        ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
         id.clone()
     });
-    pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
     pop_kwarg!(kwargs, version: Option<String>);
-    pop_kwarg!(kwargs, tags: Option<Arc<Map>>); // TODO
     pop_kwarg!(kwargs, (engine, engine_span): Str);
 
-    let version = super::parse_version(ctx, &format!("puzzle `{id}`"), version.as_deref())?;
+    let version = super::parse_version(ctx, &format!("twist system `{id}`"), version.as_deref())?;
 
-    let tags = TagSet::new(); // TODO
+    let meta = crate::IdAndName { id, name };
 
-    let meta = PuzzleListMetadata {
-        id,
-        version,
-        name,
-        aliases,
-        tags,
-    };
-
-    let Some(engine) = ctx.runtime.puzzle_engines.get(&*engine).map(Arc::clone) else {
-        let engine_list = ctx.runtime.puzzle_engines.keys().collect_vec();
+    let Some(engine) = ctx
+        .runtime
+        .twist_system_engines
+        .get(&*engine)
+        .map(Arc::clone)
+    else {
+        let engine_list = ctx.runtime.twist_system_engines.keys().collect_vec();
         return Err(
             format!("unknown engine {engine:?}; supported engines: {engine_list:?}",)
                 .at(engine_span),

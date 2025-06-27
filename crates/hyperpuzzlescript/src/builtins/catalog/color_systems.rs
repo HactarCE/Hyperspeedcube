@@ -18,6 +18,14 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
     let cat = catalog.clone();
     scope.register_builtin_functions(hps_fns![
         /// Adds a color system to the catalog.
+        ///
+        /// This function takes the following named arguments:
+        ///
+        /// - `id: Str`
+        /// - `name: Str?`
+        /// - `colors: List[Map]`
+        /// - `schemes: List[List]?`
+        /// - `default: Str?`
         #[kwargs(kwargs)]
         fn add_color_system(ctx: EvalCtx) -> () {
             cat.add_color_system(Arc::new(color_system_from_kwargs(ctx, kwargs)?))
@@ -29,6 +37,13 @@ pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> R
     let tx = eval_tx.clone();
     scope.register_builtin_functions(hps_fns![
         /// Adds a color system generator to the catalog.
+        ///
+        /// This function takes the following named arguments:
+        ///
+        /// - `id: Str`
+        /// - `name: Str?`
+        /// - `params: List[Map]`
+        /// - `gen: Fn(..) -> Map`
         #[kwargs(
             id: String,
             name: String = {

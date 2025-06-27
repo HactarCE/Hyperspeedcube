@@ -733,8 +733,7 @@ pub fn twist_system_spec_from_rhai_map(
 
     let create_twist_system_builder =
         move |_build_ctx: &BuildCtx| -> eyre::Result<RhaiTwistSystem> {
-            let mut builder = TwistSystemBuilder::new_shared(id.clone(), ndim);
-            builder.name = name.clone();
+            let mut builder = TwistSystemBuilder::new_shared(id.clone(), name.clone(), ndim);
 
             Ok(RhaiTwistSystem::new(builder))
         };

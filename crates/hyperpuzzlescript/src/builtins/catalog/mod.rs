@@ -6,6 +6,7 @@ use hyperpuzzle_core::{Catalog, Version};
 mod color_systems;
 mod generators;
 mod puzzles;
+mod twist_systems;
 
 use crate::{EvalCtx, EvalRequestTx, Result, Scope};
 
@@ -13,6 +14,7 @@ use crate::{EvalCtx, EvalRequestTx, Result, Scope};
 pub fn define_in(scope: &Scope, catalog: &Catalog, eval_tx: &EvalRequestTx) -> Result<()> {
     color_systems::define_in(scope, catalog, eval_tx)?;
     puzzles::define_in(scope, catalog, eval_tx)?;
+    twist_systems::define_in(scope, catalog, eval_tx)?;
     Ok(())
 }
 

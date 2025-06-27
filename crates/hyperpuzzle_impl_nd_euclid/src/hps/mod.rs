@@ -1,6 +1,6 @@
 //! Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use hypermath::{Point, Vector, pga::Motor};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
@@ -10,12 +10,12 @@ use parking_lot::{Mutex, MutexGuard};
 use crate::{
     TwistKey,
     builder::{AxisSystemBuilder, PuzzleBuilder, ShapeBuilder, TwistSystemBuilder},
-    hps::impl_puzzle_builder::Names,
 };
 
 mod axis;
 mod color;
 mod impl_puzzle_builder;
+mod impl_twist_system_builder;
 mod orbit_names;
 mod symmetry;
 mod twist;
@@ -23,18 +23,24 @@ mod twist;
 // use name_strategy::{HpsNameFn, HpsNameStrategy};
 use axis::HpsAxis;
 use color::HpsColor;
-use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent};
+use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
 use symmetry::HpsSymmetry;
 use twist::HpsTwist;
 
 /// Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
 pub struct HpsNdEuclid;
+impl fmt::Display for HpsNdEuclid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "euclid")
+    }
+}
 
 /// Adds the built-ins to the scope.
 pub fn define_in(scope: &hyperpuzzlescript::Scope) -> hyperpuzzlescript::Result<()> {
     scope.register_custom_type::<HpsAxis>();
     scope.register_custom_type::<HpsColor>();
     impl_puzzle_builder::define_in(scope)?;
+    impl_twist_system_builder::define_in(scope)?;
     orbit_names::define_in(scope)?;
     symmetry::define_in(scope)?;
     scope.register_custom_type::<HpsTwist>();

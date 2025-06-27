@@ -74,10 +74,8 @@ pub fn load_catalog(catalog: &Catalog) {
     // Add puzzle engines.
     hyperpuzzle_impl_nd_euclid::hps::define_in(&runtime.builtins)
         .expect("error defining HPS euclid built-ins");
-    runtime.puzzle_engines.insert(
-        "euclid".into(),
-        Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid),
-    );
+    runtime.register_puzzle_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
+    runtime.register_twist_system_engine(Arc::new(hyperpuzzle_impl_nd_euclid::hps::HpsNdEuclid));
 
     // Load user files.
     runtime.modules.add_default_files();
