@@ -139,13 +139,7 @@ impl fmt::Debug for ColorSystemGenerator {
 pub struct PuzzleListMetadata {
     /// Internal ID.
     pub id: String,
-    /// Semantic version, in the form `[major, minor, patch]`.
-    ///
-    /// - Major version changes indicate that log files may be incompatible.
-    /// - Minor version changes indicate that scrambles may be incompatible.
-    /// - Patch versions indicate any other changes, including user-facing
-    ///   changes.
-    /// - Major version `0` allows any breaking changes.
+    /// Semantic version.
     pub version: Version,
     /// Human-friendly name.
     pub name: String,

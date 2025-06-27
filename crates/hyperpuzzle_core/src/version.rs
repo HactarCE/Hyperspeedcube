@@ -2,7 +2,12 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// Semantic-ish version for a puzzle or puzzle generator.
+/// Semantic version, in the form `[major, minor, patch]`.
+///
+/// - Major version changes indicate that log files may be incompatible.
+/// - Minor version changes indicate that scrambles may be incompatible.
+/// - Patch versions indicate any other changes, including user-facing changes.
+/// - Major version `0` allows any breaking changes.
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Version {
     /// Major version number.
