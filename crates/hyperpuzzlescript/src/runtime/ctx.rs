@@ -52,13 +52,12 @@ impl EvalCtx<'_> {
                 }),
             ),
             ast::NodeContents::Index { obj, args } => {
-                let &(ref args_nodes, _args_span) = &**args;
-                let args: Vec<Value> = args_nodes.iter().map(|arg| self.eval(arg)).try_collect()?;
+                let index_arg = self.eval_index_args(args)?;
                 self.modify(
                     obj,
                     Box::new(|ctx, obj_span, obj| {
                         let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
-                        ctx.index_set(span, &mut obj, args, new_value)?;
+                        ctx.index_set(span, &mut obj, index_arg, new_value)?;
                         Ok(obj)
                     }),
                 )
@@ -215,15 +214,14 @@ impl EvalCtx<'_> {
                 }),
             ),
             ast::NodeContents::Index { obj, args } => {
-                let &(ref args_nodes, args_span) = &**args;
-                let args: Vec<Value> = args_nodes.iter().map(|arg| self.eval(arg)).try_collect()?;
+                let index_arg = self.eval_index_args(args)?;
                 self.modify(
                     obj,
                     Box::new(|ctx, obj_span, obj| {
                         let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
-                        let old_value = ctx.index_get(&obj, args.clone(), args_span)?.data.at(span);
+                        let old_value = ctx.index_get(&obj, index_arg.clone())?.data.at(span);
                         let new_value = update_fn(ctx, span, Some(old_value.clone()))?;
-                        ctx.index_set(span, &mut obj, args, new_value)?;
+                        ctx.index_set(span, &mut obj, index_arg, new_value)?;
                         Ok(obj)
                     }),
                 )
@@ -327,48 +325,39 @@ impl EvalCtx<'_> {
         }
         Err(Error::CannotSetField((obj.ty(), obj.span)).at(field))
     }
-    fn index_get(&mut self, obj: &Value, index: Vec<Value>, index_span: Span) -> Result<Value> {
-        let index_value = index.iter().exactly_one().map_err(|_| {
-            Error::WrongNumberOfIndices {
-                obj_span: obj.span,
-                count: index.len(),
-                min: 1,
-                max: 1,
-            }
-            .at(index_span)
-        })?;
+    fn index_get(&mut self, obj: &Value, index: Value) -> Result<Value> {
         match &obj.data {
             // Index string by character (O(n))
             ValueData::Str(s) => Ok(ValueData::from(crate::util::index_double_ended(
                 s.chars(),
                 || s.chars().count(),
-                index_value.ref_to()?,
+                index.ref_to()?,
             )?)
-            .at(index_span)),
+            .at(index.span)),
             // Index list by element (O(1))
-            ValueData::List(list) => Ok(crate::util::index_double_ended(
-                list.iter(),
-                || list.len(),
-                index_value.ref_to()?,
-            )?
-            .clone()),
-            ValueData::Map(map) => match &index_value.data {
+            ValueData::List(list) => {
+                Ok(
+                    crate::util::index_double_ended(list.iter(), || list.len(), index.ref_to()?)?
+                        .clone(),
+                )
+            }
+            ValueData::Map(map) => match &index.data {
                 ValueData::Str(s) => match map.get(s.as_str()) {
                     Some(v) => Ok(v.clone()),
-                    None => Ok(ValueData::Null.at(index_span)),
+                    None => Ok(ValueData::Null.at(index.span)),
                 },
-                _ => Err(index_value.type_error(Type::Str)),
+                _ => Err(index.type_error(Type::Str)),
             },
             ValueData::Type(ty) => match ty {
                 Type::List(None) => {
-                    let inner_type = index_value.clone_to()?;
+                    let inner_type = index.clone_to()?;
                     let ty = Type::List(Some(Box::new(inner_type)));
-                    Ok(ValueData::Type(ty).at(index_span))
+                    Ok(ValueData::Type(ty).at(index.span))
                 }
                 Type::NonEmptyList(None) => {
-                    let inner_type = index_value.clone_to()?;
+                    let inner_type = index.clone_to()?;
                     let ty = Type::NonEmptyList(Some(Box::new(inner_type)));
-                    Ok(ValueData::Type(ty).at(index_span))
+                    Ok(ValueData::Type(ty).at(index.span))
                 }
                 _ => Err(Error::ExpectedCollectionType {
                     got_type: ty.clone(),
@@ -376,9 +365,9 @@ impl EvalCtx<'_> {
                 .at(obj.span)),
             },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
-                Ok(ValueData::Num(vec.get(index_value.ref_to()?)).at(index_span))
+                Ok(ValueData::Num(vec.get(index.ref_to()?)).at(index.span))
             }
-            ValueData::Custom(v) => v.index_get(obj.span, index_value),
+            ValueData::Custom(v) => v.index_get(obj.span, index),
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
     }
@@ -386,18 +375,9 @@ impl EvalCtx<'_> {
         &mut self,
         span: Span,
         obj: &mut Value,
-        index: Vec<Value>,
+        index: Value,
         new_value: Value,
     ) -> Result<()> {
-        let index_value = index.iter().exactly_one().map_err(|_| {
-            Error::WrongNumberOfIndices {
-                obj_span: obj.span,
-                count: index.len(),
-                min: 1,
-                max: 1,
-            }
-            .at(span)
-        })?;
         match &mut obj.data {
             ValueData::Str(_) => Err(Error::CannotAssignToExpr {
                 kind: "string indexing expression",
@@ -408,12 +388,12 @@ impl EvalCtx<'_> {
                 let mut_ref_value_in_list = crate::util::index_double_ended(
                     Arc::make_mut(list).iter_mut(),
                     || len,
-                    index_value.ref_to()?,
+                    index.ref_to()?,
                 )?;
                 *mut_ref_value_in_list = new_value;
                 Ok(())
             }
-            ValueData::Map(map) => match &index_value.data {
+            ValueData::Map(map) => match &index.data {
                 ValueData::Str(s) => {
                     let map = Arc::make_mut(map);
                     if new_value.is_null() {
@@ -423,10 +403,10 @@ impl EvalCtx<'_> {
                     }
                     Ok(())
                 }
-                _ => Err(index_value.type_error(Type::Str)),
+                _ => Err(index.type_error(Type::Str)),
             },
             ValueData::Vec(vec) | ValueData::EuclidPoint(hypermath::Point(vec)) => {
-                vec.resize_and_set(index_value.ref_to()?, new_value.ref_to()?);
+                vec.resize_and_set(index.ref_to()?, new_value.ref_to()?);
                 Ok(())
             }
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
@@ -497,7 +477,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::ExportFrom(items, source) => {
-                self.for_each_item_from_obj(items, source, |this, k, v| {
+                self.for_each_field(items, source, |this, k, v| {
                     this.export(span, k, v);
                     Ok(())
                 })?;
@@ -543,7 +523,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::UseFrom(items, source) => {
-                self.for_each_item_from_obj(items, source, |this, k, v| {
+                self.for_each_field(items, source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k) {
                         if !(old_var.is_func() && v.is_func()) {
                             let w = Warning::ShadowedVariable((k.clone(), old_var.span), false);
@@ -752,10 +732,9 @@ impl EvalCtx<'_> {
                 Ok(self.field_get(&obj_value, *field)?)
             }
             ast::NodeContents::Index { obj, args } => {
-                let &(ref args_nodes, args_span) = &**args;
                 let obj_value = self.eval(obj)?;
-                let arg_values = args_nodes.iter().map(|arg| self.eval(arg)).try_collect()?;
-                Ok(self.index_get(&obj_value, arg_values, args_span)?.data)
+                let index_arg = self.eval_index_args(args)?;
+                Ok(self.index_get(&obj_value, index_arg)?.data)
             }
             ast::NodeContents::Fn(contents) => Ok(ValueData::Fn(Arc::new(FnValue {
                 name: None,
@@ -1024,6 +1003,18 @@ impl EvalCtx<'_> {
         })
     }
 
+    fn eval_index_args(&mut self, args: &Spanned<Vec<ast::Node>>) -> Result<Value> {
+        let &(ref args_nodes, args_span) = args;
+        match args_nodes.as_slice() {
+            [] => Ok(ValueData::Null.at(args_span)),
+            [arg] => self.eval(arg),
+            args => Ok(ValueData::List(Arc::new(
+                args.iter().map(|arg| self.eval(arg)).try_collect()?,
+            ))
+            .at(args_span)),
+        }
+    }
+
     fn set_var(&self, span: Span, value: impl Into<ValueData>) {
         self.scope.set(self.substr(span), value.into().at(span));
     }
@@ -1128,23 +1119,22 @@ impl EvalCtx<'_> {
         }
         Ok(())
     }
-    fn for_each_item_from_obj(
+    fn for_each_field(
         &mut self,
-        items: &[ast::IdentAs],
+        fields: &[ast::IdentAs],
         source: &ast::Node,
         mut f: impl FnMut(&mut Self, Key, Value) -> Result<()>,
     ) -> Result<()> {
         let source = self.eval(source)?;
         let source_span = source.span;
-        for item in items {
-            let alias = self.substr(item.alias());
+        for field in fields {
+            let alias = self.substr(field.alias());
             let value = self.index_get(
                 &source,
-                vec![ValueData::Str(self[item.target].into()).at(item.target)],
-                item.target,
+                ValueData::Str(self[field.target].into()).at(field.target),
             )?;
             if value.is_null() {
-                return Err(Error::UndefinedIn(source_span).at(item.target));
+                return Err(Error::UndefinedIn(source_span).at(field.target));
             };
             f(self, alias, value)?;
         }

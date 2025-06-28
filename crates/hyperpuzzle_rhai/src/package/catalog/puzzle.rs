@@ -119,7 +119,7 @@ pub fn register(module: &mut Module, catalog: &Catalog, eval_tx: &RhaiEvalReques
                 }
                 drop(shape);
 
-                let axis_layers = &mut puz.axis_layers().eyrefmt()?[axis].0;
+                let axis_layers = &mut puz.axis_layers[axis].0; // TODO: this is broken now!
                 for layer in depths.windows(2) {
                     axis_layers
                         .push(AxisLayerBuilder {

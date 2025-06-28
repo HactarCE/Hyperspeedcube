@@ -8,6 +8,7 @@ use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
+use smallvec::{SmallVec, smallvec};
 
 use super::shape::ShapeBuildOutput;
 use super::{AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
@@ -20,6 +21,8 @@ pub struct PuzzleBuilder {
     /// Puzzle metadata.
     pub meta: Arc<PuzzleListMetadata>,
 
+    /// Space in which the puzzle is constructed.
+    pub space: Arc<Space>,
     /// Shape of the puzzle.
     pub shape: Arc<Mutex<ShapeBuilder>>,
     /// Twist system of the puzzle.
@@ -28,9 +31,9 @@ pub struct PuzzleBuilder {
     /// Layer data for each layer on the axis, in order from outermost to
     /// innermost.
     ///
-    /// This is private because we must resize it whenever it is accessed to
-    /// ensure it's the same length as `twists.axes`.
-    axis_layers: PerAxis<AxisLayersBuilder>,
+    /// Axes may be missing from this! Always ensure it is long enough before
+    /// mutating.
+    pub axis_layers: PerAxis<AxisLayersBuilder>,
 
     /// Number of moves for a full scramble.
     pub full_scramble_length: u32,
@@ -41,11 +44,13 @@ impl PuzzleBuilder {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
-        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Space::new(ndim))?;
+        let space = Space::new(ndim);
+        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Arc::clone(&space))?;
         let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
         Ok(Self {
             meta,
 
+            space,
             shape: Arc::new(Mutex::new(shape)),
             twists: Arc::new(Mutex::new(twists)),
 
@@ -56,20 +61,54 @@ impl PuzzleBuilder {
     }
 
     /// Returns the nubmer of dimensions of the underlying space the puzzle is
-    /// built in. Equivalent to `self.shape.lock().space.ndim()`.
+    /// built in. Equivalent to `self.space.ndim()`.
     pub fn ndim(&self) -> u8 {
-        self.shape.lock().space.ndim()
-    }
-    /// Returns the underlying space the puzzle is built in. Equivalent to
-    /// `self.shape.lock().space`
-    pub fn space(&self) -> Arc<Space> {
-        Arc::clone(&self.shape.lock().space)
+        self.space.ndim()
     }
 
-    /// Returns a mutable reference to the axis layers.
-    pub fn axis_layers(&mut self) -> Result<&mut PerAxis<AxisLayersBuilder>> {
-        self.axis_layers.resize(self.twists.lock().axes.len())?;
-        Ok(&mut self.axis_layers)
+    /// Returns a mutable reference to the axis layers. All layers are
+    /// guaranteed to exist.
+    pub fn axis_layers(&self, axis: Axis) -> &AxisLayersBuilder {
+        self.axis_layers
+            .get(axis)
+            .unwrap_or(const { &AxisLayersBuilder::new() })
+    }
+    /// Returns a union-of-intersections of bounded regions for the given layer
+    /// mask.
+    pub fn plane_bounded_regions(
+        &self,
+        axis: Axis,
+        axis_vector: &Vector,
+        layer_mask: LayerMask,
+    ) -> Result<Vec<SmallVec<[Hyperplane; 2]>>> {
+        // TODO: optimize by removing overlapping planes
+        layer_mask
+            .iter()
+            .map(|layer| self.boundary_of_layer(axis, axis_vector, layer))
+            .collect()
+    }
+    /// Returns the hyperplanes bounding a layer.
+    fn boundary_of_layer(
+        &self,
+        axis: Axis,
+        axis_vector: &Vector,
+        layer: Layer,
+    ) -> Result<SmallVec<[Hyperplane; 2]>> {
+        let layers = self.axis_layers(axis);
+
+        let l = layers.0.get(layer)?;
+        let mut ret = smallvec![];
+        if l.top.is_finite() {
+            ret.push(Hyperplane::new(&axis_vector, l.top).ok_or_eyre("bad axis vector")?);
+        }
+        if l.bottom.is_finite() {
+            ret.push(
+                Hyperplane::new(&axis_vector, l.bottom)
+                    .ok_or_eyre("bad axis vector")?
+                    .flip(),
+            );
+        }
+        Ok(ret)
     }
 
     /// Performs the final steps of building a puzzle, generating the mesh and

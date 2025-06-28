@@ -17,12 +17,14 @@ mod color;
 mod impl_puzzle_builder;
 mod impl_twist_system_builder;
 mod orbit_names;
+mod region;
 mod symmetry;
 mod twist;
 
 use axis::{HpsAxis, axis_from_vector, axis_name, transform_axis};
 use color::HpsColor;
 use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
+use region::HpsRegion;
 use symmetry::HpsSymmetry;
 use twist::{HpsTwist, transform_twist, twist_name};
 
@@ -41,6 +43,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
     impl_puzzle_builder::define_in(builtins)?;
     impl_twist_system_builder::define_in(builtins)?;
     orbit_names::define_in(builtins)?;
+    region::define_in(builtins)?;
     symmetry::define_in(builtins)?;
     builtins.set_custom_ty::<HpsTwist>()?;
 
@@ -60,6 +63,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             drop(twists);
             let twists = object.twists;
             HpsTwist { id, twists }
+        }
+        fn transform(transform: Motor, object: HpsRegion) -> HpsRegion {
+            transform.transform(&object)
         }
         // fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
         //     todo!("transform names")

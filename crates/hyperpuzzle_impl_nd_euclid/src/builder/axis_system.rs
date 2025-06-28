@@ -5,7 +5,6 @@ use eyre::{OptionExt, Result, eyre};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
-use smallvec::{SmallVec, smallvec};
 
 use crate::NdEuclidTwistSystemEngineData;
 
@@ -22,41 +21,6 @@ impl AxisBuilder {
     /// Returns the axis's vector.
     pub fn vector(&self) -> &Vector {
         &self.vector
-    }
-
-    /// Returns a union-of-intersections of bounded regions for the given layer
-    /// mask.
-    pub fn plane_bounded_regions(
-        &self,
-        layers: &AxisLayersInfo,
-        layer_mask: LayerMask,
-    ) -> Result<Vec<SmallVec<[Hyperplane; 2]>>> {
-        // TODO: optimize
-        layer_mask
-            .iter()
-            .map(|layer| self.boundary_of_layer(layers, layer))
-            .collect()
-    }
-
-    /// Returns the hyperplanes bounding a layer.
-    pub fn boundary_of_layer(
-        &self,
-        layers: &AxisLayersInfo,
-        layer: Layer,
-    ) -> Result<SmallVec<[Hyperplane; 2]>> {
-        let l = layers.0.get(layer)?;
-        let mut ret = smallvec![];
-        if l.top.is_finite() {
-            ret.push(Hyperplane::new(&self.vector, l.top).ok_or_eyre("bad axis vector")?);
-        }
-        if l.bottom.is_finite() {
-            ret.push(
-                Hyperplane::new(&self.vector, l.bottom)
-                    .ok_or_eyre("bad axis vector")?
-                    .flip(),
-            );
-        }
-        Ok(ret)
     }
 }
 

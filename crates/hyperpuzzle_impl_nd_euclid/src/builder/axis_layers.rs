@@ -7,6 +7,11 @@ use itertools::Itertools;
 #[derive(Debug, Clone, Default)]
 pub struct AxisLayersBuilder(pub PerLayer<AxisLayerBuilder>);
 impl AxisLayersBuilder {
+    /// Constructs a new empty layer list.
+    pub const fn new() -> Self {
+        Self(PerLayer::new())
+    }
+
     /// Returns an error if the layers are not monotonic (sorted).
     pub fn ensure_monotonic(&self) -> Result<()> {
         let mut last_depth = Float::INFINITY;

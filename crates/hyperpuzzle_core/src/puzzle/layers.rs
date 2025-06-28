@@ -20,10 +20,12 @@ impl Default for LayerMask {
 /// Creates a layer mask from a single **0-indexed** layer.
 impl From<u8> for LayerMask {
     fn from(layer: u8) -> Self {
-        LayerMask(1 << layer)
+        LayerMask(1_u32.unbounded_shl(layer as u32))
     }
 }
 /// Creates a layer mask from a **0-indexed** range of layers.
+///
+/// If the range is backward, then its endpoints are swapped.
 impl From<RangeInclusive<u8>> for LayerMask {
     fn from(layer_range: RangeInclusive<u8>) -> Self {
         let mut lo = *layer_range.start();
@@ -32,7 +34,8 @@ impl From<RangeInclusive<u8>> for LayerMask {
             std::mem::swap(&mut lo, &mut hi);
         }
         let count = hi - lo + 1;
-        Self(((1 << count) - 1) << lo)
+
+        Self(Self::all_layers(count).0.unbounded_shl(lo as u32))
     }
 }
 impl Index<u8> for LayerMask {
@@ -145,8 +148,8 @@ impl FromStr for LayerMask {
     }
 }
 impl From<Layer> for LayerMask {
-    fn from(value: Layer) -> Self {
-        Self(1 << value.0)
+    fn from(layer: Layer) -> Self {
+        Self::from(layer.0)
     }
 }
 impl LayerMask {
@@ -155,7 +158,7 @@ impl LayerMask {
 
     /// Returns a mask containing all layers.
     pub fn all_layers(total_layer_count: u8) -> Self {
-        Self((1 << total_layer_count as u32) - 1)
+        Self(Self::from(total_layer_count).0.wrapping_sub(1))
     }
 
     /// Returns an iterator over the layers in the layer mask.

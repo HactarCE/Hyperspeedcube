@@ -11,7 +11,8 @@ use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::{
-    ArcMut, HpsAxis, HpsColor, HpsNdEuclid, HpsPuzzle, HpsShape, HpsSymmetry, HpsTwist, Names,
+    ArcMut, HpsAxis, HpsColor, HpsNdEuclid, HpsPuzzle, HpsRegion, HpsShape, HpsSymmetry, HpsTwist,
+    Names,
 };
 use crate::builder::*;
 
@@ -258,6 +259,56 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ) -> () {
             this.add_layers(ctx, (axis, axis_span), layers, slice)?;
         }
+
+        fn add_piece_type(ctx: EvalCtx, this: HpsPuzzle, name: String) -> () {
+            let this = this.lock();
+            if let Err(e) = this.shape.lock().get_or_add_piece_type(name, None) {
+                ctx.warn(e.to_string());
+            }
+        }
+        fn add_piece_type(ctx: EvalCtx, this: HpsPuzzle, name: String, display: String) -> () {
+            let this = this.lock();
+            if let Err(e) = this.shape.lock().get_or_add_piece_type(name, Some(display)) {
+                ctx.warn(e.to_string());
+            }
+        }
+
+        fn mark_piece(ctx: EvalCtx, this: HpsPuzzle, region: HpsRegion, name: String) -> () {
+            let result = this.lock().shape.lock().mark_piece_by_region(
+                &name,
+                None,
+                |point| region.contains_point(point),
+                ctx.warnf(),
+            );
+            result.at(ctx.caller_span)?;
+        }
+        fn mark_piece(
+            ctx: EvalCtx,
+            this: HpsPuzzle,
+            region: HpsRegion,
+            name: String,
+            display: String,
+        ) -> () {
+            let result = this.lock().shape.lock().mark_piece_by_region(
+                &name,
+                Some(display),
+                |point| region.contains_point(point),
+                ctx.warnf(),
+            );
+            result.at(ctx.caller_span)?;
+        }
+
+        fn unify_piece_types(ctx: EvalCtx, this: HpsPuzzle, sym: HpsSymmetry) -> () {
+            let this = this.lock();
+            let mut shape = this.shape.lock();
+            shape.unify_piece_types(&sym.generators(), &mut ctx.warnf())
+        }
+
+        fn delete_untyped_pieces(ctx: EvalCtx, this: HpsPuzzle) -> () {
+            let this = this.lock();
+            let mut shape = this.shape.lock();
+            shape.delete_untyped_pieces(&mut ctx.warnf())
+        }
     ])
 }
 
@@ -383,10 +434,13 @@ impl HpsPuzzle {
         let axes_list = self.twists().add_axes(ctx, vector, names)?;
 
         let span = ctx.caller_span;
-        let mut this = self.lock();
+        let mut self_guard = self.lock();
+        let this = &mut *self_guard;
+        let twists = this.twists.lock();
+        let axis_layers = &mut this.axis_layers;
 
         // Add layers.
-        let axis_layers = this.axis_layers().at(span)?;
+        axis_layers.resize(twists.axes.len()).at(span)?;
         for &axis in axes_list.iter().filter_map(Option::as_ref) {
             let axis_layers = &mut axis_layers[axis].0;
             for (&top, &bottom) in layers.iter().tuple_windows() {
@@ -399,7 +453,6 @@ impl HpsPuzzle {
         // Slice layers.
         if slice {
             let mut shape = this.shape.lock();
-            let twists = this.twists.lock();
             for &axis in axes_list.iter().filter_map(Option::as_ref) {
                 if let Ok(axis) = twists.axes.get(axis) {
                     let axis_vector = axis.vector();
@@ -442,20 +495,19 @@ impl HpsPuzzle {
             None => vec![axis_vector],
         };
 
-        let mut this = self.lock();
+        let mut self_guard = self.lock();
+        let this = &mut *self_guard;
         let twists = this.twists.lock();
-        let axes = &twists.axes;
         let axes: Vec<Axis> = axis_vectors
             .iter()
-            .map(|v| super::axis_from_vector(axes, v))
+            .map(|v| super::axis_from_vector(&twists.axes, v))
             .try_collect()
             .at(span)?;
-        drop(twists);
 
         // Add layers.
-        let axis_layers = this.axis_layers().at(span)?;
+        this.axis_layers.resize(twists.axes.len()).at(span)?;
         for axis in axes {
-            let axis_layers = &mut axis_layers[axis].0;
+            let axis_layers = &mut this.axis_layers[axis].0;
             for (&top, &bottom) in layers.iter().tuple_windows() {
                 axis_layers
                     .push(AxisLayerBuilder { top, bottom })
@@ -478,6 +530,34 @@ impl HpsPuzzle {
 
         Ok(())
     }
+
+    pub fn layer_regions(
+        &self,
+        ctx: &mut EvalCtx<'_>,
+        axis: Axis,
+        layer_mask: LayerMask,
+    ) -> Result<HpsRegion> {
+        let span = ctx.caller_span;
+        let this = self.lock();
+        let twists = this.twists.lock();
+        let axis_vector = twists.axes.get(axis).at(span)?.vector();
+
+        match this.plane_bounded_regions(axis, axis_vector, layer_mask) {
+            Ok(plane_bounded_regions) => Ok(HpsRegion::Or(
+                plane_bounded_regions
+                    .into_iter()
+                    .map(|layer_region| {
+                        let half_spaces = layer_region.into_iter().map(HpsRegion::HalfSpace);
+                        HpsRegion::And(half_spaces.collect())
+                    })
+                    .collect(),
+            )),
+            Err(e) => {
+                ctx.warn(format!("error computing region: {e:#}"));
+                Ok(HpsRegion::Nowhere)
+            }
+        }
+    }
 }
 
 /// Cut arguments.
@@ -485,7 +565,7 @@ impl HpsPuzzle {
 struct CutArgs {
     mode: CutMode,
     stickers: StickerMode,
-    region: Option<std::convert::Infallible>, // TODO
+    region: Option<HpsRegion>,
 }
 impl CutArgs {
     pub fn carve(stickers: StickerMode) -> Self {
@@ -502,8 +582,8 @@ impl CutArgs {
             region: None,
         }
     }
-    pub fn with_region(mut self, region: Option<std::convert::Infallible>) -> Self {
-        self.region = region;
+    pub fn with_region(mut self, region: HpsRegion) -> Self {
+        self.region = Some(region);
         self
     }
 }

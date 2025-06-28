@@ -97,6 +97,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Point) -> Vec<Spanned<Point>> {
             orbit_spanned(ctx, sym, object)
         }
+        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: HpsRegion) -> Vec<Spanned<HpsRegion>> {
+            orbit_spanned(ctx, sym, object)
+        }
         fn orbit(
             ctx: EvalCtx,
             sym: HpsSymmetry,
