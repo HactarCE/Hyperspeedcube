@@ -56,6 +56,14 @@ pub enum TagValue {
     /// Puzzle ID
     Puzzle(String),
 }
+impl From<bool> for TagValue {
+    fn from(value: bool) -> Self {
+        match value {
+            true => TagValue::True,
+            false => TagValue::False,
+        }
+    }
+}
 impl TagValue {
     /// Returns the value if it is an integer, or `None` otherwise.
     pub fn as_int(&self) -> Option<i64> {
@@ -142,15 +150,6 @@ pub enum TagType {
     StrList,
     /// Puzzle ID
     Puzzle,
-}
-impl TagType {
-    /// Returns whether the tag type may be represented using a table.
-    pub fn may_be_table(self) -> bool {
-        match self {
-            TagType::Bool | TagType::Int | TagType::Str | TagType::Puzzle => false,
-            TagType::StrList => true,
-        }
-    }
 }
 
 /// Info about a tag.

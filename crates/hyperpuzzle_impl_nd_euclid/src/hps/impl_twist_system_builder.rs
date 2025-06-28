@@ -19,8 +19,8 @@ use crate::builder::*;
 
 impl_simple_custom_type!(
     HpsTwistSystem = "euclid.TwistSystem",
-    field_get = Self::field_get,
-    index_get = Self::index_get_twist,
+    field_get = Self::impl_field_get,
+    index_get = Self::impl_index_get_twist,
 );
 impl fmt::Debug for HpsTwistSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -37,7 +37,7 @@ impl fmt::Display for HpsTwistSystem {
 struct HpsAxisSystem(HpsTwistSystem);
 impl_simple_custom_type!(
     HpsAxisSystem = "euclid.AxisSystem",
-    index_get = Self::index_get,
+    index_get = Self::impl_index_get,
 );
 impl fmt::Debug for HpsAxisSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -50,8 +50,8 @@ impl fmt::Display for HpsAxisSystem {
     }
 }
 impl HpsAxisSystem {
-    fn index_get(&self, span: Span, index: &Value) -> Result<Value> {
-        self.0.index_get_axis(span, index)
+    fn impl_index_get(&self, span: Span, index: Value) -> Result<Value> {
+        self.0.impl_index_get_axis(span, index)
     }
 }
 
@@ -407,7 +407,7 @@ fn unpack_value_with_optional_transform<T: FromValue + CustomValue>(
 }
 
 impl HpsTwistSystem {
-    fn field_get(
+    fn impl_field_get(
         &self,
         _span: Span,
         (field, field_span): Spanned<&str>,
@@ -417,7 +417,7 @@ impl HpsTwistSystem {
             other => self.lock().hps_exports.get(other).cloned().map(|v| v.data),
         })
     }
-    fn index_get_twist(&self, _span: Span, index: &Value) -> Result<Value> {
+    fn impl_index_get_twist(&self, _span: Span, index: Value) -> Result<Value> {
         let this = self.lock();
         match this.names.id_from_string(index.as_ref::<str>()?) {
             Some(id) => {
@@ -427,7 +427,7 @@ impl HpsTwistSystem {
             None => Ok(Value::NULL),
         }
     }
-    fn index_get_axis(&self, _span: Span, index: &Value) -> Result<Value> {
+    fn impl_index_get_axis(&self, _span: Span, index: Value) -> Result<Value> {
         let this = self.lock();
         match this.axes.names.id_from_string(index.as_ref::<str>()?) {
             Some(id) => {

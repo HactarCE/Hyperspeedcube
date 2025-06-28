@@ -10,9 +10,9 @@ pub struct HpsColor {
     pub id: Color,
     pub shape: HpsShape,
 }
-impl_simple_custom_type!(HpsColor = "euclid.Color", field_get = Self::field_get);
+impl_simple_custom_type!(HpsColor = "euclid.Color", field_get = Self::impl_field_get);
 impl HpsColor {
-    fn field_get(
+    fn impl_field_get(
         &self,
         _span: Span,
         (field, _field_span): Spanned<&str>,

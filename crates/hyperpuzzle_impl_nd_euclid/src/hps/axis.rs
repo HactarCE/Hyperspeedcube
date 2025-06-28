@@ -2,10 +2,12 @@ use std::fmt;
 
 use hypermath::pga::Motor;
 use hypermath::{IndexOutOfRange, Vector};
-use hyperpuzzle_core::{Axis, NameSpec};
-use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
+use hyperpuzzle_core::{Axis, LayerMask, NameSpec};
+use hyperpuzzlescript::{
+    Error, ErrorExt, Result, Span, Spanned, Value, ValueData, impl_simple_custom_type,
+};
 
-use super::{HpsEuclidError, HpsTwistSystem};
+use super::{HpsEuclidError, HpsRegion, HpsTwistSystem};
 use crate::builder::AxisSystemBuilder;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -13,9 +15,9 @@ pub struct HpsAxis {
     pub id: Axis,
     pub twists: HpsTwistSystem,
 }
-impl_simple_custom_type!(HpsAxis = "euclid.Axis", field_get = Self::field_get);
+impl_simple_custom_type!(HpsAxis = "euclid.Axis", field_get = Self::impl_field_get,);
 impl HpsAxis {
-    pub fn field_get(
+    fn impl_field_get(
         &self,
         self_span: Span,
         (field, _field_span): Spanned<&str>,
@@ -27,6 +29,7 @@ impl HpsAxis {
             _ => None,
         })
     }
+
     pub fn vector(&self) -> Result<Vector, IndexOutOfRange> {
         Ok(self.twists.lock().axes.get(self.id)?.vector().clone())
     }

@@ -14,9 +14,9 @@ pub struct HpsTwist {
     pub id: Twist,
     pub twists: HpsTwistSystem,
 }
-impl_simple_custom_type!(HpsTwist = "euclid.Twist", field_get = Self::field_get);
+impl_simple_custom_type!(HpsTwist = "euclid.Twist", field_get = Self::impl_field_get);
 impl HpsTwist {
-    fn field_get(
+    fn impl_field_get(
         &self,
         span: Span,
         (field, _field_span): Spanned<&str>,

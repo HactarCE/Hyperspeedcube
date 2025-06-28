@@ -66,7 +66,7 @@ pub fn define_in(
 
             let tx = tx.clone();
 
-            let meta = super::generators::GeneratorMeta {
+            let gen_meta = super::generators::GeneratorMeta {
                 id,
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
@@ -75,14 +75,14 @@ pub fn define_in(
             };
 
             let generator = ColorSystemGenerator {
-                id: meta.id.clone(),
+                id: gen_meta.id.clone(),
                 name,
-                params: meta.params.clone(),
+                params: gen_meta.params.clone(),
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
 
                     let scope = Scope::new();
-                    let meta = meta.clone();
+                    let meta = gen_meta.clone();
 
                     tx.eval_blocking(move |runtime| {
                         let mut ctx = EvalCtx {

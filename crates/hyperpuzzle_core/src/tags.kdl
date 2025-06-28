@@ -1,4 +1,4 @@
-__schema 2 // Bump this version when adding new required tags
+__schema 1 // Bump this version when adding new required tags
 
 schema "Tag schema" expected=0 hidden=#true
 
@@ -201,6 +201,13 @@ cuts inline=#true {
   wedge "Wedge cuts" expected=1
 }
 
+pieces "Pieces" {
+  acronic "Acronic" // only acra and grip subsets thereof
+  sphenic "Sphenic" // only core, axles, and sphenes
+  standard "Standard" // only has pieces turnable by 1 cut, 2 adjacent cuts, 3 mutually adjacent cuts, etc. up to the rank of the puzzle
+  trivial "Trivial" // only has axis pieces turnable by one cut
+}
+
 __separator
 
 __heading "Categories"
@@ -229,10 +236,12 @@ family "Family" expected=1 {
 }
 
 variant "Variant" expected=1 {
-  (puzzle)stickermod "Stickermod"
-  (puzzle)shapemod "Shapemod"
-  bump "Bump"
-  bandaging "Bandaging"
+  (puzzle)bandaging_of "Bandaging"
+  (puzzle)bump_of "Bump"
+  (puzzle)stickermod_of "Stickermod"
+  (puzzle)complex_of "Complex"
+  (puzzle)isomorphic_to "Isomorphic"
+  (puzzle)physical_of "Physical"
 }
 
 meme "Meme" expected=1
@@ -250,7 +259,8 @@ __heading "Miscellaneous"
 
 solved "Solved" auto=#true
 generated "Generated" auto=#true
-(str)builtin "Built-in" expected=1
+(str)builtin "Built-in" expected=1 // program version that first had this puzzle built-in
+(str)stable "Stable" hidden=#true expected=1 // program version that first had this puzzle stable
 external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=1
   (str)hof "Hall Of Fame" expected=1
@@ -260,7 +270,5 @@ external "External" {
   (int)museum "Twisty Puzzle Museum" expected=1
   (str)wca "World Cube Association" expected=1
 }
-experimental "Experimental" expected=1
+experimental "Experimental" auto=#true expected=1
 big "Big (slow to generate)"
-
-file "File" auto=#true hidden=#true

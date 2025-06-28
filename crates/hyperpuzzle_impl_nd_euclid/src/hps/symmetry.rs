@@ -6,14 +6,20 @@ use std::sync::Arc;
 use hypermath::pga::Motor;
 use hypermath::{ApproxHashMapKey, Point, TransformByMotor, Vector, VectorRef, approx_eq};
 use hyperpuzzlescript::{
-    Builtins, ErrorExt, Result, Span, Spanned, Str, ValueData, hps_fns, impl_simple_custom_type,
+    Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Str, ValueData, hps_fns,
+    impl_simple_custom_type,
 };
 use hypershape::{
     AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
 };
 use itertools::Itertools;
 
-impl_simple_custom_type!(HpsSymmetry = "euclid.Symmetry", field_get = Self::field_get);
+use super::{HpsAxis, HpsRegion, HpsTwist};
+
+impl_simple_custom_type!(
+    HpsSymmetry = "euclid.Symmetry",
+    field_get = Self::impl_field_get
+);
 impl fmt::Debug for HpsSymmetry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
@@ -56,7 +62,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn symmetry(generators: Vec<Motor>) -> HpsSymmetry {
             HpsSymmetry::from_generators(generators)
         }
+    ])?;
 
+    builtins.set_fns(hps_fns![
         fn vec((sym, sym_span): HpsSymmetry, (string, string_span): Str) -> Vector {
             sym.coxeter_dynkin_vector(sym_span, &string, string_span)?
         }
@@ -79,7 +87,52 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             let gen_seq = GenSeq::new(indices.into_iter().map(GeneratorId));
             sym.motor_for_gen_seq(&gen_seq, indices_span)?
         }
+
+        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Motor) -> Vec<Spanned<Motor>> {
+            orbit_spanned(ctx, sym, object)
+        }
+        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Vector) -> Vec<Spanned<Vector>> {
+            orbit_spanned(ctx, sym, object)
+        }
+        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Point) -> Vec<Spanned<Point>> {
+            orbit_spanned(ctx, sym, object)
+        }
+        fn orbit(
+            ctx: EvalCtx,
+            sym: HpsSymmetry,
+            (object, object_span): HpsAxis,
+        ) -> Vec<Spanned<HpsAxis>> {
+            let vectors = sym.orbit(object.vector().at(object_span)?);
+            let twists = object.twists.lock();
+            vectors
+                .into_iter()
+                .map(|(_, _, v)| {
+                    super::axis_from_vector(&twists.axes, &v).map(|id| {
+                        let twists = object.twists.clone();
+                        (HpsAxis { id, twists }, ctx.caller_span)
+                    })
+                })
+                .try_collect()
+                .at(ctx.caller_span)?
+        }
+        fn orbit(
+            ctx: EvalCtx,
+            sym: HpsSymmetry,
+            (object, object_span): HpsTwist,
+        ) -> Vec<Spanned<HpsTwist>> {
+            vec![] // TODO orbit twists
+        }
     ])
+}
+
+fn orbit_spanned<T>(ctx: &mut EvalCtx<'_>, sym: HpsSymmetry, object: T) -> Vec<Spanned<T>>
+where
+    T: Clone + TransformByMotor + ApproxHashMapKey,
+{
+    sym.orbit(object)
+        .into_iter()
+        .map(|(_, _, obj)| (obj, ctx.caller_span))
+        .collect()
 }
 
 /// Symmetry group in N-dimensional Euclidean space.
@@ -108,7 +161,7 @@ impl PartialEq for HpsSymmetry {
 }
 
 impl HpsSymmetry {
-    fn field_get(
+    fn impl_field_get(
         &self,
         _span: Span,
         (field, field_span): Spanned<&str>,
@@ -293,5 +346,10 @@ impl HpsSymmetry {
     /// Returns the isometry group of the symmetry.
     pub fn isometry_group(&self) -> GroupResult<IsometryGroup> {
         IsometryGroup::from_generators(&self.generators)
+    }
+
+    /// Returns a list of generators of the group.
+    pub fn generators(&self) -> &[Motor] {
+        &self.generators
     }
 }

@@ -15,7 +15,10 @@ use super::{
 };
 use crate::builder::*;
 
-impl_simple_custom_type!(HpsPuzzle = "euclid.Puzzle", field_get = Self::field_get);
+impl_simple_custom_type!(
+    HpsPuzzle = "euclid.Puzzle",
+    field_get = Self::impl_field_get
+);
 impl fmt::Debug for HpsPuzzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
@@ -63,6 +66,10 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 .insert_named("twists/system", TagValue::Str(twist_system_id.into()))
                 .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
         }
+
+        meta.tags
+            .insert_named(&format!("shape/{ndim}d"), TagValue::True)
+            .at(caller_span)?;
 
         let meta = Arc::new(meta);
 
@@ -348,7 +355,7 @@ impl HpsShape {
 }
 
 impl HpsPuzzle {
-    fn field_get(
+    fn impl_field_get(
         &self,
         _span: Span,
         (field, field_span): Spanned<&str>,

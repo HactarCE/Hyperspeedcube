@@ -1,6 +1,7 @@
 use std::collections::{HashMap, hash_map};
 use std::sync::Arc;
 
+use itertools::Itertools;
 use serde::Serialize;
 use serde::ser::SerializeMap;
 
@@ -47,7 +48,7 @@ impl TagSet {
     }
     /// Returns whether the tag set contains the "experimental" tag.
     pub fn is_experimental(&self) -> bool {
-        self.get("experimental").is_some_and(|v| v.is_present())
+        self.has_present("experimental")
     }
 
     /// Returns whether a tag set meets a search criterion. If `value_str` is
@@ -61,6 +62,10 @@ impl TagSet {
     /// Returns the value for a tag given its name.
     pub fn get(&self, tag_name: &str) -> Option<&TagValue> {
         self.0.get(tag_name)
+    }
+    /// Returns whether the puzzle has a tag present.
+    pub fn has_present(&self, tag_name: &str) -> bool {
+        self.get(tag_name).is_some_and(|v| v.is_present())
     }
 
     /// Returns an iterator over the tags in the tag set.
@@ -88,6 +93,52 @@ impl TagSet {
         tag_name: &str,
     ) -> Result<hash_map::Entry<'_, Arc<str>, TagValue>, UnknownTag> {
         Ok(self.entry(crate::TAGS.get(tag_name)?))
+    }
+
+    /// Merges `self` and `other`, where `other` takes precedence.
+    ///
+    /// This will not add any inherited tags that aren't already present in
+    /// `other`.
+    pub fn merge_from(&mut self, mut other: TagSet) {
+        for (k, v) in &self.0 {
+            if *v == TagValue::Inherited || other.get(k).is_some() {
+                continue;
+            }
+            let result = other.insert_named(k, v.clone());
+            if let Err(e) = result {
+                log::error!("error when merging tags: {e}");
+            }
+        }
+        *self = other
+    }
+
+    /// Adds inherited parent tags based on the child tags that are already
+    /// specified.
+    pub fn inherit_parent_tags(&mut self) {
+        let inherited_tags = self
+            .0
+            .iter()
+            .filter(|(_k, v)| !matches!(v, TagValue::False | TagValue::Inherited))
+            .map(|(k, _v)| k.to_owned())
+            .collect_vec();
+
+        for tag in inherited_tags {
+            for parent_name in crate::TAGS.ancestors(&tag) {
+                let Ok(parent) = self.entry_named(parent_name) else {
+                    continue;
+                };
+                match parent {
+                    hash_map::Entry::Occupied(mut e) => {
+                        if let TagValue::False = e.get() {
+                            e.insert(TagValue::Inherited);
+                        }
+                    }
+                    hash_map::Entry::Vacant(e) => {
+                        e.insert(TagValue::Inherited);
+                    }
+                }
+            }
+        }
     }
 }
 
