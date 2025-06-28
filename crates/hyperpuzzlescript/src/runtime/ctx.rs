@@ -699,18 +699,15 @@ impl EvalCtx<'_> {
                         &**func
                     {
                         let obj = self.eval(obj)?;
-                        // TODO: warn if ambiguous
-                        let maybe_method = self.scope.get(&self[field]).filter(|method_value| {
-                            method_value
-                                .as_ref::<FnValue>()
-                                .is_ok_and(|f| f.can_be_method_of(&obj.ty()))
-                        });
-                        match maybe_method {
-                            Some(m) => {
-                                arg_values.push(obj);
-                                m.data.at(field)
-                            }
-                            None => self.field_get(&obj, field)?.at(obj_method_span),
+                        if obj.is::<Map>() {
+                            self.field_get(&obj, field)?.at(obj_method_span)
+                        } else {
+                            arg_values.push(obj);
+                            self.scope
+                                .get(&self[field])
+                                .ok_or(Error::Undefined.at(field))?
+                                .data
+                                .at(field)
                         }
                     } else {
                         self.eval(func)?
