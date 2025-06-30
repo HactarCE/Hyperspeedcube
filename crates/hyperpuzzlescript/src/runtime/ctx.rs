@@ -652,24 +652,49 @@ impl EvalCtx<'_> {
                 ast::SpecialVar::Sym => self.scope.special.sym.data.clone(),
             }),
             ast::NodeContents::Op { op, args } => {
-                if &self[*op] == "??" {
-                    if let Ok([l, r]) = <&[_; 2]>::try_from(args.as_slice()) {
+                // Some operators cannot be implemented as functions because
+                // they don't always evaluate both arguments, so we implement
+                // them here.
+                fn unpack_binop_args<const N: usize>(
+                    op: Span,
+                    args: &[ast::Node],
+                ) -> Result<&[ast::Node; N]> {
+                    <&[_; N]>::try_from(args).map_err(|_| Error::UnsupportedOperator.at(op))
+                }
+                match &self[*op] {
+                    "??" => {
+                        let [l, r] = unpack_binop_args(*op, &args)?;
                         match self.eval(l)?.data {
                             ValueData::Null => Ok(self.eval(r)?.data),
                             other => Ok(other),
                         }
-                    } else {
-                        return Err(Error::UnsupportedOperator.at(*op));
                     }
-                } else {
-                    let op_fn = self
-                        .scope
-                        .get(&self[*op])
-                        .ok_or(Error::UnsupportedOperator.at(*op))?;
-                    let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
-                    let kwargs = Map::new();
-                    let f = op_fn.as_ref::<FnValue>()?;
-                    Ok(f.call_at(span, *op, self, args, kwargs)?.data)
+                    "and" => {
+                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        Ok((self.eval(l)?.to()? && self.eval(r)?.to()?).into())
+                    }
+                    "or" => {
+                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        Ok((self.eval(l)?.to()? || self.eval(r)?.to()?).into())
+                    }
+                    "xor" => {
+                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        Ok((self.eval(l)?.to::<bool>()? ^ self.eval(r)?.to::<bool>()?).into())
+                    }
+                    "not" => {
+                        let [arg] = unpack_binop_args(*op, &args)?;
+                        Ok((!self.eval(arg)?.to::<bool>()?).into())
+                    }
+                    _ => {
+                        let op_fn = self
+                            .scope
+                            .get(&self[*op])
+                            .ok_or(Error::UnsupportedOperator.at(*op))?;
+                        let args = args.iter().map(|arg| self.eval(arg)).try_collect()?;
+                        let kwargs = Map::new();
+                        let f = op_fn.as_ref::<FnValue>()?;
+                        Ok(f.call_at(span, *op, self, args, kwargs)?.data)
+                    }
                 }
             }
             ast::NodeContents::FnCall { func, args } => {
