@@ -193,7 +193,7 @@ pub enum Error {
     #[error("internal: leaked 'continue'")]
     Continue,
     /// Imported file failed to load; do not report an error here.
-    #[error("internal: leaked import error")]
+    #[error("error occurred in imported file")]
     SilentImportError,
 }
 impl Error {

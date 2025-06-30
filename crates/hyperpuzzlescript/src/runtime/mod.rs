@@ -174,6 +174,9 @@ impl Runtime {
     /// Calls [`Self::on_diagnostic`], which by default prints a message to
     /// stderr.
     pub fn report_diagnostic(&mut self, e: FullDiagnostic) {
+        if e.is_silent() {
+            return;
+        }
         self.diagnostic_count += 1;
         (self.on_diagnostic)(&mut self.modules, e);
     }
