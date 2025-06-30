@@ -1,6 +1,6 @@
 __schema 1 // Bump this version when adding new required tags
 
-schema "Tag schema" expected=0 hidden=#true
+(int)schema "Tag schema" expected=0 hidden=#true
 
 __heading "Type"
 

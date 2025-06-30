@@ -1,0 +1,131 @@
+use * from euclid
+
+/// Marks all pieces on a triacron-subset puzzle with axes named U, F, R, and L
+/// in the expected places.
+///
+/// The twists `UR` and `UF` and the region `R[1..=half_layers]` must generate
+/// `U_adj`. The twist `UR` and the region `R[1..=half_layers]` must generate
+/// `UF_adj`.
+export fn mark_multilayer_UFRLIO(combined_layers) {
+    half_layers = floor(combined_layers/2)
+    use U, F, R, L, I, O from #axes
+    U_adj = symmetry([#twists.UR.transform, #twists.UF.transform]).orbit(R[1..=half_layers]).union()
+    UF_adj = symmetry([#twists.UF.transform]).orbit(R[1..=half_layers]).union()
+    UFR_adj = I[1..=half_layers] | O[1..=half_layers]
+    UFRI_adj = REGION_NONE
+    mark_multilayer(combined_layers, U, F, R, I, U_adj, UF_adj, UFR_adj, UFRI_adj)
+}
+
+/// Marks all pieces on a triacron-subset puzzle
+export fn mark_multilayer(combined_layers, U, F, R, I, U_adj, UF_adj, UFR_adj, UFRI_adj) {
+    half_layers = floor(combined_layers/2)
+    if combined_layers.is_odd() {
+        mark_multilayer_ridges(half_layers, U, F, U_adj, UF_adj)
+        mark_multilayer_edges(half_layers, U, F, R, UFR_adj)
+    }
+    mark_multilayer_corners(half_layers, U, F, R, I, UFRI_adj)
+}
+
+/// Marks middle edges and centers on a multilayer sphenic (2-acronic) edge
+/// block.
+export fn mark_multilayer_ridges(layers, U, F, U_adj, UF_adj) {
+    if layers < 1 {
+        return
+    }
+
+    add_piece_type("center", "Center")
+    add_piece_type("ridge", "Ridge")
+
+    // Middle ridges + centers
+    middle_center_region = U[1] & ~U_adj
+    middle_ridge_region = U[1] & F[1] & ~UF_adj
+    if layers > 1 {
+        mark_piece(middle_center_region, "center/middle", "Middle center")
+        mark_piece(middle_ridge_region, "ridge/middle", "Middle ridge")
+    } else {
+        mark_piece(middle_center_region, "center")
+        mark_piece(middle_ridge_region, "ridge")
+    }
+
+    // T-centers
+    for i in 1..layers {
+        region = U[1] & F[layers-i+1] & ~UF_adj
+        mark_piece(region, "center/0_0_${i}", "T-center (${i})")
+    }
+}
+
+/// Marks the centers and T-ridges of a multilayer triacronic edge block.
+export fn mark_multilayer_edges(layers, U, F, R, UFR_adj) {
+    if layers < 1 {
+        return
+    }
+
+    add_piece_type("center", "Center")
+    add_piece_type("ridge", "Ridge")
+    add_piece_type("edge", "Edge")
+
+    // X-centers and oblique centers
+    for i in 1..layers {
+        for j in i..layers {
+            region = U[1] & F[layers-i+1] & R[layers-j+1] & ~UFR_adj
+            mark_piece(region, "center/0_${i}_${j}", "Center (0, ${i}, ${j})")
+        }
+    }
+
+    // T-ridges
+    for i in 1..layers {
+        region = U[1] & F[1] & R[layers-i+1] & ~UFR_adj
+        mark_piece(region, "ridge/0_${i}", "T-ridge (${i})")
+    }
+
+    // Edges
+    region = U[1] & R[1] & F[1] & ~UFR_adj
+    if layers > 1 {
+        mark_piece(region, "edge/middle", "Middle edge")
+    } else {
+        mark_piece(region, "edge")
+    }
+}
+
+/// Marks the centers and wings of a multilayer triacronic corner block.
+export fn mark_multilayer_corners(layers, U, F, R, I, UFRI_adj) {
+    if layers < 1 {
+        return
+    }
+
+    if layers > 1 {
+        add_piece_type("center", "Center")
+        add_piece_type("ridge", "Ridge")
+        add_piece_type("edge", "Edge")
+    }
+
+    // X-centers, Y-centers, and oblique centers
+    for i in 1..layers {
+        for j in i..layers {
+            for k in i..layers {
+                is_chiral = i != j and j != k and i != k
+                if not is_chiral and j > k { continue }
+                region = U[1] & R[layers-i+1] & F[layers-j+1] & I[layers-k+1] & ~UFRI_adj
+                mark_piece(region, "center/${i}_${j}_${k}", "Center (${i}, ${j}, ${k})")
+            }
+        }
+    }
+
+    // X-ridges and oblique ridges
+    for i in 1..layers {
+        for j in i..layers {
+            region = U[1] & F[1] & R[layers-i+1] & I[layers-j+1] & ~UFRI_adj
+            mark_piece(region, "ridge/${i}_${j}", "Ridge (${i}, ${j})")
+        }
+    }
+
+    // Wings
+    for i in 1..layers {
+        region = U[1] & F[1] & R[1] & I[layers-i+1] & ~UFRI_adj
+        mark_piece(region, "edge/${i}", "Wing (${i})")
+    }
+
+    // Corners
+    region = U[1] & F[1] & R[1] & I[1] & ~UFRI_adj
+    mark_piece(region, "corner", "Corner")
+}

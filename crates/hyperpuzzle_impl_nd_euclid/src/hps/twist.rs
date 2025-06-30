@@ -3,7 +3,9 @@ use std::fmt;
 use hypermath::IndexOutOfRange;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::{NameSpec, Twist};
-use hyperpuzzlescript::{ErrorExt, Result, Span, Spanned, ValueData, impl_simple_custom_type};
+use hyperpuzzlescript::{
+    Builtins, ErrorExt, Result, Span, Spanned, ValueData, hps_fns, impl_simple_custom_type,
+};
 
 use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
 use crate::TwistKey;
@@ -33,7 +35,7 @@ impl HpsTwist {
     pub fn axis(&self) -> Result<HpsAxis, IndexOutOfRange> {
         Ok(HpsAxis {
             id: self.twists.lock().get(self.id)?.axis,
-            twists: self.twists.clone(),
+            axes: self.twists.axes(),
         })
     }
     pub fn transform(&self) -> Result<Motor, IndexOutOfRange> {
@@ -52,6 +54,21 @@ impl fmt::Display for HpsTwist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         super::fmt_puzzle_element(f, "twists", self.name(), self.id)
     }
+}
+
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_custom_ty::<HpsTwist>()?;
+
+    builtins.set_fns(hps_fns![
+        fn rev(ctx: EvalCtx, twist: HpsTwist) -> Option<HpsTwist> {
+            let rev_id = twist.twists.lock().inverse(twist.id).at(ctx.caller_span)?;
+            rev_id.map(|id| HpsTwist {
+                id,
+                twists: twist.twists.clone(),
+            })
+        }
+    ])
 }
 
 pub(super) fn transform_twist(

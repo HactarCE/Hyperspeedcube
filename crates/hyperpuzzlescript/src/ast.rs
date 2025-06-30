@@ -240,12 +240,26 @@ pub enum SpecialVar {
     Ndim,
     /// Symmetry group to apply for puzzle operations.
     Sym,
+
+    /// Active puzzle.
+    Puz,
+    /// Active shape.
+    Shape,
+    /// Active twist system.
+    Twists,
+    /// Active axis system.
+    Axes,
 }
 impl fmt::Display for SpecialVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SpecialVar::Ndim => write!(f, "#ndim"),
             SpecialVar::Sym => write!(f, "#sym"),
+
+            SpecialVar::Puz => write!(f, "#puz"),
+            SpecialVar::Shape => write!(f, "#shape"),
+            SpecialVar::Twists => write!(f, "#twists"),
+            SpecialVar::Axes => write!(f, "#axes"),
         }
     }
 }
@@ -256,6 +270,12 @@ impl FromStr for SpecialVar {
         match s {
             "#ndim" => Ok(Self::Ndim),
             "#sym" => Ok(Self::Sym),
+
+            "#puz" => Ok(Self::Puz),
+            "#shape" => Ok(Self::Shape),
+            "#twists" => Ok(Self::Twists),
+            "#axes" => Ok(Self::Axes),
+
             _ => Err(()),
         }
     }

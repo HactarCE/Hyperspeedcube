@@ -16,17 +16,55 @@ add_puzzle_generator(
         return #{
             name = "${n}x${n}x${n}x${n}",
             ndim = 4,
-            build = fn(self) {
-                with #sym = cd("bc4") {
+            build = fn() {
+                sym = cd("bc4")
+
+                with #sym = sym {
                     // Carve shape
-                    self.carve(plane(#sym.ooox.unit), @symmetries/bc4.hypercube().facet_names)
+                    carve(plane(#sym.ooox.unit), @symmetries/bc4.hypercube().facet_names)
 
                     // Slice layers
-                    self.add_layers(self.twists.facet_axis, @^/common.cut_depths(4, n))
+                    add_layers(#twists.facet_axis, @^/common.cut_depths(4, n))
                 }
+
+                @piece_types/tetrahedracron_subsets.mark_multilayer_UFRLIO(n)
+                unify_piece_types(sym.chiral) // chiral because left vs. right obliques
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    laminated = n <= 2,
+                    real = n <= 3,
+                    super = n <= 2,
+                },
+                "cuts/depth/deep/to_adjacent" = n.is_even(),
+                "cuts/depth/half" = n.is_even(),
+                "external/leaderboard" = n >= 2,
+                "pieces/acronic" = n <= 3,
+                "pieces/standard" = true,
             },
         }
     },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas", "Milo Jacquet"],
+        shape = "4d/platonic/hypercube",
+        axes = "4d/elementary/hypercubic",
+        turns_by = ["facet", "cell"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire", "orientations/non_abelian"],
+        cuts = "depth/shallow",
+    },
+
+    examples = [
+        #{params = [2], tags = #{external = #{gelatinbrain = "8.1.1"}}},
+        #{params = [3], tags = #{canonical = true}},
+        #{params = [4]},
+        #{params = [5]},
+        #{params = [6]},
+        #{params = [7]},
+    ],
 )
 
 add_twist_system(
@@ -34,23 +72,23 @@ add_twist_system(
     name = "Hypercubic",
     ndim = 4,
     engine = "euclid",
-    build = fn(self) {
+    build = fn() {
         sym = cd("bc4")
 
         // Add axes and twists
         with #sym = sym {
-            export facet_axis = self.add_axis(#sym.ooox, @symmetries/bc4.hypercube().facet_names)
+            export facet_axis = add_axis(#sym.ooox, @symmetries/bc4.hypercube().facet_names)
             a0 = facet_axis
             a1 = #sym.thru(3).transform(a0)
             a2 = #sym.thru(2).transform(a1)
             a3 = #sym.thru(1).transform(a2)
-            self.add_twist(a0, #sym.thru([0, 1]), "${a1}", gizmo_pole_distance = 1)
-            self.add_twist(a0, #sym.thru([0, 2]), "{${a1}${a2}}", gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / √2)
-            self.add_twist(a0, #sym.thru([1, 2]), "{${a1}${a2}${a3}}", gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / √3)
+            add_twist(a0, #sym.thru([0, 1]), "${a1}", gizmo_pole_distance = 1)
+            add_twist(a0, #sym.thru([0, 2]), "{${a1}${a2}}", gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / √2)
+            add_twist(a0, #sym.thru([1, 2]), "{${a1}${a2}${a3}}", gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / √3)
         }
 
         // Add hypercubic vantage group
-        self.add_vantage_group(
+        add_vantage_group(
             id = "hypercubic",
             symmetry = sym,
             refs = [[sym.ooox, @symmetries/bc4.hypercube().facet_names]],
@@ -67,8 +105,8 @@ add_twist_system(
                 }
             }
         }
-        use I, O from self.axes
-        self.add_vantage_set(
+        use I, O from #axes
+        add_vantage_set(
             name = "Facet-centered",
             group = "hypercubic",
             view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 45°)
@@ -77,8 +115,8 @@ add_twist_system(
             axes = "*",
             directions = #{
                 I = #{
-                    "x"  = self["IR"], "y"  = self["IU"], "z"  = self["IF"],
-                    "x'" = self["IL"], "y'" = self["ID"], "z'" = self["IB"],
+                    "x"  = #twists.IR, "y"  = #twists.IU, "z"  = #twists.IF,
+                    "x'" = #twists.IL, "y'" = #twists.ID, "z'" = #twists.IB,
                 },
             },
             inherit_directions = fn(axis_vector: Vec) -> Transform? {

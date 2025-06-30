@@ -14,11 +14,19 @@ use hypershape::{
 };
 use itertools::Itertools;
 
-use super::{HpsAxis, HpsRegion, HpsTwist};
-
+/// Symmetry group in N-dimensional Euclidean space.
+///
+/// This type is cheap to clone.
+#[derive(Clone)]
+pub struct HpsSymmetry {
+    /// Generators of the group.
+    generators: Arc<Vec<Motor>>,
+    /// Coxeter group, if this is one.
+    coxeter_group: Option<Arc<CoxeterGroup>>,
+}
 impl_simple_custom_type!(
     HpsSymmetry = "euclid.Symmetry",
-    field_get = Self::impl_field_get
+    field_get = Self::impl_field_get,
 );
 impl fmt::Debug for HpsSymmetry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -87,48 +95,14 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             let gen_seq = GenSeq::new(indices.into_iter().map(GeneratorId));
             sym.motor_for_gen_seq(&gen_seq, indices_span)?
         }
-
-        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Motor) -> Vec<Spanned<Motor>> {
-            orbit_spanned(ctx, sym, object)
-        }
-        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Vector) -> Vec<Spanned<Vector>> {
-            orbit_spanned(ctx, sym, object)
-        }
-        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Point) -> Vec<Spanned<Point>> {
-            orbit_spanned(ctx, sym, object)
-        }
-        fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: HpsRegion) -> Vec<Spanned<HpsRegion>> {
-            orbit_spanned(ctx, sym, object)
-        }
-        fn orbit(
-            ctx: EvalCtx,
-            sym: HpsSymmetry,
-            (object, object_span): HpsAxis,
-        ) -> Vec<Spanned<HpsAxis>> {
-            let vectors = sym.orbit(object.vector().at(object_span)?);
-            let twists = object.twists.lock();
-            vectors
-                .into_iter()
-                .map(|(_, _, v)| {
-                    super::axis_from_vector(&twists.axes, &v).map(|id| {
-                        let twists = object.twists.clone();
-                        (HpsAxis { id, twists }, ctx.caller_span)
-                    })
-                })
-                .try_collect()
-                .at(ctx.caller_span)?
-        }
-        fn orbit(
-            ctx: EvalCtx,
-            sym: HpsSymmetry,
-            (object, object_span): HpsTwist,
-        ) -> Vec<Spanned<HpsTwist>> {
-            vec![] // TODO orbit twists
-        }
     ])
 }
 
-fn orbit_spanned<T>(ctx: &mut EvalCtx<'_>, sym: HpsSymmetry, object: T) -> Vec<Spanned<T>>
+pub(super) fn orbit_spanned<T>(
+    ctx: &mut EvalCtx<'_>,
+    sym: HpsSymmetry,
+    object: T,
+) -> Vec<Spanned<T>>
 where
     T: Clone + TransformByMotor + ApproxHashMapKey,
 {
@@ -136,17 +110,6 @@ where
         .into_iter()
         .map(|(_, _, obj)| (obj, ctx.caller_span))
         .collect()
-}
-
-/// Symmetry group in N-dimensional Euclidean space.
-///
-/// This type is cheap to clone.
-#[derive(Clone)]
-pub struct HpsSymmetry {
-    /// Generators of the group.
-    generators: Arc<Vec<Motor>>,
-    /// Coxeter group, if this is one.
-    coxeter_group: Option<Arc<CoxeterGroup>>,
 }
 
 impl From<CoxeterGroup> for HpsSymmetry {
@@ -164,6 +127,10 @@ impl PartialEq for HpsSymmetry {
 }
 
 impl HpsSymmetry {
+    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<Option<&'a Self>> {
+        ctx.scope.special.sym.ref_to()
+    }
+
     fn impl_field_get(
         &self,
         _span: Span,

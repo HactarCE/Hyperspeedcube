@@ -15,6 +15,63 @@ use parking_lot::Mutex;
 
 use super::{HpsAxis, HpsEuclidError, HpsSymmetry, HpsTwist};
 
+#[derive(Debug, Clone)]
+pub struct Names(pub HpsOrbitNames);
+impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty() | Type::Fn);
+impl FromValue for Names {
+    fn from_value(value: Value) -> Result<Self> {
+        let span = value.span;
+        if value.is::<str>() {
+            Ok(Self(HpsOrbitNames::from((value.to::<Str>()?.into(), span))))
+        } else if value.is::<HpsOrbitNames>() {
+            Ok(Self(value.to::<HpsOrbitNames>()?))
+        } else if value.is::<FnValue>() {
+            Ok(Self(HpsOrbitNames::from((
+                HpsOrbitNamesComponent::Fn(value.to::<Arc<FnValue>>()?),
+                span,
+            ))))
+        } else {
+            Err(value.type_error(Self::hps_ty()))
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct HpsOrbitNames {
+    components: Vec<Spanned<HpsOrbitNamesComponent>>,
+}
+impl_simple_custom_type!(HpsOrbitNames = "euclid.OrbitNames");
+impl fmt::Debug for HpsOrbitNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct(self.type_name()).finish_non_exhaustive()
+    }
+}
+impl fmt::Display for HpsOrbitNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct(self.type_name()).finish_non_exhaustive()
+    }
+}
+impl TryEq for HpsOrbitNames {
+    fn try_eq(&self, _other: &Self) -> Option<bool> {
+        None // fail
+    }
+}
+impl From<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
+    fn from(value: Spanned<HpsOrbitNamesComponent>) -> Self {
+        Self {
+            components: vec![value],
+        }
+    }
+}
+impl From<&str> for HpsOrbitNames {
+    fn from(value: &str) -> Self {
+        Self::from((
+            HpsOrbitNamesComponent::Str(value.into()),
+            hyperpuzzlescript::BUILTIN_SPAN,
+        ))
+    }
+}
+
 /// Adds the built-ins.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsOrbitNames>()?;
@@ -74,62 +131,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-pub struct Names(pub HpsOrbitNames);
-impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty() | Type::Fn);
-impl FromValue for Names {
-    fn from_value(value: Value) -> Result<Self> {
-        let span = value.span;
-        if value.is::<str>() {
-            Ok(Self(HpsOrbitNames::from((value.to::<Str>()?.into(), span))))
-        } else if value.is::<HpsOrbitNames>() {
-            Ok(Self(value.to::<HpsOrbitNames>()?))
-        } else if value.is::<FnValue>() {
-            Ok(Self(HpsOrbitNames::from((
-                HpsOrbitNamesComponent::Fn(value.to::<Arc<FnValue>>()?),
-                span,
-            ))))
-        } else {
-            Err(value.type_error(Self::hps_ty()))
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct HpsOrbitNames {
-    components: Vec<Spanned<HpsOrbitNamesComponent>>,
-}
-impl fmt::Debug for HpsOrbitNames {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(self.type_name()).finish_non_exhaustive()
-    }
-}
-impl fmt::Display for HpsOrbitNames {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(self.type_name()).finish_non_exhaustive()
-    }
-}
-impl TryEq for HpsOrbitNames {
-    fn try_eq(&self, _other: &Self) -> Option<bool> {
-        None // fail
-    }
-}
-impl_simple_custom_type!(HpsOrbitNames = "euclid.OrbitNames");
-impl From<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
-    fn from(value: Spanned<HpsOrbitNamesComponent>) -> Self {
-        Self {
-            components: vec![value],
-        }
-    }
-}
-impl From<&str> for HpsOrbitNames {
-    fn from(value: &str) -> Self {
-        Self::from((
-            HpsOrbitNamesComponent::Str(value.into()),
-            hyperpuzzlescript::BUILTIN_SPAN,
-        ))
-    }
-}
 impl HpsOrbitNames {
     pub fn to_strings(
         &self,
@@ -147,12 +148,12 @@ impl HpsOrbitNames {
                     }
                 }
                 HpsOrbitNamesComponent::Axis(axis) => {
-                    let twists = axis.twists.lock();
-                    let axes = &twists.axes;
+                    let axes = axis.axes.lock();
                     for (s, t) in strings_and_transforms {
                         let transformed_axis =
                             super::transform_axis(span, &axes, t, (axis.id, component_span))?;
-                        let transformed_axis_name = super::axis_name(span, axes, transformed_axis)?;
+                        let transformed_axis_name =
+                            super::axis_name(span, &axes, transformed_axis)?;
                         s.push_str(&transformed_axis_name.spec);
                     }
                 }

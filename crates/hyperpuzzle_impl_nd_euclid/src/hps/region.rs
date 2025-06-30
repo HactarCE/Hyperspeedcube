@@ -7,7 +7,7 @@ use hyperpuzzle_core::LayerMask;
 use hyperpuzzlescript::{Builtins, ND_EUCLID, Result, TryEq, hps_fns, impl_simple_custom_type};
 use itertools::Itertools;
 
-use super::{HpsAxis, HpsPuzzle};
+use super::{HpsAxis, HpsLayerMask, HpsPuzzle};
 
 /// Region of space, typically defined by intersections, unions, and complements
 /// of grips.
@@ -15,9 +15,9 @@ use super::{HpsAxis, HpsPuzzle};
 pub enum HpsRegion {
     /// Region containing nothing.
     #[default]
-    Nowhere,
+    None,
     /// Region containing all of space.
-    Everywhere,
+    All,
     /// Region bounded by a hyperplane.
     HalfSpace(Hyperplane),
     /// Intersection of regions.
@@ -29,7 +29,6 @@ pub enum HpsRegion {
     /// Complement of a region.
     Not(Box<HpsRegion>),
 }
-
 impl_simple_custom_type!(HpsRegion = "euclid.Region");
 impl fmt::Debug for HpsRegion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -39,8 +38,8 @@ impl fmt::Debug for HpsRegion {
 impl fmt::Display for HpsRegion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Nowhere => write!(f, "euclid.nowhere"),
-            Self::Everywhere => write!(f, "euclid.everywhere"),
+            Self::None => write!(f, "euclid.REGION_NONE"),
+            Self::All => write!(f, "euclid.REGION_ALL"),
             Self::HalfSpace(hyperplane) => write!(f, "{ND_EUCLID}.plane({hyperplane}).region()"),
             Self::And(args) => write!(f, "({})", args.iter().join(" & ")),
             Self::Or(args) => write!(f, "({})", args.iter().join(" | ")),
@@ -51,7 +50,7 @@ impl fmt::Display for HpsRegion {
 }
 impl TryEq for HpsRegion {
     fn try_eq(&self, _other: &Self) -> Option<bool> {
-        None
+        None // fail
     }
 }
 
@@ -59,8 +58,8 @@ impl TryEq for HpsRegion {
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsRegion>()?;
 
-    builtins.set("euclid.nowhere", HpsRegion::Nowhere)?;
-    builtins.set("euclid.everywhere", HpsRegion::Everywhere)?;
+    builtins.set("euclid.REGION_NONE", HpsRegion::None)?;
+    builtins.set("euclid.REGION_ALL", HpsRegion::All)?;
 
     builtins.set_fns(hps_fns![
         fn region(plane: Hyperplane) -> HpsRegion {
@@ -72,21 +71,30 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             let layer_mask = LayerMask::all_layers(layer_count as u8);
             puzzle.layer_regions(ctx, axis.id, layer_mask)?
         }
-        fn region(ctx: EvalCtx, puzzle: HpsPuzzle, axis: HpsAxis, layer: u8) -> HpsRegion {
-            puzzle.layer_regions(ctx, axis.id, LayerMask::from(layer))?
-        }
         fn region(
             ctx: EvalCtx,
             puzzle: HpsPuzzle,
             axis: HpsAxis,
-            layer1: u8,
-            layer2: u8,
+            layer_mask: HpsLayerMask,
         ) -> HpsRegion {
-            puzzle.layer_regions(ctx, axis.id, LayerMask::from(layer1..=layer2))?
+            puzzle.layer_regions(ctx, axis.id, layer_mask.0)?
         }
 
         fn contains(region: HpsRegion, point: Point) -> bool {
             region.contains_point(&point)
+        }
+
+        fn union(regions: Vec<HpsRegion>) -> HpsRegion {
+            regions
+                .into_iter()
+                .reduce(|a, b| a | b)
+                .unwrap_or(HpsRegion::None)
+        }
+        fn intersect(regions: Vec<HpsRegion>) -> HpsRegion {
+            regions
+                .into_iter()
+                .reduce(|a, b| a & b)
+                .unwrap_or(HpsRegion::All)
         }
     ])?;
 
@@ -104,8 +112,8 @@ impl HpsRegion {
     /// region.
     pub fn contains_point(&self, point: &Point) -> bool {
         match self {
-            HpsRegion::Nowhere => false,
-            HpsRegion::Everywhere => true,
+            HpsRegion::None => false,
+            HpsRegion::All => true,
             HpsRegion::HalfSpace(h) => match h.location_of_point(point) {
                 hypermath::PointWhichSide::On => true,
                 hypermath::PointWhichSide::Inside => true,
@@ -122,8 +130,8 @@ impl HpsRegion {
 impl TransformByMotor for HpsRegion {
     fn transform_by(&self, m: &hypermath::pga::Motor) -> Self {
         match self {
-            Self::Nowhere => Self::Nowhere,
-            Self::Everywhere => Self::Everywhere,
+            Self::None => Self::None,
+            Self::All => Self::All,
             Self::HalfSpace(h) => Self::HalfSpace(m.transform(h)),
             Self::And(xs) => Self::And(xs.iter().map(|x| m.transform(x)).collect()),
             Self::Or(xs) => Self::Or(xs.iter().map(|x| m.transform(x)).collect()),
@@ -157,8 +165,8 @@ fn hash_region(
     // The hash needs to be unambigous, but we never have to decode it, so this
     // is essentially a silly little domain-specific language.
     match r {
-        HpsRegion::Nowhere => ast_structure.push('_'),
-        HpsRegion::Everywhere => ast_structure.push('*'),
+        HpsRegion::None => ast_structure.push('_'),
+        HpsRegion::All => ast_structure.push('*'),
         HpsRegion::HalfSpace(h) => {
             ast_structure.push('h');
             planes.push(h.approx_hash(float_hash_fn));
@@ -200,8 +208,8 @@ impl BitAnd for HpsRegion {
 
     fn bitand(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Self::Nowhere, _) | (_, Self::Nowhere) => Self::Nowhere,
-            (Self::Everywhere, other) | (other, Self::Everywhere) => other,
+            (Self::None, _) | (_, Self::None) => Self::None,
+            (Self::All, other) | (other, Self::All) => other,
             (Self::And(mut xs), Self::And(ys)) => {
                 xs.extend(ys);
                 Self::And(xs)
@@ -219,8 +227,8 @@ impl BitOr for HpsRegion {
 
     fn bitor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Self::Everywhere, _) | (_, Self::Everywhere) => Self::Everywhere,
-            (Self::Nowhere, other) | (other, Self::Nowhere) => other,
+            (Self::All, _) | (_, Self::All) => Self::All,
+            (Self::None, other) | (other, Self::None) => other,
             (Self::Or(mut xs), Self::Or(ys)) => {
                 xs.extend(ys);
                 Self::Or(xs)
@@ -238,8 +246,8 @@ impl BitXor for HpsRegion {
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (HpsRegion::Nowhere, x) | (x, HpsRegion::Nowhere) => x,
-            (HpsRegion::Everywhere, x) | (x, HpsRegion::Everywhere) => !x,
+            (HpsRegion::None, x) | (x, HpsRegion::None) => x,
+            (HpsRegion::All, x) | (x, HpsRegion::All) => !x,
             (HpsRegion::Xor(mut xs), HpsRegion::Xor(ys)) => {
                 xs.extend(ys);
                 Self::Xor(xs)
@@ -257,8 +265,8 @@ impl Not for HpsRegion {
 
     fn not(self) -> Self::Output {
         match self {
-            Self::Nowhere => Self::Everywhere,
-            Self::Everywhere => Self::Nowhere,
+            Self::None => Self::All,
+            Self::All => Self::None,
             Self::Not(inner) => *inner,
             other => Self::Not(Box::new(other)),
         }

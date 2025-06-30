@@ -1,7 +1,7 @@
 use std::fmt;
 
 use hyperpuzzle_core::{Color, NameSpec};
-use hyperpuzzlescript::{Result, Span, Spanned, ValueData, impl_simple_custom_type};
+use hyperpuzzlescript::{Builtins, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::HpsShape;
 
@@ -37,4 +37,9 @@ impl fmt::Display for HpsColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         super::fmt_puzzle_element(f, "colors", self.name(), self.id)
     }
+}
+
+/// Adds the built-ins.
+pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
+    builtins.set_custom_ty::<HpsColor>()
 }

@@ -1,26 +1,22 @@
 use std::fmt;
 use std::sync::Arc;
 
-use eyre::eyre;
 use hypermath::pga::Motor;
 use hypermath::{AbsDiffEq, ApproxHashMapKey, Float, IndexNewtype, TransformByMotor, Vector};
-use hyperpuzzle_core::catalog::TwistSystemSpec;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
-use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
-use super::{
-    ArcMut, HpsAxis, HpsNdEuclid, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist,
-    HpsTwistSystem, Names,
-};
+use super::{ArcMut, HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist, Names};
 use crate::PerReferenceVector;
 use crate::builder::*;
 
+/// HPS twist system builder.
+pub(super) type HpsTwistSystem = ArcMut<TwistSystemBuilder>;
 impl_simple_custom_type!(
     HpsTwistSystem = "euclid.TwistSystem",
     field_get = Self::impl_field_get,
-    index_get = Self::impl_index_get_twist,
+    index_get = Self::impl_index_get,
 );
 impl fmt::Debug for HpsTwistSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -33,126 +29,19 @@ impl fmt::Display for HpsTwistSystem {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
-struct HpsAxisSystem(HpsTwistSystem);
-impl_simple_custom_type!(
-    HpsAxisSystem = "euclid.AxisSystem",
-    index_get = Self::impl_index_get,
-);
-impl fmt::Debug for HpsAxisSystem {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
-    }
-}
-impl fmt::Display for HpsAxisSystem {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}(id = {:?})", self.type_name(), self.0.lock().id)
-    }
-}
-impl HpsAxisSystem {
-    fn impl_index_get(&self, span: Span, index: Value) -> Result<Value> {
-        self.0.impl_index_get_axis(span, index)
-    }
-}
-
-impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEuclid {
-    fn name(&self) -> String {
-        self.to_string()
-    }
-
-    fn new(
-        &self,
-        ctx: &mut EvalCtx<'_>,
-        meta: IdAndName,
-        kwargs: Map,
-        _catalog: Catalog,
-        eval_tx: EvalRequestTx,
-    ) -> Result<TwistSystemSpec> {
-        let caller_span = ctx.caller_span;
-
-        unpack_kwargs!(kwargs, ndim: u8, (build, build_span): Arc<FnValue>);
-
-        Ok(TwistSystemSpec {
-            id: meta.id.clone(),
-            name: meta.name.clone(),
-            build: Box::new(move |build_ctx| {
-                let builder = ArcMut::new(TwistSystemBuilder::new_shared(
-                    meta.id.clone(),
-                    Some(meta.name.clone()),
-                    ndim,
-                ));
-
-                let mut scope = Scope::default();
-                scope.special.ndim = Some(ndim);
-                let scope = Arc::new(scope);
-
-                let build_fn = Arc::clone(&build);
-
-                eval_tx.eval_blocking(move |runtime| {
-                    let mut ctx = EvalCtx {
-                        scope: &scope,
-                        runtime,
-                        caller_span,
-                        exports: &mut None,
-                    };
-                    let exports = build_fn
-                        .call(
-                            build_span,
-                            &mut ctx,
-                            vec![builder.clone().at(caller_span)],
-                            Map::new(),
-                        )
-                        .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
-                            ctx.runtime.report_diagnostic(e);
-                            eyre!(s)
-                        })?;
-
-                    let mut b = builder.lock();
-                    if let Ok(exports_map) = exports.to::<Arc<Map>>() {
-                        b.hps_exports = exports_map;
-                    }
-
-                    let puzzle_id = None;
-                    b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
-                        .map(|ok| Redirectable::Direct(Arc::new(ok)))
-                })
-            }),
-        })
-    }
-}
-
 /// Adds the built-ins.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsTwistSystem>()?;
-    builtins.set_custom_ty::<HpsAxisSystem>()?;
 
     builtins.set_fns(hps_fns![
-        fn add_axis(ctx: EvalCtx, this: HpsTwistSystem, vector: Vector) -> Option<HpsAxis> {
-            this.add_axes_return_first(ctx, vector, None)?
-        }
-        fn add_axis(
-            ctx: EvalCtx,
-            this: HpsTwistSystem,
-            vector: Vector,
-            names: Names,
-        ) -> Option<HpsAxis> {
-            this.add_axes_return_first(ctx, vector, Some(names))?
-        }
-
         #[kwargs(kwargs)]
-        fn add_twist(
-            ctx: EvalCtx,
-            this: HpsTwistSystem,
-            axis: HpsAxis,
-            transform: Motor,
-        ) -> Option<HpsTwist> {
-            this.add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
+        fn add_twist(ctx: EvalCtx, axis: HpsAxis, transform: Motor) -> Option<HpsTwist> {
+            HpsTwistSystem::get(ctx)?
+                .add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
         }
         #[kwargs(kwargs)]
         fn add_twist(
             ctx: EvalCtx,
-            this: HpsTwistSystem,
             axis: HpsAxis,
             transform: Motor,
             (name, name_span): Names,
@@ -160,15 +49,16 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             if let Some(old_value) = kwargs.insert("name".into(), name.0.at(name_span)) {
                 return Err("duplicate `name` argument".at(old_value.span));
             };
-            this.add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
+            HpsTwistSystem::get(ctx)?
+                .add_symmetric_with_multipliers(ctx, axis, transform, kwargs)?
         }
 
         fn add_twist_direction(
             ctx: EvalCtx,
-            this: HpsTwistSystem,
             name: String,
             (gen_twist, gen_twist_span): Arc<FnValue>,
         ) -> () {
+            let this = HpsTwistSystem::get(ctx)?;
             if !ctx.scope.special.sym.is_null() {
                 return Err("twist directions cannot use symmetry".at(ctx.caller_span));
             }
@@ -182,7 +72,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 for id in Axis::iter(axis_count) {
                     let axis = HpsAxis {
                         id,
-                        twists: this.clone(),
+                        axes: this.axes(),
                     };
                     let fn_ret = gen_twist.call(
                         gen_twist_span,
@@ -211,7 +101,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             refs: List,
             init: Vec<String>,
         )]
-        fn add_vantage_group(ctx: EvalCtx, this: HpsTwistSystem) -> () {
+        fn add_vantage_group(ctx: EvalCtx) -> () {
+            let this = HpsTwistSystem::get(ctx)?;
             match this.lock().vantage_groups.entry(id.clone()) {
                 indexmap::map::Entry::Occupied(_) => {
                     return Err(
@@ -270,7 +161,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             directions: Arc<Map> = Arc::new(Map::new()),
             inherit_directions: Option<Spanned<Arc<FnValue>>>,
         )]
-        fn add_vantage_set(ctx: EvalCtx, this: HpsTwistSystem) -> () {
+        fn add_vantage_set(ctx: EvalCtx) -> () {
+            let this = HpsTwistSystem::get(ctx)?;
             let ndim = this.lock().axes.ndim;
             let ident = Motor::ident(ndim);
             let view_offset = view_offset.unwrap_or_else(|| ident.clone());
@@ -407,117 +299,46 @@ fn unpack_value_with_optional_transform<T: FromValue + CustomValue>(
 }
 
 impl HpsTwistSystem {
+    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<&'a Self> {
+        ctx.scope.special.twists.as_ref()
+    }
+
     fn impl_field_get(
         &self,
         _span: Span,
-        (field, field_span): Spanned<&str>,
+        (field, _field_span): Spanned<&str>,
     ) -> Result<Option<ValueData>> {
         Ok(match field {
-            "axes" => Some(ValueData::Map(Arc::new(self.axis_name_map(field_span)))),
-            other => self.lock().hps_exports.get(other).cloned().map(|v| v.data),
+            "axes" => Some(self.axes().into()),
+            _ => {
+                if let Some(exported_field) =
+                    self.lock().hps_exports.get(field).cloned().map(|v| v.data)
+                {
+                    Some(exported_field)
+                } else {
+                    self.twist_from_name(field)?.map(|v| v.into())
+                }
+            }
         })
     }
-    fn impl_index_get_twist(&self, _span: Span, index: Value) -> Result<Value> {
-        let this = self.lock();
-        match this.names.id_from_string(index.as_ref::<str>()?) {
+    fn impl_index_get(
+        &self,
+        _ctx: &mut EvalCtx<'_>,
+        _span: Span,
+        index: Value,
+    ) -> Result<ValueData> {
+        // TODO: allow indexing by numeric ID
+        Ok(self.twist_from_name(index.as_ref::<str>()?)?.into())
+    }
+    fn twist_from_name(&self, name: &str) -> Result<Option<HpsTwist>> {
+        let twists = self.lock();
+        match twists.names.id_from_string(name) {
             Some(id) => {
                 let twists = self.clone();
-                Ok(HpsTwist { id, twists }.at(BUILTIN_SPAN))
+                Ok(Some(HpsTwist { id, twists }))
             }
-            None => Ok(Value::NULL),
+            None => Ok(None),
         }
-    }
-    fn impl_index_get_axis(&self, _span: Span, index: Value) -> Result<Value> {
-        let this = self.lock();
-        match this.axes.names.id_from_string(index.as_ref::<str>()?) {
-            Some(id) => {
-                let twists = self.clone();
-                Ok(HpsAxis { id, twists }.at(BUILTIN_SPAN))
-            }
-            None => Ok(Value::NULL),
-        }
-    }
-
-    pub fn axis_name_map(&self, span: Span) -> Map {
-        let this = self.lock();
-        this.axes
-            .iter()
-            .filter_map(|(id, _)| {
-                // TODO: using "preferred" name here is a compatibility concern
-                //       solution: custom type with custom indexing?
-                let name = this.axes.names.get(id)?.preferred.clone();
-                let hps_axis = HpsAxis {
-                    id,
-                    twists: self.clone(),
-                };
-                Some((name.into(), hps_axis.at(span)))
-            })
-            .collect()
-    }
-
-    /// Adds a symmetric set of axes and returns the first one.
-    fn add_axes_return_first(
-        &self,
-        ctx: &mut EvalCtx<'_>,
-        vector: Vector,
-        names: Option<Names>,
-    ) -> Result<Option<HpsAxis>> {
-        Ok(self
-            .add_axes(ctx, vector, names)?
-            .first()
-            .copied()
-            .flatten()
-            .map(|id| HpsAxis {
-                id,
-                twists: self.clone(),
-            }))
-    }
-
-    /// Adds a symmetric set of axes.
-    pub fn add_axes(
-        &self,
-        ctx: &mut EvalCtx<'_>,
-        vector: Vector,
-        names: Option<Names>,
-    ) -> Result<Arc<Vec<Option<Axis>>>> {
-        let span = ctx.caller_span;
-        let ctx_symmetry = ctx.scope.special.sym.ref_to::<Option<&HpsSymmetry>>()?;
-        let mut this = self.lock();
-
-        let (gen_seqs, transforms, vectors) = match ctx_symmetry {
-            Some(sym) => sym.orbit(vector).into_iter().multiunzip(),
-            None => (
-                vec![AbbrGenSeq::INIT],
-                vec![Motor::ident(this.axes.ndim)],
-                vec![vector],
-            ),
-        };
-
-        let names = match names {
-            Some(names) => names.0.to_strings(ctx, &transforms, span)?,
-            None => vec![],
-        }
-        .into_iter()
-        .map(Some)
-        .chain(std::iter::repeat(None));
-
-        // Add & name axes.
-        let mut axes_list = vec![];
-        for (transformed_vector, name) in std::iter::zip(&vectors, names) {
-            let new_axis = this.axes.add(transformed_vector.clone()).at(span)?;
-            this.axes.names.set(new_axis, name).at(span)?;
-            axes_list.push(Some(new_axis));
-        }
-        let axes_list = Arc::new(axes_list);
-
-        if ctx_symmetry.is_some() {
-            this.axes.orbits.push(Orbit {
-                elements: Arc::clone(&axes_list),
-                generator_sequences: Arc::new(gen_seqs),
-            });
-        }
-
-        Ok(axes_list)
     }
 
     /// Adds a new set of twists with symmetry and multipliers.
@@ -709,7 +530,7 @@ impl HpsTwistSystem {
         names: HpsOrbitNames,
     ) -> Result<Option<HpsTwist>> {
         let span = ctx.caller_span;
-        let ctx_symmetry = ctx.scope.special.sym.ref_to::<Option<&HpsSymmetry>>()?;
+        let ctx_symmetry = HpsSymmetry::get(ctx)?;
 
         let mut first_twist = None;
 

@@ -3,7 +3,7 @@ use std::any::Any;
 use hyperpuzzle_core::{box_dyn_wrapper_struct, impl_dyn_clone};
 
 use crate::{
-    Error, FromValue, FromValueRef, Result, Span, Spanned, Type, TypeOf, Value, ValueData,
+    Error, EvalCtx, FromValue, FromValueRef, Result, Span, Spanned, Type, TypeOf, Value, ValueData,
 };
 
 /// Implements a custom type
@@ -42,8 +42,13 @@ macro_rules! impl_simple_custom_type {
         }
     };
     (@method index_get = $method_impl:expr) => {
-        fn index_get(&self, self_span: $crate::Span, index: $crate::Value) -> Result<$crate::Value> {
-            $method_impl(self, self_span, index)
+        fn index_get(
+            &self,
+            ctx: &mut EvalCtx<'_>,
+            self_span: $crate::Span,
+            index: $crate::Value,
+        ) -> Result<$crate::ValueData> {
+            $method_impl(self, ctx, self_span, index)
         }
     };
 }
@@ -119,7 +124,12 @@ pub trait CustomValue: Any + Send + Sync {
     }
 
     /// Indexes the type.
-    fn index_get(&self, self_span: Span, _index: Value) -> Result<Value> {
+    fn index_get(
+        &self,
+        _ctx: &mut EvalCtx<'_>,
+        self_span: Span,
+        _index: Value,
+    ) -> Result<ValueData> {
         Err(Error::CannotIndex(Type::Custom(self.type_name())).at(self_span))
     }
 

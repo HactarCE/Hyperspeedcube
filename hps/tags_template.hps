@@ -1,0 +1,43 @@
+return #{
+    tags = #{
+        author = "TODO",
+        inventor = "TODO",
+        external = #{
+            gelatinbrain = "1.1.1",
+            hof = "https://superliminal.com/cube/halloffame.htm",
+            mc4d = false,
+            leaderboard = true,
+            link = ["url1", "url2"],
+            museum = 7629,
+            wca = "333",
+        },
+
+        big = false,
+        bulitin = "2.0.0",
+        stable = "2.0.0",
+        type = "puzzle", // or "shape"
+        shape = "3d/TODO",
+        colors = ["multi_per_facet", "multi_facet_per"],
+        shapeshifting = true,
+        axes = ["3d/TODO", "hybrid", "multicore"],
+        turns_by = [
+            "facet", "ridge", "peak",
+            "cell", "face", "edge", "vertex",
+            "other",
+        ],
+        completeness = ["super", "real", "laminated", "complex"],
+        algebraic = [
+            "total/doctrinaire", "pseudo/doctrinaire",
+            "abelian", "fused", "non_faithful_action",
+            "oriententations/non_abelian",
+            "trivial",
+            "weird_orbits",
+        ],
+        cuts = ["depth/TODO", "stored", "wedge"],
+        pieces = ["acronic", "sphenic", "standard", "trivial"],
+        canonical = true,
+        family = "TODO",
+        "variant/isomorphic_to" = "TODO",
+        meme = true,
+    },
+}
