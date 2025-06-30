@@ -24,6 +24,10 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         // Case conversion
         ("upper", |_, s: Str| -> Str { s.to_uppercase() }),
         ("lower", |_, s: Str| -> Str { s.to_lowercase() }),
+        ("capital", |_, s: Str| -> Str {
+            let first_char_len = s.chars().next().map(char::len_utf8).unwrap_or(0);
+            (s[..first_char_len].to_uppercase() + &s[first_char_len..]).into()
+        }),
         // Unicode
         ("chars", |ctx, s: Str| -> ListOf<Str> {
             s.chars().map(|c| (c.into(), ctx.caller_span)).collect_vec()
