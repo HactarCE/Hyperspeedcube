@@ -365,6 +365,7 @@ impl HpsTwistSystem {
             kwargs,
             multipliers: Option<bool>,
             inverse: Option<bool>,
+            do_naming: bool = true,
             prefix: Option<Names>,
             name: Option<Names>,
             suffix: Option<Names>,
@@ -374,6 +375,23 @@ impl HpsTwistSystem {
             qtm: Option<usize>,
             gizmo_pole_distance: Option<Num>,
         );
+
+        if !do_naming {
+            for (value_is_some, kwarg_name) in [
+                (prefix.is_some(), "prefix"),
+                (name.is_some(), "name"),
+                (suffix.is_some(), "suffix"),
+                (inv_name.is_some(), "inv_name"),
+                (inv_suffix.is_some(), "inv_suffix"),
+                (name_fn.is_some(), "name_fn"),
+            ] {
+                if value_is_some {
+                    ctx.warn(format!(
+                        "`{kwarg_name}` and `do_naming=false` are mutually exclusive"
+                    ));
+                }
+            }
+        }
 
         let prefix = prefix.map(|Names(n)| n);
         let name = name.map(|Names(n)| n);
@@ -386,13 +404,6 @@ impl HpsTwistSystem {
         let axis_id = axis.id;
         let prefix = prefix.or_else(|| Some((HpsOrbitNamesComponent::Axis(axis), span).into()));
         let axis = axis_id;
-
-        let do_naming = prefix.as_ref().is_some_and(|n| !n.is_empty())
-            || name.as_ref().is_some_and(|n| !n.is_empty())
-            || suffix.as_ref().is_some_and(|n| !n.is_empty())
-            || inv_name.as_ref().is_some_and(|n| !n.is_empty())
-            || inv_suffix.as_ref().is_some_and(|n| !n.is_empty())
-            || name_fn.is_some();
 
         let inverse = inverse.unwrap_or(ndim == 3);
         let multipliers = multipliers.unwrap_or(ndim == 3);
