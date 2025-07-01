@@ -62,6 +62,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                     if let Ok(exports_map) = exports.to::<Arc<Map>>() {
                         b.hps_exports = exports_map;
                     }
+                    b.is_modified = false;
 
                     let puzzle_id = None;
                     b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
