@@ -132,12 +132,14 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsOrbitNames {
+    pub const EMPTY: Self = Self { components: vec![] };
+
     pub fn to_strings(
         &self,
         ctx: &mut EvalCtx<'_>,
         transforms: &[Motor],
         span: Span,
-    ) -> Result<Vec<String>> {
+    ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
         let mut strings = vec![String::new(); transforms.len()];
         for &(ref component, component_span) in &self.components {
             let strings_and_transforms = std::iter::zip(&mut strings, transforms);
@@ -192,7 +194,7 @@ impl HpsOrbitNames {
                 }
             }
         }
-        Ok(strings)
+        Ok(strings.into_iter().map(|s| (!s.is_empty()).then_some(s)))
     }
 
     pub fn is_empty(&self) -> bool {

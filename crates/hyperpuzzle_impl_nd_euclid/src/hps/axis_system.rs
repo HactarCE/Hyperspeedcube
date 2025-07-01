@@ -10,6 +10,7 @@ use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use crate::builder::AxisSystemBuilder;
+use crate::hps::orbit_names::HpsOrbitNames;
 
 use super::HpsAxis;
 
@@ -135,12 +136,10 @@ impl HpsAxisSystem {
             ),
         };
 
-        let names = match names {
+        let names = match &names {
             Some(names) => names.0.to_strings(ctx, &transforms, span)?,
-            None => vec![],
+            None => const { &HpsOrbitNames::EMPTY }.to_strings(ctx, &[], span)?,
         }
-        .into_iter()
-        .map(Some)
         .chain(std::iter::repeat(None));
 
         // Add & name axes.

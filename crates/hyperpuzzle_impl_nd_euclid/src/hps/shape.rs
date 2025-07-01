@@ -158,9 +158,9 @@ impl HpsShape {
                     color_names
                         .into_iter()
                         .map(|name_spec| {
-                            this.colors
-                                .get_or_add_with_name_spec(name_spec, &mut ctx.warnf())
-                                .map(Some)
+                            name_spec
+                                .map(|s| this.colors.get_or_add_with_name_spec(s, &mut ctx.warnf()))
+                                .transpose()
                         })
                         .try_collect()
                         .at(span)?,

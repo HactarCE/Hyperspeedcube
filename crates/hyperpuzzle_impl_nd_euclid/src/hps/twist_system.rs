@@ -126,9 +126,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                         let names = names.0.to_strings(ctx, &transforms, ctx.caller_span)?;
                         for (vector, name) in std::iter::zip(vectors, names) {
                             let id = reference_vectors.push(vector).at(ctx.caller_span)?;
-                            reference_vector_names
-                                .set(id, Some(name))
-                                .at(ctx.caller_span)?;
+                            reference_vector_names.set(id, name).at(ctx.caller_span)?;
                         }
                     }
 
@@ -576,7 +574,7 @@ impl HpsTwistSystem {
                         super::axis_from_vector(&this.axes, &key.axis_vector).at(span)?;
                     builder.transform = key.transform;
                     let new_twist = this
-                        .add_named(builder.clone(), Some(name), ctx.warnf())
+                        .add_named(builder.clone(), name, ctx.warnf())
                         .at(span)?;
                     if first_twist.is_none() {
                         first_twist = Some(new_twist);
@@ -584,10 +582,10 @@ impl HpsTwistSystem {
                 }
             }
             None => {
-                let names = names.to_strings(ctx, &[Motor::ident(ctx.ndim()?)], span)?;
+                let mut names = names.to_strings(ctx, &[Motor::ident(ctx.ndim()?)], span)?;
                 let mut this = self.lock();
                 first_twist = Some(
-                    this.add_named(builder, names.into_iter().next(), ctx.warnf())
+                    this.add_named(builder, names.next().flatten(), ctx.warnf())
                         .at(span)?,
                 );
             }
