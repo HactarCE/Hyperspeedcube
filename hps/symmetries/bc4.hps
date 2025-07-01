@@ -1,4 +1,4 @@
-export fn hypercube() {
+export fn hypercube() -> Map {
     use * from euclid
 
     export name = "Hypercube"

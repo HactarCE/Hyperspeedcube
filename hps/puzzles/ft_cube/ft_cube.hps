@@ -1,0 +1,361 @@
+//! Facet-turning hypercubes
+
+use * from euclid
+
+// Parameter for hypercube gimzos
+export GIZMO_EDGE_FACTOR = 0.8
+
+// Whether to thicken the outer layers to leave room for the corner stalk
+export REALISITIC_PROPORTIONS = true
+// Size of the corner stalk, if REALISITIC_PROPORTIONS=true
+export CORNER_STALK_SIZE = 0.1
+
+// Returns the cut depths for a facet-turning N-cube.
+export fn cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
+    if layers < 2 {
+        error("facet-turning cube cannot have ${layers} layers")
+    }
+
+    aesthetic_limit = 1 - 2 / layers
+    mechanical_limit = 0
+    if REALISITIC_PROPORTIONS {
+        mechanical_limit = 1 / √(ndim - 1)
+    }
+    outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
+    return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
+}
+
+// NxNxN Face-Turning Cube generator
+add_puzzle_generator(
+    id = "ft_cube",
+    version = "1.0.0",
+    name = "NxNxN Face-Turning Cube",
+    aliases = ["N^3"],
+    params = [
+        #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
+    ],
+    engine = "euclid",
+    colors = "cube",
+    twists = "ft_cubic",
+    gen = fn(n) {
+        return #{
+            name = "${n}x${n}x${n}",
+            aliases = ["${n}^3"],
+            ndim = 3,
+            build = fn() {
+                sym = cd("bc3")
+
+                with #sym = sym {
+                    // Carve shape
+                    carve(plane(#sym.oox.unit), @symmetries/bc3.cube().face_names)
+
+                    // Slice layers
+                    add_layers(#twists.face_axis, cut_depths(3, n))
+                }
+
+                @piece_types/triacron_subsets.mark_multilayer_UFRL(n)
+                unify_piece_types(sym.chiral) // chiral because left vs. right obliques
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    laminated = n <= 2,
+                    real = n <= 3,
+                    super = n <= 2,
+                },
+                "cuts/depth/deep/to_adjacent" = n.is_even(),
+                "cuts/depth/half" = n.is_even(),
+                "external/leaderboard" = n >= 2,
+                "pieces/acronic" = n <= 3,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        stable = "2.0.0",
+        author = ["Andrew Farkas", "Milo Jacquet"],
+        shape = "3d/platonic/cube",
+        axes = "3d/elementary/cubic",
+        turns_by = ["facet", "face"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = "depth/shallow",
+    },
+
+    examples = [
+        #{params = [2], aliases = ["Pocket Cube"], tags = #{
+            inventor = "Ernő Rubik",
+            external = #{gelatinbrain = "3.1.1", museum = 20, wca = "222"},
+        }},
+        #{params = [3], aliases = ["Rubik's Cube"], tags = #{
+            inventor = "Ernő Rubik",
+            external = #{gelatinbrain = "3.1.2", museum = 7629, wca = "333"},
+            canonical = true,
+        }},
+        #{params = [4], aliases = ["Rubik's Revenge"], tags = #{
+            inventor = "Peter Sebesteny",
+            external = #{gelatinbrain = "3.1.3", museum = 265, wca = "444"},
+        }},
+        #{params = [5], aliases = ["Professor's Cube"], tags = #{
+            inventor = "Jürgen Hoffmann",
+            external = #{gelatinbrain = "3.1.4", museum = 6106, wca = "555"},
+        }},
+        #{params = [6], tags = #{
+            inventor = "Daniel Tseng",
+            external = #{museum = 3931, wca = "666"},
+        }},
+        #{params = [7], tags = #{
+            inventor = "Panagiotis Verdes",
+            external = #{museum = 1486, wca = "777"},
+        }},
+    ],
+)
+
+// Cubic twist system
+add_twist_system(
+    id = "ft_cubic",
+    name = "Cubic",
+    ndim = 3,
+    engine = "euclid",
+    build = fn() {
+        sym = cd("bc3")
+
+        // Add axes and twists
+        with #sym = sym {
+            export face_axis = add_axis(#sym.oox, @symmetries/bc3.cube().face_names)
+            use F, U, R from #axes
+            add_twist(F, #sym.thru([1, 0]), gizmo_pole_distance = 1)
+        }
+
+        // Add global twist directions
+        fn cw(axis) { #twists[axis.name] }
+        fn ccw(axis) { #twists[axis.name].rev() }
+        add_twist_direction("CW", fn(ax) { [cw(ax)] })
+        add_twist_direction("CW2", fn(ax) { [cw(ax), cw(ax)] })
+        add_twist_direction("CCW", fn(ax) { [ccw(ax)] })
+        add_twist_direction("CCW2", fn(ax) { [ccw(ax), ccw(ax)] })
+
+        // Add cubic vantage group
+        add_vantage_group(
+            id = "cubic",
+            symmetry = sym,
+            refs = [[sym.oox, @symmetries/bc3.cube().face_names]],
+            init = ["F", "U"],
+        )
+
+        // Add face-centered cubic vantage set
+        F = sym.oox
+        U = sym.thru(2).transform(F)
+        R = sym.thru(1).transform(U)
+        x = rot(fix = U, start = R, end = F)
+        y = rot(fix = R, start = F, end = U)
+        z = rot(fix = F, start = U, end = R)
+        add_vantage_set(
+            name = "Face-centered",
+            group = "cubic",
+            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+            transforms = #{
+                x = x, "x'" = x.rev(),
+                y = y, "y'" = y.rev(),
+                z = z, "z'" = z.rev(),
+            },
+            axes = "*",
+        )
+    },
+)
+
+// NxNxNxN Facet-Turning Cube
+add_puzzle_generator(
+    id = "ft_hypercube",
+    version = "1.0.0",
+    name = "NxNxNxN Facet-Turning Cube",
+    aliases = ["N^4"],
+    params = [
+        #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
+    ],
+    colors = "hypercube",
+    twists = "ft_hypercubic",
+    engine = "euclid",
+    gen = fn(n) {
+        return #{
+            name = "${n}x${n}x${n}x${n}",
+            ndim = 4,
+            build = fn() {
+                sym = cd("bc4")
+
+                with #sym = sym {
+                    // Carve shape
+                    carve(plane(#sym.ooox.unit), @symmetries/bc4.hypercube().facet_names)
+
+                    // Slice layers
+                    add_layers(#twists.facet_axis, cut_depths(4, n))
+                }
+
+                @piece_types/tetrahedracron_subsets.mark_multilayer_UFRLIO(n)
+                unify_piece_types(sym.chiral) // chiral because left vs. right obliques
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    laminated = n <= 2,
+                    real = n <= 3,
+                    super = n <= 2,
+                },
+                "cuts/depth/deep/to_adjacent" = n.is_even(),
+                "cuts/depth/half" = n.is_even(),
+                "external/leaderboard" = n >= 2,
+                "pieces/acronic" = n <= 3,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        stable = "2.0.0",
+        author = ["Andrew Farkas", "Milo Jacquet"],
+        shape = "4d/platonic/hypercube",
+        axes = "4d/elementary/hypercubic",
+        turns_by = ["facet", "cell"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire", "orientations/non_abelian"],
+        cuts = "depth/shallow",
+    },
+
+    examples = [
+        #{params = [2], tags = #{external = #{gelatinbrain = "8.1.1"}}},
+        #{params = [3], tags = #{canonical = true}},
+        #{params = [4]},
+        #{params = [5]},
+        #{params = [6]},
+        #{params = [7]},
+    ],
+)
+
+// Hypercubic twist system
+add_twist_system(
+    id = "ft_hypercubic",
+    name = "Hypercubic",
+    ndim = 4,
+    engine = "euclid",
+    build = fn() {
+        sym = cd("bc4")
+
+        // Add axes and twists
+        with #sym = sym {
+            export facet_axis = add_axis(#sym.ooox, @symmetries/bc4.hypercube().facet_names)
+            a0 = facet_axis
+            a1 = #sym.thru(3).transform(a0)
+            a2 = #sym.thru(2).transform(a1)
+            a3 = #sym.thru(1).transform(a2)
+            add_twist(a0, #sym.thru([0, 1]), "${a1}", gizmo_pole_distance = 1)
+            add_twist(a0, #sym.thru([0, 2]), "{${a1}${a2}}", gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / √2)
+            add_twist(a0, #sym.thru([1, 2]), "{${a1}${a2}${a3}}", gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / √3)
+        }
+
+        // Add hypercubic vantage group
+        add_vantage_group(
+            id = "hypercubic",
+            symmetry = sym,
+            refs = [[sym.ooox, @symmetries/bc4.hypercube().facet_names]],
+            init = ["I", "F", "U"],
+        )
+
+        // Add facet-centered hypercubic vantage set
+        basis = #{x = vec(x=1), y = vec(y=1), z = vec(z=1), w = vec(w=1)}
+        rots = #{}
+        for a in "xyzw" {
+            for b in "xyzw" {
+                if a != b {
+                    rots["${a}${b}"] = rot(start = @util.axis_vec(a), end = @util.axis_vec(b))
+                }
+            }
+        }
+        use I, O from #axes
+        add_vantage_set(
+            name = "Facet-centered",
+            group = "hypercubic",
+            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 45°)
+                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+            transforms = rots,
+            axes = "*",
+            directions = #{
+                I = #{
+                    "x"  = #twists.IR, "y"  = #twists.IU, "z"  = #twists.IF,
+                    "x'" = #twists.IL, "y'" = #twists.ID, "z'" = #twists.IB,
+                },
+            },
+            inherit_directions = fn(axis_vector: Vec) -> Transform? {
+                if axis_vector == I.vec {
+                    null
+                } else if axis_vector == O.vec {
+                    refl()
+                } else {
+                    rot(start = axis_vector, end = I.vec)
+                }
+            },
+        )
+    },
+)
+
+// N^D Facet-Turning Hypercube generator
+add_puzzle_generator(
+    id = "ft_nd_hypercube",
+    version = "0.1.0",
+    name = "N^D Facet-Turning Hypercube",
+    aliases = ["N^D"],
+    params = [
+        #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
+        #{name = "Dimension", type = Int, default = 3, min = 2, max = 7},
+    ],
+    engine = "euclid",
+    gen = fn(n, d) {
+        return #{
+            name = "${n}^${d}",
+            ndim = d,
+            build = fn() {
+                with #sym = cd("bc${d}") {
+                    v = vec()
+                    v[d-1] = 1
+                    facet_pole = #sym.vec(v).unit
+
+                    // Carve shape
+                    carve(plane(facet_pole))
+
+                    // Add axes & twists
+                    facet_axis = add_axis(facet_pole)
+                    #axes.autoname()
+                    add_twist(facet_axis, #sym.thru([0, 1]), do_naming=false) // not sure how to name these (axis->axis?)
+
+                    // Slice layers
+                    add_layers(facet_axis, cut_depths(d, n))
+                }
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    laminated = n <= 2,
+                    real = n <= 3,
+                    super = n <= 2,
+                },
+                "cuts/depth/deep/to_adjacent" = n.is_even(),
+                "cuts/depth/half" = n.is_even(),
+                "external/leaderboard" = n >= 2,
+                "pieces/acronic" = n <= 3,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas"],
+        turns_by = ["facet"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire", "orientations/non_abelian"],
+        cuts = "depth/shallow",
+    },
+)
