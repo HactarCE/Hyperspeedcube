@@ -191,6 +191,11 @@ impl TwistSystemBuilder {
         Ok(self.key_to_id(&self.get(id)?.rev_key()?))
     }
 
+    /// Returns the automatic names to use for twists.
+    pub fn autonames() -> impl Iterator<Item = String> {
+        (0..).map(|i| format!("T{i}"))
+    }
+
     /// Validates and constructs a twist system.
     pub fn build(
         &self,
@@ -227,7 +232,7 @@ impl TwistSystemBuilder {
 
         // Autoname twists.
         let mut twist_names = self.names.clone();
-        twist_names.autoname(self.len(), (0..).map(|i| format!("T{i}")))?;
+        twist_names.autoname(self.len(), Self::autonames())?;
 
         // Assemble list of twists.
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();

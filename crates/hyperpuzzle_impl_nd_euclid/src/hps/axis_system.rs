@@ -95,6 +95,14 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ) -> Option<HpsAxis> {
             HpsPuzzle::get(ctx)?.add_layered_axes(ctx, vector, Some(names), layers, slice)?
         }
+
+        fn autoname(ctx: EvalCtx, axes: HpsAxisSystem) -> () {
+            let mut axes = axes.lock();
+            let len = axes.len();
+            axes.names
+                .autoname(len, AxisSystemBuilder::autonames())
+                .at(ctx.caller_span)?;
+        }
     ])
 }
 

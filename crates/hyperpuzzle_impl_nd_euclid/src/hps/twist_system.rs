@@ -281,6 +281,15 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 axes,
             });
         }
+
+        fn autoname(ctx: EvalCtx, twists: HpsTwistSystem) -> () {
+            let mut twists = twists.lock();
+            let len = twists.len();
+            twists
+                .names
+                .autoname(len, TwistSystemBuilder::autonames())
+                .at(ctx.caller_span)?;
+        }
     ])
 }
 

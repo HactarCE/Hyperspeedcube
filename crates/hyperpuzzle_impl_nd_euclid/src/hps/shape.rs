@@ -9,7 +9,7 @@ use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::{ArcMut, HpsColor, HpsRegion, HpsSymmetry, Names};
-use crate::builder::ShapeBuilder;
+use crate::builder::{ColorSystemBuilder, ShapeBuilder};
 
 /// HPS shape builder.
 pub(super) type HpsShape = ArcMut<ShapeBuilder>;
@@ -101,6 +101,16 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         fn delete_untyped_pieces(ctx: EvalCtx) -> () {
             let shape = HpsShape::get(ctx)?;
             shape.lock().delete_untyped_pieces(&mut ctx.warnf())
+        }
+
+        fn autoname_colors(ctx: EvalCtx, shape: HpsShape) -> () {
+            let mut shape = shape.lock();
+            let len = shape.colors.len();
+            shape
+                .colors
+                .names
+                .autoname(len, ColorSystemBuilder::autonames())
+                .at(ctx.caller_span)?;
         }
     ])
 }

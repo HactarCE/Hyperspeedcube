@@ -99,11 +99,15 @@ impl AxisSystemBuilder {
         self.by_id.iter()
     }
 
+    /// Returns the automatic names to use for axes.
+    pub fn autonames() -> impl Iterator<Item = String> {
+        hyperpuzzle_core::util::iter_uppercase_letter_names()
+    }
+
     /// Validates and constructs an axis system.
     pub(super) fn build(&self) -> Result<AxisSystemBuildOutput> {
         let mut names = self.names.clone();
-        let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
-        names.autoname(self.len(), autonames)?;
+        names.autoname(self.len(), Self::autonames())?;
         let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis names")?);
 
         let orbits = self.orbits.clone();

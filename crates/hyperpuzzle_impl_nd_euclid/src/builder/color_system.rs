@@ -164,6 +164,11 @@ impl ColorSystemBuilder {
         self.by_id.iter()
     }
 
+    /// Returns the automatic names to use for colors.
+    pub fn autonames() -> impl Iterator<Item = String> {
+        hyperpuzzle_core::util::iter_uppercase_letter_names()
+    }
+
     /// Validates and constructs a color system.
     ///
     /// Also returns a map from old color IDs to new color IDs.
@@ -194,8 +199,7 @@ impl ColorSystemBuilder {
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
         let mut names = self.names.clone();
-        let autonames = hyperpuzzle_core::util::iter_uppercase_letter_names();
-        names.autoname(self.len(), autonames)?;
+        names.autoname(self.len(), Self::autonames())?;
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
 
         let display_names = names
