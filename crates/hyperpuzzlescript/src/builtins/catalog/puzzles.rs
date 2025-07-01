@@ -71,7 +71,6 @@ pub fn define_in(
                 id.clone()
             });
             pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
-            pop_kwarg!(kwargs, version: Option<String>);
             pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
             pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>> );
             pop_kwarg!(kwargs, examples: Vec<Spanned<Arc<Map>>> = vec![]);
@@ -80,16 +79,31 @@ pub fn define_in(
 
             let caller_span = ctx.caller_span;
 
-            let version =
-                super::parse_version(ctx, &format!("puzzle generator `{id}`"), version.as_deref())?;
+            // Parse `version`, but leave it in so that the puzzles inherit it.
+            let version = super::parse_version(
+                ctx,
+                &format!("puzzle generator `{id}`"),
+                kwargs
+                    .get("version")
+                    .map(|v| v.as_ref::<str>())
+                    .transpose()?,
+            )?;
 
             // Add `#generator` tag.
             let mut tags = tags_map.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
             for tag in tags.0.keys().filter(|tag| tag.starts_with("type/")) {
-                ctx.warn(format!("generator {id:?} should not have tag {tag:?}"));
+                ctx.warn(format!("generator `{id}` should not have tag {tag:?}"));
             }
             tags.insert_named("type/generator", TagValue::True)
                 .at(caller_span)?;
+
+            // Add `#experimental` tag.
+            tags.set_experimental_or_expect_stable(
+                version,
+                ctx.warnf(),
+                &format!("generator `{id}`"),
+            )
+            .at(ctx.caller_span)?;
 
             let gen_meta = super::generators::GeneratorMeta {
                 id,
@@ -258,10 +272,9 @@ fn puzzle_spec_from_kwargs(
             .at(ctx.caller_span)?;
     }
 
-    if !tags.get("stable").is_some_and(|t| t.is_present()) {
-        tags.insert_named("experimental", TagValue::True)
-            .at(ctx.caller_span)?;
-    }
+    // Add `#experimental` tag.
+    tags.set_experimental_or_expect_stable(version, ctx.warnf(), &format!("puzzle `{id}`"))
+        .at(ctx.caller_span)?;
 
     tags.inherit_parent_tags();
 

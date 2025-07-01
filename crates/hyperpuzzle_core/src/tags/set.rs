@@ -5,6 +5,8 @@ use itertools::Itertools;
 use serde::Serialize;
 use serde::ser::SerializeMap;
 
+use crate::Version;
+
 use super::menu::UnknownTag;
 use super::{TagData, TagValue};
 
@@ -80,6 +82,31 @@ impl TagSet {
     /// Adds a tag to the tag set by name.
     pub fn insert_named(&mut self, tag_name: &str, value: TagValue) -> Result<(), UnknownTag> {
         self.insert(crate::TAGS.get(tag_name)?, value);
+        Ok(())
+    }
+
+    /// Adds the `#experimental` if the version is less than 1.0.0; otherwise
+    /// emits a warning if the `#stable` tag is not set.
+    pub fn set_experimental_or_expect_stable(
+        &mut self,
+        version: Version,
+        mut warn_fn: impl FnMut(String),
+        obj_name: &str,
+    ) -> Result<(), UnknownTag> {
+        if version.major == 0 {
+            self.insert_named("experimental", TagValue::True)?;
+            if self.has_present("stable") {
+                warn_fn(format!(
+                    "{obj_name} is <1.0.0 so it should not have the `stable` tag"
+                ))
+            }
+        } else {
+            if !self.has_present("stable") {
+                warn_fn(format!(
+                    "{obj_name} is ≥1.0.0 so it should have the `stable` tag"
+                ));
+            }
+        }
         Ok(())
     }
 
