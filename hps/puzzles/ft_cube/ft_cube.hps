@@ -113,6 +113,63 @@ add_puzzle_generator(
     ],
 )
 
+// Super Real NxNxN Face-Turning Cube generator
+add_puzzle_generator(
+    id = "ft_cube_super_real",
+    version = "0.1.0",
+    name = "Super Real NxNxN Face-Turning Cube",
+    aliases = ["N^3"],
+    params = [
+        #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
+    ],
+    engine = "euclid",
+    colors = "cube",
+    twists = "ft_cubic",
+    remove_internals = false,
+    gen = fn(n) {
+        return #{
+            name = "Super Real ${n}x${n}x${n}",
+            aliases = ["Super Real ${n}^3"],
+            ndim = 3,
+            build = fn() {
+                with #sym = cd("bc3") {
+                    // Carve shape
+                    carve(plane(#sym.oox.unit), @symmetries/bc3.cube().face_names)
+
+                    // Slice layers
+                    add_layers(#twists.face_axis, cut_depths(3, n))
+
+                    for d in cut_depths(3, n) {
+                        if d.is_finite() {
+                            slice(plane(#sym.oox.unit, d), @symmetries/bc3.cube().face_names)
+                        }
+                    }
+                }
+            },
+
+            tags = #{
+                type = "puzzle",
+                "cuts/depth/deep/to_adjacent" = n.is_even(),
+                "cuts/depth/half" = n.is_even(),
+                "external/leaderboard" = n >= 2,
+                "pieces/acronic" = n <= 3,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas"],
+        shape = "3d/platonic/cube",
+        axes = "3d/elementary/cubic",
+        turns_by = ["facet", "face"],
+        completeness = ["laminated", "super", "real"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = "depth/shallow",
+    },
+)
+
 // Cubic twist system
 add_twist_system(
     id = "ft_cubic",
