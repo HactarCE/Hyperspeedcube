@@ -96,7 +96,7 @@ fn build_3d_gizmo(
     gizmo_poles: &[(Vector, Twist)],
     warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
-    if twists.is_empty() {
+    if gizmo_poles.is_empty() {
         return Ok(vec![]);
     }
 
@@ -134,12 +134,12 @@ fn build_4d_gizmo(
 ) -> Result<Vec<(GizmoFace, Twist)>> {
     use hypershape::flat::*;
 
-    let axis_vector = &engine_data.axis_vectors[axis];
-    let axis_name = &twists.axes.names[axis];
-
-    if twists.is_empty() {
+    if gimzo_poles.is_empty() {
         return Ok(vec![]);
     }
+
+    let axis_vector = &engine_data.axis_vectors[axis];
+    let axis_name = &twists.axes.names[axis];
 
     // Cut a primordial polyhedron at the axis.
     let initial_cut_params = CutParams {
