@@ -76,14 +76,17 @@ pub fn is_valid_ident(s: &str) -> bool {
 pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExtra<'src>> {
     recursive(|tokens| {
         let line_comment = just("//").then(any().and_is(just('\n').not()).repeated());
-        let block_comment_interior = recursive(|block_comment_interior| {
+        // TODO: improve error message on block comment mismatch
+        let block_comment = recursive(|block_comment| {
             choice((
-                block_comment_interior.delimited_by(just("/*"), just("*/")),
+                block_comment,
                 just("/").then(any().and_is(just('*').not())).ignored(),
-                any().and_is(just('/').not()).ignored(),
+                just("*").then(any().and_is(just('/').not())).ignored(),
+                any().and_is(one_of("/*").not()).ignored(),
             ))
+            .repeated()
+            .delimited_by(just("/*"), just("*/"))
         });
-        let block_comment = block_comment_interior.delimited_by(just("/*"), just("*/"));
 
         let normal_padding = choice((
             one_of(" \t").ignored(),
@@ -253,6 +256,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 just(".").to(Token::Period),
                 just("√").to(Token::Sqrt),
                 just("°").to(Token::Degrees),
+                just("∞").to(Token::Ident),
             ]),
         ))
         .labelled("token")

@@ -1,0 +1,16 @@
+assert(true) // assert(false)
+// assert(false)
+/* assert(false) */
+
+assert(true /* and /* false */ */)
+
+assert(true)
+/*
+assert(false)
+assert(false)
+/*
+assert(false)
+*/
+assert(false)
+*/
+assert(true)
