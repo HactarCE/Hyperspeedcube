@@ -29,7 +29,7 @@ pub(super) fn build_twist_gizmos(
     // Assemble a list of gizmo pole vectors and their associated twists.
     let mut gizmo_poles: PerAxis<Vec<(Vector, Twist)>> = PerAxis::new_with_len(twists.axes.len());
     for (twist, twist_info) in &twists.twists {
-        if let Some(pole_distance) = gizmo_pole_distances[twist] {
+        if let Ok(&Some(pole_distance)) = gizmo_pole_distances.get(twist) {
             // The axis vector is fixed by the twist.
             let axis_vector = &axis_vectors[twist_info.axis];
 
