@@ -7,7 +7,6 @@ use hypermath::pga::Motor;
 use hypermath::{IndexNewtype, Point, Vector};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
-use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::TwistKey;
@@ -36,7 +35,7 @@ use region::HpsRegion;
 use shape::HpsShape;
 use symmetry::HpsSymmetry;
 use twist::{HpsTwist, transform_twist, twist_name};
-use twist_system::HpsTwistSystem;
+use twist_system::{GeometricTwistKey, HpsTwistSystem};
 
 /// Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
 ///
@@ -80,12 +79,12 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn transform(transform: Motor, object: HpsRegion) -> HpsRegion {
             transform.transform(&object)
         }
-        // fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
-        //     todo!("transform names")
-        // }
-        // fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
-        //     todo!("transform symmetry")
-        // }
+        fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
+            object.0.transform_by(transform)
+        }
+        fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
+            transform.transform(&object)
+        }
 
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Motor) -> Vec<Spanned<Motor>> {
             symmetry::orbit_spanned(ctx, sym, object)
@@ -103,26 +102,41 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             ctx: EvalCtx,
             sym: HpsSymmetry,
             (object, object_span): HpsAxis,
-        ) -> Vec<Spanned<HpsAxis>> {
+        ) -> Vec<Spanned<Option<HpsAxis>>> {
             let vectors = sym.orbit(object.vector().at(object_span)?);
             let axes = object.axes.lock();
             vectors
                 .into_iter()
                 .map(|(_, _, v)| {
-                    axis_from_vector(&axes, &v).map(|id| {
-                        let axes = object.axes.clone();
-                        (HpsAxis { id, axes }, ctx.caller_span)
-                    })
+                    let id = axes.vector_to_id(&v)?;
+                    let axes = object.axes.clone();
+                    Some(HpsAxis { id, axes })
                 })
-                .try_collect()
-                .at(ctx.caller_span)?
+                .map(|opt| (opt, ctx.caller_span))
+                .collect()
         }
         fn orbit(
             ctx: EvalCtx,
             sym: HpsSymmetry,
             (object, object_span): HpsTwist,
-        ) -> Vec<Spanned<HpsTwist>> {
-            vec![] // TODO orbit twists
+        ) -> Vec<Spanned<Option<HpsTwist>>> {
+            let init_key = GeometricTwistKey {
+                axis_vector: object.axis().at(object_span)?.vector().at(object_span)?,
+                transform: object.transform().at(object_span)?,
+            };
+            let twists = object.twists.lock();
+            sym.orbit(init_key)
+                .iter()
+                .map(|(_, _, key)| {
+                    let id = twists.key_to_id(&TwistKey::new(
+                        twists.axes.vector_to_id(&key.axis_vector)?,
+                        &key.transform,
+                    )?)?;
+                    let twists = object.twists.clone();
+                    Some(HpsTwist { id, twists })
+                })
+                .map(|opt| (opt, ctx.caller_span))
+                .collect()
         }
     ])?;
 

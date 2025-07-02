@@ -126,6 +126,18 @@ impl PartialEq for HpsSymmetry {
     }
 }
 
+impl TransformByMotor for HpsSymmetry {
+    fn transform_by(&self, m: &Motor) -> Self {
+        Self {
+            generators: Arc::new(self.generators.iter().map(|g| m.transform(g)).collect()),
+            coxeter_group: self
+                .coxeter_group
+                .as_ref()
+                .map(|cox| Arc::new(m.transform(&**cox))),
+        }
+    }
+}
+
 impl HpsSymmetry {
     pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<Option<&'a Self>> {
         ctx.scope.special.sym.ref_to()

@@ -599,9 +599,9 @@ impl HpsTwistSystem {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct GeometricTwistKey {
-    axis_vector: Vector,
-    transform: Motor,
+pub(super) struct GeometricTwistKey {
+    pub axis_vector: Vector,
+    pub transform: Motor,
 }
 impl AbsDiffEq for GeometricTwistKey {
     type Epsilon = Float;

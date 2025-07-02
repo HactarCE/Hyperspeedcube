@@ -150,6 +150,22 @@ impl Matrix {
             self.at_ndim(ndim)
         }
     }
+    /// Pads the matrix with zeros up to `ndim`, avoiding reallocation if
+    /// possible.
+    #[must_use]
+    pub fn pad_zeros(self, ndim: u8) -> Matrix {
+        if ndim <= self.ndim() {
+            self
+        } else {
+            let mut ret = Matrix::zero(ndim);
+            for i in 0..ret.ndim() {
+                for j in 0..ret.ndim() {
+                    *ret.get_mut(i, j) = self.get(i, j);
+                }
+            }
+            ret
+        }
+    }
     /// Pads or truncates the matrix to exactly `ndim`, avoiding reallocation if
     /// possible.
     #[must_use]

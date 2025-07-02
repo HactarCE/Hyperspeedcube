@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 use std::ops::Add;
 use std::sync::Arc;
@@ -38,6 +39,7 @@ impl FromValue for Names {
 
 #[derive(Default, Clone)]
 pub struct HpsOrbitNames {
+    offset: Option<Motor>,
     components: Vec<Spanned<HpsOrbitNamesComponent>>,
 }
 impl_simple_custom_type!(HpsOrbitNames = "euclid.OrbitNames");
@@ -59,6 +61,7 @@ impl TryEq for HpsOrbitNames {
 impl From<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
     fn from(value: Spanned<HpsOrbitNamesComponent>) -> Self {
         Self {
+            offset: None,
             components: vec![value],
         }
     }
@@ -69,6 +72,17 @@ impl From<&str> for HpsOrbitNames {
             HpsOrbitNamesComponent::Str(value.into()),
             hyperpuzzlescript::BUILTIN_SPAN,
         ))
+    }
+}
+impl HpsOrbitNames {
+    // Take ownership instead of implementing the trait, which takes a
+    // reference.
+    pub fn transform_by(mut self, m: Motor) -> Self {
+        self.offset = Some(match self.offset {
+            Some(m2) => m * m2,
+            None => m,
+        });
+        self
     }
 }
 
@@ -82,6 +96,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         }),
         ("$", |ctx, twist: HpsTwist| -> HpsOrbitNames {
             HpsOrbitNames::from((twist.into(), ctx.caller_span))
+        }),
+        ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames {
+            orbit_names
         }),
         (
             "++",
@@ -132,7 +149,10 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsOrbitNames {
-    pub const EMPTY: Self = Self { components: vec![] };
+    pub const EMPTY: Self = Self {
+        offset: None,
+        components: vec![],
+    };
 
     pub fn to_strings(
         &self,
@@ -142,7 +162,13 @@ impl HpsOrbitNames {
     ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
         let mut strings = vec![String::new(); transforms.len()];
         for &(ref component, component_span) in &self.components {
-            let strings_and_transforms = std::iter::zip(&mut strings, transforms);
+            let strings_and_transforms = std::iter::zip(
+                &mut strings,
+                transforms.into_iter().map(|t| match &self.offset {
+                    Some(t2) => Cow::Owned(t * t2),
+                    None => Cow::Borrowed(t),
+                }),
+            );
             match component {
                 HpsOrbitNamesComponent::Str(new_str) => {
                     for s in &mut strings {
@@ -153,7 +179,7 @@ impl HpsOrbitNames {
                     let axes = axis.axes.lock();
                     for (s, t) in strings_and_transforms {
                         let transformed_axis =
-                            super::transform_axis(span, &axes, t, (axis.id, component_span))?;
+                            super::transform_axis(span, &axes, &t, (axis.id, component_span))?;
                         let transformed_axis_name =
                             super::axis_name(span, &axes, transformed_axis)?;
                         s.push_str(&transformed_axis_name.spec);
@@ -163,7 +189,7 @@ impl HpsOrbitNames {
                     let twists = twist.twists.lock();
                     for (s, t) in strings_and_transforms {
                         let transformed_twist =
-                            super::transform_twist(span, &twists, t, (twist.id, component_span))?;
+                            super::transform_twist(span, &twists, &t, (twist.id, component_span))?;
                         let transformed_twist_name =
                             super::twist_name(span, &twists, transformed_twist)?;
                         s.push_str(&transformed_twist_name.spec);
@@ -185,7 +211,7 @@ impl HpsOrbitNames {
                 }
                 HpsOrbitNamesComponent::Fn(f) => {
                     for (s, t) in strings_and_transforms {
-                        let args = vec![ValueData::EuclidTransform(t.clone()).at(span)];
+                        let args = vec![ValueData::EuclidTransform(t.into_owned()).at(span)];
                         s.push_str(
                             f.call(component_span, ctx, args, Map::new())?
                                 .as_ref::<str>()?,
