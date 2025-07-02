@@ -320,9 +320,16 @@ impl TwistSystemBuilder {
 
         let twist_axes = Arc::new(twists.map_ref(|_, twist_info| twist_info.axis));
 
+        let (default_vantage_group_name, default_vantage_group) =
+            ("Default".to_string(), Default::default());
         let vantage_groups: IndexMap<String, NdEuclidVantageGroup> = self
             .vantage_groups
             .iter()
+            .chain(
+                self.vantage_groups
+                    .is_empty()
+                    .then_some((&default_vantage_group_name, &default_vantage_group)),
+            )
             .map(|(id, vantage_group_builder)| {
                 let vantage_group = vantage_group_builder.build(
                     Arc::clone(&axes.names),
@@ -340,13 +347,10 @@ impl TwistSystemBuilder {
             .map(|vantage_set| vantage_set.build(&vantage_groups))
             .try_collect()?;
 
-        let mut vantage_groups: IndexMap<String, BoxDynVantageGroup> = vantage_groups
+        let vantage_groups: IndexMap<String, BoxDynVantageGroup> = vantage_groups
             .into_iter()
             .map(|(k, v)| (k, BoxDynVantageGroup::new(v)))
             .collect();
-        if vantage_groups.is_empty() {
-            vantage_groups.insert("trivial".to_owned(), ().into());
-        }
 
         Ok(TwistSystem {
             id,
