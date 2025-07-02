@@ -144,14 +144,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             }
             Motor::from_angle_in_axis_plane(0, 1, angle)
         }
-
-        #[kwargs(start: Vec<u8>, end: Vec<u8>)]
-        fn rot_axes(ctx: EvalCtx) -> Motor {
-            if start.len() != end.len() {
-                return Err("`start` and `end` must be same length".at(ctx.caller_span));
-            }
-            todo!()
-        }
     ])?;
 
     builtins.set_fns(hps_fns![
