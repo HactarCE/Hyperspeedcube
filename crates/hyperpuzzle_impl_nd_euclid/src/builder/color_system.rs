@@ -253,10 +253,10 @@ impl ColorSystemBuilder {
         Ok(color_system)
     }
 
-    /// "Unbuilds" a color system into a color system builder.
+    /// "Unbuilds" a color system.
     ///
-    /// If the resulting color system builder is modified, then it emits a
-    /// warning and changes its ID.
+    /// If the resulting color system builder is modified, then it will emit a
+    /// warning and change its ID.
     pub fn unbuild(color_system: &ColorSystem) -> Result<Self> {
         let ColorSystem {
             id,

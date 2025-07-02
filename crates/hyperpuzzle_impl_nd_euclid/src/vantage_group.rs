@@ -43,27 +43,36 @@ pub struct NdEuclidVantageGroup {
 }
 
 impl NdEuclidVantageGroup {
+    /// Returns the group element corresponding to a vantage.
     pub fn vantage_to_group_element(&self, vantage: Vantage) -> Option<GroupElementId> {
         Some(GroupElementId(u16::try_from(vantage.0).ok()?))
     }
+    /// Returns the vantage corresponding to a group element.
     pub fn group_element_to_vantage(&self, element: GroupElementId) -> Vantage {
         Vantage(u32::from(element.0))
     }
+    /// Returns the vantage corresponding to a vantage group element.
+    ///
+    /// This is equivalent to [`Self::group_element_to_vantage()`].
     pub fn group_element_to_vantage_concrete(
         &self,
         element: NdEuclidVantageGroupElement,
     ) -> Vantage {
         self.group_element_to_vantage(element.0)
     }
+    /// Returns the motor corresponding to a vantage.
     pub fn vantage_motor(&self, vantage: Vantage) -> Option<&pga::Motor> {
         Some(&self.symmetry[self.vantage_to_group_element(vantage)?])
     }
+    /// Returns the motor corresponding to a vantage group element.
     pub fn group_element_motor(&self, element: NdEuclidVantageGroupElement) -> &pga::Motor {
         &self.symmetry[element.0]
     }
 }
 
+/// Axis defined relative to the current vantage.
 pub type NdEuclidRelativeAxis = SimpleRelativeAxis<NdEuclidVantageGroup>;
+/// Twist defined relative to the current vantage.
 pub type NdEuclidRelativeTwist = SimpleRelativeTwist<NdEuclidVantageGroup>;
 
 impl SimpleVantageGroup for NdEuclidVantageGroup {
@@ -208,6 +217,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
     }
 }
 
+/// Element of a vantage group.
 #[derive(Debug, Copy, Clone)]
 pub struct NdEuclidVantageGroupElement(pub(crate) GroupElementId);
 impl VantageGroupElement for NdEuclidVantageGroupElement {
@@ -216,5 +226,6 @@ impl VantageGroupElement for NdEuclidVantageGroupElement {
     }
 }
 impl NdEuclidVantageGroupElement {
+    /// Identity group element.
     pub const IDENTITY: Self = Self(GroupElementId::IDENTITY);
 }

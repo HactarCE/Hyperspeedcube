@@ -222,18 +222,6 @@ impl HpsOrbitNames {
         }
         Ok(strings.into_iter().map(|s| (!s.is_empty()).then_some(s)))
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.components
-            .iter()
-            .all(|(component, _span)| match component {
-                HpsOrbitNamesComponent::Str(s) => s.is_empty(),
-                HpsOrbitNamesComponent::Axis(_)
-                | HpsOrbitNamesComponent::Twist(_)
-                | HpsOrbitNamesComponent::Cosets(_)
-                | HpsOrbitNamesComponent::Fn(_) => false,
-            })
-    }
 }
 
 #[derive(Debug, Clone)]

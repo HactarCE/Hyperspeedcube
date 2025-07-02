@@ -13,14 +13,23 @@ use crate::{
     NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
 };
 
+/// Vantage group during puzzle construction.
 #[derive(Debug, Default)]
 pub struct VantageGroupBuilder {
+    /// Symmetry group.
     pub symmetry: IsometryGroup,
+    /// Reference vectors, which are used to serialize/deserialize vantages.
     pub reference_vectors: PerReferenceVector<Vector>,
+    /// Names for reference vectors.
     pub reference_vector_names: NameSpecBiMapBuilder<ReferenceVector>,
+    /// List of reference vectors to prefer when serializing vantages.
+    ///
+    /// This list MUST contain enough reference vectors to uniquely identify
+    /// every vantage. It SHOULD contain exactly enough.
     pub preferred_reference_vectors: Vec<ReferenceVector>,
 }
 impl VantageGroupBuilder {
+    /// Validates and constructs a vantage group.
     pub fn build(
         &self,
         axis_names: Arc<NameSpecBiMap<Axis>>,
@@ -85,6 +94,7 @@ impl VantageGroupBuilder {
         })
     }
 
+    /// "Unbuilds" a vantage group.
     pub fn unbuild(vantage_group: &BoxDynVantageGroup) -> Result<Self> {
         let NdEuclidVantageGroup {
             symmetry,

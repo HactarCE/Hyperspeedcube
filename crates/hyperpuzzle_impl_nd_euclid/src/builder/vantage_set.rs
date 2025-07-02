@@ -9,17 +9,24 @@ use crate::{
     NdEuclidVantageSetEngineData,
 };
 
+/// Vantage set during puzzle construction.
 #[derive(Debug)]
 pub struct VantageSetBuilder {
+    /// Human-friendly name.
     pub name: String,
+    /// ID of the vantage group used by this vantage set.
     pub group: String,
 
+    /// View offset.
     pub view_offset: pga::Motor,
 
+    /// Relative rotations, indexed by human-friendly name.
     pub transforms: Vec<(String, pga::Motor)>,
+    /// Relative axes, indexed by human-friendly name.
     pub axes: Vec<(String, RelativeAxisBuilder)>,
 }
 impl VantageSetBuilder {
+    /// Validates and constructs a vantage set.
     pub fn build(&self, groups: &IndexMap<String, NdEuclidVantageGroup>) -> Result<VantageSet> {
         let group = groups
             .get(&self.group)
@@ -76,6 +83,7 @@ impl VantageSetBuilder {
         })
     }
 
+    /// "Unbuilds" a vantage set.
     pub fn unbuild(
         vantage_set: &VantageSet,
         groups: &IndexMap<String, NdEuclidVantageGroup>,
@@ -107,14 +115,8 @@ impl VantageSetBuilder {
         let axes = axis_map
             .iter()
             .map(|(name, axis, direction_map)| {
-                let relative_axis = axis
-                    .downcast_ref::<NdEuclidRelativeAxis>()
-                    .ok_or_eyre("expected NdEuclid relative axis")?;
-                let relative_axis_builder = RelativeAxisBuilder {
-                    absolute_axis: relative_axis.absolute_axis,
-                    transform: group.group_element_motor(relative_axis.transform).clone(),
-                    direction_map: AxisDirectionMapBuilder::unbuild(direction_map, group)?,
-                };
+                let relative_axis_builder =
+                    RelativeAxisBuilder::unbuild(axis, direction_map, group)?;
                 eyre::Ok((name.clone(), relative_axis_builder))
             })
             .try_collect()?;
@@ -129,6 +131,7 @@ impl VantageSetBuilder {
     }
 }
 
+/// Twist directions for a relative axis during puzzle construction.
 #[derive(Debug)]
 pub struct AxisDirectionMapBuilder {
     /// Map from name spec to twist.
@@ -138,6 +141,7 @@ pub struct AxisDirectionMapBuilder {
     pub inherit: Option<pga::Motor>,
 }
 impl AxisDirectionMapBuilder {
+    /// Validates and constructs an axis direction map.
     pub fn build(&self, group: &NdEuclidVantageGroup) -> Result<AxisDirectionMap> {
         if !self.directions.iter().map(|(name, _)| name).all_unique() {
             bail!("direction names are not all unique per axis");
@@ -166,6 +170,7 @@ impl AxisDirectionMapBuilder {
         })
     }
 
+    /// "Unbuilds" an axis direction map.
     pub fn unbuild(direction_map: &AxisDirectionMap, group: &NdEuclidVantageGroup) -> Result<Self> {
         Ok(AxisDirectionMapBuilder {
             directions: direction_map
@@ -185,13 +190,22 @@ impl AxisDirectionMapBuilder {
     }
 }
 
+/// Relative axis during puzzle construction.
+///
+/// A relative axis is defined in terms of an absolute axis at a particular
+/// vantage.
 #[derive(Debug)]
 pub struct RelativeAxisBuilder {
+    /// Axis from one vantage.
     pub absolute_axis: Axis,
+    /// Transform representing the vantage from which this relative axis
+    /// resolves to `absolute_axis`.
     pub transform: pga::Motor,
+    /// Twist directions for the relative axis.
     pub direction_map: AxisDirectionMapBuilder,
 }
 impl RelativeAxisBuilder {
+    /// Validates and constructs a relative axis.
     fn build(
         &self,
         group: &NdEuclidVantageGroup,
@@ -210,6 +224,7 @@ impl RelativeAxisBuilder {
         Ok((relative_axis, direction_map))
     }
 
+    /// "Unbuilds" a relative axis.
     fn unbuild(
         axis: &BoxDynRelativeAxis,
         direction_map: &AxisDirectionMap,
@@ -230,12 +245,20 @@ impl RelativeAxisBuilder {
     }
 }
 
+/// Relative twist during puzzle construction.
+///
+/// A relative twist is defined in terms of an absolute twist at a particular
+/// vantage.
 #[derive(Debug)]
 pub struct RelativeTwistBuilder {
+    /// Twist from one vantage.
     pub absolute_twist: Twist,
+    /// Transform representing the vantage from which this relative twist
+    /// resolves to `absolute_twist`.
     pub transform: pga::Motor,
 }
 impl RelativeTwistBuilder {
+    /// Validates and constructs a relative twist.
     fn build(&self, group: &NdEuclidVantageGroup) -> Result<BoxDynRelativeTwist> {
         let elem = try_element_from_motor(group, &self.transform)
             .wrap_err("constructing relative twist")?;
@@ -249,6 +272,7 @@ impl RelativeTwistBuilder {
             .map(BoxDynRelativeTwist::new)
     }
 
+    /// "Unbuilds" a relative twist.
     fn unbuild(twist: &BoxDynRelativeTwist, group: &NdEuclidVantageGroup) -> Result<Self> {
         let NdEuclidRelativeTwist {
             absolute_twist,

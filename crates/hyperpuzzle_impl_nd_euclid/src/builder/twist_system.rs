@@ -65,9 +65,11 @@ pub struct TwistSystemBuilder {
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
 
-    // TODO: make a nice foolproof API for these
+    /// Vantage groups.
     pub vantage_groups: IndexMap<String, VantageGroupBuilder>,
+    /// Vantage sets.
     pub vantage_sets: Vec<VantageSetBuilder>,
+    /// Global twist directions.
     pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
     /// Whether the twist system has been modified.
@@ -374,10 +376,10 @@ impl TwistSystemBuilder {
         })
     }
 
-    /// "Unbuilds" a twist system into a twist system builder.
+    /// "Unbuilds" a twist system.
     ///
-    /// If the resulting twist system builder is modified, then it emits a
-    /// warning and changes its ID.
+    /// If the resulting twist system builder is modified, then it will emit a
+    /// warning and change its ID.
     pub fn unbuild(twist_system: &TwistSystem) -> Result<Self> {
         let TwistSystem {
             id,

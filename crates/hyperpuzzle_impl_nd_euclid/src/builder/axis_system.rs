@@ -121,7 +121,7 @@ impl AxisSystemBuilder {
         })
     }
 
-    /// "Unbuilds" an axis system into an axis system builder.
+    /// "Unbuilds" an axis system.
     pub fn unbuild(
         axis_system: &AxisSystem,
         engine_data: &NdEuclidTwistSystemEngineData,
