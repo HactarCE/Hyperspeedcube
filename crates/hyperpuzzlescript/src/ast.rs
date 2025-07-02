@@ -25,12 +25,11 @@ pub enum NodeContents {
     },
     /// - `export * from expr`
     ExportAllFrom(Box<Node>),
+    /// - `export ident1, ident2 as ident3`
+    /// - `export (ident1, ident2 as ident3)`
     /// - `export ident1, ident2 as ident3 from expr`
     /// - `export (ident1, ident2 as ident3) from expr`
-    ExportFrom(Vec<IdentAs>, Box<Node>),
-    /// - `export ident`
-    /// - `export expr as ident`
-    ExportAs(IdentAs),
+    Export(Vec<IdentAs>, Option<Box<Node>>),
     /// - `export ident = expr`
     /// - `export ident: Type = expr`
     ExportAssign {
@@ -115,8 +114,7 @@ impl NodeContents {
             NodeContents::Assign { .. } => "assignment statement",
             NodeContents::FnDef { .. } => "named function definition",
             NodeContents::ExportAllFrom(_)
-            | NodeContents::ExportFrom(_, _)
-            | NodeContents::ExportAs(_)
+            | NodeContents::Export(_, _)
             | NodeContents::ExportAssign { .. }
             | NodeContents::ExportFnDef { .. } => "'export' statement",
             NodeContents::UseAllFrom(_) | NodeContents::UseFrom(_, _) => "'use' statement",

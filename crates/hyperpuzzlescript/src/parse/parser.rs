@@ -418,16 +418,14 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 .then_ignore(just(Token::From))
                 .ignore_then(boxed_expr.clone())
                 .map(ast::NodeContents::ExportAllFrom),
+            // export a, b as c
+            // export (a, b as c)
             // export a, b as c from expr
             // export (a, b as c) from expr
             name_as_alias_list
                 .clone()
-                .then_ignore(just(Token::From))
-                .then(boxed_expr.clone())
-                .map(|(members, expr)| ast::NodeContents::ExportFrom(members, expr)),
-            // export a
-            // export a as b
-            name_as_alias.map(ast::NodeContents::ExportAs),
+                .then(just(Token::From).ignore_then(boxed_expr.clone()).or_not())
+                .map(|(members, expr)| ast::NodeContents::Export(members, expr)),
         )));
 
         let use_statement = just(Token::Use).ignore_then(choice((

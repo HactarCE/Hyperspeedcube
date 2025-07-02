@@ -476,17 +476,19 @@ impl EvalCtx<'_> {
                 })?;
                 Ok(null)
             }
-            ast::NodeContents::ExportFrom(items, source) => {
+            ast::NodeContents::Export(items, Some(source)) => {
                 self.for_each_field(items, source, |this, k, v| {
                     this.export(span, k, v);
                     Ok(())
                 })?;
                 Ok(null)
             }
-            ast::NodeContents::ExportAs(item) => {
-                let key = self.substr(item.alias());
-                let value = self.get_var(item.target)?;
-                self.export(span, key, value);
+            ast::NodeContents::Export(items, None) => {
+                for item in items {
+                    let key = self.substr(item.alias());
+                    let value = self.get_var(item.target)?;
+                    self.export(span, key, value);
+                }
                 Ok(null)
             }
             ast::NodeContents::ExportAssign { name, ty, value } => {
