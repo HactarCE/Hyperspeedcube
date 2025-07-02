@@ -257,7 +257,7 @@ impl Catalog {
                 },
                 Some((generator_id, params)) => {
                     match subcatalog.loaded_generators.get(generator_id).cloned() {
-                        None => Err(format!("no generator with ID {generator_id:?}")),
+                        None => Err(format!("no {} generator with ID {generator_id:?}", T::NAME)),
                         Some(generator) => {
                             drop(db_guard); // unlock mutex before running Rhai code
                             let ctx = BuildCtx::new(&self.default_logger, progress);
