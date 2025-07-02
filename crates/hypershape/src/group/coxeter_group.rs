@@ -349,7 +349,11 @@ impl TransformByMotor for CoxeterGroup {
                 .collect(),
             // TODO: `impl Mul<Matrix> for pga::Motor` or similar
             mirror_basis: Matrix::from_cols(
-                self.mirror_basis.cols().map(|v| m.transform_vector(v)),
+                self.mirror_basis
+                    .clone()
+                    .pad_zeros(m.ndim())
+                    .cols()
+                    .map(|v| m.transform_vector(v)),
             ),
             min_ndim: std::cmp::max(self.min_ndim, m.ndim()),
         }
