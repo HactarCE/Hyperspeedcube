@@ -13,7 +13,7 @@ use crate::{
     NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VantageGroupBuilder {
     pub symmetry: IsometryGroup,
     pub reference_vectors: PerReferenceVector<Vector>,
