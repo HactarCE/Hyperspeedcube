@@ -13,7 +13,7 @@ use itertools::Itertools;
 use crate::util::pop_map_key;
 use crate::{
     Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned, Str,
-    Type, Value, ValueData,
+    Type, Value, ValueData, Warning,
 };
 
 /// Adds the built-in functions.
@@ -322,13 +322,12 @@ fn unpack_tags_recursive(ctx: &mut EvalCtx<'_>, tags: &mut TagSet, m: Map, prefi
                 unpack_tags_recursive(ctx, tags, v.unwrap_or_clone_arc()?, &format!("{tag_name}/"));
             } else if v.is::<str>() && tag.ty == TagType::Bool {
                 tags.insert_named(&format!("{k}/{v}"), TagValue::True)
-                    .at(v_span)?;
+                    .map_err(|e| Warning::from(e.to_string()).at(v_span))?;
             } else if v.is::<List>() && tag.ty == TagType::Bool {
                 for value in v.to::<List>()? {
-                    let value_span = value.span;
                     if value.is::<str>() {
                         tags.insert_named(&format!("{k}/{value}"), TagValue::True)
-                            .at(value_span)?;
+                            .map_err(|e| Warning::from(e.to_string()).at(value.span))?;
                     } else if value.is::<Map>() {
                         unpack_tags_recursive(ctx, tags, value.unwrap_or_clone_arc()?, prefix);
                     }
