@@ -22,7 +22,6 @@ hyperpaths = { workspace = true }
 hyperprefs = { workspace = true }
 hyperpuzzle = { workspace = true, features = ["oklab"] }
 hyperpuzzle_log = { workspace = true }
-hyperpuzzle_rhai = { workspace = true, features = ["hyperpaths"] }
 hyperpuzzle_view = { workspace = true }
 hyperpuzzlescript = { workspace = true, features = ["hyperpaths"] }
 hyperstats = { workspace = true }

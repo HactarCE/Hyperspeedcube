@@ -259,7 +259,7 @@ impl Catalog {
                     match subcatalog.loaded_generators.get(generator_id).cloned() {
                         None => Err(format!("no {} generator with ID {generator_id:?}", T::NAME)),
                         Some(generator) => {
-                            drop(db_guard); // unlock mutex before running Rhai code
+                            drop(db_guard); // unlock mutex before running user code
                             let ctx = BuildCtx::new(&self.default_logger, progress);
                             log::trace!("generating spec for {generator_id:?} {params:?}");
                             let params = params.into_iter().map(|s| s.to_owned()).collect();

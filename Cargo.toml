@@ -10,7 +10,6 @@ members = [
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
-    "crates/hyperpuzzle_rhai",
     "crates/hyperpuzzle_view",
     "crates/hyperpuzzlescript",
     "crates/hypershape",
@@ -70,7 +69,6 @@ hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
-hyperpuzzle_rhai = { path = "crates/hyperpuzzle_rhai" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
@@ -170,14 +168,6 @@ rayon = { version = "1.7.0" }
 # Lua
 mlua = { version = "0.10.3", features = ["lua54", "send", "vendored"] }
 
-# Rhai
-rhai = { version = "1.21.0", features = [
-    "internals",
-    "no_optimize",
-    "no_time",
-    "sync",
-] }
-
 # Hashing and PRNG
 rand = { version = "0.9.0" }        # must match rand_chacha
 rand_chacha = { version = "0.9.0" } # needs stable output
@@ -208,7 +198,3 @@ ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs
 # editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
 color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1" }
-
-# Fork of rhai, blocked on rhaiscript/rhai#986 and rhaiscript/rhai#987
-# rhai = { git = "https://github.com/HactarCE/rhai" }
-rhai = { path = "../rhai" }

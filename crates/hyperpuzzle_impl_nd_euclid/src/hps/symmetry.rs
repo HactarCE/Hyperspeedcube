@@ -1,4 +1,4 @@
-//! Rhai symmetry type.
+//! HPS symmetry type.
 
 use std::fmt;
 use std::sync::Arc;

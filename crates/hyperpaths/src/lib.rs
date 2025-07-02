@@ -23,7 +23,6 @@ const STATS_FILE_EXTENSION: &str = "kdl";
 const SOLVES_DIR_NAME: &str = "solves";
 
 const LUA_DIR_NAME: &str = "lua";
-const RHAI_DIR_NAME: &str = "rhai";
 const HPS_DIR_NAME: &str = "hps";
 
 lazy_static! {
@@ -62,10 +61,6 @@ pub fn solve_autosave_file(
 /// Returns the directory containing Lua files such as user puzzle definitions.
 pub fn lua_dir() -> Result<&'static Path> {
     Ok(&get()?.lua_dir)
-}
-/// Returns the directory containing Rhai files such as user puzzle definitions.
-pub fn rhai_dir() -> Result<&'static Path> {
-    Ok(&get()?.rhai_dir)
 }
 /// Returns the directory containing Hyperpuzzlescript files.
 pub fn hps_dir() -> Result<&'static Path> {
@@ -133,8 +128,6 @@ struct AppPaths {
     pub solves_dir: PathBuf,
     /// Path to the Hyperspeedcube Lua directory.
     pub lua_dir: PathBuf,
-    /// Path to the Hyperspeedcube Rhai directory.
-    pub rhai_dir: PathBuf,
     /// Path to the Hyperpuzzlescript directory.
     pub hps_dir: PathBuf,
     /// Path to Hyperspeedcube crash reports.
@@ -171,7 +164,6 @@ fn nonportable_paths() -> Option<AppPaths> {
                     .join(format!("{STATS_FILE_NAME}.{STATS_FILE_EXTENSION}")),
                 solves_dir: dirs.data_dir().join(SOLVES_DIR_NAME),
                 lua_dir: dirs.data_dir().join(LUA_DIR_NAME),
-                rhai_dir: dirs.data_dir().join(RHAI_DIR_NAME),
                 hps_dir: dirs.data_dir().join(HPS_DIR_NAME),
                 crash_report_dir: dirs.cache_dir().to_path_buf(),
             })
@@ -192,7 +184,6 @@ fn portable_paths() -> Option<AppPaths> {
                 stats_file: dir.join(format!("{STATS_FILE_NAME}.{STATS_FILE_EXTENSION}")),
                 solves_dir: dir.join(SOLVES_DIR_NAME),
                 lua_dir: dir.join(LUA_DIR_NAME),
-                rhai_dir: dir.join(RHAI_DIR_NAME),
                 hps_dir: dir.join(HPS_DIR_NAME),
                 crash_report_dir: dir,
             })
