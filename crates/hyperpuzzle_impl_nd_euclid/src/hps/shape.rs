@@ -30,25 +30,29 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsShape>()?;
 
     builtins.set_fns(hps_fns![
-        #[kwargs(color: Option<HpsColor>)]
+        #[kwargs(region: Option<HpsRegion>, color: Option<HpsColor>)]
         fn carve(ctx: EvalCtx, plane: Hyperplane) -> Option<HpsColor> {
-            let args = CutArgs::carve(match color {
+            let sticker_mode = match color {
                 None => StickerMode::NewColor,
                 Some(c) => StickerMode::FixedColor(c),
-            });
+            };
+            let args = CutArgs::carve(sticker_mode, region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
+        #[kwargs(region: Option<HpsRegion>)]
         fn carve(ctx: EvalCtx, plane: Hyperplane, color_names: Names) -> Option<HpsColor> {
-            let args = CutArgs::carve(StickerMode::FromNames(color_names));
+            let args = CutArgs::carve(StickerMode::FromNames(color_names), region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
 
+        #[kwargs(region: Option<HpsRegion>)]
         fn slice(ctx: EvalCtx, plane: Hyperplane) -> Option<HpsColor> {
-            let args = CutArgs::slice(StickerMode::None);
+            let args = CutArgs::slice(StickerMode::None, region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
+        #[kwargs(region: Option<HpsRegion>)]
         fn slice(ctx: EvalCtx, plane: Hyperplane, color_names: Names) -> Option<HpsColor> {
-            let args = CutArgs::slice(StickerMode::FromNames(color_names));
+            let args = CutArgs::slice(StickerMode::FromNames(color_names), region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
 
@@ -177,12 +181,12 @@ impl HpsShape {
                     });
                 }
                 drop(this);
-                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, args.region, std::iter::zip(cut_planes, colors))
             }
             None => {
                 let colors = std::iter::repeat(fixed_color);
                 drop(this);
-                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, args.region, std::iter::zip(cut_planes, colors))
             }
         }
         .at(span)?
@@ -195,16 +199,23 @@ impl HpsShape {
     fn cut_all(
         &self,
         mode: CutMode,
+        region: Option<HpsRegion>,
         orbit: impl IntoIterator<Item = (Hyperplane, Option<Color>)>,
     ) -> eyre::Result<Option<Color>> {
         let mut first_color = None;
 
         let mut this = self.lock();
+
+        let piece_set = region.as_ref().map(|r| {
+            this.active_pieces_in_region(|point| r.contains_point(point))
+                .collect()
+        });
+
         for (cut_plane, color) in orbit {
             first_color.get_or_insert(color);
             match mode {
-                CutMode::Carve => this.carve(None, cut_plane, color)?,
-                CutMode::Slice => this.slice(None, cut_plane, color)?,
+                CutMode::Carve => this.carve(piece_set.as_ref(), cut_plane, color)?,
+                CutMode::Slice => this.slice(piece_set.as_ref(), cut_plane, color)?,
             }
         }
 
@@ -220,23 +231,19 @@ struct CutArgs {
     region: Option<HpsRegion>,
 }
 impl CutArgs {
-    pub fn carve(stickers: StickerMode) -> Self {
+    fn carve(stickers: StickerMode, region: Option<HpsRegion>) -> Self {
         Self {
             mode: CutMode::Carve,
             stickers,
-            region: None,
+            region,
         }
     }
-    pub fn slice(stickers: StickerMode) -> Self {
+    fn slice(stickers: StickerMode, region: Option<HpsRegion>) -> Self {
         Self {
             mode: CutMode::Slice,
             stickers,
-            region: None,
+            region,
         }
-    }
-    pub fn with_region(mut self, region: HpsRegion) -> Self {
-        self.region = Some(region);
-        self
     }
 }
 
