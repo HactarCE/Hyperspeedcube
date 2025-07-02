@@ -1,0 +1,23 @@
+use * from euclid
+
+export id = "line"
+export name = "Line"
+export adjective = "Linear"
+export aliases = []
+export ndim = 1
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, ndim
+    export sym = t.transform(cd([]))
+
+    export endpoint = sym.x.unit
+    export fn names(U: Str, D: Str) -> OrbitNames {
+        sym.names(point(endpoint), #{
+            "${U}" = [],
+            "${D}" = [0],
+        })
+    }
+}

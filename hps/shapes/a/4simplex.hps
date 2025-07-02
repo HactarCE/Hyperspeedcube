@@ -1,0 +1,67 @@
+use * from euclid
+
+export id = "4simplex"
+export name = "4-Simplex"
+export adjective = "4-Simplicial"
+export aliases = []
+export facet_colors = id
+export ndim = 4
+export shape_tag = "5d/platonic/hypercube"
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
+    export sym = t.transform(cd("a4"))
+
+    export facet_pole = sym.ooox.unit
+    export facet_names = sym.names(point(facet_pole), #{
+        O = [],
+        D = [3, "O"],
+        F = [2, "D"],
+        BR = [1, "F"],
+        BL = [0, "BR"],
+    })
+
+    export vertex_pole = sym.xooo.unit
+    export vertex_names = sym.names(point(vertex_pole), #{
+        R = [],
+        L = [0, "R"],
+        B = [1, "L"],
+        U = [2, "B"],
+        I = [3, "U"],
+    })
+}
+
+export facet_colors_list = [
+    #{name = "O",  display = "O",  default = "Purple"},
+    #{name = "D",  display = "D",  default = "Yellow"},
+    #{name = "F",  display = "F",  default = "Green"},
+    #{name = "BR", display = "BR", default = "Blue"},
+    #{name = "BL", display = "BL", default = "Red"},
+]
+add_color_system(
+    id = facet_colors,
+    name = name,
+    colors = facet_colors_list,
+)
+
+add_puzzle(
+    id = id,
+    version = "1.0.0",
+    name = name,
+    aliases = aliases,
+    colors = facet_colors,
+    engine = "euclid",
+    ndim = ndim,
+    build = fn() {
+        use sym, facet_pole, facet_names from new()
+        with #sym = sym { carve(plane(facet_pole), facet_names) }
+    },
+    tags = #{
+        type = "shape",
+        stable = "2.0.0",
+        shape = shape_tag,
+    },
+)

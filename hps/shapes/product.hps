@@ -1,0 +1,42 @@
+use * from euclid
+
+fn product(symmetries: Map) -> Map { product(symmetries, t) }
+fn product(symmetries: Map, t: Transform) -> Map {
+    ret = #{}
+    ret.transform_by = fn(t2) { product(symmetries, t2 * t) }
+    all_generators = []
+    total_ndim = 0
+    for k, original in symmetries {
+        ndim = original.ndim
+        change_of_basis = t
+        for i in 0..ndim {
+            start = vec()
+            start[i] = 1
+            end = vec()
+            end[total_ndim] = 1
+            change_of_basis *= rot(start = start, end = end)
+            total_ndim += 1
+        }
+        transformed = original.transform_by(change_of_basis)
+        ret[k] = transformed
+        all_generators ++= transformed.sym.generators
+    }
+    ret.sym = symmetry(all_generators)
+    ret.ndim = total_ndim
+    return ret
+}
+
+// // Example:
+// with #ndim = 6{
+//     combined = product(#{
+//         a = @symmetries/polygonal.ngon(5),
+//         b = @symmetries/polygonal.ngon(6),
+//         c = @symmetries/polygonal.ngon(7),
+//     })
+//     print(combined.sym)
+//     print(combined.a.edge_pole)
+//     print(combined.b.edge_pole)
+//     print(combined.c.edge_pole)
+// }
+
+return product

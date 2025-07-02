@@ -1,0 +1,95 @@
+use * from euclid
+
+export id = "cube"
+export name = "Cube"
+export adjective = "Cubic"
+export aliases = ["3-Cube", "Hexahedron", "1x1x1", "1^3"]
+export facet_colors = id
+export ndim = 3
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim
+    export sym = t.transform(cd("bc3"))
+
+    export facet_pole = sym.oox.unit
+    export facet_names = sym.names(point(facet_pole), #{
+        F = [],
+        U = [2, "F"],
+        R = [1, "U"],
+        L = [0, "R"],
+        D = [1, "L"],
+        B = [2, "D"],
+    })
+
+    export edge_pole = sym.oxo.unit * √2
+    export edge_names = sym.names(point(edge_pole), #{
+        "{FU}" = [],
+        "{FR}" = [1, "FU"],
+        "{FL}" = [0, "FR"],
+        "{FD}" = [1, "FL"],
+        "{UR}" = [2, "FR"],
+        "{UL}" = [2, "FL"],
+        "{DR}" = [1, "UL"],
+        "{DL}" = [0, "DR"],
+        "{BU}" = [2, "FD"],
+        "{BR}" = [1, "BU"],
+        "{BL}" = [0, "BR"],
+        "{BD}" = [1, "BL"],
+    })
+}
+
+export facet_colors_list = [
+    #{name = "R", display = "Right"},
+    #{name = "L", display = "Left"},
+    #{name = "U", display = "Up"},
+    #{name = "D", display = "Down"},
+    #{name = "F", display = "Front"},
+    #{name = "B", display = "Back"},
+]
+add_color_system(
+    id = facet_colors,
+    name = name,
+    colors = facet_colors_list,
+
+    schemes = [
+        ["Western", #{
+            R = "Red",
+            L = "Orange",
+            U = "White",
+            D = "Yellow",
+            F = "Green",
+            B = "Blue",
+        }],
+        ["Japanese", #{
+            R = "Red",
+            L = "Orange",
+            U = "White",
+            D = "Blue",
+            F = "Green",
+            B = "Yellow",
+        }],
+    ],
+    default = "Western",
+)
+
+add_puzzle(
+    id = id,
+    version = "1.0.0",
+    name = name,
+    aliases = aliases,
+    colors = facet_colors,
+    engine = "euclid",
+    ndim = ndim,
+    build = fn() {
+        use sym, facet_pole, facet_names from new()
+        with #sym = sym { carve(plane(facet_pole), facet_names) }
+    },
+    tags = #{
+        type = "shape",
+        stable = "2.0.0",
+        shape = "3d/platonic/cube",
+    },
+)

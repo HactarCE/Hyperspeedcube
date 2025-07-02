@@ -1,0 +1,64 @@
+use * from euclid
+
+export id = "tetrahedron"
+export name = "Tetrahedron"
+export adjective = "Tetrahedral"
+export aliases = ["Simplex"]
+export facet_colors = id
+export ndim = 3
+export shape_tag = "3d/platonic/tetrahedron"
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
+    export sym = t.transform(cd("a3"))
+
+    export facet_pole = sym.oox.unit
+    export facet_names = sym.names(point(facet_pole), #{
+        F = [],
+        U = [2, "F"],
+        R = [1, "U"],
+        L = [0, "R"],
+    })
+
+    export vertex_pole = sym.xoo.unit
+    export vertex_names = sym.names(point(vertex_pole), #{
+        l = [],
+        r = [0, "l"],
+        u = [1, "r"],
+        f = [2, "u"],
+    })
+}
+
+export facet_colors_list = [
+    #{name = "R", display = "Right", default = "Red"},
+    #{name = "F", display = "Front", default = "Green"},
+    #{name = "U", display = "Up",    default = "Yellow"},
+    #{name = "L", display = "Left",  default = "Blue"},
+]
+add_color_system(
+    id = facet_colors,
+    name = name,
+    colors = facet_colors_list,
+)
+
+add_puzzle(
+    id = id,
+    version = "1.0.0",
+    name = name,
+    aliases = aliases,
+    colors = facet_colors,
+    engine = "euclid",
+    ndim = ndim,
+    build = fn() {
+        use sym, facet_pole, facet_names from new()
+        with #sym = sym { carve(plane(facet_pole), facet_names) }
+    },
+    tags = #{
+        type = "shape",
+        stable = "2.0.0",
+        shape = shape_tag,
+    },
+)

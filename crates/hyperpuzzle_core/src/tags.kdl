@@ -112,6 +112,8 @@ axes "Axis system" expected=1 {
     compound "Compound" {
       _5tetrahedra "5 tetrahedra"
     }
+    prism "Prism"
+    other "Other"
   }
   _4d "4D" {
     elementary "Elementary" {
@@ -122,7 +124,7 @@ axes "Axis system" expected=1 {
       _120cell "120-cell"
       _600cell "600-cell"
     }
-    prisms "Prism" {
+    prism "Prism" {
       dodecahedral "Dodecahedral prism"
     }
     duoprism "Duoprism"

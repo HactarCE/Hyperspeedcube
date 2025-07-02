@@ -1,0 +1,89 @@
+use * from euclid
+
+NAMES = [
+    null,
+    "Monogon",
+    "Digon",
+    "Triangle",
+    "Square",
+    "Pentagon",
+    "Hexagon",
+    "Heptagon",
+    "Octagon",
+    "Nonagon",
+    "Decagon",
+]
+
+ADJECTIVES = [
+    null,
+    "Monogonal",
+    "Digonal",
+    "Triangular",
+    "Square",
+    "Pentagonal",
+    "Hexagonal",
+    "Heptagonal",
+    "Octagonal",
+    "Nonagonal",
+    "Decagonal",
+]
+
+export fn name(n: Nat) -> Str { NAMES[n] ?? "${n}-gonal" }
+export fn aliases(n: Nat) -> List[Str] {
+    if NAMES[n] == null { [] } else { ["${n}-gonal"] }
+}
+export fn adjective(n: Nat) -> Str { ADJECTIVES[n] ?? "${n}-gonal" }
+export ndim = 2
+
+fn generic_names(n: Nat, m2: Nat, m1: Nat) {
+    names = #{"${to_base26(0)}" = []}
+    for i in 1..n {
+        names["${to_base26(i)}"] = [m2, m1, "${to_base26(i-1)}"]
+    }
+    return names
+}
+
+export fn param_size(name) { param_size(name, 3) }
+export fn param_size(name, min) { #{ name = name, type = Int, default = 5, min = min, max = 24 } }
+
+export fn new(n: Nat) -> Map { new(n, ident()) }
+export fn new(n: Nat, t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(n, t2 * t) }
+
+    export name = name(n)
+    export aliases = aliases(n)
+    export adjective = adjective(n)
+    export sym = t.transform(cd([n]))
+    export ndim
+
+    export diameter = if n.is_even() { 2 } else { 1 + 1 / cos(π/n) }
+    export edge_length = 2 * tan(π/n)
+    export edge_depth = sin(2 * π/n) * edge_length
+    export outradius = 1 / cos(π/n)
+
+    export edge_pole = sym.ox.unit
+    export edge_names = sym.names(point(edge_pole), generic_names(n, 1, 0))
+
+    export vertex_pole = sym.xo.unit * outradius
+    export vertex_names = sym.names(point(vertex_pole), generic_names(n, 0, 1))
+
+    export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
+        if n == 3 {
+            return @util/layers.even_odd(1, 0, layer_count) ++ [-∞]
+        } else {
+            max_cut_depth = 1 - edge_depth/2
+            return @util/layers.even_odd(1, max_cut_depth, layer_count)
+        }
+    }
+
+    max_full_cut_depth = 1 - edge_depth
+    export fn full_cut_depths(layer_count: Nat) -> List[Num] {
+        @util/layers.inclusive(1, max_full_cut_depth, layer_count)
+    }
+
+    if n == 3 {
+        export fn opposite_full_cut_depths(layer_count: Nat) -> List[Num] {
+            @util/layers.inclusive(-max_cut_depth, -1, layer_count)
+        }
+    }
+}

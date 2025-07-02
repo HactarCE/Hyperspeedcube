@@ -1,0 +1,376 @@
+use * from euclid
+
+export id = "120cell"
+export name = "120-Cell"
+export adjective = "120-Cell"
+export aliases = []
+export facet_colors = id
+export ndim = 4
+export shape_tag = "4d/platonic/120cell"
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
+    export sym = t.transform(cd("h4"))
+
+    export facet_pole = sym.ooox.unit
+    export facet_names = sym.names(point(facet_pole), #{
+        RI = [3, "FU"],
+        RF = [3, "LY"],
+        RU = [3, "FL"],
+        RR = [3, "OPB"],
+        RL = [3, "FBL"],
+        RDR = [3, "OPR"],
+        RDL = [3, "LDL"],
+        RBR = [0, "BPL"],
+        RBL = [0, "BL"],
+        RPR = [3, "OPD"],
+        RPL = [3, "FBR"],
+        RPD = [3, "FX"],
+        RPB = [3, "FR"],
+        RX = [0, "BPD"],
+        RY = [3, "LF"],
+
+        LI = [2, "LPB"],
+        LF = [2, "DL"],
+        LU = [1, "UPL"],
+        LR = [1, "UY"],
+        LL = [2, "OX"],
+        LDR = [2, "DU"],
+        LDL = [2, "DF"],
+        LBR = [1, "FPR"],
+        LBL = [1, "FR"],
+        LPR = [1, "FPB"],
+        LPL = [1, "FU"],
+        LPD = [1, "FBL"],
+        LPB = [1, "FI"],
+        LX = [2, "BF"],
+        LY = [0, "LPL"],
+
+        UI = [2, "BBR"],
+        UF = [2, "RDL"],
+        UU = [2, "RDR"],
+        UR = [3, "UPB"],
+        UL = [2, "RF"],
+        UDR = [3, "UPD"],
+        UDL = [2, "BX"],
+        UBR = [2, "BPB"],
+        UBL = [2, "DY"],
+        UPR = [2, "BI"],
+        UPL = [2, "DPL"],
+        UPD = [2, "BR"],
+        UPB = [2, "BPR"],
+        UX = [3, "ODR"],
+        UY = [2, "DBL"],
+
+        DI = [1, "DPR"],
+        DF = [1, "FL"],
+        DU = [1, "FPL"],
+        DR = [0, "LPB"],
+        DL = [1, "FDL"],
+        DDR = [0, "OX"],
+        DDL = [1, "RX"],
+        DBR = [0, "IY"],
+        DBL = [3, "DU"],
+        DPR = [0, "BDR"],
+        DPL = [3, "DF"],
+        DPD = [0, "BPR"],
+        DPB = [0, "BR"],
+        DX = [0, "LPR"],
+        DY = [3, "OBR"],
+
+        FI = [0, "LU"],
+        FF = [0, "BY"],
+        FU = [2, "DDR"],
+        FR = [2, "DPD"],
+        FL = [0, "LBL"],
+        FDR = [2, "RU"],
+        FDL = [0, "BDL"],
+        FBR = [2, "DI"],
+        FBL = [2, "DR"],
+        FPR = [2, "DPB"],
+        FPL = [0, "LBR"],
+        FPD = [2, "FY"],
+        FPB = [0, "LR"],
+        FX = [2, "DDL"],
+        FY = [3, "FPL"],
+
+        BI = [3, "LBL"],
+        BF = [3, "LBR"],
+        BU = [3, "LI"],
+        BR = [1, "RBL"],
+        BL = [1, "UF"],
+        BDR = [1, "FDR"],
+        BDL = [1, "UL"],
+        BBR = [3, "LPL"],
+        BBL = [3, "LL"],
+        BPR = [1, "RBR"],
+        BPL = [1, "UU"],
+        BPD = [1, "OY"],
+        BPB = [3, "OR"],
+        BX = [3, "LPD"],
+        BY = [1, "UBL"],
+
+        OI = [],
+        OF = [1, "ODL"],
+        OU = [1, "OPL"],
+        OR = [1, "OPD"],
+        OL = [3, "OI"],
+        ODR = [2, "OU"],
+        ODL = [2, "OL"],
+        OBR = [1, "OPB"],
+        OBL = [0, "OU"],
+        OPR = [2, "OBR"],
+        OPL = [0, "OF"],
+        OPD = [2, "OBL"],
+        OPB = [0, "OR"],
+        OX = [1, "FF"],
+        OY = [2, "RR"],
+
+        II = [3, "IL"],
+        IF = [0, "IPL"],
+        IU = [2, "IDR"],
+        IR = [0, "IPB"],
+        IL = [2, "IDL"],
+        IDR = [0, "IPD"],
+        IDL = [1, "IF"],
+        IBR = [2, "IPR"],
+        IBL = [2, "IPD"],
+        IPR = [3, "LDR"],
+        IPL = [1, "IU"],
+        IPD = [1, "IR"],
+        IPB = [1, "IBR"],
+        IX = [3, "FPR"],
+        IY = [1, "FPD"],
+    })
+}
+
+export facet_colors_list = [
+    #{name = "RI",  display = "Right ~ In",         default = "Rainbow [0/0]"},
+    #{name = "RF",  display = "Right ~ Up",         default = "Rainbow [0/0]"},
+    #{name = "RU",  display = "Right ~ Front",      default = "Rainbow [0/0]"},
+    #{name = "RR",  display = "Right ~ Right",      default = "Rainbow [0/0]"},
+    #{name = "RL",  display = "Right ~ Left",       default = "Rainbow [0/0]"},
+    #{name = "RDR", display = "Right ~ Back-right", default = "Rainbow [0/0]"},
+    #{name = "RDL", display = "Right ~ Back-left",  default = "Rainbow [0/0]"},
+    #{name = "RBR", display = "Right ~ Down-right", default = "Rainbow [0/0]"},
+    #{name = "RBL", display = "Right ~ Down-left",  default = "Rainbow [0/0]"},
+    #{name = "RPR", display = "Right ~ Para-right", default = "Rainbow [0/0]"},
+    #{name = "RPL", display = "Right ~ Para-left",  default = "Rainbow [0/0]"},
+    #{name = "RPD", display = "Right ~ Para-back",  default = "Rainbow [0/0]"},
+    #{name = "RPB", display = "Right ~ Para-down",  default = "Rainbow [0/0]"},
+    #{name = "RX",  display = "Right ~ X",          default = "Rainbow [0/0]"},
+    #{name = "RY",  display = "Right ~ Y",          default = "Rainbow [0/0]"},
+
+    #{name = "LI",  display = "Left ~ In",          default = "Rainbow [0/0]"},
+    #{name = "LF",  display = "Left ~ Up",          default = "Rainbow [0/0]"},
+    #{name = "LU",  display = "Left ~ Front",       default = "Rainbow [0/0]"},
+    #{name = "LR",  display = "Left ~ Right",       default = "Rainbow [0/0]"},
+    #{name = "LL",  display = "Left ~ Left",        default = "Rainbow [0/0]"},
+    #{name = "LDR", display = "Left ~ Back-right",  default = "Rainbow [0/0]"},
+    #{name = "LDL", display = "Left ~ Back-left",   default = "Rainbow [0/0]"},
+    #{name = "LBR", display = "Left ~ Down-right",  default = "Rainbow [0/0]"},
+    #{name = "LBL", display = "Left ~ Down-left",   default = "Rainbow [0/0]"},
+    #{name = "LPR", display = "Left ~ Para-right",  default = "Rainbow [0/0]"},
+    #{name = "LPL", display = "Left ~ Para-left",   default = "Rainbow [0/0]"},
+    #{name = "LPD", display = "Left ~ Para-back",   default = "Rainbow [0/0]"},
+    #{name = "LPB", display = "Left ~ Para-down",   default = "Rainbow [0/0]"},
+    #{name = "LX",  display = "Left ~ X",           default = "Rainbow [0/0]"},
+    #{name = "LY",  display = "Left ~ Y",           default = "Rainbow [0/0]"},
+
+    #{name = "UI",  display = "Up ~ In",            default = "Rainbow [0/0]"},
+    #{name = "UF",  display = "Up ~ Up",            default = "Rainbow [0/0]"},
+    #{name = "UU",  display = "Up ~ Front",         default = "Rainbow [0/0]"},
+    #{name = "UR",  display = "Up ~ Right",         default = "Rainbow [0/0]"},
+    #{name = "UL",  display = "Up ~ Left",          default = "Rainbow [0/0]"},
+    #{name = "UDR", display = "Up ~ Back-right",    default = "Rainbow [0/0]"},
+    #{name = "UDL", display = "Up ~ Back-left",     default = "Rainbow [0/0]"},
+    #{name = "UBR", display = "Up ~ Down-right",    default = "Rainbow [0/0]"},
+    #{name = "UBL", display = "Up ~ Down-left",     default = "Rainbow [0/0]"},
+    #{name = "UPR", display = "Up ~ Para-right",    default = "Rainbow [0/0]"},
+    #{name = "UPL", display = "Up ~ Para-left",     default = "Rainbow [0/0]"},
+    #{name = "UPD", display = "Up ~ Para-back",     default = "Rainbow [0/0]"},
+    #{name = "UPB", display = "Up ~ Para-down",     default = "Rainbow [0/0]"},
+    #{name = "UX",  display = "Up ~ X",             default = "Rainbow [0/0]"},
+    #{name = "UY",  display = "Up ~ Y",             default = "Rainbow [0/0]"},
+
+    #{name = "DI",  display = "Down ~ In",          default = "Rainbow [0/0]"},
+    #{name = "DF",  display = "Down ~ Up",          default = "Rainbow [0/0]"},
+    #{name = "DU",  display = "Down ~ Front",       default = "Rainbow [0/0]"},
+    #{name = "DR",  display = "Down ~ Right",       default = "Rainbow [0/0]"},
+    #{name = "DL",  display = "Down ~ Left",        default = "Rainbow [0/0]"},
+    #{name = "DDR", display = "Down ~ Back-right",  default = "Rainbow [0/0]"},
+    #{name = "DDL", display = "Down ~ Back-left",   default = "Rainbow [0/0]"},
+    #{name = "DBR", display = "Down ~ Down-right",  default = "Rainbow [0/0]"},
+    #{name = "DBL", display = "Down ~ Down-left",   default = "Rainbow [0/0]"},
+    #{name = "DPR", display = "Down ~ Para-right",  default = "Rainbow [0/0]"},
+    #{name = "DPL", display = "Down ~ Para-left",   default = "Rainbow [0/0]"},
+    #{name = "DPD", display = "Down ~ Para-back",   default = "Rainbow [0/0]"},
+    #{name = "DPB", display = "Down ~ Para-down",   default = "Rainbow [0/0]"},
+    #{name = "DX",  display = "Down ~ X",           default = "Rainbow [0/0]"},
+    #{name = "DY",  display = "Down ~ Y",           default = "Rainbow [0/0]"},
+
+    #{name = "FI",  display = "Front ~ In",         default = "Rainbow [0/0]"},
+    #{name = "FF",  display = "Front ~ Up",         default = "Rainbow [0/0]"},
+    #{name = "FU",  display = "Front ~ Front",      default = "Rainbow [0/0]"},
+    #{name = "FR",  display = "Front ~ Right",      default = "Rainbow [0/0]"},
+    #{name = "FL",  display = "Front ~ Left",       default = "Rainbow [0/0]"},
+    #{name = "FDR", display = "Front ~ Back-right", default = "Rainbow [0/0]"},
+    #{name = "FDL", display = "Front ~ Back-left",  default = "Rainbow [0/0]"},
+    #{name = "FBR", display = "Front ~ Down-right", default = "Rainbow [0/0]"},
+    #{name = "FBL", display = "Front ~ Down-left",  default = "Rainbow [0/0]"},
+    #{name = "FPR", display = "Front ~ Para-right", default = "Rainbow [0/0]"},
+    #{name = "FPL", display = "Front ~ Para-left",  default = "Rainbow [0/0]"},
+    #{name = "FPD", display = "Front ~ Para-back",  default = "Rainbow [0/0]"},
+    #{name = "FPB", display = "Front ~ Para-down",  default = "Rainbow [0/0]"},
+    #{name = "FX",  display = "Front ~ X",          default = "Rainbow [0/0]"},
+    #{name = "FY",  display = "Front ~ Y",          default = "Rainbow [0/0]"},
+
+    #{name = "BI",  display = "Back ~ In",          default = "Rainbow [0/0]"},
+    #{name = "BF",  display = "Back ~ Up",          default = "Rainbow [0/0]"},
+    #{name = "BU",  display = "Back ~ Front",       default = "Rainbow [0/0]"},
+    #{name = "BR",  display = "Back ~ Right",       default = "Rainbow [0/0]"},
+    #{name = "BL",  display = "Back ~ Left",        default = "Rainbow [0/0]"},
+    #{name = "BDR", display = "Back ~ Back-right",  default = "Rainbow [0/0]"},
+    #{name = "BDL", display = "Back ~ Back-left",   default = "Rainbow [0/0]"},
+    #{name = "BBR", display = "Back ~ Down-right",  default = "Rainbow [0/0]"},
+    #{name = "BBL", display = "Back ~ Down-left",   default = "Rainbow [0/0]"},
+    #{name = "BPR", display = "Back ~ Para-right",  default = "Rainbow [0/0]"},
+    #{name = "BPL", display = "Back ~ Para-left",   default = "Rainbow [0/0]"},
+    #{name = "BPD", display = "Back ~ Para-back",   default = "Rainbow [0/0]"},
+    #{name = "BPB", display = "Back ~ Para-down",   default = "Rainbow [0/0]"},
+    #{name = "BX",  display = "Back ~ X",           default = "Rainbow [0/0]"},
+    #{name = "BY",  display = "Back ~ Y",           default = "Rainbow [0/0]"},
+
+    #{name = "OI",  display = "Out ~ In",           default = "Rainbow [0/0]"},
+    #{name = "OF",  display = "Out ~ Up",           default = "Rainbow [0/0]"},
+    #{name = "OU",  display = "Out ~ Front",        default = "Rainbow [0/0]"},
+    #{name = "OR",  display = "Out ~ Right",        default = "Rainbow [0/0]"},
+    #{name = "OL",  display = "Out ~ Left",         default = "Rainbow [0/0]"},
+    #{name = "ODR", display = "Out ~ Back-right",   default = "Rainbow [0/0]"},
+    #{name = "ODL", display = "Out ~ Back-left",    default = "Rainbow [0/0]"},
+    #{name = "OBR", display = "Out ~ Down-right",   default = "Rainbow [0/0]"},
+    #{name = "OBL", display = "Out ~ Down-left",    default = "Rainbow [0/0]"},
+    #{name = "OPR", display = "Out ~ Para-right",   default = "Rainbow [0/0]"},
+    #{name = "OPL", display = "Out ~ Para-left",    default = "Rainbow [0/0]"},
+    #{name = "OPD", display = "Out ~ Para-back",    default = "Rainbow [0/0]"},
+    #{name = "OPB", display = "Out ~ Para-down",    default = "Rainbow [0/0]"},
+    #{name = "OX",  display = "Out ~ X",            default = "Rainbow [0/0]"},
+    #{name = "OY",  display = "Out ~ Y",            default = "Rainbow [0/0]"},
+
+    #{name = "II",  display = "In ~ In",            default = "Rainbow [0/0]"},
+    #{name = "IF",  display = "In ~ Up",            default = "Rainbow [0/0]"},
+    #{name = "IU",  display = "In ~ Front",         default = "Rainbow [0/0]"},
+    #{name = "IR",  display = "In ~ Right",         default = "Rainbow [0/0]"},
+    #{name = "IL",  display = "In ~ Left",          default = "Rainbow [0/0]"},
+    #{name = "IDR", display = "In ~ Back-right",    default = "Rainbow [0/0]"},
+    #{name = "IDL", display = "In ~ Back-left",     default = "Rainbow [0/0]"},
+    #{name = "IBR", display = "In ~ Down-right",    default = "Rainbow [0/0]"},
+    #{name = "IBL", display = "In ~ Down-left",     default = "Rainbow [0/0]"},
+    #{name = "IPR", display = "In ~ Para-right",    default = "Rainbow [0/0]"},
+    #{name = "IPL", display = "In ~ Para-left",     default = "Rainbow [0/0]"},
+    #{name = "IPD", display = "In ~ Para-back",     default = "Rainbow [0/0]"},
+    #{name = "IPB", display = "In ~ Para-down",     default = "Rainbow [0/0]"},
+    #{name = "IX",  display = "In ~ X",             default = "Rainbow [0/0]"},
+    #{name = "IY",  display = "In ~ Y",             default = "Rainbow [0/0]"},
+]
+add_color_system(
+    id = facet_colors,
+    name = name,
+    colors = facet_colors_list,
+)
+
+add_puzzle(
+    id = id,
+    version = "1.0.0",
+    name = name,
+    aliases = aliases,
+    colors = facet_colors,
+    engine = "euclid",
+    ndim = ndim,
+    build = fn() {
+        use sym, facet_pole, facet_names from new()
+        with #sym = sym { carve(plane(facet_pole), facet_names) }
+    },
+    tags = #{
+        type = "shape",
+        stable = "2.0.0",
+        shape = shape_tag,
+    },
+)
+
+// This code was used to generate the 120-cell names, using the old Lua API:
+/*
+local function _gen_120cell_names()
+  local swirl = sym:thru(3,2,1,2,4,1,3,2,1,2,1,3,2,1,2,3,4,3,2,1,2,1,3,2,1,2,4,3,2,1,2,3,2,3).rev
+  local transpose = sym:thru(1,2,4,1,3,2,1,2,1,3,2,1,2,3,4,3,2,1,2,1,3,2,1,2,4,3,2,1,2,3).rev
+
+  local axes = self.axes:add(facet_poles)
+  -- self.axes:autoname()
+  -- self.axes[vec('x')].name = 'RI'
+  -- self.axes[-vec('x')].name = 'LI'
+  -- self.axes[vec('y')].name = 'UI'
+  -- self.axes[-vec('y')].name = 'DI'
+  -- self.axes[vec('z')].name = 'FI'
+  -- self.axes[-vec('z')].name = 'BI'
+  self.axes[sym.ooox].name = 'OI'
+  sym:thru(2, 3, 4):transform(self.axes.OI).name = "OF"
+  sym:thru(2, 1, 2, 3, 4):transform(self.axes.OI).name = "OU"
+
+  local function name_hypercubic_cluster(Ob, beta_name)
+    local Db = swirl:transform(Ob)
+    local Lb = transpose:transform(Ob)
+    local Bb = transpose:transform(Db)
+    local Ib = self.axes[-Ob.vector]
+    local Rb = self.axes[-Lb.vector]
+    local Ub = self.axes[-Db.vector]
+    local Fb = self.axes[-Bb.vector]
+    Rb.name = 'R' .. beta_name
+    Lb.name = 'L' .. beta_name
+    Ub.name = 'U' .. beta_name
+    Db.name = 'D' .. beta_name
+    Fb.name = 'F' .. beta_name
+    Bb.name = 'B' .. beta_name
+    Ib.name = 'I' .. beta_name
+    Ob.name = 'O' .. beta_name
+  end
+
+  local OI = self.axes.OI
+  local OF = self.axes.OF
+  local OU = self.axes.OU
+  local OR = rot{fix = OF.vector ^ OI.vector, angle = pi*2/5}:transform(OU)
+
+  name_hypercubic_cluster(self.axes.OI, 'I')
+
+  local gen1 = refl(self.axes.RI.vector)
+  local gen2 = refl(OU.vector - OR.vector)
+  local gen3 = refl(OU.vector - OF.vector)
+  for t, axis, name in symmetry({gen1, gen2, gen3}):orbit(self.axes.OF):named({
+    F = {},
+    U = {3, 'F'},
+    R = {2, 'U'},
+    L = {1, 'R'},
+    DR = {2, 'L'},
+    DL = {1, 'DR'},
+    BR = {3, 'DR'},
+    BL = {3, 'DL'},
+    PR = {2, 'BL'},
+    PL = {1, 'PR'},
+    PD = {2, 'PL'},
+    PB = {3, 'PD'},
+  }) do
+    name_hypercubic_cluster(axis, name)
+  end
+
+  local OX = sym:thru(2, 1, 2, 3, 4, 2, 1, 2, 3, 1, 2, 1, 2, 3, 4):transform(OI)
+  name_hypercubic_cluster(OX, 'X')
+
+  local OY = (refl() * refl(OI.vector)):transform(OX)
+  name_hypercubic_cluster(OY, 'Y')
+
+  print(OX.vector)
+  print(OY.vector)
+end
+*/

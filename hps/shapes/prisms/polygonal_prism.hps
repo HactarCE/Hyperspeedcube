@@ -1,0 +1,56 @@
+use * from euclid
+
+export fn name(n: Nat) -> Str {
+    "${@shapes/i/polygon.adjective(n)} Prism"
+}
+export fn aliases(n: Nat) -> List[Str] {
+    @shapes/i/polygon.aliases(n).map(fn(s) { "${s} Prism" })
+}
+export fn adjective(n: Nat) -> Str { "${adjective(n)} Prismic" }
+
+export fn new(n: Nat) -> Map { new(n, ident()) }
+export fn new(n: Nat, t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(n, t2 * t) }
+
+    export name = name(n)
+    export aliases = aliases(n)
+    export adjective = adjective(n)
+    export facet_colors = "polygonal_prism:${n}"
+
+    shape = @symmetries/product(#{
+        polygon = @symmetries/polygonal.polygon(n),
+        line = @symmetries/linear.line(),
+    })
+    export sym, polygon, line from shape
+
+    export h = shape.polygon.edge_length / 2
+
+    export base_pole = line.endpoint * h
+    export base_names = line.names("U", "D")
+
+    export side_pole = polygon.edge_pole
+    export side_names = "F${polygon.names}"
+}
+
+add_color_system_generator(
+    id = "polygonal_prism",
+    name = "Polygonal Prism",
+    params = [@shapes/i/polygon.param_size("Polygon size")],
+    gen = fn(n) {
+        colors = [
+            #{name = "U", display = "Up",   default = "Mono Dyad [1]" },
+            #{name = "D", display = "Down", default = "Mono Dyad [2]" },
+        ]
+        for i in 0..n {
+            a = to_base26(i)
+            colors ++= [#{
+                name = "F${a}",
+                default = "Rainbow [${i}/${n}]", // TODO should it be `i+1`?
+            }]
+        }
+        return #{
+            name = name(n),
+            colors = colors,
+        }
+    },
+)
