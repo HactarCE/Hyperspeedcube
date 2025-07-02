@@ -12,6 +12,7 @@ pub trait EngineCallback<M, R>: Send + Sync {
 
     /// Constructs a new catalog object from metadata and excess named
     /// arguments.
+    #[allow(clippy::wrong_self_convention, clippy::new_ret_no_self)]
     fn new(
         &self,
         ctx: &mut EvalCtx<'_>,

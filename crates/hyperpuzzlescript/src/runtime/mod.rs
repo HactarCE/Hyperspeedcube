@@ -190,7 +190,7 @@ impl Runtime {
 
     /// Locks the map of built-ins and executes a closure with it.
     pub fn with_builtins<R>(&mut self, f: impl FnOnce(&mut Builtins<'_>) -> R) -> R {
-        f(&mut Builtins(&mut *self.builtins.names.lock()))
+        f(&mut Builtins(&mut self.builtins.names.lock()))
     }
 
     /// Registers a puzzle engine for the runtime.

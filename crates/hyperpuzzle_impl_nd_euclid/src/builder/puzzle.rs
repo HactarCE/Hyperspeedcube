@@ -99,11 +99,11 @@ impl PuzzleBuilder {
         let l = layers.0.get(layer)?;
         let mut ret = smallvec![];
         if l.top.is_finite() {
-            ret.push(Hyperplane::new(&axis_vector, l.top).ok_or_eyre("bad axis vector")?);
+            ret.push(Hyperplane::new(axis_vector, l.top).ok_or_eyre("bad axis vector")?);
         }
         if l.bottom.is_finite() {
             ret.push(
-                Hyperplane::new(&axis_vector, l.bottom)
+                Hyperplane::new(axis_vector, l.bottom)
                     .ok_or_eyre("bad axis vector")?
                     .flip(),
             );

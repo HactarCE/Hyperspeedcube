@@ -99,12 +99,12 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             let shape = HpsShape::get(ctx)?;
             shape
                 .lock()
-                .unify_piece_types(&sym.generators(), &mut ctx.warnf())
+                .unify_piece_types(sym.generators(), &mut ctx.warnf());
         }
 
         fn delete_untyped_pieces(ctx: EvalCtx) -> () {
             let shape = HpsShape::get(ctx)?;
-            shape.lock().delete_untyped_pieces(&mut ctx.warnf())
+            shape.lock().delete_untyped_pieces(&mut ctx.warnf());
         }
 
         fn autoname_colors(ctx: EvalCtx, shape: HpsShape) -> () {

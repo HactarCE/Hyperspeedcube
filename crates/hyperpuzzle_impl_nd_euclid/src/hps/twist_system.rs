@@ -264,7 +264,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                                     absolute_twist: absolute_twist.id,
                                     transform,
                                 },
-                            ))
+                            ));
                         }
                     }
                     None => ctx.warn(format!("no axis named {k:?}")),

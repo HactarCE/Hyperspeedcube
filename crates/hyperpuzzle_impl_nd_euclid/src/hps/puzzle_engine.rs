@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eyre::{Context, eyre};
+use eyre::eyre;
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
@@ -35,13 +35,13 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
         if let Some(color_system_id) = colors.clone() {
             meta.tags
-                .insert_named("colors/system", TagValue::Str(color_system_id.into()))
+                .insert_named("colors/system", TagValue::Str(color_system_id))
                 .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
         }
 
         if let Some(twist_system_id) = twists.clone() {
             meta.tags
-                .insert_named("twists/system", TagValue::Str(twist_system_id.into()))
+                .insert_named("twists/system", TagValue::Str(twist_system_id))
                 .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
         }
 
@@ -83,9 +83,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                     builder.shape().lock().remove_internals = remove_internals;
                 }
                 if let Some(full_scramble_length) = scramble {
-                    builder.lock().full_scramble_length = full_scramble_length
-                        .try_into()
-                        .wrap_err("bad scramble length")?;
+                    builder.lock().full_scramble_length = full_scramble_length;
                 };
 
                 let mut scope = Scope::default();
@@ -119,7 +117,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                     b.shape.lock().mark_untyped_pieces()?;
 
                     b.build(Some(&build_ctx), &mut ctx.warnf())
-                        .map(|ok| Redirectable::Direct(ok))
+                        .map(Redirectable::Direct)
                 })
             }),
         })

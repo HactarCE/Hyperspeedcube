@@ -17,7 +17,7 @@ pub use isometry_group::IsometryGroup;
 /// represents `0` and `x` represents `1`. Returns `None` for all other
 /// characters.
 ///
-/// Source: https://bendwavy.org/klitzing/explain/dynkin-notation.htm
+/// Source: <https://bendwavy.org/klitzing/explain/dynkin-notation.htm>
 pub fn dynkin_char(c: char) -> Option<hypermath::Float> {
     match c {
         'o' => Some(0.0),

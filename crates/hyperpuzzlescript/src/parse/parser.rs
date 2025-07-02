@@ -523,12 +523,11 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 }
 
 pub fn specialize_error(e: ParseError<'_>) -> ParseError<'_> {
-    if matches!(e.found(), Some(Token::Braces(_))) {
-        if e.expected()
+    if matches!(e.found(), Some(Token::Braces(_)))
+        && e.expected()
             .contains(&chumsky::error::RichPattern::Label(Cow::Borrowed("value")))
-        {
-            return ParseError::custom(*e.span(), "missing `#` on map literal");
-        }
+    {
+        return ParseError::custom(*e.span(), "missing `#` on map literal");
     }
 
     e

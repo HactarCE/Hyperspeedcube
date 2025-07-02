@@ -98,14 +98,12 @@ impl TagSet {
             if self.has_present("stable") {
                 warn_fn(format!(
                     "{obj_name} is <1.0.0 so it should not have the `stable` tag"
-                ))
-            }
-        } else {
-            if !self.has_present("stable") {
-                warn_fn(format!(
-                    "{obj_name} is ≥1.0.0 so it should have the `stable` tag"
                 ));
             }
+        } else if !self.has_present("stable") {
+            warn_fn(format!(
+                "{obj_name} is ≥1.0.0 so it should have the `stable` tag"
+            ));
         }
         Ok(())
     }
@@ -136,7 +134,7 @@ impl TagSet {
                 log::error!("error when merging tags: {e}");
             }
         }
-        *self = other
+        *self = other;
     }
 
     /// Adds inherited parent tags based on the child tags that are already

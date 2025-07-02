@@ -89,7 +89,7 @@ pub(super) fn transform_twist(
 ) -> Result<Twist> {
     let old_twist_info = twists.get(twist).at(twist_span)?;
     let new_twist_axis =
-        super::transform_axis(span, &twists.axes, &t, (old_twist_info.axis, twist_span))?;
+        super::transform_axis(span, &twists.axes, t, (old_twist_info.axis, twist_span))?;
     let new_twist_transform = t.transform(&old_twist_info.transform);
     let new_twist_key = TwistKey::new(new_twist_axis, &new_twist_transform)
         .ok_or(HpsEuclidError::BadTwistTransform)

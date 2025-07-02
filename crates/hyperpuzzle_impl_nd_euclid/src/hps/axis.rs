@@ -71,7 +71,7 @@ pub(super) fn axis_from_vector(
     axes: &AxisSystemBuilder,
     vector: &Vector,
 ) -> Result<Axis, HpsEuclidError> {
-    axes.vector_to_id(&vector)
+    axes.vector_to_id(vector)
         .ok_or_else(|| HpsEuclidError::NoAxis(vector.clone()))
 }
 

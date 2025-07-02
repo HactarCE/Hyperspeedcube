@@ -207,7 +207,7 @@ impl Preferences {
         // Load user preferences.
         match persist::user_config_source() {
             Ok(config_source) => config = config.add_source(config_source),
-            Err(e) => log::warn!("Error loading user preferences: {}", e),
+            Err(e) => log::warn!("Error loading user preferences: {e}"),
         }
 
         config
@@ -216,7 +216,7 @@ impl Preferences {
             .map(schema::AnyVersion::into_current)
             .map(|value| schema::PrefsConvert::from_serde(&(), value))
             .unwrap_or_else(|e| {
-                log::warn!("Error loading preferences: {}", e);
+                log::warn!("Error loading preferences: {e}");
 
                 persist::backup_prefs_file();
 
@@ -240,7 +240,7 @@ impl Preferences {
         self.needs_save = false;
         self.needs_save_eventually = false;
         let (tx, _join_handle) = &*persist::PREFS_SAVE_THREAD;
-        if let Err(e) = tx.send(persist::PrefsSaveCommand::Save(self.to_serde())) {
+        if let Err(e) = tx.send(persist::PrefsSaveCommand::Save(Box::new(self.to_serde()))) {
             log::error!("Error saving preferences: {e}");
         }
     }

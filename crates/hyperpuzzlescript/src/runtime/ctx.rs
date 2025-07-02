@@ -670,26 +670,26 @@ impl EvalCtx<'_> {
                 }
                 match &self[*op] {
                     "??" => {
-                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        let [l, r] = unpack_binop_args(*op, args)?;
                         match self.eval(l)?.data {
                             ValueData::Null => Ok(self.eval(r)?.data),
                             other => Ok(other),
                         }
                     }
                     "and" => {
-                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        let [l, r] = unpack_binop_args(*op, args)?;
                         Ok((self.eval(l)?.to()? && self.eval(r)?.to()?).into())
                     }
                     "or" => {
-                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        let [l, r] = unpack_binop_args(*op, args)?;
                         Ok((self.eval(l)?.to()? || self.eval(r)?.to()?).into())
                     }
                     "xor" => {
-                        let [l, r] = unpack_binop_args(*op, &args)?;
+                        let [l, r] = unpack_binop_args(*op, args)?;
                         Ok((self.eval(l)?.to::<bool>()? ^ self.eval(r)?.to::<bool>()?).into())
                     }
                     "not" => {
-                        let [arg] = unpack_binop_args(*op, &args)?;
+                        let [arg] = unpack_binop_args(*op, args)?;
                         Ok((!self.eval(arg)?.to::<bool>()?).into())
                     }
                     _ => {

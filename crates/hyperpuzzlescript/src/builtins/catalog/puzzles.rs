@@ -42,7 +42,7 @@ pub fn define_in(
             cat.add_puzzle(Arc::new(puzzle_spec_from_kwargs(
                 ctx, kwargs, &cat, &tx, None, None,
             )?))
-            .at(ctx.caller_span)?
+            .at(ctx.caller_span)?;
         }
     ])?;
 
@@ -211,7 +211,7 @@ pub fn define_in(
             };
 
             cat.add_puzzle_generator(Arc::new(spec))
-                .at(ctx.caller_span)?
+                .at(ctx.caller_span)?;
         }
     ])
 }

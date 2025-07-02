@@ -36,7 +36,7 @@ pub fn define_base_in(builtins: &mut Builtins<'_>) -> Result<()> {
         builtins.set_fns(hps_fns![("time", |_| -> u64 {
             std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .expect("current time must not be before Unix epoch")
                 .as_micros() as u64
         })])?;
     }

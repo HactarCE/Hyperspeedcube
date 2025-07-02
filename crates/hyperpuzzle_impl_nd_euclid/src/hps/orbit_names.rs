@@ -164,7 +164,7 @@ impl HpsOrbitNames {
         for &(ref component, component_span) in &self.components {
             let strings_and_transforms = std::iter::zip(
                 &mut strings,
-                transforms.into_iter().map(|t| match &self.offset {
+                transforms.iter().map(|t| match &self.offset {
                     Some(t2) => Cow::Owned(t * t2),
                     None => Cow::Borrowed(t),
                 }),

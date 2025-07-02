@@ -43,6 +43,6 @@ fn spawn_save_thread() -> (
 
 #[derive(Debug)]
 pub(crate) enum PrefsSaveCommand {
-    Save(crate::schema::current::Preferences),
+    Save(Box<crate::schema::current::Preferences>),
     Quit,
 }

@@ -144,7 +144,7 @@ impl Schema {
         self.path_to_struct_name
             .entry(path.clone())
             .or_insert_with(|| {
-                let struct_name = if path.is_root() {
+                if path.is_root() {
                     LANG_STRUCT_NAME.to_owned()
                 } else {
                     generate_name_candidates(snake_case_segments_to_struct_name(
@@ -152,8 +152,7 @@ impl Schema {
                     ))
                     .find(|s| !self.structs.contains_key(s) && s != LANG_STRUCT_NAME)
                     .unwrap()
-                };
-                struct_name
+                }
             })
             .clone()
     }

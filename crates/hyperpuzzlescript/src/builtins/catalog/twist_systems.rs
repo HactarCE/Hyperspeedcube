@@ -32,7 +32,7 @@ pub fn define_in(
         #[kwargs(kwargs)]
         fn add_twist_system(ctx: EvalCtx) -> () {
             cat.add_twist_system(Arc::new(twist_system_from_kwargs(ctx, kwargs, &cat, &tx)?))
-                .at(ctx.caller_span)?
+                .at(ctx.caller_span)?;
         }
     ])?;
 
@@ -110,7 +110,7 @@ pub fn define_in(
             };
 
             cat.add_twist_system_generator(Arc::new(spec))
-                .at(ctx.caller_span)?
+                .at(ctx.caller_span)?;
         }
     ])
 }
