@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use crate::{Builtins, List, Map, Result, Str, ValueData};
+use itertools::Itertools;
+
+use crate::{Builtins, FnValue, List, Map, Result, Str, Value, ValueData};
 
 /// Adds the built-in operators and functions.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
@@ -42,6 +44,48 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("is_empty", |_, l: Arc<List>| -> bool { l.is_empty() }),
         ("is_empty", |_, m: Arc<Map>| -> bool { m.is_empty() }),
         ("is_empty", |_, s: Str| -> bool { s.is_empty() }),
+        // Functional programming
+        (
+            "map",
+            |ctx, list: List, (f, f_span): Arc<FnValue>| -> List {
+                list.into_iter()
+                    .map(|v| f.call(f_span, ctx, vec![v], Map::new()))
+                    .try_collect()?
+            }
+        ),
+        (
+            "map",
+            |ctx, map: Arc<Map>, (f, f_span): Arc<FnValue>| -> Map {
+                map.iter()
+                    .map(|(k, v)| {
+                        let k_str = ValueData::Str(k.as_str().into()).at(ctx.caller_span);
+                        let new_v = f.call(f_span, ctx, vec![k_str, v.clone()], Map::new())?;
+                        Ok((k.clone(), new_v))
+                    })
+                    .try_collect()?
+            }
+        ),
+        (
+            "reduce",
+            |ctx, list: List, (f, f_span): Arc<FnValue>| -> Value {
+                list.into_iter()
+                    .map(Ok)
+                    .reduce(|a, b| f.call(f_span, ctx, vec![a?, b?], Map::new()))
+                    .unwrap_or(Ok(Value::NULL))?
+            }
+        ),
+        (
+            "filter",
+            |ctx, list: List, (f, f_span): Arc<FnValue>| -> List {
+                let mut ret = vec![];
+                for value in list {
+                    if f.call(f_span, ctx, vec![value.clone()], Map::new())?.to()? {
+                        ret.push(value);
+                    }
+                }
+                ret
+            }
+        ),
         // Other operations
         ("rev", |_, l: List| -> List {
             let mut l = l;
