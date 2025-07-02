@@ -45,9 +45,12 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
         }
 
-        meta.tags
+        if let Err(e) = meta
+            .tags
             .insert_named(&format!("shape/{ndim}d"), TagValue::True)
-            .at(caller_span)?;
+        {
+            ctx.warn(e.to_string());
+        }
 
         let meta = Arc::new(meta);
 
