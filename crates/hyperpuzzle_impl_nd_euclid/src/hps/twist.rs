@@ -4,7 +4,8 @@ use hypermath::IndexOutOfRange;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::{NameSpec, Twist};
 use hyperpuzzlescript::{
-    Builtins, ErrorExt, Result, Span, Spanned, ValueData, hps_fns, impl_simple_custom_type,
+    Builtins, ErrorExt, FnValue, Map, Result, Span, Spanned, Value, ValueData, hps_fns,
+    impl_simple_custom_type,
 };
 
 use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
@@ -67,6 +68,15 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 id,
                 twists: twist.twists.clone(),
             })
+        }
+
+        fn transform(ctx: EvalCtx, (twist, twist_span): HpsTwist, object: Value) -> Value {
+            let fn_value = ctx.scope.get("transform").unwrap_or_default();
+            let transform = ValueData::from(twist.transform().at(ctx.caller_span)?).at(twist_span);
+            let args = vec![transform, object];
+            fn_value
+                .as_ref::<FnValue>()?
+                .call(fn_value.span, ctx, args, Map::new())?
         }
     ])
 }
