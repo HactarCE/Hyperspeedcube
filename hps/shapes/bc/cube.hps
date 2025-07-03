@@ -6,12 +6,13 @@ export adjective = "Cubic"
 export aliases = ["3-Cube", "Hexahedron", "1x1x1", "1^3"]
 export facet_colors = id
 export ndim = 3
+export shape_tag = "3d/platonic/cube"
 
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export id, name, adjective, aliases, facet_colors, ndim
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("bc3"))
 
     export facet_pole = sym.oox.unit
@@ -88,8 +89,9 @@ add_puzzle(
         with #sym = sym { carve(plane(facet_pole), facet_names) }
     },
     tags = #{
+        schema = 1,
         type = "shape",
         stable = "2.0.0",
-        shape = "3d/platonic/cube",
+        shape = shape_tag,
     },
 )

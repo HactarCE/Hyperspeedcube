@@ -112,6 +112,7 @@ add_puzzle(
         with #sym = sym { carve(plane(facet_pole), facet_names) }
     },
     tags = #{
+        schema = 1,
         type = "shape",
         stable = "2.0.0",
         shape = shape_tag,
