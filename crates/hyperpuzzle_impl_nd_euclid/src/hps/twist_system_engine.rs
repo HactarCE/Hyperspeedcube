@@ -23,15 +23,18 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
     ) -> Result<TwistSystemSpec> {
         let caller_span = ctx.caller_span;
 
+        let IdAndName { id, name } = meta;
+
         unpack_kwargs!(kwargs, ndim: u8, (build, build_span): Arc<FnValue>);
 
         Ok(TwistSystemSpec {
-            id: meta.id.clone(),
-            name: meta.name.clone(),
+            id: id.clone(),
+            name: name.clone(),
             build: Box::new(move |build_ctx| {
+                let id = id.clone();
                 let builder = ArcMut::new(TwistSystemBuilder::new_shared(
-                    meta.id.clone(),
-                    Some(meta.name.clone()),
+                    id.clone(),
+                    Some(name.clone()),
                     ndim,
                 ));
 
@@ -49,13 +52,13 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                         runtime,
                         caller_span,
                         exports: &mut None,
+                        stack_depth: 0,
                     };
                     let exports = build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
                         .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
                             ctx.runtime.report_diagnostic(e);
-                            eyre!(s)
+                            eyre!("unable to build twist system `{id}`")
                         })?;
 
                     let mut b = builder.lock();

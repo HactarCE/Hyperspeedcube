@@ -58,6 +58,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
             meta: Arc::clone(&meta),
             build: Box::new(move |build_ctx| {
                 let builder = ArcMut::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
+                let id = meta.id.clone();
 
                 // Build color system.
                 if let Some(color_system_id) = &colors {
@@ -102,13 +103,13 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                         runtime,
                         caller_span,
                         exports: &mut None,
+                        stack_depth: 0,
                     };
                     build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
                         .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
                             ctx.runtime.report_diagnostic(e);
-                            eyre!(s)
+                            eyre!("unable to build puzzle `{id}`")
                         })?;
 
                     let b = builder.lock();

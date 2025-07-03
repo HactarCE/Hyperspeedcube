@@ -54,5 +54,15 @@ fn colored_log_line(ui: &mut egui::Ui, line: &LogLine) {
             Level::Info | Level::Debug | Level::Trace => text.color(egui::Color32::BLUE),
         },
     };
-    ui.label(text);
+
+    let r = ui.label(text);
+
+    if let Some(full) = &line.full
+        && r.hovered()
+    {
+        r.show_tooltip_ui(|ui| {
+            ui.set_max_width(ui.ctx().screen_rect().width());
+            crate::gui::components::show_ariadne_error_in_egui(ui, full);
+        });
+    }
 }

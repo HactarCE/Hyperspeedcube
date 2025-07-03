@@ -271,11 +271,10 @@ impl Catalog {
             match generator_output {
                 Ok(ok) => CacheEntry::Ok(ok),
                 Err(e) => {
-                    let msg = format!("error building {id:?}: {e}");
                     self.default_logger.log(LogLine {
                         level: log::Level::Error,
-                        msg,
-                        full: None,
+                        msg: format!("error building {id:?}"),
+                        full: Some(e.clone()).filter(|s| !s.is_empty()),
                     });
                     CacheEntry::Err(e)
                 }

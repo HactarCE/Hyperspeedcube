@@ -30,7 +30,7 @@ impl VantageSetBuilder {
     pub fn build(&self, groups: &IndexMap<String, NdEuclidVantageGroup>) -> Result<VantageSet> {
         let group = groups
             .get(&self.group)
-            .ok_or_else(|| eyre!("no group with name {:?}", self.group))?;
+            .ok_or_else(|| eyre!("no vantage group with name {:?}", self.group))?;
 
         if !self.transforms.iter().map(|(name, _)| name).all_unique() {
             bail!("transform names are not all unique");

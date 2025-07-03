@@ -1,6 +1,7 @@
 #[macro_use]
 mod combo_boxes;
 // mod keybinds;
+mod ariadne;
 mod color_widgets;
 mod dnd;
 mod filter_checkbox;
@@ -16,6 +17,7 @@ mod yaml_editor;
 pub use color_widgets::*;
 pub use combo_boxes::*;
 // pub use keybinds::*;
+pub use ariadne::*;
 pub use dnd::*;
 pub use filter_checkbox::*;
 pub use hint::*;
