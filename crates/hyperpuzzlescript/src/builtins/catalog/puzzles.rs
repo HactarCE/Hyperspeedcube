@@ -91,8 +91,10 @@ pub fn define_in(
 
             // Add `#generator` tag.
             let mut tags = tags_map.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
-            for tag in tags.0.keys().filter(|tag| tag.starts_with("type/")) {
-                ctx.warn(format!("generator `{id}` should not have tag {tag:?}"));
+            if tags.has_present("type/puzzle") {
+                ctx.warn(format!(
+                    "puzzle generator `{id}` should not have tag `type/puzzle`"
+                ));
             }
             tags.insert_named("type/generator", TagValue::True)
                 .at(caller_span)?;
@@ -101,7 +103,7 @@ pub fn define_in(
             tags.set_experimental_or_expect_stable(
                 version,
                 ctx.warnf(),
-                &format!("generator `{id}`"),
+                &format!("puzzle generator `{id}`"),
             )
             .at(ctx.caller_span)?;
 

@@ -55,7 +55,7 @@ impl FromLua for LuaPuzzleGeneratorSpec {
         let id = crate::validate_id(id).into_lua_err()?;
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
-        for tag in tags.0.keys().filter(|tag| tag.starts_with("type")) {
+        if tags.has_present("type/puzzle") {
             lua.warning(format!("generator {id} should not have tag {tag:?}"), false);
         }
 

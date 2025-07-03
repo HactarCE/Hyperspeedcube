@@ -1,6 +1,6 @@
 use * from euclid
 
-fn product(symmetries: Map) -> Map { product(symmetries, t) }
+fn product(symmetries: Map) -> Map { product(symmetries, ident()) }
 fn product(symmetries: Map, t: Transform) -> Map {
     ret = #{}
     ret.transform_by = fn(t2) { product(symmetries, t2 * t) }

@@ -1,12 +1,11 @@
 use * from euclid
 
-use param_size as param_polygon_size from @shapes/i/polygon
-
+param_polygon_size = @shapes/i/polygon.param_size
 fn param_polygon_width(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 fn param_line_height(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 
 export fn ft_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
-    "Face-Turning ${@shapes/i/polygon.adjective(n)} Prism (${cut_type} ${width}x${height})"
+    "Face-Turning ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
 }
 export fn duoprism_name(n: Nat, m: Nat) -> Str { "${n}x${m} Duoprism" }
 export fn ft_duoprism_name(n: Nat, m: Nat, n_size: Nat, m_size: Nat, cut_type: Str) -> Str {
@@ -38,9 +37,9 @@ add_puzzle_generator(
             colors = "polygonal_prism:${n}",
             twists = "ft_polygonal_prismic:${n}",
             build = fn() {
-                use sym, polygon, line from @symmetries/product(#{
-                    polygon = @symmetries/polygonal.ngon(n),
-                    line = @symmetries/linear.line(),
+                use sym, polygon, line from @shapes/product(#{
+                    polygon = @shapes/i/polygon.new(n),
+                    line = @shapes/line.new(),
                 })
                 h = polygon.edge_length / 2
 
@@ -92,14 +91,14 @@ add_twist_system_generator(
         return #{
             name = "Face-Turning ${@shapes/prisms/polygonal_prism.name(n)}",
             build = fn() {
-                prism = @shapes/prisms/polygonal_prism.new(n)
+                shape = @shapes/prisms/polygonal_prism.new(n)
 
                 // Add axes and twists
-                with #sym = sym {
-                    export base_axis = add_axis(prism.base_pole, prism.base_names)
-                    export side_axis = add_axis(prism.side_pole, prism.side_names)
-                    add_twist(base_axis, prism.sym.thru([1, 0]), gizmo_pole_distance = prism.h)
-                    add_twist(side_axis, prism.sym.thru([2, 0]), gizmo_pole_distance = 1)
+                with #sym = shape.sym {
+                    export base_axis = add_axis(shape.base_pole, shape.base_names)
+                    export side_axis = add_axis(shape.side_pole, shape.side_names)
+                    add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = shape.h)
+                    add_twist(side_axis, #sym.thru([2, 0]), gizmo_pole_distance = 1)
                 }
 
                 // Add global twist directions
@@ -110,31 +109,35 @@ add_twist_system_generator(
 
                 // Add vantage group
                 add_vantage_group(
-                    id = "polygonal_prismic",
-                    symmetry = sym,
-                    refs = [[sym.oox, @symmetries/bc3.cube().facet_names]],
+                    id = "polygonal_prism",
+                    symmetry = shape.sym,
+                    refs = [
+                        [shape.base_pole, shape.base_names],
+                        [shape.side_pole, shape.side_names],
+                    ],
                     init = ["FA", "U"],
                 )
 
                 // Add side-centered vantage set
-                F = sym.oox
-                U = sym.thru(2).transform(F)
-                R = sym.thru(1).transform(U)
-                x = rot(fix = U, start = R, end = F)
-                y = rot(fix = R, start = F, end = U)
-                z = rot(fix = F, start = U, end = R)
+                F = side_axis
+                U = base_axis
+                y = shape.sym.thru([2, 0])
+                z2 = shape.sym.thru([1, 0])
                 add_vantage_set(
-                    name = "Face-centered",
-                    group = "cubic",
+                    name = "Side-centered",
+                    group = "polygonal_prism",
                     view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
                                 * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
                     transforms = #{
-                        x = x, "x'" = x.rev(),
                         y = y, "y'" = y.rev(),
-                        z = z, "z'" = z.rev(),
+                        z2 = z2, "z2'" = z2.rev(),
                     },
                     axes = #{
-                        F = #twists.U.transform()
+                        F = F,
+                        R = #twists.U.transform(F),
+                        L = #twists.U.rev().transform(F),
+                        U = U,
+                        D = #twists.FA.transform(U),
                     },
                 )
             },
