@@ -509,6 +509,7 @@ impl FnValue {
             runtime: ctx.runtime,
             caller_span: call_span,
             exports: &mut exports,
+            stack_depth: ctx.stack_depth + 1,
         };
         let mut return_value = (overload.call)(&mut call_ctx, args, kwargs)
             .or_else(FullDiagnostic::try_resolve_return_value)

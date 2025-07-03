@@ -1,0 +1,5 @@
+fn boom() {
+    boom()
+}
+
+assert_eq("stack overflow", __eval_to_error(boom))

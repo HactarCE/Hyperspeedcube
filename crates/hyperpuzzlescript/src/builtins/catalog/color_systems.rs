@@ -90,6 +90,7 @@ pub fn define_in(
                             runtime,
                             caller_span,
                             exports: &mut None,
+                            stack_depth: 0,
                         };
 
                         // IIFE to mimic try_block

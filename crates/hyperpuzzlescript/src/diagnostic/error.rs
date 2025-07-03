@@ -22,6 +22,8 @@ pub enum Error {
     },
     #[error("unimplemented")]
     Unimplemented(&'static str),
+    #[error("stack overflow")]
+    StackOverflow,
     #[error("type error")]
     TypeError { expected: Type, got: Type },
     #[error("list length error")]
@@ -469,9 +471,11 @@ impl Error {
             Self::User(_) | Self::Assert(_) => report_builder.main_label("error reported here"),
             Self::AssertCompare(l, r, _) => report_builder.label_values([&**l, &**r]),
 
-            Self::Return(_) | Self::Break | Self::Continue | Self::SilentImportError => {
-                report_builder.main_label("error reported here")
-            }
+            Self::StackOverflow
+            | Self::Return(_)
+            | Self::Break
+            | Self::Continue
+            | Self::SilentImportError => report_builder.main_label("error reported here"),
         }
     }
 }

@@ -24,6 +24,8 @@ pub struct EvalCtx<'a> {
     pub caller_span: Span,
     /// Exports from the current function/file.
     pub exports: &'a mut Option<Map>,
+    /// Stack depth, which increases with calls and expression evaluation.
+    pub stack_depth: usize,
 }
 
 impl EvalCtx<'_> {
@@ -415,6 +417,18 @@ impl EvalCtx<'_> {
 
     /// Evaluates an AST node to a value.
     pub fn eval(&mut self, node: &ast::Node) -> Result<Value> {
+        self.stack_depth += 1;
+
+        if self.stack_depth > crate::MAX_CALL_STACK_DEPTH {
+            return Err(Error::StackOverflow.at(node.1));
+        }
+        let result = self.eval_impl(node);
+
+        self.stack_depth -= 1;
+
+        result
+    }
+    fn eval_impl(&mut self, node: &ast::Node) -> Result<Value> {
         let &(ref contents, span) = node;
         let null = ValueData::Null;
         match contents {
@@ -644,6 +658,7 @@ impl EvalCtx<'_> {
                     runtime: self.runtime,
                     caller_span: self.caller_span,
                     exports: self.exports,
+                    stack_depth: self.stack_depth,
                 }
                 .eval(body)?
                 .data)
@@ -1107,6 +1122,7 @@ impl EvalCtx<'_> {
             runtime: self.runtime,
             caller_span: self.caller_span,
             exports: self.exports,
+            stack_depth: self.stack_depth,
         })
     }
 

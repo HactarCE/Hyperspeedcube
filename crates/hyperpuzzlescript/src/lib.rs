@@ -68,6 +68,9 @@ pub const BUILTIN_SPAN: Span = Span {
 /// the function is called.
 const CHECK_FN_OVERLOAD_CONFLICTS: bool = true;
 
+/// Maximum depth of call stack.
+pub const MAX_CALL_STACK_DEPTH: usize = 100;
+
 /// Name of the scripting language.
 pub const LANGUAGE_NAME: &str = "Hyperpuzzlescript";
 /// File extension for scripts in the language.

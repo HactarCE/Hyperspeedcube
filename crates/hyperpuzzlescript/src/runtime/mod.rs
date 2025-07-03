@@ -151,6 +151,7 @@ impl Runtime {
             runtime: self,
             caller_span: crate::BUILTIN_SPAN,
             exports: &mut exports,
+            stack_depth: 0, // TODO: consider spawning a thread here to reset the stack size
         };
         let result = ctx
             .eval(&ast)
