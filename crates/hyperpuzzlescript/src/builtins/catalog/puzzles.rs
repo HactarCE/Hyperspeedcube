@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ecow::eco_format;
-use eyre::eyre;
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
     Catalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, Redirectable, TAGS, TagSet,
@@ -72,7 +71,7 @@ pub fn define_in(
             });
             pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
             pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
-            pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>> );
+            pop_kwarg!(kwargs, (params, params_span): Vec<Spanned<Arc<Map>>> );
             pop_kwarg!(kwargs, examples: Vec<Spanned<Arc<Map>>> = vec![]);
             pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
             let tags_map = tags;
@@ -111,6 +110,7 @@ pub fn define_in(
                 id,
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
+                params_span,
                 gen_span,
                 extra: kwargs,
             };
@@ -207,7 +207,7 @@ pub fn define_in(
                         .map_err(|e| {
                             let s = e.to_string(&*ctx.runtime);
                             ctx.runtime.report_diagnostic(e);
-                            eyre!(s)
+                            s
                         })
                     })
                 }),

@@ -46,31 +46,33 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
 
                 let build_fn = Arc::clone(&build);
 
-                eval_tx.eval_blocking(move |runtime| {
-                    let mut ctx = EvalCtx {
-                        scope: &scope,
-                        runtime,
-                        caller_span,
-                        exports: &mut None,
-                        stack_depth: 0,
-                    };
-                    let exports = build_fn
-                        .call(build_span, &mut ctx, vec![], Map::new())
-                        .map_err(|e| {
-                            ctx.runtime.report_diagnostic(e);
-                            eyre!("unable to build twist system `{id}`")
-                        })?;
+                eval_tx
+                    .eval_blocking(move |runtime| {
+                        let mut ctx = EvalCtx {
+                            scope: &scope,
+                            runtime,
+                            caller_span,
+                            exports: &mut None,
+                            stack_depth: 0,
+                        };
+                        let exports = build_fn
+                            .call(build_span, &mut ctx, vec![], Map::new())
+                            .map_err(|e| {
+                                ctx.runtime.report_diagnostic(e);
+                                eyre!("unable to build twist system `{id}`; see HPS logs")
+                            })?;
 
-                    let mut b = builder.lock();
-                    if let Ok(exports_map) = exports.to::<Arc<Map>>() {
-                        b.hps_exports = exports_map;
-                    }
-                    b.is_modified = false;
+                        let mut b = builder.lock();
+                        if let Ok(exports_map) = exports.to::<Arc<Map>>() {
+                            b.hps_exports = exports_map;
+                        }
+                        b.is_modified = false;
 
-                    let puzzle_id = None;
-                    b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
-                        .map(|ok| Redirectable::Direct(Arc::new(ok)))
-                })
+                        let puzzle_id = None;
+                        b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
+                            .map(|ok| Redirectable::Direct(Arc::new(ok)))
+                    })
+                    .map_err(|e| format!("{e:#}"))
             }),
         })
     }

@@ -270,14 +270,7 @@ impl Catalog {
             };
             match generator_output {
                 Ok(ok) => CacheEntry::Ok(ok),
-                Err(e) => {
-                    self.default_logger.log(LogLine {
-                        level: log::Level::Error,
-                        msg: format!("error building {id:?}"),
-                        full: Some(e.clone()).filter(|s| !s.is_empty()),
-                    });
-                    CacheEntry::Err(e)
-                }
+                Err(e) => CacheEntry::Err(e),
             }
         };
 
@@ -310,9 +303,6 @@ impl Catalog {
             // Build the object, which may be expensive.
             let ctx = BuildCtx::new(&self.default_logger, progress);
             let result = T::build_object_from_spec(ctx.clone(), &spec);
-            if let Err(e) = &result {
-                ctx.logger.error(e);
-            }
             CacheEntry::from(result)
         };
 

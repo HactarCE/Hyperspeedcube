@@ -201,25 +201,36 @@ impl PuzzleWidget {
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))), prefs),
             },
-            CacheEntry::Err(_) => {
-                // The error should've already been reported;
-                // we don't need to report it every frame.
-                if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
-                    let gfx = &self.gfx;
-                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
-                        &hyperpuzzle::nd_euclid::PLACEHOLDER_PUZZLE,
-                    )));
-                    self.contents = PuzzleWidgetContents::Placeholder {
-                        puzzle_id: puzzle_id.to_string(),
-                        view: PuzzleView::new(gfx, &sim, prefs),
-                    };
-                    self.puzzle_changed = true;
-                }
+            CacheEntry::Err(e) => {
+                let view = match std::mem::take(&mut self.contents) {
+                    PuzzleWidgetContents::None => None,
+                    PuzzleWidgetContents::Ok(view) => {
+                        (view.puzzle().meta.id == puzzle_id).then_some(view)
+                    }
+                    PuzzleWidgetContents::Err {
+                        puzzle_id: old_id,
+                        view,
+                        ..
+                    } => (old_id == puzzle_id).then_some(view),
+                };
+                let is_placeholder = view.is_none();
+                self.contents = PuzzleWidgetContents::Err {
+                    puzzle_id,
+                    view: view.unwrap_or_else(|| {
+                        let gfx = &self.gfx;
+                        let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
+                            &hyperpuzzle::nd_euclid::PLACEHOLDER_PUZZLE,
+                        )));
+                        PuzzleView::new(gfx, &sim, prefs)
+                    }),
+                    is_placeholder,
+                    error: e.clone(),
+                };
             }
         }
     }
     fn set_sim(&mut self, sim: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) {
-        self.contents = PuzzleWidgetContents::Puzzle(PuzzleView::new(&self.gfx, sim, prefs));
+        self.contents = PuzzleWidgetContents::Ok(PuzzleView::new(&self.gfx, sim, prefs));
         self.loading = None;
         self.puzzle_changed = true;
     }
@@ -232,8 +243,8 @@ impl PuzzleWidget {
             }
             None => match &self.contents {
                 PuzzleWidgetContents::None => L.tabs.titles.puzzle.empty.to_string(),
-                PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().meta.name.clone(),
-                PuzzleWidgetContents::Placeholder { puzzle_id, .. } => {
+                PuzzleWidgetContents::Ok(view) => view.puzzle().meta.name.clone(),
+                PuzzleWidgetContents::Err { puzzle_id, .. } => {
                     L.tabs.titles.puzzle.error.with(puzzle_id)
                 }
             },
@@ -241,16 +252,12 @@ impl PuzzleWidget {
     }
 
     pub fn view(&self) -> Option<&PuzzleView> {
-        match &self.contents {
-            PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
-            _ => None,
-        }
+        let is_placeholder = self.contents.is_placeholder();
+        self.contents.as_view().filter(|_| !is_placeholder)
     }
     pub fn view_mut(&mut self) -> Option<&mut PuzzleView> {
-        match &mut self.contents {
-            PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
-            _ => None,
-        }
+        let is_placeholder = self.contents.is_placeholder();
+        self.contents.as_view_mut().filter(|_| !is_placeholder)
     }
     /// Returns the puzzle simulation.
     pub fn sim(&self) -> Option<Arc<Mutex<PuzzleSimulation>>> {
@@ -266,7 +273,7 @@ impl PuzzleWidget {
         // TODO: keybind should be global, not just in puzzle view
         // TODO: make sure that the old catalog actually gets dropped
         hyperpuzzle::load_global_catalog();
-        if let Some(id) = self.contents.puzzle_id() {
+        if let Some(id) = self.contents.puzzle_id().clone() {
             self.load_puzzle(&id, prefs);
         }
     }
@@ -351,6 +358,14 @@ impl PuzzleWidget {
                 loading_progress = Some(done as f32 / total as f32);
                 ui.ctx().request_repaint();
             });
+        } else if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
+            egui::Area::new(unique_id!())
+                .anchor(egui::Align2::LEFT_TOP, egui::Vec2::ZERO)
+                .constrain_to(rect)
+                .show(ui.ctx(), |ui| {
+                    ui.set_width(rect.width());
+                    crate::gui::components::show_ariadne_error_in_egui(ui, error)
+                });
         } else if matches!(self.contents, PuzzleWidgetContents::None) {
             show_puzzle_load_hint(ui, self, prefs);
         }
@@ -599,31 +614,51 @@ pub enum PuzzleWidgetContents {
     /// No puzzle view.
     #[default]
     None,
-    /// Ordinary puzzle view.
-    Puzzle(PuzzleView),
-    /// Placeholder puzzle view, with the ID of the puzzle that tried to load.
-    Placeholder { puzzle_id: String, view: PuzzleView },
+    // Ordinary puzzle view.
+    Ok(PuzzleView),
+    /// Error loading the puzzle.
+    Err {
+        /// ID of the puzzle that tried to load.
+        puzzle_id: String,
+        /// Previous version of the puzzle that worked, or a placeholder model
+        /// if there was no successful previous version.
+        view: PuzzleView,
+        /// Whether `view` contains a placeholder model.
+        is_placeholder: bool,
+        /// Error message.
+        error: String,
+    },
 }
 impl PuzzleWidgetContents {
+    /// Returns the puzzle view, even if it contains a placeholder model.
     fn as_view(&self) -> Option<&PuzzleView> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Puzzle(view) => Some(view),
-            PuzzleWidgetContents::Placeholder { view, .. } => Some(view),
+            PuzzleWidgetContents::Ok(view) => Some(view),
+            PuzzleWidgetContents::Err { view, .. } => Some(view),
         }
     }
+    /// Returns the puzzle view, even if it contains a placeholder model.
     fn as_view_mut(&mut self) -> Option<&mut PuzzleView> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Puzzle(view) => Some(view),
-            PuzzleWidgetContents::Placeholder { view, .. } => Some(view),
+            PuzzleWidgetContents::Ok(view) => Some(view),
+            PuzzleWidgetContents::Err { view, .. } => Some(view),
         }
     }
+    /// Returns the ID of the puzzle that is loaded or that tried to load.
     fn puzzle_id(&self) -> Option<String> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Puzzle(view) => Some(view.puzzle().meta.id.clone()),
-            PuzzleWidgetContents::Placeholder { puzzle_id, .. } => Some(puzzle_id.clone()),
+            PuzzleWidgetContents::Ok(view) => Some(view.puzzle().meta.id.clone()),
+            PuzzleWidgetContents::Err { puzzle_id, .. } => Some(puzzle_id.clone()),
+        }
+    }
+    fn is_placeholder(&self) -> bool {
+        match self {
+            PuzzleWidgetContents::None => false,
+            PuzzleWidgetContents::Ok(puzzle_view) => false,
+            PuzzleWidgetContents::Err { is_placeholder, .. } => *is_placeholder,
         }
     }
 }

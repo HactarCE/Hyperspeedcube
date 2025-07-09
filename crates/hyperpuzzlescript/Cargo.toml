@@ -25,7 +25,6 @@ ariadne = { workspace = true }
 chumsky = { workspace = true }
 # disjoint = { workspace = true }
 ecow = { workspace = true }
-eyre = { workspace = true } # TODO: make this optional if factoring puzzle construction into another crate
 # float-ord = { workspace = true }
 include_dir = { workspace = true }
 indexmap = { workspace = true }

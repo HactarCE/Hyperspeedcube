@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use ecow::eco_format;
-use eyre::eyre;
 use hyperpuzzle_core::Catalog;
 use hyperpuzzle_core::catalog::{BuildTask, Generator, TwistSystemSpec};
 use itertools::Itertools;
@@ -57,7 +56,7 @@ pub fn define_in(
                 ctx.warn(eco_format!("missing `name` for twist system generator `{id}`"));
                 id.clone()
             });
-            pop_kwarg!(kwargs, params: Vec<Spanned<Arc<Map>>>);
+            pop_kwarg!(kwargs, (params, params_span): Vec<Spanned<Arc<Map>>>);
             pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
 
             let caller_span = ctx.caller_span;
@@ -68,6 +67,7 @@ pub fn define_in(
             let gen_meta = super::generators::GeneratorMeta {
                 id,
                 params: super::generators::params_from_array(params)?,
+                params_span,
                 gen_fn: r#gen,
                 gen_span,
                 extra: kwargs,
@@ -104,7 +104,7 @@ pub fn define_in(
                         .map_err(|e| {
                             let s = e.to_string(&*ctx.runtime);
                             ctx.runtime.report_diagnostic(e);
-                            eyre!(s)
+                            s
                         })
                     })
                 }),

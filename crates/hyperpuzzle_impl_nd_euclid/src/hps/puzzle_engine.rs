@@ -57,25 +57,25 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
         Ok(PuzzleSpec {
             meta: Arc::clone(&meta),
             build: Box::new(move |build_ctx| {
-                let builder = ArcMut::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
+                let builder = ArcMut::new(
+                    PuzzleBuilder::new(Arc::clone(&meta), ndim).map_err(|e| format!("{e:#}"))?,
+                );
                 let id = meta.id.clone();
 
                 // Build color system.
                 if let Some(color_system_id) = &colors {
                     build_ctx.progress.lock().task = BuildTask::BuildingColors;
-                    let colors = catalog
-                        .build_blocking(color_system_id)
-                        .map_err(|e| eyre!(e))?;
-                    builder.shape().lock().colors = ColorSystemBuilder::unbuild(&colors)?;
+                    let colors = catalog.build_blocking(color_system_id)?;
+                    builder.shape().lock().colors =
+                        ColorSystemBuilder::unbuild(&colors).map_err(|e| format!("{e:#}"))?;
                 }
 
                 // Build twist system.
                 if let Some(twist_system_id) = &twists {
                     build_ctx.progress.lock().task = BuildTask::BuildingTwists;
-                    let twists = catalog
-                        .build_blocking(twist_system_id)
-                        .map_err(|e| eyre!(e))?;
-                    *builder.twists().lock() = TwistSystemBuilder::unbuild(&twists)?;
+                    let twists = catalog.build_blocking(twist_system_id)?;
+                    *builder.twists().lock() =
+                        TwistSystemBuilder::unbuild(&twists).map_err(|e| format!("{e:#}"))?;
                 }
 
                 build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
@@ -97,29 +97,31 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
                 let build_fn = Arc::clone(&build);
 
-                eval_tx.eval_blocking(move |runtime| {
-                    let mut ctx = EvalCtx {
-                        scope: &scope,
-                        runtime,
-                        caller_span,
-                        exports: &mut None,
-                        stack_depth: 0,
-                    };
-                    build_fn
-                        .call(build_span, &mut ctx, vec![], Map::new())
-                        .map_err(|e| {
-                            ctx.runtime.report_diagnostic(e);
-                            eyre!("unable to build puzzle `{id}`")
-                        })?;
+                eval_tx
+                    .eval_blocking(move |runtime| {
+                        let mut ctx = EvalCtx {
+                            scope: &scope,
+                            runtime,
+                            caller_span,
+                            exports: &mut None,
+                            stack_depth: 0,
+                        };
+                        build_fn
+                            .call(build_span, &mut ctx, vec![], Map::new())
+                            .map_err(|e| {
+                                ctx.runtime.report_diagnostic(e);
+                                eyre!("unable to build puzzle `{id}`; see HPS logs")
+                            })?;
 
-                    let b = builder.lock();
+                        let b = builder.lock();
 
-                    // Assign default piece type to remaining pieces.
-                    b.shape.lock().mark_untyped_pieces()?;
+                        // Assign default piece type to remaining pieces.
+                        b.shape.lock().mark_untyped_pieces()?;
 
-                    b.build(Some(&build_ctx), &mut ctx.warnf())
-                        .map(Redirectable::Direct)
-                })
+                        b.build(Some(&build_ctx), &mut ctx.warnf())
+                            .map(Redirectable::Direct)
+                    })
+                    .map_err(|e| format!("{e:#}"))
             }),
         })
     }

@@ -51,12 +51,12 @@ pub trait CatalogObjectImpl: Sized + HasId {
         []
     }
 
-    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String>;
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self>;
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<String>,
-    ) -> BuildResult<Self::Spec, String>;
+    ) -> BuildResult<Self::Spec>;
 }
 
 impl CatalogObject for Puzzle {
@@ -85,15 +85,15 @@ impl CatalogObjectImpl for Puzzle {
         generator.meta.tags.authors()
     }
 
-    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
-        (spec.build)(ctx).map_err(|e| format!("{e:#}"))
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self> {
+        (spec.build)(ctx)
     }
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<String>,
-    ) -> BuildResult<Self::Spec, String> {
-        (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
+    ) -> BuildResult<Self::Spec> {
+        (generator.generate)(ctx, params)
     }
 }
 
@@ -117,14 +117,14 @@ impl CatalogObjectImpl for ColorSystem {
         None
     }
 
-    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+    fn build_object_from_spec(_ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self> {
         Ok(Redirectable::Direct(Arc::clone(spec)))
     }
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<String>,
-    ) -> BuildResult<Self::Spec, String> {
+    ) -> BuildResult<Self::Spec> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }
@@ -149,14 +149,14 @@ impl CatalogObjectImpl for TwistSystem {
         None
     }
 
-    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self, String> {
+    fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self> {
         (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
         params: Vec<String>,
-    ) -> BuildResult<Self::Spec, String> {
+    ) -> BuildResult<Self::Spec> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
 }

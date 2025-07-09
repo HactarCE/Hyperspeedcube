@@ -1,7 +1,7 @@
 use super::*;
 
 /// Output of a `build` or `generate` function.
-pub type BuildResult<T, E = eyre::Report> = Result<Redirectable<Arc<T>>, E>;
+pub type BuildResult<T> = Result<Redirectable<Arc<T>>, String>;
 
 /// Type of [`PuzzleSpec::build`].
 pub type PuzzleBuildFn = Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzle>>;

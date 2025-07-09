@@ -501,12 +501,6 @@ fn there_should_be_min_max_msg(min: usize, max: usize) -> String {
     }
 }
 
-impl From<eyre::Report> for Error {
-    fn from(e: eyre::Report) -> Self {
-        Error::User(eco_format!("{e:#}"))
-    }
-}
-
 impl<'a> From<Cow<'a, str>> for Error {
     fn from(value: Cow<'a, str>) -> Self {
         Error::User(value.into())

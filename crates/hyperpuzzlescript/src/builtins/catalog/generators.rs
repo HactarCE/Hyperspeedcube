@@ -16,6 +16,7 @@ use crate::{
 pub(super) struct GeneratorMeta {
     pub id: String,
     pub params: Vec<GeneratorParam>,
+    pub params_span: Span,
     pub gen_fn: Arc<FnValue>,
     pub gen_span: Span,
     pub extra: Map,
@@ -32,7 +33,7 @@ impl GeneratorMeta {
             let generator_id = &self.id;
             return Err(
                 format!("generator {generator_id} expects {expected} params; got {got}")
-                    .at(crate::BUILTIN_SPAN),
+                    .at(self.params_span),
             );
         }
 
