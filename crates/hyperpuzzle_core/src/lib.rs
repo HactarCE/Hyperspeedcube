@@ -26,7 +26,9 @@ pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 
 pub use crate::logging::*;
-pub use crate::names::{is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec};
+pub use crate::names::{
+    AutoNames, is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec,
+};
 pub use crate::rgb::Rgb;
 pub use crate::timestamp::Timestamp;
 
@@ -40,8 +42,8 @@ pub mod prelude {
     };
     pub use crate::lint::PuzzleLintOutput;
     pub use crate::names::{
-        BadName, NameSpec, NameSpecBiMap, NameSpecBiMapBuilder, NameSpecMap, StringBiMap,
-        StringBiMapBuilder,
+        AutoNames, BadName, NameSpec, NameSpecBiMap, NameSpecBiMapBuilder, NameSpecMap,
+        StringBiMap, StringBiMapBuilder,
     };
     pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
     pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};

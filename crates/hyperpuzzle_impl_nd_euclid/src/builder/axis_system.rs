@@ -1,7 +1,7 @@
 use std::collections::hash_map;
 use std::sync::Arc;
 
-use eyre::{OptionExt, Result, eyre};
+use eyre::{OptionExt, Result, bail};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
@@ -36,6 +36,7 @@ pub struct AxisSystemBuilder {
     vector_to_id: ApproxHashMap<Vector, Axis>,
     /// Axis names.
     pub names: NameSpecBiMapBuilder<Axis>,
+    autonames: AutoNames,
 
     /// Orbits used to generate axes, tracked for puzzle dev purposes.
     pub orbits: Vec<Orbit<Axis>>,
@@ -48,6 +49,7 @@ impl AxisSystemBuilder {
             by_id: PerAxis::new(),
             vector_to_id: ApproxHashMap::new(),
             names: NameSpecBiMapBuilder::new(),
+            autonames: AutoNames::default(),
             orbits: vec![],
         }
     }
@@ -62,20 +64,30 @@ impl AxisSystemBuilder {
     }
 
     /// Adds a new axis.
-    pub fn add(&mut self, vector: Vector) -> Result<Axis> {
+    pub fn add(
+        &mut self,
+        vector: Vector,
+        name_spec: Option<String>,
+        warn_fn: impl FnOnce(BadName),
+    ) -> Result<Axis> {
         let vector = vector
             .normalize()
             .ok_or_eyre("axis vector cannot be zero")?;
 
         // Check that the vector isn't already taken.
-        match self.vector_to_id.entry(vector.clone()) {
-            hash_map::Entry::Occupied(_) => Err(eyre!("axis vector is already taken")),
+        let id = match self.vector_to_id.entry(vector.clone()) {
+            hash_map::Entry::Occupied(_) => bail!("axis vector is already taken"),
             hash_map::Entry::Vacant(e) => {
                 let id = self.by_id.push(AxisBuilder { vector })?;
                 e.insert(id);
-                Ok(id)
+                id
             }
-        }
+        };
+
+        self.names
+            .set_with_fallback(id, name_spec, &mut self.autonames, warn_fn)?;
+
+        Ok(id)
     }
 
     /// Returns a reference to a axis by ID, or an error if the ID is out of
@@ -99,15 +111,9 @@ impl AxisSystemBuilder {
         self.by_id.iter()
     }
 
-    /// Returns the automatic names to use for axes.
-    pub fn autonames() -> impl Iterator<Item = String> {
-        hyperpuzzle_core::util::iter_uppercase_letter_names()
-    }
-
     /// Validates and constructs an axis system.
     pub(super) fn build(&self) -> Result<AxisSystemBuildOutput> {
-        let mut names = self.names.clone();
-        names.autoname(self.len(), Self::autonames())?;
+        let names = self.names.clone();
         let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis names")?);
 
         let orbits = self.orbits.clone();
@@ -138,6 +144,7 @@ impl AxisSystemBuilder {
             }),
             vector_to_id,
             names: (**names).clone().into(),
+            autonames: AutoNames::default(),
             orbits: orbits.clone(),
         })
     }

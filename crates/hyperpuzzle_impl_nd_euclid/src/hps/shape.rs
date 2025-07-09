@@ -9,7 +9,7 @@ use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::{ArcMut, HpsColor, HpsRegion, HpsSymmetry, Names};
-use crate::builder::{ColorSystemBuilder, ShapeBuilder};
+use crate::builder::ShapeBuilder;
 
 /// HPS shape builder.
 pub(super) type HpsShape = ArcMut<ShapeBuilder>;
@@ -106,16 +106,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             let shape = HpsShape::get(ctx)?;
             shape.lock().delete_untyped_pieces(&mut ctx.warnf());
         }
-
-        fn autoname_colors(ctx: EvalCtx, shape: HpsShape) -> () {
-            let mut shape = shape.lock();
-            let len = shape.colors.len();
-            shape
-                .colors
-                .names
-                .autoname(len, ColorSystemBuilder::autonames())
-                .at(ctx.caller_span)?;
-        }
     ])
 }
 
@@ -149,7 +139,7 @@ impl HpsShape {
             StickerMode::NewColor => {
                 color_list = Some(
                     (0..cut_planes.len())
-                        .map(|_| this.colors.add().map(Some))
+                        .map(|_| this.colors.add(None, ctx.warnf()).map(Some))
                         .try_collect()
                         .at(span)?,
                 );

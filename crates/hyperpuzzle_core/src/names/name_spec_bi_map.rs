@@ -86,6 +86,24 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
         Self::default()
     }
 
+    /// Associates an ID with a name. If the name is invalid, `autonames` is
+    /// used instead. If the autoname is also invalid, returns an error.
+    pub fn set_with_fallback(
+        &mut self,
+        id: I,
+        name_spec: Option<String>,
+        autonames: &mut AutoNames,
+        warn_fn: impl FnOnce(BadName),
+    ) -> Result<(), BadName> {
+        if let Some(s) = name_spec {
+            match self.set(id, Some(s)) {
+                Ok(()) => return Ok(()),
+                Err(e) => warn_fn(e),
+            }
+        }
+        self.set(id, Some(autonames.next_unused(self)))
+    }
+
     /// Associates an ID with a name.
     pub fn set(&mut self, id: I, name_spec: Option<String>) -> Result<(), BadName> {
         let old_name = self.id_to_name.get(id).ok().and_then(Option::as_ref);

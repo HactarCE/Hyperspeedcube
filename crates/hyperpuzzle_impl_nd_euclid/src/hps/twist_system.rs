@@ -279,15 +279,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 axes,
             });
         }
-
-        fn autoname(ctx: EvalCtx, twists: HpsTwistSystem) -> () {
-            let mut twists = twists.lock();
-            let len = twists.len();
-            twists
-                .names
-                .autoname(len, TwistSystemBuilder::autonames())
-                .at(ctx.caller_span)?;
-        }
     ])
 }
 
@@ -573,9 +564,7 @@ impl HpsTwistSystem {
                     builder.axis =
                         super::axis_from_vector(&this.axes, &key.axis_vector).at(span)?;
                     builder.transform = key.transform;
-                    let new_twist = this
-                        .add_named(builder.clone(), name, ctx.warnf())
-                        .at(span)?;
+                    let new_twist = this.add(builder.clone(), name, &mut ctx.warnf()).at(span)?;
                     if first_twist.is_none() {
                         first_twist = Some(new_twist);
                     }
@@ -585,7 +574,7 @@ impl HpsTwistSystem {
                 let mut names = names.to_strings(ctx, &[Motor::ident(ctx.ndim()?)], span)?;
                 let mut this = self.lock();
                 first_twist = Some(
-                    this.add_named(builder, names.next().flatten(), ctx.warnf())
+                    this.add(builder, names.next().flatten(), &mut ctx.warnf())
                         .at(span)?,
                 );
             }

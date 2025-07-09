@@ -64,6 +64,7 @@ pub struct TwistSystemBuilder {
     ///
     /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistKey, Twist>,
+    autonames: AutoNames,
 
     /// Vantage groups.
     pub vantage_groups: IndexMap<String, VantageGroupBuilder>,
@@ -108,6 +109,7 @@ impl TwistSystemBuilder {
             by_id: PerTwist::new(),
             names: NameSpecBiMapBuilder::new(),
             data_to_id: ApproxHashMap::new(),
+            autonames: AutoNames::default(),
             vantage_groups: IndexMap::new(),
             vantage_sets: vec![],
             directions: IndexMap::new(),
@@ -127,7 +129,31 @@ impl TwistSystemBuilder {
     }
 
     /// Adds a new twist.
-    pub fn add(&mut self, data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
+    ///
+    /// If the twist is invalid, `warn_fn` is called with info about what went
+    /// wrong and no twist is created.
+    pub fn add(
+        &mut self,
+        data: TwistBuilder,
+        name_spec: Option<String>,
+        mut warn_fn: impl FnMut(String),
+    ) -> Result<Option<Twist>> {
+        self.add_internal(data, name_spec, |e| warn_fn(e.to_string()))
+            .map(|inner_result| match inner_result {
+                Ok(id) => Some(id),
+                Err(e) => {
+                    warn_fn(e.to_string());
+                    None
+                }
+            })
+    }
+
+    fn add_internal(
+        &mut self,
+        data: TwistBuilder,
+        name_spec: Option<String>,
+        warn_fn: impl FnOnce(BadName),
+    ) -> Result<Result<Twist, BadTwist>> {
         self.is_modified = true;
 
         let data = data.canonicalize()?;
@@ -150,31 +176,10 @@ impl TwistSystemBuilder {
         let id = self.by_id.push(data)?;
         self.data_to_id.insert(key, id);
 
-        Ok(Ok(id))
-    }
-    /// Adds a new twist and assigns it a name.
-    ///
-    /// If the twist is invalid, `warn_fn` is called with info about what went
-    /// wrong and no twist is created.
-    pub fn add_named(
-        &mut self,
-        data: TwistBuilder,
-        name: Option<String>,
-        warn_fn: impl FnOnce(String),
-    ) -> Result<Option<Twist>> {
-        self.is_modified = true;
+        self.names
+            .set_with_fallback(id, name_spec, &mut self.autonames, warn_fn)?;
 
-        let id = match self.add(data)? {
-            Ok(ok) => ok,
-            Err(err) => {
-                warn_fn(err.to_string());
-                return Ok(None);
-            }
-        };
-        if let Err(e) = self.names.set(id, name) {
-            warn_fn(e.to_string());
-        }
-        Ok(Some(id))
+        Ok(Ok(id))
     }
 
     /// Returns a reference to a twist by ID, or an error if the ID is out of
@@ -191,11 +196,6 @@ impl TwistSystemBuilder {
     /// Returns the inverse of a twist, or an error if the ID is out of range.
     pub fn inverse(&self, id: Twist) -> Result<Option<Twist>> {
         Ok(self.key_to_id(&self.get(id)?.rev_key()?))
-    }
-
-    /// Returns the automatic names to use for twists.
-    pub fn autonames() -> impl Iterator<Item = String> {
-        (0..).map(|i| format!("T{i}"))
     }
 
     /// Validates and constructs a twist system.
@@ -235,7 +235,6 @@ impl TwistSystemBuilder {
 
         // Autoname twists.
         let mut twist_names = self.names.clone();
-        twist_names.autoname(self.len(), Self::autonames())?;
 
         // Assemble list of twists.
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
@@ -435,6 +434,7 @@ impl TwistSystemBuilder {
             }),
             names: (**names).clone().into(),
             data_to_id,
+            autonames: AutoNames::default(),
 
             vantage_groups,
             vantage_sets,

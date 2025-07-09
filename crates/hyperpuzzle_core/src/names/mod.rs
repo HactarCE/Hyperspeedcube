@@ -1,7 +1,9 @@
+mod auto;
 mod name_spec;
 mod name_spec_bi_map;
 mod string_bi_map;
 
+pub use auto::AutoNames;
 pub use name_spec::{
     NameSpec, NameSpecMap, is_name_spec_valid, name_spec_matches_name,
     preferred_name_from_name_spec,

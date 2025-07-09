@@ -12,7 +12,7 @@ pub struct ColorBuilder {}
 impl ColorBuilder {}
 
 /// Set of all sticker colors during shape construction.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct ColorSystemBuilder {
     /// Color system ID.
     pub id: String,
@@ -25,6 +25,8 @@ pub struct ColorSystemBuilder {
     pub names: NameSpecBiMapBuilder<Color>,
     /// Color display names.
     pub display_names: PerColor<Option<String>>,
+    /// Autoamtic names to use if the user doesn't specify any.
+    autonames: AutoNames,
 
     /// Color schemes.
     pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
@@ -74,10 +76,18 @@ impl ColorSystemBuilder {
     }
 
     /// Adds a new color.
-    pub fn add(&mut self) -> Result<Color> {
+    pub fn add(
+        &mut self,
+        name_spec: Option<String>,
+        warn_fn: impl FnOnce(BadName),
+    ) -> Result<Color> {
         self.is_modified = true;
 
         let id = self.by_id.push(ColorBuilder {})?;
+
+        self.names
+            .set_with_fallback(id, name_spec, &mut self.autonames, warn_fn)?;
+
         Ok(id)
     }
 
@@ -151,22 +161,13 @@ impl ColorSystemBuilder {
         if let Some(id) = self.names.get_from_name_spec(&name_spec) {
             Ok(id)
         } else {
-            let id = self.add()?;
-            if let Err(e) = self.names.set(id, Some(name_spec)) {
-                warn_fn(e);
-            }
-            Ok(id)
+            self.add(Some(name_spec), warn_fn)
         }
     }
 
     /// Returns an iterator over all the colors, in the canonical ordering.
     pub fn iter(&self) -> impl Iterator<Item = (Color, &ColorBuilder)> {
         self.by_id.iter()
-    }
-
-    /// Returns the automatic names to use for colors.
-    pub fn autonames() -> impl Iterator<Item = String> {
-        hyperpuzzle_core::util::iter_uppercase_letter_names()
     }
 
     /// Validates and constructs a color system.
@@ -198,8 +199,7 @@ impl ColorSystemBuilder {
         }
         let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
-        let mut names = self.names.clone();
-        names.autoname(self.len(), Self::autonames())?;
+        let names = self.names.clone();
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
 
         let display_names = names
@@ -275,6 +275,7 @@ impl ColorSystemBuilder {
             by_id: (0..color_system.len()).map(|_| ColorBuilder {}).collect(),
             names: names.clone().into(),
             display_names: display_names.map_ref(|_, display| Some(display.clone())),
+            autonames: AutoNames::default(),
 
             schemes: schemes
                 .iter()

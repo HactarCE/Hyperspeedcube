@@ -96,14 +96,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ) -> Option<HpsAxis> {
             HpsPuzzle::get(ctx)?.add_layered_axes(ctx, vector, Some(names), layers, slice)?
         }
-
-        fn autoname(ctx: EvalCtx, axes: HpsAxisSystem) -> () {
-            let mut axes = axes.lock();
-            let len = axes.len();
-            axes.names
-                .autoname(len, AxisSystemBuilder::autonames())
-                .at(ctx.caller_span)?;
-        }
     ])
 }
 
@@ -145,8 +137,9 @@ impl HpsAxisSystem {
         // Add & name axes.
         let mut axes_list = vec![];
         for (transformed_vector, name) in std::iter::zip(&vectors, names) {
-            let new_axis = this.add(transformed_vector.clone()).at(span)?;
-            this.names.set(new_axis, name).at(span)?;
+            let new_axis = this
+                .add(transformed_vector.clone(), name, ctx.warnf())
+                .at(span)?;
             axes_list.push(Some(new_axis));
         }
         let first_axis = axes_list.first().copied().flatten();
