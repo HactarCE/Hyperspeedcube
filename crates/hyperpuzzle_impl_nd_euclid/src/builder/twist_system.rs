@@ -240,6 +240,7 @@ impl TwistSystemBuilder {
         // Assemble list of twists.
         let mut twists: PerTwist<TwistInfo> = PerTwist::new();
         let mut twist_transforms: PerTwist<pga::Motor> = PerTwist::new();
+        let mut gizmo_pole_distances: PerTwist<Option<f32>> = PerTwist::new();
         for (id, twist) in &self.by_id {
             let axis = twist.axis;
             let axis_vector = &axis_vectors[axis];
@@ -258,6 +259,7 @@ impl TwistSystemBuilder {
                 include_in_scrambles: twist.include_in_scrambles,
             })?;
             twist_transforms.push(twist.transform.clone())?;
+            gizmo_pole_distances.push(twist.gizmo_pole_distance)?;
         }
 
         let twist_from_transform = self.data_to_id.clone();
@@ -301,6 +303,7 @@ impl TwistSystemBuilder {
                 Some(format!("{}_reverse", twist_name.canonical)),
             )?;
             twist_transforms.push(twist_transform.reverse())?;
+            gizmo_pole_distances.push(gizmo_pole_distances[id])?;
         }
 
         let names = Arc::new(
@@ -308,8 +311,6 @@ impl TwistSystemBuilder {
                 .build(self.len())
                 .ok_or_eyre("missing twist names")?,
         );
-
-        let gizmo_pole_distances = self.by_id.map_ref(|_, twist| twist.gizmo_pole_distance);
 
         let engine_data = NdEuclidTwistSystemEngineData {
             ndim: self.axes.ndim,
