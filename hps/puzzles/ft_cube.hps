@@ -387,7 +387,6 @@ add_puzzle_generator(
 
                     // Add axes & twists
                     facet_axis = add_axis(facet_pole)
-                    #axes.autoname()
                     add_twist(facet_axis, #sym.thru([0, 1]), do_naming=false) // not sure how to name these (axis->axis?)
 
                     // Slice layers
