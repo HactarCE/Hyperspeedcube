@@ -1,0 +1,102 @@
+use * from euclid
+
+export fn name(n: Nat, m: Nat) -> Str {
+    "{${n}}x{${m}} Duoprism"
+}
+export fn aliases(n: Nat, m: Nat) -> List[Str] { [] }
+export fn adjective(n: Nat, m: Nat) -> Str { name(n, m) }
+export fn facet_colors(n: Nat, m: Nat) -> Str { "polygonal_duoprism:${n},${m}" }
+export ndim = 4
+export shape_tag = "4d/duoprism"
+
+export params = [
+    @shapes/i/polygon.param_size("Polygon A"),
+    @shapes/i/polygon.param_size("Polygon B"),
+]
+
+export fn new(n: Nat, m: Nat) -> Map { new(n, m, ident()) }
+export fn new(n: Nat, m: Nat, t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(n, t2 * t) }
+
+    export name = name(n, m)
+    export aliases = aliases(n, m)
+    export adjective = adjective(n, m)
+    export facet_colors = facet_colors(n, m)
+    export ndim, shape_tag
+
+    product = @shapes/product(#{
+        a = @shapes/i/polygon.new(n),
+        b = @shapes/i/polygon.new(m),
+    }).transform_by(t)
+    use sym, a, b from product
+    export sym, a, b
+
+    export a_facet_pole = a.edge_pole
+    export a_facet_names = "A${a.edge_names}"
+
+    export b_facet_pole = b.edge_pole
+    export b_facet_names = "B${b.edge_names}"
+
+    export a_facet_opposite_pole = a.edge_opposite_pole
+    export a_facet_opposite_names = "Z${a.edge_opposite_names}"
+
+    export b_facet_opposite_pole = b.edge_opposite_pole
+    export b_facet_opposite_names = "Y${b.edge_opposite_names}"
+}
+
+export fn facet_colors_list(n: Nat, m: Nat) -> List[Map] {
+    (
+        (0..n).map(fn(i) {
+            #{
+                name = "A${to_base26(i)}",
+                default = "Dark Rainbow [${i}/${n}]",
+            }
+        })
+        ++
+        (0..m).map(fn(i) {
+            #{
+                name = "B${to_base26(i)}",
+                default = "Light Rainbow [${i}/${n}]",
+            }
+        })
+    )
+}
+
+add_color_system_generator(
+    id = "polygonal_duoprism",
+    name = "Polygonal Duoprism",
+    params = params,
+    gen = fn(n, m) { #{name = name(n, m), colors = facet_colors_list(n, m)} },
+)
+
+add_puzzle_generator(
+    id = "polygonal_duoprism",
+    version = "1.0.0",
+    name = "Polygonal Duoprism",
+    params = params,
+    engine = "euclid",
+    gen = fn(n, m) {
+        if n < m {
+            return "polygonal_duoprism:${m},${n}"
+        }
+        return #{
+            name = name(n, m),
+            ndim = ndim,
+            colors = facet_colors(n, m),
+            build = fn() {
+                shape = new(n, m)
+                with #sym = shape.sym {
+                    carve(plane(shape.a_facet_pole), shape.a_facet_names)
+                    carve(plane(shape.b_facet_pole), shape.b_facet_names)
+                }
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        type = "shape",
+        stable = "2.0.0",
+        shape = shape_tag,
+    },
+)

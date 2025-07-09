@@ -28,10 +28,12 @@ ADJECTIVES = [
     "Decagonal",
 ]
 
+export name_generic = "Polygon"
 export fn name(n: Nat) -> Str { NAMES[n] ?? "${n}-gonal" }
 export fn aliases(n: Nat) -> List[Str] {
     if NAMES[n] == null { [] } else { ["${n}-gonal"] }
 }
+export adjective_generic = "Polygonal"
 export fn adjective(n: Nat) -> Str { ADJECTIVES[n] ?? "${n}-gonal" }
 export ndim = 2
 
@@ -66,6 +68,9 @@ export fn new(n: Nat, t: Transform) -> Map {
 
     export vertex_pole = sym.xo.unit * outradius
     export vertex_names = sym.names(point(vertex_pole), generic_names(n, 0, 1))
+
+    export edge_opposite_pole = if n.is_odd() { -edge_pole }
+    export edge_opposite_names = if n.is_odd() { edge_names }
 
     export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
         if n == 3 {

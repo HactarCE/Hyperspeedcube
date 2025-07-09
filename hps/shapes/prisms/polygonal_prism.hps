@@ -6,7 +6,7 @@ export fn name(n: Nat) -> Str {
 export fn aliases(n: Nat) -> List[Str] {
     @shapes/i/polygon.aliases(n).map(fn(s) { "${s} Prism" })
 }
-export fn adjective(n: Nat) -> Str { "${@shapes/i/polygon.adjective(n)} Prismic" }
+export fn adjective(n: Nat) -> Str { name(n) }
 export fn facet_colors(n: Nat) -> Str { "polygonal_prism:${n}" }
 export ndim = 3
 export shape_tag = "3d/prism"
@@ -18,16 +18,17 @@ export fn new(n: Nat, t: Transform) -> Map {
     export name = name(n)
     export aliases = aliases(n)
     export adjective = adjective(n)
-    export facet_colors, ndim, shape_tag
+    export facet_colors = facet_colors(n)
+    export ndim, shape_tag
 
-    shape = @shapes/product(#{
+    product = @shapes/product(#{
         polygon = @shapes/i/polygon.new(n),
         line = @shapes/line.new(),
     }).transform_by(t)
-    use sym, polygon, line from shape
+    use sym, polygon, line from product
     export sym, polygon, line
 
-    export h = shape.polygon.edge_length / 2
+    export h = product.polygon.edge_length / 2
 
     export base_pole = line.endpoint * h
     export base_names = line.names("U", "D")
@@ -36,27 +37,27 @@ export fn new(n: Nat, t: Transform) -> Map {
     export side_names = "F${polygon.edge_names}"
 }
 
+export fn facet_colors_list(n: Nat) -> List[Map] {
+    (
+        [
+            #{name = "U", display = "Up",   default = "Mono Dyad [1]" },
+            #{name = "D", display = "Down", default = "Mono Dyad [2]" },
+        ]
+        ++
+        (0..n).map(fn(i) {
+            #{
+                name = "F${to_base26(i)}",
+                default = "Rainbow [${i}/${n}]",
+            }
+        })
+    )
+}
+
 add_color_system_generator(
     id = "polygonal_prism",
     name = "Polygonal Prism",
     params = [@shapes/i/polygon.param_size("Polygon size")],
-    gen = fn(n) {
-        colors = [
-            #{name = "U", display = "Up",   default = "Mono Dyad [1]" },
-            #{name = "D", display = "Down", default = "Mono Dyad [2]" },
-        ]
-        for i in 0..n {
-            a = to_base26(i)
-            colors ++= [#{
-                name = "F${a}",
-                default = "Rainbow [${i}/${n}]", // TODO should it be `i+1`?
-            }]
-        }
-        return #{
-            name = name(n),
-            colors = colors,
-        }
-    },
+    gen = fn(n) { #{name = name(n), colors = facet_colors_list(n)} },
 )
 
 add_puzzle_generator(
@@ -71,14 +72,8 @@ add_puzzle_generator(
             ndim = ndim,
             colors = facet_colors(n),
             build = fn() {
-                use sym, polygon, line from @shapes/product(#{
-                    polygon = @shapes/i/polygon.new(n),
-                    line = @shapes/line.new(),
-                })
-                h = polygon.edge_length / 2
-
-                with #sym = sym {
-                    // Carve shape
+                shape = new(n)
+                with #sym = shape.sym {
                     carve(plane(line.endpoint * h), line.names("U", "D"))
                     carve(plane(polygon.edge_pole), "F${polygon.edge_names}")
                 }

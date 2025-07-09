@@ -1,21 +1,23 @@
 use * from euclid
 
+export FACET_GIZMO_EDGE_FACTOR = 2/3
+export RIDGE_GIZMO_FACTOR = 1/2
+
 param_polygon_size = @shapes/i/polygon.param_size
 fn param_polygon_width(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 fn param_line_height(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 
-export fn ft_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
+export fn ft_polygonal_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
     "Face-Turning ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
 }
-export fn duoprism_name(n: Nat, m: Nat) -> Str { "${n}x${m} Duoprism" }
-export fn ft_duoprism_name(n: Nat, m: Nat, n_size: Nat, m_size: Nat, cut_type: Str) -> Str {
-    "Facet-Turning ${duoprism_name(n, m)} (${cut_type} ${n_size}x${m_size})"
+export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
+    "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${cut_type} ${n_layers}x${m_layers})"
 }
-export fn ft_duoprism_name(n: Nat, m: Nat, n_size: Nat, m_size: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
+export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
     if n_cut_type == m_cut_type {
-        ft_duoprism_name(n, m, n_size, m_size, n_cut_type)
+        ft_duoprism_name(n, m, n_layers, m_layers, n_cut_type)
     } else {
-        "Facet-Turning ${duoprism_name(n, m)} ${n_cut_type} ${n_size} x ${m_cut_type} ${m_size}"
+        "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
     }
 }
 
@@ -32,7 +34,7 @@ add_puzzle_generator(
     engine = "euclid",
     gen = fn(n, width, height) {
         return #{
-            name = ft_prism_name(n, width, height, "Shallow"),
+            name = ft_polygonal_prism_name(n, width, height, "Shallow"),
             ndim = 3,
             colors = "polygonal_prism:${n}",
             twists = "ft_polygonal_prismic:${n}",
@@ -71,7 +73,7 @@ add_puzzle_generator(
 
     tags = #{
         schema = 1,
-        author = ["Andrew Farkas", "Milo Jacquet"],
+        author = ["Andrew Farkas", "Luna Harran"],
         shape = "3d/prism",
         axes = "3d/prism",
         turns_by = ["facet", "face"],
@@ -142,5 +144,272 @@ add_twist_system_generator(
                 )
             },
         }
+    },
+)
+
+fn build_ft_polygonal_duoprism(shape: Map, a_depths: List[Num], b_depths: List[Num]) {
+    with #sym = shape.sym {
+        // Carve shape
+        carve(plane(shape.a_facet_pole), shape.a_facet_names)
+        carve(plane(shape.b_facet_pole), shape.b_facet_names)
+
+        // Slice layers
+        add_layers(#twists.a_axis, a_depths)
+        add_layers(#twists.b_axis, b_depths)
+        if #twists.z_axis != null {
+            add_layers(#twists.z_axis, @util/layers.opposite_depths(a_depths))
+        }
+        if #twists.y_axis != null {
+            add_layers(#twists.y_axis, @util/layers.opposite_depths(b_depths))
+        }
     }
+}
+
+// Facet-Turning Polygonal Duoprism (Shallow) generator
+add_puzzle_generator(
+    id = "ft_polygonal_duoprism",
+    version = "0.1.0",
+    name = "Facet-Turning Polygonal Duoprism (Shallow)",
+    params = @shapes/prisms/polygonal_duoprism.params ++ [
+        param_polygon_width("Layers A"),
+        param_polygon_width("Layers B"),
+    ],
+    engine = "euclid",
+    ndim = 4,
+    gen = fn(n, m, n_layers, m_layers) {
+        if n_layers == 1 and m_layers == 1 {
+            return "polygonal_duoprism:${n},${m}"
+        }
+        if n < m or (n == m and n_layers < m_layers) {
+            return "ft_polygonal_duoprism:${m},${n},${m_layers},${n_layers}"
+        }
+
+        return #{
+            name = ft_duoprism_name(n, m, n_layers, m_layers, "Shallow"),
+            colors = "polygonal_duoprism:${n},${m}",
+            twists = "ft_polygonal_duoprism:${n},${m}",
+            build = fn() {
+                shape = @shapes/prisms/polygonal_duoprism.new(n, m)
+                a_depths = shape.a.shallow_cut_depths(n_layers)
+                b_depths = shape.b.shallow_cut_depths(m_layers)
+                build_ft_polygonal_duoprism(shape, a_depths, b_depths)
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    real = true,
+                },
+                "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas", "Luna Harran"],
+        shape = "4d/prism",
+        axes = "4d/prism",
+        turns_by = ["facet", "cell"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = "depth/shallow",
+    },
+
+    examples = [
+        #{params = [3, 3, 3, 3], tags = #{meme = true}},
+        #{params = [100, 4, 3, 3], tags = #{meme = true}},
+    ],
+)
+
+// Facet-Turning Polygonal Duoprism (Shallow, Triminx) generator
+add_puzzle_generator(
+    id = "ft_polygonal_duoprism_3_minx",
+    version = "0.1.0",
+    name = "Facet-Turning Polygonal Duoprism (Shallow, Triminx)",
+    params = [
+        @shapes/prisms/polygonal_duoprism.params[0],
+        param_polygon_width("Layers A"),
+        param_polygon_width("Layers (3)"),
+    ],
+    engine = "euclid",
+    ndim = 4,
+    gen = fn(n, n_layers, m_layers) {
+        return #{
+            name = ft_duoprism_name(n, 3, n_layers, m_layers, "Shallow", "Triminx"),
+            colors = "polygonal_duoprism:${n},3",
+            twists = "ft_polygonal_duoprism:${n},3",
+            build = fn() {
+                shape = @shapes/prisms/polygonal_duoprism.new(n, 3)
+                a_depths = shape.a.shallow_cut_depths(n_layers)
+                b_depths = shape.b.full_cut_depths(m_layers)
+                build_ft_polygonal_duoprism(shape, a_depths, b_depths)
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    real = true,
+                },
+                "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas", "Luna Harran"],
+        shape = "4d/prism",
+        axes = "4d/prism",
+        turns_by = ["facet", "cell"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = ["depth/shallow", "depth/half"],
+    },
+
+    examples = [
+        #{params = [3, 3, 3]},
+    ],
+)
+
+// Facet-Turning Polygonal Duoprism (Triminx) generator
+add_puzzle_generator(
+    id = "ft_polygonal_duoprism_3_minx_3_minx",
+    version = "0.1.0",
+    name = "Facet-Turning Polygonal Duoprism (Triminx)",
+    params = [
+        param_polygon_width("Layers A"),
+        param_polygon_width("Layers B"),
+    ],
+    engine = "euclid",
+    ndim = 4,
+    gen = fn(n_layers, m_layers) {
+        if n_layers < m_layers {
+            return "ft_polygonal_duoprism_3_minx_3_minx:${m_layers},${n_layers}"
+        }
+        return #{
+            name = ft_duoprism_name(3, 3, n_layers, m_layers, "Triminx"),
+            colors = "polygonal_duoprism:3,3",
+            twists = "ft_polygonal_duoprism:3,3",
+            build = fn() {
+                shape = @shapes/prisms/polygonal_duoprism.new(3, 3)
+                a_depths = shape.a.full_cut_depths(n_layers)
+                b_depths = shape.b.full_cut_depths(m_layers)
+                build_ft_polygonal_duoprism(shape, a_depths, b_depths)
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    real = true,
+                },
+                "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
+                "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas", "Luna Harran"],
+        shape = "4d/prism",
+        axes = "4d/prism",
+        turns_by = ["facet", "cell"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = ["depth/shallow", "depth/half"],
+    },
+
+    examples = [
+        #{params = [3, 3]},
+    ],
+)
+
+// Facet-Turning Polygonal Duoprism twist system generator
+add_twist_system_generator(
+    id = "ft_polygonal_duoprism",
+    name = "Facet-Turning Polygonal Duoprism",
+    params = [param_polygon_size("Polygon A"), param_polygon_size("Polygon B")],
+    engine = "euclid",
+    ndim = 4,
+    gen = fn(n, m) {
+        return #{
+            name = "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)}",
+            build = fn() {
+                shape = @shapes/prisms/polygonal_duoprism.new(n, m)
+
+                // Gizmo pole distances
+                gizmo_base_a = shape.a.edge_length / 2
+                gizmo_base_b = shape.b.edge_length / 2
+                gizmo_edge_a = lerp(shape.a.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
+                gizmo_edge_b = lerp(shape.b.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
+
+                // Add axes and twists
+                with #sym = shape.sym {
+                    export a_axis = add_axis(shape.a_facet_pole, shape.a_facet_names)
+                    export b_axis = add_axis(shape.b_facet_pole, shape.b_facet_names)
+
+                    a1 = a_axis
+                    b1 = b_axis
+                    a2 = #sym.thru([1, 0]).transform(a1)
+                    b2 = #sym.thru([3, 2]).transform(b1)
+
+                    // A twists
+                    add_twist(a1, #sym.thru([2, 3]), name = "_${a2}", gizmo_pole_distance = gizmo_base_a)
+                    add_twist(a1, #sym.thru([2, 0]), name = "_${b1}", gizmo_pole_distance = 1)
+                    add_twist(a1, #sym.thru([0, 3]), name = "_{${b1}_${b2}}", gizmo_pole_distance = gizmo_edge_b)
+
+                    // B twists
+                    add_twist(b1, #sym.thru([0, 1]), name = "_${b2}", gizmo_pole_distance = gizmo_base_b)
+                    add_twist(b1, #sym.thru([0, 2]), name = "_${a1}", gizmo_pole_distance = 1)
+                    add_twist(b1, #sym.thru([2, 1]), name = "_{${a1}_${a2}}", gizmo_pole_distance = gizmo_edge_a)
+
+                    if n == 3 {
+                        export z_axis = add_axis(shape.a_facet_opposite_pole, shape.a_facet_opposite_names)
+                        add_twist(z_axis, refl().transform(#sym.thru([3, 2])), name = "_${a2}", gizmo_pole_distance = RIDGE_GIZMO_FACTOR)
+                        add_twist(z_axis, refl().transform(#sym.thru([0, 2])), name = "_${b1}", gizmo_pole_distance = 1)
+                        add_twist(z_axis, refl().transform(#sym.thru([3, 0])), name = "_{${b1}_${b2}}", gizmo_pole_distance = gizmo_edge_b)
+                    } else {
+                        export z_axis = null
+                    }
+                    if m == 3 {
+                        export y_axis = add_axis(shape.b_facet_opposite_pole, shape.b_facet_opposite_names)
+                        add_twist(y_axis, refl().transform(#sym.thru([1, 0])), name = "_${b2}", gizmo_pole_distance = RIDGE_GIZMO_FACTOR)
+                        add_twist(y_axis, refl().transform(#sym.thru([2, 0])), name = "_${a1}", gizmo_pole_distance = 1)
+                        add_twist(y_axis, refl().transform(#sym.thru([1, 2])), name = "_{${a1}_${a2}}", gizmo_pole_distance = gizmo_edge_a)
+                    } else {
+                        export y_axis = null
+                    }
+                }
+
+                // Add vantage group
+                add_vantage_group(
+                    id = "polygonal_duoprism",
+                    symmetry = shape.sym,
+                    refs = [
+                        [shape.a_facet_pole, shape.a_facet_names],
+                        [shape.b_facet_pole, shape.b_facet_names],
+                    ],
+                    init = ["AA", "AB", "BA"],
+                )
+
+                // Add facet-centered XZ/YW vantage set
+                use AA, AB, BA, BB from #axes
+                xy = shape.sym.thru([1, 0])
+                AZ = xy.rev().transform(AA)
+                zw = shape.sym.thru([3, 2])
+                BZ = zw.rev().transform(BA)
+
+                add_vantage_set(
+                    name = "Facet-centered XZ/YW",
+                    group = "polygonal_duoprism",
+                    view_offset = ident(), // TODO
+                    transforms = #{ xy = xy, zw = zw }, // TODO: more
+                    axes = #{
+                        L = AZ, F = AA, R = AB,
+                        D = BZ, I = BA, U = BB,
+                    },
+                )
+            },
+        }
+    },
 )

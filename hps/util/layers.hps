@@ -59,3 +59,7 @@ export fn exclusive_centered(center: Num, half_range: Num, cut_count: Nat) -> Li
         return inclusive(outermost_cut, innermost_cut, cut_count - 1)
     }
 }
+
+export fn opposite_depths(cut_depths: List[Num]) -> List[Num] {
+    cut_depths.rev().map(fn(depth) { return -depth })
+}
