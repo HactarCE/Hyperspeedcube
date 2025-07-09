@@ -51,6 +51,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         }
 
         ui.add_space(10.0);
+        ui.heading("Axes");
+        for name in puz.axes().names.iter_values() {
+            let NameSpec {
+                preferred,
+                spec,
+                canonical,
+            } = name;
+            ui.label(format!(
+                "• spec={spec:?}, \
+                   preferred={preferred:?}, \
+                   canonical={canonical:?}"
+            ));
+        }
+
+        ui.add_space(10.0);
         ui.heading("Tags");
 
         let show_excluded_flag = EguiTempFlag::new(ui);
