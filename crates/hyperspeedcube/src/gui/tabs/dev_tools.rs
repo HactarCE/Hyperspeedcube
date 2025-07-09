@@ -168,7 +168,12 @@ fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                         let puz = view.puzzle();
                         for (i, orbit) in puz.orbits().iter().enumerate() {
                             if ui
-                                .button(format!("#{} - {}", i + 1, orbit.description()))
+                                .button(format!(
+                                    "#{} - {} ({})",
+                                    i + 1,
+                                    orbit.description(),
+                                    orbit.first_name(&puz),
+                                ))
                                 .clicked()
                             {
                                 ui.close_menu();

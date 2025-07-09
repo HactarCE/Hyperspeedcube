@@ -33,6 +33,15 @@ impl AnyOrbit {
             AnyOrbit::Colors(orbit) => orbit.sorted_ids_and_names(puz),
         }
     }
+    /// Returns the name of the first non-null element in the orbit. Returns
+    /// `"<unnamed>"` if no element exists and has a name.
+    pub fn first_name(&self, puz: &Puzzle) -> String {
+        match self {
+            AnyOrbit::Axes(orbit) => orbit.first_name(puz),
+            AnyOrbit::Colors(orbit) => orbit.first_name(puz),
+        }
+        .unwrap_or_else(|| "<unnamed>".to_string())
+    }
 }
 
 /// Element of a puzzle that can appear in a [`DevOrbit`].
@@ -108,6 +117,12 @@ impl<T: PuzzleElement> Orbit<T> {
             .sorted_by_key(|(_, elem)| **elem)
             .filter_map(|(i, elem)| Some((i, elem.as_ref()?.name(puz)?.spec.clone())))
             .collect()
+    }
+    /// Returns the name of the first non-null element in the orbit.
+    pub fn first_name(&self, puz: &Puzzle) -> Option<String> {
+        self.elements
+            .iter()
+            .find_map(|elem| Some(elem.as_ref()?.name(puz)?.preferred.clone()))
     }
 
     /// Returns whether the orbit is completely empty. This is only really
