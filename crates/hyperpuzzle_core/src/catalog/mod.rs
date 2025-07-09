@@ -22,7 +22,7 @@ pub use params::*;
 pub use specs::*;
 pub use subcatalog::*;
 
-use crate::{ColorSystem, LogLine, Logger, Puzzle, TagSet, TwistSystem, Version};
+use crate::{ColorSystem, Logger, Puzzle, TagSet, TwistSystem, Version};
 
 /// Catalog of shapes, puzzles, twist systems, etc.
 ///
