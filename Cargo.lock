@@ -2456,7 +2456,6 @@ dependencies = [
  "chumsky",
  "ecolor",
  "ecow",
- "eyre",
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
