@@ -330,26 +330,22 @@ impl EvalCtx<'_> {
     fn index_get(&mut self, obj: &Value, index: Value) -> Result<ValueData> {
         match &obj.data {
             // Index string by character (O(n))
-            ValueData::Str(s) => Ok(ValueData::from(crate::util::index_double_ended(
-                s.chars(),
-                || s.chars().count(),
-                index.ref_to()?,
-            )?)),
-            // Index list by element (O(1))
-            ValueData::List(list) => {
-                Ok(
-                    crate::util::index_double_ended(list.iter(), || list.len(), index.ref_to()?)?
-                        .data
-                        .clone(),
-                )
+            ValueData::Str(s) => Ok(match index.ref_to()? {
+                crate::util::FrontBackIndex::Front(i) => s.chars().nth(i),
+                crate::util::FrontBackIndex::Back(i) => s.chars().nth_back(i),
             }
-            ValueData::Map(map) => match &index.data {
-                ValueData::Str(s) => match map.get(s.as_str()) {
-                    Some(v) => Ok(v.data.clone()),
-                    None => Ok(ValueData::Null),
-                },
-                _ => Err(index.type_error(Type::Str)),
-            },
+            .into()),
+            // Index list by element (O(1))
+            ValueData::List(list) => Ok(match index.ref_to()? {
+                crate::util::FrontBackIndex::Front(i) => list.get(i),
+                crate::util::FrontBackIndex::Back(i) => list.iter().nth_back(i),
+            }
+            .map(|v| v.data.clone())
+            .unwrap_or(ValueData::Null)),
+            ValueData::Map(map) => Ok(map
+                .get(index.as_ref::<str>()?)
+                .map(|v| v.data.clone())
+                .unwrap_or(ValueData::Null)),
             ValueData::Type(ty) => match ty {
                 Type::List(None) => {
                     let inner_type = index.clone_to()?;
@@ -387,12 +383,17 @@ impl EvalCtx<'_> {
             .at(span)),
             ValueData::List(list) => {
                 let len = list.len();
-                let mut_ref_value_in_list = crate::util::index_double_ended(
-                    Arc::make_mut(list).iter_mut(),
-                    || len,
-                    index.ref_to()?,
-                )?;
-                *mut_ref_value_in_list = new_value;
+                let list = Arc::make_mut(list);
+                let i = index.ref_to::<i64>()?;
+                let mut_ref = match i.into() {
+                    crate::util::FrontBackIndex::Front(i) => list.get_mut(i),
+                    crate::util::FrontBackIndex::Back(i) => list.iter_mut().nth_back(i),
+                }
+                .ok_or_else(|| {
+                    let bounds = crate::util::FrontBackIndex::bounds(len);
+                    Error::IndexOutOfBounds { got: i, bounds }.at(index.span)
+                })?;
+                *mut_ref = new_value;
                 Ok(())
             }
             ValueData::Map(map) => match &index.data {
