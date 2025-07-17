@@ -3,7 +3,7 @@ use std::io::Write;
 
 use hyperpuzzle_core::Catalog;
 
-mod lua_construction;
+mod hps_construction;
 mod verification;
 
 fn load_new_catalog() -> Catalog {
