@@ -74,7 +74,7 @@ pub use sign::Sign;
 pub use which_side::PointWhichSide;
 
 /// Approximate comparison tuned for doing geometric puzzle computations.
-pub const APPROX: Precision = Precision::DEFAULT;
+pub const APPROX: Precision = Precision::new_simple(20);
 
 /// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {
