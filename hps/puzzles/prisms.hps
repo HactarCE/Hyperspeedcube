@@ -186,6 +186,7 @@ add_puzzle_generator(
 
         return #{
             name = ft_duoprism_name(n, m, n_layers, m_layers, "Shallow"),
+            aliases = [ft_duoprism_name(m, n, m_layers, n_layers, "Shallow")],
             colors = "polygonal_duoprism:${n},${m}",
             twists = "ft_polygonal_duoprism:${n},${m}",
             build = fn() {
@@ -252,6 +253,7 @@ add_puzzle_generator(
     gen = fn(n, n_layers, m_layers) {
         return #{
             name = ft_duoprism_name(n, 3, n_layers, m_layers, "Shallow", "Triminx"),
+            aliases = [ft_duoprism_name(3, n, m_layers, n_layers, "Triminx", "Shallow")],
             colors = "polygonal_duoprism:${n},3",
             twists = "ft_polygonal_duoprism:${n},3",
             build = fn() {
@@ -307,6 +309,7 @@ add_puzzle_generator(
         }
         return #{
             name = ft_duoprism_name(3, 3, n_layers, m_layers, "Triminx"),
+            aliases = [ft_duoprism_name(3, 3, m_layers, n_layers, "Triminx")],
             colors = "polygonal_duoprism:3,3",
             twists = "ft_polygonal_duoprism:3,3",
             build = fn() {
