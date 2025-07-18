@@ -217,7 +217,22 @@ add_puzzle_generator(
     },
 
     examples = [
+        // All the ones in MC4D
         #{params = [3, 3, 3, 3], tags = #{meme = true}},
+        #{params = [4, 3, 3, 3], tags = #{meme = true}},
+        #{params = [5, 4, 3, 3], tags = #{meme = true}},
+        #{params = [6, 4, 3, 3], tags = #{meme = true}},
+        #{params = [7, 4, 3, 3], tags = #{meme = true}},
+        #{params = [8, 4, 3, 3], tags = #{meme = true}},
+        #{params = [10, 4, 3, 3], tags = #{meme = true}},
+        #{params = [5, 3, 3, 3], tags = #{meme = true}},
+        #{params = [10, 5, 3, 3], tags = #{meme = true}},
+        #{params = [5, 5, 3, 3], tags = #{meme = true}},
+        #{params = [6, 6, 3, 3], tags = #{meme = true}},
+        #{params = [7, 7, 3, 3], tags = #{meme = true}},
+        #{params = [8, 8, 3, 3], tags = #{meme = true}},
+        #{params = [9, 9, 3, 3], tags = #{meme = true}},
+        #{params = [10, 10, 3, 3], tags = #{meme = true}},
         #{params = [100, 4, 3, 3], tags = #{meme = true}},
     ],
 )
@@ -268,7 +283,10 @@ add_puzzle_generator(
     },
 
     examples = [
+        // All the ones in MC4D
         #{params = [3, 3, 3]},
+        #{params = [4, 3, 3]},
+        #{params = [5, 3, 3]},
     ],
 )
 

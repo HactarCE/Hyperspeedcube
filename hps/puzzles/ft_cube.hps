@@ -243,6 +243,7 @@ add_puzzle_generator(
         if n == 1 { return "hypercube" }
         return #{
             name = "${n}x${n}x${n}x${n}",
+            aliases = ["${n}^4"],
             build = fn() {
                 hypercube = @shapes/bc/hypercube.new()
 
@@ -406,7 +407,7 @@ add_puzzle_generator(
                 },
                 "cuts/depth/deep/to_adjacent" = n.is_even(),
                 "cuts/depth/half" = n.is_even(),
-                "external/leaderboard" = n >= 2,
+                // no leaderboard support; use dimension-specific generators
                 "pieces/acronic" = n <= 3,
                 "pieces/standard" = true,
             },
