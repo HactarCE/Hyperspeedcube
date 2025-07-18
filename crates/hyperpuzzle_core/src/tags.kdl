@@ -266,7 +266,6 @@ generated "Generated" auto=#true
 external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=1
   (str)hof "Hall Of Fame" expected=1
-  mc4d "MagicCube4D" expected=1
   leaderboard "Leaderboard" expected=1
   (str_list)link "Link" hidden=#true
   (int)museum "Twisty Puzzle Museum" expected=1
