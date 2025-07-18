@@ -34,16 +34,16 @@ pub fn show_ariadne_error_in_egui(ui: &mut egui::Ui, ansi_str: &str) -> egui::Re
         let escape_code = &remaining[2..escape_end - 1];
         match escape_code {
             "0" => format = default_format.clone(),
-            // "30" => format.color = ui.visuals().code_bg_color,
             "31" => format.color = ui.visuals().error_fg_color,
+            "33" => format.color = ui.visuals().warn_fg_color,
             _ => {
                 if let Some(color_index_str) = escape_code.strip_prefix("38;5;") {
                     match color_index_str.parse() {
                         Ok(color_index) => format.color = themed(term_color_256(color_index)),
-                        Err(e) => eprintln!("unknown color code {e:?}"),
+                        Err(e) => log::warn!("unknown color code {e:?}"),
                     }
                 } else {
-                    eprintln!("unknown escape code {escape_code:?}");
+                    log::warn!("unknown escape code {escape_code:?}");
                 }
             }
         }
