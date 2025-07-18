@@ -95,7 +95,7 @@ pub(super) fn transform_twist(
         .ok_or(HpsEuclidError::BadTwistTransform)
         .at(span)?;
     twists
-        .key_to_id(&new_twist_key)
+        .key_to_id(new_twist_key.clone())
         .ok_or(HpsEuclidError::NoTwist(new_twist_key))
         .at(span)
 }

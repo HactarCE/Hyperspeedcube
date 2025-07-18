@@ -1,18 +1,17 @@
-use hypermath::collections::{GenericVec, IndexOverflow};
-use hypermath::{ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor, idx_struct, pga};
+use hypermath::prelude::*;
 
 use super::{AbbrGenSeq, GenSeq};
 
 /// Returns the orbit of an object under the symmetry. Each generator is
 /// specified along with its generator sequence.
-pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
+pub fn orbit<T: Clone + ApproxHash + TransformByMotor>(
     generators: &[(GenSeq, pga::Motor)],
-    object: T,
+    mut object: T,
 ) -> Vec<(AbbrGenSeq, pga::Motor, T)> {
     let ndim = generators.iter().map(|(_, m)| m.ndim()).max().unwrap_or(1);
 
-    let mut seen = ApproxHashMap::new();
-    seen.insert(object.clone(), ());
+    let mut seen = ApproxHashMap::new(APPROX);
+    seen.entry_with_mut_key(&mut object).or_insert(());
 
     let mut next_unprocessed_index = 0;
     let mut ret = vec![(AbbrGenSeq::INIT, pga::Motor::ident(ndim), object)];
@@ -20,8 +19,11 @@ pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
         let (_gen_seq, unprocessed_transform, unprocessed_object) =
             ret[next_unprocessed_index].clone();
         for (gen_seq_ids, generator) in generators {
-            let new_object = generator.transform(&unprocessed_object);
-            if seen.insert(new_object.clone(), ()).is_none() {
+            let mut new_object = generator.transform(&unprocessed_object);
+            if let approx_collections::hash_map::Entry::Vacant(e) =
+                seen.entry_with_mut_key(&mut new_object)
+            {
+                e.insert(());
                 let gen_seq = AbbrGenSeq {
                     generators: gen_seq_ids.clone(),
                     end: Some(next_unprocessed_index),
@@ -34,7 +36,7 @@ pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
     ret
 }
 
-idx_struct! {
+hypermath::idx_struct! {
     /// ID of a group generator.
     pub struct GeneratorId(pub u8);
     /// ID of a group element.

@@ -359,7 +359,7 @@ impl ShapeBuilder {
                 // TODO: compute whether pieces intersect
                 // TODO: optimize using space partitioning tree
                 for (j, &other_piece) in active_pieces.iter().enumerate() {
-                    if approx_eq(&p, self.pieces[other_piece].interior_point(&self.space)) {
+                    if APPROX.eq(&p, self.pieces[other_piece].interior_point(&self.space)) {
                         disjoint_sets.join(i, j);
                     }
                 }
@@ -481,7 +481,8 @@ impl ShapeBuilder {
         }
 
         // All surfaces have an entry in `hyperplane_to_surface`.
-        let mut hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface> = ApproxHashMap::new();
+        let mut hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface> =
+            ApproxHashMap::new(APPROX);
 
         // As we construct the mesh, we'll renumber all the pieces and stickers
         // to exclude inactive ones.
@@ -555,8 +556,8 @@ impl ShapeBuilder {
                 let sticker_centroid = space.get(sticker.facet).centroid()?;
                 let sticker_plane = sticker.plane;
                 let surface_id = match hyperplane_to_surface.entry(sticker_plane.clone()) {
-                    hash_map::Entry::Occupied(e) => *e.get(),
-                    hash_map::Entry::Vacant(e) => {
+                    approx_collections::hash_map::Entry::Occupied(e) => *e.get(),
+                    approx_collections::hash_map::Entry::Vacant(e) => {
                         let surface_id = surfaces.push(TempSurfaceData::new(&sticker_plane)?)?;
                         *e.insert(surface_id)
                     }

@@ -1,8 +1,6 @@
-use std::collections::hash_map;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail};
-use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 
@@ -47,7 +45,7 @@ impl AxisSystemBuilder {
         Self {
             ndim,
             by_id: PerAxis::new(),
-            vector_to_id: ApproxHashMap::new(),
+            vector_to_id: ApproxHashMap::new(APPROX),
             names: NameSpecBiMapBuilder::new(),
             autonames: AutoNames::default(),
             orbits: vec![],
@@ -76,8 +74,10 @@ impl AxisSystemBuilder {
 
         // Check that the vector isn't already taken.
         let id = match self.vector_to_id.entry(vector.clone()) {
-            hash_map::Entry::Occupied(_) => bail!("axis vector is already taken"),
-            hash_map::Entry::Vacant(e) => {
+            approx_collections::hash_map::Entry::Occupied(_) => {
+                bail!("axis vector is already taken")
+            }
+            approx_collections::hash_map::Entry::Vacant(e) => {
                 let id = self.by_id.push(AxisBuilder { vector })?;
                 e.insert(id);
                 id
@@ -103,7 +103,7 @@ impl AxisSystemBuilder {
 
     /// Returns an axis ID from its vector.
     pub fn vector_to_id(&self, vector: impl VectorRef) -> Option<Axis> {
-        Some(*self.vector_to_id.get(&vector.normalize()?)?)
+        Some(*self.vector_to_id.get(vector.normalize()?)?)
     }
 
     /// Returns an iterator over all the axes, in the canonical ordering.

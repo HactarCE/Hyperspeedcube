@@ -3,7 +3,7 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use arcstr::Substr;
-use hypermath::{VectorRef, approx_eq, vector};
+use hypermath::{APPROX, VectorRef, vector};
 use itertools::Itertools;
 
 use super::{Runtime, Scope};
@@ -272,7 +272,7 @@ impl EvalCtx<'_> {
                     if v.iter_nonzero().any(|(i, _)| i >= 2) {
                         let msg = "`angle` is undefined beyond 2D";
                         return Err(Error::bad_arg(obj.clone(), Some(msg)).at(obj.span));
-                    } else if approx_eq(v, &vector![]) {
+                    } else if APPROX.eq(v, &vector![]) {
                         let msg = "`angle` is undefined for zero vector";
                         return Err(Error::bad_arg(obj.clone(), Some(msg)).at(obj.span));
                     }

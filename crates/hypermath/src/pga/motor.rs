@@ -1,12 +1,12 @@
 use std::fmt;
+use std::hash::Hash;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
 
 use super::{Axes, Blade, Term};
 use crate::pga::blade::BivectorDecomposition;
-use crate::{
-    Float, Hyperplane, IterWithExactSizeExt, Matrix, Point, Vector, VectorRef, approx_eq,
-    is_approx_negative, is_approx_nonzero,
-};
+use crate::{APPROX, Float, Hyperplane, IterWithExactSizeExt, Matrix, Point, Vector, VectorRef};
 
 /// Sum of terms in the even or odd subalgebra of the projective geometric
 /// algebra.
@@ -218,12 +218,7 @@ impl Motor {
     /// Returns an iterator over the terms in the motor that are approximately
     /// nonzero.
     pub fn nonzero_terms(&self) -> impl '_ + Clone + Iterator<Item = Term> {
-        self.terms().filter(|term| !term.is_zero())
-    }
-    /// Returns whether the motor has all zero terms (and therefore does not
-    /// represent a valid transformation).
-    pub fn is_zero(&self) -> bool {
-        self.coefs().all(|coef| approx_eq(&coef, &0.0))
+        self.terms().filter(|term| APPROX.ne_zero(term))
     }
     /// Returns the underlying array of coefficients of the motor. Avoid using
     /// these for anything other than hashing.
@@ -250,15 +245,15 @@ impl Motor {
             return false;
         };
         let Some(first_term_of_self) = self.nonzero_terms().next() else {
-            return other.is_zero();
+            return APPROX.eq_zero(other);
         };
         let first_term_of_other = other.get(first_term_of_self.axes);
-        if approx_eq(&first_term_of_other, &0.0) {
+        if APPROX.eq_zero(first_term_of_other) {
             return false;
         }
         let scale_factor = first_term_of_other / first_term_of_self.coef;
         crate::util::pad_zip(self.coefs(), other.coefs())
-            .all(|(a, b)| approx_eq(&(a * scale_factor), &b))
+            .all(|(a, b)| APPROX.eq(a * scale_factor, b))
     }
 
     /// Returns the grade projection of the motor to a blade.
@@ -323,7 +318,7 @@ impl Motor {
     pub fn canonicalize(&self) -> Option<Self> {
         let normalized = self.normalize()?;
         // Find the first nonzero coefficient.
-        let coef = normalized.coefs().find(is_approx_nonzero)?;
+        let coef = normalized.coefs().find(|x| APPROX.ne_zero(x))?;
         // Normalize so that that coefficient is zero.
         Some(if coef > 0.0 { normalized } else { -normalized })
     }
@@ -396,7 +391,7 @@ impl Motor {
 
         let mut dot = Motor::dot(a, b);
         // Negate the second motor if that brings the rotations closer.
-        let sign = if is_approx_negative(&dot) { -1.0 } else { 1.0 };
+        let sign = if APPROX.is_neg(dot) { -1.0 } else { 1.0 };
         dot = dot.abs();
 
         // Stay within the domain of `acos()`.
@@ -656,17 +651,32 @@ impl Neg for &Motor {
     }
 }
 
-impl approx::AbsDiffEq for Motor {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        crate::EPSILON
+impl ApproxEq for Motor {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        self.is_reflection == other.is_reflection
+            && crate::util::pad_zip(self.coefs(), other.coefs()).all(|(a, b)| prec.eq(a, b))
+    }
+}
+impl ApproxEqZero for Motor {
+    /// Returns whether the motor has all zero terms (and therefore does not
+    /// represent a valid transformation).
+    fn approx_eq_zero(&self, prec: Precision) -> bool {
+        self.coefs().all(|x| prec.eq_zero(x))
+    }
+}
+impl ApproxHash for Motor {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.coefficients.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+    fn interned_eq(&self, other: &Self) -> bool {
         self.is_reflection == other.is_reflection
-            && crate::util::pad_zip(self.coefs(), other.coefs())
-                .all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+            && self.coefficients.interned_eq(&other.coefficients)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.is_reflection.hash(state);
+        self.coefficients.interned_hash(state);
     }
 }
 
@@ -798,9 +808,9 @@ mod tests {
 
         // ax2 should be a unit vector along the W axis.
         assert_eq!(1, ax2.grade());
-        assert!(!ax2.is_zero());
+        assert!(APPROX.ne_zero(&ax2));
         let wedge = Blade::wedge(&ax2, &Blade::from_vector(vector![0.0, 0.0, 0.0, 1.0]));
-        assert!(wedge.is_some_and(|b| b.is_zero()));
+        assert!(wedge.is_some_and(|b| APPROX.eq_zero(b)));
     }
 
     #[test]

@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{ApproxHashMapKey, Point, TransformByMotor, Vector, VectorRef, approx_eq};
+use hypermath::prelude::*;
 use hyperpuzzlescript::{
     Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Str, ValueData, hps_fns,
     impl_simple_custom_type,
@@ -104,7 +104,7 @@ pub(super) fn orbit_spanned<T>(
     object: T,
 ) -> Vec<Spanned<T>>
 where
-    T: Clone + TransformByMotor + ApproxHashMapKey,
+    T: ApproxHash + Clone + TransformByMotor,
 {
     sym.orbit(object)
         .into_iter()
@@ -122,7 +122,7 @@ impl PartialEq for HpsSymmetry {
     fn eq(&self, other: &Self) -> bool {
         self.generators.len() == other.generators.len()
             && std::iter::zip(&*self.generators, &*other.generators)
-                .all(|(g1, g2)| approx_eq(g1, g2))
+                .all(|(g1, g2)| APPROX.eq(g1, g2))
     }
 }
 
@@ -310,7 +310,7 @@ impl HpsSymmetry {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
+    pub fn orbit<T: ApproxHash + Clone + TransformByMotor>(
         &self,
         object: T,
     ) -> Vec<(AbbrGenSeq, Motor, T)> {

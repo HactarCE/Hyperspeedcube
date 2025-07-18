@@ -192,7 +192,7 @@ impl PuzzleBuilder {
 
         // Build hyperplanes.
         let mut planes = vec![];
-        let mut plane_id_map = ApproxHashMap::new();
+        let mut plane_id_map = ApproxHashMap::new(APPROX);
         let sticker_planes = sticker_planes.map(|_sticker, plane| {
             *plane_id_map.entry(plane.clone()).or_insert_with(|| {
                 let i = planes.len();
@@ -245,7 +245,7 @@ impl PuzzleBuilder {
                             opposite_layers.iter_values(),
                         )
                         .all(|(l1, l2)| {
-                            approx_eq(&l1.top, &-l2.bottom) && approx_eq(&l1.bottom, &-l2.top)
+                            APPROX.eq(l1.top, -l2.bottom) && APPROX.eq(l1.bottom, -l2.top)
                         });
 
                     if is_same_but_reversed {

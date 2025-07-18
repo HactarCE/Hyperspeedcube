@@ -215,7 +215,9 @@ fn construct_rotation(
             .ok_or("error constructing rotation (vectors may be zero, or opposite")?
         }
 
-        (None, None) if fix.antigrade(ndim) == Some(2) && !fix.is_zero() && angle.is_some() => {
+        (None, None)
+            if fix.antigrade(ndim) == Some(2) && APPROX.ne_zero(&fix) && angle.is_some() =>
+        {
             let mut dual_basis: [Vector; 2] = fix
                 .to_ndim_at_least(ndim)
                 .antidual(ndim)

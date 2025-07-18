@@ -8,7 +8,13 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-keywords = ["math", "rotor", "geometric-algebra", "conformal-geometric-algebra", "4d"]
+keywords = [
+    "math",
+    "rotor",
+    "geometric-algebra",
+    "conformal-geometric-algebra",
+    "4d",
+]
 categories = ["mathematics", "data-structures"]
 license = "MIT OR Apache-2.0"
 
@@ -16,7 +22,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-approx = { workspace = true }
+approx_collections = { workspace = true }
 ball-tree = { workspace = true }
 bitflags = { workspace = true }
 bitvec = { workspace = true }

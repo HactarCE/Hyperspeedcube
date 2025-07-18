@@ -2,7 +2,9 @@
 
 use std::ops::*;
 
-use super::{Float, Vector, VectorRef, permutations};
+use approx_collections::{ApproxEq, Precision};
+
+use crate::{Float, Vector, VectorRef, permutations};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
@@ -342,17 +344,6 @@ impl PartialEq for MatrixCol<'_> {
         self.iter_ndim(ndim).eq(other.iter_ndim(ndim))
     }
 }
-impl approx::AbsDiffEq for MatrixCol<'_> {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        Vector::zip(self, other).all(|(a, b)| a.abs_diff_eq(&b, epsilon))
-    }
-}
 
 /// Reference to a row of a matrix, usable as a vector.
 #[derive(Debug, Copy, Clone)]
@@ -375,20 +366,12 @@ impl PartialEq for MatrixRow<'_> {
         self.iter_ndim(ndim).eq(other.iter_ndim(ndim))
     }
 }
-impl approx::AbsDiffEq for MatrixRow<'_> {
-    type Epsilon = Float;
 
-    fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
-    }
+impl_vector_ops!(impl for MatrixCol<'_>);
+impl_vector_ops!(impl for MatrixRow<'_>);
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.approx_eq(other, epsilon)
-    }
-}
-
-impl_vector_ops!(impl for MatrixCol<'_, >);
-impl_vector_ops!(impl for MatrixRow<'_, >);
+impl_vector_approx_eq!(impl for MatrixCol<'_>);
+impl_vector_approx_eq!(impl for MatrixRow<'_>);
 
 impl Mul for &Matrix {
     type Output = Matrix;
@@ -428,15 +411,9 @@ impl Sub for &Matrix {
     }
 }
 
-impl approx::AbsDiffEq for Matrix {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        Matrix::zip_cols(self, other).all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+impl ApproxEq for Matrix {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        Matrix::zip_cols(self, other).all(|(a, b)| prec.eq(a, b))
     }
 }
 

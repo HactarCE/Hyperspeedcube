@@ -162,7 +162,7 @@ impl NdEuclidViewState {
                                     // TODO: canoncalize axis based on layer mask
                                     let layers = puzzle.min_drag_layer_mask(axis, hov.piece)?;
                                     let score = target.dot(axis_vector.normalize()?).abs();
-                                    if !is_approx_positive(&score) {
+                                    if !APPROX.is_pos(score) {
                                         return None;
                                     }
                                     Some((axis, layers, score))
@@ -379,7 +379,7 @@ impl NdEuclidViewState {
                 let Some(axis) = self.geom.axis_vectors.find(|_, axis_vector| {
                     axis_vector
                         .normalize()
-                        .is_some_and(|v| approx_eq(&v, &target_vector))
+                        .is_some_and(|v| APPROX.eq(&v, &target_vector))
                 }) else {
                     return;
                 };

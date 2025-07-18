@@ -1,7 +1,6 @@
 use std::fmt;
 
 use hypermath::IndexNewtype;
-use hypermath::collections::generic_vec;
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
@@ -24,11 +23,11 @@ pub trait Group {
     }
 
     /// Returns an iterator over the generators used to generate the group.
-    fn generators(&self) -> generic_vec::IndexIter<GeneratorId> {
+    fn generators(&self) -> hypermath::collections::generic_vec::IndexIter<GeneratorId> {
         GeneratorId::iter(self.generator_count())
     }
     /// Returns an iterator over the elements of the group.
-    fn elements(&self) -> generic_vec::IndexIter<GroupElementId> {
+    fn elements(&self) -> hypermath::collections::generic_vec::IndexIter<GroupElementId> {
         GroupElementId::iter(self.element_count())
     }
 

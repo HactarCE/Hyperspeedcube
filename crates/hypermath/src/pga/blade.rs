@@ -1,12 +1,14 @@
 use std::fmt;
+use std::hash::Hash;
 use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
 use float_ord::FloatOrd;
 use itertools::Itertools;
 
 use super::{Axes, Term};
 use crate::util::PI;
-use crate::{Float, Hyperplane, Point, Vector, VectorRef, approx_eq, is_approx_nonzero};
+use crate::{APPROX, Float, Hyperplane, Point, Vector, VectorRef};
 
 /// Sum of terms of the same grade in the projective geometric algebra.
 #[derive(Clone, PartialEq)]
@@ -34,20 +36,36 @@ impl fmt::Display for Blade {
     }
 }
 
-impl approx::AbsDiffEq for Blade {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        crate::EPSILON
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+impl ApproxEq for Blade {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
         self.grade == other.grade
             && crate::util::pad_zip(
                 self.coefficients.iter().copied(),
                 other.coefficients.iter().copied(),
             )
-            .all(|(l, r)| l.abs_diff_eq(&r, epsilon))
+            .all(|(l, r)| prec.eq(l, r))
+    }
+}
+impl ApproxEqZero for Blade {
+    fn approx_eq_zero(&self, prec: Precision) -> bool {
+        self.coefficients.iter().all(|x| prec.eq_zero(x))
+    }
+}
+impl ApproxHash for Blade {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.coefficients.intern_floats(f);
+    }
+
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.ndim == other.ndim
+            && self.grade == other.grade
+            && self.coefficients.interned_eq(&other.coefficients)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ndim.hash(state);
+        self.grade.hash(state);
+        self.coefficients.interned_hash(state);
     }
 }
 
@@ -115,7 +133,7 @@ impl Blade {
     }
     /// Returns whether the blade represents a point.
     pub fn is_point(&self) -> bool {
-        self.grade == 1 && is_approx_nonzero(&self[Axes::E0])
+        self.grade == 1 && APPROX.ne_zero(self[Axes::E0])
     }
 
     /// Constructs a blade from a vector.
@@ -136,7 +154,7 @@ impl Blade {
     }
     /// Returns whether the blade represents a vector.
     pub fn is_vector(&self) -> bool {
-        self.grade == 1 && approx_eq(&self[Axes::E0], &0.0)
+        self.grade == 1 && APPROX.eq_zero(self[Axes::E0])
     }
     /// Extracts the scalar represented by a blade.
     pub fn to_scalar(&self) -> Option<Float> {
@@ -255,16 +273,12 @@ impl Blade {
         crate::util::try_div(self, self.weight_norm()).unwrap_or_else(|| self.clone())
     }
 
-    /// Returns whether the blade is approximately zero.
-    pub fn is_zero(&self) -> bool {
-        self.coefficients.iter().all(|x| approx_eq(x, &0.0))
-    }
     /// Returns whether all weight components of the blade (i.e., the components
     /// with e₀ as a factor) are approximately zero.
     pub fn weight_is_zero(&self) -> bool {
         self.terms()
             .filter(|term| term.axes.contains(Axes::E0))
-            .all(|term| term.is_zero())
+            .all(|term| APPROX.eq_zero(term))
     }
 
     /// If the blade has no e₀ factor, returns the wedge product of the blade
@@ -333,12 +347,12 @@ impl Blade {
     /// Returns an iterator over the terms in the blade that are approximately
     /// nonzero.
     pub fn nonzero_terms(&self) -> impl '_ + Clone + Iterator<Item = Term> {
-        self.terms().filter(|term| !term.is_zero())
+        self.terms().filter(|term| APPROX.ne_zero(term))
     }
     /// Returns an iterator over the terms in the blade that are approximately
     /// nonzero and fit within `ndim`-dimensional space.
     pub fn nonzero_terms_in_ndim(&self, ndim: u8) -> impl '_ + Clone + Iterator<Item = Term> {
-        self.terms_in_ndim(ndim).filter(|term| !term.is_zero())
+        self.terms_in_ndim(ndim).filter(|term| APPROX.ne_zero(term))
     }
     /// Lifts the blade into at least `ndim`-dimensional space.
     ///
@@ -654,7 +668,7 @@ impl Blade {
             let wedge = Self::product_grade(self, self, 4);
             let wedge2 = Self::product_scalar(&wedge, &wedge); // square of wedge
             let discrim = coeff1.powi(2) - wedge2;
-            if approx_eq(&discrim, &0.0) {
+            if APPROX.eq_zero(discrim) {
                 Some(vec![(2, self.clone())])
             } else if discrim < 0.0 {
                 None // impossible, i think
@@ -691,7 +705,7 @@ impl Blade {
                 let q = (2.0 * coeff2.powi(3) - 9.0 * coeff2 * coeff1 + 27.0 * coeff0) / 27.0;
 
                 // There should be 3 real roots
-                if approx_eq(&p, &0.0) {
+                if APPROX.eq_zero(p) {
                     // In this case q should also be zero, so the roots are all the same
                     [-coeff2 / 3.0; 3]
                 } else {
@@ -706,15 +720,15 @@ impl Blade {
             };
 
             let unique_root: Option<Option<usize>>;
-            if approx_eq(&roots[0], &roots[1]) {
-                if approx_eq(&roots[0], &roots[2]) {
+            if APPROX.eq(roots[0], roots[1]) {
+                if APPROX.eq(roots[0], roots[2]) {
                     unique_root = None;
                 } else {
                     unique_root = Some(Some(2));
                 }
-            } else if approx_eq(&roots[0], &roots[2]) {
+            } else if APPROX.eq(roots[0], roots[2]) {
                 unique_root = Some(Some(1));
-            } else if approx_eq(&roots[1], &roots[2]) {
+            } else if APPROX.eq(roots[1], roots[2]) {
                 unique_root = Some(Some(0));
             } else {
                 unique_root = Some(None);
@@ -931,7 +945,8 @@ pub(crate) struct BivectorDecomposition {
 
 impl BivectorDecomposition {
     fn remove_zeros(mut self) -> Self {
-        self.decomposition.retain(|(_mult, biv)| !biv.is_zero());
+        self.decomposition
+            .retain(|(_mult, biv)| APPROX.ne_zero(biv));
         self
     }
 
@@ -947,7 +962,7 @@ impl BivectorDecomposition {
             let sin = (1.0 - cos.powi(2)).sqrt();
             let biv1 = biv / norm;
             let motor;
-            if biv.is_zero() {
+            if APPROX.eq_zero(biv) {
                 motor = Motor::ident(self.ndim);
             } else if *mult == 1 {
                 motor = (Motor::ident(self.ndim) * cos) + (biv1 * sin);
@@ -1052,7 +1067,7 @@ impl Multivector04 {
                 crate::Matrix::from_fn(n, |i, j| pows[i as usize + 1].dot(&pows[j as usize + 1]));
 
             // matrix is only 4x4 so inverting it is fine
-            if approx_eq(&matrix.determinant(), &0.0) {
+            if APPROX.eq_zero(matrix.determinant()) {
                 continue;
             }
 
@@ -1068,7 +1083,7 @@ impl Multivector04 {
                 test_recip = test_recip + &(pows[i as usize].clone() * result_vec_entry);
             }
 
-            if approx_eq(&(test_recip.clone() * self), &Self::one(self.ndim())) {
+            if APPROX.eq(test_recip.clone() * self, Self::one(self.ndim())) {
                 return Some(test_recip);
             }
         }
@@ -1110,16 +1125,9 @@ impl Add<&Multivector04> for Multivector04 {
         }
     }
 }
-impl approx::AbsDiffEq for Multivector04 {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        crate::EPSILON
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.grade0.abs_diff_eq(&other.grade0, epsilon)
-            && self.grade4.abs_diff_eq(&other.grade4, epsilon)
+impl ApproxEq for Multivector04 {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        prec.eq(self.grade0, other.grade0) && prec.eq(&self.grade4, &other.grade4)
     }
 }
 

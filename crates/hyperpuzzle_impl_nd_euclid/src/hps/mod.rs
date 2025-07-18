@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{IndexNewtype, Point, Vector};
+use hypermath::{ApproxEq, ApproxHash, IndexNewtype, Point, Precision, TransformByMotor, Vector};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
@@ -87,7 +87,10 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         }
 
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Motor) -> Vec<Spanned<Motor>> {
-            symmetry::orbit_spanned(ctx, sym, object)
+            symmetry::orbit_spanned(ctx, sym, CanonicalMotor::new(object))
+                .into_iter()
+                .map(|(CanonicalMotor(m), span)| (m, span))
+                .collect()
         }
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Vector) -> Vec<Spanned<Vector>> {
             symmetry::orbit_spanned(ctx, sym, object)
@@ -128,7 +131,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             sym.orbit(init_key)
                 .iter()
                 .map(|(_, _, key)| {
-                    let id = twists.key_to_id(&TwistKey::new(
+                    let id = twists.key_to_id(TwistKey::new(
                         twists.axes.vector_to_id(&key.axis_vector)?,
                         &key.transform,
                     )?)?;
@@ -141,6 +144,37 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
     ])?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct CanonicalMotor(Motor);
+impl CanonicalMotor {
+    pub fn new(m: Motor) -> Self {
+        Self(m.canonicalize_up_to_180().unwrap_or(m))
+    }
+}
+impl TransformByMotor for CanonicalMotor {
+    fn transform_by(&self, m: &Motor) -> Self {
+        Self::new(self.0.transform_by(m))
+    }
+}
+impl ApproxEq for CanonicalMotor {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        prec.eq(&self.0, &other.0)
+    }
+}
+impl ApproxHash for CanonicalMotor {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.0.intern_floats(f);
+    }
+
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.0.interned_eq(&other.0)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.interned_hash(state);
+    }
 }
 
 /// Shared mutable wrapper for HPS builder types.

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use arcstr::Substr;
 use ecow::EcoString;
-use hypermath::{Vector, VectorRef};
+use hypermath::{APPROX, Vector, VectorRef};
 use itertools::Itertools;
 
 use crate::{
@@ -73,7 +73,7 @@ impl Value {
         match (&self.data, &other.data) {
             (ValueData::Null, ValueData::Null) => Ok(true),
             (ValueData::Bool(b1), ValueData::Bool(b2)) => Ok(b1 == b2),
-            (ValueData::Num(n1), ValueData::Num(n2)) => Ok(hypermath::approx_eq(n1, n2)),
+            (ValueData::Num(n1), ValueData::Num(n2)) => Ok(APPROX.eq(n1, n2)),
             (ValueData::Str(s1), ValueData::Str(s2)) => Ok(s1 == s2),
             (ValueData::List(l1), ValueData::List(l2)) => Ok(l1.len() == l2.len()
                 && std::iter::zip(&**l1, &**l2)
@@ -87,16 +87,16 @@ impl Value {
                         None => Ok(false),
                     })
                     .fold_ok(true, |v1, v2| v1 && v2)?),
-            (ValueData::Vec(v1), ValueData::Vec(v2)) => Ok(hypermath::approx_eq(v1, v2)),
+            (ValueData::Vec(v1), ValueData::Vec(v2)) => Ok(APPROX.eq(v1, v2)),
             (ValueData::EuclidPoint(point1), ValueData::EuclidPoint(point2)) => {
-                Ok(hypermath::approx_eq(point1, point2))
+                Ok(APPROX.eq(point1, point2))
             }
             (ValueData::EuclidTransform(motor1), ValueData::EuclidTransform(motor2)) => {
                 Ok(Option::zip(motor1.canonicalize(), motor2.canonicalize())
-                    .is_some_and(|(m1, m2)| hypermath::approx_eq(&m1, &m2)))
+                    .is_some_and(|(m1, m2)| APPROX.eq(&m1, &m2)))
             }
             (ValueData::EuclidPlane(plane1), ValueData::EuclidPlane(plane2)) => {
-                Ok(hypermath::approx_eq(&**plane1, &**plane2))
+                Ok(APPROX.eq(&**plane1, &**plane2))
             }
             (ValueData::Custom(c1), ValueData::Custom(c2)) => {
                 c1.eq(c2).ok_or_else(invalid_comparison_error)

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
-use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
@@ -108,7 +107,7 @@ impl TwistSystemBuilder {
             axes: AxisSystemBuilder::new(ndim),
             by_id: PerTwist::new(),
             names: NameSpecBiMapBuilder::new(),
-            data_to_id: ApproxHashMap::new(),
+            data_to_id: ApproxHashMap::new(APPROX),
             autonames: AutoNames::default(),
             vantage_groups: IndexMap::new(),
             vantage_sets: vec![],
@@ -165,7 +164,7 @@ impl TwistSystemBuilder {
         }
 
         // Check that there is not already an identical twist.
-        if let Some(&id) = self.data_to_id.get(&key) {
+        if let Some(&id) = self.data_to_id.get(key.clone()) {
             let name = match self.names.get(id) {
                 Some(existing_twist_name) => existing_twist_name.preferred.clone(),
                 None => "?".to_owned(),
@@ -189,13 +188,13 @@ impl TwistSystemBuilder {
     }
 
     /// Returns a twist ID from its axis and transform.
-    pub fn key_to_id(&self, key: &TwistKey) -> Option<Twist> {
+    pub fn key_to_id(&self, key: TwistKey) -> Option<Twist> {
         self.data_to_id.get(key).copied()
     }
 
     /// Returns the inverse of a twist, or an error if the ID is out of range.
     pub fn inverse(&self, id: Twist) -> Result<Option<Twist>> {
-        Ok(self.key_to_id(&self.get(id)?.rev_key()?))
+        Ok(self.key_to_id(self.get(id)?.rev_key()?))
     }
 
     /// Validates and constructs a twist system.
@@ -244,7 +243,7 @@ impl TwistSystemBuilder {
             let axis = twist.axis;
             let axis_vector = &axis_vectors[axis];
 
-            if !approx_eq(&twist.transform.transform(axis_vector), axis_vector) {
+            if APPROX.ne(&twist.transform.transform(axis_vector), axis_vector) {
                 warn_fn(match twist_names.get(id) {
                     Some(name) => eyre!("twist {:?} does not fix axis vector", name.preferred),
                     None => eyre!("twist {id} does not fix axis vector"),
@@ -269,7 +268,7 @@ impl TwistSystemBuilder {
             let twist_transforms = &twist_transforms[id];
             let twist_key = TwistKey::new(twist.axis, &twist_transforms.reverse())
                 .ok_or(BadTwist::BadTransform)?;
-            match self.key_to_id(&twist_key) {
+            match self.key_to_id(twist_key) {
                 Some(reverse_twist) => twist.reverse = reverse_twist,
                 None => twists_without_reverse.push(id),
             }

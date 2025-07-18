@@ -23,9 +23,9 @@ resolver = "3"
 authors = ["Andrew Farkas"]
 documentation = "https://dev.hypercubing.xyz/internals/"
 edition = "2024"
+rust-version = "1.88.0"
 homepage = "https://ajfarkas.dev/projects/hyperspeedcube/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
-rust-version = "1.87.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -76,6 +76,7 @@ hyperstats = { path = "crates/hyperstats" }
 hyperstrings = { path = "crates/hyperstrings" }
 
 # Data structures
+approx_collections = { version = "3.0.0" }
 ball-tree = { version = "0.5.1" }
 bitflags = { version = "2.6.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
@@ -111,7 +112,6 @@ sublime_fuzzy = { version = "0.7.0" }
 nom = { version = "8.0.0" }
 
 # Math
-approx = { version = "0.5.1" }
 cgmath = { version = "0.18.0" }
 float-ord = { version = "0.3.2" }
 num-traits = { version = "0.2.19" }
@@ -179,7 +179,7 @@ syn = { version = "2.0.98" }
 bytemuck = { version = "1.21.0", features = ["derive"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 itertools = { version = "0.14.0" }
-lazy_static = { version = "1.5.0" }
+lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
 time = { version = "0.3.37", features = ["local-offset"] }
 web-time = { version = "1.1.0" }

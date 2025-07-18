@@ -1,6 +1,5 @@
 use std::fmt;
 
-use hypermath::collections::approx_hashmap::ApproxHashMapKey;
 use hypermath::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
@@ -142,7 +141,7 @@ impl CoxeterGroup {
                 };
                 for (i, v1) in basis_vectors.iter().enumerate() {
                     for v2 in &basis_vectors[..i] {
-                        if approx_eq(&v1.dot(v2).abs(), &1.0) {
+                        if APPROX.eq(v1.dot(v2).abs(), 1.0) {
                             return Err(GroupError::BadBasis);
                         }
                     }
@@ -316,7 +315,7 @@ impl CoxeterGroup {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
+    pub fn orbit<T: ApproxHash + Clone + TransformByMotor>(
         &self,
         object: T,
         chiral: bool,

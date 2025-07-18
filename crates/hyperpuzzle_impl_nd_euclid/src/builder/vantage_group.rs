@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail};
-use hypermath::{ApproxHashMap, Vector};
+use hypermath::{APPROX, ApproxHashMap, Vector};
 use hyperpuzzle_core::{
     Axis, BoxDynVantageGroup, NameSpecBiMap, NameSpecBiMapBuilder, PerTwist, PerVantage, Twist,
 };
@@ -38,6 +38,7 @@ impl VantageGroupBuilder {
         twist_system_engine_data: NdEuclidTwistSystemEngineData,
     ) -> Result<NdEuclidVantageGroup> {
         let reference_vectors_by_vector = ApproxHashMap::<Vector, ReferenceVector>::from_iter(
+            APPROX,
             self.reference_vectors
                 .iter()
                 .map(|(reference_vector, vector)| (vector.clone(), reference_vector)),
@@ -61,7 +62,7 @@ impl VantageGroupBuilder {
                     .iter()
                     .map(|&ref_vec| {
                         let transformed_ref_vec = *reference_vectors_by_vector
-                            .get(&self.symmetry[e].transform(&self.reference_vectors[ref_vec]))
+                            .get(self.symmetry[e].transform(&self.reference_vectors[ref_vec]))
                             .ok_or_eyre("reference frame is not valid in some vantages")?;
                         Ok((ref_vec, transformed_ref_vec))
                     })

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hypermath::collections::{GenericMask, GenericVec};
+use hypermath::collections::GenericMask;
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use itertools::Itertools;
@@ -158,14 +158,14 @@ impl AxisLayersInfo {
         range
             .map(Layer)
             .tuple_windows()
-            .all(|(higher, lower)| approx_eq(&self.0[higher].bottom, &self.0[lower].top))
+            .all(|(higher, lower)| APPROX.eq(self.0[higher].bottom, self.0[lower].top))
     }
 
     /// Returns the smallest contiguous layer range that contains two floats, or
     /// `None` if there is none.
     pub fn contiguous_range(&self, lo: Float, hi: Float) -> Option<LayerMask> {
-        let bottom_layer = self.0.find(|_, l| approx_lt_eq(&l.bottom, &lo))?.0;
-        let top_layer = self.0.rfind(|_, l| approx_gt_eq(&l.top, &hi))?.0;
+        let bottom_layer = self.0.find(|_, l| APPROX.lt_eq(l.bottom, lo))?.0;
+        let top_layer = self.0.rfind(|_, l| APPROX.gt_eq(l.top, hi))?.0;
 
         // Ensure layers are contiguous
         if !self.is_range_contiguous(top_layer..=bottom_layer) {

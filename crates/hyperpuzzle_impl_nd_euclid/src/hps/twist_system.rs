@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{AbsDiffEq, ApproxHashMapKey, Float, IndexNewtype, TransformByMotor, Vector};
+use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
 use itertools::Itertools;
@@ -592,16 +592,25 @@ pub(super) struct GeometricTwistKey {
     pub axis_vector: Vector,
     pub transform: Motor,
 }
-impl AbsDiffEq for GeometricTwistKey {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        hypermath::EPSILON
+impl ApproxEq for GeometricTwistKey {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        prec.eq(&self.axis_vector, &other.axis_vector) && prec.eq(&self.transform, &other.transform)
+    }
+}
+impl ApproxHash for GeometricTwistKey {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.axis_vector.intern_floats(f);
+        self.transform.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.axis_vector.abs_diff_eq(&other.axis_vector, epsilon)
-            && self.transform.abs_diff_eq(&other.transform, epsilon)
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.axis_vector.interned_eq(&other.axis_vector)
+            && self.transform.interned_eq(&other.transform)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.axis_vector.interned_hash(state);
+        self.transform.interned_hash(state);
     }
 }
 impl TransformByMotor for GeometricTwistKey {
@@ -611,22 +620,6 @@ impl TransformByMotor for GeometricTwistKey {
             axis_vector: m.transform(&self.axis_vector),
             transform: if m.is_reflection() { t.reverse() } else { t },
         }
-    }
-}
-impl ApproxHashMapKey for GeometricTwistKey {
-    type Hash = (
-        <Vector as ApproxHashMapKey>::Hash,
-        <Motor as ApproxHashMapKey>::Hash,
-    );
-
-    fn approx_hash(
-        &self,
-        mut float_hash_fn: impl FnMut(Float) -> hypermath::collections::approx_hashmap::FloatHash,
-    ) -> Self::Hash {
-        (
-            self.axis_vector.approx_hash(&mut float_hash_fn),
-            self.transform.approx_hash(float_hash_fn),
-        )
     }
 }
 

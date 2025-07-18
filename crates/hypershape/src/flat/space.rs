@@ -60,7 +60,7 @@ impl Space {
             primordial_cube: Mutex::new(None),
 
             vertices: Mutex::new(PerVertex::new()),
-            vertex_data_to_id: Mutex::new(ApproxHashMap::new()),
+            vertex_data_to_id: Mutex::new(ApproxHashMap::new(APPROX)),
 
             polytopes: Mutex::new(PerElement::new()),
             polytope_data_to_id: Mutex::new(HashMap::new()),
@@ -68,7 +68,7 @@ impl Space {
             cached_hyperplane_of_facet: Mutex::new(HashMap::new()),
             cached_vertex_set: Mutex::new(HashMap::new()),
 
-            cached_which_side_has_polytope: Mutex::new(ApproxHashMap::new()),
+            cached_which_side_has_polytope: Mutex::new(ApproxHashMap::new(APPROX)),
 
             cached_simplices: Mutex::new(HashMap::new()),
             cached_centroids: Mutex::new(HashMap::new()),
@@ -114,8 +114,8 @@ impl Space {
     pub fn add_vertex(&self, p: Point) -> Result<VertexId, IndexOverflow> {
         let cache = &mut self.vertex_data_to_id.lock();
         match cache.entry(p.clone()) {
-            hash_map::Entry::Occupied(e) => Ok(*e.get()),
-            hash_map::Entry::Vacant(e) => {
+            approx_collections::hash_map::Entry::Occupied(e) => Ok(*e.get()),
+            approx_collections::hash_map::Entry::Vacant(e) => {
                 let vertex_id = *e.insert(self.vertices.lock().push(p)?);
                 // Ensure that the vertex has a polytope ID as well.
                 self.add_polytope(vertex_id.into())?;

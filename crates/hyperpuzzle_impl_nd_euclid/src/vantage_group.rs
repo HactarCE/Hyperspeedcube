@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use hypermath::collections::GenericVec;
-use hypermath::{Vector, approx_eq, pga};
+use hypermath::{APPROX, GenericVec, Vector, pga};
 use hyperpuzzle_core::prelude::*;
 use hypershape::{Group, GroupElementId, IsometryGroup};
 use itertools::Itertools;
@@ -118,7 +117,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             let new_axis_vector = self.vantage_motor(vantage)?.transform(axis_vector);
             self.twist_system_engine_data
                 .axis_from_vector
-                .get(&new_axis_vector)
+                .get(new_axis_vector)
                 .copied()
         }
     }
@@ -146,7 +145,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
 
             self.twist_system_engine_data
                 .twist_from_transform
-                .get(&TwistKey::new(new_twist_axis, &new_twist_transform)?)
+                .get(TwistKey::new(new_twist_axis, &new_twist_transform)?)
                 .copied()
         }
     }
@@ -197,7 +196,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             .filter(|&elem| {
                 reference_vector_mapping
                     .iter()
-                    .all(|&(r1, r2)| approx_eq(&self.symmetry[elem].transform(r1), r2))
+                    .all(|&(r1, r2)| APPROX.eq(&self.symmetry[elem].transform(r1), r2))
             })
             .map(|elem| self.group_element_to_vantage(elem))
             .exactly_one()

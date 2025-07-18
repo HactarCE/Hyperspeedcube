@@ -1,6 +1,8 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
-use hypermath::{Hyperplane, pga::Motor};
+use hypermath::Hyperplane;
+use hypermath::pga::Motor;
 use hyperpuzzle_core::{Color, Orbit};
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, Result, hps_fns, impl_simple_custom_type,

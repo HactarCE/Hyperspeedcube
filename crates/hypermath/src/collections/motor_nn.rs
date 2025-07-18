@@ -72,7 +72,7 @@ impl<V> MotorNearestNeighborMap<V> {
         // Can we get a better result by querying for `-m`?
         let result2 = ball_tree.query().nn_within(&-m, d1).next();
         if let Some((_motor, d2, v2)) = result2 {
-            if approx_lt(&d2, &d1) {
+            if APPROX.lt(&d2, &d1) {
                 Some(v2)
             } else {
                 Some(v1)

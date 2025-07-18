@@ -3,6 +3,8 @@
 use std::fmt;
 use std::ops::*;
 
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
+
 use crate::{Float, Vector, VectorRef};
 
 /// Constructs an N-dimensional Euclidean point, using the same syntax as
@@ -57,11 +59,6 @@ impl Point {
         self.0.ndim()
     }
 
-    /// Returns whether two points are equal within `epsilon` on each component.
-    pub fn approx_eq(&self, other: &Point, epsilon: Float) -> bool {
-        self.0.approx_eq(&other.0, epsilon)
-    }
-
     /// Projects the point onto `other`.
     pub fn projected_to(&self, other: &Vector) -> Option<Point> {
         self.0.projected_to(other).map(Point)
@@ -83,15 +80,29 @@ impl Point {
     }
 }
 
-impl approx::AbsDiffEq for Point {
-    type Epsilon = Float;
+impl ApproxEq for Point {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        prec.eq(&self.0, &other.0)
+    }
+}
 
-    fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+impl ApproxEqZero for Point {
+    fn approx_eq_zero(&self, prec: Precision) -> bool {
+        self.0.approx_eq_zero(prec)
+    }
+}
+
+impl ApproxHash for Point {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.0.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.approx_eq(other, epsilon)
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.0.interned_eq(&other.0)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.interned_hash(state);
     }
 }
 

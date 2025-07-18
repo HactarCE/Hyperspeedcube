@@ -1,4 +1,5 @@
 use std::fmt;
+use std::hash::Hash;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
 use super::Axes;
@@ -26,15 +27,28 @@ impl fmt::Display for Term {
     }
 }
 
-impl approx::AbsDiffEq for Term {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        EPSILON
+impl ApproxEq for Term {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        self.axes == other.axes && prec.eq(self.coef, other.coef)
+    }
+}
+impl ApproxEqZero for Term {
+    fn approx_eq_zero(&self, prec: Precision) -> bool {
+        prec.eq_zero(self.coef)
+    }
+}
+impl ApproxHash for Term {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.coef.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.axes == other.axes && self.coef.abs_diff_eq(&other.coef, epsilon)
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.axes == other.axes && self.coef.interned_eq(&other.coef)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.coef.interned_hash(state);
+        self.axes.hash(state);
     }
 }
 
@@ -122,11 +136,6 @@ impl Term {
     /// Constructs a unit pseudoscalar term in `ndim`-dimensional space.
     pub const fn antiscalar_unit(ndim: u8) -> Self {
         Self::unit(Axes::antiscalar(ndim))
-    }
-
-    /// Returns whether the term is approximately zero.
-    pub fn is_zero(self) -> bool {
-        approx_eq(&self.coef, &0.0)
     }
 
     /// Returns the grade of the term, which is the number of basis blades used

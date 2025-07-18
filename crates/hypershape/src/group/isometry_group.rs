@@ -1,7 +1,6 @@
 use std::ops::Index;
 use std::sync::Arc;
 
-use hypermath::collections::{ApproxHashMap, MotorNearestNeighborMap, approx_hashmap};
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
@@ -70,7 +69,7 @@ impl IsometryGroup {
             .try_collect()?;
 
         let mut elements = PerGroupElement::from_iter([pga::Motor::ident(ndim)]);
-        let mut element_ids = ApproxHashMap::new();
+        let mut element_ids = ApproxHashMap::new(APPROX);
         element_ids.insert(pga::Motor::ident(ndim), GroupElementId::IDENTITY);
 
         // Computing inverses directly is doable, but might involve a lot of
@@ -99,7 +98,7 @@ impl IsometryGroup {
                     let id;
                     match element_ids.entry(new_elem.clone()) {
                         // We've already seen `new_elem`.
-                        approx_hashmap::Entry::Occupied(e) => {
+                        approx_collections::hash_map::Entry::Occupied(e) => {
                             id = *e.into_mut();
 
                             if id == GroupElementId::IDENTITY {
@@ -113,7 +112,7 @@ impl IsometryGroup {
 
                         // `new_elem` has never been seen before. Assign it a
                         // new ID and add it to all the relevant lists.
-                        approx_hashmap::Entry::Vacant(e) => {
+                        approx_collections::hash_map::Entry::Vacant(e) => {
                             id = elements.push(new_elem.clone())?;
                             g.add_successor(next_unprocessed_id, generator)?;
 

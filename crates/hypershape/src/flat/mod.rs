@@ -6,8 +6,6 @@ use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, bail, ensure, eyre};
 use float_ord::FloatOrd;
-use hypermath::collections::generic_vec::IndexOverflow;
-use hypermath::collections::{ApproxHashMap, GenericVec};
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;

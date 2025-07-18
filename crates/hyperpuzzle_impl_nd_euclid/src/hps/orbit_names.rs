@@ -4,7 +4,7 @@ use std::ops::Add;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{ApproxHashMap, Point};
+use hypermath::{APPROX, ApproxHashMap, Point};
 use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Span, Spanned, Str,
@@ -203,7 +203,7 @@ impl HpsOrbitNames {
                     for (s, t) in strings_and_transforms {
                         let transformed_coset_point = t.transform(initial_coset_point);
                         let coset_str = coset_names
-                            .get(&transformed_coset_point)
+                            .get(transformed_coset_point.clone())
                             .ok_or(HpsEuclidError::MissingCoset(transformed_coset_point))
                             .at(span)?;
                         s.push_str(coset_str);
@@ -336,14 +336,16 @@ impl LazyCosetMap {
             }
 
             // Resolve lazy evaluation.
-            let coset_names = hyperpuzzle_core::util::lazy_resolve(
-                key_value_dependencies,
-                |t1, t2| t1 * t2,
-                ctx.warnf(),
-            )
-            .into_iter()
-            .map(|(name, transform)| (transform.transform(&initial_coset_point), name))
-            .collect();
+            let coset_names = ApproxHashMap::<_, _>::from_iter(
+                APPROX,
+                hyperpuzzle_core::util::lazy_resolve(
+                    key_value_dependencies,
+                    |t1, t2| t1 * t2,
+                    ctx.warnf(),
+                )
+                .into_iter()
+                .map(|(name, transform)| (transform.transform(&initial_coset_point), name)),
+            );
 
             *self = Self::Init {
                 initial_coset_point,

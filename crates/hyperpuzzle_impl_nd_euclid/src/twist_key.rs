@@ -1,7 +1,7 @@
 use std::fmt;
+use std::hash::Hash;
 
-use hypermath::collections::approx_hashmap::FloatHash;
-use hypermath::{ApproxHashMapKey, Float, pga};
+use hypermath::{ApproxEq, ApproxHash, Precision, pga};
 use hyperpuzzle_core::Axis;
 
 /// Unique key for a twist.
@@ -16,11 +16,24 @@ pub struct TwistKey {
     transform: pga::Motor,
 }
 
-impl ApproxHashMapKey for TwistKey {
-    type Hash = (Axis, <pga::Motor as ApproxHashMapKey>::Hash);
+impl ApproxEq for TwistKey {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        self.axis == other.axis && prec.eq(&self.transform, &other.transform)
+    }
+}
 
-    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        (self.axis, self.transform.approx_hash(float_hash_fn))
+impl ApproxHash for TwistKey {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.transform.intern_floats(f);
+    }
+
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.axis == other.axis && self.transform.interned_eq(&other.transform)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.axis.hash(state);
+        self.transform.interned_hash(state);
     }
 }
 

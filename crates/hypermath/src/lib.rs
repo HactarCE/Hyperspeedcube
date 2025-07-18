@@ -1,6 +1,6 @@
 //! Multidimensional vector, matrix, and conformal geometric algebra primitives.
 
-pub use {approx, num_traits as num, smallvec};
+pub use {approx_collections, num_traits as num, smallvec};
 
 /// Floating-point type used for geometry (either `f32` or `f64`).
 pub type Float = f64;
@@ -23,7 +23,23 @@ pub const MAX_NDIM: u8 = 7;
 #[macro_export]
 macro_rules! assert_approx_eq {
     ($a:expr, $b:expr $(,)?) => {
-        $crate::approx::assert_abs_diff_eq!($a, $b, epsilon = $crate::EPSILON)
+        match (&$a, &$b) {
+            (a, b) => {
+                assert!(
+                    $crate::APPROX.eq(a, b),
+                    "assert_approx_eq!({}, {})
+
+    left  = {:?}
+    right = {:?}
+
+",
+                    stringify!(a),
+                    stringify!(b),
+                    a,
+                    b,
+                );
+            }
+        }
     };
 }
 
@@ -45,7 +61,6 @@ mod point;
 #[macro_use]
 pub mod collections;
 
-pub mod approx_cmp;
 pub mod centroid;
 pub mod hyperplane;
 pub mod matrix;
@@ -58,11 +73,17 @@ pub mod which_side;
 pub use sign::Sign;
 pub use which_side::PointWhichSide;
 
+/// Approximate comparison tuned for doing geometric puzzle computations.
+pub const APPROX: Precision = Precision::DEFAULT;
+
 /// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {
-    pub use crate::approx_cmp::*;
+    pub use approx_collections::{self, ApproxHashMap, FloatPool, Precision};
+
     pub use crate::centroid::Centroid;
-    pub use crate::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange, IndexOverflow};
+    pub use crate::collections::{
+        GenericVec, IndexOutOfRange, IndexOverflow, MotorNearestNeighborMap, VecMap,
+    };
     pub use crate::hyperplane::*;
     pub use crate::matrix::*;
     pub use crate::permutations::{self, Parity};
@@ -71,17 +92,27 @@ pub mod prelude {
     pub use crate::traits::*;
     pub use crate::vector::*;
     pub use crate::which_side::*;
-    pub use crate::{AXIS_NAMES, EPSILON, Float, MAX_NDIM, pga, point, vector};
+    pub use crate::{APPROX, AXIS_NAMES, EPSILON, Float, MAX_NDIM, pga, point, vector};
 }
 pub use prelude::*;
 
 /// Traits only.
 pub mod traits {
-    pub use approx::AbsDiffEq;
+    pub use approx_collections::traits::*;
     pub use tinyset::Fits64;
 
-    pub use crate::collections::{ApproxHashMapKey, IndexNewtype, VecMap};
+    pub use crate::collections::IndexNewtype;
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;
     pub use crate::vector::VectorRef;
+}
+
+/// Returns `f` as an integer if it is approximately equal to one.
+pub fn to_approx_integer(f: Float) -> Option<i64> {
+    Some(f as i64).filter(|&i| APPROX.eq(f, i as Float))
+}
+
+/// Returns `f` as an unsigned integer if it is approximately equal to one.
+pub fn to_approx_unsigned_integer(f: Float) -> Option<u64> {
+    Some(f as u64).filter(|&i| APPROX.eq(f, i as Float))
 }

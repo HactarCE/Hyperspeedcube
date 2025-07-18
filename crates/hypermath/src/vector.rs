@@ -1,14 +1,15 @@
 //! N-dimensional vector math.
 
 use std::fmt;
+use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::*;
 
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::approx_cmp::is_approx_nonzero;
-use crate::{Float, util};
+use crate::{APPROX, Float, util};
 
 /// Constructs an N-dimensional vector, using the same syntax as `vec![]`.
 #[macro_export]
@@ -28,7 +29,7 @@ macro_rules! vector {
 pub struct Vector(pub SmallVec<[Float; 4]>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
-pub trait VectorRef: Sized + fmt::Debug {
+pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero {
     /// Converts the vector to a `Vector`.
     fn to_vector(&self) -> Vector {
         self.iter().collect()
@@ -106,12 +107,6 @@ pub trait VectorRef: Sized + fmt::Debug {
         self.iter().map(|x| x * scalar).collect()
     }
 
-    /// Returns whether two vectors are equal within `epsilon` on each
-    /// component.
-    fn approx_eq(&self, other: impl VectorRef, epsilon: Float) -> bool {
-        Vector::zip(self, other).all(|(l, r)| (l - r).abs() <= epsilon)
-    }
-
     /// Returns the component of the vector that is parallel to `other`.
     fn projected_to(&self, other: &Vector) -> Option<Vector> {
         let scale_factor = util::try_div(self.dot(other), other.mag2())?;
@@ -134,7 +129,7 @@ impl<V: VectorRef> Iterator for VectorIterNonzero<V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.range.find_map(|i| {
             let x = self.vector.get(i);
-            is_approx_nonzero(&x).then_some((i, x))
+            APPROX.ne_zero(x).then_some((i, x))
         })
     }
 }
@@ -163,35 +158,23 @@ impl VectorRef for Vector {
     }
 }
 
-impl<F: fmt::Debug + num_traits::Float> VectorRef for &[F] {
+impl VectorRef for &[Float] {
     fn ndim(&self) -> u8 {
         self.len().try_into().unwrap_or(u8::MAX)
     }
 
     fn get(&self, idx: u8) -> Float {
-        // We actually can't call the typical `.get()` here because the trait
-        // would match first. Whoops!
-        if idx < self.ndim() {
-            self[idx as usize].to_f64().unwrap_or(0.0) as Float
-        } else {
-            0.0
-        }
+        <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
     }
 }
 
-impl<const N: usize, F: fmt::Debug + num_traits::Float> VectorRef for [F; N] {
+impl<const N: usize> VectorRef for [Float; N] {
     fn ndim(&self) -> u8 {
         self.len().try_into().unwrap_or(u8::MAX)
     }
 
     fn get(&self, idx: u8) -> Float {
-        // We actually can't call the typical `.get()` here because the trait
-        // would match first. Whoops!
-        if idx < self.ndim() {
-            self[idx as usize].to_f64().unwrap_or(0.0) as Float
-        } else {
-            0.0
-        }
+        <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
     }
 }
 
@@ -367,15 +350,40 @@ impl Vector {
     }
 }
 
-impl approx::AbsDiffEq for Vector {
-    type Epsilon = Float;
+macro_rules! impl_vector_approx_eq {
+    (impl for $type:ty) => {
+        impl approx_collections::ApproxEq for $type {
+            fn approx_eq(&self, other: &Self, prec: approx_collections::Precision) -> bool {
+                $crate::Vector::zip(self, other).all(|(l, r)| prec.eq(l, r))
+            }
+        }
 
-    fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+        impl approx_collections::ApproxEqZero for $type {
+            fn approx_eq_zero(&self, prec: approx_collections::Precision) -> bool {
+                self.iter().all(|x| prec.eq_zero(x))
+            }
+        }
+    };
+}
+
+impl_vector_approx_eq!(impl for Vector);
+
+impl ApproxHash for Vector {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.0.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.approx_eq(other, epsilon)
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.0.interned_eq(&other.0)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (i, x) in self.iter().enumerate() {
+            if !x.interned_eq(&0.0) {
+                i.hash(state);
+                x.interned_hash(state);
+            }
+        }
     }
 }
 

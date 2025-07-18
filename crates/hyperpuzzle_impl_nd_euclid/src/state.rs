@@ -2,8 +2,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
-use hypermath::collections::GenericVec;
-use hypermath::idx_struct;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
@@ -12,7 +10,7 @@ use parking_lot::Mutex;
 use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
-idx_struct! {
+hypermath::idx_struct! {
     struct CachedTransform(usize);
 }
 
@@ -128,7 +126,7 @@ impl PuzzleState for NdEuclidPuzzleState {
             let normal_vector =
                 sticker_transform.transform(self.geom.sticker_plane(sticker).normal());
             match color_normals.get_mut(sticker_info.color) {
-                Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
+                Ok(Some(color_vector)) => APPROX.eq(&*color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {
                     *opt_color_plane = Some(normal_vector);
                     true
@@ -155,7 +153,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         let mut segments: Vec<(Float, Float)> = vec![];
         for (_layer, layer_info) in grip_layers {
             if let Some((_prev_top, prev_bottom)) = segments.last_mut() {
-                if approx_eq(&layer_info.top, prev_bottom) {
+                if APPROX.eq(layer_info.top, *prev_bottom) {
                     *prev_bottom = layer_info.bottom;
                     continue;
                 }
@@ -171,14 +169,14 @@ impl PuzzleState for NdEuclidPuzzleState {
                     return WhichSide::Split;
                 }
             };
-            for (segment_top, segment_bottom) in &segments {
-                if approx_lt_eq(segment_bottom, &piece_bottom)
-                    && approx_lt_eq(&piece_top, segment_top)
+            for &(segment_top, segment_bottom) in &segments {
+                if APPROX.lt_eq(segment_bottom, piece_bottom)
+                    && APPROX.lt_eq(piece_top, segment_top)
                 {
                     // piece is completely inside the layer segment
                     return WhichSide::Inside;
-                } else if approx_lt_eq(segment_top, &piece_bottom)
-                    || approx_lt_eq(&piece_top, segment_bottom)
+                } else if APPROX.lt_eq(segment_top, piece_bottom)
+                    || APPROX.lt_eq(piece_top, segment_bottom)
                 {
                     // piece is completely outside the layer segment
                     continue;
@@ -211,7 +209,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         floats.push(-Float::INFINITY);
         let mut i = 0;
         while i < floats.len() - 1 {
-            if approx_eq(&floats[i], &floats[i + 1]) {
+            if APPROX.eq(floats[i], floats[i + 1]) {
                 floats.remove(i);
             }
             i += 1;
@@ -224,15 +222,15 @@ impl PuzzleState for NdEuclidPuzzleState {
             let (min, max) = self.piece_min_max_on_axis(p, axis).ok()?;
             min_of_all_pieces = Float::min(min_of_all_pieces, min);
             max_of_all_pieces = Float::max(max_of_all_pieces, max);
-            floats.retain(|f| approx_lt_eq(f, &min) || approx_lt_eq(&max, f));
+            floats.retain(|&f| APPROX.lt_eq(f, min) || APPROX.lt_eq(max, f));
         }
 
         let (min, max) = self.piece_min_max_on_axis(piece, axis).ok()?;
-        let lo = *floats.iter().find(|&f| approx_lt_eq(f, &min))?;
-        let hi = *floats.iter().rfind(|&f| approx_lt_eq(&max, f))?;
+        let lo = *floats.iter().find(|&&f| APPROX.lt_eq(f, min))?;
+        let hi = *floats.iter().rfind(|&&f| APPROX.lt_eq(max, f))?;
 
         // This includes all pieces
-        if approx_lt_eq(&lo, &min_of_all_pieces) && approx_lt_eq(&max_of_all_pieces, &hi) {
+        if APPROX.lt_eq(lo, min_of_all_pieces) && APPROX.lt_eq(max_of_all_pieces, hi) {
             return None;
         }
 
@@ -294,7 +292,7 @@ impl NdEuclidPuzzleState {
             CachedTransformData::new(ident.clone(), puzzle_type.axes()),
         ])));
 
-        let mut by_motor = ApproxHashMap::new();
+        let mut by_motor = ApproxHashMap::new(APPROX);
         by_motor.insert(ident, CachedTransform(0));
         let cached_transform_by_motor = Arc::new(Mutex::new(by_motor));
 

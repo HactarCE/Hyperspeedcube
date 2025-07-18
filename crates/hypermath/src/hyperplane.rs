@@ -2,11 +2,9 @@
 
 use std::fmt;
 
-use crate::collections::approx_hashmap::{FloatHash, VectorHash};
-use crate::{
-    AXIS_NAMES, ApproxHashMapKey, Float, Point, PointWhichSide, Vector, VectorRef, approx_cmp,
-    is_approx_nonzero,
-};
+use approx_collections::{ApproxEq, ApproxHash, Precision};
+
+use crate::{APPROX, AXIS_NAMES, Float, Point, PointWhichSide, Vector, VectorRef};
 
 /// Hyperplane in Euclidean space, which is also used to represent a half-space.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +25,11 @@ impl fmt::Display for Hyperplane {
                 let i = i as usize;
                 (&AXIS_NAMES[i..i + 1], x)
             })
-            .chain(is_approx_nonzero(&self.distance).then_some(("", self.distance)));
+            .chain(
+                APPROX
+                    .ne_zero(&self.distance)
+                    .then_some(("", self.distance)),
+            );
         if let Some((axis, coef)) = terms.next() {
             write!(f, "{coef}{axis}")?;
         }
@@ -40,16 +42,25 @@ impl fmt::Display for Hyperplane {
     }
 }
 
-impl approx::AbsDiffEq for Hyperplane {
-    type Epsilon = Float;
+impl ApproxEq for Hyperplane {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        prec.eq(&self.normal, &other.normal) && prec.eq(self.distance, other.distance)
+    }
+}
 
-    fn default_epsilon() -> Self::Epsilon {
-        crate::EPSILON
+impl ApproxHash for Hyperplane {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.normal.intern_floats(f);
+        self.distance.intern_floats(f);
     }
 
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.normal.approx_eq(&other.normal, epsilon)
-            && (self.distance - other.distance).abs() <= epsilon
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.normal.interned_eq(&other.normal) && self.distance.interned_eq(&other.distance)
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.normal.interned_hash(state);
+        self.distance.interned_hash(state);
     }
 }
 
@@ -108,7 +119,7 @@ impl Hyperplane {
     /// Returns the location of a point based on its height above or below the
     /// plane.
     fn location_of_point_from_signed_distance(h: Float) -> PointWhichSide {
-        match approx_cmp(&h, &0.0) {
+        match APPROX.cmp_zero(h) {
             std::cmp::Ordering::Less => PointWhichSide::Inside,
             std::cmp::Ordering::Equal => PointWhichSide::On,
             std::cmp::Ordering::Greater => PointWhichSide::Outside,
@@ -148,14 +159,4 @@ pub struct HyperplaneLineIntersection {
     /// Intersection point of the line segment and hyperplane, if the line
     /// segment touches the hyperplane.
     pub intersection: Option<Point>,
-}
-
-impl ApproxHashMapKey for Hyperplane {
-    type Hash = VectorHash;
-
-    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        let mut v = self.normal.clone();
-        v.0.insert(0, self.distance);
-        v.approx_hash(float_hash_fn)
-    }
 }

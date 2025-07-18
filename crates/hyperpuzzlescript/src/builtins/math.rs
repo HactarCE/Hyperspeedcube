@@ -3,7 +3,7 @@
 use std::f64::consts::{PI, TAU};
 
 use ecow::eco_format;
-use hypermath::{approx_cmp, approx_gt, approx_gt_eq, approx_lt, approx_lt_eq};
+use hypermath::APPROX;
 
 use crate::{Builtins, Error, Num, Result};
 
@@ -35,10 +35,10 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("**", |_, a: Num, b: Num| -> Num { a.powf(b) }),
         ("°", |_, n: Num| -> Num { n.to_radians() }),
         // Number comparisons
-        ("<", |_, a: Num, b: Num| -> bool { approx_lt(&a, &b) }),
-        (">", |_, a: Num, b: Num| -> bool { approx_gt(&a, &b) }),
-        ("<=", |_, a: Num, b: Num| -> bool { approx_lt_eq(&a, &b) }),
-        (">=", |_, a: Num, b: Num| -> bool { approx_gt_eq(&a, &b) }),
+        ("<", |_, a: Num, b: Num| -> bool { APPROX.lt(a, b) }),
+        (">", |_, a: Num, b: Num| -> bool { APPROX.gt(a, b) }),
+        ("<=", |_, a: Num, b: Num| -> bool { APPROX.lt_eq(a, b) }),
+        (">=", |_, a: Num, b: Num| -> bool { APPROX.gt_eq(a, b) }),
     ])?;
 
     builtins.set_fns(hps_fns![
@@ -61,7 +61,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         // Number functions
         ("abs", |_, x: Num| -> Num { x.abs() }),
         ("sign", |_, x: Num| -> Num {
-            match approx_cmp(&x, &0.0) {
+            match APPROX.cmp_zero(x) {
                 std::cmp::Ordering::Greater => 1.0,
                 std::cmp::Ordering::Equal if x.is_sign_positive() => 0.0,
                 std::cmp::Ordering::Equal => -0.0,
@@ -84,7 +84,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("at_least", |_, a: Num, b: Num| -> Num { a.max(b) }),
         ("at_most", |_, a: Num, b: Num| -> Num { a.min(b) }),
         ("clamp", |ctx, x: Num, bound1: Num, bound2: Num| -> Num {
-            match approx_cmp(&bound1, &bound2) {
+            match APPROX.cmp(bound1, bound2) {
                 std::cmp::Ordering::Less => x.clamp(bound1, bound2),
                 std::cmp::Ordering::Equal => bound1,
                 std::cmp::Ordering::Greater => {

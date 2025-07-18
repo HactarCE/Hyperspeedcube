@@ -1,8 +1,8 @@
 use std::fmt;
+use std::hash::Hash;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
-use hypermath::collections::approx_hashmap::{FloatHash, VectorHash};
-use hypermath::{ApproxHashMapKey, Float, Hyperplane, Point, TransformByMotor};
+use hypermath::prelude::*;
 use hyperpuzzle_core::LayerMask;
 use hyperpuzzlescript::{Builtins, ND_EUCLID, Result, TryEq, hps_fns, impl_simple_custom_type};
 use itertools::Itertools;
@@ -141,64 +141,66 @@ impl TransformByMotor for HpsRegion {
     }
 }
 
-impl ApproxHashMapKey for HpsRegion {
-    type Hash = (Vec<VectorHash>, String);
+impl ApproxEq for HpsRegion {
+    fn approx_eq(&self, other: &Self, prec: Precision) -> bool {
+        match (self, other) {
+            (HpsRegion::None, HpsRegion::None) => true,
+            (HpsRegion::All, HpsRegion::All) => true,
+            (HpsRegion::HalfSpace(h1), HpsRegion::HalfSpace(h2)) => prec.eq(h1, h2),
+            (HpsRegion::And(r1), HpsRegion::And(r2)) => prec.eq(r1, r2),
+            (HpsRegion::Or(r1), HpsRegion::Or(r2)) => prec.eq(r1, r2),
+            (HpsRegion::Xor(r1), HpsRegion::Xor(r2)) => prec.eq(r1, r2),
+            (HpsRegion::Not(r1), HpsRegion::Not(r2)) => prec.eq(r1, r2),
 
-    fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        // Hyperplanes that factor into the region.
-        let mut planes = vec![];
-
-        // Serialization of the tree of operations to construct the region.
-        let mut ast_structure = String::new();
-
-        hash_region(&mut float_hash_fn, &mut planes, &mut ast_structure, self);
-        (planes, ast_structure)
+            (HpsRegion::None, _) | (_, HpsRegion::None) => false,
+            (HpsRegion::All, _) | (_, HpsRegion::All) => false,
+            (HpsRegion::HalfSpace(_), _) | (_, HpsRegion::HalfSpace(_)) => false,
+            (HpsRegion::And(_), _) | (_, HpsRegion::And(_)) => false,
+            (HpsRegion::Or(_), _) | (_, HpsRegion::Or(_)) => false,
+            (HpsRegion::Xor(_), _) | (_, HpsRegion::Xor(_)) => false,
+        }
     }
 }
 
-fn hash_region(
-    float_hash_fn: &mut impl FnMut(Float) -> FloatHash,
-    planes: &mut Vec<VectorHash>,
-    ast_structure: &mut String,
-    r: &HpsRegion,
-) {
-    // The hash needs to be unambigous, but we never have to decode it, so this
-    // is essentially a silly little domain-specific language.
-    match r {
-        HpsRegion::None => ast_structure.push('_'),
-        HpsRegion::All => ast_structure.push('*'),
-        HpsRegion::HalfSpace(h) => {
-            ast_structure.push('h');
-            planes.push(h.approx_hash(float_hash_fn));
+impl ApproxHash for HpsRegion {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        match self {
+            HpsRegion::None | HpsRegion::All => (),
+            HpsRegion::HalfSpace(h) => h.intern_floats(f),
+            HpsRegion::And(r) | HpsRegion::Or(r) | HpsRegion::Xor(r) => r.intern_floats(f),
+            HpsRegion::Not(r) => r.intern_floats(f),
         }
-        HpsRegion::And(xs) => {
-            // `&XYZ.` = intersection of X, Y, and Z
-            ast_structure.push('&');
-            for x in xs {
-                hash_region(float_hash_fn, planes, ast_structure, x);
-            }
-            ast_structure.push('.');
+    }
+
+    fn interned_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (HpsRegion::None, HpsRegion::None) => true,
+            (HpsRegion::All, HpsRegion::All) => true,
+            (HpsRegion::HalfSpace(h1), HpsRegion::HalfSpace(h2)) => h1.interned_eq(h2),
+            (HpsRegion::And(r1), HpsRegion::And(r2))
+            | (HpsRegion::Or(r1), HpsRegion::Or(r2))
+            | (HpsRegion::Xor(r1), HpsRegion::Xor(r2)) => r1.interned_eq(r2),
+            (HpsRegion::Not(r1), HpsRegion::Not(r2)) => r1.interned_eq(r2),
+
+            (HpsRegion::None, _)
+            | (HpsRegion::All, _)
+            | (HpsRegion::HalfSpace(_), _)
+            | (HpsRegion::And(_), _)
+            | (HpsRegion::Or(_), _)
+            | (HpsRegion::Xor(_), _)
+            | (HpsRegion::Not(_), _) => false,
         }
-        HpsRegion::Or(xs) => {
-            // `|XYZ.` = union of X, Y, and Z
-            ast_structure.push('|');
-            for x in xs {
-                hash_region(float_hash_fn, planes, ast_structure, x);
-            }
-            ast_structure.push('.');
-        }
-        HpsRegion::Xor(xs) => {
-            // `^XYZ.` = symmetric difference of X, Y, and Z
-            ast_structure.push('^');
-            for x in xs {
-                hash_region(float_hash_fn, planes, ast_structure, x);
-            }
-            ast_structure.push('.');
-        }
-        HpsRegion::Not(x) => {
-            // `~X` = complement of X
-            ast_structure.push('~');
-            hash_region(float_hash_fn, planes, ast_structure, x);
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            HpsRegion::None | HpsRegion::All => (),
+            HpsRegion::HalfSpace(hyperplane) => hyperplane.interned_hash(state),
+            HpsRegion::And(hps_regions)
+            | HpsRegion::Or(hps_regions)
+            | HpsRegion::Xor(hps_regions) => hps_regions.interned_hash(state),
+            HpsRegion::Not(hps_region) => hps_region.interned_hash(state),
         }
     }
 }

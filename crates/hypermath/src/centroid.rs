@@ -4,7 +4,7 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
-use super::{Float, Point, Vector, approx_eq, is_approx_positive};
+use crate::{APPROX, Float, Point, Vector};
 
 /// Centroid and Lebasgue measure of a polytope element. In simpler terms: the
 /// "center of mass" and "N-dimensional mass" of a polytope element.
@@ -70,7 +70,7 @@ impl Centroid {
     }
     /// Returns the centroid point.
     pub fn center(&self) -> Point {
-        if is_approx_positive(&self.weight) {
+        if APPROX.is_pos(self.weight) {
             Point(&self.weighted_center / self.weight)
         } else {
             Point::ORIGIN
@@ -82,6 +82,6 @@ impl Centroid {
     }
     /// Returns whether the weight is zero.
     pub fn is_zero(&self) -> bool {
-        approx_eq(&self.weight, &0.0)
+        APPROX.eq_zero(self.weight)
     }
 }

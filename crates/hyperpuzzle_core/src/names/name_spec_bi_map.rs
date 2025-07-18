@@ -1,7 +1,6 @@
 use std::ops::Index;
 
-use hypermath::collections::GenericVec;
-use hypermath::{IndexNewtype, IndexOutOfRange};
+use hypermath::{GenericVec, IndexNewtype, IndexOutOfRange};
 
 use super::*;
 

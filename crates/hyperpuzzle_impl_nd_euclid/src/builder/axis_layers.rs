@@ -16,8 +16,8 @@ impl AxisLayersBuilder {
     pub fn ensure_monotonic(&self) -> Result<()> {
         let mut last_depth = Float::INFINITY;
         for layer_info in self.0.iter_values() {
-            let AxisLayerBuilder { top, bottom } = layer_info;
-            if !(approx_gt_eq(&last_depth, top) && approx_gt(top, bottom)) {
+            let &AxisLayerBuilder { top, bottom } = layer_info;
+            if !(APPROX.gt_eq(last_depth, top) && APPROX.gt(top, bottom)) {
                 let depths = self
                     .0
                     .iter_values()
@@ -25,7 +25,7 @@ impl AxisLayersBuilder {
                     .collect_vec();
                 bail!("axis layers {depths:?} are not sorted from outermost to innermost");
             }
-            last_depth = *bottom;
+            last_depth = bottom;
         }
         Ok(())
     }

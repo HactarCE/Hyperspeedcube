@@ -6,7 +6,7 @@ use std::ops::{Add, BitXorAssign, Mul};
 use itertools::Itertools;
 use num_traits::{CheckedShl, PrimInt, Unsigned};
 
-use crate::Float;
+use crate::{APPROX, Float};
 
 /// Linearly interpolates (unclamped) between two values.
 pub fn lerp<A, T>(a: A, b: A, t: T) -> <A::Output as Add>::Output
@@ -63,7 +63,7 @@ where
 
 /// Returns the reciprocal of `x` if `x` is nonzero; otherwise returns `None`.
 pub fn try_recip(x: Float) -> Option<Float> {
-    crate::is_approx_nonzero(&x).then(|| x.recip())
+    APPROX.ne_zero(x).then(|| x.recip())
 }
 
 /// Returns the square root of `n` if the result is finite; otherwise returns

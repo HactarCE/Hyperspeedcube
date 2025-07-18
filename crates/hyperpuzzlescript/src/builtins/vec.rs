@@ -1,7 +1,7 @@
 //! Operators and functions for operating on vectors.
 
 use ecow::eco_format;
-use hypermath::{Vector, VectorRef, is_approx_nonzero, vector};
+use hypermath::{APPROX, Vector, VectorRef, vector};
 
 use crate::{Builtins, Error, FnType, Map, Num, Result, Span, Type, Value, ValueData};
 
@@ -106,7 +106,7 @@ pub(super) fn construct_from_args(span: Span, args: &[Value], kwargs: Map) -> Re
             );
             let mut ret = vector![];
             for (i, n) in [x, y, z, w, v, u, t].iter().enumerate() {
-                if is_approx_nonzero(&n) {
+                if APPROX.ne_zero(n) {
                     ret.resize_and_set(i as u8, n);
                 }
             }
