@@ -9,12 +9,9 @@ use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
+use super::{HpsAxis, HpsPuzzle, HpsSymmetry, HpsTwistSystem, Names};
 use crate::builder::AxisSystemBuilder;
 use crate::hps::orbit_names::HpsOrbitNames;
-
-use super::HpsAxis;
-
-use super::{HpsPuzzle, HpsSymmetry, HpsTwistSystem, Names};
 
 /// HPS axis system builder.
 #[derive(Clone, PartialEq, Eq)]

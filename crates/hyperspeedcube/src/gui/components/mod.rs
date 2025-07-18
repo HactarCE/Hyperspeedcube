@@ -1,11 +1,11 @@
 #[macro_use]
 mod combo_boxes;
-// mod keybinds;
 mod ariadne;
 mod color_widgets;
 mod dnd;
 mod filter_checkbox;
 mod hint;
+// mod keybinds;
 mod layer_mask;
 pub mod prefs;
 mod presets;
@@ -14,13 +14,13 @@ mod tag_menu;
 mod text_edit_popup;
 mod yaml_editor;
 
+pub use ariadne::*;
 pub use color_widgets::*;
 pub use combo_boxes::*;
-// pub use keybinds::*;
-pub use ariadne::*;
 pub use dnd::*;
 pub use filter_checkbox::*;
 pub use hint::*;
+// pub use keybinds::*;
 pub use layer_mask::*;
 pub use prefs::PrefsUi;
 pub use presets::*;

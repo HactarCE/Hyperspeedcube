@@ -5,10 +5,9 @@ use itertools::Itertools;
 use serde::Serialize;
 use serde::ser::SerializeMap;
 
-use crate::Version;
-
 use super::menu::UnknownTag;
 use super::{TagData, TagValue};
+use crate::Version;
 
 /// Set of tags and associated values for an object in the catalog.
 #[derive(Debug, Default, Clone, PartialEq)]
