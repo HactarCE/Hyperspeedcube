@@ -157,7 +157,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
     /// Toggles the popup and returns whether it is now open.
     pub fn toggle(&mut self, initial_value: String) -> bool {
         if self.is_open() {
-            self.ctx.memory_mut(|mem| mem.close_popup());
+            self.ctx.memory_mut(|mem| mem.close_popup(self.new_name.id));
             false
         } else {
             self.open(initial_value);
@@ -219,21 +219,21 @@ impl<'v, 's> TextEditPopup<'v, 's> {
                                 if !self.auto_confirm
                                     || ui.input(|input| input.key_pressed(egui::Key::Enter))
                                 {
-                                    ui.memory_mut(|mem| mem.close_popup());
+                                    ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
                                 }
                             }
                         }
                         if let Some(validator) = self.validate_delete {
                             if validated_button(ui, "🗑", validator(s), false) {
                                 response = Some(TextEditPopupResponse::Delete);
-                                ui.memory_mut(|mem| mem.close_popup());
+                                ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
                             }
                         }
                     });
 
                     let inner_response = inner(ui);
                     if inner_response.is_some() {
-                        ui.memory_mut(|mem| mem.close_popup());
+                        ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
                     }
                     if response.is_none() {
                         response = inner_response;
@@ -247,7 +247,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
                 || ui.input(|input| input.key_pressed(egui::Key::Escape))
             {
                 response = Some(TextEditPopupResponse::Cancel);
-                ui.memory_mut(|mem| mem.close_popup());
+                ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
             }
         }
 

@@ -29,7 +29,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
             ..Default::default()
         },
         fragment_target: Some(wgpu::ColorTargetState {
-            format: wgpu::TextureFormat::Rgba16Float,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             blend: Some(wgpu::BlendState {
                 color: blend_component!(Add(src * Constant, dst * One)),
                 alpha: blend_component!(Add(src * Constant, dst * One)),

@@ -176,7 +176,6 @@ fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                 ))
                                 .clicked()
                             {
-                                ui.close_menu();
                                 state.puzzle = Some(Arc::clone(&puz));
                                 state.loaded_orbit = Some(orbit.clone());
                                 state.names_and_order = orbit.sorted_ids_and_names(&puz);

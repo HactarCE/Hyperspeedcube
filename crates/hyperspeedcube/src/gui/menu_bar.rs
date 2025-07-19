@@ -1,10 +1,11 @@
+use egui::containers::menu::{MenuButton, MenuConfig};
 use hyperpuzzle::ScrambleType;
 
 use super::{AppUi, Tab};
 use crate::L;
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
-    egui::menu::bar(ui, |ui| {
+    egui::MenuBar::new().ui(ui, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             const PROGRAM: &str = concat!("HSC v", env!("CARGO_PKG_VERSION"));
             let version_text = egui::RichText::new(PROGRAM).small();
@@ -61,21 +62,17 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         if ui.button(L.menu.file.open).clicked()
             && app_ui.confirm_discard(L.confirm_discard.open_another_file)
         {
-            ui.close_menu();
             app_ui.app.open_file();
         }
         ui.separator();
         if ui.button(L.menu.file.save).clicked() {
-            ui.close_menu();
             app_ui.app.save_file();
         }
         if ui.button(L.menu.file.save_as).clicked() {
-            ui.close_menu();
             app_ui.app.save_file_as();
         }
         ui.separator();
         if ui.button(L.menu.file.copy_hsc).clicked() {
-            ui.close_menu();
             if let Some(copy_text) = app_ui.app.serialize_puzzle_log() {
                 ui.ctx().copy_text(copy_text);
             }
@@ -83,11 +80,10 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         // let _ = ui.button(L.menu.file.copy_log);
         ui.separator();
         if ui.button(L.menu.file.exit).clicked() && app_ui.confirm_discard(L.confirm_discard.exit) {
-            ui.close_menu();
             todo!("exit, but not on web");
         }
     });
-    ui.menu_button(L.menu.edit.title, |ui| {
+    menu_button_that_stays_open(L.menu.edit.title, ui, |ui| {
         let undo_button = egui::Button::new(L.menu.edit.undo_twist);
         if ui.add_enabled(app_ui.app.has_undo(), undo_button).clicked() {
             app_ui.app.undo();
@@ -100,42 +96,42 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         if ui.button(L.menu.edit.reset_puzzle).clicked()
             && app_ui.confirm_discard(L.confirm_discard.reset_puzzle)
         {
+            ui.close();
             app_ui.app.reset_puzzle();
-            ui.close_menu();
         }
     });
-    ui.menu_button(L.menu.scramble.title, |ui| {
+    menu_button_that_stays_open(L.menu.scramble.title, ui, |ui| {
         let can_scramble = app_ui
             .app
             .active_puzzle
             .with_view(|view| view.puzzle().can_scramble())
             .unwrap_or(false);
         let full_scramble_button = egui::Button::new(L.menu.scramble.full);
-        if ui.add_enabled(can_scramble, full_scramble_button).clicked()
-            && app_ui.confirm_discard(L.confirm_discard.scramble)
-        {
-            app_ui.app.scramble(ScrambleType::Full);
-            ui.close_menu();
+        if ui.add_enabled(can_scramble, full_scramble_button).clicked() {
+            ui.close();
+            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+                app_ui.app.scramble(ScrambleType::Full);
+            }
         }
         ui.separator();
         let scramble_1_button = egui::Button::new(L.menu.scramble.one);
-        if ui.add_enabled(can_scramble, scramble_1_button).clicked()
-            && app_ui.confirm_discard(L.confirm_discard.scramble)
-        {
-            app_ui.app.scramble(ScrambleType::Partial(1));
-            ui.close_menu();
+        if ui.add_enabled(can_scramble, scramble_1_button).clicked() {
+            ui.close();
+            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+                app_ui.app.scramble(ScrambleType::Partial(1));
+            }
         }
         let scramble_2_button = egui::Button::new(L.menu.scramble.two);
-        if ui.add_enabled(can_scramble, scramble_2_button).clicked()
-            && app_ui.confirm_discard(L.confirm_discard.scramble)
-        {
-            app_ui.app.scramble(ScrambleType::Partial(2));
-            ui.close_menu();
+        if ui.add_enabled(can_scramble, scramble_2_button).clicked() {
+            ui.close();
+            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+                app_ui.app.scramble(ScrambleType::Partial(2));
+            }
         }
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Scrambler);
     });
-    ui.menu_button(L.menu.settings.title, |ui| {
+    menu_button_that_stays_open(L.menu.settings.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Colors);
         show_tab_toggle(ui, app_ui, Tab::Styles);
         show_tab_toggle(ui, app_ui, Tab::View);
@@ -148,7 +144,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         // TODO: add "auto" mode that follows OS
         egui::global_theme_preference_buttons(ui);
     });
-    ui.menu_button(L.menu.tools.title, |ui| {
+    menu_button_that_stays_open(L.menu.tools.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Camera);
         show_tab_toggle(ui, app_ui, Tab::PieceFilters);
         show_tab_toggle(ui, app_ui, Tab::Timer);
@@ -164,7 +160,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
-    ui.menu_button(L.menu.puzzles.title, |ui| {
+    menu_button_that_stays_open(L.menu.puzzles.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, Tab::PuzzleCatalog);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
@@ -179,13 +175,13 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.menu_button(L.menu.puzzles.custom, |ui| {
             if let Ok(hps_dir) = hyperpaths::hps_dir() {
                 if ui.button(L.menu.puzzles.show_hps_dir).clicked() {
-                    ui.close_menu();
+                    ui.close();
                     crate::open_dir(hps_dir);
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]
             if ui.button(L.menu.puzzles.extract_hps).clicked() {
-                ui.close_menu();
+                ui.close();
                 if let Some(mut dir_path) = rfd::FileDialog::new()
                     .set_title(L.menu.puzzles.extract_hps)
                     .pick_folder()
@@ -202,7 +198,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             show_tab_toggle(ui, app_ui, Tab::DevTools);
         });
     });
-    ui.menu_button(L.menu.help.title, |ui| {
+    menu_button_that_stays_open(L.menu.help.title, ui, |ui| {
         ui.heading(L.menu.help.guides);
         let _ = ui.button("Welcome");
         show_tab_toggle(ui, app_ui, Tab::About);
@@ -210,7 +206,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
     });
     #[cfg(debug_assertions)]
-    ui.menu_button(L.menu.debug.title, |ui| {
+    menu_button_that_stays_open(L.menu.debug.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Debug);
     });
 }
@@ -219,4 +215,14 @@ fn menu_button_width(ui: &egui::Ui, text: &str) -> f32 {
     super::util::text_width(ui, text)
         + ui.spacing().button_padding.x * 2.0
         + ui.spacing().item_spacing.x
+}
+
+fn menu_button_that_stays_open<'a, R>(
+    atoms: impl egui::IntoAtoms<'a>,
+    ui: &mut egui::Ui,
+    content: impl FnOnce(&mut egui::Ui) -> R,
+) -> (egui::Response, Option<egui::InnerResponse<R>>) {
+    MenuButton::new(atoms)
+        .config(MenuConfig::default().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
+        .ui(ui, content)
 }

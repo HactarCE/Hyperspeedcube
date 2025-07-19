@@ -834,15 +834,7 @@ fn show_nd_euclid_puzzle_view(
     ui.painter().rect_filled(r.rect, 0.0, background_color);
 
     match nd_euclid.renderer.draw_puzzle(&draw_params) {
-        Ok(out) => {
-            // egui expects sRGB colors in the shader, so we have to read the
-            // sRGB texture as though it were linear to prevent the GPU from
-            // doing gamma conversion.
-            ret.texture_view = Some(out.texture.create_view(&wgpu::TextureViewDescriptor {
-                format: Some(out.texture.format().remove_srgb_suffix()),
-                ..Default::default()
-            }));
-        }
+        Ok(out) => ret.texture_view = Some(out.texture.create_view(&Default::default())),
         Err(e) => log::error!("{e}"),
     };
 
@@ -956,7 +948,7 @@ fn show_color_edit_popup(
         if (clicked_elsewhere && !is_first_frame)
             || ui.input(|input| input.key_pressed(egui::Key::Escape))
         {
-            ui.memory_mut(|mem| mem.close_popup());
+            ui.memory_mut(|mem| mem.close_popup(editing_color.id));
         }
     }
 

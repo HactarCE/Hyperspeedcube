@@ -1,5 +1,6 @@
 use std::sync::{Arc, mpsc};
 
+use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use markdown::md;
 
@@ -272,8 +273,8 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         tab.title()
     }
 
-    fn on_close(&mut self, _tab: &mut Self::Tab) -> bool {
-        true
+    fn on_close(&mut self, _tab: &mut Self::Tab) -> OnCloseResponse {
+        OnCloseResponse::Close
     }
 
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {

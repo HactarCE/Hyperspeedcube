@@ -326,7 +326,7 @@ impl NdEuclidPuzzleRenderer {
         let output_buffer_ref = Arc::clone(&output_buffer);
         self.gfx
             .device
-            .poll(wgpu::Maintain::wait_for(self.gfx.submit()));
+            .poll(wgpu::PollType::wait_for(self.gfx.submit()))?;
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             result.expect("error mapping buffer slice");
             let data = output_buffer_ref.slice(..).get_mapped_range();
@@ -336,7 +336,7 @@ impl NdEuclidPuzzleRenderer {
                     .ok_or_eyre("error constructing image buffer"),
             );
         });
-        self.gfx.device.poll(wgpu::Maintain::Wait);
+        self.gfx.device.poll(wgpu::PollType::Wait)?;
         output_buffer.unmap();
 
         rx.recv_timeout(std::time::Duration::from_secs(5))?
@@ -1009,9 +1009,21 @@ impl NdEuclidPuzzleRenderer {
             edge_ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
         });
 
+        // We have to store sRGB values in a non-sRGB texture because egui wants
+        // to trick the GPU into doing blending in sRGB space.
+        // https://github.com/emilk/egui/pull/7311
+        //
+        // So even though the texture is non-sRGB (because that's what egui
+        // wants), we tell the GPU to treat it like it's an sRGB texture so that
+        // we store sRGB values in there.
+        let target_texture = &self.buffers.composite_texture.texture;
+        let target_texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(target_texture.format().add_srgb_suffix()),
+            ..Default::default()
+        });
         let mut render_pass = pipelines::render_composite_puzzle::PassParams {
             clear,
-            target: &self.buffers.composite_texture.view,
+            target: &target_texture_view,
         }
         .begin_pass(&mut encoder);
 
@@ -1263,7 +1275,7 @@ struct_with_constructor! {
                 composite_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("composite_texture"),
-                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureFormat::Rgba8Unorm,
                     wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
 
@@ -1271,7 +1283,7 @@ struct_with_constructor! {
                 effects_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("effects_texture"),
-                    wgpu::TextureFormat::Rgba16Float,
+                    wgpu::TextureFormat::Rgba8Unorm,
                     wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 )
             }

@@ -505,7 +505,7 @@ fn show_ad_hoc_preset_name(
     current: &Option<FilterPresetRef>,
 ) -> egui::Response {
     let rect = egui::Rect::from_x_y_ranges(ui.max_rect().x_range(), rect.y_range());
-    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
         let r = ui
             .with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 ui.selectable_label(current.is_none(), L.piece_filters.tabs.ad_hoc)

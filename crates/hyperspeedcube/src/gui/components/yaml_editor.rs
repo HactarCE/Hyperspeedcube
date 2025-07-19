@@ -49,7 +49,7 @@ where
         let r = ui
             .add_sized(
                 BIG_ICON_BUTTON_SIZE,
-                egui::SelectableLabel::new(self.is_open(ui), "✏"),
+                egui::Button::selectable(self.is_open(ui), "✏"),
             )
             .on_i18n_hover_explanation(&L.edit_as_plaintext);
         if r.clicked() {

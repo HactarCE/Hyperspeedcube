@@ -211,6 +211,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                             |ui| {
                                                 show_puzzle_generator_ui(
                                                     ui,
+                                                    popup_id,
                                                     app,
                                                     &puzzle_generator,
                                                     popup_data,
@@ -251,6 +252,7 @@ impl PuzzleGeneratorPopupData {
 
 fn show_puzzle_generator_ui(
     ui: &mut egui::Ui,
+    popup_id: egui::Id,
     app: &mut App,
     puzzle_generator: &PuzzleSpecGenerator,
     popup_data: &mut PuzzleGeneratorPopupData,
@@ -271,7 +273,7 @@ fn show_puzzle_generator_ui(
     }
 
     if ui.button(L.catalog.generate_puzzle).clicked() {
-        ui.memory_mut(|mem| mem.close_popup());
+        ui.memory_mut(|mem| mem.close_popup(popup_id));
         let puzzle_id = hyperpuzzle::generated_id(&puzzle_generator.meta.id, &popup_data.params);
         app.load_puzzle(&puzzle_id);
     };
@@ -404,7 +406,11 @@ impl<'a> Query<'a> {
         }
     }
 
-    fn text_layouter(ui: &egui::Ui, string: &str, wrap_width: f32) -> Arc<egui::Galley> {
+    fn text_layouter(
+        ui: &egui::Ui,
+        buffer: &dyn egui::TextBuffer,
+        wrap_width: f32,
+    ) -> Arc<egui::Galley> {
         let text_font_id = egui::TextStyle::Body.resolve(ui.style());
         let tag_font_id = egui::TextStyle::Monospace.resolve(ui.style());
 
@@ -432,7 +438,7 @@ impl<'a> Query<'a> {
         let mut job = egui::text::LayoutJob::default();
         job.wrap.max_width = wrap_width;
 
-        let query = Query::from_str(string);
+        let query = Query::from_str(buffer.as_str());
         for segment in &query.segments {
             match segment {
                 QuerySegment::Whitespace(_) | QuerySegment::Word(_) => {
