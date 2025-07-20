@@ -189,7 +189,7 @@ fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                         return;
                     };
 
-                    uis[0].menu_button("Copy Hps code", |ui| {
+                    uis[0].menu_button("Copy HPS code", |ui| {
                         let r = ui.button("Compact");
                         let text_to_copy = r.clicked().then(|| {
                             hyperpuzzlescript::codegen::orbit_hps_code(
@@ -508,7 +508,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                     ));
                 }
                 if !missing_tags.is_empty() {
-                    if ui.button("Copy Hps code to exclude tags").clicked() {
+                    if ui.button("Copy HPS code to exclude tags").clicked() {
                         let text = missing_tags
                             .iter()
                             .filter_map(|tag| tag.iter().exactly_one().ok())

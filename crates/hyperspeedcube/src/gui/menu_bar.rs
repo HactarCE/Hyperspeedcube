@@ -189,7 +189,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                     dir_path.push("hps");
                     match hyperpuzzlescript::extract_builtin_files(&dir_path) {
                         Ok(()) => crate::open_dir(&dir_path),
-                        Err(e) => log::error!("Error extracting built-in Hps files: {e}"),
+                        Err(e) => log::error!("Error extracting built-in HPS files: {e}"),
                     }
                 }
             }
