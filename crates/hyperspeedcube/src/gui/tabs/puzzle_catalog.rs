@@ -441,8 +441,8 @@ impl<'a> Query<'a> {
         let query = Query::from_str(buffer.as_str());
         for segment in &query.segments {
             match segment {
-                QuerySegment::Whitespace(_) | QuerySegment::Word(_) => {
-                    job.append(&segment.to_string(), 0.0, basic_text_format.clone());
+                QuerySegment::Whitespace(s) | QuerySegment::Word(s) => {
+                    append_to_job(&mut job, &segment.to_string(), basic_text_format.clone());
                 }
                 QuerySegment::Tag {
                     prefix,
@@ -453,17 +453,17 @@ impl<'a> Query<'a> {
                         Ok(_) => &symbol_text_format,
                         Err(_) => &error_text_format,
                     };
-                    job.append(prefix, 0.0, value_text_format.clone());
-                    job.append("#", 0.0, tag_name_text_format.clone());
-                    job.append(tag_name, 0.0, tag_name_text_format.clone());
+                    append_to_job(&mut job, prefix, value_text_format.clone());
+                    append_to_job(&mut job, "#", tag_name_text_format.clone());
+                    append_to_job(&mut job, tag_name, tag_name_text_format.clone());
                     if let Some(value) = value {
                         let value_text_format =
                             match value.starts_with('"') && !value.ends_with('"') {
                                 true => &error_text_format,
                                 false => &value_text_format,
                             };
-                        job.append("=", 0.0, value_text_format.clone());
-                        job.append(value, 0.0, value_text_format.clone());
+                        append_to_job(&mut job, "=", value_text_format.clone());
+                        append_to_job(&mut job, value, value_text_format.clone());
                     }
                 }
             }
@@ -561,10 +561,10 @@ impl egui::Widget for SubstringQueryMatch<'_> {
         let mut job = egui::text::LayoutJob::default();
         let start = self.range.start;
         let end = self.range.end;
-        job.append("#", 0.0, unmatch_text_format.clone());
-        job.append(&self.string[..start], 0.0, unmatch_text_format.clone());
-        job.append(&self.string[self.range], 0.0, match_text_format);
-        job.append(&self.string[end..], 0.0, unmatch_text_format);
+        append_to_job(&mut job, "#", unmatch_text_format.clone());
+        append_to_job(&mut job, &self.string[..start], unmatch_text_format.clone());
+        append_to_job(&mut job, &self.string[self.range], match_text_format);
+        append_to_job(&mut job, &self.string[end..], unmatch_text_format);
         ui.selectable_label(false, job)
     }
 }
@@ -622,7 +622,7 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
                 egui::TextStyle::Button.resolve(ui.style()),
                 ui.visuals().widgets.inactive.text_color(),
             );
-            job.append(name, 0.0, normal_text_format);
+            append_to_job(&mut job, name, normal_text_format);
         }
 
         if let Some(m) = self.additional_match {
@@ -630,9 +630,9 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
                 egui::TextStyle::Small.resolve(ui.style()),
                 ui.visuals().widgets.inactive.text_color(),
             );
-            job.append(
+            append_to_job(
+                &mut job,
                 &format!("\n{ADDITIONAL_MATCH_INDENT}{}: ", m.property_name),
-                0.0,
                 text_format,
             );
             render_fuzzy_match(
@@ -686,15 +686,15 @@ fn render_fuzzy_match(
 
     let mut i = 0;
     for c in match_info.continuous_matches() {
-        job.append(&s[i..c.start()], 0.0, unmatch_text_format.clone());
-        job.append(
+        append_to_job(job, &s[i..c.start()], unmatch_text_format.clone());
+        append_to_job(
+            job,
             &s[c.start()..c.start() + c.len()],
-            0.0,
             match_text_format.clone(),
         );
         i = c.start() + c.len();
     }
-    job.append(&s[i..], 0.0, unmatch_text_format);
+    append_to_job(job, &s[i..], unmatch_text_format);
 }
 
 fn unmatch_text_format(ui: &egui::Ui, font_id: egui::FontId) -> egui::TextFormat {
@@ -702,4 +702,11 @@ fn unmatch_text_format(ui: &egui::Ui, font_id: egui::FontId) -> egui::TextFormat
 }
 fn match_text_format(ui: &egui::Ui, font_id: egui::FontId) -> egui::TextFormat {
     egui::TextFormat::simple(font_id.clone(), ui.visuals().strong_text_color())
+}
+
+fn append_to_job(job: &mut egui::text::LayoutJob, s: &str, format: egui::TextFormat) {
+    // Workaround for https://github.com/emilk/egui/issues/7378
+    if !s.is_empty() {
+        job.append(s, 0.0, format);
+    }
 }
