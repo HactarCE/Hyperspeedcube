@@ -40,6 +40,18 @@ export fn new(t: Transform) -> Map {
         "{BL}" = [0, "BR"],
         "{BD}" = [1, "BL"],
     })
+
+    export vertex_pole = sym.xoo.unit * √3
+    export vertex_names = sym.names(point(vertex_pole), #{
+        "{FUR}" = [],
+        "{FUL}" = [0, "FUR"],
+        "{FDR}" = [1, "FUL"],
+        "{FDL}" = [0, "FDR"],
+        "{BUR}" = [2, "FDR"],
+        "{BUL}" = [2, "FDL"],
+        "{BDR}" = [1, "BUL"],
+        "{BDL}" = [0, "BDR"],
+    })
 }
 
 export facet_colors_list = [

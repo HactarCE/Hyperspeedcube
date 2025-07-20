@@ -162,6 +162,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         fn transform(transform: Motor, object: Point) -> Point {
             transform.transform(&object)
         }
+        fn transform(transform: Motor, object: Hyperplane) -> Hyperplane {
+            transform.transform(&object)
+        }
 
         /// Returns a transformed motor, preserving its orientation.
         fn transform_oriented(transform: Motor, object: Motor) -> Motor {

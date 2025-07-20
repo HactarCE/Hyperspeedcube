@@ -46,6 +46,23 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             let args = CutArgs::carve(StickerMode::FromNames(color_names), region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
+        fn remove_pieces(ctx: EvalCtx, region: HpsRegion) -> () {
+            let shape = HpsShape::get(ctx)?;
+            let mut shape_guard = shape.lock();
+
+            let ctx_symmetry = HpsSymmetry::get(ctx)?;
+            let regions = match ctx_symmetry {
+                Some(sym) => sym.orbit(region).into_iter().map(|(_, _, r)| r).collect(),
+                None => vec![region],
+            };
+
+            let pieces_to_remove = shape_guard
+                .active_pieces_in_region(|point| regions.iter().any(|r| r.contains_point(point)))
+                .collect_vec();
+            for p in pieces_to_remove {
+                shape_guard.active_pieces.remove(&p);
+            }
+        }
 
         #[kwargs(region: Option<HpsRegion>)]
         fn slice(ctx: EvalCtx, plane: Hyperplane) -> Option<HpsColor> {
@@ -127,11 +144,11 @@ impl HpsShape {
         let mut this = self.lock();
 
         let (gen_seqs, transforms, cut_planes): (Vec<_>, Vec<_>, Vec<_>) = match ctx_symmetry {
-            Some(sym) => sym.orbit(plane).into_iter().multiunzip(),
+            Some(sym) => sym.orbit((plane, args.region)).into_iter().multiunzip(),
             None => (
                 vec![AbbrGenSeq::INIT],
                 vec![Motor::ident(this.ndim())],
-                vec![plane],
+                vec![(plane, args.region)],
             ),
         };
 
@@ -173,12 +190,12 @@ impl HpsShape {
                     });
                 }
                 drop(this);
-                self.cut_all(args.mode, args.region, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
             }
             None => {
                 let colors = std::iter::repeat(fixed_color);
                 drop(this);
-                self.cut_all(args.mode, args.region, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
             }
         }
         .at(span)?
@@ -191,19 +208,17 @@ impl HpsShape {
     fn cut_all(
         &self,
         mode: CutMode,
-        region: Option<HpsRegion>,
-        orbit: impl IntoIterator<Item = (Hyperplane, Option<Color>)>,
+        orbit: impl IntoIterator<Item = ((Hyperplane, Option<HpsRegion>), Option<Color>)>,
     ) -> eyre::Result<Option<Color>> {
         let mut first_color = None;
 
         let mut this = self.lock();
 
-        let piece_set = region.as_ref().map(|r| {
-            this.active_pieces_in_region(|point| r.contains_point(point))
-                .collect()
-        });
-
-        for (cut_plane, color) in orbit {
+        for ((cut_plane, region), color) in orbit {
+            let piece_set = region.as_ref().map(|r| {
+                this.active_pieces_in_region(|point| r.contains_point(point))
+                    .collect()
+            });
             first_color.get_or_insert(color);
             match mode {
                 CutMode::Carve => this.carve(piece_set.as_ref(), cut_plane, color)?,

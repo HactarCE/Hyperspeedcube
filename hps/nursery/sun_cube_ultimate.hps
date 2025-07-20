@@ -1,0 +1,32 @@
+use * from euclid
+
+// Issues:
+// - `ouch` should be zero, but that messes up the colors
+// - pentagons need to be unbandaged + fudged
+ouch = 0.001
+add_puzzle(
+    id = "sun_cube_ultimate",
+    version = "0.0.1",
+    name = "Sun Cube Ultimate",
+    aliases = ["Compass Cube"],
+    engine = "euclid",
+    ndim = 3,
+    colors = "cube",
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        d = 0.5
+        with #sym = cube.sym {
+            fn ccw45(fix) { rot(fix=fix.vec, angle=π/4) }
+            fn diag_cut(fix, a, _b) { ccw45(fix).transform(plane(a.vec.unit * d)) }
+
+            carve(plane(cube.sym.vec(vec(0, 2, ouch)).unit), cube.facet_names)
+            a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
+            t = add_twist(a, rot(fix=a.vec, angle=-45°), gizmo_pole_distance=1)
+            slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
+
+            // use R, L, U, F from #axes
+            // oblique_region = F[1] & U[1] & ~R[1] & ~diag_cut(F, R, U).region() & diag_cut(F, U, L).region() & diag_cut(F, U, L).region() & ~diag_cut(U, L, F).region()
+            // oblique_region.remove_pieces()
+        }
+    }
+)

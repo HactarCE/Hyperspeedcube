@@ -1,0 +1,52 @@
+use * from euclid
+
+// issues:
+// - unnecessary outlines
+// - name jumble turns `URFj`
+add_puzzle(
+    id = "rapture_dino_cube",
+    version = "0.0.1",
+    name = "Rapture Dino Cube",
+    engine = "euclid",
+    ndim = 3,
+    colors = "cube",
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        d = 0.55
+        with #sym = cube.sym {
+            carve(plane(cube.sym.vec(vec(2, 0, 3)).unit), cube.facet_names)
+            a = add_axis(cube.vertex_pole, cube.vertex_names)
+            a.add_layers([∞, d])
+            t = add_twist(a, rot(fix=a.vec, angle=-60°), gizmo_pole_distance = 1)
+            slice(
+                (t.transform * cube.sym.thru([0, 2, 1, 0])).transform(plane(a.vec, d)),
+                region=a[1],
+            )
+            slice(
+                (t.transform * cube.sym.thru([0])).transform(plane(a.vec, d)),
+                region=a[1] & (t.transform * cube.sym.thru([0, 2, 1, 0])).transform(a[1]),
+            )
+        }
+    }
+)
+
+// issues:
+// - unnecessary outlines
+add_puzzle(
+    id = "raptor_cube",
+    version = "0.0.1",
+    name = "Raptor Cube",
+    engine = "euclid",
+    ndim = 3,
+    colors = "cube",
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        d = 0.5
+        with #sym = cube.sym {
+            carve(plane(cube.sym.vec(vec(2, 0, 3)).unit), cube.facet_names)
+            a = add_axis(cube.vertex_pole, cube.vertex_names)
+            a.add_layers([∞, d])
+            t = add_twist(a, rot(fix=a.vec, angle=-120°), gizmo_pole_distance = 1)
+        }
+    }
+)

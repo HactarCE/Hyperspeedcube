@@ -1,0 +1,53 @@
+use * from euclid
+
+// issues:
+// - bandaging on Dj R2 Uj' Rj' F*
+// - 45-degree `Rj`
+// - multistage scrambling
+// - center orientation hints
+add_puzzle(
+    id = "bagua_cube",
+    version = "0.0.1",
+    name = "Bague Cube",
+    engine = "euclid",
+    ndim = 3,
+    colors = "cube",
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        d = 0.46
+
+        fn ccw45(fix) { rot(fix=fix.vec, angle=π/4) }
+        fn diag_cut(fix, a, _b) { ccw45(fix).transform(plane(a.vec.unit * d)) }
+
+        with #sym = cube.sym {
+            carve(plane(cube.facet_pole), cube.facet_names)
+            a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
+            t = add_twist(a, ccw45(a), gizmo_pole_distance=1)
+            use R, L, U, F from #axes
+            UF_edge_region = F[1] & ~L[1] & ~R[1]
+            slice(diag_cut(F, R, U), region=UF_edge_region)
+            // slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
+            // TODO: unbandage the triangles
+        }
+    }
+)
+
+add_puzzle(
+    id = "baguaminx",
+    version = "0.0.1",
+    name = "Baguaminx",
+    engine = "euclid",
+    ndim = 3,
+    colors = "dodecahedron",
+    build = fn() {
+        cube = @shapes/h/dodecahedron.new()
+        d = 0.8
+        with #sym = cube.sym {
+            carve(plane(cube.facet_pole), cube.facet_names)
+            a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
+            t = add_twist(a, rot(fix=a.vec, angle=-36°), gizmo_pole_distance=1)
+            slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
+            // TODO: unbandage the triangles
+        }
+    }
+)
