@@ -281,9 +281,9 @@ dependencies = [
 
 [[package]]
 name = "approx_collections"
-version = "3.0.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17106f14063fbe77ffcee73cc8a0b7405a23df40237e5eedc42d7af0c306e782"
+checksum = "8111b688f1c88d840919d02f871e1c3efdfc3238e3b5ae8c1de0f3aa9037a337"
 dependencies = [
  "rustc-hash 2.1.1",
  "smallvec",

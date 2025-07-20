@@ -769,6 +769,37 @@ impl<T: TransformByMotor> TransformByMotor for Vec<T> {
     }
 }
 
+impl<T: TransformByMotor> TransformByMotor for Option<T> {
+    fn transform_by(&self, m: &Motor) -> Self {
+        self.as_ref().map(|inner| inner.transform_by(m))
+    }
+}
+
+macro_rules! impl_for_tuples {
+    ($impl_macro:ident) => {
+        $impl_macro!(T0; 0);
+        $impl_macro!(T0, T1; 0, 1);
+        $impl_macro!(T0, T1, T2; 0, 1, 2);
+        $impl_macro!(T0, T1, T2, T3; 0, 1, 2, 3);
+        $impl_macro!(T0, T1, T2, T3, T4; 0, 1, 2, 3, 4);
+        $impl_macro!(T0, T1, T2, T3, T4, T5; 0, 1, 2, 3, 4, 5);
+        $impl_macro!(T0, T1, T2, T3, T4, T5, T6; 0, 1, 2, 3, 4, 5, 6);
+        $impl_macro!(T0, T1, T2, T3, T4, T5, T6, T7; 0, 1, 2, 3, 4, 5, 6, 7);
+        $impl_macro!(T0, T1, T2, T3, T4, T5, T6, T7, T8; 0, 1, 2, 3, 4, 5, 6, 7, 8);
+        $impl_macro!(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9; 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    };
+}
+macro_rules! impl_transform_by_motor_for_tuple {
+    ($($generic_param:ident),+; $($index:tt),+) => {
+        impl<$($generic_param: TransformByMotor,)+> TransformByMotor for ($($generic_param,)+) {
+            fn transform_by(&self, m: &Motor) -> Self {
+                ($(self.$index.transform_by(m),)+)
+            }
+        }
+    };
+}
+impl_for_tuples!(impl_transform_by_motor_for_tuple);
+
 fn triple_geometric_product(terms: [Term; 3]) -> Option<Term> {
     let [a, b, c] = terms;
     let tmp = Term::geometric_product(a, b)?;

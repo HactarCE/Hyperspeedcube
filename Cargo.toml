@@ -76,7 +76,7 @@ hyperstats = { path = "crates/hyperstats" }
 hyperstrings = { path = "crates/hyperstrings" }
 
 # Data structures
-approx_collections = { version = "3.0.0" }
+approx_collections = { version = "3.1.0" }
 ball-tree = { version = "0.5.1" }
 bitflags = { version = "2.9.1" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
