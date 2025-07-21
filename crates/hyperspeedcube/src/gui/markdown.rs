@@ -348,7 +348,7 @@ fn render_inline_no_recurse(
 ) {
     match &node.data.borrow().value {
         comrak::nodes::NodeValue::Text(s) => job.append(s, 0.0, state.text_format()),
-        comrak::nodes::NodeValue::SoftBreak => (),
+        comrak::nodes::NodeValue::SoftBreak => job.append(" ", 0.0, state.text_format()),
         comrak::nodes::NodeValue::LineBreak => job.append("\n", 0.0, state.text_format()),
         comrak::nodes::NodeValue::Code(code_node) => {
             state.code = true;
