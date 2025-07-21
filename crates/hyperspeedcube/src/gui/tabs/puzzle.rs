@@ -570,7 +570,7 @@ fn show_gizmo_face(
     show_other_faces_on_same_gizmo: bool,
 ) {
     let strong_color = egui::Color32::LIGHT_BLUE;
-    let weak_color = strong_color.linear_multiply(0.05);
+    let weak_color = strong_color.linear_multiply(1.0 / 3.0);
     let stroke_weak = egui::Stroke::new(2.0, weak_color);
     let stroke_strong = egui::Stroke::new(2.0, strong_color);
     let fill = weak_color;
