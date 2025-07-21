@@ -1,6 +1,8 @@
 //! Name specifications, used for puzzle elements such as axes, twists, and
 //! colors.
 //!
+//! TODO: revamp this; use only `_` for separators, and link to SiGN standards
+//!
 //! - Whitespace characters are never allowed
 //! - Characters other than whitespace or ASCII punctuation are always literal
 //! - `'` is always literal
