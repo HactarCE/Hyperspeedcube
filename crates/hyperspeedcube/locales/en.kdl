@@ -629,6 +629,7 @@ help {
     **Replay files** contain additional information about exactly how you executed moves, what moves were undone and redone, and when.
     **Replay files** may be required for speedsolving verification.
   """
+  cant_save_replay "⚠ This solve was not loaded from a replay file so it cannot be saved as one."
   custom_piece_styles """
     # Custom piece styles
 

@@ -190,6 +190,10 @@ impl PuzzleSimulation {
             .as_ref()
             .is_some_and(|scramble| scramble.ty == ScrambleType::Full)
     }
+    /// Returns whether the solve has replay events.
+    pub fn has_replay(&self) -> bool {
+        self.replay.is_some()
+    }
 
     /// Resets the puzzle state and replay log.
     pub fn reset(&mut self) {
@@ -817,6 +821,9 @@ impl PuzzleSimulation {
                 &LogEvent::Scramble { time } => {
                     log::trace!("Applying scramble {scramble:?}");
                     ret.reset();
+                    if !is_replay {
+                        ret.replay = None;
+                    }
                     ret.scramble = scramble.clone();
                     ret.replay_event(ReplayEvent::Scramble { time });
                 }

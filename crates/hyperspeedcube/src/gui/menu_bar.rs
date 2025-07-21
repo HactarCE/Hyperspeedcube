@@ -65,30 +65,39 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             app_ui.app.open_file();
         }
         ui.separator();
-        let save_buttons_scope = ui.scope(|ui| {
+        let (has_puzzle, has_replay) = app_ui
+            .app
+            .active_puzzle
+            .with_sim(|sim| (true, sim.has_replay()))
+            .unwrap_or((false, false));
+        let save_buttons_scope = ui.add_enabled_ui(has_puzzle, |ui| {
             if ui.button(L.menu.file.save_log).clicked() {
                 app_ui.app.save_file(false);
             }
             if ui.button(L.menu.file.save_log_as).clicked() {
                 app_ui.app.save_file_as(false);
             }
-            if ui.button(L.menu.file.save_replay).clicked() {
-                app_ui.app.save_file(true);
-            }
-            if ui.button(L.menu.file.save_replay_as).clicked() {
-                app_ui.app.save_file_as(true);
-            }
+            ui.add_enabled_ui(has_replay, |ui| {
+                if ui.button(L.menu.file.save_replay).clicked() {
+                    app_ui.app.save_file(true);
+                }
+                if ui.button(L.menu.file.save_replay_as).clicked() {
+                    app_ui.app.save_file_as(true);
+                }
+            });
             ui.separator();
             if ui.button(L.menu.file.copy_hsc_log).clicked() {
                 if let Some(copy_text) = app_ui.app.serialize_puzzle_log(false) {
                     ui.ctx().copy_text(copy_text);
                 }
             }
-            if ui.button(L.menu.file.copy_hsc_replay).clicked() {
-                if let Some(copy_text) = app_ui.app.serialize_puzzle_log(false) {
-                    ui.ctx().copy_text(copy_text);
+            ui.add_enabled_ui(has_replay, |ui| {
+                if ui.button(L.menu.file.copy_hsc_replay).clicked() {
+                    if let Some(copy_text) = app_ui.app.serialize_puzzle_log(true) {
+                        ui.ctx().copy_text(copy_text);
+                    }
                 }
-            }
+            });
         });
 
         if save_buttons_scope.response.contains_pointer() {
@@ -101,7 +110,12 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                 ),
             )
             .gap(0.0)
-            .show(|ui| md(ui, L.help.log_vs_replay));
+            .show(|ui| {
+                md(ui, L.help.log_vs_replay);
+                if has_puzzle && !has_replay {
+                    ui.colored_label(ui.visuals().warn_fg_color, L.help.cant_save_replay);
+                }
+            });
         }
 
         ui.separator();
