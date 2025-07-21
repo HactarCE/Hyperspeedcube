@@ -229,14 +229,14 @@ pub enum LogEvent {
     #[kdl(name = "scramble")]
     Scramble {
         /// Event timestamp.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** Click of the mouse cursor on the puzzle.
     #[kdl(name = "click")]
     Click {
         /// Event timestamp.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
         /// Layer mask gripped.
         #[kdl(property("layers"), proxy = KdlProxy)]
@@ -257,7 +257,7 @@ pub enum LogEvent {
     #[kdl(name = "drag-twist")]
     DragTwist {
         /// Event timestamp.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
         /// Axis that was twisted.
         #[kdl(property("axis"))]
@@ -273,14 +273,14 @@ pub enum LogEvent {
     #[kdl(name = "undo")]
     Undo {
         /// Event timestamp.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** Redo of the most recent twist, twist group, or macro.
     #[kdl(name = "redo")]
     Redo {
         /// Event timestamp.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
     },
     /// Start of solve.
@@ -292,7 +292,7 @@ pub enum LogEvent {
     #[kdl(name = "start-solve")]
     StartSolve {
         /// Timestamp at which the solve started.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
         /// Number of milliseconds that the log had been open for, across all
         /// sessions, at the moment the solve started.
@@ -309,7 +309,7 @@ pub enum LogEvent {
     #[kdl(name = "end-solve")]
     EndSolve {
         /// Timestamp at which the solve ended.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
         /// Number of milliseconds that the log had been open for, across all
         /// sessions, at the moment the solve ended.
@@ -322,7 +322,7 @@ pub enum LogEvent {
     #[kdl(name = "start-session")]
     StartSession {
         /// Timestamp at which the session started.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** End of session.
@@ -331,7 +331,7 @@ pub enum LogEvent {
     #[kdl(name = "end-session")]
     EndSession {
         /// Timestamp at which the session ended.
-        #[kdl(property("time"), proxy = KdlProxy)]
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
         time: Option<Timestamp>,
     },
 }
