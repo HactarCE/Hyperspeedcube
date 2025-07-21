@@ -58,7 +58,9 @@ pub type LayerMaskUint = u32;
 pub const PUZZLE_ENGINE_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION"));
 
-/// Default length for a full scramble
+/// Default length for a full scramble.
+///
+/// **Changing this will break scramble compatibility for most puzzles.**
 pub const FULL_SCRAMBLE_LENGTH: u32 = 1000;
 
 /// Name of the default color scheme, if no other is specified.
