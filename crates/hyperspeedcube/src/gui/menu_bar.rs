@@ -2,7 +2,7 @@ use egui::containers::menu::{MenuButton, MenuConfig};
 use hyperpuzzle::ScrambleType;
 
 use super::{AppUi, Tab};
-use crate::L;
+use crate::{L, gui::markdown::md};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     egui::MenuBar::new().ui(ui, |ui| {
@@ -65,24 +65,51 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             app_ui.app.open_file();
         }
         ui.separator();
-        if ui.button(L.menu.file.save).clicked() {
-            app_ui.app.save_file();
-        }
-        if ui.button(L.menu.file.save_as).clicked() {
-            app_ui.app.save_file_as();
-        }
-        ui.separator();
-        if ui.button(L.menu.file.copy_hsc).clicked() {
-            if let Some(copy_text) = app_ui.app.serialize_puzzle_log() {
-                ui.ctx().copy_text(copy_text);
+        let save_buttons_scope = ui.scope(|ui| {
+            if ui.button(L.menu.file.save_log).clicked() {
+                app_ui.app.save_file(false);
             }
+            if ui.button(L.menu.file.save_log_as).clicked() {
+                app_ui.app.save_file_as(false);
+            }
+            if ui.button(L.menu.file.save_replay).clicked() {
+                app_ui.app.save_file(true);
+            }
+            if ui.button(L.menu.file.save_replay_as).clicked() {
+                app_ui.app.save_file_as(true);
+            }
+            ui.separator();
+            if ui.button(L.menu.file.copy_hsc_log).clicked() {
+                if let Some(copy_text) = app_ui.app.serialize_puzzle_log(false) {
+                    ui.ctx().copy_text(copy_text);
+                }
+            }
+            if ui.button(L.menu.file.copy_hsc_replay).clicked() {
+                if let Some(copy_text) = app_ui.app.serialize_puzzle_log(false) {
+                    ui.ctx().copy_text(copy_text);
+                }
+            }
+        });
+
+        if save_buttons_scope.response.contains_pointer() {
+            egui::Tooltip::always_open(
+                ui.ctx().clone(),
+                ui.layer_id(),
+                save_buttons_scope.response.id,
+                egui::PopupAnchor::Position(
+                    save_buttons_scope.response.rect.right_top() + egui::vec2(10.0, 0.0),
+                ),
+            )
+            .gap(0.0)
+            .show(|ui| md(ui, L.help.log_vs_replay));
         }
-        // let _ = ui.button(L.menu.file.copy_log);
+
         ui.separator();
         if ui.button(L.menu.file.exit).clicked() && app_ui.confirm_discard(L.confirm_discard.exit) {
             todo!("exit, but not on web");
         }
     });
+
     menu_button_that_stays_open(L.menu.edit.title, ui, |ui| {
         let undo_button = egui::Button::new(L.menu.edit.undo_twist);
         if ui.add_enabled(app_ui.app.has_undo(), undo_button).clicked() {

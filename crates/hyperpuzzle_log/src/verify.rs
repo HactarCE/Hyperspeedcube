@@ -55,7 +55,8 @@ fn verify_internal(
         return None; // didn't start by scrambling!
     };
 
-    let mut twist_groups: Vec<SmallVec<[LayeredTwist; 1]>> = vec![];
+    let mut undo_stack: Vec<SmallVec<[LayeredTwist; 1]>> = vec![];
+    let mut redo_stack: Vec<SmallVec<[LayeredTwist; 1]>> = vec![];
     let mut time_completed = None;
     let mut speedsolve_start = None;
     let mut speedsolve_end = None;
@@ -63,13 +64,15 @@ fn verify_internal(
     for event in log {
         match event {
             LogEvent::Scramble => return None, // don't scramble again!
-            LogEvent::Click { .. } => (),      // ignore interaction events
+            LogEvent::Click { .. } | LogEvent::DragTwist { .. } => (), // ignore interaction events
             LogEvent::Twists(twists_str) => {
                 for twist_group in notation::parse_grouped_twists(&puzzle.twists.names, twists_str)
                 {
-                    twist_groups.push(twist_group.into_iter().try_collect().ok()?);
+                    undo_stack.push(twist_group.into_iter().try_collect().ok()?);
                 }
             }
+            LogEvent::Undo => redo_stack.push(undo_stack.pop()?),
+            LogEvent::Redo => undo_stack.push(redo_stack.pop()?),
             LogEvent::StartSolve { time: _, duration } => {
                 speedsolve_start = *duration;
             }
@@ -83,6 +86,7 @@ fn verify_internal(
             }
         }
     }
+    let twist_groups = undo_stack;
     let time_completed = time_completed?; // must say when it was completed
 
     let mut twists_done;

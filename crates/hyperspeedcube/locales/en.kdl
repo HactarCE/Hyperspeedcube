@@ -82,9 +82,12 @@ menu {
     title "File"
     open "Open…"
     open_clipboard "Open from clipboard"
-    save "Save"
-    save_as "Save as…"
-    copy_hsc "Copy (.hsc)"
+    save_log "Save log file"
+    save_log_as "Save log file as…"
+    save_replay "Save replay file"
+    save_replay_as "Save replay file as…"
+    copy_hsc_log "Copy log (.hsc)"
+    copy_hsc_replay "Copy replay (.hsc)"
     copy_log "Copy (.log)"
     exit "Exit"
   }
@@ -619,6 +622,13 @@ puzzle_view {
 }
 
 help {
+  log_vs_replay """
+    **Log files** contain the initial scramble and the moves done to solve the puzzle.
+    A **log file** is sufficient to prove that you have solved the puzzle in a certain number of moves.
+
+    **Replay files** contain additional information about exactly how you executed moves, what moves were undone and redone, and when.
+    **Replay files** may be required for speedsolving verification.
+  """
   custom_piece_styles """
     # Custom piece styles
 

@@ -240,12 +240,27 @@ pub enum LogEvent {
         #[kdl(property("reverse"), default)]
         reverse: bool,
     },
+    /// **Replay-only.** Drag of the mouse cursor on the puzzle to execute a
+    /// twist. If no twist was executed, this event does not need to be
+    /// recorded.
+    #[kdl(name = "drag-twist")]
+    DragTwist {
+        /// Axis that was twisted.
+        #[kdl(property("axis"))]
+        axis: String,
+    },
     /// Sequence of twists separated by spaces.
     ///
     /// Twists grouped using parentheses were executed as a single action, and
     /// are undone/redone as a single action.
     #[kdl(name = "twists")]
     Twists(#[kdl(argument)] String),
+    /// **Replay-only.** Undo of the most recent twist, twist group, or macro.
+    #[kdl(name = "undo")]
+    Undo,
+    /// **Replay-only.** Redo of the most recent twist, twist group, or macro.
+    #[kdl(name = "redo")]
+    Redo,
     /// Start of solve.
     ///
     /// This marks the first time that a twist was made on the puzzle after

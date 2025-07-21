@@ -119,8 +119,8 @@ impl App {
             .pick_file()
     }
 
-    pub(crate) fn save_file(&mut self) {
-        if let Some(contents) = self.serialize_puzzle_log() {
+    pub(crate) fn save_file(&mut self, replay: bool) {
+        if let Some(contents) = self.serialize_puzzle_log(replay) {
             let last_file_path = self
                 .active_puzzle
                 .with_sim(|sim| sim.last_log_file.clone())
@@ -133,8 +133,8 @@ impl App {
             }
         }
     }
-    pub(crate) fn save_file_as(&mut self) {
-        if let Some(contents) = self.serialize_puzzle_log() {
+    pub(crate) fn save_file_as(&mut self, replay: bool) {
+        if let Some(contents) = self.serialize_puzzle_log(replay) {
             if let Some(path) = Self::prompt_file_save_path() {
                 // TODO: handle error
                 std::fs::write(path.clone(), contents);
@@ -143,8 +143,8 @@ impl App {
             }
         }
     }
-    pub(crate) fn serialize_puzzle_log(&mut self) -> Option<String> {
-        let solve = self.active_puzzle.with_sim(|sim| sim.serialize());
+    pub(crate) fn serialize_puzzle_log(&mut self, replay: bool) -> Option<String> {
+        let solve = self.active_puzzle.with_sim(|sim| sim.serialize(replay));
         Some(
             hyperpuzzle_log::LogFile {
                 program: Some(crate::PROGRAM.clone()),

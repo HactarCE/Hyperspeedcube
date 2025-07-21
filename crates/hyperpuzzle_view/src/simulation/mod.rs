@@ -8,7 +8,7 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_log::Scramble;
+use hyperpuzzle_log::{LogEvent, Scramble};
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
 use smallvec::smallvec;
 use web_time::{Duration, Instant};
@@ -267,7 +267,7 @@ impl PuzzleSimulation {
                 self.do_action(Action::EndSolve { time, duration });
             }
             ReplayEvent::GizmoClick { .. }
-            | ReplayEvent::DragTwist
+            | ReplayEvent::DragTwist { .. }
             | ReplayEvent::StartSession { .. }
             | ReplayEvent::EndSession { .. } => (),
         }
@@ -631,7 +631,8 @@ impl PuzzleSimulation {
                             layers: partial.layers,
                             transform: twist,
                         };
-                        self.do_event(ReplayEvent::DragTwist);
+                        let axis = partial.axis;
+                        self.do_event(ReplayEvent::DragTwist { axis });
                         self.do_event(ReplayEvent::Twists(smallvec![twist]));
                     } else {
                         // The identity twist is closer.
@@ -676,43 +677,84 @@ impl PuzzleSimulation {
     }
 
     /// Returns a log file as a string.
-    pub fn serialize(&self) -> hyperpuzzle_log::Solve {
+    pub fn serialize(&self, replay: bool) -> hyperpuzzle_log::Solve {
         let puz = self.puzzle_type();
 
         let mut log = vec![];
-        for action in &self.undo_stack {
-            match action {
-                Action::Scramble => log.push(hyperpuzzle_log::LogEvent::Scramble),
-                Action::Twists(twists) => {
-                    if twists.is_empty() {
-                        continue;
+        if replay {
+            for event in &self.replay {
+                log.push(match event {
+                    ReplayEvent::Undo => LogEvent::Undo,
+                    ReplayEvent::Redo => LogEvent::Redo,
+                    ReplayEvent::Scramble => LogEvent::Scramble,
+                    &ReplayEvent::GizmoClick {
+                        layers,
+                        target,
+                        reverse,
+                    } => LogEvent::Click {
+                        layers,
+                        target: puz.twists.names[target].to_string(),
+                        reverse,
+                    },
+                    &ReplayEvent::DragTwist { axis } => LogEvent::DragTwist {
+                        axis: puz.axes().names[axis].to_string(),
+                    },
+                    ReplayEvent::Twists(twists) => {
+                        let mut s = hyperpuzzle_log::notation::format_twists(
+                            &puz.twists.names,
+                            twists.iter().copied(),
+                        );
+                        if twists.len() > 1 {
+                            s.insert(0, '(');
+                            s.push(')');
+                        }
+                        LogEvent::Twists(s)
                     }
-                    let mut s = hyperpuzzle_log::notation::format_twists(
-                        &puz.twists.names,
-                        twists.iter().copied(),
-                    );
-                    if twists.len() > 1 {
-                        s.insert(0, '(');
-                        s.push(')');
+                    &ReplayEvent::StartSolve { time, duration } => {
+                        LogEvent::StartSolve { time, duration }
                     }
-                    if let Some(hyperpuzzle_log::LogEvent::Twists(twists_str)) = log.last_mut() {
-                        *twists_str += " ";
-                        *twists_str += &s;
-                    } else {
-                        log.push(hyperpuzzle_log::LogEvent::Twists(s));
+                    &ReplayEvent::EndSolve { time, duration } => {
+                        LogEvent::EndSolve { time, duration }
                     }
-                }
-                Action::StartSolve { time, duration } => {
-                    log.push(hyperpuzzle_log::LogEvent::StartSolve {
-                        time: *time,
-                        duration: *duration,
-                    });
-                }
-                Action::EndSolve { time, duration } => {
-                    log.push(hyperpuzzle_log::LogEvent::EndSolve {
-                        time: *time,
-                        duration: *duration,
-                    });
+                    &ReplayEvent::StartSession { time } => LogEvent::StartSession { time },
+                    &ReplayEvent::EndSession { time } => LogEvent::EndSession { time },
+                });
+            }
+        } else {
+            for action in &self.undo_stack {
+                match action {
+                    Action::Scramble => log.push(LogEvent::Scramble),
+                    Action::Twists(twists) => {
+                        if twists.is_empty() {
+                            continue;
+                        }
+                        let mut s = hyperpuzzle_log::notation::format_twists(
+                            &puz.twists.names,
+                            twists.iter().copied(),
+                        );
+                        if twists.len() > 1 {
+                            s.insert(0, '(');
+                            s.push(')');
+                        }
+                        if let Some(LogEvent::Twists(twists_str)) = log.last_mut() {
+                            *twists_str += " ";
+                            *twists_str += &s;
+                        } else {
+                            log.push(LogEvent::Twists(s));
+                        }
+                    }
+                    Action::StartSolve { time, duration } => {
+                        log.push(LogEvent::StartSolve {
+                            time: *time,
+                            duration: *duration,
+                        });
+                    }
+                    Action::EndSolve { time, duration } => {
+                        log.push(LogEvent::EndSolve {
+                            time: *time,
+                            duration: *duration,
+                        });
+                    }
                 }
             }
         }
@@ -746,13 +788,13 @@ impl PuzzleSimulation {
         let mut ret = Self::new(puzzle);
         for event in log {
             match event {
-                hyperpuzzle_log::LogEvent::Scramble => {
+                LogEvent::Scramble => {
                     log::trace!("Applying scramble {scramble:?}");
                     ret.reset();
                     ret.scramble = scramble.clone();
                     ret.replay_event(ReplayEvent::Scramble);
                 }
-                hyperpuzzle_log::LogEvent::Click {
+                LogEvent::Click {
                     layers,
                     target,
                     reverse,
@@ -767,7 +809,14 @@ impl PuzzleSimulation {
                         reverse: *reverse,
                     });
                 }
-                hyperpuzzle_log::LogEvent::Twists(twists_str) => {
+                LogEvent::DragTwist { axis } => {
+                    // TODO: handle errors
+                    let Some(axis) = puzzle.axes().names.id_from_name(axis) else {
+                        continue;
+                    };
+                    ret.replay_event(ReplayEvent::DragTwist { axis });
+                }
+                LogEvent::Twists(twists_str) => {
                     for group in hyperpuzzle_log::notation::parse_grouped_twists(
                         &puzzle.twists.names,
                         twists_str,
@@ -778,14 +827,16 @@ impl PuzzleSimulation {
                         ret.replay_event(ReplayEvent::Twists(group));
                     }
                 }
-                hyperpuzzle_log::LogEvent::StartSolve { time, duration } => {
+                LogEvent::Undo => ret.undo(),
+                LogEvent::Redo => ret.redo(),
+                LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
                     ret.replay_event(ReplayEvent::StartSolve {
                         time: *time,
                         duration: *duration,
                     });
                 }
-                hyperpuzzle_log::LogEvent::EndSolve { time, duration } => {
+                LogEvent::EndSolve { time, duration } => {
                     ret.solved = true;
                     ret.solved_state_handled = true;
                     ret.replay_event(ReplayEvent::EndSolve {
@@ -793,10 +844,10 @@ impl PuzzleSimulation {
                         duration: *duration,
                     });
                 }
-                hyperpuzzle_log::LogEvent::StartSession { time } => {
+                LogEvent::StartSession { time } => {
                     ret.replay_event(ReplayEvent::StartSession { time: *time });
                 }
-                hyperpuzzle_log::LogEvent::EndSession { time } => {
+                LogEvent::EndSession { time } => {
                     ret.replay_event(ReplayEvent::EndSession { time: *time });
                 }
             }

@@ -11,7 +11,7 @@ use crate::gui::util::EguiTempValue;
 
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {
-    solve: Solve,
+    replay: Solve,
     puzzle_name: String,
     file_path: PathBuf,
     file_name: String,
@@ -68,7 +68,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     &popup.file_path,
                     LogFile {
                         program: Some(crate::PROGRAM.clone()),
-                        solves: vec![popup.solve.clone()],
+                        solves: vec![popup.replay.clone()],
                     }
                     .serialize(),
                 ) {
@@ -94,13 +94,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     } else {
         app.active_puzzle.with_sim(|sim| {
             if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
-                let solve = sim.serialize();
+                let replay = sim.serialize(true);
                 let verification = hyperpuzzle_log::verify::verify_without_checking_solution(
                     &hyperpuzzle::catalog(),
-                    &solve,
+                    &replay,
                 )?;
                 let (file_path, file_name) = hyperpaths::solve_autosave_file(
-                    &solve.puzzle.id,
+                    &replay.puzzle.id,
                     &verification.time_completed.to_string(),
                     verification.solution_stm_count,
                 )
@@ -112,7 +112,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 }
 
                 solve_complete_popup.set(Some(Some(SolveCompletePopup {
-                    solve,
+                    replay,
                     puzzle_name: sim.puzzle_type().meta.name.clone(),
                     file_path,
                     file_name,

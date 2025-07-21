@@ -23,7 +23,10 @@ pub enum ReplayEvent {
     },
     /// Click and drag to execute a twist (does *not* actually apply the twist
     /// to the puzzle state)
-    DragTwist,
+    DragTwist {
+        /// Axis dragged.
+        axis: Axis,
+    },
     /// Twist applied to the puzzle state
     Twists(SmallVec<[LayeredTwist; 4]>),
     /// Start of a solve (first move after being scrambled)
