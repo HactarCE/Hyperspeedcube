@@ -22,12 +22,12 @@ pub enum TextEditPopupResponse<R = std::convert::Infallible> {
 
 /// Popup with a single-line text edit widget as well as several other optional
 /// widgets: a label, a confirm button, and a delete button.
-pub struct TextEditPopup<'v, 's> {
+pub struct TextEditPopup<'v, 's, 'p> {
     ctx: egui::Context,
     new_name: EguiTempValue<String>,
     is_first_frame: bool,
 
-    area: egui::Area,
+    popup: egui::Popup<'p>,
 
     label: Option<String>,
 
@@ -41,20 +41,25 @@ pub struct TextEditPopup<'v, 's> {
     validate_confirm: Option<TextEditValidator<'v, 's>>,
     validate_delete: Option<TextEditValidator<'v, 's>>,
 }
-impl<'v, 's> TextEditPopup<'v, 's> {
+impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     pub fn new(ui: &mut egui::Ui) -> Self {
         let ctx = ui.ctx().clone();
         let new_name = EguiTempValue::new(ui);
-        let area = egui::Area::new(new_name.id.with("area"))
-            .order(egui::Order::Middle)
-            .constrain_to(ui.ctx().available_rect());
+        let popup_id = new_name.id.with("popup");
+        let popup = egui::Popup::new(
+            popup_id,
+            ui.ctx().clone(),
+            egui::PopupAnchor::Pointer,
+            egui::LayerId::new(egui::Order::Middle, popup_id),
+        )
+        .open_memory(None);
 
         Self {
             ctx,
             new_name,
             is_first_frame: false,
 
-            area,
+            popup,
 
             label: None,
 
@@ -77,14 +82,16 @@ impl<'v, 's> TextEditPopup<'v, 's> {
     }
 
     pub fn below(mut self, r: &egui::Response) -> Self {
-        self.area = self.area.fixed_pos(r.rect.left_bottom());
+        self.popup = self.popup.anchor(egui::PopupAnchor::ParentRect(r.rect));
         self
     }
     // TODO: modify `over()` to handle the case where the label is up against
     //       the right side of the UI, then review uses of `at()`
     pub fn at(mut self, ui: &mut egui::Ui, r: &egui::Response, fudge: egui::Vec2) -> Self {
         let padding = ui.spacing().window_margin.left_top() + ui.spacing().button_padding + fudge;
-        self.area = self.area.fixed_pos(r.rect.left_top() - padding);
+        self.popup = self
+            .popup
+            .anchor(egui::PopupAnchor::Position(r.rect.left_top() - padding));
         self
     }
     /// Same as `at()` but sets width as well.
@@ -151,13 +158,13 @@ impl<'v, 's> TextEditPopup<'v, 's> {
     }
     /// Keeps the popup open, assuming it was already open.
     pub fn keep_open(&mut self, initial_value: String) {
-        self.ctx.memory_mut(|mem| mem.open_popup(self.new_name.id));
+        egui::Popup::open_id(&self.ctx, self.popup.get_id());
         self.new_name.set(Some(initial_value));
     }
     /// Toggles the popup and returns whether it is now open.
     pub fn toggle(&mut self, initial_value: String) -> bool {
         if self.is_open() {
-            self.ctx.memory_mut(|mem| mem.close_popup(self.new_name.id));
+            egui::Popup::close_id(&self.ctx, self.popup.get_id());
             false
         } else {
             self.open(initial_value);
@@ -165,7 +172,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
         }
     }
     pub fn is_open(&self) -> bool {
-        self.ctx.memory(|mem| mem.is_popup_open(self.new_name.id))
+        egui::Popup::is_id_open(&self.ctx, self.popup.get_id())
     }
 
     /// Shows the text edit popup if it is open.
@@ -182,72 +189,69 @@ impl<'v, 's> TextEditPopup<'v, 's> {
     ) -> Option<TextEditPopupResponse<R>> {
         let mut response = None;
 
-        if self.is_open() {
-            let area_response = self.area.show(ui.ctx(), |ui| {
-                egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_height(BIG_ICON_BUTTON_SIZE.y);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        if let Some(label) = self.label {
-                            ui.strong(label);
-                        }
+        let popup_id = self.popup.get_id();
+        let popup_response = self.popup.show(|ui| {
+            ui.set_height(BIG_ICON_BUTTON_SIZE.y);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                if let Some(label) = self.label {
+                    ui.strong(label);
+                }
 
-                        let mut s = self.new_name.get().unwrap_or_default();
-                        let mut text_edit = egui::TextEdit::singleline(&mut s);
-                        if let Some(align) = self.text_edit_align {
-                            text_edit = text_edit.horizontal_align(align);
-                        }
-                        if self.text_edit_monospace {
-                            text_edit = text_edit.font(egui::TextStyle::Monospace);
-                        }
-                        if let Some(w) = self.text_edit_width {
-                            text_edit = text_edit.desired_width(w);
-                        }
-                        if let Some(hint_text) = self.text_edit_hint_text {
-                            text_edit = text_edit.hint_text(hint_text);
-                        }
-                        let r = text_edit.show(ui);
-                        if self.is_first_frame {
-                            crate::gui::util::focus_and_select_all(ui, r);
-                        }
-                        self.new_name.set(Some(s.clone()));
+                let mut s = self.new_name.get().unwrap_or_default();
+                let mut text_edit = egui::TextEdit::singleline(&mut s);
+                if let Some(align) = self.text_edit_align {
+                    text_edit = text_edit.horizontal_align(align);
+                }
+                if self.text_edit_monospace {
+                    text_edit = text_edit.font(egui::TextStyle::Monospace);
+                }
+                if let Some(w) = self.text_edit_width {
+                    text_edit = text_edit.desired_width(w);
+                }
+                if let Some(hint_text) = self.text_edit_hint_text {
+                    text_edit = text_edit.hint_text(hint_text);
+                }
+                let r = text_edit.show(ui);
+                if self.is_first_frame {
+                    crate::gui::util::focus_and_select_all(ui, r);
+                }
+                self.new_name.set(Some(s.clone()));
 
-                        let s = if self.text_edit_trim { s.trim() } else { &s };
-                        if let Some(validator) = self.validate_confirm {
-                            if self.auto_confirm || validated_button(ui, "✔", validator(s), true)
-                            {
-                                response = Some(TextEditPopupResponse::Confirm(s.to_string()));
-                                if !self.auto_confirm
-                                    || ui.input(|input| input.key_pressed(egui::Key::Enter))
-                                {
-                                    ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
-                                }
-                            }
+                let s = if self.text_edit_trim { s.trim() } else { &s };
+                if let Some(validator) = self.validate_confirm {
+                    if self.auto_confirm || validated_button(ui, "✔", validator(s), true) {
+                        response = Some(TextEditPopupResponse::Confirm(s.to_string()));
+                        if !self.auto_confirm
+                            || ui.input(|input| input.key_pressed(egui::Key::Enter))
+                        {
+                            ui.close();
                         }
-                        if let Some(validator) = self.validate_delete {
-                            if validated_button(ui, "🗑", validator(s), false) {
-                                response = Some(TextEditPopupResponse::Delete);
-                                ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
-                            }
-                        }
-                    });
-
-                    let inner_response = inner(ui);
-                    if inner_response.is_some() {
-                        ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
                     }
-                    if response.is_none() {
-                        response = inner_response;
+                }
+                if let Some(validator) = self.validate_delete {
+                    if validated_button(ui, "🗑", validator(s), false) {
+                        response = Some(TextEditPopupResponse::Delete);
+                        ui.close();
                     }
-                });
+                }
             });
 
-            let clicked_elsewhere =
-                crate::gui::util::clicked_elsewhere(ui, &area_response.response);
+            let inner_response = inner(ui);
+            if inner_response.is_some() {
+                ui.close();
+            }
+            if response.is_none() {
+                response = inner_response;
+            }
+        });
+
+        if let Some(r) = popup_response {
+            let clicked_elsewhere = crate::gui::util::clicked_elsewhere(ui, &r.response);
             if (clicked_elsewhere && !self.is_first_frame)
                 || ui.input(|input| input.key_pressed(egui::Key::Escape))
             {
                 response = Some(TextEditPopupResponse::Cancel);
-                ui.memory_mut(|mem| mem.close_popup(self.new_name.id));
+                egui::Popup::close_id(&self.ctx, popup_id);
             }
         }
 

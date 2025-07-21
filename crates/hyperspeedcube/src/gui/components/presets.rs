@@ -145,7 +145,7 @@ where
             .selectable_label(is_current, &elided_preset_name)
             .interact(egui::Sense::drag());
 
-        if elided_preset_name != preset_name && !ui.memory(|mem| mem.any_popup_open()) {
+        if elided_preset_name != preset_name && !egui::Popup::is_any_open(ui.ctx()) {
             r = r.on_hover_text(preset_name);
         }
 
@@ -241,7 +241,7 @@ where
 
                 dnd.disable_ui_if_dragging(ui);
                 let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
-                if !ui.memory(|mem| mem.any_popup_open()) {
+                if !egui::Popup::is_any_open(ui.ctx()) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
 

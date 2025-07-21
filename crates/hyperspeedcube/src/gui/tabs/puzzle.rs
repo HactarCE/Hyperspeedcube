@@ -93,7 +93,7 @@ fn show_centered_with_sizing_pass<R>(
         if !vertical {
             desired_rect = desired_rect.translate(egui::vec2(0.0, go_back.y));
         }
-        r = ui.allocate_new_ui(
+        r = ui.scope_builder(
             egui::UiBuilder::new()
                 .layout(egui::Layout::top_down(egui::Align::Center))
                 .max_rect(desired_rect),
@@ -920,35 +920,41 @@ fn show_color_edit_popup(
     let mut is_first_frame = false;
 
     if let Some(color) = color_to_edit {
-        ui.memory_mut(|mem| mem.open_popup(editing_color.id));
         editing_color.set(Some(color));
         is_first_frame = true;
     }
 
-    if ui.memory(|mem| mem.is_popup_open(editing_color.id)) {
-        let mut area = egui::Area::new(editing_color.id.with("area"))
-            .order(egui::Order::Middle)
-            .constrain_to(ui.ctx().available_rect())
-            .movable(true);
-        if let Some(pos) = r.interact_pointer_pos().filter(|_| is_first_frame) {
-            area = area.current_pos(pos);
-        }
-        let area_response = area.show(ui.ctx(), |ui| {
-            egui::Frame::menu(ui.style()).show(ui, |ui| {
-                color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
-            });
-        });
+    // TODO: Allow moving the popup. This requires a small PR to emilk/egui.
+    let opt_popup_response = egui::Popup::new(
+        editing_color.id,
+        ui.ctx().clone(),
+        egui::PopupAnchor::PointerFixed,
+        ui.layer_id(),
+    )
+    .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
+    .open_memory(if color_to_edit.is_some() {
+        Some(true.into())
+    } else {
+        None
+    })
+    .show(|ui| {
+        color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
+    });
 
+    if let Some(popup_inner_response) = opt_popup_response {
+        let popup_response = popup_inner_response.response;
         // Allow drags but not clicks
         let any_cursor_input_outside_puzzle =
-            crate::gui::util::clicked_elsewhere(ui, &area_response.response)
-                && crate::gui::util::clicked_elsewhere(ui, r);
-        let any_click_inside_puzzle = r.clicked() || r.secondary_clicked() || r.middle_clicked();
+            crate::gui::util::clicked_elsewhere(ui, &popup_response)
+                && crate::gui::util::clicked_elsewhere(ui, &r);
+        let any_click_inside_puzzle = popup_response.clicked()
+            || popup_response.secondary_clicked()
+            || popup_response.middle_clicked();
         let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
         if (clicked_elsewhere && !is_first_frame)
             || ui.input(|input| input.key_pressed(egui::Key::Escape))
         {
-            ui.memory_mut(|mem| mem.close_popup(editing_color.id));
+            egui::Popup::close_id(ui.ctx(), editing_color.id);
         }
     }
 

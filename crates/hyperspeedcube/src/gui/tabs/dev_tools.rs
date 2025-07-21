@@ -315,25 +315,13 @@ fn puzzle_color_edit_button(
         return;
     };
 
-    let popup_id = ui.next_auto_id().with("color_edit_popup");
-
-    let r = crate::gui::components::show_color_button(
+    let r = crate::gui::components::show_color_button_with_popup(
         ui,
         rgb,
-        ui.memory(|mem| mem.is_popup_open(popup_id)),
         ui.spacing().interact_size,
         egui::Sense::click(),
+        |ui| color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color)),
     );
-
-    if r.clicked() {
-        ui.memory_mut(|mem| mem.open_popup(popup_id));
-    }
-
-    let close_behavior = egui::PopupCloseBehavior::CloseOnClickOutside;
-    let puzzle = puzzle_view.puzzle();
-    egui::popup_below_widget(ui, popup_id, &r, close_behavior, |ui| {
-        color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color));
-    });
 }
 
 fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> String {

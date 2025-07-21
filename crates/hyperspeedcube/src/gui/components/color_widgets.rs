@@ -472,7 +472,7 @@ impl ColorButton {
         if colors_ui.dnd.is_some() {
             sense |= egui::Sense::DRAG;
         }
-        let r = show_color_button(ui, self.color, false, self.size, sense);
+        let r = show_color_button(ui, self.color, self.size, sense);
 
         // Draggable label
         if let Some(puzzle_color) = self.puzzle_color.filter(|_| colors_ui.show_puzzle_colors) {
@@ -596,13 +596,36 @@ impl ColorOrGradient {
 pub fn show_color_button(
     ui: &mut egui::Ui,
     color: impl Into<ColorOrGradient>,
-    is_open: bool,
     size: egui::Vec2,
     sense: egui::Sense,
 ) -> egui::Response {
+    show_color_button_internal(ui, color, size, sense, |_| false)
+}
+pub fn show_color_button_with_popup(
+    ui: &mut egui::Ui,
+    color: impl Into<ColorOrGradient>,
+    size: egui::Vec2,
+    sense: egui::Sense,
+    popup_contents: impl FnOnce(&mut egui::Ui),
+) -> egui::Response {
+    show_color_button_internal(ui, color, size, sense, |r| {
+        egui::Popup::from_toggle_button_response(r)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(popup_contents)
+            .is_some()
+    })
+}
+fn show_color_button_internal(
+    ui: &mut egui::Ui,
+    color: impl Into<ColorOrGradient>,
+    size: egui::Vec2,
+    sense: egui::Sense,
+    handle_popup: impl FnOnce(&egui::Response) -> bool,
+) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(size, sense);
+    let is_popup_open = handle_popup(&response);
     if ui.is_rect_visible(rect) {
-        let visuals = if is_open {
+        let visuals = if is_popup_open {
             &ui.visuals().widgets.open
         } else {
             ui.style().interact(&response)
@@ -681,7 +704,7 @@ pub fn color_edit(
 
     let mut size = ui.spacing().interact_size;
     size.x *= 1.5;
-    let mut r = show_color_button(ui, *color, false, size, egui::Sense::click());
+    let mut r = show_color_button(ui, *color, size, egui::Sense::click());
 
     let contrasting_text_color = crate::util::contrasting_text_color(color.to_egui_color32());
     ui.put(
@@ -790,14 +813,19 @@ pub fn color_assignment_popup(
     });
     ui.colored_label(ui.visuals().warn_fg_color, L.colors.warning_save_changes);
     ui.separator();
-    let (changed, temp_colors) = crate::gui::components::ColorsUi::new(color_palette)
-        .clickable(true)
-        .drag_puzzle_colors(ui, true)
-        .show_compact_palette(
-            ui,
-            Some((&mut puzzle_view.colors.value, &puzzle.colors)),
-            Some(color_name.to_owned()),
-        );
+    let (changed, temp_colors) = egui::ScrollArea::vertical()
+        .auto_shrink(false)
+        .show(ui, |ui| {
+            crate::gui::components::ColorsUi::new(color_palette)
+                .clickable(true)
+                .drag_puzzle_colors(ui, true)
+                .show_compact_palette(
+                    ui,
+                    Some((&mut puzzle_view.colors.value, &puzzle.colors)),
+                    Some(color_name.to_owned()),
+                )
+        })
+        .inner;
     if changed {
         // the user has no way to save the settings in this UI,
         // so there's not much we can do

@@ -192,23 +192,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                     let popup_id = generator_popup_data_stored.id.with(&obj.id);
 
                                     if r.clicked() {
-                                        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
                                         generator_popup_data =
                                             Some(PuzzleGeneratorPopupData::new(&puzzle_generator));
                                     }
 
-                                    let close_behavior =
-                                        egui::PopupCloseBehavior::CloseOnClickOutside;
                                     if let Some(popup_data) = generator_popup_data
                                         .as_mut()
                                         .filter(|data| data.id == obj.id)
                                     {
-                                        egui::popup_below_widget(
-                                            ui,
-                                            popup_id,
-                                            &r,
-                                            close_behavior,
-                                            |ui| {
+                                        egui::Popup::from_toggle_button_response(&r)
+                                            .close_behavior(
+                                                egui::PopupCloseBehavior::CloseOnClickOutside,
+                                            )
+                                            .show(|ui| {
                                                 show_puzzle_generator_ui(
                                                     ui,
                                                     popup_id,
@@ -216,8 +212,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                     &puzzle_generator,
                                                     popup_data,
                                                 );
-                                            },
-                                        );
+                                            });
                                     }
                                 }
                             }
@@ -273,7 +268,7 @@ fn show_puzzle_generator_ui(
     }
 
     if ui.button(L.catalog.generate_puzzle).clicked() {
-        ui.memory_mut(|mem| mem.close_popup(popup_id));
+        ui.close();
         let puzzle_id = hyperpuzzle::generated_id(&puzzle_generator.meta.id, &popup_data.params);
         app.load_puzzle(&puzzle_id);
     };
