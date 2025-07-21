@@ -51,7 +51,7 @@ fn verify_internal(
 
     let mut log = solve.log.iter();
 
-    let Some(LogEvent::Scramble) = log.next() else {
+    let Some(LogEvent::Scramble { .. }) = log.next() else {
         return None; // didn't start by scrambling!
     };
 
@@ -63,7 +63,7 @@ fn verify_internal(
     let mut single_session = true;
     for event in log {
         match event {
-            LogEvent::Scramble => return None, // don't scramble again!
+            LogEvent::Scramble { .. } => return None, // don't scramble again!
             LogEvent::Click { .. } | LogEvent::DragTwist { .. } => (), // ignore interaction events
             LogEvent::Twists(twists_str) => {
                 for twist_group in notation::parse_grouped_twists(&puzzle.twists.names, twists_str)
@@ -71,8 +71,8 @@ fn verify_internal(
                     undo_stack.push(twist_group.into_iter().try_collect().ok()?);
                 }
             }
-            LogEvent::Undo => redo_stack.push(undo_stack.pop()?),
-            LogEvent::Redo => undo_stack.push(redo_stack.pop()?),
+            LogEvent::Undo { .. } => redo_stack.push(undo_stack.pop()?),
+            LogEvent::Redo { .. } => undo_stack.push(redo_stack.pop()?),
             LogEvent::StartSolve { time: _, duration } => {
                 speedsolve_start = *duration;
             }

@@ -119,6 +119,10 @@ pub struct Program {
 #[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Node, hyperkdl_derive::NodeContents)]
 #[kdl(name = "solve")]
 pub struct Solve {
+    /// Whether the log includes replay events. Default `false`.
+    #[kdl(child("replay"), optional)]
+    pub replay: Option<bool>,
+
     /// Puzzle info.
     ///
     /// This is the only part of a solve that is strictly required.
@@ -152,8 +156,8 @@ pub struct Solve {
     pub scramble: Option<Scramble>,
     /// List of events.
     ///
-    /// If the log includes replay events, then this includes a linear history
-    /// of all events in time, even if they were later undone.
+    /// If the log includes replay events, then this is a linear history of all
+    /// events in time, even if they were later undone.
     ///
     /// If the log does not include replay events, then undone events are not
     /// included.
@@ -223,10 +227,17 @@ impl Scramble {
 pub enum LogEvent {
     /// Application of the scramble sequence.
     #[kdl(name = "scramble")]
-    Scramble,
+    Scramble {
+        /// Event timestamp.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
+    },
     /// **Replay-only.** Click of the mouse cursor on the puzzle.
     #[kdl(name = "click")]
     Click {
+        /// Event timestamp.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
         /// Layer mask gripped.
         #[kdl(property("layers"), proxy = KdlProxy)]
         layers: LayerMask,
@@ -245,6 +256,9 @@ pub enum LogEvent {
     /// recorded.
     #[kdl(name = "drag-twist")]
     DragTwist {
+        /// Event timestamp.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
         /// Axis that was twisted.
         #[kdl(property("axis"))]
         axis: String,
@@ -257,10 +271,18 @@ pub enum LogEvent {
     Twists(#[kdl(argument)] String),
     /// **Replay-only.** Undo of the most recent twist, twist group, or macro.
     #[kdl(name = "undo")]
-    Undo,
+    Undo {
+        /// Event timestamp.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
+    },
     /// **Replay-only.** Redo of the most recent twist, twist group, or macro.
     #[kdl(name = "redo")]
-    Redo,
+    Redo {
+        /// Event timestamp.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
+    },
     /// Start of solve.
     ///
     /// This marks the first time that a twist was made on the puzzle after
@@ -363,6 +385,7 @@ mod tests {
                 version: Some("2.0.0-pre.15".to_string()),
             }),
             solves: vec![Solve {
+                replay: Some(false),
                 puzzle: LogPuzzle {
                     id: "ft_cube:3".to_string(),
                     version: "1.0.0".to_string(),
@@ -376,7 +399,9 @@ mod tests {
                     twists: "R U L'".to_string(),
                 }),
                 log: vec![
-                    LogEvent::Scramble,
+                    LogEvent::Scramble {
+                        time: Some(Timestamp::now()),
+                    },
                     LogEvent::Twists("L U' R'".to_string()),
                     LogEvent::EndSolve {
                         time: Some(Timestamp::now()),

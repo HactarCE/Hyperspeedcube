@@ -6,22 +6,26 @@ use smallvec::SmallVec;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     /// Scramble twists. Cannot be undone.
-    Scramble,
+    Scramble {
+        /// Time that the scramble became visible to the user, which may be
+        /// slightly different from the timestamp used to generate the scramble.
+        time: Option<Timestamp>,
+    },
     /// Sequence of twists executed as a single unit. This is usually a single
     /// twist.
     Twists(SmallVec<[LayeredTwist; 4]>),
     /// Start of solve. Cannot be undone.
     StartSolve {
-        /// Event timestamp
+        /// Event timestamp.
         time: Option<Timestamp>,
-        /// Log file duration at the time
+        /// Log file duration at the time.
         duration: Option<i64>,
     },
     /// End of solve. Undone automatically when undoing twists.
     EndSolve {
-        /// Event timestamp
+        /// Event timestamp.
         time: Option<Timestamp>,
-        /// Log file duration at the time
+        /// Log file duration at the time.
         duration: Option<i64>,
     },
 }
@@ -29,7 +33,7 @@ impl Action {
     /// Returns the undo behavior for the action.
     pub(crate) fn undo_behavior(&self) -> UndoBehavior {
         match self {
-            Action::Scramble => UndoBehavior::Boundary,
+            Action::Scramble { .. } => UndoBehavior::Boundary,
             Action::Twists(_) => UndoBehavior::Action,
             Action::StartSolve { .. } => UndoBehavior::Boundary,
             Action::EndSolve { .. } => UndoBehavior::Marker,

@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{Timestamp, prelude::*};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
@@ -189,12 +189,18 @@ impl App {
             .unwrap_or(false)
     }
     pub(crate) fn undo(&self) {
-        self.active_puzzle
-            .with_sim(|sim| sim.do_event(ReplayEvent::Undo));
+        self.active_puzzle.with_sim(|sim| {
+            sim.do_event(ReplayEvent::Undo {
+                time: Some(Timestamp::now()),
+            })
+        });
     }
     pub(crate) fn redo(&self) {
-        self.active_puzzle
-            .with_sim(|sim| sim.do_event(ReplayEvent::Redo));
+        self.active_puzzle.with_sim(|sim| {
+            sim.do_event(ReplayEvent::Redo {
+                time: Some(Timestamp::now()),
+            })
+        });
     }
     pub(crate) fn reset_puzzle(&self) {
         self.active_puzzle.with_sim(|sim| sim.reset());

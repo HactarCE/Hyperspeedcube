@@ -45,7 +45,9 @@ pub struct PuzzleSimulation {
     /// Stack of actions to redo.
     redo_stack: Vec<Action>,
     /// List of actions to save in the replay file.
-    replay: Vec<ReplayEvent>,
+    ///
+    /// This is `None` if loaded from a non-replay file.
+    replay: Option<Vec<ReplayEvent>>,
     /// Whether the solve has been started.
     started: bool,
     /// Whether the puzzle has been solved.
@@ -98,7 +100,9 @@ impl PuzzleSimulation {
             has_unsaved_changes: false,
             undo_stack: vec![],
             redo_stack: vec![],
-            replay: vec![],
+            replay: Some(vec![ReplayEvent::StartSession {
+                time: Some(Timestamp::now()),
+            }]),
             started: false,
             solved: false,
             solved_state_handled: true,
@@ -232,8 +236,13 @@ impl PuzzleSimulation {
             hyperpuzzle_log::notation::format_twists(&ty.twists.names, twists),
         );
         self.scramble = Some(scramble.clone());
-        self.undo_stack.push(Action::Scramble);
-        self.replay.push(ReplayEvent::Scramble);
+        // We could use `do_action_internal()` but that would recompute the
+        // puzzle state, which isn't necessary.
+        let time = Some(Timestamp::now());
+        self.undo_stack.push(Action::Scramble { time });
+        if let Some(replay_events) = &mut self.replay {
+            replay_events.push(ReplayEvent::Scramble { time });
+        }
         self.latest_state = state;
         self.skip_twist_animations();
         self.solved_state_handled = false;
@@ -250,12 +259,14 @@ impl PuzzleSimulation {
     }
     /// Plays a replay event on the puzzle when deserializing.
     fn replay_event(&mut self, event: ReplayEvent) {
-        self.replay.push(event.clone());
+        if let Some(replay_events) = &mut self.replay {
+            replay_events.push(event.clone());
+        }
         match event {
-            ReplayEvent::Undo => self.undo(),
-            ReplayEvent::Redo => self.redo(),
-            ReplayEvent::Scramble => {
-                self.do_action(Action::Scramble);
+            ReplayEvent::Undo { .. } => self.undo(),
+            ReplayEvent::Redo { .. } => self.redo(),
+            ReplayEvent::Scramble { time } => {
+                self.do_action(Action::Scramble { time });
             }
             ReplayEvent::Twists(twists) => {
                 self.do_action(Action::Twists(twists));
@@ -338,7 +349,7 @@ impl PuzzleSimulation {
     fn do_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
         match action {
-            Action::Scramble => match &self.scramble {
+            Action::Scramble { .. } => match &self.scramble {
                 Some(scramble) => {
                     let ty = Arc::clone(self.puzzle_type());
                     for twist in
@@ -390,7 +401,7 @@ impl PuzzleSimulation {
         self.has_unsaved_changes = true;
         let puz = self.puzzle_type();
         match action {
-            Action::Scramble => false, // shouldn't be possible
+            Action::Scramble { .. } => false, // shouldn't be possible
             Action::Twists(twists) => self.do_action_internal(&Action::Twists(
                 twists
                     .iter()
@@ -632,7 +643,8 @@ impl PuzzleSimulation {
                             transform: twist,
                         };
                         let axis = partial.axis;
-                        self.do_event(ReplayEvent::DragTwist { axis });
+                        let time = Some(Timestamp::now());
+                        self.do_event(ReplayEvent::DragTwist { time, axis });
                         self.do_event(ReplayEvent::Twists(smallvec![twist]));
                     } else {
                         // The identity twist is closer.
@@ -664,7 +676,7 @@ impl PuzzleSimulation {
             let amount = (t * PI).sin();
 
             GfxEffectParams {
-                chromatic_abberation: [amount / 4.0, amount / 6.0],
+                chromatic_abberation: [amount / 8.0, amount / 12.0],
             }
         } else {
             GfxEffectParams::default()
@@ -681,22 +693,25 @@ impl PuzzleSimulation {
         let puz = self.puzzle_type();
 
         let mut log = vec![];
-        if replay {
-            for event in &self.replay {
+        if replay && let Some(events) = &self.replay {
+            for event in events {
                 log.push(match event {
-                    ReplayEvent::Undo => LogEvent::Undo,
-                    ReplayEvent::Redo => LogEvent::Redo,
-                    ReplayEvent::Scramble => LogEvent::Scramble,
+                    &ReplayEvent::Undo { time } => LogEvent::Undo { time },
+                    &ReplayEvent::Redo { time } => LogEvent::Redo { time },
+                    &ReplayEvent::Scramble { time } => LogEvent::Scramble { time },
                     &ReplayEvent::GizmoClick {
+                        time,
                         layers,
                         target,
                         reverse,
                     } => LogEvent::Click {
+                        time,
                         layers,
                         target: puz.twists.names[target].to_string(),
                         reverse,
                     },
-                    &ReplayEvent::DragTwist { axis } => LogEvent::DragTwist {
+                    &ReplayEvent::DragTwist { time, axis } => LogEvent::DragTwist {
+                        time,
                         axis: puz.axes().names[axis].to_string(),
                     },
                     ReplayEvent::Twists(twists) => {
@@ -720,10 +735,13 @@ impl PuzzleSimulation {
                     &ReplayEvent::EndSession { time } => LogEvent::EndSession { time },
                 });
             }
+            log.push(LogEvent::EndSession {
+                time: Some(Timestamp::now()),
+            });
         } else {
             for action in &self.undo_stack {
                 match action {
-                    Action::Scramble => log.push(LogEvent::Scramble),
+                    &Action::Scramble { time } => log.push(LogEvent::Scramble { time }),
                     Action::Twists(twists) => {
                         if twists.is_empty() {
                             continue;
@@ -760,6 +778,7 @@ impl PuzzleSimulation {
         }
 
         hyperpuzzle_log::Solve {
+            replay: Some(replay),
             puzzle: hyperpuzzle_log::LogPuzzle {
                 id: puz.meta.id.clone(),
                 version: puz.meta.version.to_string(),
@@ -776,6 +795,7 @@ impl PuzzleSimulation {
     /// Loads a log file from a string.
     pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzle_log::Solve) -> Self {
         let hyperpuzzle_log::Solve {
+            replay,
             puzzle: _,
             solved: _,
             duration,
@@ -786,17 +806,24 @@ impl PuzzleSimulation {
         log::trace!("Loading file ...");
 
         let mut ret = Self::new(puzzle);
+
+        let is_replay = replay.unwrap_or(false);
+        if !is_replay {
+            ret.replay = None;
+        }
+
         for event in log {
             match event {
-                LogEvent::Scramble => {
+                &LogEvent::Scramble { time } => {
                     log::trace!("Applying scramble {scramble:?}");
                     ret.reset();
                     ret.scramble = scramble.clone();
-                    ret.replay_event(ReplayEvent::Scramble);
+                    ret.replay_event(ReplayEvent::Scramble { time });
                 }
-                LogEvent::Click {
+                &LogEvent::Click {
+                    time,
                     layers,
-                    target,
+                    ref target,
                     reverse,
                 } => {
                     // TODO: handle errors
@@ -804,17 +831,18 @@ impl PuzzleSimulation {
                         continue;
                     };
                     ret.replay_event(ReplayEvent::GizmoClick {
-                        layers: *layers,
+                        time,
+                        layers,
                         target,
-                        reverse: *reverse,
+                        reverse,
                     });
                 }
-                LogEvent::DragTwist { axis } => {
+                &LogEvent::DragTwist { time, ref axis } => {
                     // TODO: handle errors
                     let Some(axis) = puzzle.axes().names.id_from_name(axis) else {
                         continue;
                     };
-                    ret.replay_event(ReplayEvent::DragTwist { axis });
+                    ret.replay_event(ReplayEvent::DragTwist { time, axis });
                 }
                 LogEvent::Twists(twists_str) => {
                     for group in hyperpuzzle_log::notation::parse_grouped_twists(
@@ -827,8 +855,8 @@ impl PuzzleSimulation {
                         ret.replay_event(ReplayEvent::Twists(group));
                     }
                 }
-                LogEvent::Undo => ret.undo(),
-                LogEvent::Redo => ret.redo(),
+                &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }),
+                &LogEvent::Redo { time } => ret.replay_event(ReplayEvent::Redo { time }),
                 LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
                     ret.replay_event(ReplayEvent::StartSolve {
@@ -852,6 +880,13 @@ impl PuzzleSimulation {
                 }
             }
         }
+
+        if is_replay {
+            ret.replay_event(ReplayEvent::StartSession {
+                time: Some(Timestamp::now()),
+            });
+        }
+
         ret.old_duration = *duration;
         ret.has_unsaved_changes = false;
         ret.is_single_session = false;

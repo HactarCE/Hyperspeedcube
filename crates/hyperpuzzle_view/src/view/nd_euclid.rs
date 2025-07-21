@@ -358,6 +358,7 @@ impl NdEuclidViewState {
             let twist = LayeredTwist { layers, transform };
 
             sim.do_event(ReplayEvent::GizmoClick {
+                time: Some(hyperpuzzle::Timestamp::now()),
                 layers,
                 target,
                 reverse: direction == Sign::Neg,
