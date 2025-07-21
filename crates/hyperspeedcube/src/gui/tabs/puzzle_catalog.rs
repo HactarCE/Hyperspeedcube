@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
+use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::emath::GuiRounding;
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
@@ -50,16 +51,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     |ui| {
                         let query = Query::from_str(&search_query_string);
 
-                        let r = ui.menu_button("🏷", |ui| {
-                            tag_action = crate::gui::components::TagMenu::new(
-                                query.included_tags.iter().map(format_tag_and_value),
-                                query.excluded_tags.iter().map(format_tag_and_value),
+                        let (r, _) = MenuButton::new("🏷")
+                            .config(
+                                MenuConfig::default()
+                                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
                             )
-                            .with_experimental(app.prefs.show_experimental_puzzles)
-                            .show(ui)
-                            .inner;
-                        });
-                        r.response.on_hover_text(L.catalog.filter_by_tag);
+                            .ui(ui, |ui| {
+                                tag_action = crate::gui::components::TagMenu::new(
+                                    query.included_tags.iter().map(format_tag_and_value),
+                                    query.excluded_tags.iter().map(format_tag_and_value),
+                                )
+                                .with_experimental(app.prefs.show_experimental_puzzles)
+                                .show(ui)
+                                .inner;
+                            });
+                        r.on_hover_text(L.catalog.filter_by_tag);
                     },
                 )
             });
