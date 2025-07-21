@@ -3,7 +3,7 @@ use * from euclid
 // Issues:
 // - `ouch` should be zero, but that messes up the colors
 // - pentagons need to be unbandaged + fudged
-ouch = 0.001
+ouch = 0.5
 add_puzzle(
     id = "sun_cube_ultimate",
     version = "0.0.1",

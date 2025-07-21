@@ -8,7 +8,7 @@ use * from euclid
 add_puzzle(
     id = "bagua_cube",
     version = "0.0.1",
-    name = "Bague Cube",
+    name = "Bagua Cube",
     engine = "euclid",
     ndim = 3,
     colors = "cube",
