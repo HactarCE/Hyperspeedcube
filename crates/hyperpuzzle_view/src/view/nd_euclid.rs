@@ -341,7 +341,6 @@ impl NdEuclidViewState {
     /// Applies a twist to the puzzle based on the current mouse position.
     pub fn do_click_twist(&self, sim: &mut PuzzleSimulation, layers: LayerMask, direction: Sign) {
         let puzzle = sim.puzzle_type();
-        let ndim = self.geom.ndim();
 
         if let Some(hov) = &self.gizmo_hover_state {
             let Ok(&target) = self.geom.gizmo_twists.get(hov.gizmo_face) else {
@@ -364,54 +363,6 @@ impl NdEuclidViewState {
                 reverse: direction == Sign::Neg,
             });
             sim.do_event(ReplayEvent::Twists(smallvec![twist]));
-        } else if let Some(hov) = &self.puzzle_hover_state {
-            if ndim == 3 {
-                // Only do a move if we are hovering a sticker.
-                if hov.sticker.is_none() {
-                    return;
-                }
-
-                // Find the axis aligned with the normal vector of this
-                // sticker.
-                let [u, v] = [&hov.u_tangent, &hov.v_tangent];
-                let target_vector = Vector::cross_product_3d(u, v);
-                // TODO: should axis vectors already be normalized?
-                let Some(axis) = self.geom.axis_vectors.find(|_, axis_vector| {
-                    axis_vector
-                        .normalize()
-                        .is_some_and(|v| APPROX.eq(&v, &target_vector))
-                }) else {
-                    return;
-                };
-
-                // Find the twist that turns the least in the correct direction.
-                // TODO: search only twists on `axis`
-                let candidates = puzzle
-                    .twists
-                    .twists
-                    .iter_filter(|_, info| info.axis == axis);
-
-                // Aim for a 180 degree counterclockwise rotation around the axis.
-                let target = match hov.backface {
-                    false => Motor::from_normalized_vector_product(v, u),
-                    true => Motor::from_normalized_vector_product(u, v),
-                };
-                let best_twist = candidates.min_by_key(|&twist| {
-                    // `score` ranges from -1 to +1. If it's a positive number,
-                    // then the twist goes in the desired direction; if it's
-                    // negative, then it goes in the other direction. `score` is
-                    // larger if the twist travels through a larger angle:
-                    // - no rotation = 0
-                    // - 180-degree rotation = ±1
-                    let score = Motor::dot(&self.geom.twist_transforms[twist], &target);
-                    (Sign::from(score) * direction, FloatOrd(score.abs()))
-                });
-                if let Some(transform) = best_twist {
-                    let twist = LayeredTwist { layers, transform };
-                    sim.do_event(ReplayEvent::DragTwist);
-                    sim.do_event(ReplayEvent::Twists(smallvec![twist]));
-                }
-            }
         }
     }
 
