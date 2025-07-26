@@ -170,7 +170,19 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
         let file_path = just('@')
             .then(just('^').repeated())
             .then(
-                chumsky::text::unicode::ident()
+                any()
+                    .try_map(|c: char, span| {
+                        if c.is_alphanumeric() || c == '_' {
+                            Ok(c)
+                        } else {
+                            Err(chumsky::label::LabelError::<&str, _>::expected_found(
+                                [chumsky::text::TextExpected::<&str>::IdentifierPart],
+                                Some(chumsky::util::MaybeRef::Val(c)),
+                                span,
+                            ))
+                        }
+                    })
+                    .repeated()
                     .separated_by(just('/'))
                     .allow_leading(),
             )
