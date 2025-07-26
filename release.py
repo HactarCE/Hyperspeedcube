@@ -50,12 +50,12 @@ if do_subcommand('git'):
 
 if do_subcommand('write'):
     # Set package `version`.
-    sed_inplace('hyperspeedcube/Cargo.toml',
+    sed_inplace('crates/hyperspeedcube/Cargo.toml',
                 r'^version = "[^"\n]*"$',
                 f'version = "{version}"')
 
     # Set Windows metadata `ProductVersion`.
-    sed_inplace('hyperspeedcube/Cargo.toml',
+    sed_inplace('crates/hyperspeedcube/Cargo.toml',
                 r'^ProductVersion = "[^"]*"$',
                 f'ProductVersion = "{version}"')
 
@@ -75,7 +75,7 @@ if do_subcommand('write'):
 
 if do_subcommand('git'):
     git_commands = [
-        f'git add Cargo.toml Cargo.lock .github/workflows CHANGELOG.md',
+        f'git add crates/hyperspeedcube/Cargo.toml Cargo.lock .github/workflows CHANGELOG.md',
         f'git commit -m "Version {version}"',
         f'git push',
         f'git tag v{version}',
