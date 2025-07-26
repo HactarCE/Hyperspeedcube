@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
+use egui::AtomExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use egui::emath::GuiRounding;
 use hyperpuzzle::prelude::*;
@@ -645,7 +646,13 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
             );
         }
 
-        ui.selectable_label(false, job).on_hover_ui(|ui| {
+        let mut atoms = egui::Atoms::new((job, egui::Atom::grow()));
+        let icons = crate::gui::icons::CatalogIcon::icons_from_tags(&self.object.tags);
+        for icon in &icons {
+            icon.add_to(ui, &mut atoms);
+        }
+
+        ui.selectable_label(false, atoms).on_hover_ui(|ui| {
             ui.strong(&self.object.name);
 
             fn comma_list(strings: &[String]) -> String {
@@ -669,6 +676,16 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
 
             if let Some(url) = self.object.tags.wca_url() {
                 ui.hyperlink_to("WCA leaderboards", url);
+            }
+
+            ui.separator();
+
+            for icon in icons {
+                // TODO: when ui.label() supports atoms, use that here instead
+                ui.horizontal(|ui| {
+                    ui.add(icon.to_image(ui));
+                    ui.label(icon.description);
+                });
             }
         })
     }

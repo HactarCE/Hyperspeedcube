@@ -143,6 +143,7 @@ eframe = { version = "0.32.0", default-features = false, features = [
 ecolor = { version = "0.32.0" }
 egui = { version = "0.32.0" }
 egui_dock = { version = "0.17.0" }
+egui_extras = { version = "0.32.0", features = ["svg"] }
 egui-winit = { version = "0.32.0" }
 winit = { version = "0.30.11", features = [
     "serde",
@@ -155,6 +156,7 @@ rfd = { version = "0.15.4" }
 key-names = { version = "3.0.0" }
 
 # Colors
+color-hex = { version = "0.2.0" }
 colorous = { version = "1.0.15" }
 empfindung = { version = "0.2.6", default-features = false, features = ["lab"] }
 oklab = { version = "1.0.1" }

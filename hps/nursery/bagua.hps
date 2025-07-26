@@ -29,7 +29,10 @@ add_puzzle(
             // slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
             // TODO: unbandage the triangles
         }
-    }
+    },
+    tags = #{
+        type = "puzzle",
+    },
 )
 
 add_puzzle(
@@ -49,5 +52,8 @@ add_puzzle(
             slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
             // TODO: unbandage the triangles
         }
-    }
+    },
+    tags = #{
+        type = "puzzle",
+    },
 )

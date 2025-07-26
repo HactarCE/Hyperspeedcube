@@ -1,0 +1,32 @@
+//! Facet-turning hypercubes
+
+use * from euclid
+
+SHALLOW_CUT_DEPTH = 3/2 * 1/φ
+EVIL_CUT_DEPTH = 1/φ
+
+GIZMO_FACET_SIZE = tan(π/10)
+GIZMO_EDGE_FACTOR = 0.8
+
+add_puzzle(
+    id = "ft_120_cell_shallow",
+    version = "0.1.0",
+    name = "Facet-Turning 120-Cell (Shallow)",
+    colors = "120cell",
+    scramble = 5000,
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        shape = @shapes/h/120_cell.new()
+        with #sym = shape.sym {
+            carve(plane(shape.facet_pole), shape.facet_names)
+            // TODO: twists
+        }
+    },
+    tags = #{
+        author = ["Andrew Farkas", "Milo Jacquet"],
+        shape = @shapes/h/120_cell.shape_tag,
+        type = "puzzle",
+        big = true,
+    },
+)

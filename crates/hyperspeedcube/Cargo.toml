@@ -30,10 +30,12 @@ cgmath = { workspace = true }
 clap = { workspace = true }
 clio = { workspace = true }
 color-eyre = { workspace = true }
+color-hex = { workspace = true }
 comrak = { workspace = true }
 eframe = { workspace = true }
 egui = { workspace = true }
 egui_dock = { workspace = true }
+egui_extras = { workspace = true }
 egui-winit = { workspace = true }
 empfindung = { workspace = true }
 env_logger = { workspace = true }

@@ -738,6 +738,10 @@ about """
   ## Puzzle definition authors
 
   {{author_list}}
+
+  ## Icon authors
+
+  Material Design Icons by Austin Andrews, Michael Irigoyen
 """
 
 _crash {

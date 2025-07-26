@@ -28,5 +28,8 @@ add_puzzle(
             // oblique_region = F[1] & U[1] & ~R[1] & ~diag_cut(F, R, U).region() & diag_cut(F, U, L).region() & diag_cut(F, U, L).region() & ~diag_cut(U, L, F).region()
             // oblique_region.remove_pieces()
         }
-    }
+    },
+    tags = #{
+        type = "puzzle",
+    },
 )

@@ -133,6 +133,8 @@ async fn run() -> eframe::Result<()> {
 
 impl eframe::App for gui::AppUi {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx); // ok to call every frame
+
         // Build all the UI.
         self.build(ctx);
     }

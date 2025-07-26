@@ -6,7 +6,7 @@ export adjective = "4-Simplicial"
 export aliases = []
 export facet_colors = id
 export ndim = 4
-export shape_tag = "5d/platonic/hypercube"
+export shape_tag = "4d/platonic/simplex"
 
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {

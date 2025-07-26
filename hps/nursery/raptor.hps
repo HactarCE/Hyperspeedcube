@@ -27,7 +27,10 @@ add_puzzle(
                 region=a[1] & (t.transform * cube.sym.thru([0, 2, 1, 0])).transform(a[1]),
             )
         }
-    }
+    },
+    tags = #{
+        type = "puzzle",
+    },
 )
 
 // issues:
@@ -48,5 +51,8 @@ add_puzzle(
             a.add_layers([∞, d])
             t = add_twist(a, rot(fix=a.vec, angle=-120°), gizmo_pole_distance = 1)
         }
-    }
+    },
+    tags = #{
+        type = "puzzle",
+    },
 )

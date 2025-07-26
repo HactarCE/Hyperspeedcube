@@ -210,8 +210,8 @@ add_puzzle_generator(
     tags = #{
         schema = 1,
         author = ["Andrew Farkas", "Luna Harran"],
-        shape = "4d/prism",
-        axes = "4d/prism",
+        shape = "4d/duoprism",
+        axes = "4d/duoprism",
         turns_by = ["facet", "cell"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = "depth/shallow",
@@ -220,21 +220,21 @@ add_puzzle_generator(
     examples = [
         // All the ones in MC4D
         #{params = [3, 3, 3, 3], tags = #{meme = true}},
-        #{params = [4, 3, 3, 3], tags = #{meme = true}},
+        // #{params = [4, 3, 3, 3], tags = #{meme = true}},
         #{params = [5, 4, 3, 3], tags = #{meme = true}},
-        #{params = [6, 4, 3, 3], tags = #{meme = true}},
-        #{params = [7, 4, 3, 3], tags = #{meme = true}},
-        #{params = [8, 4, 3, 3], tags = #{meme = true}},
-        #{params = [10, 4, 3, 3], tags = #{meme = true}},
+        // #{params = [6, 4, 3, 3], tags = #{meme = true}},
+        // #{params = [7, 4, 3, 3], tags = #{meme = true}},
+        // #{params = [8, 4, 3, 3], tags = #{meme = true}},
+        // #{params = [10, 4, 3, 3], tags = #{meme = true}},
         #{params = [5, 3, 3, 3], tags = #{meme = true}},
         #{params = [10, 5, 3, 3], tags = #{meme = true}},
         #{params = [5, 5, 3, 3], tags = #{meme = true}},
-        #{params = [6, 6, 3, 3], tags = #{meme = true}},
-        #{params = [7, 7, 3, 3], tags = #{meme = true}},
-        #{params = [8, 8, 3, 3], tags = #{meme = true}},
-        #{params = [9, 9, 3, 3], tags = #{meme = true}},
-        #{params = [10, 10, 3, 3], tags = #{meme = true}},
-        #{params = [100, 4, 3, 3], tags = #{meme = true}},
+        // #{params = [6, 6, 3, 3], tags = #{meme = true}},
+        // #{params = [7, 7, 3, 3], tags = #{meme = true}},
+        // #{params = [8, 8, 3, 3], tags = #{meme = true}},
+        // #{params = [9, 9, 3, 3], tags = #{meme = true}},
+        // #{params = [10, 10, 3, 3], tags = #{meme = true}},
+        // #{params = [100, 4, 3, 3], tags = #{meme = true}},
     ],
 )
 
@@ -277,8 +277,8 @@ add_puzzle_generator(
     tags = #{
         schema = 1,
         author = ["Andrew Farkas", "Luna Harran"],
-        shape = "4d/prism",
-        axes = "4d/prism",
+        shape = "4d/duoprism",
+        axes = "4d/duoprism",
         turns_by = ["facet", "cell"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = ["depth/shallow", "depth/half"],
@@ -287,7 +287,7 @@ add_puzzle_generator(
     examples = [
         // All the ones in MC4D
         #{params = [3, 3, 3]},
-        #{params = [4, 3, 3]},
+        // #{params = [4, 3, 3]},
         #{params = [5, 3, 3]},
     ],
 )
@@ -333,8 +333,8 @@ add_puzzle_generator(
     tags = #{
         schema = 1,
         author = ["Andrew Farkas", "Luna Harran"],
-        shape = "4d/prism",
-        axes = "4d/prism",
+        shape = "4d/duoprism",
+        axes = "4d/duoprism",
         turns_by = ["facet", "cell"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = ["depth/shallow", "depth/half"],
