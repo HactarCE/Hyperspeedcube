@@ -94,7 +94,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             block_comment.ignored(),
         ))
         .boxed();
-        let padding_with_newlines = normal_padding.clone().or(just('\n').ignored());
+        let padding_with_newlines = normal_padding.clone().or(one_of("\r\n").ignored());
         // Workaround for https://github.com/zesterer/chumsky/issues/748
         let padding = normal_padding
             .repeated()
