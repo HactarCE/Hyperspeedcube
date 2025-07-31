@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 
 #[cfg(feature = "hyperpaths")]
@@ -132,16 +133,22 @@ impl Modules {
             module_path.pop();
         }
 
+        // Normalize slashes on Windows to be `/`
+        let module_path_str = module_path
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .join("/");
+
         let new_file_id;
         let mut module = Module::new(file_path, contents.into());
-        match self.0.entry(Substr::from(module_path.to_string_lossy())) {
+        match self.0.entry(Substr::from(&module_path_str)) {
             indexmap::map::Entry::Occupied(e) if !e.get().contents.is_empty() => {
                 new_file_id = e.index() as FileId;
                 log::warn!(
                     "files {:?} and {:?} have the same module path of {:?}",
                     e.get().file_path,
                     module.file_path,
-                    module_path.clone(),
+                    module_path_str,
                 );
             }
             indexmap::map::Entry::Occupied(mut e) => {
