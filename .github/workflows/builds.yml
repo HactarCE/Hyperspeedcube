@@ -23,11 +23,7 @@ jobs:
                       ~/.cargo/git
                       target
                   key: ${{ runner.os }}-cargo
-            - uses: actions-rs/toolchain@v1
-              with:
-                  toolchain: stable
-                  components: clippy
-                  override: true
+            - uses: dtolnay/rust-toolchain@stable
             - name: Build Hyperspeedcube
               run: cargo build --release
             - name: Upload release
@@ -48,11 +44,7 @@ jobs:
                       ~/.cargo/git
                       target
                   key: ${{ runner.os }}-cargo
-            - uses: actions-rs/toolchain@v1
-              with:
-                  toolchain: stable
-                  components: clippy
-                  override: true
+            - uses: dtolnay/rust-toolchain@stable
             - name: Update apt
               run: sudo apt update
             - name: Install egui dependencies
@@ -83,12 +75,9 @@ jobs:
                       ~/.cargo/git
                       target
                   key: ${{ runner.os }}-cargo
-            - uses: actions-rs/toolchain@v1
+            - uses: dtolnay/rust-toolchain@stable
               with:
-                  toolchain: stable
-                  components: clippy
-                  target: x86_64-apple-darwin
-                  override: true
+                  targets: x86_64-apple-darwin
             - name: Install cargo-bundle
               uses: baptiste0928/cargo-install@v3
               with:
