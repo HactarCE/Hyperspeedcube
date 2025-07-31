@@ -1,113 +1,112 @@
 name: Build
 
 on:
-  push:
-    branches: [ stable ]
-  workflow_dispatch:
+    push:
+        branches: [stable]
+    workflow_dispatch:
 
 env:
-  CARGO_TERM_COLOR: always
-  HYPERSPEEDCUBE_VERSION: 2.0.0-pre.20
-  HSC_OFFICIAL_BUILD: 1
+    CARGO_TERM_COLOR: always
+    HYPERSPEEDCUBE_VERSION: 2.0.0-pre.20
+    HSC_OFFICIAL_BUILD: 1
 
 jobs:
+    windows:
+        name: Build Windows latest
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo
+            - uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: clippy
+                  override: true
+            - name: Build Hyperspeedcube
+              run: cargo build --release
+            - name: Upload release
+              uses: actions/upload-artifact@v4
+              with:
+                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
+                  path: target/release/hyperspeedcube.exe
 
-  windows:
-    name: Build Windows latest
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            override: true
-      - name: Build Hyperspeedcube
-        run: cargo build --release
-      - name: Upload release
-        uses: actions/upload-artifact@v4
-        with:
-          name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
-          path: target/release/hyperspeedcube.exe
+    linux:
+        name: Build Linux latest
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo
+            - uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: clippy
+                  override: true
+            - name: Update apt
+              run: sudo apt update
+            - name: Install egui dependencies
+              run: sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+            - name: Install Rusty File Dialog dependencies
+              run: sudo apt install libgtk-3-dev
+            - name: Install XKB/XCB dev dependencies
+              run: sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libxcb-xinput-dev
+            - name: Build Hyperspeedcube
+              run: cargo build --release
+            - name: Make tarball
+              run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz -C target/release hyperspeedcube
+            - name: Upload release
+              uses: actions/upload-artifact@v4
+              with:
+                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
+                  path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz
 
-  linux:
-    name: Build Linux latest
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            override: true
-      - name: Update apt
-        run: sudo apt update
-      - name: Install egui dependencies
-        run: sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
-      - name: Install Rusty File Dialog dependencies
-        run: sudo apt install libgtk-3-dev
-      - name: Install XKB/XCB dev dependencies
-        run: sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libxcb-xinput-dev
-      - name: Build Hyperspeedcube
-        run: cargo build --release
-      - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz -C target/release hyperspeedcube
-      - name: Upload release
-        uses: actions/upload-artifact@v4
-        with:
-          name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
-          path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz
-
-  macos:
-    name: Build macOS latest
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            target: x86_64-apple-darwin
-            override: true
-      - name: Install cargo-bundle
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-bundle
-          version: latest
-          use-tool-cache: true
-      - name: Build Hyperspeedcube (arm64)
-        run: cargo build --release
-      - name: Build Hyperspeedcube (x86_64)
-        run: cargo build --release --target=x86_64-apple-darwin
-      - name: Merge universal binary
-        run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
-      - name: Make app
-        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
-      - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
-      - name: Upload app
-        uses: actions/upload-artifact@v4
-        with:
-          name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos
-          path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz
+    macos:
+        name: Build macOS latest
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo
+            - uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: clippy
+                  target: x86_64-apple-darwin
+                  override: true
+            - name: Install cargo-bundle
+              uses: actions-rs/install@v0.1
+              with:
+                  crate: cargo-bundle
+                  version: latest
+                  use-tool-cache: true
+            - name: Build Hyperspeedcube (arm64)
+              run: cargo build --release
+            - name: Build Hyperspeedcube (x86_64)
+              run: cargo build --release --target=x86_64-apple-darwin
+            - name: Merge universal binary
+              run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
+            - name: Make app
+              run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
+            - name: Make tarball
+              run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
+            - name: Upload app
+              uses: actions/upload-artifact@v4
+              with:
+                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos
+                  path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz
