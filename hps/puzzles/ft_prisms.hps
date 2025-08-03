@@ -53,6 +53,9 @@ add_puzzle_generator(
                     // Slice layers
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
                     add_layers(#twists.side_axis, polygon.shallow_cut_depths(width))
+                    if #twists.opposite_side_axis != null {
+                        add_layers(#twists.opposite_side_axis, polygon.shallow_cut_depths(width).map(fn(d) { -d }).rev())
+                    }
                 }
             },
 
@@ -67,6 +70,70 @@ add_puzzle_generator(
                 "cuts/depth/half" = n.is_even(), // TODO
                 "external/leaderboard" = n >= 2, // TODO
                 "pieces/standard" = true,
+            },
+        }
+    },
+
+    tags = #{
+        schema = 1,
+        author = ["Andrew Farkas", "Luna Harran"],
+        shape = "3d/prism",
+        axes = "3d/prism",
+        turns_by = ["facet", "face"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        cuts = "depth/shallow", // TODO
+    },
+)
+
+// Face-Turning Triminx Prism generator
+add_puzzle_generator(
+    id = "ft_triminx_prism",
+    version = "0.1.0",
+    name = "Face-Turning Triminx Prism",
+    params = [
+        param_polygon_width("Width"),
+        param_line_height("Height"),
+    ],
+    engine = "euclid",
+    gen = fn(width, height) {
+        n = 3 // TODO
+        return #{
+            name = ft_polygonal_prism_name(3, width, height, "Triminx"),
+            ndim = 3,
+            colors = "polygonal_prism:3",
+            twists = "ft_polygonal_prismic:3",
+            build = fn() {
+                use sym, polygon, line from @shapes/product(#{
+                    polygon = @shapes/i/polygon.new(n),
+                    line = @shapes/line.new(),
+                })
+                h = polygon.edge_length / 2
+
+                with #sym = sym {
+                    // Carve shape
+                    carve(plane(line.endpoint * h), line.names("U", "D"))
+                    carve(plane(polygon.edge_pole), "F${polygon.edge_names}")
+
+                    // Slice layers
+                    add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
+                    add_layers(#twists.side_axis, polygon.full_cut_depths(width))
+                    if #twists.opposite_side_axis != null {
+                        add_layers(#twists.opposite_side_axis, polygon.full_cut_depths(width).map(fn(d) { -d }).rev())
+                    }
+                }
+            },
+
+            tags = #{
+                type = "puzzle",
+                completeness = #{
+                    laminated = n <= 2, // TODO
+                    real = n <= 3, // TODO
+                    super = n <= 2, // TODO
+                },
+                "cuts/depth/deep/to_adjacent" = n.is_even(), // TODO
+                "cuts/depth/half" = n.is_even(), // TODO
+                "external/leaderboard" = n >= 2, // TODO
+                // "pieces/standard" = true, // TODO
             },
         }
     },
@@ -101,6 +168,17 @@ add_twist_system_generator(
                     export side_axis = add_axis(shape.side_pole, shape.side_names)
                     add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = shape.h)
                     add_twist(side_axis, #sym.thru([2, 0]), gizmo_pole_distance = 1)
+
+                    if n == 3 {
+                        export opposite_side_axis = add_axis(
+                            -shape.side_pole,
+                            #sym.names(
+                                point(shape.side_pole),
+                                #{VA = [], VB = [0, 1, "VA"], VC = [0, 1, "VB"]}, // TODO: bikeshed names
+                            ),
+                        )
+                        add_twist(opposite_side_axis, #sym.thru([0, 2]), gizmo_pole_distance = 1)
+                    }
                 }
 
                 // Add global twist directions
