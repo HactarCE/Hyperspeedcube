@@ -1,0 +1,52 @@
+use * from euclid
+
+add_puzzle(
+    id = "dayan_gem_3",
+    version = "0.0.1",
+    engine = "euclid",
+    ndim = 3,
+    colors = "vt_octahedron",
+    build = fn() {
+        octa = @shapes/bc/octahedron.new()
+        with #sym = octa.sym {
+            hex_face_pole = octa.facet_pole
+            square_face_pole = octa.vertex_pole * 2/3
+            carve(plane(hex_face_pole), octa.facet_names)
+            carve(plane(square_face_pole))
+
+            hex_face = add_axis(hex_face_pole, octa.facet_names, [∞, 2/3])
+            square_face = add_axis(square_face_pole, [∞, square_face_pole.mag * 3/4])
+
+            add_twist(hex_face, #sym.thru([2, 1]), gizmo_pole_distance = hex_face_pole.mag)
+            add_twist(square_face, #sym.thru([1, 0]), gizmo_pole_distance = square_face_pole.mag)
+        }
+    },
+    tags = #{
+        shape = "3d",
+        type = "puzzle",
+    },
+)
+
+add_color_system(
+    id = "vt_octahedron",
+    name = "Octahedron",
+
+    colors = [
+        #{ name = "R",         display = "Right",      default = "Green", },
+        #{ name = "L",         display = "Left",       default = "Purple", },
+        #{ name = "U",         display = "Up",         default = "White", },
+        #{ name = "D",         display = "Down",       default = "Yellow", },
+        #{ name = "F",         display = "Front",      default = "Red", },
+        #{ name = "BR",        display = "Back-right", default = "Gray", },
+        #{ name = "BL",        display = "Back-left",  default = "Orange", },
+        #{ name = "BD",        display = "Back-down",  default = "Blue", },
+        #{ name = "unnamed_A", display = "unnamed_A",  default = "Red Dyad [2]", },
+        #{ name = "unnamed_B", display = "unnamed_B",  default = "Black", },
+        #{ name = "unnamed_C", display = "unnamed_C",  default = "Orange Dyad [1]", },
+        #{ name = "unnamed_D", display = "unnamed_D",  default = "Magenta Dyad [1]", },
+        #{ name = "unnamed_E", display = "unnamed_E",  default = "Orange Dyad [2]", },
+        #{ name = "unnamed_F", display = "unnamed_F",  default = "Magenta Dyad [2]", },
+    ],
+
+    default = "default",
+)

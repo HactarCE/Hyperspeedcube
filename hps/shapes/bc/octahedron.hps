@@ -26,6 +26,8 @@ export fn new(t: Transform) -> Map {
         BL = [0, "D"],
         BD = [0, "BR"], // B in standard notation
     })
+
+    export vertex_pole = sym.oox.unit * √3
 }
 
 export facet_colors_list = [
