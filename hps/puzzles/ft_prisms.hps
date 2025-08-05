@@ -54,7 +54,7 @@ add_puzzle_generator(
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
                     add_layers(#twists.side_axis, polygon.shallow_cut_depths(width))
                     if #twists.opposite_side_axis != null {
-                        add_layers(#twists.opposite_side_axis, polygon.shallow_cut_depths(width).map(fn(d) { -d }).rev())
+                        add_layers(#twists.opposite_side_axis, @util/layers.opposite_depths(polygon.shallow_cut_depths(width)))
                     }
                 }
             },
@@ -118,7 +118,7 @@ add_puzzle_generator(
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
                     add_layers(#twists.side_axis, polygon.full_cut_depths(width))
                     if #twists.opposite_side_axis != null {
-                        add_layers(#twists.opposite_side_axis, polygon.full_cut_depths(width).map(fn(d) { -d }).rev())
+                        add_layers(#twists.opposite_side_axis, @util/layers.opposite_depths(polygon.full_cut_depths(width)))
                     }
                 }
             },
@@ -169,6 +169,7 @@ add_twist_system_generator(
                     add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = shape.h)
                     add_twist(side_axis, #sym.thru([2, 0]), gizmo_pole_distance = 1)
 
+                    export opposite_side_axis = null
                     if n == 3 {
                         export opposite_side_axis = add_axis(
                             -shape.side_pole,
