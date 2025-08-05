@@ -2,6 +2,7 @@ use * from euclid
 
 add_puzzle(
     id = "dayan_gem_3",
+    name = "Dayan Gem III",
     version = "0.0.1",
     engine = "euclid",
     ndim = 3,
@@ -47,6 +48,4 @@ add_color_system(
         #{ name = "unnamed_E", display = "unnamed_E",  default = "Orange Dyad [2]", },
         #{ name = "unnamed_F", display = "unnamed_F",  default = "Magenta Dyad [2]", },
     ],
-
-    default = "default",
 )
