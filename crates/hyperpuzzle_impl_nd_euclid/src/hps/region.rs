@@ -1,6 +1,6 @@
 use std::fmt;
 use std::hash::Hash;
-use std::ops::{BitAnd, BitOr, BitXor, Not};
+use std::ops::{BitAnd, BitOr, Not};
 
 use hypermath::prelude::*;
 use hyperpuzzle_core::LayerMask;
@@ -24,8 +24,6 @@ pub enum HpsRegion {
     And(Vec<HpsRegion>),
     /// Union of regions.
     Or(Vec<HpsRegion>),
-    /// Symmetric difference of regions.
-    Xor(Vec<HpsRegion>),
     /// Complement of a region.
     Not(Box<HpsRegion>),
 }
@@ -43,7 +41,6 @@ impl fmt::Display for HpsRegion {
             Self::HalfSpace(hyperplane) => write!(f, "{ND_EUCLID}.plane({hyperplane}).region()"),
             Self::And(args) => write!(f, "({})", args.iter().join(" & ")),
             Self::Or(args) => write!(f, "({})", args.iter().join(" | ")),
-            Self::Xor(args) => write!(f, "({})", args.iter().join(" ^ ")),
             Self::Not(arg) => write!(f, "~{arg}"),
         }
     }
@@ -101,7 +98,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_fns(hps_fns![
         ("&", |_, a: HpsRegion, b: HpsRegion| -> HpsRegion { a & b }),
         ("|", |_, a: HpsRegion, b: HpsRegion| -> HpsRegion { a | b }),
-        ("^", |_, a: HpsRegion, b: HpsRegion| -> HpsRegion { a ^ b }),
         ("~", |_, r: HpsRegion| -> HpsRegion { !r }),
     ])
 }
@@ -121,7 +117,6 @@ impl HpsRegion {
             },
             HpsRegion::And(xs) => xs.iter().all(|x| x.contains_point(point)),
             HpsRegion::Or(xs) => xs.iter().any(|x| x.contains_point(point)),
-            HpsRegion::Xor(xs) => xs.iter().filter(|x| x.contains_point(point)).count() % 2 == 1,
             HpsRegion::Not(x) => !x.contains_point(point),
         }
     }
@@ -135,7 +130,6 @@ impl TransformByMotor for HpsRegion {
             Self::HalfSpace(h) => Self::HalfSpace(m.transform(h)),
             Self::And(xs) => Self::And(xs.iter().map(|x| m.transform(x)).collect()),
             Self::Or(xs) => Self::Or(xs.iter().map(|x| m.transform(x)).collect()),
-            Self::Xor(xs) => Self::Xor(xs.iter().map(|x| m.transform(x)).collect()),
             Self::Not(x) => Self::Not(Box::new(m.transform(x))),
         }
     }
@@ -149,7 +143,6 @@ impl ApproxEq for HpsRegion {
             (HpsRegion::HalfSpace(h1), HpsRegion::HalfSpace(h2)) => prec.eq(h1, h2),
             (HpsRegion::And(r1), HpsRegion::And(r2)) => prec.eq(r1, r2),
             (HpsRegion::Or(r1), HpsRegion::Or(r2)) => prec.eq(r1, r2),
-            (HpsRegion::Xor(r1), HpsRegion::Xor(r2)) => prec.eq(r1, r2),
             (HpsRegion::Not(r1), HpsRegion::Not(r2)) => prec.eq(r1, r2),
 
             (HpsRegion::None, _) | (_, HpsRegion::None) => false,
@@ -157,7 +150,6 @@ impl ApproxEq for HpsRegion {
             (HpsRegion::HalfSpace(_), _) | (_, HpsRegion::HalfSpace(_)) => false,
             (HpsRegion::And(_), _) | (_, HpsRegion::And(_)) => false,
             (HpsRegion::Or(_), _) | (_, HpsRegion::Or(_)) => false,
-            (HpsRegion::Xor(_), _) | (_, HpsRegion::Xor(_)) => false,
         }
     }
 }
@@ -167,7 +159,7 @@ impl ApproxHash for HpsRegion {
         match self {
             HpsRegion::None | HpsRegion::All => (),
             HpsRegion::HalfSpace(h) => h.intern_floats(f),
-            HpsRegion::And(r) | HpsRegion::Or(r) | HpsRegion::Xor(r) => r.intern_floats(f),
+            HpsRegion::And(r) | HpsRegion::Or(r) => r.intern_floats(f),
             HpsRegion::Not(r) => r.intern_floats(f),
         }
     }
@@ -177,9 +169,8 @@ impl ApproxHash for HpsRegion {
             (HpsRegion::None, HpsRegion::None) => true,
             (HpsRegion::All, HpsRegion::All) => true,
             (HpsRegion::HalfSpace(h1), HpsRegion::HalfSpace(h2)) => h1.interned_eq(h2),
-            (HpsRegion::And(r1), HpsRegion::And(r2))
-            | (HpsRegion::Or(r1), HpsRegion::Or(r2))
-            | (HpsRegion::Xor(r1), HpsRegion::Xor(r2)) => r1.interned_eq(r2),
+            (HpsRegion::And(r1), HpsRegion::And(r2)) => r1.interned_eq(r2),
+            (HpsRegion::Or(r1), HpsRegion::Or(r2)) => r1.interned_eq(r2),
             (HpsRegion::Not(r1), HpsRegion::Not(r2)) => r1.interned_eq(r2),
 
             (HpsRegion::None, _)
@@ -187,7 +178,6 @@ impl ApproxHash for HpsRegion {
             | (HpsRegion::HalfSpace(_), _)
             | (HpsRegion::And(_), _)
             | (HpsRegion::Or(_), _)
-            | (HpsRegion::Xor(_), _)
             | (HpsRegion::Not(_), _) => false,
         }
     }
@@ -197,9 +187,8 @@ impl ApproxHash for HpsRegion {
         match self {
             HpsRegion::None | HpsRegion::All => (),
             HpsRegion::HalfSpace(hyperplane) => hyperplane.interned_hash(state),
-            HpsRegion::And(hps_regions)
-            | HpsRegion::Or(hps_regions)
-            | HpsRegion::Xor(hps_regions) => hps_regions.interned_hash(state),
+            HpsRegion::And(hps_regions) => hps_regions.interned_hash(state),
+            HpsRegion::Or(hps_regions) => hps_regions.interned_hash(state),
             HpsRegion::Not(hps_region) => hps_region.interned_hash(state),
         }
     }
@@ -240,25 +229,6 @@ impl BitOr for HpsRegion {
                 Self::Or(xs)
             }
             (x, y) => Self::Or(vec![x, y]),
-        }
-    }
-}
-impl BitXor for HpsRegion {
-    type Output = Self;
-
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (HpsRegion::None, x) | (x, HpsRegion::None) => x,
-            (HpsRegion::All, x) | (x, HpsRegion::All) => !x,
-            (HpsRegion::Xor(mut xs), HpsRegion::Xor(ys)) => {
-                xs.extend(ys);
-                Self::Xor(xs)
-            }
-            (HpsRegion::Xor(mut xs), x) | (x, HpsRegion::Xor(mut xs)) => {
-                xs.push(x);
-                Self::Xor(xs)
-            }
-            (x, y) => HpsRegion::Xor(vec![x, y]),
         }
     }
 }
