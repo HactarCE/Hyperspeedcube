@@ -20,7 +20,7 @@ pub struct ColorSystem {
     pub display_names: PerColor<String>,
 
     /// List of named color schemes.
-    pub schemes: IndexMap<String, PerColor<DefaultColor>>,
+    pub schemes: IndexMap<String, PerColor<PaletteColor>>,
     /// Name of the default color scheme, which is typically `"Default"`.
     pub default_scheme: String,
 
@@ -29,9 +29,9 @@ pub struct ColorSystem {
 }
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
-    fn new_rainbow_scheme(len: usize) -> PerColor<DefaultColor> {
+    fn new_rainbow_scheme(len: usize) -> PerColor<PaletteColor> {
         (0..len)
-            .map(|i| DefaultColor::Gradient {
+            .map(|i| PaletteColor::Gradient {
                 gradient_name: crate::DEFAULT_COLOR_GRADIENT_NAME.to_string(),
                 index: i,
                 total: len,
@@ -40,7 +40,7 @@ impl ColorSystem {
     }
 
     /// Returns the default color scheme.
-    pub fn default_scheme(&self) -> Cow<'_, PerColor<DefaultColor>> {
+    pub fn default_scheme(&self) -> Cow<'_, PerColor<PaletteColor>> {
         match self.schemes.get(&self.default_scheme) {
             Some(scheme) => Cow::Borrowed(scheme),
             None => Cow::Owned(Self::new_rainbow_scheme(self.len())),
@@ -48,7 +48,7 @@ impl ColorSystem {
     }
     /// Returns the color scheme with the given name, or the default scheme if
     /// it doesn't exist.
-    pub fn get_scheme_or_default(&self, name: &str) -> Cow<'_, PerColor<DefaultColor>> {
+    pub fn get_scheme_or_default(&self, name: &str) -> Cow<'_, PerColor<PaletteColor>> {
         match self.schemes.get(name) {
             Some(scheme) => Cow::Borrowed(scheme),
             None => self.default_scheme(),
@@ -86,8 +86,8 @@ impl ColorSystem {
 ///
 /// Returns whether the color scheme was modified.
 pub fn ensure_color_scheme_is_valid<'a>(
-    scheme: impl IntoIterator<Item = &'a mut DefaultColor>,
-    mut is_valid_color: impl FnMut(&DefaultColor) -> bool,
+    scheme: impl IntoIterator<Item = &'a mut PaletteColor>,
+    mut is_valid_color: impl FnMut(&PaletteColor) -> bool,
 ) -> bool {
     let mut changed = false;
 
@@ -104,25 +104,25 @@ pub fn ensure_color_scheme_is_valid<'a>(
     for c in scheme {
         match c {
             // If the color hasn't been used yet, keep it.
-            DefaultColor::HexCode { .. }
-            | DefaultColor::Single { .. }
-            | DefaultColor::Set { .. }
+            PaletteColor::HexCode { .. }
+            | PaletteColor::Single { .. }
+            | PaletteColor::Set { .. }
                 if is_valid_color(c) && used_colors.insert(c.clone()) => {}
 
             // If the color is unknown or has already been used, add it to the
             // end of the default color gradient.
-            DefaultColor::Unknown
-            | DefaultColor::HexCode { .. }
-            | DefaultColor::Single { .. }
-            | DefaultColor::Set { .. } => {
+            PaletteColor::Unknown
+            | PaletteColor::HexCode { .. }
+            | PaletteColor::Single { .. }
+            | PaletteColor::Set { .. } => {
                 changed = true;
-                *c = DefaultColor::Gradient {
+                *c = PaletteColor::Gradient {
                     gradient_name: crate::DEFAULT_COLOR_GRADIENT_NAME.to_string(),
                     index: usize::MAX,
                     total: usize::MAX,
                 };
 
-                let DefaultColor::Gradient {
+                let PaletteColor::Gradient {
                     gradient_name: _,
                     index,
                     total,
@@ -139,7 +139,7 @@ pub fn ensure_color_scheme_is_valid<'a>(
 
             // If the color is a gradient, then add it in its place to the
             // gradient.
-            DefaultColor::Gradient {
+            PaletteColor::Gradient {
                 gradient_name,
                 index,
                 total,

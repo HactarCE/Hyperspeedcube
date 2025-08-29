@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
-use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
-use hyperpuzzle::{ColorSystem, DefaultColor};
+use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
+use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
 
@@ -41,21 +41,21 @@ pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String
 
 #[derive(Debug)]
 pub struct ColorsUi<'a> {
-    default_color_to_puzzle_color: HashMap<DefaultColor, String>,
-    gradient_totals: HashMap<DefaultColorGradient, usize>,
+    palette_color_to_puzzle_color: HashMap<PaletteColor, String>,
+    gradient_totals: HashMap<PaletteGradient, usize>,
     palette: &'a GlobalColorPalette,
 
     pub clickable: bool,
     pub show_puzzle_colors: bool,
-    dnd: Option<super::DragAndDrop<String, DefaultColor>>,
+    dnd: Option<super::DragAndDrop<String, PaletteColor>>,
 
-    hovered_color: Option<DefaultColor>,
-    clicked_color: Option<DefaultColor>,
+    hovered_color: Option<PaletteColor>,
+    clicked_color: Option<PaletteColor>,
 }
 impl<'a> ColorsUi<'a> {
     pub fn new(palette: &'a GlobalColorPalette) -> Self {
         Self {
-            default_color_to_puzzle_color: HashMap::new(),
+            palette_color_to_puzzle_color: HashMap::new(),
             gradient_totals: HashMap::new(),
             palette,
 
@@ -86,7 +86,7 @@ impl<'a> ColorsUi<'a> {
         self
     }
 
-    fn click_zone(&mut self, r: &egui::Response, color: &DefaultColor) {
+    fn click_zone(&mut self, r: &egui::Response, color: &PaletteColor) {
         if self.clickable {
             if r.hovered() {
                 self.hovered_color = Some(color.clone());
@@ -96,7 +96,7 @@ impl<'a> ColorsUi<'a> {
             }
         }
     }
-    fn drag_drop_zone(&mut self, ui: &mut egui::Ui, r: &egui::Response, color: &DefaultColor) {
+    fn drag_drop_zone(&mut self, ui: &mut egui::Ui, r: &egui::Response, color: &PaletteColor) {
         if let Some(dnd) = &mut self.dnd {
             dnd.drop_zone(ui, r, color.clone());
         }
@@ -105,7 +105,7 @@ impl<'a> ColorsUi<'a> {
         &mut self,
         ui: &mut egui::Ui,
         r: &egui::Response,
-        color: &DefaultColor,
+        color: &PaletteColor,
     ) {
         if let Some(dnd) = &mut self.dnd {
             dnd.reorder_drop_zone(ui, r, color.clone());
@@ -117,18 +117,18 @@ impl<'a> ColorsUi<'a> {
     }
 
     fn update_reverse_color_map(&mut self, color_scheme: &ColorScheme) {
-        // Construct a reverse map from default color to puzzle color. This
+        // Construct a reverse map from color assignment to puzzle color. This
         // assumes that the color scheme is already valid.
-        for (color_name, default_color) in color_scheme {
-            self.default_color_to_puzzle_color
-                .insert(default_color.clone(), color_name.clone());
+        for (color_name, palette_color) in color_scheme {
+            self.palette_color_to_puzzle_color
+                .insert(palette_color.clone(), color_name.clone());
 
             // Record gradient totals
-            if let DefaultColor::Gradient {
+            if let PaletteColor::Gradient {
                 gradient_name,
                 index: 0,
                 total,
-            } = default_color
+            } = palette_color
             {
                 if let Ok(g) = gradient_name.parse() {
                     self.gradient_totals.insert(g, *total);
@@ -149,7 +149,7 @@ impl<'a> ColorsUi<'a> {
         current_colors: Option<(&mut ColorScheme, &ColorSystem)>,
         puzzle_color_to_modify: Option<String>,
     ) -> (bool, Option<ColorScheme>) {
-        self.default_color_to_puzzle_color = HashMap::new();
+        self.palette_color_to_puzzle_color = HashMap::new();
         self.gradient_totals = HashMap::new();
         if let Some((color_scheme, _color_system)) = &current_colors {
             self.update_reverse_color_map(color_scheme);
@@ -223,7 +223,7 @@ impl<'a> ColorsUi<'a> {
         ui.group(|ui| {
             ui.set_width(ui.available_width());
             ui.strong(L.colors.gradients);
-            for gradient in DefaultColorGradient::iter() {
+            for gradient in PaletteGradient::iter() {
                 self.show_color_gradient(ui, gradient);
             }
         });
@@ -274,7 +274,7 @@ impl<'a> ColorsUi<'a> {
         &self,
         map: &mut ColorScheme,
         color_system: &ColorSystem,
-        drag: DragAndDropResponse<String, DefaultColor>,
+        drag: DragAndDropResponse<String, PaletteColor>,
     ) {
         match drag.before_or_after {
             Some(before_or_after) => {
@@ -290,14 +290,14 @@ impl<'a> ColorsUi<'a> {
         &self,
         map: &mut ColorScheme,
         name: String,
-        mut new_default_color: DefaultColor,
+        mut new_assignment: PaletteColor,
         before_or_after: BeforeOrAfter,
     ) {
-        let DefaultColor::Gradient {
+        let PaletteColor::Gradient {
             gradient_name,
             index,
             total: _,
-        } = &mut new_default_color
+        } = &mut new_assignment
         else {
             log::error!("attempt to reorder color to something other than a gradient");
             return;
@@ -307,7 +307,7 @@ impl<'a> ColorsUi<'a> {
             *index += 1;
         }
 
-        let Ok(gradient) = gradient_name.parse::<DefaultColorGradient>() else {
+        let Ok(gradient) = gradient_name.parse::<PaletteGradient>() else {
             log::error!("unknown gradient name {gradient_name:?}");
             return;
         };
@@ -316,8 +316,8 @@ impl<'a> ColorsUi<'a> {
         let total = *self.gradient_totals.get(&gradient).unwrap_or(&0);
         for i in *index..total {
             if let Some(name) = self
-                .default_color_to_puzzle_color
-                .get(&DefaultColor::Gradient {
+                .palette_color_to_puzzle_color
+                .get(&PaletteColor::Gradient {
                     gradient_name: gradient_name.clone(),
                     index: i,
                     total,
@@ -325,7 +325,7 @@ impl<'a> ColorsUi<'a> {
             {
                 map.insert(
                     name.clone(),
-                    DefaultColor::Gradient {
+                    PaletteColor::Gradient {
                         gradient_name: gradient_name.clone(),
                         index: i.saturating_add(1),
                         total: total.saturating_add(1),
@@ -335,15 +335,15 @@ impl<'a> ColorsUi<'a> {
         }
 
         // Insert the new color.
-        map.insert(name, new_default_color);
+        map.insert(name, new_assignment);
     }
-    fn swap_color_to(&self, map: &mut ColorScheme, name: String, new_default_color: DefaultColor) {
-        let old_name = self.default_color_to_puzzle_color.get(&new_default_color);
-        let old_default_color = map.insert(name, new_default_color);
+    fn swap_color_to(&self, map: &mut ColorScheme, name: String, new_assignment: PaletteColor) {
+        let old_name = self.palette_color_to_puzzle_color.get(&new_assignment);
+        let old_assignment = map.insert(name, new_assignment);
 
-        if let Some(old_default_color) = old_default_color {
+        if let Some(old_assignment) = old_assignment {
             if let Some(old_name) = old_name {
-                map.insert(old_name.clone(), old_default_color);
+                map.insert(old_name.clone(), old_assignment);
             }
         }
     }
@@ -352,10 +352,10 @@ impl<'a> ColorsUi<'a> {
         crate::gui::util::wrap_if_needed_for_color_button(ui);
 
         let tooltip_pos = ui.cursor().left_top();
-        let default_color = DefaultColor::Single { name: color_name };
-        let r = self.show_generic_color(ui, &default_color, tooltip_pos);
-        self.click_zone(&r, &default_color);
-        self.drag_drop_zone(ui, &r, &default_color);
+        let color_assignment = PaletteColor::Single { name: color_name };
+        let r = self.show_generic_color(ui, &color_assignment, tooltip_pos);
+        self.click_zone(&r, &color_assignment);
+        self.drag_drop_zone(ui, &r, &color_assignment);
     }
 
     fn show_color_set(&mut self, ui: &mut egui::Ui, color_set_name: &str) {
@@ -369,18 +369,18 @@ impl<'a> ColorsUi<'a> {
             set_tight_spacing(ui);
 
             for i in 0..color_set.len() {
-                let default_color = DefaultColor::Set {
+                let palette_color = PaletteColor::Set {
                     set_name: color_set_name.to_string(),
                     index: i,
                 };
-                let r = self.show_generic_color(ui, &default_color, tooltip_pos);
-                self.click_zone(&r, &default_color);
-                self.drag_drop_zone(ui, &r, &default_color);
+                let r = self.show_generic_color(ui, &palette_color, tooltip_pos);
+                self.click_zone(&r, &palette_color);
+                self.drag_drop_zone(ui, &r, &palette_color);
             }
         });
     }
 
-    fn show_color_gradient(&mut self, ui: &mut egui::Ui, gradient: DefaultColorGradient) {
+    fn show_color_gradient(&mut self, ui: &mut egui::Ui, gradient: PaletteGradient) {
         ui.group(|ui| {
             ui.set_width(ui.available_width());
             set_tight_spacing(ui);
@@ -405,17 +405,17 @@ impl<'a> ColorsUi<'a> {
                 puzzle_color: None,
             }
             .show(ui, self);
-            self.click_zone(&r, &gradient.default_color_at_end());
+            self.click_zone(&r, &gradient.color_at_end());
 
             if total == 0 {
-                self.drag_drop_zone(ui, &r, &gradient.default_color_at(0, 1));
+                self.drag_drop_zone(ui, &r, &gradient.color_at(0, 1));
             } else {
                 ui.horizontal_wrapped(|ui| {
                     for index in 0..total {
-                        let default_color = gradient.default_color_at(index, total);
-                        let r = self.show_generic_color(ui, &default_color, tooltip_pos);
-                        self.click_zone(&r, &default_color);
-                        self.reorder_drag_drop_zone(ui, &r, &default_color);
+                        let palette_color = gradient.color_at(index, total);
+                        let r = self.show_generic_color(ui, &palette_color, tooltip_pos);
+                        self.click_zone(&r, &palette_color);
+                        self.reorder_drag_drop_zone(ui, &r, &palette_color);
                     }
                 });
             }
@@ -425,16 +425,16 @@ impl<'a> ColorsUi<'a> {
     fn show_generic_color(
         &mut self,
         ui: &mut egui::Ui,
-        default_color: &DefaultColor,
+        palette_color: &PaletteColor,
         tooltip_pos: egui::Pos2,
     ) -> egui::Response {
         let size = ui.spacing().interact_size;
-        let Some(rgb) = self.palette.get(default_color) else {
-            return super::error_label(ui, format!("missing color {default_color}"));
+        let Some(rgb) = self.palette.get(palette_color) else {
+            return super::error_label(ui, format!("missing color {palette_color}"));
         };
         let puzzle_color = if self.show_puzzle_colors {
-            self.default_color_to_puzzle_color
-                .get(default_color)
+            self.palette_color_to_puzzle_color
+                .get(palette_color)
                 .cloned()
         } else {
             None
@@ -444,7 +444,7 @@ impl<'a> ColorsUi<'a> {
             size,
             tooltip_pos,
 
-            color_name: default_color.to_string(),
+            color_name: palette_color.to_string(),
             color: rgb.into(),
             puzzle_color,
         }
@@ -566,15 +566,15 @@ impl ColorButton {
 #[derive(Debug, Copy, Clone)]
 pub enum ColorOrGradient {
     Color(egui::Color32),
-    Gradient(DefaultColorGradient),
+    Gradient(PaletteGradient),
 }
 impl From<hyperpuzzle::Rgb> for ColorOrGradient {
     fn from(value: hyperpuzzle::Rgb) -> Self {
         Self::Color(value.to_egui_color32())
     }
 }
-impl From<DefaultColorGradient> for ColorOrGradient {
-    fn from(value: DefaultColorGradient) -> Self {
+impl From<PaletteGradient> for ColorOrGradient {
+    fn from(value: PaletteGradient) -> Self {
         Self::Gradient(value)
     }
 }

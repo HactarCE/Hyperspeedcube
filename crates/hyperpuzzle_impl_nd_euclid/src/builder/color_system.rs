@@ -29,7 +29,7 @@ pub struct ColorSystemBuilder {
     autonames: AutoNames,
 
     /// Color schemes.
-    pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
+    pub schemes: IndexMap<String, PerColor<Option<PaletteColor>>>,
     /// Default color scheme.
     pub default_scheme: Option<String>,
 
@@ -92,15 +92,15 @@ impl ColorSystemBuilder {
     }
 
     /// Adds a new color scheme.
-    pub fn add_scheme(&mut self, name: String, mapping: PerColor<Option<DefaultColor>>) {
+    pub fn add_scheme(&mut self, name: String, mapping: PerColor<Option<PaletteColor>>) {
         self.is_modified = true;
 
         match self.schemes.entry(name) {
             indexmap::map::Entry::Occupied(mut e) => {
                 for (id, c) in mapping {
                     e.get_mut().extend_to_contain(id);
-                    if let Some(new_default_color) = c {
-                        e.get_mut()[id] = Some(new_default_color);
+                    if let Some(new_palette_color) = c {
+                        e.get_mut()[id] = Some(new_palette_color);
                     }
                 }
             }
@@ -117,8 +117,8 @@ impl ColorSystemBuilder {
             .unwrap_or(hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME)
     }
 
-    /// Sets the default color for a single color.
-    pub fn set_default_color(&mut self, id: Color, default_color: Option<DefaultColor>) {
+    /// Sets the palette color assignment for a single puzzle color.
+    pub fn set_color_assignment(&mut self, id: Color, default_color: Option<PaletteColor>) {
         self.is_modified = true;
 
         let scheme = self
@@ -128,9 +128,9 @@ impl ColorSystemBuilder {
         scheme.extend_to_contain(id);
         scheme[id] = default_color;
     }
-    /// Returns the default color for a single color, or `None` if it has not
-    /// been set.
-    pub fn get_default_color(&self, id: Color) -> Option<&DefaultColor> {
+    /// Returns the palette color assignment for a single puzzle color, or
+    /// `None` if it has not been set.
+    pub fn get_color_assignment(&self, id: Color) -> Option<&PaletteColor> {
         self.schemes
             .get(self.default_scheme_name())?
             .get(id)
@@ -212,16 +212,14 @@ impl ColorSystemBuilder {
             })
             .collect();
 
-        let mut schemes: IndexMap<String, PerColor<DefaultColor>> = self
+        let mut schemes: IndexMap<String, PerColor<PaletteColor>> = self
             .schemes
             .iter()
-            .map(|(name, default_colors)| {
-                let new_default_colors = default_colors.map_ref(|_, optional_default_color| {
-                    optional_default_color
-                        .clone()
-                        .unwrap_or(DefaultColor::Unknown)
+            .map(|(name, assignments)| {
+                let new_assignments = assignments.map_ref(|_, optional_assignment| {
+                    optional_assignment.clone().unwrap_or(PaletteColor::Unknown)
                 });
-                (name.clone(), new_default_colors)
+                (name.clone(), new_assignments)
             })
             .collect();
 

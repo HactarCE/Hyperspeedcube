@@ -438,11 +438,11 @@ impl PuzzleWidget {
 
         let color_map = view.temp_colors.as_ref().unwrap_or(&view.colors.value);
         let mut sticker_colors = vec![[0; 3]; puzzle.colors.len()];
-        for (name, default_color) in color_map {
+        for (name, palette_color) in color_map {
             // IIFE to mimic try_block
             (|| {
                 let id = puzzle.colors.names.id_from_name(name)?;
-                let rgb = prefs.color_palette.get(default_color)?;
+                let rgb = prefs.color_palette.get(palette_color)?;
                 sticker_colors[id.to_usize()] = rgb.rgb;
                 Some(())
             })();

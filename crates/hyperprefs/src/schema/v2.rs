@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use hyperpuzzle_core::DefaultColor;
+use hyperpuzzle_core::PaletteColor;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +60,7 @@ pub struct GlobalColorPalette {
 
 pub type ColorSystemPreferences = PresetsList<ColorScheme>;
 
-pub type ColorScheme = IndexMap<String, DefaultColor>;
+pub type ColorScheme = IndexMap<String, PaletteColor>;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]

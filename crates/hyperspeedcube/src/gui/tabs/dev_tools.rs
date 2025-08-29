@@ -290,7 +290,7 @@ fn show_orbit_color(
                         .get_or_insert_with(|| view.colors.value.clone())
                         .insert(
                             puz.colors.names[color].to_owned(),
-                            DefaultColor::HexCode {
+                            PaletteColor::HexCode {
                                 rgb: hyperpuzzle::Rgb::mix(
                                     contrasting,
                                     orig_color,

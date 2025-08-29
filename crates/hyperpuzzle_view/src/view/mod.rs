@@ -242,8 +242,8 @@ impl PuzzleView {
         color: hyperpuzzle::Color,
         prefs: &Preferences,
     ) -> Option<hyperpuzzle::Rgb> {
-        let default_color = self.colors.value.get_index(color.0 as usize)?.1;
-        prefs.color_palette.get(default_color)
+        let color_assignment = self.colors.value.get_index(color.0 as usize)?.1;
+        prefs.color_palette.get(color_assignment)
     }
 
     /// Renders a screenshot of the puzzle view.

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use ecow::eco_format;
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
-    Catalog, ColorSystem, ColorSystemGenerator, DefaultColor, NameSpecBiMapBuilder, PerColor,
+    Catalog, ColorSystem, ColorSystemGenerator, PaletteColor, NameSpecBiMapBuilder, PerColor,
 };
 use indexmap::IndexMap;
 
@@ -150,10 +150,10 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, kwargs: Map) -> Result<ColorS
 
         let default_color =
             match pop_map_key::<Option<Spanned<Str>>>(&mut map, map_span, "default")? {
-                None => DefaultColor::Unknown,
+                None => PaletteColor::Unknown,
                 Some((s, span)) => {
                     any_color_has_default = true;
-                    DefaultColor::from_str(&s).at(span)?
+                    PaletteColor::from_str(&s).at(span)?
                 }
             };
         default_scheme.push(default_color).at(ctx.caller_span)?;
@@ -175,7 +175,7 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, kwargs: Map) -> Result<ColorS
                 return Err(Error::User("expected list with 2 elements".into()).at(map_span));
             }
             let scheme_name = std::mem::take(&mut map[0]).to::<String>()?;
-            let mut scheme_values = PerColor::<DefaultColor>::new_with_len(display_names.len());
+            let mut scheme_values = PerColor::<PaletteColor>::new_with_len(display_names.len());
             for (k, v) in map[1].as_ref::<Map>()? {
                 let i = names
                     .id_from_name(k)

@@ -230,11 +230,11 @@ impl AsRef<str> for PieceTypeInfo {
 #[derive(Debug)]
 pub struct ColorInfo {}
 
-/// Default color for a puzzle color.
+/// Color from the global color palette.
 #[allow(missing_docs)]
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub enum DefaultColor {
-    /// Unknown default color.
+pub enum PaletteColor {
+    /// Unknown color.
     #[default]
     Unknown,
     /// Specific hexcode, such as `#ff00ff` or `#f0f`.
@@ -250,7 +250,7 @@ pub enum DefaultColor {
         total: usize,
     },
 }
-impl FromStr for DefaultColor {
+impl FromStr for PaletteColor {
     type Err = eyre::Report;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -283,14 +283,14 @@ impl FromStr for DefaultColor {
         .unwrap_or(Self::Single { name }))
     }
 }
-impl fmt::Display for DefaultColor {
+impl fmt::Display for PaletteColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DefaultColor::Unknown => write!(f, "(unknown)"),
-            DefaultColor::HexCode { rgb } => write!(f, "{rgb}"),
-            DefaultColor::Single { name } => write!(f, "{name}"),
-            DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), /* 1-indexed */
-            DefaultColor::Gradient {
+            PaletteColor::Unknown => write!(f, "(unknown)"),
+            PaletteColor::HexCode { rgb } => write!(f, "{rgb}"),
+            PaletteColor::Single { name } => write!(f, "{name}"),
+            PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), /* 1-indexed */
+            PaletteColor::Gradient {
                 gradient_name,
                 index: numerator,
                 total: denominator,
@@ -303,7 +303,7 @@ impl fmt::Display for DefaultColor {
         }
     }
 }
-impl Serialize for DefaultColor {
+impl Serialize for PaletteColor {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -311,7 +311,7 @@ impl Serialize for DefaultColor {
         self.to_string().serialize(serializer)
     }
 }
-impl<'de> Deserialize<'de> for DefaultColor {
+impl<'de> Deserialize<'de> for PaletteColor {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

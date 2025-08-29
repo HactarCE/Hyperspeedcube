@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashMap, btree_map};
 use std::hash::Hash;
 
-use hyperpuzzle_core::{Color, ColorSystem, DefaultColor, Rgb};
+use hyperpuzzle_core::{Color, ColorSystem, PaletteColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{DEFAULT_PREFS_RAW, PresetsList, schema};
 
-pub type ColorScheme = IndexMap<String, DefaultColor>;
+pub type ColorScheme = IndexMap<String, PaletteColor>;
 
 #[derive(Debug, Default)]
 pub struct ColorSchemePreferences(BTreeMap<String, ColorSystemPreferences>);
@@ -43,8 +43,9 @@ impl ColorSchemePreferences {
     }
 }
 
+/// Gradient from the global color palette.
 #[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum DefaultColorGradient {
+pub enum PaletteGradient {
     #[strum(serialize = "Light Rainbow")]
     LightRainbow,
     #[default]
@@ -61,11 +62,11 @@ pub enum DefaultColorGradient {
     Viridis,
     Cividis,
 }
-impl DefaultColorGradient {
+impl PaletteGradient {
     /// Returns whether the gradient is cyclic (ends at the same place it
     /// starts).
     fn is_cyclic(self) -> bool {
-        use DefaultColorGradient::*;
+        use PaletteGradient::*;
         match self {
             LightRainbow | Rainbow | DarkRainbow | DarkerRainbow => true,
             _ => false,
@@ -115,16 +116,16 @@ impl DefaultColorGradient {
             }
         }
     }
-    /// Returns a [`DefaultColor`] for the gradient
-    pub fn default_color_at(self, index: usize, total: usize) -> DefaultColor {
-        DefaultColor::Gradient {
+    /// Returns a [`ColorAssignment`] for the gradient
+    pub fn color_at(self, index: usize, total: usize) -> PaletteColor {
+        PaletteColor::Gradient {
             gradient_name: self.to_string(),
             index,
             total,
         }
     }
-    pub fn default_color_at_end(self) -> DefaultColor {
-        DefaultColor::Gradient {
+    pub fn color_at_end(self) -> PaletteColor {
+        PaletteColor::Gradient {
             gradient_name: self.to_string(),
             index: usize::MAX,
             total: usize::MAX,
@@ -189,11 +190,11 @@ impl schema::PrefsConvert for GlobalColorPalette {
     }
 }
 impl GlobalColorPalette {
-    pub fn has(&self, color: &DefaultColor) -> bool {
+    pub fn has(&self, color: &PaletteColor) -> bool {
         match color {
             // Skip sampling the gradient
-            DefaultColor::Gradient { gradient_name, .. } => {
-                gradient_name.parse::<DefaultColorGradient>().is_ok()
+            PaletteColor::Gradient { gradient_name, .. } => {
+                gradient_name.parse::<PaletteGradient>().is_ok()
             }
 
             // No way to make the other cases faster
@@ -205,24 +206,24 @@ impl GlobalColorPalette {
         self.builtin_color_sets.get(set_name)
     }
 
-    pub fn get(&self, color: &DefaultColor) -> Option<Rgb> {
+    pub fn get(&self, color: &PaletteColor) -> Option<Rgb> {
         match color {
-            DefaultColor::Unknown => None,
-            DefaultColor::HexCode { rgb } => Some(*rgb),
-            DefaultColor::Single { name } => None
+            PaletteColor::Unknown => None,
+            PaletteColor::HexCode { rgb } => Some(*rgb),
+            PaletteColor::Single { name } => None
                 .or_else(|| self.builtin_colors.get(name))
                 .or_else(|| Some(&self.custom_colors.get(name)?.value))
                 .copied(),
-            DefaultColor::Set { set_name, index } => self
+            PaletteColor::Set { set_name, index } => self
                 .get_set(set_name)
                 .and_then(|set| set.get(*index))
                 .copied(),
-            DefaultColor::Gradient {
+            PaletteColor::Gradient {
                 gradient_name,
                 index,
                 total,
             } => {
-                let gradient = gradient_name.parse::<DefaultColorGradient>().ok()?;
+                let gradient = gradient_name.parse::<PaletteGradient>().ok()?;
                 Some(gradient.eval_rational(*index, *total))
             }
         }
@@ -245,7 +246,7 @@ impl GlobalColorPalette {
         );
         if !names_match {
             changed = true;
-            let mut color_assignments: HashMap<Color, DefaultColor> = std::mem::take(scheme)
+            let mut palette_colors: HashMap<Color, PaletteColor> = std::mem::take(scheme)
                 .into_iter()
                 .filter_map(|(k, v)| Some((color_system.names.id_from_name(&k)?, v)))
                 .collect();
@@ -253,10 +254,8 @@ impl GlobalColorPalette {
                 .names
                 .iter()
                 .map(|(id, name)| {
-                    let default_color = color_assignments
-                        .remove(&id)
-                        .unwrap_or(DefaultColor::Unknown);
-                    (name.preferred.clone(), default_color)
+                    let palette_color = palette_colors.remove(&id).unwrap_or(PaletteColor::Unknown);
+                    (name.preferred.clone(), palette_color)
                 })
                 .collect();
         }
@@ -338,10 +337,10 @@ fn preset_from_color_scheme(color_system: &ColorSystem, name: &str) -> (String, 
     let value = color_system
         .get_scheme_or_default(name)
         .iter()
-        .filter_map(|(id, default_color)| {
+        .filter_map(|(id, color)| {
             Some((
                 color_system.names.get(id).ok()?.preferred.clone(),
-                default_color.clone(),
+                color.clone(),
             ))
         })
         .collect();
