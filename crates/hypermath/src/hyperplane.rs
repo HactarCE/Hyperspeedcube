@@ -25,11 +25,7 @@ impl fmt::Display for Hyperplane {
                 let i = i as usize;
                 (&AXIS_NAMES[i..i + 1], x)
             })
-            .chain(
-                APPROX
-                    .ne_zero(&self.distance)
-                    .then_some(("", self.distance)),
-            );
+            .chain(APPROX.ne_zero(self.distance).then_some(("", self.distance)));
         if let Some((axis, coef)) = terms.next() {
             write!(f, "{coef}{axis}")?;
         }

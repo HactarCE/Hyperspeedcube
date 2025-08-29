@@ -192,14 +192,14 @@ impl App {
         self.active_puzzle.with_sim(|sim| {
             sim.do_event(ReplayEvent::Undo {
                 time: Some(Timestamp::now()),
-            })
+            });
         });
     }
     pub(crate) fn redo(&self) {
         self.active_puzzle.with_sim(|sim| {
             sim.do_event(ReplayEvent::Redo {
                 time: Some(Timestamp::now()),
-            })
+            });
         });
     }
     pub(crate) fn reset_puzzle(&self) {

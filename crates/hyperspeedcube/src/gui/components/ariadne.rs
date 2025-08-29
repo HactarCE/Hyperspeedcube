@@ -12,7 +12,7 @@ pub fn show_ariadne_error_in_egui(ui: &mut egui::Ui, ansi_str: &str) -> egui::Re
         }
     };
 
-    let mut remaining = &ansi_str[..];
+    let mut remaining = ansi_str;
     let default_format =
         egui::TextFormat::simple(egui::FontId::monospace(14.0), ui.visuals().text_color());
     let mut format = default_format.clone();

@@ -72,7 +72,7 @@ fn generic_orbit_hps_code<T: PuzzleElement>(
                 } else {
                     s += ", ";
                 }
-                s += &format!("{}", g);
+                s += &g.to_string();
             }
             let Some(next) = gen_seq.end else { break };
             elem_index = next;

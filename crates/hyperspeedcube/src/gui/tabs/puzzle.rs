@@ -932,11 +932,7 @@ fn show_color_edit_popup(
         ui.layer_id(),
     )
     .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
-    .open_memory(if color_to_edit.is_some() {
-        Some(true.into())
-    } else {
-        None
-    })
+    .open_memory(color_to_edit.is_some().then(|| true.into()))
     .show(|ui| {
         color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
     });
@@ -946,7 +942,7 @@ fn show_color_edit_popup(
         // Allow drags but not clicks
         let any_cursor_input_outside_puzzle =
             crate::gui::util::clicked_elsewhere(ui, &popup_response)
-                && crate::gui::util::clicked_elsewhere(ui, &r);
+                && crate::gui::util::clicked_elsewhere(ui, r);
         let any_click_inside_puzzle = popup_response.clicked()
             || popup_response.secondary_clicked()
             || popup_response.middle_clicked();

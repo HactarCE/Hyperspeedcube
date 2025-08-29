@@ -31,7 +31,7 @@ impl AutoNames {
         &mut self,
         names: &NameSpecBiMapBuilder<I>,
     ) -> String {
-        self.find(|s| names.id_from_string(&s).is_none())
+        self.find(|s| names.id_from_string(s).is_none())
             .expect("ran out of autonames")
     }
 }
