@@ -41,6 +41,8 @@ empfindung = { workspace = true }
 env_logger = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
+hcegui = { workspace = true, features = ["reorder"] }
+indexmap = { workspace = true }
 itertools = { workspace = true }
 lab = { workspace = true }
 lazy_static = { workspace = true }

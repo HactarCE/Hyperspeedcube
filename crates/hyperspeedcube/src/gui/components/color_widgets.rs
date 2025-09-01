@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
+use hcegui::reorder::{BeforeOrAfter, Dnd, DndMove, DndResponse, ReorderDndMove};
 use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
 use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;
@@ -41,20 +41,22 @@ pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String
 
 #[derive(Debug)]
 pub struct ColorsUi<'a> {
+    ctx: egui::Context,
     palette_color_to_puzzle_color: HashMap<PaletteColor, String>,
     gradient_totals: HashMap<PaletteGradient, usize>,
     palette: &'a GlobalColorPalette,
 
     pub clickable: bool,
     pub show_puzzle_colors: bool,
-    dnd: Option<super::DragAndDrop<String, PaletteColor>>,
+    dnd: Option<Dnd<String, (PaletteColor, Option<BeforeOrAfter>)>>,
 
     hovered_color: Option<PaletteColor>,
     clicked_color: Option<PaletteColor>,
 }
 impl<'a> ColorsUi<'a> {
-    pub fn new(palette: &'a GlobalColorPalette) -> Self {
+    pub fn new(ctx: &egui::Context, palette: &'a GlobalColorPalette) -> Self {
         Self {
+            ctx: ctx.clone(),
             palette_color_to_puzzle_color: HashMap::new(),
             gradient_totals: HashMap::new(),
             palette,
@@ -74,7 +76,7 @@ impl<'a> ColorsUi<'a> {
     }
     pub fn drag_puzzle_colors(mut self, ui: &mut egui::Ui, drag_puzzle_colors: bool) -> Self {
         if drag_puzzle_colors {
-            self.dnd = Some(super::DragAndDrop::new(ui));
+            self.dnd = Some(Dnd::new(ui.ctx(), ui.auto_id_with("drag_puzzle_colors")));
             self.show_puzzle_colors(true)
         } else {
             self.dnd = None;
@@ -88,7 +90,9 @@ impl<'a> ColorsUi<'a> {
 
     fn click_zone(&mut self, r: &egui::Response, color: &PaletteColor) {
         if self.clickable {
-            if r.hovered() {
+            let interact_pos = self.ctx.input(|input| input.pointer.interact_pos());
+            let hovered = interact_pos.is_some_and(|pos| r.interact_rect.contains(pos));
+            if hovered {
                 self.hovered_color = Some(color.clone());
             }
             if r.clicked() {
@@ -98,7 +102,7 @@ impl<'a> ColorsUi<'a> {
     }
     fn drag_drop_zone(&mut self, ui: &mut egui::Ui, r: &egui::Response, color: &PaletteColor) {
         if let Some(dnd) = &mut self.dnd {
-            dnd.drop_zone(ui, r, color.clone());
+            dnd.drop_zone(ui, r, (color.clone(), None));
         }
     }
     fn reorder_drag_drop_zone(
@@ -108,7 +112,7 @@ impl<'a> ColorsUi<'a> {
         color: &PaletteColor,
     ) {
         if let Some(dnd) = &mut self.dnd {
-            dnd.reorder_drop_zone(ui, r, color.clone());
+            dnd.reorder_drop_zone_before_after(ui, r, color.clone());
         }
     }
 
@@ -233,22 +237,28 @@ impl<'a> ColorsUi<'a> {
 
         if let Some((color_scheme, color_system)) = current_colors {
             if let Some(mut dnd) = self.dnd.take() {
-                temp_modification = dnd.mid_drag(ui).cloned();
-                modification = dnd.end_drag(ui);
+                match dnd.finish(ui) {
+                    DndResponse::DoneDragging(r) => modification = Some(r),
+                    DndResponse::MidDrag(DndMove {
+                        payload,
+                        target: Some(target),
+                    }) => {
+                        temp_modification = Some(DndMove::new(payload, target));
+                    }
+                    _ => (),
+                }
             }
             if let Some(color_to_modify) = puzzle_color_to_modify {
                 if let Some(hovered_color) = self.hovered_color.take() {
-                    temp_modification = Some(DragAndDropResponse {
+                    temp_modification = Some(DndMove {
                         payload: color_to_modify.clone(),
-                        end: hovered_color,
-                        before_or_after: None,
+                        target: (hovered_color, None),
                     });
                 }
                 if let Some(clicked_color) = self.clicked_color.take() {
-                    modification = Some(DragAndDropResponse {
+                    modification = Some(DndMove {
                         payload: color_to_modify,
-                        end: clicked_color,
-                        before_or_after: None,
+                        target: (clicked_color, None),
                     });
                 }
             }
@@ -274,13 +284,15 @@ impl<'a> ColorsUi<'a> {
         &self,
         map: &mut ColorScheme,
         color_system: &ColorSystem,
-        drag: DragAndDropResponse<String, PaletteColor>,
+        drag: DndMove<String, (PaletteColor, Option<BeforeOrAfter>)>,
     ) {
-        match drag.before_or_after {
+        let payload = drag.payload;
+        let (target, before_or_after) = drag.target;
+        match before_or_after {
             Some(before_or_after) => {
-                self.reorder_color_to(map, drag.payload, drag.end, before_or_after);
+                self.reorder_color_to(map, payload, target, before_or_after);
             }
-            None => self.swap_color_to(map, drag.payload, drag.end),
+            None => self.swap_color_to(map, payload, target),
         }
         let _ = self
             .palette
@@ -476,8 +488,9 @@ impl ColorButton {
 
         // Draggable label
         if let Some(puzzle_color) = self.puzzle_color.filter(|_| colors_ui.show_puzzle_colors) {
-            let put_puzzle_color_label = |ui: &mut egui::Ui, is_dragging: bool| {
-                let text_color = if is_dragging {
+            let payload_id = colors_ui.dnd.as_ref().and_then(|dnd| dnd.payload_id());
+            let put_puzzle_color_label = |ui: &mut egui::Ui, id: egui::Id| {
+                let text_color = if payload_id == Some(id) {
                     ui.painter().rect_filled(
                         r.rect.expand(2.0),
                         3.0,
@@ -494,14 +507,14 @@ impl ColorButton {
                         .selectable(false),
                 );
 
-                egui::InnerResponse::new((), r.clone())
+                (r.clone(), ())
             };
 
             ui.scope_builder(egui::UiBuilder::new().max_rect(r.rect), |ui| {
                 if let Some(dnd) = &mut colors_ui.dnd {
                     dnd.draggable(ui, puzzle_color.clone(), put_puzzle_color_label);
                 } else {
-                    put_puzzle_color_label(ui, false);
+                    put_puzzle_color_label(ui, egui::Id::NULL);
                 }
             });
         }
@@ -816,7 +829,7 @@ pub fn color_assignment_popup(
     let (changed, temp_colors) = egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| {
-            crate::gui::components::ColorsUi::new(color_palette)
+            crate::gui::components::ColorsUi::new(ui.ctx(), color_palette)
                 .clickable(true)
                 .drag_puzzle_colors(ui, true)
                 .show_compact_palette(

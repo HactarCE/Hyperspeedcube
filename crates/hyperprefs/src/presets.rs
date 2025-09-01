@@ -55,7 +55,6 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::schema;
-use crate::ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection};
 
 pub const MODIFIED_SUFFIX: &str = " (modified)";
 
@@ -209,7 +208,7 @@ pub struct PresetsList<T: PresetData> {
     /// List of all built-in presets.
     builtin: IndexMap<String, T>,
     /// List of all saved user presets.
-    pub(super) user: IndexMap<String, Preset<T>>,
+    user: IndexMap<String, Preset<T>>,
 
     /// Data from deleted presets. They will be revived if there is ever a new
     /// preset with this name.
@@ -612,21 +611,37 @@ impl<T: PresetData> PresetsList<T> {
             preset.value
         })
     }
-    /// Moves the preset `from` to `to`, shifting all the presents in between.
+    /// Moves the preset `from` to before `to`, shifting all the presents in
+    /// between.
     ///
     /// Fails silently if either `from` or `to` does not exist.
-    pub fn reorder_user_preset(&mut self, from: &str, to: &str, before_or_after: BeforeOrAfter) {
+    pub fn reorder_user_preset_before(&mut self, from: &str, to: &str) {
         let Some(from) = self.user.get_index_of(from) else {
             return;
         };
-        let Some(to) = self.user.get_index_of(to) else {
+        let Some(mut to) = self.user.get_index_of(to) else {
             return;
         };
-        self.user.reorder(DragAndDropResponse {
-            payload: from,
-            end: to,
-            before_or_after: Some(before_or_after),
-        });
+        if from < to {
+            to -= 1;
+        }
+        self.user.move_index(from, to);
+    }
+    /// Moves the preset `from` to after `to`, shifting all the presents in
+    /// between.
+    ///
+    /// Fails silently if either `from` or `to` does not exist.
+    pub fn reorder_user_preset_after(&mut self, from: &str, to: &str) {
+        let Some(from) = self.user.get_index_of(from) else {
+            return;
+        };
+        let Some(mut to) = self.user.get_index_of(to) else {
+            return;
+        };
+        if to < from {
+            to += 1;
+        }
+        self.user.move_index(from, to);
     }
     /// Moves the user preset at index `from` to index `to`.
     ///
@@ -794,7 +809,10 @@ mod tests {
         let c2 = list.new_ref("c");
         let b3 = list.get("b").unwrap().new_ref();
         let c3 = list.get("c").unwrap().new_ref();
-        list.reorder_user_preset("b", "a", BeforeOrAfter::Before);
+        list.move_index(
+            list.get_index_of("b").unwrap(),     // from `b`
+            list.get_index_of("a").unwrap() - 1, // to before `a`
+        );
         assert_eq!(a1, "a");
         assert_eq!(a2, "a");
         assert_eq!(b1, "b");

@@ -47,7 +47,7 @@ fn show_contents(
         .show(ui, Some(&color_system.name), |mut prefs_ui| {
             let (prefs, ui) = prefs_ui.split();
 
-            let mut colors_ui = crate::gui::components::ColorsUi::new(palette)
+            let mut colors_ui = crate::gui::components::ColorsUi::new(ui.ctx(), palette)
                 .clickable(false)
                 .drag_puzzle_colors(ui, true);
 

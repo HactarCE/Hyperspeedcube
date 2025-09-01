@@ -132,6 +132,7 @@ clap = { version = "4.5.46" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
+hcegui = { git = "https://github.com/HactarCE/hcegui.git", rev = "8754c83deddb6dec01f6e58f5cf21bde0ae09ecf" }
 eframe = { version = "0.32.0", default-features = false, features = [
     "accesskit",
     "default_fonts",

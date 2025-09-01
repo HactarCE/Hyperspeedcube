@@ -15,7 +15,6 @@ pub use checkboxes::*;
 pub use expr::*;
 
 use super::{PieceStyle, PresetRef, PresetTombstone, PresetsList, schema};
-use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct FilterPresetName {
@@ -81,64 +80,6 @@ impl schema::PrefsConvert for PuzzleFilterPreferences {
                 .filter(|(_, seq)| !seq.is_empty()) // Remove empty sequences
                 .map(|(name, seq)| (name, PresetsList::from_serde_map(ctx, seq))),
         );
-    }
-}
-impl ReorderableCollection<FilterPresetName> for PuzzleFilterPreferences {
-    fn reorder(&mut self, drag: DragAndDropResponse<FilterPresetName>) {
-        if drag.payload == drag.end || !self.has_preset(&drag.end) {
-            return;
-        }
-
-        let preset = (|| match &drag.payload.seq {
-            Some(seq_name) => self
-                .sequences
-                .get_mut(seq_name)?
-                .value
-                .remove(&drag.payload.preset),
-            None => self
-                .presets
-                .remove(&drag.payload.preset)
-                .map(FilterSeqPreset::from),
-        })();
-        let Some(preset_value) = preset else {
-            return;
-        };
-
-        match drag.end.seq {
-            Some(seq_name) => {
-                let seq = &mut self
-                    .sequences
-                    .get_mut(&seq_name)
-                    .expect("filter sequence vanished!")
-                    .value;
-                let new_name =
-                    seq.save_preset_with_nonconflicting_name(&drag.payload.preset, preset_value);
-                seq.reorder(DragAndDropResponse {
-                    payload: new_name,
-                    end: drag.end.preset,
-                    before_or_after: drag.before_or_after,
-                });
-            }
-            None => {
-                let new_name = self
-                    .presets
-                    .save_preset_with_nonconflicting_name(&drag.payload.preset, preset_value.inner);
-                self.presets.reorder(DragAndDropResponse {
-                    payload: new_name,
-                    end: drag.end.preset,
-                    before_or_after: drag.before_or_after,
-                });
-            }
-        }
-
-        // Remove empty sequences
-        if let Some(seq_name) = &drag.payload.seq {
-            if let Some(seq) = self.sequences.get(seq_name) {
-                if seq.value.is_empty() {
-                    self.sequences.remove(seq_name);
-                }
-            }
-        }
     }
 }
 impl PuzzleFilterPreferences {

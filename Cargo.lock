@@ -2308,6 +2308,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hcegui"
+version = "0.1.0"
+source = "git+https://github.com/HactarCE/hcegui.git?rev=8754c83deddb6dec01f6e58f5cf21bde0ae09ecf#8754c83deddb6dec01f6e58f5cf21bde0ae09ecf"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2587,6 +2595,7 @@ dependencies = [
  "env_logger",
  "eyre",
  "float-ord",
+ "hcegui",
  "hyperdraw",
  "hypermath",
  "hyperpaths",
@@ -2597,6 +2606,7 @@ dependencies = [
  "hyperpuzzlescript",
  "hyperstats",
  "hyperstrings",
+ "indexmap",
  "itertools 0.14.0",
  "js-sys",
  "lab",

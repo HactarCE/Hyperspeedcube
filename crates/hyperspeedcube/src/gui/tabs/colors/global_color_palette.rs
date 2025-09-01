@@ -1,5 +1,6 @@
 use egui::Widget;
 use float_ord::FloatOrd;
+use hcegui::reorder::Dnd;
 use hyperprefs::{DEFAULT_PREFS, GlobalColorPalette, PrefsConvert};
 use itertools::Itertools;
 use rand::Rng;
@@ -11,7 +12,7 @@ use crate::gui::components::{
     HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
     TextValidationResult,
 };
-use crate::gui::ext::ResponseExt;
+use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -96,7 +97,7 @@ fn show_contents(ui: &mut egui::Ui, app: &mut App) {
 fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let (prefs, ui) = prefs_ui.split();
 
-    let mut dnd = crate::gui::components::DragAndDrop::new(ui);
+    let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("dnd"));
     let mut to_rename = None;
     let mut to_delete = None;
 
@@ -134,7 +135,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             continue;
         };
         let name = name.clone();
-        dnd.vertical_reorder_by_handle(ui, name.clone(), |ui, _is_dragging| {
+        dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
             let (_, preset) = prefs
                 .current
                 .custom_colors
@@ -186,7 +187,10 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         *prefs.changed = true;
     }
 
-    *prefs.changed |= dnd.end_reorder(ui, &mut prefs.current.custom_colors);
+    if let Some(r) = dnd.finish(ui).if_done_dragging() {
+        r.reorder_collection(&mut prefs.current.custom_colors);
+        *prefs.changed = true;
+    }
 }
 
 fn show_builtin_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {

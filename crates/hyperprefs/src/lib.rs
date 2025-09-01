@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 
 mod animations;
 mod colors;
-pub mod ext;
 mod filters;
 mod image_generator;
 mod info;

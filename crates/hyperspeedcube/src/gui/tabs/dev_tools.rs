@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hcegui::reorder::Dnd;
 use hyperprefs::Preferences;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::{NdEuclidViewState, PuzzleView};
@@ -7,7 +8,7 @@ use itertools::Itertools;
 
 use crate::L;
 use crate::app::App;
-use crate::gui::components::{DragAndDrop, color_assignment_popup};
+use crate::gui::components::color_assignment_popup;
 use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::{EguiTempFlag, EguiTempValue};
 
@@ -232,9 +233,9 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
         return;
     };
 
-    let mut dnd = DragAndDrop::new(ui);
+    let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("dnd"));
     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
-        dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+        dnd.reorderable_with_handle(ui, i, |ui, _| {
             let Some(loaded_orbit) = &state.loaded_orbit else {
                 return;
             };
@@ -262,7 +263,9 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
             }
         });
     }
-    let _ = dnd.end_reorder(ui, &mut state.names_and_order);
+    if let Some(r) = dnd.finish(ui).if_done_dragging() {
+        r.reorder(&mut state.names_and_order);
+    }
 }
 
 fn show_orbit_color(

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use hcegui::reorder::{Dnd, DndStyle, ReorderDnd};
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +10,7 @@ use super::{
 };
 use crate::L;
 use crate::gui::components::PlaintextYamlEditor;
-use crate::gui::ext::ResponseExt;
+use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
@@ -184,7 +185,10 @@ where
         let mut preset_to_delete = None;
         let mut edit_popup = TextEditPopup::new(ui);
         let mut new_popup = TextEditPopup::new(ui);
-        let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
+        let mut dnd = ReorderDnd::new(ui.ctx(), self.id.with("dnd")).with_style(DndStyle {
+            payload_opacity: 0.4,
+            ..Default::default()
+        });
         let any_popup = edit_popup.is_open() || new_popup.is_open();
 
         // Presets selector.
@@ -202,11 +206,12 @@ where
             ui.horizontal_wrapped(|ui| {
                 for preset in self.presets.user_presets() {
                     crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
-                    let r = dnd.draggable(ui, preset.name().clone(), |ui, _is_dragging| {
+                    // Drag -> Reorder preset
+                    let r = dnd.reorderable(ui, preset.name().clone(), |ui, _| {
                         let r = self.show_preset_name_selectable_label(ui, preset.name());
-                        egui::InnerResponse::new((), r)
+                        (r.clone(), r)
                     });
-                    let mut r = r.inner.response;
+                    let mut r = r.inner;
                     if !any_popup {
                         r = r.on_hover_ui(|ui| {
                             for action in [
@@ -234,12 +239,11 @@ where
                     if crate::gui::middle_clicked(ui, &r) {
                         preset_to_delete = Some(preset.name().clone());
                     }
-
-                    // Drag -> Reorder preset
-                    dnd.reorder_drop_zone(ui, &r, preset.name().clone());
                 }
 
-                dnd.disable_ui_if_dragging(ui);
+                if dnd.is_dragging() {
+                    ui.disable();
+                }
                 let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
                 if !egui::Popup::is_any_open(ui.ctx()) {
                     r = r.on_hover_text(self.text.actions.add);
@@ -406,7 +410,10 @@ where
         }
 
         // Reorder the presets.
-        *self.changed |= dnd.end_reorder(ui, self.presets);
+        if let Some(r) = dnd.finish(ui).if_done_dragging() {
+            r.reorder_collection(self.presets);
+            *self.changed = true;
+        }
 
         if *self.changed {
             // TODO: is this necessary here?

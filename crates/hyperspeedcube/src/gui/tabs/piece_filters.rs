@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
+use hcegui::reorder::Dnd;
 use hyperprefs::{
     ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
     FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
@@ -13,10 +14,11 @@ use itertools::Itertools;
 use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
+    FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
     PRESET_NAME_TEXT_EDIT_WIDTH, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
     TextEditPopupResponse,
 };
+use crate::gui::ext::DndReorderExt;
 use crate::gui::markdown::{md, md_inline};
 use crate::gui::util::{EguiTempValue, text_width};
 
@@ -154,8 +156,8 @@ fn show_filter_presets_list_ui_contents(
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
 
-    let mut preset_dnd = DragAndDrop::new(ui);
-    let mut seq_dnd = DragAndDrop::new(ui);
+    let mut preset_dnd = Dnd::new(ui.ctx(), "preset_dnd");
+    let mut seq_dnd = Dnd::new(ui.ctx(), "seq_dnd");
 
     ui.visuals_mut().collapsing_header_frame = true;
 
@@ -170,7 +172,7 @@ fn show_filter_presets_list_ui_contents(
 
     for preset in filter_prefs.presets.user_presets_mut() {
         let name = FilterPresetName::new(preset.name().clone());
-        preset_dnd.vertical_reorder_by_handle(ui, name.clone(), |ui, _is_dragging| {
+        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
             show_preset_name(
                 ui,
                 &taken_preset_names,
@@ -246,7 +248,7 @@ fn show_filter_presets_list_ui_contents(
         let seq_ptr = seq_preset.new_ref().ptr();
         let seq_name = seq_preset.name().clone();
         let seq_list = &mut seq_preset.value;
-        seq_dnd.vertical_reorder_by_handle(ui, seq_name.clone(), |ui, _is_dragging| {
+        seq_dnd.reorderable_with_handle(ui, seq_name.clone(), |ui, _| {
             let r = egui::CollapsingHeader::new(&seq_name)
                 .id_salt(seq_ptr)
                 .open(
@@ -263,25 +265,21 @@ fn show_filter_presets_list_ui_contents(
                             seq: Some(seq_name.clone()),
                             preset: preset.name().clone(),
                         };
-                        preset_dnd.vertical_reorder_by_handle(
-                            ui,
-                            name.clone(),
-                            |ui, _is_dragging| {
-                                show_seq_preset_name(
-                                    ui,
-                                    &taken_preset_names,
-                                    &current.base,
-                                    name,
-                                    &mut preset.value,
-                                    &mut preset_to_activate,
-                                    &mut preset_to_rename,
-                                    &mut preset_to_delete,
-                                    &fallback_style,
-                                    changed,
-                                    is_first,
-                                );
-                            },
-                        );
+                        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
+                            show_seq_preset_name(
+                                ui,
+                                &taken_preset_names,
+                                &current.base,
+                                name,
+                                &mut preset.value,
+                                &mut preset_to_activate,
+                                &mut preset_to_rename,
+                                &mut preset_to_delete,
+                                &fallback_style,
+                                changed,
+                                is_first,
+                            );
+                        });
                         is_first = false;
                     }
 
@@ -385,25 +383,38 @@ fn show_filter_presets_list_ui_contents(
         *changed = true;
     }
 
-    *changed |= preset_dnd.end_reorder(ui, filter_prefs);
-    *changed |= seq_dnd.end_reorder(ui, &mut filter_prefs.sequences);
+    // Reorder preset
+    if let Some(r) = preset_dnd.finish(ui).if_done_dragging() {
+        r.reorder_collection(filter_prefs);
+        *changed = true;
+    }
+    // Reorder sequence
+    if let Some(r) = seq_dnd.finish(ui).if_done_dragging() {
+        r.reorder_collection(&mut filter_prefs.sequences);
+        *changed = true;
+    }
 
+    // Rename preset
     if let Some((old_name, new_name)) = preset_to_rename {
         filter_prefs.rename_preset(&old_name, &new_name);
         *changed = true;
     }
+    // Delete preset
     if let Some(name) = preset_to_delete {
         filter_prefs.remove_preset(&name);
         *changed = true;
     }
+    // Activate preset
     if let Some(name) = preset_to_activate {
         current.load_preset(filter_prefs, Some(&name));
     }
 
+    // Rename sequence
     if let Some((old_name, new_name)) = seq_to_rename {
         filter_prefs.sequences.rename(&old_name, &new_name);
         *changed = true;
     }
+    // Delete sequence
     if let Some(name) = seq_to_delete {
         filter_prefs.sequences.remove(&name);
         *changed = true;
@@ -530,11 +541,9 @@ fn show_preset_name(
 
     let is_active = current.as_ref().is_some_and(|r| r.name() == name);
 
-    let r = ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-        ui.selectable_label(is_active, &name.preset)
-    });
+    let r = ui.selectable_label(is_active, &name.preset);
 
-    let r = r.inner.on_hover_ui(|ui| {
+    let r = r.on_hover_ui(|ui| {
         md(ui, L.click_to.activate.with(L.inputs.click));
         md(ui, L.click_to.rename.with(L.inputs.right_click));
         crate::gui::md_middle_click_to_delete(ui);
@@ -642,7 +651,7 @@ fn show_current_filter_preset_ui_contents(
 
             active_rules.resize(current.inner.rules.len(), true);
 
-            let mut dnd = DragAndDrop::new(ui);
+            let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("rule_dnd"));
             let is_any_dragging = dnd.is_dragging();
 
             let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
@@ -663,7 +672,7 @@ fn show_current_filter_preset_ui_contents(
                     remaining_pieces &= !&these_pieces;
                 }
 
-                dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+                dnd.reorderable_with_handle(ui, i, |ui, _| {
                     ui.vertical(|ui| {
                         // TODO: it would be better to show the frame on
                         // just the collapsing headers we want, but then
@@ -743,7 +752,10 @@ fn show_current_filter_preset_ui_contents(
                 current.inner.rules.remove(i);
             }
 
-            changed |= dnd.end_reorder(ui, &mut current.inner.rules);
+            if let Some(r) = dnd.finish(ui).if_done_dragging() {
+                r.reorder(&mut current.inner.rules);
+                changed = true;
+            }
 
             ui.horizontal_wrapped(|ui| {
                 if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {

@@ -2,7 +2,6 @@
 mod combo_boxes;
 mod ariadne;
 mod color_widgets;
-mod dnd;
 mod filter_checkbox;
 mod hint;
 // mod keybinds;
@@ -17,7 +16,6 @@ mod yaml_editor;
 pub use ariadne::*;
 pub use color_widgets::*;
 pub use combo_boxes::*;
-pub use dnd::*;
 pub use filter_checkbox::*;
 pub use hint::*;
 // pub use keybinds::*;

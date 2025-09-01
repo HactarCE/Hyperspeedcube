@@ -1,7 +1,6 @@
-use hyperprefs::ext::reorderable::ReorderableCollection;
+use hcegui::reorder::Dnd;
 
 use crate::app::App;
-use crate::gui::components::DragAndDrop;
 use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -22,36 +21,28 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             },
         ]);
 
-        let mut group_dnd = DragAndDrop::new(ui);
-        let mut keybind_dnd = DragAndDrop::new(ui);
+        let mut group_dnd = Dnd::new(ui.ctx(), "group_dnd");
+        let mut keybind_dnd = Dnd::new(ui.ctx(), "keybind_dnd");
         for (group_index, group) in keybind_groups.iter().enumerate() {
-            group_dnd.vertical_reorder_by_handle(ui, group_index, |ui, is_dragging| {
+            group_dnd.reorderable_with_handle(ui, group_index, |ui, is_dragging| {
                 ui.vertical(|ui| {
                     ui.strong(&group.name);
                     for (keybind_index, keybind) in group.keybinds.iter().enumerate() {
                         let index = (group_index, keybind_index);
-                        keybind_dnd.vertical_reorder_by_handle(ui, index, |ui, is_dragging| {
+                        keybind_dnd.reorderable_with_handle(ui, index, |ui, is_dragging| {
                             ui.label("hi");
                         });
                     }
                 });
             });
         }
-        keybind_dnd.end_reorder(ui, &mut A);
-        group_dnd.end_reorder(ui, &mut keybind_groups);
+        keybind_dnd.finish(ui);
+        if let Some(r) = group_dnd.finish(ui).if_done_dragging() {
+            r.reorder(&mut keybind_groups);
+        }
 
         v.set(Some(keybind_groups));
     });
-}
-
-struct A;
-impl ReorderableCollection<(usize, usize)> for A {
-    fn reorder(
-        &mut self,
-        drag: hyperprefs::ext::reorderable::DragAndDropResponse<(usize, usize), (usize, usize)>,
-    ) {
-        // TODO: handle this
-    }
 }
 
 #[derive(Debug, Default, Clone)]
