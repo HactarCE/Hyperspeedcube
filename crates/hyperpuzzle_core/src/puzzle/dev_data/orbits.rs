@@ -44,7 +44,7 @@ impl AnyOrbit {
     }
 }
 
-/// Element of a puzzle that can appear in a [`DevOrbit`].
+/// Element of a puzzle that can appear in an [`Orbit`].
 pub trait PuzzleElement: fmt::Debug + Copy + Eq + Hash + Ord {
     /// Human-friendly plural noun for the element.
     const ELEMENT_STRING_PLURAL: &'static str = "axes";
