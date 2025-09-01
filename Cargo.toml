@@ -87,7 +87,7 @@ smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
-comrak = { version = "0.40.0", default-features = false }
+comrak = { version = "0.41.0", default-features = false }
 config = { version = "0.15.13", features = ["preserve_order"] }
 directories = { version = "6.0.0" }
 hex = { version = "0.4.3" }
@@ -96,9 +96,9 @@ include_dir = { version = "0.7.4" }
 kdl = { version = "6.3.3" }
 miette = { version = "7.5.0" }                                  # must match kdl
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = { version = "1.0.141" }
+serde_json = { version = "1.0.143" }
 serde_yml = { version = "0.0.12" }
-strum = { version = "0.27.1", features = ["derive"] }
+strum = { version = "0.27.2", features = ["derive"] }
 walkdir = { version = "2.4.0" }
 
 # String manipulation
@@ -107,7 +107,7 @@ ariadne = { version = "0.5.1" }
 chumsky = { version = "0.10.1", features = ["pratt"] }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
-regex = { version = "1.11.1" }
+regex = { version = "1.11.2" }
 sublime_fuzzy = { version = "0.7.0" }
 nom = { version = "8.0.0" }
 
@@ -121,14 +121,14 @@ env_logger = { version = "0.11.5" }
 eyre = { version = "0.6.12" }
 log = { version = "0.4.25" }
 owo-colors = { version = "4.2.2" }
-thiserror = { version = "2.0.12" }
+thiserror = { version = "2.0.16" }
 color-eyre = { version = "0.6.2", default-features = false, features = [
     "track-caller",
     "capture-spantrace",
 ] } # blocked on https://github.com/eyre-rs/eyre/pull/188
 
 # Command-line interface
-clap = { version = "4.5.41" }
+clap = { version = "4.5.46" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
@@ -145,7 +145,7 @@ egui = { version = "0.32.0" }
 egui_dock = { version = "0.17.0" }
 egui_extras = { version = "0.32.0", features = ["svg"] }
 egui-winit = { version = "0.32.0" }
-winit = { version = "0.30.11", features = [
+winit = { version = "0.30.12", features = [
     "serde",
 ] } # must match egui-winit and key-names
 wgpu = { version = "25.0.0", features = ["webgl"] } # must match egui-wgpu
@@ -165,7 +165,7 @@ lab = { version = "0.11.0" }                                                    
 # Async and multithreading
 parking_lot = { version = "0.12.4" }
 pollster = { version = "0.4.0" }
-rayon = { version = "1.7.0" }
+rayon = { version = "1.11.0" }
 
 # Hashing and PRNG
 rand = { version = "0.9.2" }        # must match rand_chacha
@@ -173,17 +173,17 @@ rand_chacha = { version = "0.9.0" } # needs stable output
 sha2 = { version = "0.10.8" }
 
 # Procedural macro utilities
-proc-macro2 = { version = "1.0.93" }
+proc-macro2 = { version = "1.0.101" }
 quote = { version = "1.0.38" }
-syn = { version = "2.0.104" }
+syn = { version = "2.0.106" }
 
 # Other dependencies
-bytemuck = { version = "1.23.1", features = ["derive"] }
+bytemuck = { version = "1.23.2", features = ["derive"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
-time = { version = "0.3.37", features = ["local-offset"] }
+time = { version = "0.3.42", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
 
