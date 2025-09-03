@@ -298,17 +298,14 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 postfix_indexing(70),
                 postfix(70, Token::Degrees),
                 postfix(70, Token::QuestionMark),
-                // Prefix operators
-                prefix(60, Token::Plus),
-                prefix(60, Token::Minus),
-                prefix(60, Token::Bang),
+                // Tight prefix operators
+                prefix(60, Token::Bang),  // GA dual
                 prefix(60, Token::Tilde), // bitwise/setwise complement
                 prefix(60, Token::Sqrt),
-                prefix(60, Token::Star),
-                prefix(60, Token::DoubleStar),
                 // Arithmetic
                 vec![
-                    infix(right(52), Token::DoubleStar),
+                    infix(right(52), Token::DoubleStar), // TODO: error (use `^` instead)
+                    infix(right(52), Token::Caret),
                     infix(left(51), Token::Star),
                     infix(left(51), Token::Slash),
                     infix(left(51), Token::Percent),
@@ -317,14 +314,18 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 ],
                 // Bitwise/setwise/GA operators
                 vec![
-                    infix(left(43), Token::LeftShift),
-                    infix(left(43), Token::RightShift),
+                    infix(left(43), Token::LeftShift),  // TODO: remove bit ops
+                    infix(left(43), Token::RightShift), // TODO: remove bit ops
                     infix(left(43), Token::LeftContract),
                     infix(left(43), Token::RightContract),
                     infix(left(42), Token::Ampersand),
-                    infix(left(41), Token::Caret),
-                    infix(left(40), Token::Pipe),
+                    infix(left(41), Token::Wedge),
+                    infix(left(41), Token::Antiwedge),
+                    infix(left(40), Token::Pipe), // TODO: remove bit ops
                 ],
+                // Loose prefix operators
+                prefix(35, Token::Plus),
+                prefix(35, Token::Minus),
                 // Ranges
                 infix(left(30), Token::RangeExclusive),
                 infix(left(30), Token::RangeInclusive),
@@ -332,6 +333,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 infix(left(25), Token::DoublePlus),
                 // Null-coalescing
                 infix(left(20), Token::DoubleQuestionMark),
+                // Unpacking
+                prefix(15, Token::Star),
+                prefix(15, Token::DoubleStar),
                 // Comparison
                 vec![
                     infix(left(10), Token::In),
