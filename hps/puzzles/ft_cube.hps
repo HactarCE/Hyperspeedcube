@@ -17,7 +17,7 @@ export fn cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
     }
 
     aesthetic_limit = 1 - 2 / layers
-    mechanical_limit = 0
+    mechanical_limit = 1
     if REALISITIC_PROPORTIONS {
         mechanical_limit = 1 / √(ndim - 1)
     }
