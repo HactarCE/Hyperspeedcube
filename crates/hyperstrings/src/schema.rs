@@ -231,7 +231,7 @@ impl Schema {
             let entry = util::take_entry(src, node, &mut entries, "expected trait name")?;
             util::ignore_entry_name(src, entry);
             util::ignore_entry_type(src, entry);
-            util::take_entry_str_value(src, entry)
+            util::take_entry_string_value(src, entry)
         })() else {
             return;
         };
@@ -259,7 +259,7 @@ impl Schema {
             let entry = util::take_entry(src, node, &mut entries, "expected struct name")?;
             util::ignore_entry_name(src, entry);
             util::ignore_entry_type(src, entry);
-            util::take_entry_str_value(src, entry)
+            util::take_entry_string_value(src, entry)
         })() else {
             return;
         };

@@ -171,28 +171,30 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::List(list) => {
             let id = ui.next_auto_id();
             ui.skip_ahead_auto_ids(1);
-            ui.indent(id, |ui| {
-                match list.list_type {
-                    comrak::nodes::ListType::Bullet => {
-                        for list_item in node.children() {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.label("•");
-                                ui.scope(|ui| render_block(ui, list_item))
-                            });
+            ui.vertical(|ui| {
+                ui.indent(id, |ui| {
+                    match list.list_type {
+                        comrak::nodes::ListType::Bullet => {
+                            for list_item in node.children() {
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.label("•");
+                                    ui.scope(|ui| render_block(ui, list_item))
+                                });
+                            }
+                        }
+                        comrak::nodes::ListType::Ordered => {
+                            let mut i = list.start;
+                            for list_item in node.children() {
+                                // TODO: align numbered lists properly
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.label(format!("{i}."));
+                                    ui.scope(|ui| render_block(ui, list_item));
+                                });
+                                i += 1;
+                            }
                         }
                     }
-                    comrak::nodes::ListType::Ordered => {
-                        let mut i = list.start;
-                        for list_item in node.children() {
-                            // TODO: align numbered lists properly
-                            ui.horizontal_wrapped(|ui| {
-                                ui.label(format!("{i}."));
-                                ui.scope(|ui| render_block(ui, list_item));
-                            });
-                            i += 1;
-                        }
-                    }
-                }
+                });
             });
         }
         comrak::nodes::NodeValue::Item(_) => {

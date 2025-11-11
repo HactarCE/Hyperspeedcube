@@ -107,9 +107,10 @@ ariadne = { version = "0.5.1" }
 chumsky = { version = "0.10.1", features = ["pratt"] }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
+nom = { version = "8.0.0" }
 regex = { version = "1.11.2" }
 sublime_fuzzy = { version = "0.7.0" }
-nom = { version = "8.0.0" }
+unindent = { version = "0.2.4" }
 
 # Math
 cgmath = { version = "0.18.0" }

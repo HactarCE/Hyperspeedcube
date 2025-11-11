@@ -37,15 +37,11 @@ pub fn take_entry<'a>(
 }
 
 #[must_use]
-pub fn take_entry_str_value<'a>(src: &SourceInfo, entry: &'a KdlEntry) -> Option<&'a str> {
+pub fn take_entry_string_value(src: &SourceInfo, entry: &KdlEntry) -> Option<String> {
     warn_if_none(entry.value().as_string(), "expected string value", || {
         src.at(entry.span().offset())
     })
-}
-
-#[must_use]
-pub fn take_entry_string_value(src: &SourceInfo, entry: &KdlEntry) -> Option<String> {
-    take_entry_str_value(src, entry).map(str::to_owned)
+    .map(unindent::unindent)
 }
 
 #[must_use]

@@ -28,6 +28,11 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
 
         ui.add_space(ui.spacing().item_spacing.y);
 
+        md(ui, L.dedicated_to);
+        ui.hyperlink(L.dedicated_to_url);
+
+        ui.add_space(ui.spacing().item_spacing.y);
+
         md(ui, L.about.with(&markdown_puzzle_authors_list()));
     });
 }
@@ -52,6 +57,11 @@ pub fn about_text() -> String {
     ret += L.created_by;
     ret += "  \n";
     ret += &format!("<{}>", L.created_by_url);
+    ret += "\n\n";
+
+    ret += L.dedicated_to;
+    ret += "  \n";
+    ret += &format!("<{}>", L.dedicated_to_url);
     ret += "\n\n";
 
     ret += &L.about.with(&markdown_puzzle_authors_list());

@@ -699,20 +699,22 @@ help {
 
 created_by "Created by **Andrew Farkas (HactarCE)**"
 created_by_url "https://ajfarkas.dev/"
+dedicated_to "Dedicated to **Andrey Astrelin**"
+dedicated_to_url "https://superliminal.com/andrey/"
 licensed_under "Licensed under **{{license}}**"
 about """
-  Dedicated to **Andrey Astrelin**
-
   ## Acknowledgements
 
-  **Edan Maor**, **Rowan Fortier**, **Melody Griesen**, and **Sam Boxdorfer**  
+  **Edan Maor, Jasper Gray, Emanuele Battistin, Cuberstache, The Plague Censer,
+  Ieronutti Christian, Vincent Pistelli, Henry Duke Pickle, Rowan Fortier, Sam Boxdorfer,
+  DecimatedByATrain, Vex, Cuberstache, Dietl, Jack, and Carlo**  
   _for supporting me on Ko-fi during development_
 
   **Luna Harran**  
   _for her incessant whining that inspired this program, and for her extensive puzzle knowledge and geometric insight that made it possible_
 
   **Milo Jacquet**  
-  _for his many contributions to the design of the puzzle definition API, and for developing the leaderboard server_
+  _for his many contributions to the design of the puzzle definition API, and for the initial development of the leaderboard server_
 
   **Andreas Thompson**  
   _for designing the piece filters UI_
@@ -723,8 +725,8 @@ about """
   **My friends**  
   _for putting up with my rants about tangent points at infinity_
 
-  **The Hypercubers Discord server**  
-  _for their endless patience and for keeping me company in voice chat over several years_
+  **The Hypercubers Discord community**  
+  _for their endless patience and for keeping me company in voice chat for many years_
 
   ## Other twisty puzzle software
 
@@ -734,6 +736,7 @@ about """
   - [Magic Cube 4D](https://superliminal.com/cube/) by Melinda Green, Don Hatch, and others
   - [pCubes](http://twistypuzzles.com/forum/viewtopic.php?f=1&t=27054) by Boris
   - [Virtual Magic Polyhedra](https://github.com/Hypercubers/gelatinbrain) by gelatinbrain
+  - Many others listed on <https://hypercubing.xyz/software/>
 
   ## Puzzle definition authors
 
@@ -741,7 +744,7 @@ about """
 
   ## Icon authors
 
-  Material Design Icons by Austin Andrews, Michael Irigoyen
+  - Material Design Icons by the [Pictogrammers](https://pictogrammers.com/)
 """
 
 _crash {
