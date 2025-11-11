@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/hypercubing_leaderboards_client",
     "crates/hyperdraw",
     "crates/hyperkdl",
     "crates/hyperkdl_derive",
@@ -59,6 +60,7 @@ opt-level = 1
 [workspace.dependencies]
 
 # Crates that are part of the project
+hypercubing_leaderboards_client = { path = "crates/hypercubing_leaderboards_client" }
 hyperdraw = { path = "crates/hyperdraw" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
@@ -87,6 +89,7 @@ smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
+base64 = { version = "0.22.1" }
 comrak = { version = "0.41.0", default-features = false }
 config = { version = "0.15.13", features = ["preserve_order"] }
 directories = { version = "6.0.0" }
@@ -145,7 +148,11 @@ eframe = { version = "0.32.0", default-features = false, features = [
 ecolor = { version = "0.32.0" }
 egui = { version = "0.32.0" }
 egui_dock = { version = "0.17.0" }
-egui_extras = { version = "0.32.0", features = ["svg"] }
+egui_extras = { version = "0.32.0", features = [
+    "svg",
+    "http", # for discord avatars
+    "webp", # for discord avatars
+] }
 egui-winit = { version = "0.32.0" }
 winit = { version = "0.30.12", features = [
     "serde",
@@ -181,9 +188,10 @@ syn = { version = "2.0.106" }
 
 # Other dependencies
 bytemuck = { version = "1.23.2", features = ["derive"] }
-chrono = { version = "0.4.39", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
+ureq = { version = "3.1.4", features = ["json"] }
 names = { version = "0.14.0", default-features = false }
 time = { version = "0.3.42", features = ["local-offset"] }
 web-time = { version = "1.1.0" }

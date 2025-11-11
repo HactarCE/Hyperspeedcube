@@ -16,6 +16,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hypercubing_leaderboards_client = { workspace = true }
 hyperdraw = { workspace = true }
 hypermath = { workspace = true }
 hyperpaths = { workspace = true }

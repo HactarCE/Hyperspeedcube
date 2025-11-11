@@ -34,3 +34,7 @@ Hyperspeedcube consists of many crates, split into several categories and ordere
 ## Build dependencies
 
 - `hyperstrings`, which generates localizations for Hyperspeedcube (currently only American English) from `hyperspeedcube/locales/*.kdl` into the `hyperspeedcube/src/locales.rs`.
+
+## Leaderboards
+
+- `hypercubing_leaderboards_auth`, which manages authentication to the [Hypercubing Leaderboards](https://lb.hypercubing.xyz/)

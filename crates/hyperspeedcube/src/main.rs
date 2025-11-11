@@ -14,6 +14,7 @@ mod app;
 mod cli;
 mod commands;
 mod gui;
+mod leaderboards;
 mod locales;
 mod util;
 

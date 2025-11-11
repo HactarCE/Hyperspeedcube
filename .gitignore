@@ -8,5 +8,6 @@ crates/hyperspeedcube/src/locales.rs
 # Application data
 hsc2-prefs.yaml
 hsc2-stats.kdl
+hsc2-token
 solves/
 crash_*.log

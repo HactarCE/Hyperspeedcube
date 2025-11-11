@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
-use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hyperpuzzle::{Timestamp, prelude::*};
@@ -12,18 +11,20 @@ use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::PuzzleWidget;
+use crate::leaderboards::LeaderboardsClientState;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
 
     pub(crate) prefs: Preferences,
     pub(crate) stats: StatsDb,
+    pub(crate) leaderboards: Arc<Mutex<LeaderboardsClientState>>,
 
     pub active_puzzle: ActivePuzzleWidget,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
 
-    egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
+    egui_wgpu_renderer: Arc<egui::mutex::RwLock<eframe::egui_wgpu::Renderer>>,
 
     pub(crate) key_events: Vec<winit::event::KeyEvent>,
 }
@@ -32,6 +33,7 @@ impl App {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, _initial_file: Option<PathBuf>) -> Self {
         let prefs = Preferences::load(None);
         let stats = hyperstats::load();
+        let leaderboards = LeaderboardsClientState::load();
 
         let animation_prefs = prefs
             .animation
@@ -46,6 +48,7 @@ impl App {
 
             prefs,
             stats,
+            leaderboards,
 
             active_puzzle: ActivePuzzleWidget::default(),
 
