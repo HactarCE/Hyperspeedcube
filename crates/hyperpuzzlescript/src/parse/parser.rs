@@ -94,7 +94,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .clone()
             .then(opt_type_annotation.clone())
             .then(just(Token::Assign).ignore_then(boxed_expr.clone()).or_not())
-            .map(|((name, ty), default)| (ast::FnParam::Param { name, ty, default })),
+            .map(|((name, ty), default)| ast::FnParam::Param { name, ty, default }),
         just(Token::Star).to_span().map(ast::FnParam::SeqEnd),
         just(Token::DoubleStar)
             .ignore_then(ident.clone())
@@ -189,7 +189,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 .map_with(|x, e| (x, e.span()))
                 .then(opt_type_annotation.clone())
                 .then(just(Token::Assign).ignore_then(boxed_expr.clone()).or_not())
-                .map(|((key, ty), value)| (ast::MapEntry::KeyValue { key, ty, value })),
+                .map(|((key, ty), value)| ast::MapEntry::KeyValue { key, ty, value }),
         ))
         .separated_by(comma_sep.clone())
         .allow_trailing()
