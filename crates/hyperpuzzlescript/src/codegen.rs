@@ -1,4 +1,4 @@
-//! Utility functions for generating
+//! Utility functions for generating HPS code.
 
 use hyperpuzzle_core::hypershape::GeneratorId;
 use hyperpuzzle_core::{AnyOrbit, Orbit, PuzzleElement};
