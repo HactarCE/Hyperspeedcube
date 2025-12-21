@@ -114,12 +114,11 @@ impl Puzzle {
         params: ScrambleParams,
         progress: Option<Arc<ScrambleProgress>>,
     ) -> Option<ScrambledPuzzle> {
-        let ScrambleParams { ty, time, seed } = &params;
+        let ScrambleParams { ty, seed, .. } = &params;
 
         let mut sha256 = sha2::Sha256::new();
-        sha256.write_all(time.to_string().as_bytes()).unwrap();
-        sha256.write_all(&seed.len().to_le_bytes()).unwrap();
-        sha256.write_all(seed.as_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
+        sha256.write_all(&seed.len().to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
+        sha256.write_all(seed.as_bytes()).unwrap();
         let digest = sha256.finalize();
 
         let mut rng =

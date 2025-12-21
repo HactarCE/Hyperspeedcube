@@ -19,7 +19,9 @@ workspace = true
 hypermath = { workspace = true }
 hypershape = { workspace = true }
 
+base64 = { workspace = true, optional = true }
 chrono = { workspace = true }
+drand_core = { workspace = true, optional = true }
 eyre = { workspace = true }
 hex = { workspace = true }
 human-sort = { workspace = true }
@@ -45,6 +47,10 @@ oklab = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+drand = ["dep:base64", "dep:drand_core"]
+default = ["drand"]
 
 [[bench]]
 name = "name_spec_bench"

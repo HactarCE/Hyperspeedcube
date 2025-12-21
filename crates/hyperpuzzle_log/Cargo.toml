@@ -20,6 +20,7 @@ hyperkdl = { workspace = true }
 hyperkdl_derive = { workspace = true }
 hyperpuzzle_core = { workspace = true }
 
+drand_core = { workspace = true }
 itertools = { workspace = true }
 kdl = { workspace = true }
 lazy_static = { workspace = true }

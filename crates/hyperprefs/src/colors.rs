@@ -116,7 +116,7 @@ impl PaletteGradient {
             }
         }
     }
-    /// Returns a [`ColorAssignment`] for the gradient
+    /// Returns a [`PaletteColor`] for the gradient
     pub fn color_at(self, index: usize, total: usize) -> PaletteColor {
         PaletteColor::Gradient {
             gradient_name: self.to_string(),
