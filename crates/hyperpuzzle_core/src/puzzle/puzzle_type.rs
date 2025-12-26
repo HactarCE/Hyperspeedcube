@@ -46,6 +46,8 @@ pub struct Puzzle {
     pub notation: Notation,
 
     /// Layers for each axis.
+    ///
+    /// TODO: this should be on geometry
     pub axis_layers: PerAxis<AxisLayersInfo>,
     /// For each axis, its opposite axis if there is one.
     ///

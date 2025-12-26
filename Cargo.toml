@@ -9,6 +9,7 @@ members = [
     "crates/hyperprefs",
     "crates/hyperpuzzle",
     "crates/hyperpuzzle_core",
+    "crates/hyperpuzzle_impl_flat",
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_view",
@@ -69,6 +70,7 @@ hyperpaths = { path = "crates/hyperpaths" }
 hyperprefs = { path = "crates/hyperprefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
+hyperpuzzle_impl_flat = { path = "crates/hyperpuzzle_impl_flat" }
 hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }

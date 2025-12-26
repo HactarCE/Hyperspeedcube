@@ -2516,6 +2516,7 @@ version = "0.1.0"
 dependencies = [
  "eyre",
  "hyperpuzzle_core",
+ "hyperpuzzle_impl_flat",
  "hyperpuzzle_impl_nd_euclid",
  "hyperpuzzle_log",
  "hyperpuzzlescript",
@@ -2551,6 +2552,15 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.16",
  "tinyset",
+]
+
+[[package]]
+name = "hyperpuzzle_impl_flat"
+version = "0.1.0"
+dependencies = [
+ "hypermath",
+ "hyperpuzzle_core",
+ "itertools 0.14.0",
 ]
 
 [[package]]

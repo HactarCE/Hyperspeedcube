@@ -11,8 +11,10 @@ use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
-    DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
+    DragState, FlatViewState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView,
+    PuzzleViewInput,
 };
+use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::L;
@@ -431,6 +433,25 @@ impl PuzzleWidget {
                 true => Some(HoverMode::Piece),
                 false => Some(HoverMode::TwistGizmo),
             },
+            keys: ui.input(|input| {
+                input
+                    .events
+                    .iter()
+                    .filter_map(|ev| match ev {
+                        egui::Event::Key {
+                            key: _,
+                            physical_key,
+                            pressed: true,
+                            repeat: false,
+                            modifiers: egui::Modifiers::NONE,
+                        } => {
+                            let name = (*physical_key)?.name();
+                            name.chars().next().filter(|_| name.len() == 1)
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            }),
         };
         view.update(input, prefs, animation);
 
@@ -456,7 +477,17 @@ impl PuzzleWidget {
         let temp_gizmo_highlight = view.temp_gizmo_highlight.take();
 
         let response;
-        if let Some(nd_euclid) = view.nd_euclid_mut() {
+        if let Some(flat) = view.flat_mut() {
+            response = Some(show_flat_puzzle_view(
+                ui,
+                &r,
+                prefs,
+                flat,
+                &sim,
+                sticker_colors,
+                piece_styles,
+            ));
+        } else if let Some(nd_euclid) = view.nd_euclid_mut() {
             response = Some(show_nd_euclid_puzzle_view(
                 ui,
                 &r,
@@ -678,6 +709,97 @@ pub enum PuzzleWidgetLoading {
         puzzle_id: String,
         thread_handle: JoinHandle<Result<PuzzleSimulation, ()>>,
     },
+}
+
+fn show_flat_puzzle_view(
+    ui: &mut egui::Ui,
+    r: &egui::Response,
+    prefs: &mut Preferences,
+    flat: &mut FlatViewState,
+    sim: &Arc<Mutex<PuzzleSimulation>>,
+    sticker_colors: Vec<[u8; 3]>,
+    piece_styles: Vec<(PieceStyleValues, PieceMask)>,
+) -> PuzzleViewResponse {
+    let sim = sim.lock();
+
+    let rect = r.rect;
+
+    let puzzle = sim.puzzle().ty();
+
+    let mut dots = vec![];
+
+    let mut style_per_piece = PerPiece::new_with_len(puzzle.pieces.len());
+    for (style_values, piece_mask) in piece_styles {
+        for piece in piece_mask.iter() {
+            style_per_piece[piece] = style_values;
+        }
+    }
+
+    let render_data = sim.unwrap_render_data::<FlatPuzzleStateRenderData>();
+    let ndim = render_data.ndim as usize;
+    //   let sticker_coords = puzzle.stickers.map_ref(|sticker, sticker_info| {
+    //     let mut pos = piece_positions[sticker_info.piece].map(|coord| coord as f32);
+    //     let facet = hyperpuzzle::flat::Facet::from_color(sticker_info.color);
+    //     pos[facet.axis().0 as usize] += facet.sign().to_num::<f32>();
+    //     pos.map(|coord| coord + 0.5 - max_size * 0.5)
+    // });
+    let size = render_data.max_layer_count;
+    for (piece, piece_pos) in &render_data.piece_positions {
+        let mut piece_pos = piece_pos.map(|coord| coord as f32 + 0.5 - size as f32 * 0.5);
+        if let Some(anim) = &render_data.anim
+            && anim.pieces.contains(piece)
+            && let Ok([x, y]) =
+                piece_pos.get_disjoint_mut([anim.from.0 as usize, anim.to.0 as usize])
+        {
+            let theta = std::f32::consts::FRAC_PI_2 * render_data.t;
+            let (sin, cos) = theta.sin_cos();
+            [*x, *y] = [*x * cos + *y * sin, *y * cos - *x * sin];
+        }
+        let style = style_per_piece[piece];
+        dots.push((piece_pos, style, None));
+        // for &sticker in &puzzle.pieces[piece].stickers {
+        //     let mut sticker_pos = piece_pos;
+        //     let sticker_facet = render_data.sticker_facets[sticker];
+        //     sticker_pos[sticker_facet.dim().0 as usize] += sticker_facet.sign().to_num::<f32>();
+        //     dots.push((sticker_pos, style, Some(puzzle.stickers[sticker].color)));
+        // }
+    }
+
+    let dim_spacing = size as f32 + 3.0;
+    let projection_steps = std::iter::successors(Some(1.0), |s| Some(s * dim_spacing))
+        .take(hyperpuzzle::flat::MAX_NDIM / 2 + 1)
+        .collect_vec();
+
+    let max_x = projection_steps[ndim.div_ceil(2) + 1] / 2.0;
+    let max_y = projection_steps[ndim / 2 + 1] / 2.0;
+    let scale = (rect.size() / egui::vec2(max_x, max_y)).min_elem() * 4.0;
+
+    for (i, (dot_pos, style, sticker_color)) in dots.into_iter().enumerate() {
+        let coords = dot_pos.iter().take(ndim);
+        let x = std::iter::zip(&projection_steps, coords.clone().step_by(2))
+            .map(|(step, coord)| step * coord)
+            .sum::<f32>();
+        let y = std::iter::zip(&projection_steps, coords.clone().skip(1).step_by(2))
+            .map(|(step, coord)| step * coord)
+            .sum::<f32>();
+        let dot_color = sticker_color
+            .map(|c: Color| hyperpuzzle::Rgb {
+                rgb: sticker_colors[c.0 as usize],
+            })
+            .unwrap_or(prefs.styles.internals_color);
+        ui.painter().circle(
+            rect.center() + egui::vec2(x, -y) * scale,
+            scale * 0.5 * 0.875 * (style.face_opacity as f32 / 255.0).sqrt(),
+            dot_color.to_egui_color32(),
+            egui::Stroke::NONE,
+        );
+    }
+
+    PuzzleViewResponse {
+        color_to_edit: None,
+        texture_view: None,
+        filter_mode: wgpu::FilterMode::Nearest,
+    }
 }
 
 fn show_nd_euclid_puzzle_view(

@@ -21,7 +21,8 @@ Hyperspeedcube consists of many crates, split into several categories and ordere
 
 ## Puzzle simulation
 
-- `hyperpuzzle`, which aggregates puzzles defined using all backends (currently just `hyperpuzzle_impl_nd_euclid`)
+- `hyperpuzzle`, which aggregates puzzles defined using all backends (`hyperpuzzle_impl_*`)
+- `hyperpuzzle_impl_flat`, a puzzle engine based on the Flat Hypercube projection
 - `hyperpuzzle_impl_nd_euclid`, a puzzle engine for Hyperpuzzlescript
 - `hyperpuzzlescript`, which is a puzzle backend defines domain-specific programming language for puzzle definitions that is extensible by adding new engines
 - `hyperpuzzle_core`, which defines types for puzzles that can be implemented by puzzle backends

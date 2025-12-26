@@ -29,11 +29,15 @@ pub use hyperpuzzle_core::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 pub use prelude::*;
-pub use {hyperpuzzle_core as core, hyperpuzzle_impl_nd_euclid as nd_euclid};
+pub use {
+    hyperpuzzle_core as core, hyperpuzzle_impl_flat as flat,
+    hyperpuzzle_impl_nd_euclid as nd_euclid,
+};
 
 /// Prelude of common imports.
 pub mod prelude {
     pub use hyperpuzzle_core::prelude::*;
+    pub use hyperpuzzle_impl_flat::prelude::*;
     pub use hyperpuzzle_impl_nd_euclid::prelude::*;
 }
 
@@ -110,6 +114,9 @@ pub fn load_catalog(catalog: &Catalog) {
             eval_request(&mut rt);
         }
     });
+
+    // Add puzzles from other backends.
+    hyperpuzzle_impl_flat::load_puzzles(catalog);
 }
 
 #[cfg(test)]

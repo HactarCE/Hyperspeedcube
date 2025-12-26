@@ -106,6 +106,7 @@ impl NdEuclidViewState {
             is_dragging: _,
             exceeded_twist_drag_threshold,
             hover_mode: _,
+            keys: _,
         } = input;
 
         // Convert NDC to screen space.

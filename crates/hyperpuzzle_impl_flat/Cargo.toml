@@ -1,0 +1,22 @@
+[package]
+name = "hyperpuzzle_impl_flat"
+description = "Flat Hypercube puzzle backend for Hyperspeedcube"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["algorithms", "mathematics", "simulation"]
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+hypermath = { workspace = true }
+hyperpuzzle_core = { workspace = true }
+
+itertools = { workspace = true }

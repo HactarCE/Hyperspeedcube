@@ -10,8 +10,10 @@ use hyperprefs::{
 use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
 
+mod flat;
 mod nd_euclid;
 
+pub use flat::FlatViewState;
 pub use nd_euclid::{DragState, NdEuclidViewState};
 
 use super::simulation::PuzzleSimulation;
@@ -20,6 +22,7 @@ use super::styles::*;
 #[derive(Debug)]
 pub enum SpecificPuzzleView {
     Empty,
+    Flat(Box<FlatViewState>),
     NdEuclid(Box<NdEuclidViewState>),
 }
 
@@ -75,8 +78,15 @@ impl PuzzleView {
         Self {
             sim: Arc::clone(sim),
 
-            specific: NdEuclidViewState::new(gfx, prefs, puzzle)
-                .map(|nd_euclid| SpecificPuzzleView::NdEuclid(Box::new(nd_euclid)))
+            specific: None
+                .or_else(|| {
+                    FlatViewState::new(gfx, prefs, puzzle)
+                        .map(|flat| SpecificPuzzleView::Flat(Box::new(flat)))
+                })
+                .or_else(|| {
+                    NdEuclidViewState::new(gfx, prefs, puzzle)
+                        .map(|nd_euclid| SpecificPuzzleView::NdEuclid(Box::new(nd_euclid)))
+                })
                 .unwrap_or(SpecificPuzzleView::Empty),
 
             colors,
@@ -94,6 +104,21 @@ impl PuzzleView {
     /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
         Arc::clone(self.sim.lock().puzzle_type())
+    }
+
+    /// Returns Flat view state, if applicable.
+    pub fn flat(&self) -> Option<&FlatViewState> {
+        match &self.specific {
+            SpecificPuzzleView::Flat(flat) => Some(flat),
+            _ => None,
+        }
+    }
+    /// Returns Flat view state, if applicable.
+    pub fn flat_mut(&mut self) -> Option<&mut FlatViewState> {
+        match &mut self.specific {
+            SpecificPuzzleView::Flat(flat) => Some(flat),
+            _ => None,
+        }
     }
 
     /// Returns N-dimensional Euclidean view state, if applicable.
@@ -115,6 +140,7 @@ impl PuzzleView {
     pub fn hovered_piece(&self) -> Option<Piece> {
         match &self.specific {
             SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::Flat(_) => None, // TODO
             SpecificPuzzleView::NdEuclid(nd_euclid) => {
                 Some(nd_euclid.puzzle_hover_state.as_ref()?.piece)
             }
@@ -124,6 +150,7 @@ impl PuzzleView {
     pub fn hovered_sticker(&self) -> Option<Sticker> {
         match &self.specific {
             SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::Flat(_) => None, // TODO
             SpecificPuzzleView::NdEuclid(nd_euclid) => {
                 nd_euclid.puzzle_hover_state.as_ref()?.sticker
             }
@@ -134,6 +161,7 @@ impl PuzzleView {
     pub fn hovered_gizmo(&self) -> Option<GizmoHoverState> {
         match &self.specific {
             SpecificPuzzleView::Empty => None,
+            SpecificPuzzleView::Flat(_) => None,
             SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.gizmo_hover_state,
         }
     }
@@ -211,6 +239,9 @@ impl PuzzleView {
 
         match &mut self.specific {
             SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::Flat(flat) => {
+                flat.update(input, prefs, animation_prefs, &self.sim, &self.styles);
+            }
             SpecificPuzzleView::NdEuclid(nd_euclid) => {
                 nd_euclid.update(input, prefs, animation_prefs, &self.sim, &self.styles);
             }
@@ -221,6 +252,7 @@ impl PuzzleView {
     pub fn reset_camera(&mut self) {
         match &mut self.specific {
             SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::Flat(_) => (),
             SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.reset_camera(),
         }
     }
@@ -229,6 +261,7 @@ impl PuzzleView {
     pub fn do_click_twist(&self, layers: LayerMask, direction: Sign) {
         match &self.specific {
             SpecificPuzzleView::Empty => (),
+            SpecificPuzzleView::Flat(_) => (),
             SpecificPuzzleView::NdEuclid(nd_euclid) => {
                 nd_euclid.do_click_twist(&mut self.sim.lock(), layers, direction);
             }
@@ -253,7 +286,7 @@ impl PuzzleView {
         height: u32,
     ) -> eyre::Result<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
         match &mut self.specific {
-            SpecificPuzzleView::Empty => {
+            SpecificPuzzleView::Empty | SpecificPuzzleView::Flat(_) => {
                 bail!("puzzle backend does not support screenshots")
             }
             SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.renderer.screenshot(width, height),
@@ -271,7 +304,7 @@ impl PuzzleView {
     /// This is typically 1.
     pub fn downscale_rate(&self) -> u32 {
         match &self.specific {
-            SpecificPuzzleView::Empty => 1,
+            SpecificPuzzleView::Empty | SpecificPuzzleView::Flat(_) => 1,
             SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.camera.prefs().downscale_rate,
         }
     }
@@ -345,6 +378,9 @@ pub struct PuzzleViewInput {
     pub exceeded_twist_drag_threshold: bool,
     /// What the mouse can hover over.
     pub hover_mode: Option<HoverMode>,
+
+    /// Keys pressed.
+    pub keys: Vec<char>,
 }
 
 /// Which kind of objects the user may interact with by hovering with the mouse.
