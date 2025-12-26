@@ -225,6 +225,18 @@ impl LayerMask {
     pub fn get_single_layer(self) -> Option<u32> {
         (self.count() == 1).then(|| self.0.trailing_zeros())
     }
+
+    /// Reverses the layer mask, given the number of layers on the axis.
+    ///
+    /// For example, the layer mask 010011 (with 6 layers) reverses to 110010.
+    pub fn reverse(self, layer_count: u8) -> Self {
+        Self(self.0.reverse_bits() >> (crate::LayerMaskUint::BITS - layer_count as u32))
+    }
+
+    /// Returns whether the layer mask contains the given layer.
+    pub fn contains(self, layer: Layer) -> bool {
+        self & LayerMask::from(layer) != LayerMask::EMPTY
+    }
 }
 
 #[cfg(test)]
@@ -241,5 +253,6 @@ mod tests {
         assert_eq!("2", LayerMask::from(1).to_string());
         assert_eq!("3", LayerMask::from(2).to_string());
         assert_eq!(LayerMask::from(0) | LayerMask::from(2), LayerMask(0b101));
+        assert_eq!(LayerMask(0b010011).reverse(6), LayerMask(0b110010));
     }
 }
