@@ -112,7 +112,7 @@ pub type PieceMask = GenericMask<Piece>;
 pub type PieceTypeMask = GenericMask<PieceType>;
 
 /// Piece info.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
     /// Unordered list of stickers on the piece.
     pub stickers: SmallVec<[Sticker; 8]>,
@@ -121,7 +121,7 @@ pub struct PieceInfo {
 }
 
 /// Sticker info.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
@@ -130,7 +130,7 @@ pub struct StickerInfo {
 }
 
 /// Layers of an axis.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct AxisLayersInfo(pub PerLayer<LayerInfo>);
 impl fmt::Display for AxisLayersInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -177,7 +177,7 @@ impl AxisLayersInfo {
 }
 
 /// Layer info.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LayerInfo {
     /// Position along the axis vector from the origin that bounds the top of
     /// the layer. **This may be infinite.**
@@ -196,7 +196,7 @@ impl TransformByMotor for LayerInfo {
 }
 
 /// Twist info.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TwistInfo {
     /// Value of this twist in quarter turn metric.
     pub qtm: usize,
@@ -209,7 +209,7 @@ pub struct TwistInfo {
 }
 
 /// Piece type info.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
     #[allow(clippy::doc_markdown)]
     /// Name for the piece type. (e.g., "center/oblique_1_2/left")
@@ -227,7 +227,7 @@ impl AsRef<str> for PieceTypeInfo {
 }
 
 /// Color info.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ColorInfo {}
 
 /// Color from the global color palette.
