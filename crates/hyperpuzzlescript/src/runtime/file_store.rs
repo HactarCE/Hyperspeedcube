@@ -295,13 +295,13 @@ mod tests {
 
         assert_eq!(mods.module_name(hello).unwrap(), "hello");
         let f = mods.get_mut(hello).unwrap();
-        assert_eq!(f.submodules, vec![]);
+        assert!(f.submodules.is_empty());
         assert_eq!(f.file_path, "dir1/dir2/hello.hps");
         assert_eq!(f.contents, "hello, world!");
 
         assert_eq!(mods.module_name(dir3).unwrap(), "dir3");
         let f = mods.get_mut(dir3).unwrap();
-        assert_eq!(f.submodules, vec![]);
+        assert!(f.submodules.is_empty());
         assert_eq!(f.file_path, "dir1/dir3/index.hps");
         assert_eq!(f.contents, "dir3 index");
     }

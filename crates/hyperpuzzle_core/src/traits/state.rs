@@ -75,6 +75,8 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     ///
     /// `t` ranges from 0 to 1. Motion should be perceptually linear with
     /// respect to `t`.
+    //
+    // TODO: is this even used anywhere?
     fn partial_twist_render_data(&self, twist: LayeredTwist, t: f32)
     -> BoxDynPuzzleStateRenderData;
 
@@ -85,7 +87,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     ///
     /// # Panics
     ///
-    /// This method may panics if passed an invalid animation.
+    /// This method may panic if passed an invalid animation.
     fn animated_render_data(
         &self,
         anim: &BoxDynPuzzleAnimation,

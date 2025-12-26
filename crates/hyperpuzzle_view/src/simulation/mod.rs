@@ -426,8 +426,8 @@ impl PuzzleSimulation {
     ///
     /// Any in-progress partial twist is canceled.
     ///
-    /// This does **not** affect the undo stack. Use [`Self::event()`] instead
-    /// if that's desired.
+    /// This does **not** affect the undo stack. Use [`Self::do_event()`]
+    /// instead if that's desired.
     fn do_twist(&mut self, twist: LayeredTwist) -> bool {
         let puzzle = Arc::clone(self.puzzle_type());
         let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {

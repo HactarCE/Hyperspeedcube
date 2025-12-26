@@ -196,9 +196,6 @@ pub struct Rename {
 /// names.
 ///
 /// Some initial presets may be based on immutable "built-in" values.
-///
-/// **Do not use this type if `T` contains objects that can be referenced.**
-/// That requires a custom type, like [`FilterPresetSeqList`] for example.
 #[derive(Debug)]
 pub struct PresetsList<T: PresetData> {
     /// Name of the most recently-loaded preset, or an empty string if unknown.
