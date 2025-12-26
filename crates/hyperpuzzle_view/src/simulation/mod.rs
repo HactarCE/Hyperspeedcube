@@ -426,8 +426,8 @@ impl PuzzleSimulation {
     ///
     /// Any in-progress partial twist is canceled.
     ///
-    /// This does **not** affect the undo stack. Use [`Self::event()`] instead
-    /// if that's desired.
+    /// This does **not** affect the undo stack. Use [`Self::do_event()`]
+    /// instead if that's desired.
     fn do_twist(&mut self, twist: LayeredTwist) -> bool {
         let puzzle = Arc::clone(self.puzzle_type());
         let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {
@@ -454,7 +454,12 @@ impl PuzzleSimulation {
                 let state = std::mem::replace(&mut self.latest_state, new_state);
                 self.blocking_anim.clear();
 
-                if let Some(nd_euclid) = &self.nd_euclid {
+                if let Some(flat) = state.downcast_ref::<hyperpuzzle::flat::FlatPuzzleState>() {
+                    self.twist_anim.push(AnimationFromState {
+                        state: state.clone(),
+                        anim: flat.twist_anim(twist).into(),
+                    });
+                } else if let Some(nd_euclid) = &self.nd_euclid {
                     let geom = &nd_euclid.geom;
                     self.twist_anim.push(AnimationFromState {
                         state,
