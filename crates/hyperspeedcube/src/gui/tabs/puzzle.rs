@@ -485,6 +485,8 @@ impl PuzzleWidget {
                     &mut self.egui_texture_id,
                     &mut self.egui_wgpu_renderer.write(),
                 );
+            } else if let Some(texture_id) = self.egui_texture_id.take() {
+                self.egui_wgpu_renderer.write().free_texture(&texture_id);
             }
             if let Some(texture_id) = self.egui_texture_id {
                 egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect);
