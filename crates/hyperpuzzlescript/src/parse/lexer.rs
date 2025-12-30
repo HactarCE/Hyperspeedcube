@@ -88,34 +88,17 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
             .delimited_by(just("/*"), just("*/"))
         });
 
-        let normal_padding = choice((
+        let padding = choice((
             one_of(" \t\r").ignored(),
             line_comment.ignored(),
             block_comment.ignored(),
+            just('\n')
+                .ignored()
+                .contextual()
+                .configure(|_, ctx: &LexCtx| ctx.ignore_newlines),
         ))
+        .repeated()
         .boxed();
-        let padding_with_newlines = normal_padding.clone().or(just('\n').ignored());
-        // Workaround for https://github.com/zesterer/chumsky/issues/748
-        let padding = normal_padding
-            .repeated()
-            .configure(|repeat, ctx: &LexCtx| {
-                if ctx.ignore_newlines {
-                    repeat.exactly(0)
-                } else {
-                    repeat
-                }
-            })
-            .then(
-                padding_with_newlines
-                    .repeated()
-                    .configure(|repeat, ctx: &LexCtx| {
-                        if ctx.ignore_newlines {
-                            repeat
-                        } else {
-                            repeat.exactly(0)
-                        }
-                    }),
-            );
 
         let ident_or_keyword = ident_or_keyword();
 
@@ -176,7 +159,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                             Ok(c)
                         } else {
                             Err(chumsky::label::LabelError::<&str, _>::expected_found(
-                                [chumsky::text::TextExpected::<&str>::IdentifierPart],
+                                [chumsky::text::TextExpected::<&str>::AnyIdentifier],
                                 Some(chumsky::util::MaybeRef::Val(c)),
                                 span,
                             ))

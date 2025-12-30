@@ -113,7 +113,7 @@ walkdir = { version = "2.4.0" }
 # String manipulation
 arcstr = { version = "1.2.0" }
 ariadne = { version = "0.5.1" }
-chumsky = { version = "0.10.1", features = ["pratt"] }
+chumsky = { version = "0.12.0", features = ["pratt"] }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 nom = { version = "8.0.0" }

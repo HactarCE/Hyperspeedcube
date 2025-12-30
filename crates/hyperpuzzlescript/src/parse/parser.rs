@@ -9,6 +9,7 @@ use super::lexer::{StringSegmentToken, Token};
 use crate::{Span, Spanned, ast};
 
 pub(super) type ParserInput<'src> = chumsky::input::MappedInput<
+    'src,
     Token,
     Span,
     &'src [Spanned<Token>],
