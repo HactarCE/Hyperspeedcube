@@ -186,7 +186,7 @@ pub struct LogPuzzle {
     pub id: String,
     /// Puzzle version number.
     ///
-    /// - There should be no leading `v`.
+    /// - There must be no leading `v`.
     /// - The version number should ideally follow [Semantic Versioning](https://semver.org/)
     ///   with respect to the contents of the log file.
     #[kdl(property("version"))]
@@ -212,6 +212,7 @@ pub struct Scramble {
     /// Twist sequence to apply to the puzzle, using standard notation.
     #[kdl(child("twists"))]
     pub twists: String,
+    /// Randomness beacon round.
     #[kdl(child("drand_round_v1"), optional)]
     pub drand_round_v1: Option<DrandRound>,
 }
@@ -260,6 +261,7 @@ pub struct DrandRound {
     pub previous_signature: Option<String>,
 }
 impl DrandRound {
+    /// Converts to [`timecheck::drand::DrandRound`].
     pub fn to_timecheck_drand_round(&self) -> Option<timecheck::drand::DrandRound> {
         Some(timecheck::drand::DrandRound {
             number: self.round as u64,
@@ -268,6 +270,7 @@ impl DrandRound {
                 .ok()?,
         })
     }
+    /// Converts from [`timecheck::drand::DrandRound`].
     pub fn from_timecheck_drand_round(round: &timecheck::drand::DrandRound) -> Self {
         Self {
             round: round.number as i64,
@@ -345,6 +348,34 @@ pub enum LogEvent {
         #[kdl(property("time"), optional, proxy = KdlProxy)]
         #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
+    },
+    /// **Replay-only.** Set blindfolded state.
+    #[kdl(name = "set-blindfold")]
+    SetBlindfold {
+        /// Event timestamp.
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        time: Option<Timestamp>,
+        /// New blindfolded state.
+        #[kdl(property("on"))]
+        enabled: bool,
+    },
+    /// **Replay-only.** Invalidate a no-filters speedsolve.
+    #[kdl(name = "invalidate-filterless")]
+    InvalidateFilterless {
+        /// Event timestamp.
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        time: Option<Timestamp>,
+    },
+    /// Macro invocation.
+    #[kdl(name = "macro")]
+    Macro {
+        /// Event timestamp.
+        #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        time: Option<Timestamp>,
+        // TODO: more info
     },
     /// Start of solve.
     ///

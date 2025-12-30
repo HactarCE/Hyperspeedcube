@@ -29,6 +29,9 @@ pub struct PuzzleView {
     /// Puzzle state. This is wrapped in an `Arc<Mutex<T>>` so that multiple
     /// puzzle views can access the same state.
     pub sim: Arc<Mutex<PuzzleSimulation>>,
+    /// ID of the puzzle simulation. When this changes, certain cosmetic
+    /// settings (such as filters) are reset.
+    sim_id: usize,
 
     /// Backend-specific view state.
     specific: SpecificPuzzleView,
@@ -74,6 +77,7 @@ impl PuzzleView {
 
         Self {
             sim: Arc::clone(sim),
+            sim_id: simulation.sim_id,
 
             specific: NdEuclidViewState::new(gfx, prefs, puzzle)
                 .map(|nd_euclid| SpecificPuzzleView::NdEuclid(Box::new(nd_euclid)))
@@ -169,6 +173,10 @@ impl PuzzleView {
             let pieces = rule.set.eval(&self.puzzle());
             self.styles.set_base_styles(&pieces, rule.style.clone());
         }
+
+        if !self.styles.all_equal() {
+            self.sim.lock().invalidate_filterless();
+        }
     }
 
     /// Updates the current piece styles based on interaction.
@@ -180,7 +188,6 @@ impl PuzzleView {
             .set_hovered_piece(hovered_piece.filter(|_| self.show_puzzle_hover));
 
         // Update blocking state.
-
         let puzzle = self.puzzle();
         let sim = self.sim.lock();
         let anim = sim.blocking_pieces_anim();
@@ -193,9 +200,17 @@ impl PuzzleView {
     pub fn update(
         &mut self,
         input: PuzzleViewInput,
-        prefs: &Preferences,
+        prefs: &mut Preferences,
         animation_prefs: &AnimationPreferences,
     ) {
+        let new_sim_id = self.sim.lock().sim_id;
+        if self.sim_id != new_sim_id {
+            self.sim_id = new_sim_id;
+            // Reset filters
+            self.styles = PuzzleStyleStates::new(self.puzzle().pieces.len());
+            self.filters = PuzzleFiltersState::new(prefs.first_custom_style());
+        }
+
         if self.filters.changed {
             self.filters.changed = false;
             self.update_filters();

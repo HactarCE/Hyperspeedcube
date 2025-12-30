@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 hypermath = { workspace = true }
 hypershape = { workspace = true }
+hyperspeedcube_cli_types = { workspace = true }
 
 chrono = { workspace = true }
 eyre = { workspace = true }

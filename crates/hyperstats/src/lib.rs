@@ -5,8 +5,7 @@ use std::str::FromStr;
 
 use eyre::Result;
 use hyperkdl::{NodeContentsSchema, Warning};
-use hyperpuzzle_core::Timestamp;
-use hyperpuzzle_log::verify::SolveVerification;
+use hyperpuzzle_core::{Timestamp, verification::SolveVerification};
 use kdl::{KdlDocument, KdlDocumentFormat, KdlError};
 
 /// Saves the statistics file, overwriting the existing one.
@@ -93,26 +92,26 @@ impl StatsDb {
             return;
         }
 
-        let pbs = self.0.entry(verification.puzzle.id.clone()).or_default();
+        let pbs = self
+            .0
+            .entry(verification.puzzle_canonical_id.clone())
+            .or_default();
 
-        if first {
+        if first && let Some(time) = verification.timestamps.solve_completion {
             pbs.first = Some(FirstSolve {
-                time: verification.time_completed,
+                time: Timestamp(time),
             });
         }
 
         if fmc {
             pbs.fmc = Some(FmcPB {
                 file: filename.to_string(),
-                stm: verification
-                    .solution_stm_count
-                    .try_into()
-                    .unwrap_or(i64::MAX),
+                stm: verification.solution_stm.try_into().unwrap_or(i64::MAX),
             });
         }
 
         if speed {
-            if let Some(dur) = verification.speedsolve_duration {
+            if let Some(dur) = verification.durations.speedsolve {
                 pbs.speed = Some(SpeedPB {
                     file: filename.to_string(),
                     duration: dur.num_milliseconds(),
@@ -121,7 +120,7 @@ impl StatsDb {
         }
 
         if blind {
-            if let Some(dur) = verification.blindsolve_duration {
+            if let Some(dur) = verification.durations.blindsolve {
                 pbs.blind = Some(SpeedPB {
                     file: filename.to_string(),
                     duration: dur.num_milliseconds(),
@@ -134,42 +133,33 @@ impl StatsDb {
     pub fn check_new_pb(&mut self, verification: &SolveVerification) -> NewPbs {
         let old_pbs = self
             .0
-            .get(&verification.puzzle.id)
+            .get(&verification.puzzle_canonical_id)
             .cloned()
             .unwrap_or_default();
 
         NewPbs {
-            first: old_pbs
-                .first
-                .is_none_or(|old_pb| old_pb.time > verification.time_completed),
+            first: verification
+                .timestamps
+                .solve_completion
+                .is_some_and(|time| old_pbs.first.is_none_or(|old_pb| old_pb.time.0 > time)),
 
             fmc: old_pbs.fmc.as_ref().is_none_or(|old_pb| {
-                old_pb.stm
-                    > verification
-                        .solution_stm_count
-                        .try_into()
-                        .unwrap_or(i64::MAX)
+                old_pb.stm > verification.solution_stm.try_into().unwrap_or(i64::MAX)
             }),
 
-            speed: verification
-                .speedsolve_duration
-                .filter(|_| verification.single_session)
-                .is_some_and(|dur| {
-                    old_pbs
-                        .speed
-                        .as_ref()
-                        .is_none_or(|old_pb| old_pb.duration > dur.num_milliseconds())
-                }),
+            speed: verification.durations.speedsolve.is_some_and(|dur| {
+                old_pbs
+                    .speed
+                    .as_ref()
+                    .is_none_or(|old_pb| old_pb.duration > dur.num_milliseconds())
+            }),
 
-            blind: verification
-                .blindsolve_duration
-                .filter(|_| verification.single_session)
-                .is_some_and(|dur| {
-                    old_pbs
-                        .blind
-                        .as_ref()
-                        .is_none_or(|old_pb| old_pb.duration > dur.num_milliseconds())
-                }),
+            blind: verification.durations.blindsolve.is_some_and(|dur| {
+                old_pbs
+                    .blind
+                    .as_ref()
+                    .is_none_or(|old_pb| old_pb.duration > dur.num_milliseconds())
+            }),
         }
     }
 }

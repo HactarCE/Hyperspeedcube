@@ -2,18 +2,19 @@
 members = [
     "crates/hypercubing_leaderboards_client",
     "crates/hyperdraw",
-    "crates/hyperkdl",
     "crates/hyperkdl_derive",
+    "crates/hyperkdl",
     "crates/hypermath",
     "crates/hyperpaths",
     "crates/hyperprefs",
-    "crates/hyperpuzzle",
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_view",
+    "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
     "crates/hypershape",
+    "crates/hyperspeedcube_cli_types",
     "crates/hyperspeedcube",
     "crates/hyperstats",
     "crates/hyperstrings",
@@ -75,6 +76,7 @@ hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
+hyperspeedcube_cli_types = { path = "crates/hyperspeedcube_cli_types" }
 hyperstats = { path = "crates/hyperstats" }
 hyperstrings = { path = "crates/hyperstrings" }
 timecheck = { path = "crates/timecheck" }

@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
 use float_ord::FloatOrd;
@@ -20,6 +21,8 @@ use super::{Action, ReplayEvent, UndoBehavior};
 use crate::animations::SpecialAnimationState;
 
 const ASSUMED_FPS: f32 = 120.0;
+
+static NEXT_SIM_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// Puzzle simulation, which manages the puzzle state, animations, undo stack,
 /// etc.
@@ -60,6 +63,15 @@ pub struct PuzzleSimulation {
     load_time: Instant,
     /// Whether the solve is single-session.
     is_single_session: bool,
+    /// Whether the puzzle state is concealed.
+    pub blindfolded: bool,
+    /// Whether some action has been done that invalidates a filterless solve.
+    invalidated_filterless: bool,
+    /// Original color scheme used for the puzzle.
+    ///
+    /// This is used to detect color scheme changes which would invalidate a
+    /// filterless solve.
+    original_colors: Option<Vec<[u8; 3]>>,
 
     /// Time of last frame, or `None` if we are not in the middle of an
     /// animation.
@@ -76,6 +88,10 @@ pub struct PuzzleSimulation {
 
     /// Last loaded/saved log file.
     pub last_log_file: Option<PathBuf>,
+
+    /// Puzzle simulation ID, unique to the process. This is used to reset
+    /// certain cosmetic settings (such as filters).
+    pub sim_id: usize,
 }
 impl Drop for PuzzleSimulation {
     fn drop(&mut self) {
@@ -109,6 +125,9 @@ impl PuzzleSimulation {
             old_duration: Some(0),
             load_time: Instant::now(),
             is_single_session: true,
+            blindfolded: false,
+            invalidated_filterless: false,
+            original_colors: None,
 
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
@@ -118,6 +137,8 @@ impl PuzzleSimulation {
             cached_render_data,
 
             last_log_file: None,
+
+            sim_id: NEXT_SIM_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         }
     }
 
@@ -249,11 +270,17 @@ impl PuzzleSimulation {
         self.scramble = Some(scramble.clone());
         // We could use `do_action_internal()` but that would recompute the
         // puzzle state, which isn't necessary.
-        let time = Some(Timestamp::now());
-        self.undo_stack.push(Action::Scramble { time });
-        if let Some(replay_events) = &mut self.replay {
-            replay_events.push(ReplayEvent::Scramble { time });
-        }
+        self.undo_stack.push(Action::Scramble {
+            time: scramble.time,
+        });
+        self.replay = Some(vec![
+            ReplayEvent::Scramble {
+                time: scramble.time,
+            },
+            ReplayEvent::StartSession {
+                time: Some(Timestamp::now()),
+            },
+        ]);
         self.latest_state = state;
         self.skip_twist_animations();
         self.solved_state_handled = false;
@@ -271,8 +298,21 @@ impl PuzzleSimulation {
     /// Plays a replay event on the puzzle when deserializing.
     fn replay_event(&mut self, event: ReplayEvent) {
         if let Some(replay_events) = &mut self.replay {
+            if event.is_cosmetic() {
+                // Remove previous similar event
+                let mut recent_cosmetic_events = (0..replay_events.len())
+                    .rev()
+                    .take_while(|&i| replay_events[i].is_cosmetic());
+                if let Some(i) = recent_cosmetic_events.find(|&i| {
+                    std::mem::discriminant(&replay_events[i]) == std::mem::discriminant(&event)
+                }) {
+                    replay_events.remove(i);
+                }
+            }
+
             replay_events.push(event.clone());
         }
+
         match event {
             ReplayEvent::Undo { .. } => self.undo(),
             ReplayEvent::Redo { .. } => self.redo(),
@@ -282,6 +322,8 @@ impl PuzzleSimulation {
             ReplayEvent::Twists(twists) => {
                 self.do_action(Action::Twists(twists));
             }
+            ReplayEvent::SetBlindfold { enabled, .. } => self.blindfolded = enabled, // TODO: actually have an effect
+            ReplayEvent::InvalidateFilterless { .. } => self.invalidated_filterless = true,
             ReplayEvent::StartSolve { time, duration } => {
                 self.do_action(Action::StartSolve { time, duration });
             }
@@ -736,6 +778,12 @@ impl PuzzleSimulation {
                         }
                         LogEvent::Twists(s)
                     }
+                    &ReplayEvent::SetBlindfold { time, enabled } => {
+                        LogEvent::SetBlindfold { time, enabled }
+                    }
+                    &ReplayEvent::InvalidateFilterless { time } => {
+                        LogEvent::InvalidateFilterless { time }
+                    }
                     &ReplayEvent::StartSolve { time, duration } => {
                         LogEvent::StartSolve { time, duration }
                     }
@@ -873,6 +921,13 @@ impl PuzzleSimulation {
                 }
                 &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }),
                 &LogEvent::Redo { time } => ret.replay_event(ReplayEvent::Redo { time }),
+                &LogEvent::SetBlindfold { time, enabled } => {
+                    ret.replay_event(ReplayEvent::SetBlindfold { time, enabled })
+                }
+                &LogEvent::InvalidateFilterless { time } => {
+                    ret.replay_event(ReplayEvent::InvalidateFilterless { time });
+                }
+                LogEvent::Macro { time: _ } => log::error!("macros are unsupported"), // TODO apply macro
                 LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
                     ret.replay_event(ReplayEvent::StartSolve {
@@ -921,5 +976,26 @@ impl PuzzleSimulation {
     /// This returns `true` at most once until the simulation is recreated.
     pub fn handle_newly_solved_state(&mut self) -> bool {
         self.solved && !std::mem::replace(&mut self.solved_state_handled, true)
+    }
+    /// Updates the sticker colors and invalidates the no-filters status of the
+    /// solve if they have changed.
+    pub fn update_colors(&mut self, sticker_colors: &[[u8; 3]]) {
+        if !self.invalidated_filterless {
+            if self.original_colors.is_none() {
+                self.original_colors = Some(sticker_colors.to_vec());
+            } else if self.original_colors.as_deref() != Some(sticker_colors) {
+                self.invalidate_filterless();
+            }
+        }
+    }
+    /// Invalidates the no-filters status of the solve.
+    pub fn invalidate_filterless(&mut self) {
+        self.do_event(ReplayEvent::InvalidateFilterless {
+            time: Some(Timestamp::now()),
+        });
+    }
+    /// Returns whether the solve is invalid for a no-filters solve.
+    pub fn invalidated_filterless(&self) -> bool {
+        self.invalidated_filterless
     }
 }

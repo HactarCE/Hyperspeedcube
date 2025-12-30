@@ -22,6 +22,8 @@ mod version;
 pub use chrono;
 /// Re-export of `hypershape`.
 pub use hypershape;
+/// Re-export of `hyperspeedcube_cli_types`.
+pub use hyperspeedcube_cli_types::*;
 pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 

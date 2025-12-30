@@ -2695,6 +2695,7 @@ dependencies = [
  "human-sort",
  "hypermath",
  "hypershape",
+ "hyperspeedcube_cli_types",
  "indexmap",
  "itertools 0.14.0",
  "kdl",
@@ -2875,6 +2876,14 @@ dependencies = [
  "wgpu",
  "winit",
  "winres",
+]
+
+[[package]]
+name = "hyperspeedcube_cli_types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
 ]
 
 [[package]]

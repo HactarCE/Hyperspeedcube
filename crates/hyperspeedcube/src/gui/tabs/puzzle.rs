@@ -449,6 +449,9 @@ impl PuzzleWidget {
         }
         view.temp_colors = None; // Remove temporary colors
 
+        // Invalidate filterless solve if colors changed
+        sim.lock().update_colors(&sticker_colors);
+
         let piece_styles = view.styles.values(prefs);
 
         let show_gizmo_hover = view.show_gizmo_hover;
@@ -499,6 +502,10 @@ impl PuzzleWidget {
             .show(ui.ctx(), |ui| {
                 ui.set_width(r.rect.width());
                 ui.label(format!("Solved: {}", view.sim.lock().is_solved()));
+                ui.label(format!(
+                    "Used filters: {}",
+                    view.sim.lock().invalidated_filterless(),
+                ))
             });
 
         // TODO: draw debug plane??

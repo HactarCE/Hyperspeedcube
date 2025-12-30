@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use hyperpuzzle_log::verify::SolveVerification;
+use hyperpuzzle::chrono::Utc;
+use hyperpuzzle::verification::SolveVerification;
+use hyperpuzzle::{Timestamp, chrono};
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
@@ -33,12 +35,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
             ui.heading(format!(
                 "Yay! You solved the {} in {} twists",
-                popup.puzzle_name, popup.verification.solution_stm_count,
+                popup.puzzle_name, popup.verification.solution_stm,
             ));
 
             if let Some(dur) = popup
                 .verification
-                .blindsolve_duration
+                .durations
+                .blindsolve
                 .filter(|_| popup.new_pbs.blind)
             {
                 // TODO: prettify this
@@ -47,19 +50,27 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             if let Some(dur) = popup
                 .verification
-                .speedsolve_duration
+                .durations
+                .speedsolve
                 .filter(|_| popup.new_pbs.speed)
             {
                 ui.label(format!("You set a new speedsolve PB of {dur}"));
             }
 
             if popup.new_pbs.fmc {
-                let stm = popup.verification.solution_stm_count;
+                let stm = popup.verification.solution_stm;
                 ui.label(format!("You set a new move count PB of {stm} STM"));
             }
 
             if popup.saved {
                 ui.label(format!("Saved to {}", popup.file_name));
+                if let Some(dir_path) = popup.file_path.parent() {
+                    if ui.button("Show folder").clicked() {
+                        if let Err(e) = opener::open(dir_path) {
+                            log::error!("{e}");
+                        }
+                    }
+                }
             } else if let Some(replay) = &*popup.replay.lock() {
                 if ui.button("Save this solve").clicked() {
                     // Save log file
@@ -111,8 +122,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 .ok()?;
                 let (file_path, file_name) = hyperpaths::solve_autosave_file(
                     &replay.puzzle.id,
-                    &verification.time_completed.to_string(),
-                    verification.solution_stm_count,
+                    &verification
+                        .timestamps
+                        .solve_completion
+                        .unwrap_or_else(Utc::now)
+                        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                    verification.solution_stm,
                 )
                 .ok()?;
                 let new_pbs = app.stats.check_new_pb(&verification);

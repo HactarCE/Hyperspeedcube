@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use hyperdraw::PieceStyleValues;
 use hyperprefs::{Preferences, PresetRef};
 use hyperpuzzle::prelude::*;
+use itertools::Itertools;
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -44,6 +45,14 @@ impl PuzzleStyleStates {
 
     pub fn set_base_styles(&mut self, pieces: &PieceMask, base: Option<PresetRef>) {
         self.set_piece_states(pieces, update_styles!(base = base.clone()));
+    }
+
+    /// Returns whether all pieces have the same base style.
+    pub fn all_equal(&self) -> bool {
+        self.piece_sets
+            .iter()
+            .map(|(state, _piece_set)| &state.base)
+            .all_equal()
     }
 
     /// Modifies the states of a piece set, given their current state.

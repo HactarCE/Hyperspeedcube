@@ -43,6 +43,18 @@ pub enum ReplayEvent {
     },
     /// Twist applied to the puzzle state.
     Twists(SmallVec<[LayeredTwist; 4]>),
+    /// Sets the blindfolded state.
+    SetBlindfold {
+        /// Event timestamp.
+        time: Option<Timestamp>,
+        /// New blindfolded state.
+        enabled: bool,
+    },
+    /// Invalidate a no-filters speedsolve.
+    InvalidateFilterless {
+        /// Event timestamp.
+        time: Option<Timestamp>,
+    },
     /// Start of a solve (first move after being scrambled).
     StartSolve {
         /// Event timestamp.
@@ -67,4 +79,15 @@ pub enum ReplayEvent {
         /// Event timestamp.
         time: Option<Timestamp>,
     },
+}
+
+impl ReplayEvent {
+    /// Returns whether the event is purely changing something visual about the
+    /// puzzle.
+    ///
+    /// Repeated events of these types are generally collapsed in the replay
+    /// file.
+    pub fn is_cosmetic(&self) -> bool {
+        matches!(self, ReplayEvent::InvalidateFilterless { .. })
+    }
 }
