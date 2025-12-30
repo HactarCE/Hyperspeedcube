@@ -122,24 +122,37 @@ pub fn define_in(
                 let params: Vec<Value> = pop_map_key(&mut example, example_span, "params")?;
                 let generator_param_values = params.iter().map(|v| v.to_string()).collect();
 
-                let puzzle_spec_result = match gen_meta.generate_spec(ctx, generator_param_values) {
-                    Ok(Redirectable::Direct(spec_kwargs)) => puzzle_spec_from_kwargs(
-                        ctx,
-                        spec_kwargs,
-                        &cat,
-                        &tx,
-                        Some(tags.clone()),
-                        Some((example, example_span)),
-                    ),
-                    Ok(Redirectable::Redirect(other)) => {
-                        ctx.warn_at(
-                            example_span,
-                            format!("ignoring example because it redirects to {other:?}"),
-                        );
-                        continue;
-                    }
-                    Err(e) => Err(e),
+                let mut scope = Scope::default();
+                scope.special.id = Some((&gen_meta.id).into());
+                let scope = Arc::new(scope);
+
+                let mut ctx = EvalCtx {
+                    scope: &scope,
+                    runtime: ctx.runtime,
+                    caller_span,
+                    exports: &mut None,
+                    stack_depth: 0,
                 };
+
+                let puzzle_spec_result =
+                    match gen_meta.generate_spec(&mut ctx, generator_param_values) {
+                        Ok(Redirectable::Direct(spec_kwargs)) => puzzle_spec_from_kwargs(
+                            &mut ctx,
+                            spec_kwargs,
+                            &cat,
+                            &tx,
+                            Some(tags.clone()),
+                            Some((example, example_span)),
+                        ),
+                        Ok(Redirectable::Redirect(other)) => {
+                            ctx.warn_at(
+                                example_span,
+                                format!("ignoring example because it redirects to {other:?}"),
+                            );
+                            continue;
+                        }
+                        Err(e) => Err(e),
+                    };
 
                 match puzzle_spec_result {
                     Ok(puzzle_spec) => {
