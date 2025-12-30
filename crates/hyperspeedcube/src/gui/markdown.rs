@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+pub use comrak::escape_commonmark_inline as md_escape;
+
 // - egui heading is 18.0
 // - egui body text is 12.5
 const HEADING_SIZES: [f32; 6] = [20.0, 16.0, 15.0, 14.0, 13.5, 13.0];
@@ -9,23 +11,6 @@ const INDENT_WIDTH: f32 = 6.0;
 
 pub fn md_bold_user_text(s: &str) -> String {
     format!("**{}**", md_escape(s))
-}
-pub fn md_escape(s: &str) -> Cow<'_, str> {
-    if s.chars().any(needs_escape) {
-        let mut ret = String::new();
-        for c in s.chars() {
-            if needs_escape(c) {
-                ret.push('\\');
-            }
-            ret.push(c);
-        }
-        ret.into()
-    } else {
-        s.into()
-    }
-}
-fn needs_escape(c: char) -> bool {
-    c.is_ascii_punctuation()
 }
 
 /// Renders inline Markdown to an `egui::text::LayoutJob`.
@@ -246,6 +231,8 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
 
         comrak::nodes::NodeValue::Alert(_) => not_implemented_label(ui, "Alert"),
 
+        comrak::nodes::NodeValue::Subtext => not_implemented_label(ui, "Subtext"),
+
         comrak::nodes::NodeValue::Text(_) => (),   // inline
         comrak::nodes::NodeValue::SoftBreak => (), // inline
         comrak::nodes::NodeValue::LineBreak => (), // inline
@@ -254,6 +241,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::Emph => (),      // inline
         comrak::nodes::NodeValue::Strong => (),    // inline
         comrak::nodes::NodeValue::Strikethrough => (), // inline
+        comrak::nodes::NodeValue::Highlight => (), // inline
         comrak::nodes::NodeValue::Superscript => (), // inline
         comrak::nodes::NodeValue::Link(_) => (),   // inline
         comrak::nodes::NodeValue::Image(_) => (),  // inline

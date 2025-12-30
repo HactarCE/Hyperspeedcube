@@ -656,7 +656,7 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
             ui.strong(&self.object.name);
 
             fn comma_list(strings: &[String]) -> String {
-                md_escape(&strings.iter().join(", ")).into_owned()
+                md_escape(&strings.iter().join(", "))
             }
 
             let inventors = self.object.tags.inventors();
