@@ -200,14 +200,21 @@ impl PuzzleSimulation {
         *self = Self::new(self.puzzle_type());
     }
     /// Resets and scrambles the puzzle.
-    pub fn scramble(&mut self, params: ScrambleParams) {
-        let ty = Arc::clone(self.puzzle_type());
+    pub fn scramble(&mut self, ty: ScrambleType, online: bool) {
+        let puzzle_type = Arc::clone(self.puzzle_type());
         let progress = Arc::new(ScrambleProgress::new());
         let (tx, rx) = mpsc::channel();
         self.scramble_waiting = Some((Arc::clone(&progress), rx));
         std::thread::spawn(move || {
             // ignore channel error
-            let _ = tx.send(ty.new_scrambled_with_progress(params, Some(progress)));
+            let params = if online && ty == ScrambleType::Full {
+                // TODO: report error
+                ScrambleParams::from_randomness_beacon(ty)
+                    .unwrap_or_else(|_| ScrambleParams::new(ty))
+            } else {
+                ScrambleParams::new(ty)
+            };
+            let _ = tx.send(puzzle_type.new_scrambled_with_progress(params, Some(progress)));
         });
     }
     /// Returns progress on scrambling the puzzle.
@@ -794,6 +801,7 @@ impl PuzzleSimulation {
             duration: self.file_duration(),
             scramble: self.scramble.clone(),
             log,
+            tsa_signature_v1: None,
         }
     }
     /// Loads a log file from a string.
@@ -805,6 +813,7 @@ impl PuzzleSimulation {
             duration,
             scramble,
             log,
+            tsa_signature_v1: _,
         } = solve;
 
         log::trace!("Loading file ...");

@@ -1,5 +1,7 @@
 use hyperpuzzle_core::{ScrambleParams, ScrambleType, chrono};
-use hyperpuzzle_log::verify::{SolveVerification, verify};
+use hyperpuzzle_log::verify::{
+    SolveVerification, SolveVerificationError, VerificationOptions, verify,
+};
 use hyperpuzzle_log::{LogEvent, LogFile, LogPuzzle};
 
 use super::{load_new_catalog, time_it};
@@ -39,8 +41,8 @@ solve {
             ty: ScrambleType::Full,
             time: "2025-01-25T01:11:26.574Z".parse().unwrap(),
             seed: "2025-01-25T01:11:26.574Z_8378422379567660491".to_string(),
+            drand_round_v1: None,
         },
-        is_scramble_correct: true,
         solution_stm_count: 23, // `L' L'` is 1 STM, but `B' 2B` is 2 STM
         single_session: true,
         used_macros: false,
@@ -48,13 +50,21 @@ solve {
         speedsolve_duration: Some(chrono::TimeDelta::new(13, 828000000).unwrap()),
         blindsolve_duration: None,
         time_completed: "2025-01-25T01:11:47.028Z".parse().unwrap(),
+        is_scramble_correct: Some(true),
+        verified_scramble_timestamp_range: None,
+        verified_completion_timestamp: None,
+        errors: vec![],
     };
-    let (actual_verification, _) =
-        time_it("verifying solve", || verify(&catalog, &log_file.solves[0]));
-    assert_eq!(actual_verification, Some(expected_verification));
+    let (actual_verification, _) = time_it("verifying solve", || {
+        verify(&catalog, &log_file.solves[0], VerificationOptions::FULL)
+    });
+    assert_eq!(actual_verification, Ok(expected_verification));
 
     if let LogEvent::Twists(twists_str) = &mut log_file.solves[0].log[2] {
         *twists_str = twists_str.strip_suffix(" 2L2'").unwrap().to_string();
     }
-    assert_eq!(verify(&catalog, &log_file.solves[0]), None);
+    assert_eq!(
+        verify(&catalog, &log_file.solves[0], VerificationOptions::FULL),
+        Err(SolveVerificationError::NotSolved),
+    );
 }

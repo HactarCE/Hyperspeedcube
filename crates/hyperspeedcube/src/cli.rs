@@ -59,7 +59,7 @@ pub(crate) enum Subcommand {
 
         /// Don't verify that the puzzle was actually solved.
         #[arg(long)]
-        skip_simulation: bool,
+        fast: bool,
     },
 }
 
@@ -154,10 +154,7 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             Ok(())
         }
 
-        Subcommand::Verify {
-            mut log_file,
-            skip_simulation,
-        } => {
+        Subcommand::Verify { mut log_file, fast } => {
             hyperpuzzle::load_global_catalog();
             let mut buffer = String::new();
             log_file
@@ -173,11 +170,16 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 .solves
                 .iter()
                 .filter_map(|solve| {
-                    if !skip_simulation {
-                        hyperpuzzle_log::verify::verify(&catalog, solve)
-                    } else {
-                        hyperpuzzle_log::verify::verify_without_checking_solution(&catalog, solve)
-                    }
+                    hyperpuzzle_log::verify::verify(
+                        &catalog,
+                        solve,
+                        if fast {
+                            hyperpuzzle_log::verify::VerificationOptions::QUICK
+                        } else {
+                            hyperpuzzle_log::verify::VerificationOptions::FULL
+                        },
+                    )
+                    .ok() // TODO: handle errors better
                 })
                 .collect_vec();
 

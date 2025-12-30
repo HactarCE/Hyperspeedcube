@@ -1,5 +1,6 @@
 ---
 # `version` is not needed for defaults
+online_mode: true
 info:
   metric: STM
   keybinds_reference:

@@ -60,8 +60,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         /// In any dimension, it can be called with the following optional named
         /// arguments:
         ///
-        /// - **`from`** is a vector. The magnitude of the vector is ignored.
-        /// - **`to`** is the destination vector for `from` once the rotation
+        /// - **`start`** is a vector. The magnitude of the vector is ignored.
+        /// - **`end`** is the destination vector for `start` once the rotation
         ///   has been applied. The magnitude of the vector is ignored.
         /// - **`fix`** is a [blade] to keep fixed during the rotation.
         /// - **`angle`** is the angle of the rotation in radians.
@@ -71,24 +71,24 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///
         /// <div class="annotate" markdown>
         ///
-        /// - `from` and `to` are mutually dependent; i.e., one cannot be
+        /// - `start` and `end` are mutually dependent; i.e., one cannot be
         ///   specified without the other.
-        /// - If `from` and `to` are not specified, then `fix` and `angle` are
+        /// - If `start` and `end` are not specified, then `fix` and `angle` are
         ///   both required and `fix` must be dual to a 2D plane. (1)
-        /// - `from` and `to` must not be opposite each other. (2)
+        /// - `start` and `end` must not be opposite each other. (2)
         ///
-        /// If `from` and `to` are specified, then the rotation is constructed
+        /// If `start` and `end` are specified, then the rotation is constructed
         /// using these steps:
         ///
-        /// 1. If `fix` is specified, then `from` and `to` are [orthogonally
+        /// 1. If `fix` is specified, then `start` and `end` are [orthogonally
         ///    rejected] from `fix`. (3)
-        /// 2. If `angle` is specified, then `to` is minimally adjusted to have
-        ///    the angle `angle` with respect to `from`.
-        /// 3. `from` and `to` are normalized.
-        /// 4. A rotation is constructed that takes `from` to `to` along the
+        /// 2. If `angle` is specified, then `end` is minimally adjusted to have
+        ///    the angle `angle` with respect to `start`.
+        /// 3. `start` and `end` are normalized.
+        /// 4. A rotation is constructed that takes `start` to `end` along the
         ///    shortest path.
         ///
-        /// If `from` and `to` are not specified, then a rotation of `angle`
+        /// If `start` and `end` are not specified, then a rotation of `angle`
         /// around `fix` is constructed. This method is not recommended because
         /// the direction of the rotation is unspecified and may change
         /// depending on the sign of `fix`.
@@ -117,7 +117,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///
         /// ```title="Examples of rotation construction"
         /// // 45-degree rotation in the XY plane
-        /// rot(from = 'x', to = vec(1, 1, 0))
+        /// rot(start = 'x', end = vec(1, 1, 0))
         ///
         /// // 180-degree rotation around the Z axis
         /// rot(fix = 'z', angle = pi)
@@ -126,7 +126,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         /// rot(fix = vec(1, 1, 0), angle = acos(1/3))
         ///
         /// // 90-degree rotation around an edge of a cube
-        /// rot(fix = vec(1, 1, 0), from = 'x', to = 'z')
+        /// rot(fix = vec(1, 1, 0), start = 'x', end = 'z')
         /// ```
         #[kwargs(
             fix: Blade = Blade::one(),

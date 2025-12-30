@@ -6,6 +6,7 @@ use hyperpuzzle::ScrambleType;
 
 use super::{AppUi, Tab};
 use crate::L;
+use crate::gui::components::PrefsUi;
 use crate::gui::markdown::md;
 use crate::leaderboards::{LEADERBOARDS_DOMAIN, LeaderboardsClientState};
 
@@ -270,6 +271,17 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::Keybinds);
         show_tab_toggle(ui, app_ui, Tab::Mousebinds);
         ui.separator();
+
+        let mut changed = false;
+        PrefsUi {
+            ui,
+            current: &mut app_ui.app.prefs,
+            defaults: None,
+            changed: &mut changed,
+        }
+        .checkbox(&L.prefs.online_mode, access!(.online_mode));
+        app_ui.app.prefs.needs_save |= changed;
+
         // TODO: add "auto" mode that follows OS
         egui::global_theme_preference_buttons(ui);
     });

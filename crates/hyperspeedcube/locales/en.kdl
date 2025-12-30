@@ -263,6 +263,21 @@ presets {
 }
 
 prefs {
+  (HoverStrings)online_mode "Online mode" {
+    desc """
+      This setting allows leaderboard verification for speedsolves of certain puzzles without video recording.
+      Check the leaderboard rules for which puzzles are allowed.
+
+      Fewest-move solutions never require video evidence or online verification.
+
+      When enabled:
+
+      - Scrambles are derived from an online 3rd-party randomness beacon.
+      - Completed solves are timestamped using a 3rd-party time stamp authority.
+
+      If scrambling or timestamping fails, then offline scrambles are used as a fallback.
+    """
+  }
   animations {
     twists {
       title "Twists"

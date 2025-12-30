@@ -69,6 +69,12 @@ pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
 /// assigned.
 pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 
+/// Returns the randomness chain used for generating scrambles.
+#[cfg(feature = "timecheck")]
+pub fn get_drand_chain() -> timecheck::drand::Chain {
+    timecheck::drand::Chain::quicknet()
+}
+
 /// Maximum number of ID redirects.
 const MAX_ID_REDIRECTS: usize = 5;
 

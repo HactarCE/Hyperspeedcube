@@ -63,6 +63,7 @@ pub struct Preferences {
     pub needs_save_eventually: bool,
 
     pub eula: bool,
+    pub online_mode: bool,
 
     pub log_file: Option<PathBuf>,
 
@@ -99,6 +100,7 @@ impl schema::PrefsConvert for Preferences {
         let Self {
             needs_save: _,
             needs_save_eventually: _,
+            online_mode,
             eula,
             log_file,
             info,
@@ -123,6 +125,7 @@ impl schema::PrefsConvert for Preferences {
             .collect();
 
         schema::current::Preferences {
+            online_mode: *online_mode,
             eula: *eula,
             log_file: log_file.clone(),
             info: info.clone(),
@@ -141,6 +144,7 @@ impl schema::PrefsConvert for Preferences {
     }
     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
         let schema::current::Preferences {
+            online_mode,
             eula,
             log_file,
             info,
@@ -157,6 +161,7 @@ impl schema::PrefsConvert for Preferences {
             show_experimental_puzzles,
         } = value;
 
+        self.online_mode = online_mode;
         self.eula = eula;
         self.log_file = log_file;
         self.info = info;

@@ -7,7 +7,7 @@ mod reorderable;
 
 pub use reorderable::DndReorderExt;
 
-pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
+pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 300.0;
 
 pub trait ResponseExt {
     fn on_i18n_hover_explanation(self, strings: &HoverStrings) -> Self;

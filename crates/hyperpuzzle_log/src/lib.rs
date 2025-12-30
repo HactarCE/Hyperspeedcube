@@ -10,6 +10,7 @@ use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
 use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
 pub mod notation;
 pub mod verify;
@@ -163,7 +164,20 @@ pub struct Solve {
     /// included.
     #[kdl(child("log"))]
     pub log: Vec<LogEvent>,
+    /// Time Stamp Authority signature using [`Solve::digest_v1()`].
+    #[kdl(child("tsa_signature_v1"), optional)]
+    pub tsa_signature_v1: Option<String>,
 }
+
+impl Solve {
+    /// Returns a SHA-256 digest of the events of the solve, in JSON.
+    pub fn digest_v1(&self) -> Vec<u8> {
+        let serialized_log =
+            serde_json::to_string(&self.log).expect("error serializing log for time stamping");
+        sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
+    }
+}
+
 /// Puzzle info.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct LogPuzzle {
@@ -198,6 +212,8 @@ pub struct Scramble {
     /// Twist sequence to apply to the puzzle, using standard notation.
     #[kdl(child("twists"))]
     pub twists: String,
+    #[kdl(child("drand_round_v1"), optional)]
+    pub drand_round_v1: Option<DrandRound>,
 }
 impl Scramble {
     /// Returns the parameters used to deterministically generated the twist
@@ -209,6 +225,10 @@ impl Scramble {
             ty: self.ty,
             time: self.time?,
             seed: self.seed.clone()?,
+            drand_round_v1: self
+                .drand_round_v1
+                .as_ref()
+                .and_then(|round| round.to_timecheck_drand_round()),
         })
     }
     /// Constructs a scramble from scramble parameters and a twist sequence.
@@ -218,18 +238,56 @@ impl Scramble {
             time: Some(params.time),
             seed: Some(params.seed),
             twists,
+            drand_round_v1: params
+                .drand_round_v1
+                .as_ref()
+                .map(DrandRound::from_timecheck_drand_round),
+        }
+    }
+}
+
+/// Randomness data fetched from a randomness beacon to seed the scramble.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
+pub struct DrandRound {
+    /// Round number.
+    #[kdl(property("round"))]
+    pub round: i64,
+    /// Signature from which the scramble is derived.
+    #[kdl(property("signature"))]
+    pub signature: String,
+    /// Previous signature (empty if unchained).
+    #[kdl(property("previous_signature"), optional)]
+    pub previous_signature: Option<String>,
+}
+impl DrandRound {
+    pub fn to_timecheck_drand_round(&self) -> Option<timecheck::drand::DrandRound> {
+        Some(timecheck::drand::DrandRound {
+            number: self.round as u64,
+            signature: hex::decode(&self.signature).ok()?,
+            previous_signature: hex::decode(self.previous_signature.as_deref().unwrap_or_default())
+                .ok()?,
+        })
+    }
+    pub fn from_timecheck_drand_round(round: &timecheck::drand::DrandRound) -> Self {
+        Self {
+            round: round.number as i64,
+            signature: hex::encode(&round.signature),
+            previous_signature: Some(hex::encode(&round.previous_signature))
+                .filter(|s| !s.is_empty()),
         }
     }
 }
 
 /// Event in a solve log.
-#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Node)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::Node)]
+#[serde(rename_all = "snake_case")]
 pub enum LogEvent {
     /// Application of the scramble sequence.
     #[kdl(name = "scramble")]
     Scramble {
         /// Event timestamp.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** Click of the mouse cursor on the puzzle.
@@ -237,6 +295,7 @@ pub enum LogEvent {
     Click {
         /// Event timestamp.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
         /// Layer mask gripped.
         #[kdl(property("layers"), proxy = KdlProxy)]
@@ -249,6 +308,7 @@ pub enum LogEvent {
         /// By convention, right mouse button typically performs a forward click
         /// and left mouse button typically performs a reverse click.
         #[kdl(property("reverse"), default)]
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
         reverse: bool,
     },
     /// **Replay-only.** Drag of the mouse cursor on the puzzle to execute a
@@ -258,6 +318,7 @@ pub enum LogEvent {
     DragTwist {
         /// Event timestamp.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
         /// Axis that was twisted.
         #[kdl(property("axis"))]
@@ -274,6 +335,7 @@ pub enum LogEvent {
     Undo {
         /// Event timestamp.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** Redo of the most recent twist, twist group, or macro.
@@ -281,6 +343,7 @@ pub enum LogEvent {
     Redo {
         /// Event timestamp.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
     },
     /// Start of solve.
@@ -293,10 +356,12 @@ pub enum LogEvent {
     StartSolve {
         /// Timestamp at which the solve started.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
         /// Number of milliseconds that the log had been open for, across all
         /// sessions, at the moment the solve started.
         #[kdl(property("duration"))]
+        #[serde(skip_serializing_if = "Option::is_none")]
         duration: Option<i64>,
     },
     /// End of solve.
@@ -310,10 +375,12 @@ pub enum LogEvent {
     EndSolve {
         /// Timestamp at which the solve ended.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
         /// Number of milliseconds that the log had been open for, across all
         /// sessions, at the moment the solve ended.
         #[kdl(property("duration"))]
+        #[serde(skip_serializing_if = "Option::is_none")]
         duration: Option<i64>,
     },
     /// **Replay-only.** Beginning of session.
@@ -323,6 +390,7 @@ pub enum LogEvent {
     StartSession {
         /// Timestamp at which the session started.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
     },
     /// **Replay-only.** End of session.
@@ -332,6 +400,7 @@ pub enum LogEvent {
     EndSession {
         /// Timestamp at which the session ended.
         #[kdl(property("time"), optional, proxy = KdlProxy)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
     },
 }
@@ -397,6 +466,7 @@ mod tests {
                     time: Some(Timestamp::now()),
                     seed: Some("abc".to_string()),
                     twists: "R U L'".to_string(),
+                    drand_round_v1: None,
                 }),
                 log: vec![
                     LogEvent::Scramble {
@@ -411,6 +481,7 @@ mod tests {
                         time: Some(Timestamp::now()),
                     },
                 ],
+                tsa_signature_v1: None,
             }],
         };
         std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change

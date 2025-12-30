@@ -39,12 +39,20 @@ strum = { workspace = true }
 thiserror = { workspace = true }
 tinyset = { workspace = true }
 
+# timecheck
+base64 = { workspace = true, optional = true }
+timecheck = { workspace = true, optional = true }
+
 # Color conversions
 ecolor = { workspace = true, optional = true }
 oklab = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+timecheck = ["dep:base64", "dep:timecheck"]
+default = ["timecheck"]
 
 [[bench]]
 name = "name_spec_bench"

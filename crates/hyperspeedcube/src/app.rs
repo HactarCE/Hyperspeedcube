@@ -210,7 +210,7 @@ impl App {
     }
     pub(crate) fn scramble(&self, ty: ScrambleType) {
         self.active_puzzle.with_sim(|sim| {
-            sim.scramble(ScrambleParams::new(ty));
+            sim.scramble(ty, self.prefs.online_mode);
         });
     }
 

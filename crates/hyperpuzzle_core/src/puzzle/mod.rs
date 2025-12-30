@@ -24,6 +24,8 @@ pub use metric::TwistMetric;
 pub use notation::Notation;
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
+#[cfg(feature = "timecheck")]
+pub use scramble::ScrambleVerificationError;
 pub use scramble::{ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle};
 pub use twist::LayeredTwist;
 pub use twists::{AxisDirectionMap, TwistSystem, VantageSet, VantageTransformInfo};

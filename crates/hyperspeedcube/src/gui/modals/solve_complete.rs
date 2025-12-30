@@ -1,17 +1,19 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use hyperpuzzle_log::verify::SolveVerification;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
+use parking_lot::Mutex;
 
 use crate::gui::App;
 use crate::gui::util::EguiTempValue;
 
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {
-    replay: Solve,
+    replay: Arc<Mutex<Option<Solve>>>,
     puzzle_name: String,
     file_path: PathBuf,
     file_name: String,
@@ -58,30 +60,35 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             if popup.saved {
                 ui.label(format!("Saved to {}", popup.file_name));
-            } else if ui.button("Save this solve").clicked() {
-                // Save log file
-                if let Some(p) = popup.file_path.parent() {
-                    std::fs::create_dir_all(p);
-                }
-                // TODO: handle error
-                if let Ok(()) = std::fs::write(
-                    &popup.file_path,
-                    LogFile {
-                        program: Some(crate::PROGRAM.clone()),
-                        solves: vec![popup.replay.clone()],
+            } else if let Some(replay) = &*popup.replay.lock() {
+                if ui.button("Save this solve").clicked() {
+                    // Save log file
+                    if let Some(p) = popup.file_path.parent() {
+                        std::fs::create_dir_all(p);
                     }
-                    .serialize(),
-                ) {
-                    popup.saved = true;
-                    solve_complete_popup.set(Some(Some(popup.clone())));
+                    // TODO: handle error
+                    if let Ok(()) = std::fs::write(
+                        &popup.file_path,
+                        LogFile {
+                            program: Some(crate::PROGRAM.clone()),
+                            solves: vec![replay.clone()],
+                        }
+                        .serialize(),
+                    ) {
+                        popup.saved = true;
+                        solve_complete_popup.set(Some(Some(popup.clone())));
 
-                    // Save PBs
-                    if popup.new_pbs.any() {
-                        app.stats
-                            .record_new_pb(&popup.verification, &popup.file_name);
-                        hyperstats::save(&app.stats);
+                        // Save PBs
+                        if popup.new_pbs.any() {
+                            app.stats
+                                .record_new_pb(&popup.verification, &popup.file_name);
+                            hyperstats::save(&app.stats);
+                        }
                     }
                 }
+            } else {
+                // TODO: detect when time-stamping fails
+                ui.label("Time-stamping ...");
             }
 
             if ui.button("Close").clicked() {
@@ -95,10 +102,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         app.active_puzzle.with_sim(|sim| {
             if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
                 let replay = sim.serialize(true);
-                let verification = hyperpuzzle_log::verify::verify_without_checking_solution(
+                let verification = hyperpuzzle_log::verify::verify(
                     &hyperpuzzle::catalog(),
                     &replay,
-                )?;
+                    hyperpuzzle_log::verify::VerificationOptions::QUICK,
+                )
+                .map_err(|e| log::error!("solve verification error: {e}"))
+                .ok()?;
                 let (file_path, file_name) = hyperpaths::solve_autosave_file(
                     &replay.puzzle.id,
                     &verification.time_completed.to_string(),
@@ -110,6 +120,24 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 if new_pbs.first {
                     sim.start_special_anim();
                 }
+
+                let mut solve_to_timestamp = replay;
+                let replay = Arc::new(Mutex::new(None));
+                let replay_ref = Arc::clone(&replay);
+
+                if app.prefs.online_mode {
+                    std::thread::spawn(move || {
+                        if let Err(e) = hyperpuzzle_log::verify::timestamp(&mut solve_to_timestamp)
+                        {
+                            log::error!("error timestamping solve: {e}");
+                        }
+                        *replay_ref.lock() = Some(solve_to_timestamp);
+                    });
+                } else {
+                    *replay_ref.lock() = Some(solve_to_timestamp);
+                }
+
+                // TODO: button to retry timestamping if fails
 
                 solve_complete_popup.set(Some(Some(SolveCompletePopup {
                     replay,

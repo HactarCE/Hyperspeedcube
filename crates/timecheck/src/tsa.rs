@@ -28,8 +28,8 @@
 //! // Verify end time
 //! tsa.verify(&digest, &signature)?;
 //! let verified_end_time = signature.timestamp()?;
-//! dbg!(time_immediately_before_ending_run..=time_immediately_after_ending_run);
-//! dbg!(verified_end_time);
+//! println!("{time_immediately_before_ending_run}..{time_immediately_after_ending_run}");
+//! println!("{verified_end_time}");
 //! assert!(
 //!     (time_immediately_before_ending_run..=time_immediately_after_ending_run)
 //!         .contains(&verified_end_time)
