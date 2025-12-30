@@ -84,27 +84,27 @@ timecheck = { path = "crates/timecheck" }
 # Data structures
 approx_collections = { version = "3.1.0" }
 ball-tree = { version = "0.5.1" }
-bitflags = { version = "2.9.1" }
+bitflags = { version = "2.10.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
 ecow = { version = "0.2.5" }
-indexmap = { version = "2.10.0" }                                              # must match serde_norway
+indexmap = { version = "2.12.1" }                                              # must match serde_norway
 smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
 base64 = { version = "0.22.1" }
 comrak = { version = "0.41.0", default-features = false }
-config = { version = "0.15.13", features = ["preserve_order"] }
+config = { version = "0.15.19", features = ["preserve_order"] }
 directories = { version = "6.0.0" }
 hex = { version = "0.4.3" }
 hex-literal = { version = "1.1.0" }
-image = { version = "0.25.5" }
+image = { version = "0.25.9" }
 include_dir = { version = "0.7.4" }
-kdl = { version = "6.3.3" }
+kdl = { version = "6.5.0" }
 miette = { version = "7.5.0" }                                  # must match kdl
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = { version = "1.0.143" }
+serde_json = { version = "1.0.148" }
 serde_norway = { version = "0.9.42" }
 strum = { version = "0.27.2", features = ["derive"] }
 tempfile = { version = "3.24.0" }
@@ -112,12 +112,12 @@ walkdir = { version = "2.4.0" }
 
 # String manipulation
 arcstr = { version = "1.2.0" }
-ariadne = { version = "0.5.1" }
+ariadne = { version = "0.6.0" }
 chumsky = { version = "0.12.0", features = ["pratt"] }
 human-sort = { version = "0.2.2" }
 ident_case = { version = "1.0.1" }
 nom = { version = "8.0.0" }
-regex = { version = "1.11.2" }
+regex = { version = "1.12.2" }
 sublime_fuzzy = { version = "0.7.0" }
 unindent = { version = "0.2.4" }
 
@@ -129,16 +129,16 @@ num-traits = { version = "0.2.19" }
 # Logging & error handling
 env_logger = { version = "0.11.5" }
 eyre = { version = "0.6.12" }
-log = { version = "0.4.25" }
-owo-colors = { version = "4.2.2" }
-thiserror = { version = "2.0.16" }
+log = { version = "0.4.29" }
+owo-colors = { version = "4.2.3" }
+thiserror = { version = "2.0.17" }
 color-eyre = { version = "0.6.2", default-features = false, features = [
     "track-caller",
     "capture-spantrace",
 ] } # blocked on https://github.com/eyre-rs/eyre/pull/188
 
 # Command-line interface
-clap = { version = "4.5.46" }
+clap = { version = "4.5.53" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
@@ -166,8 +166,8 @@ winit = { version = "0.30.12", features = [
 wgpu = { version = "25.0.0", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
-opener = { version = "0.8.2" }
-rfd = { version = "0.15.4" }
+opener = { version = "0.8.3" }
+rfd = { version = "0.16.0" }
 key-names = { version = "3.0.0" }
 
 # Colors
@@ -178,7 +178,7 @@ oklab = { version = "1.0.1" }
 lab = { version = "0.11.0" }                                                     # as required by empfindung
 
 # Async and multithreading
-parking_lot = { version = "0.12.4" }
+parking_lot = { version = "0.12.5" }
 pollster = { version = "0.4.0" }
 rayon = { version = "1.11.0" }
 
@@ -186,22 +186,22 @@ rayon = { version = "1.11.0" }
 drand-verify = { version = "0.6.2" }
 rand = { version = "0.9.2" }                      # must match rand_chacha
 rand_chacha = { version = "0.9.0" }               # needs stable output
-sha2 = { version = "0.10.8" }
+sha2 = { version = "0.10.9" }
 tsp-http-client = { version = "0.1.0" }
 ureq = { version = "3.1.4", features = ["json"] }
 
 # Procedural macro utilities
-proc-macro2 = { version = "1.0.101" }
-quote = { version = "1.0.38" }
-syn = { version = "2.0.106" }
+proc-macro2 = { version = "1.0.104" }
+quote = { version = "1.0.42" }
+syn = { version = "2.0.112" }
 
 # Other dependencies
-bytemuck = { version = "1.23.2", features = ["derive"] }
+bytemuck = { version = "1.24.0", features = ["derive"] }
 chrono = { version = "0.4.42", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
-time = { version = "0.3.42", features = ["local-offset"] }
+time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
 [patch.crates-io]
