@@ -93,6 +93,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 scope.special.shape = builder.shape().at(BUILTIN_SPAN);
                 scope.special.twists = builder.twists().at(BUILTIN_SPAN);
                 scope.special.axes = builder.axes().at(BUILTIN_SPAN);
+                scope.special.id = Some((&id).into());
                 let scope = Arc::new(scope);
 
                 let build_fn = Arc::clone(&build);

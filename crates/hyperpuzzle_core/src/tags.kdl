@@ -271,5 +271,6 @@ external "External" {
   (int)museum "Twisty Puzzle Museum" expected=1
   (str)wca "World Cube Association" expected=1
 }
+canonical_id "Canonical ID for record-keeping"
 experimental "Experimental" auto=#true expected=1
 big "Big (slow to generate)"

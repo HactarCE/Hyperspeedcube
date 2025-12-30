@@ -76,9 +76,6 @@ add_puzzle_generator(
     params = params,
     engine = "euclid",
     gen = fn(n, m) {
-        if n < m {
-            return "polygonal_duoprism:${m},${n}"
-        }
         return #{
             name = name(n, m),
             ndim = ndim,

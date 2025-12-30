@@ -42,6 +42,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                 scope.special.ndim = Some(ndim);
                 scope.special.twists = builder.clone().at(BUILTIN_SPAN);
                 scope.special.axes = builder.axes().at(BUILTIN_SPAN);
+                scope.special.id = Some((&id).into());
                 let scope = Arc::new(scope);
 
                 let build_fn = Arc::clone(&build);

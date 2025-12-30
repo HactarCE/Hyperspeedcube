@@ -247,6 +247,9 @@ pub enum SpecialVar {
     Twists,
     /// Active axis system.
     Axes,
+
+    /// Generator or puzzle ID.
+    Id,
 }
 impl fmt::Display for SpecialVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -258,6 +261,8 @@ impl fmt::Display for SpecialVar {
             SpecialVar::Shape => write!(f, "#shape"),
             SpecialVar::Twists => write!(f, "#twists"),
             SpecialVar::Axes => write!(f, "#axes"),
+
+            SpecialVar::Id => write!(f, "#id"),
         }
     }
 }
@@ -273,6 +278,8 @@ impl FromStr for SpecialVar {
             "#shape" => Ok(Self::Shape),
             "#twists" => Ok(Self::Twists),
             "#axes" => Ok(Self::Axes),
+
+            "#id" => Ok(Self::Id),
 
             _ => Err(()),
         }

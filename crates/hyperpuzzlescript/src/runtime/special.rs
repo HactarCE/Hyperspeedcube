@@ -1,3 +1,5 @@
+use ecow::EcoString;
+
 use crate::{Result, Value, ast};
 
 /// Scoped special variables.
@@ -17,18 +19,23 @@ pub struct SpecialVariables {
     pub twists: Value,
     /// Active axis system.
     pub axes: Value,
+
+    /// Generator or puzzle ID.
+    pub id: Option<EcoString>,
 }
 impl SpecialVariables {
     /// Sets a special variable in the `with` block.
     pub fn set(&mut self, ident: ast::SpecialVar, value: Value) -> Result<()> {
         match ident {
-            ast::SpecialVar::Ndim => self.ndim = Some(value.to()?),
+            ast::SpecialVar::Ndim => self.ndim = value.to()?,
             ast::SpecialVar::Sym => self.sym = value,
 
             ast::SpecialVar::Puz => self.puz = value,
             ast::SpecialVar::Shape => self.shape = value,
             ast::SpecialVar::Twists => self.twists = value,
             ast::SpecialVar::Axes => self.axes = value,
+
+            ast::SpecialVar::Id => self.id = value.to()?,
         }
 
         Ok(())

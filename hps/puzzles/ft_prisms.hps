@@ -259,8 +259,10 @@ add_puzzle_generator(
         if n_layers == 1 and m_layers == 1 {
             return "polygonal_duoprism:${n},${m}"
         }
-        if n < m or (n == m and n_layers < m_layers) {
-            return "ft_polygonal_duoprism:${m},${n},${m_layers},${n_layers}"
+        canonical_id = if n > m or (n == m and n_layers > m_layers) {
+            "${id}:${n},${m},${n_layers},${m_layers}"
+            } else {
+            "${id}:${m},${n},${m_layers},${n_layers}"
         }
 
         return #{
@@ -282,6 +284,7 @@ add_puzzle_generator(
                 },
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
                 "pieces/standard" = true,
+                canonical_id = canonical_id,
             },
         }
     },
@@ -383,8 +386,10 @@ add_puzzle_generator(
     engine = "euclid",
     ndim = 4,
     gen = fn(n_layers, m_layers) {
-        if n_layers < m_layers {
-            return "ft_polygonal_duoprism_3_minx_3_minx:${m_layers},${n_layers}"
+        canonical_id = if n_layers > m_layers {
+            "${id}:${n_layers},${m_layers}"
+        } else {
+            "${id}:${m_layers},${n_layers}"
         }
         return #{
             name = ft_duoprism_name(3, 3, n_layers, m_layers, "Triminx"),
@@ -405,6 +410,7 @@ add_puzzle_generator(
                 },
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
                 "pieces/standard" = true,
+                canonical_id = canonical_id,
             },
         }
     },

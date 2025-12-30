@@ -175,8 +175,11 @@ pub fn define_in(
                     let tx2 = tx.clone();
                     let tags = tags.clone();
 
-                    let scope = Scope::new();
-                    let gen_meta = gen_meta.clone();
+                    let mut scope = Scope::default();
+                    scope.special.id = Some((&gen_meta.id).into());
+                    let scope = Arc::new(scope);
+
+                    let meta = gen_meta.clone();
 
                     tx.clone().eval_blocking(move |runtime| {
                         let mut ctx = EvalCtx {
@@ -189,20 +192,18 @@ pub fn define_in(
 
                         // IIFE to mimic try_block
                         (|| {
-                            gen_meta
-                                .generate_spec(&mut ctx, param_values)?
-                                .try_map(|spec| {
-                                    // TODO: add tags
-                                    puzzle_spec_from_kwargs(
-                                        &mut ctx,
-                                        spec,
-                                        &cat2,
-                                        &tx2,
-                                        Some(tags.clone()),
-                                        None,
-                                    )
-                                    .map(Arc::new)
-                                })
+                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
+                                // TODO: add tags
+                                puzzle_spec_from_kwargs(
+                                    &mut ctx,
+                                    spec,
+                                    &cat2,
+                                    &tx2,
+                                    Some(tags.clone()),
+                                    None,
+                                )
+                                .map(Arc::new)
+                            })
                         })()
                         .map_err(|e| {
                             let s = e.to_string(&*ctx.runtime);

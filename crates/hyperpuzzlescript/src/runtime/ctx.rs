@@ -673,6 +673,8 @@ impl EvalCtx<'_> {
                 ast::SpecialVar::Shape => self.scope.special.shape.data.clone(),
                 ast::SpecialVar::Twists => self.scope.special.twists.data.clone(),
                 ast::SpecialVar::Axes => self.scope.special.axes.data.clone(),
+
+                ast::SpecialVar::Id => self.scope.special.id.clone().into(),
             }),
             ast::NodeContents::Op { op, args } => {
                 // Some operators cannot be implemented as functions because

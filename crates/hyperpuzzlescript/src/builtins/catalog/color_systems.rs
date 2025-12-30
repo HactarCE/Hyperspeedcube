@@ -4,7 +4,7 @@ use std::sync::Arc;
 use ecow::eco_format;
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
-    Catalog, ColorSystem, ColorSystemGenerator, PaletteColor, NameSpecBiMapBuilder, PerColor,
+    Catalog, ColorSystem, ColorSystemGenerator, NameSpecBiMapBuilder, PaletteColor, PerColor,
 };
 use indexmap::IndexMap;
 
@@ -81,7 +81,10 @@ pub fn define_in(
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
 
-                    let scope = Scope::new();
+                    let mut scope = Scope::default();
+                    scope.special.id = Some((&gen_meta.id).into());
+                    let scope = Arc::new(scope);
+
                     let meta = gen_meta.clone();
 
                     tx.eval_blocking(move |runtime| {

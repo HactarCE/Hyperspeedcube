@@ -83,7 +83,10 @@ pub fn define_in(
                     let cat2 = cat2.clone();
                     let tx2 = tx.clone();
 
-                    let scope = Scope::new();
+                    let mut scope = Scope::default();
+                    scope.special.id = Some((&gen_meta.id).into());
+                    let scope = Arc::new(scope);
+
                     let meta = gen_meta.clone();
 
                     tx.clone().eval_blocking(move |runtime| {
