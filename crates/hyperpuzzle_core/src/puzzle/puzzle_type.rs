@@ -202,3 +202,25 @@ impl Puzzle {
         !self.scramble_twists.is_empty()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use super::*;
+
+    #[test]
+    fn test_stable_deterministic_scrambles() {
+        let mut rng = rand_chacha::ChaCha12Rng::from_seed((0..32).collect_array().unwrap());
+        let a = rng.random::<[u64; 4]>();
+        assert_eq!(
+            a,
+            [
+                6829280927315210738,
+                12268062495221155140,
+                13566740668459520841,
+                3898457950037656553
+            ]
+        );
+    }
+}
