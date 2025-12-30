@@ -36,7 +36,7 @@ where
         self.set_state(
             ui,
             Some(PlaintextYamlEditorState {
-                contents: serde_yml::to_string(value)
+                contents: serde_norway::to_string(value)
                     .unwrap_or_else(|e| format!("serialization error: {e}")),
             }),
         );
@@ -102,8 +102,8 @@ where
         })
     }
 
-    pub fn deserialize(&self, ui: &egui::Ui) -> Option<serde_yml::Result<T>> {
+    pub fn deserialize(&self, ui: &egui::Ui) -> Option<serde_norway::Result<T>> {
         self.state(ui)
-            .map(|state| serde_yml::from_str(&state.contents))
+            .map(|state| serde_norway::from_str(&state.contents))
     }
 }

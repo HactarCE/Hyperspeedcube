@@ -52,7 +52,7 @@ pub const DEFAULT_PRESET_NAME: &str = "Default";
 
 lazy_static! {
     static ref DEFAULT_PREFS_RAW: schema::current::Preferences =
-        serde_yml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
+        serde_norway::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
     pub static ref DEFAULT_PREFS: Preferences =
         Preferences::from_serde(&(), DEFAULT_PREFS_RAW.clone());
 }
@@ -328,8 +328,8 @@ mod tests {
         m.insert("mi".to_string(), 3);
         m.insert("toki".to_string(), 4);
         m.insert("pona".to_string(), 5);
-        let serialized = serde_yml::to_string(&m).unwrap();
-        let deserialized: IndexMap<String, usize> = serde_yml::from_str(&serialized).unwrap();
+        let serialized = serde_norway::to_string(&m).unwrap();
+        let deserialized: IndexMap<String, usize> = serde_norway::from_str(&serialized).unwrap();
         for (i, &v) in deserialized.values().enumerate() {
             assert_eq!(i, v);
         }

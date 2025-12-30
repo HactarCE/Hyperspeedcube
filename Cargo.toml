@@ -88,7 +88,7 @@ bitflags = { version = "2.9.1" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
 ecow = { version = "0.2.5" }
-indexmap = { version = "2.10.0" }                                              # must match serde_yml
+indexmap = { version = "2.10.0" }                                              # must match serde_norway
 smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }
 
@@ -105,7 +105,7 @@ kdl = { version = "6.3.3" }
 miette = { version = "7.5.0" }                                  # must match kdl
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.143" }
-serde_yml = { version = "0.0.12" }
+serde_norway = { version = "0.9.42" }
 strum = { version = "0.27.2", features = ["derive"] }
 tempfile = { version = "3.24.0" }
 walkdir = { version = "2.4.0" }
