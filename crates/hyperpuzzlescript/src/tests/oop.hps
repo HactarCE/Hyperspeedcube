@@ -1,11 +1,11 @@
-fn new() {
+fn new() -> Map {
     new_from_params(#{
         a = 3,
         b = 5,
     })
 }
 
-fn new_from_params(params) {
+fn new_from_params(params: Map) -> Map {
     a = params.a
     b = params.b
 
