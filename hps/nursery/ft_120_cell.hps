@@ -20,6 +20,7 @@ add_puzzle(
         shape = @shapes/h/120_cell.new()
         with #sym = shape.sym {
             carve(plane(shape.facet_pole), shape.facet_names)
+            add_axis(shape.facet_pole, shape.facet_names, [∞, SHALLOW_CUT_DEPTH])
             // TODO: twists
         }
     },
