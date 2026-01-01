@@ -35,9 +35,11 @@ pub struct PuzzleSimulation {
     nd_euclid: Option<Box<NdEuclidSimState>>,
 
     scramble_waiting: Option<(
+        ScrambleType,
         Arc<ScrambleProgress>,
-        mpsc::Receiver<Option<ScrambledPuzzle>>,
+        mpsc::Receiver<Result<ScrambledPuzzle, ScrambleError>>,
     )>,
+    scramble_error: Option<(ScrambleType, ScrambleError)>,
 
     /// Scramble applied to the puzzle initially.
     scramble: Option<Scramble>,
@@ -95,7 +97,7 @@ pub struct PuzzleSimulation {
 }
 impl Drop for PuzzleSimulation {
     fn drop(&mut self) {
-        if let Some((progress, _)) = &self.scramble_waiting {
+        if let Some((_, progress, _)) = &self.scramble_waiting {
             progress.request_cancel();
         }
     }
@@ -111,6 +113,7 @@ impl PuzzleSimulation {
             nd_euclid: NdEuclidSimState::new(puzzle).map(Box::new),
 
             scramble_waiting: None,
+            scramble_error: None,
 
             scramble: None,
             has_unsaved_changes: false,
@@ -222,37 +225,56 @@ impl PuzzleSimulation {
     }
     /// Resets and scrambles the puzzle.
     pub fn scramble(&mut self, ty: ScrambleType, online: bool) {
+        if let Some((_, progress, _)) = &self.scramble_waiting {
+            progress.request_cancel();
+        }
+
         let puzzle_type = Arc::clone(self.puzzle_type());
         let progress = Arc::new(ScrambleProgress::new());
         let (tx, rx) = mpsc::channel();
-        self.scramble_waiting = Some((Arc::clone(&progress), rx));
+        self.scramble_waiting = Some((ty.clone(), Arc::clone(&progress), rx));
+        self.scramble_error = None;
         std::thread::spawn(move || {
-            // ignore channel error
             let params = if online && ty == ScrambleType::Full {
-                // TODO: report error
                 ScrambleParams::from_randomness_beacon(ty)
-                    .unwrap_or_else(|_| ScrambleParams::new(ty))
             } else {
-                ScrambleParams::new(ty)
+                Ok(ScrambleParams::new(ty))
             };
-            let _ = tx.send(puzzle_type.new_scrambled_with_progress(params, Some(progress)));
+            let scrambled_puzzle = params
+                .and_then(|params| puzzle_type.new_scrambled_with_progress(params, Some(progress)));
+            let _ = tx.send(scrambled_puzzle); // ignore channel error
         });
     }
     /// Returns progress on scrambling the puzzle.
     pub fn scramble_progress(&mut self) -> Option<Arc<ScrambleProgress>> {
-        let (progress, rx) = self.scramble_waiting.as_ref()?;
+        let (ty, progress, rx) = self.scramble_waiting.take()?;
         match rx.try_recv() {
-            Err(mpsc::TryRecvError::Empty) => Some(Arc::clone(progress)), // still waiting
-            Err(mpsc::TryRecvError::Disconnected) | Ok(None) => {
-                log::error!("error scrambling puzzle");
+            Err(mpsc::TryRecvError::Empty) => {
+                self.scramble_waiting = Some((ty, Arc::clone(&progress), rx));
+                Some(progress) // still waiting
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.scramble_error = Some((
+                    ty.clone(),
+                    ScrambleError::Other("channel disconnected".to_string()),
+                ));
                 self.scramble = None;
                 None
             }
-            Ok(Some(scrambled)) => {
+            Ok(Err(e)) => {
+                self.scramble_error = Some((ty.clone(), e));
+                self.scramble = None;
+                None
+            }
+            Ok(Ok(scrambled)) => {
                 self.recv_scramble(scrambled);
                 None
             }
         }
+    }
+    /// Returns an error encountered while scrambling the puzzle, if there is one.
+    pub fn scramble_error(&self) -> &Option<(ScrambleType, ScrambleError)> {
+        &self.scramble_error
     }
     fn recv_scramble(&mut self, scrambled: ScrambledPuzzle) {
         let ScrambledPuzzle {
@@ -268,6 +290,7 @@ impl PuzzleSimulation {
             hyperpuzzle_log::notation::format_twists(&ty.twists.names, twists),
         );
         self.scramble = Some(scramble.clone());
+        self.scramble_error = None;
         // We could use `do_action_internal()` but that would recompute the
         // puzzle state, which isn't necessary.
         self.undo_stack.push(Action::Scramble {

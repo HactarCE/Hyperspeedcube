@@ -285,8 +285,17 @@ impl PuzzleWidget {
         prefs: &mut Preferences,
         animation: &AnimationPreferences,
     ) {
-        let scramble_progress = self.sim().and_then(|sim| sim.lock().scramble_progress());
-        let loading_something = self.loading.is_some() || scramble_progress.is_some();
+        let sim = self.sim();
+
+        let scramble_progress = sim.as_ref().and_then(|sim| sim.lock().scramble_progress());
+        let scramble_error = sim.as_ref().and_then(|sim| {
+            sim.lock()
+                .scramble_error()
+                .as_ref()
+                .map(|(ty, e)| (*ty, e.to_string()))
+        });
+        let loading_something =
+            self.loading.is_some() || scramble_progress.is_some() || scramble_error.is_some();
 
         let rect = ui.available_rect_before_wrap();
 
@@ -352,20 +361,24 @@ impl PuzzleWidget {
                 ui.ctx().request_repaint();
             });
         } else if let Some(scramble_progress) = scramble_progress {
+            let (done, total) = scramble_progress.fraction();
+            loading_header = Some(L.puzzle_view.scrambling);
+            loading_progress = Some(done as f32 / total as f32);
+            ui.ctx().request_repaint();
+        } else if let Some((scramble_type, scramble_error)) = scramble_error {
             crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
-                let (done, total) = scramble_progress.fraction();
-                loading_header = Some(L.puzzle_view.scrambling);
-                loading_progress = Some(done as f32 / total as f32);
-                ui.ctx().request_repaint();
+                ui.heading("Error scrambling");
+                ui.label(scramble_error);
+                ui.separator();
+                if let Some(sim) = &sim {
+                    if ui.button("Try again").clicked() {
+                        sim.lock().scramble(scramble_type, prefs.online_mode);
+                    }
+                    if prefs.online_mode && ui.button("Try offline scramble").clicked() {
+                        sim.lock().scramble(scramble_type, false);
+                    }
+                }
             });
-        } else if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
-            egui::Area::new(unique_id!())
-                .anchor(egui::Align2::LEFT_TOP, egui::Vec2::ZERO)
-                .constrain_to(rect)
-                .show(ui.ctx(), |ui| {
-                    ui.set_width(rect.width());
-                    crate::gui::components::show_ariadne_error_in_egui(ui, error)
-                });
         } else if matches!(self.contents, PuzzleWidgetContents::None) {
             show_puzzle_load_hint(ui, self, prefs);
         }

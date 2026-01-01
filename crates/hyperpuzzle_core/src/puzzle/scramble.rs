@@ -49,7 +49,7 @@ impl ScrambleParams {
     /// **This function blocks while waiting for a response from the randomness
     /// beacon.**
     #[cfg(feature = "timecheck")]
-    pub fn from_randomness_beacon(ty: ScrambleType) -> timecheck::drand::Result<Self> {
+    pub fn from_randomness_beacon(ty: ScrambleType) -> Result<Self, ScrambleError> {
         let drand = timecheck::drand::Drand {
             chain: crate::get_drand_chain(),
             ..Default::default()
@@ -197,4 +197,16 @@ pub struct ScrambledPuzzle {
     pub twists: Vec<LayeredTwist>,
     /// State of the puzzle after scrambling.
     pub state: BoxDynPuzzleState,
+}
+
+/// Error returned when scrambling a puzzle.
+#[derive(thiserror::Error, Debug)]
+#[allow(missing_docs)]
+pub enum ScrambleError {
+    #[error("{0}")]
+    Drand(#[from] timecheck::drand::DrandError),
+    #[error("canceled")]
+    Canceled,
+    #[error("{0}")]
+    Other(String),
 }

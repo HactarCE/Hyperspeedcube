@@ -113,7 +113,7 @@ impl Puzzle {
         &self,
         params: ScrambleParams,
         progress: Option<Arc<ScrambleProgress>>,
-    ) -> Option<ScrambledPuzzle> {
+    ) -> Result<ScrambledPuzzle, ScrambleError> {
         let ScrambleParams { ty, seed, .. } = &params;
 
         let mut sha256 = sha2::Sha256::new();
@@ -155,13 +155,13 @@ impl Puzzle {
             }
             if let Some(progress) = &progress {
                 if progress.is_cancel_requested() {
-                    return None;
+                    return Err(ScrambleError::Canceled);
                 }
                 progress.set_progress(i as u32);
             }
         }
 
-        Some(ScrambledPuzzle {
+        Ok(ScrambledPuzzle {
             params,
             twists: twists_applied,
             state,
