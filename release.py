@@ -59,11 +59,6 @@ if do_subcommand('write'):
                 r'^ProductVersion = "[^"]*"$',
                 f'ProductVersion = "{version}"')
 
-    # Set environment variable `HYPERSPEEDCUBE_VERSION` in GitHub Actions workflow.
-    sed_inplace('.github/workflows/builds.yml',
-                r'HYPERSPEEDCUBE_VERSION: .*',
-                f'HYPERSPEEDCUBE_VERSION: {version}')
-
     # Set latest version in changelog.
     sed_inplace('CHANGELOG.md',
                 r'\[UNRELEASED\]',

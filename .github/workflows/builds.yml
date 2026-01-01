@@ -7,7 +7,6 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
-    HYPERSPEEDCUBE_VERSION: 2.0.0-pre.20
     HSC_OFFICIAL_BUILD: 1
 
 jobs:
@@ -29,7 +28,7 @@ jobs:
             - name: Upload release
               uses: actions/upload-artifact@v4
               with:
-                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
+                  name: hyperspeedcube_win64
                   path: target/release/hyperspeedcube.exe
 
     linux:
@@ -56,12 +55,12 @@ jobs:
             - name: Build Hyperspeedcube
               run: cargo build --release
             - name: Make tarball
-              run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz -C target/release hyperspeedcube
+              run: tar -czf hyperspeedcube_linux.tar.gz -C target/release hyperspeedcube
             - name: Upload release
               uses: actions/upload-artifact@v4
               with:
-                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
-                  path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz
+                  name: hyperspeedcube_linux
+                  path: hyperspeedcube_linux.tar.gz
 
     macos:
         name: Build macOS latest
@@ -92,9 +91,9 @@ jobs:
             - name: Make app
               run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release --package hyperspeedcube
             - name: Make tarball
-              run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
+              run: tar -czf hyperspeedcube_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
             - name: Upload app
               uses: actions/upload-artifact@v4
               with:
-                  name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos
-                  path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz
+                  name: hyperspeedcube_macos
+                  path: hyperspeedcube_macos.tar.gz
