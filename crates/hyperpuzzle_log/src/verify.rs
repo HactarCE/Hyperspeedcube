@@ -47,15 +47,13 @@ impl VerificationOptions {
     };
 }
 
-/// Timestamps the solve as having been completed by the current time.
+/// Returns the timestamp signature for a solve that marks it as having been
+/// completed by the current time.
 ///
 /// **This function blocks while waiting for a response from the Time Stamp
 /// Authority.**
-pub fn timestamp(solve: &mut Solve) -> timecheck::tsa::Result<()> {
-    let digest = solve.digest_v1();
-    let signature = TSA.timestamp(&digest)?;
-    solve.tsa_signature_v1 = Some(signature.to_string());
-    Ok(())
+pub fn timestamp(digest: &[u8]) -> timecheck::tsa::Result<String> {
+    Ok(TSA.timestamp(&digest)?.to_string())
 }
 
 /// Verifies a log file.
