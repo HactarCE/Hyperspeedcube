@@ -1,5 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::thread::JoinHandle;
 
 use egui::Widget;
@@ -28,6 +29,9 @@ const SEND_CURSOR_POS: bool = false;
 /// Whether to show the 3D mouse drag vector on the puzzle. This is useful for
 /// debugging purposes.
 const SHOW_DRAG_VECTOR: bool = false;
+
+/// Monotonically increasing ID for puzzle views, used to generate unique IDs.
+static PUZZLE_VIEW_ID: AtomicUsize = AtomicUsize::new(1);
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
     let changed;
@@ -104,6 +108,7 @@ fn show_centered_with_sizing_pass<R>(
 }
 
 pub struct PuzzleWidget {
+    id: usize,
     contents: PuzzleWidgetContents,
     loading: Option<PuzzleWidgetLoading>,
 
@@ -140,6 +145,7 @@ impl PuzzleWidget {
         egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
     ) -> Self {
         Self {
+            id: PUZZLE_VIEW_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             contents: PuzzleWidgetContents::None,
             loading: None,
 
@@ -310,7 +316,7 @@ impl PuzzleWidget {
         let mut loading_header = None;
         let mut loading_progress = None;
         if let Some(loading) = self.loading.take() {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 match loading {
                     PuzzleWidgetLoading::BuildingPuzzle {
                         puzzle_id,
@@ -366,7 +372,7 @@ impl PuzzleWidget {
             loading_progress = Some(done as f32 / total as f32);
             ui.ctx().request_repaint();
         } else if let Some((scramble_type, scramble_error)) = scramble_error {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 ui.heading("Error scrambling");
                 ui.label(scramble_error);
                 ui.separator();
@@ -384,7 +390,7 @@ impl PuzzleWidget {
         }
 
         if let Some(header_text) = loading_header {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 ui.horizontal(|ui| {
                     ui.spinner();
                     ui.heading(header_text);
@@ -509,7 +515,7 @@ impl PuzzleWidget {
             }
         }
 
-        egui::Area::new(unique_id!())
+        egui::Area::new(unique_id!(self.id))
             .constrain_to(r.rect)
             .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
             .show(ui.ctx(), |ui| {
