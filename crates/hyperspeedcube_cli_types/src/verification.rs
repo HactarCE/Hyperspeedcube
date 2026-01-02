@@ -36,15 +36,19 @@ pub struct SolveVerification {
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct Timestamps {
     /// Time that the scramble was generated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scramble_generation: Option<DateTime<Utc>>,
     /// Time that the puzzle was done being scrambled and was presented to the
     /// user. For large puzzles, this may take a significant amount of time
     /// compared to when the scramble was generated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inspection_start: Option<DateTime<Utc>>,
     /// Final time that blindfold mode was enabled, if this is a valid
     /// blindsolve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blindfold_don: Option<DateTime<Utc>>,
     /// Time that the first move was applied to the puzzle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub solve_start: Option<DateTime<Utc>>,
     /// Time that the solve ended.
     ///
@@ -52,6 +56,7 @@ pub struct Timestamps {
     ///   after the puzzle was solved.
     /// - For ordinary speedsolves, this is the time that the last move was
     ///   applied to the puzzle, solving it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub solve_completion: Option<DateTime<Utc>>,
 }
 
@@ -63,16 +68,19 @@ pub struct VerifiedTimestamps {
     ///
     /// It is effectively impossible for the scramble to have been generated
     /// before this time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scramble_range_start: Option<DateTime<Utc>>,
     /// Latest time the scramble **should** have been generated.
     ///
     /// Scrambles generated after this time should have used a more up-to-date
     /// random value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scramble_range_end: Option<DateTime<Utc>>,
     /// Latest time the solve could have been completed.
     ///
     /// It is effectively impossible for the solve to have been completed or
     /// tampered with after this time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completion: Option<DateTime<Utc>>,
 }
 
@@ -84,31 +92,37 @@ pub struct Durations {
     ///
     /// This is the network latency from the randomness beacon to the client.
     /// Due to precision of the randomness beacon, this may be negative.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scramble_network_latency: Option<Duration>,
     /// Duration between `timestamps.scramble_generation` and
     /// `timestamps.inspection_start`.
     ///
     /// This is the time taken to apply the scramble to the puzzle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scramble_application: Option<Duration>,
 
     /// Duration between `timestamps.inspection_start` and
     /// `timestamps.first_move`, or `None` if the solve is a blindsolve.
     ///
     /// This is the time taken for inspection. `None` if the solve is a blindsolve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inspection: Option<Duration>,
     /// Duration between `timestamps.first_move` and `timestamps.last_move`.
     /// `None` if the solve is a blindsolve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speedsolve: Option<Duration>,
 
     /// Duration between `timestamps.inspection_start` and
     /// `timestamps.blindfold_don`
     ///
     /// `None` if the solve is not a blindsolve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memo: Option<Duration>,
     /// Duration between `timestamps.blindfold_doff` and
     /// `timestamps.inspection_start`.
     ///
     /// `None` if the solve is not a blindsolve.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blindsolve: Option<Duration>,
 
     /// Duration between `timestamps.solve_completion` and
@@ -116,6 +130,7 @@ pub struct Durations {
     ///
     /// This is the network latency from the client to the time stamp authority.
     /// Due to precision of the time stamp authority, this may be negative.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timestamp_network_latency: Option<Duration>,
 }
 
