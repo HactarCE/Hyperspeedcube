@@ -108,6 +108,19 @@ impl TagValue {
         }
     }
 
+    /// Returns the equivalent CLI type.
+    pub fn to_cli(&self) -> Option<hyperspeedcube_cli_types::puzzle_info::TagValue> {
+        match self {
+            TagValue::False => Some(false.into()),
+            TagValue::True => Some(true.into()),
+            TagValue::Inherited => None,
+            TagValue::Int(i) => Some((*i).into()),
+            TagValue::Str(s) => Some(s.clone().into()),
+            TagValue::StrList(s) => Some(s.clone().into()),
+            TagValue::Puzzle(s) => Some(s.clone().into()),
+        }
+    }
+
     /// Returns whether the value is anything other than `false`.
     pub fn is_present(&self) -> bool {
         match self {

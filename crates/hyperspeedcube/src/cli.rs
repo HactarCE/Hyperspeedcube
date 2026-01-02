@@ -77,12 +77,12 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             let mut requested_puzzles = vec![];
             for puzzle_id in ids {
                 if let Some(generator) = catalog.get_generator::<Puzzle>(&puzzle_id) {
-                    requested_puzzles.push(generator.meta.clone());
+                    requested_puzzles.push(generator.meta.to_cli());
                 } else {
                     let puzzle = catalog
                         .build_spec_blocking::<Puzzle>(&puzzle_id)
                         .map_err(|e| eyre!("error building puzzle: {e}"))?;
-                    requested_puzzles.push(puzzle.meta.clone());
+                    requested_puzzles.push(puzzle.meta.to_cli());
                 }
             }
             write_json_output(&requested_puzzles)?;

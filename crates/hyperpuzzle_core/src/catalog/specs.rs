@@ -169,3 +169,16 @@ impl Ord for PuzzleListMetadata {
         crate::compare_ids(&self.id, &other.id)
     }
 }
+
+impl PuzzleListMetadata {
+    /// Returns the equivalent CLI type.
+    pub fn to_cli(&self) -> hyperspeedcube_cli_types::puzzle_info::PuzzleListMetadata {
+        hyperspeedcube_cli_types::puzzle_info::PuzzleListMetadata {
+            id: self.id.clone(),
+            version: [self.version.major, self.version.minor, self.version.patch],
+            name: self.name.clone(),
+            aliases: self.aliases.clone(),
+            tags: self.tags.to_cli(),
+        }
+    }
+}

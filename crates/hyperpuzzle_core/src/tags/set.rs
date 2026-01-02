@@ -164,6 +164,14 @@ impl TagSet {
             }
         }
     }
+
+    /// Returns the equivalent CLI type.
+    pub fn to_cli(&self) -> HashMap<String, hyperspeedcube_cli_types::puzzle_info::TagValue> {
+        self.0
+            .iter()
+            .filter_map(|(k, v)| Some((k.to_string(), v.to_cli()?)))
+            .collect()
+    }
 }
 
 impl Serialize for TagSet {
