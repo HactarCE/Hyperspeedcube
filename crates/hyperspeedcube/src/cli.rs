@@ -179,7 +179,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                             hyperpuzzle_log::verify::VerificationOptions::FULL
                         },
                     )
-                    .ok() // TODO: handle errors better
+                    .map_err(|e| eprintln!("{e}"))
+                    .ok()
                 })
                 .collect_vec();
 
