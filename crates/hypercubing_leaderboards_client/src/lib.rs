@@ -1,6 +1,6 @@
 //! Hypercubing leaderboards authentication.
 
-use std::{fmt, time::Duration};
+use std::time::Duration;
 
 use base64::prelude::*;
 use chrono::NaiveDate;
@@ -50,33 +50,19 @@ fn default_agent(timeout: Duration, domain: &str) -> Agent {
 }
 
 /// Error type used for leaderboard requests.
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
+#[allow(missing_docs)]
 pub enum Error {
-    /// HTTPS request error.
-    Ureq(ureq::Error),
-    /// Unknown response.
+    #[error("{0}")]
+    Ureq(#[from] ureq::Error),
+    #[error("unknown response: {}", .0.status())]
     UnknownResponse(ureq::http::Response<ureq::Body>),
-    /// Authentication timed out.
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("auth timeout")]
     AuthTimeout,
-    /// Token expired.
+    #[error("bad token")]
     BadToken,
-}
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Ureq(error) => write!(f, "{error}"),
-            Error::UnknownResponse(response) => {
-                write!(f, "unknown response: {}", response.status())
-            }
-            Error::AuthTimeout => write!(f, "auth timeout"),
-            Error::BadToken => write!(f, "bad token"),
-        }
-    }
-}
-impl From<ureq::Error> for Error {
-    fn from(value: ureq::Error) -> Self {
-        Self::Ureq(value)
-    }
 }
 
 /// Info about the signed-in leaderboards user.
@@ -231,6 +217,45 @@ impl Leaderboards {
         &self.user_info
     }
 
+    /// Submits a solve to be auto-verified and returns a URL to the submission.
+    ///
+    /// **This method blocks and should be run on a background thread.**
+    pub fn submit_solve_to_auto_verify(
+        &self,
+        submission: AutoVerifySubmission,
+    ) -> Result<String, Error> {
+        let AutoVerifySubmission {
+            program_abbr,
+            solver_notes,
+            computer_assisted,
+            will_upload_video,
+            log_file_name,
+            log_file_contents,
+        } = submission;
+        let temp_dir = tempfile::tempdir()?;
+        let file_path = temp_dir.path().join(log_file_name);
+        std::fs::write(&file_path, log_file_contents)?;
+        let resp = self.req_post("/submit-solve-to-autoverify").send(
+            ureq::unversioned::multipart::Form::new()
+                .text("program_abbr", &program_abbr)
+                .text("solver_notes", solver_notes.trim())
+                .text("computer_assisted", &computer_assisted.to_string())
+                .text("will_upload_video", &will_upload_video.to_string())
+                .file("log_file", file_path)?,
+        )?;
+
+        let mut body = resp.into_body();
+        let json = body.read_json::<serde_json::Value>()?;
+        let solve_submission_url = json
+            .get("url")
+            .unwrap_or_default()
+            .as_str()
+            .unwrap_or_default();
+
+        drop(temp_dir);
+        Ok(solve_submission_url.to_string())
+    }
+
     /// Invalidates the current token.
     ///
     /// **This method blocks and should be run on a background thread.**
@@ -270,4 +295,21 @@ pub fn random_b64_string(len: usize) -> String {
     (0..len)
         .map(|_| *BASE64_URL_SAFE_ALPHABET.choose(&mut rng).unwrap() as char)
         .collect()
+}
+
+/// Solve submission to the leaderboards to be automatically verified.
+pub struct AutoVerifySubmission {
+    /// Abbreviation for the program used.
+    pub program_abbr: String,
+    /// Solver notes (optional).
+    pub solver_notes: String,
+    /// Whether the solve is a computer-assisted FMC solve.
+    pub computer_assisted: bool,
+    /// Whether the solver intends to upload a video and add it to the
+    /// submission.
+    pub will_upload_video: bool,
+    /// Log file name.
+    pub log_file_name: String,
+    /// Log file contents.
+    pub log_file_contents: String,
 }

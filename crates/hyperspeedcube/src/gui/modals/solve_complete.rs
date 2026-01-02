@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+use hypercubing_leaderboards_client::{AutoVerifySubmission, Leaderboards};
 use hyperpuzzle::chrono::Utc;
 use hyperpuzzle::verification::SolveVerification;
 use hyperpuzzle::{Timestamp, chrono};
@@ -12,28 +13,64 @@ use parking_lot::Mutex;
 
 use crate::gui::App;
 use crate::gui::util::EguiTempValue;
+use crate::leaderboards::LeaderboardsClientState;
 
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {
     replay: Solve,
-    digest: Arc<[u8]>,
-    signature: Arc<Mutex<SignedState>>,
     puzzle_name: String,
     file_path: PathBuf,
     file_name: String,
     new_pbs: NewPbs,
     verification: SolveVerification,
     saved: bool,
+
+    signature: Arc<Mutex<SignedState>>,
+    digest: Arc<[u8]>,
+
+    solver_notes: String,
+    computer_assisted: bool,
+    will_upload_video: bool,
+    submission: Arc<Mutex<SubmissionState>>,
 }
 
 impl SolveCompletePopup {
     fn try_sign(&self) {
         *self.signature.lock() = SignedState::Waiting;
-        let digest = Arc::clone(&self.digest);
         let signature = Arc::clone(&self.signature);
+        let digest = Arc::clone(&self.digest);
         std::thread::spawn(move || match hyperpuzzle_log::verify::timestamp(&digest) {
             Ok(s) => *signature.lock() = SignedState::Ok(s),
             Err(e) => *signature.lock() = SignedState::Err(e.to_string()),
+        });
+    }
+
+    fn try_submit(&self, leaderboards: &Arc<Leaderboards>) {
+        *self.submission.lock() = SubmissionState::Waiting;
+        let data_to_submit = AutoVerifySubmission {
+            program_abbr: "HSC2".to_string(),
+            solver_notes: self.solver_notes.to_string(),
+            computer_assisted: self.computer_assisted,
+            will_upload_video: self.will_upload_video,
+            log_file_name: self
+                .file_name
+                .rsplit_once('/')
+                .unwrap_or(("", &self.file_name))
+                .1
+                .to_string(),
+            log_file_contents: LogFile {
+                program: Some(crate::PROGRAM.clone()),
+                solves: vec![self.replay.clone()],
+            }
+            .serialize(),
+        };
+        let submission = Arc::clone(&self.submission);
+        let leaderboards = Arc::clone(&leaderboards);
+        std::thread::spawn(move || {
+            match leaderboards.submit_solve_to_auto_verify(data_to_submit) {
+                Ok(url) => *submission.lock() = SubmissionState::Ok(url.to_string()),
+                Err(e) => *submission.lock() = SubmissionState::Err(e.to_string()),
+            }
         });
     }
 }
@@ -76,6 +113,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 ui.label(format!("You set a new move count PB of {stm} STM"));
             }
 
+            ui.separator();
+
             let mut signature_state = popup.signature.lock();
             let mut new_signature = None;
             let try_sign = ui
@@ -109,11 +148,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
 
             let timestamp_in_progress = matches!(*signature_state, SignedState::Waiting);
+            let timestamp_ok = matches!(*signature_state, SignedState::OkDone);
 
             drop(signature_state); // unlock mutex
             if try_sign {
                 popup.try_sign();
             }
+
+            ui.separator();
 
             ui.add_enabled_ui(!timestamp_in_progress, |ui| {
                 if popup.saved {
@@ -154,10 +196,73 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 }
             });
 
+            ui.separator();
+
+            ui.label(
+                "Please do not submit a solve to the leaderboard unless it is a personal best.",
+            );
+
+            ui.add_enabled_ui(timestamp_ok, |ui| {
+                crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
+                if let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock() {
+                    let mut changed = false;
+                    let try_submit = match &*popup.submission.lock() {
+                        SubmissionState::Init => {
+                            changed |= ui
+                                .checkbox(&mut popup.computer_assisted, "Computer-assisted FMC")
+                                .changed();
+                            changed |= ui
+                                .checkbox(
+                                    &mut popup.will_upload_video,
+                                    "I want to add a video by editing the submission later",
+                                )
+                                .changed();
+                            ui.label("Notes (optional)");
+                            changed |= ui.text_edit_multiline(&mut popup.solver_notes).changed();
+                            ui.button("Submit to leaderboards").clicked()
+                        }
+                        SubmissionState::Waiting => {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label("Submitting ...");
+                                false
+                            })
+                            .inner
+                        }
+                        SubmissionState::Err(e) => {
+                            ui.label(format!("error submitting solve: {e}"));
+                            ui.button("Retry").clicked()
+                        }
+                        SubmissionState::Ok(s) => {
+                            ui.horizontal(|ui| {
+                                ui.label("Submitted!");
+                                ui.hyperlink_to("View your submission", s);
+                                false
+                            })
+                            .inner
+                        }
+                    };
+                    if try_submit {
+                        popup.try_submit(&lb);
+                        changed = true;
+                    }
+                    if changed {
+                        solve_complete_popup.set(Some(Some(popup.clone())));
+                    }
+                }
+            })
+            .response
+            .on_disabled_hover_text(
+                "You must timestamp this solve before submitting to the leaderboards",
+            );
+
+            ui.separator();
+
             if ui.button("Close").clicked() {
                 solve_complete_popup.set(None);
             }
         });
+
         if r.should_close() {
             solve_complete_popup.set(None);
         }
@@ -192,14 +297,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                 let mut popup = SolveCompletePopup {
                     replay,
-                    digest,
-                    signature: Arc::new(Mutex::new(SignedState::Init)),
                     puzzle_name: sim.puzzle_type().meta.name.clone(),
                     file_path,
                     file_name,
                     new_pbs,
                     verification,
                     saved: false,
+
+                    signature: Arc::new(Mutex::new(SignedState::Init)),
+                    digest,
+
+                    solver_notes: String::new(),
+                    computer_assisted: false,
+                    will_upload_video: false,
+                    submission: Arc::new(Mutex::new(SubmissionState::Init)),
                 };
 
                 if app.prefs.online_mode {
@@ -225,4 +336,13 @@ enum SignedState {
     /// Signed successfully and the signature has already been added to the
     /// replay.
     OkDone,
+}
+
+#[derive(Debug, Default, Clone)]
+enum SubmissionState {
+    #[default]
+    Init,
+    Waiting,
+    Err(String),
+    Ok(String),
 }
