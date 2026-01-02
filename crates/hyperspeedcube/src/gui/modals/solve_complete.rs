@@ -28,6 +28,7 @@ struct SolveCompletePopup {
 
 impl SolveCompletePopup {
     fn try_sign(&self) {
+        *self.signature.lock() = SignedState::Waiting;
         let digest = Arc::clone(&self.digest);
         let signature = Arc::clone(&self.signature);
         std::thread::spawn(move || match hyperpuzzle_log::verify::timestamp(&digest) {
@@ -76,33 +77,36 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
 
             let mut signature_state = popup.signature.lock();
-
-            let try_sign = match &*signature_state {
-                SignedState::Init => ui.small_button("Timestamp").clicked(),
-                SignedState::Waiting => {
-                    ui.label("Timestamping ...");
-                    if ui.small_button("Cancel").clicked() {
-                        *signature_state = SignedState::Init;
+            let mut new_signature = None;
+            let try_sign = ui
+                .horizontal(|ui| match &*signature_state {
+                    SignedState::Init => ui.small_button("Timestamp").clicked(),
+                    SignedState::Waiting => {
+                        ui.label("Timestamping ...");
+                        if ui.small_button("Cancel").clicked() {
+                            *signature_state = SignedState::Init;
+                        }
+                        false
                     }
-                    false
-                }
-                SignedState::Err(e) => {
-                    ui.horizontal(|ui| {
+                    SignedState::Err(e) => {
                         ui.label(format!("error timestamping solve: {e}"));
                         ui.small_button("Retry").clicked()
-                    })
-                    .inner
-                }
-                SignedState::Ok(s) => {
-                    popup.replay.tsa_signature_v1 = Some(s.clone());
-                    *signature_state = SignedState::OkDone;
-                    false
-                }
-                SignedState::OkDone => {
-                    ui.label("This solve is timestamped");
-                    false
-                }
-            };
+                    }
+                    SignedState::Ok(s) => {
+                        new_signature = Some(s.clone());
+                        *signature_state = SignedState::OkDone;
+                        false
+                    }
+                    SignedState::OkDone => {
+                        ui.label("This solve is timestamped");
+                        false
+                    }
+                })
+                .inner;
+            if let Some(s) = new_signature {
+                popup.replay.tsa_signature_v1 = Some(s);
+                solve_complete_popup.set(Some(Some(popup.clone())));
+            }
 
             let timestamp_in_progress = matches!(*signature_state, SignedState::Waiting);
 
