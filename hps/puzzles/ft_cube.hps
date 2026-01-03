@@ -86,7 +86,7 @@ add_puzzle_generator(
 
     examples = [
         #{params = [2], aliases = ["Pocket Cube"], tags = #{
-            inventor = "Ernő Rubik",
+            inventor = "Larry Nichols",
             external = #{gelatinbrain = "3.1.1", museum = 20, wca = "222"},
         }},
         #{params = [3], aliases = ["Rubik's Cube"], tags = #{
