@@ -1,4 +1,4 @@
-//! Operators and functions for operating on lists and maps.
+//! Operators and functions for operating on strings.
 
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
