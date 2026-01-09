@@ -69,11 +69,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             }
         }),
         ("cbrt", |_, x: Num| -> Num { x.cbrt() }),
-        ("factorial", |_, (x, x_span): i64| -> Num {
-            if x < 0 {
-                let msg = "input cannot be negative";
-                return Err(Error::bad_arg(x as f64, Some(msg)).at(x_span));
-            }
+        ("factorial", |_, x: u64| -> Num {
             // convert to float to guard against integer overflow
             (2..=x).map(|x| x as f64).product::<f64>()
         }),
