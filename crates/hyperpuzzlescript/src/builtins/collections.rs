@@ -70,10 +70,24 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         (
             "reduce",
             |ctx, list: List, (f, f_span): Arc<FnValue>| -> Value {
-                list.into_iter()
-                    .map(Ok)
-                    .reduce(|a, b| f.call(f_span, ctx, vec![a?, b?], Map::new()))
-                    .unwrap_or(Ok(Value::NULL))?
+                let mut iter = list.into_iter();
+                let Some(mut ret) = iter.next() else {
+                    return Ok(Value::NULL);
+                };
+                for elem in iter {
+                    ret = f.call(f_span, ctx, vec![ret, elem], Map::new())?;
+                }
+                ret
+            }
+        ),
+        (
+            "fold",
+            |ctx, list: List, init: Value, (f, f_span): Arc<FnValue>| -> Value {
+                let mut ret = init;
+                for elem in list {
+                    ret = f.call(f_span, ctx, vec![ret, elem], Map::new())?;
+                }
+                ret
             }
         ),
         (
