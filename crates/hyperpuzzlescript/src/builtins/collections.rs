@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::{Builtins, FnValue, List, Map, Result, Str, Value, ValueData};
+use crate::{
+    Builtins, EmptyList, FnValue, List, Map, NonEmptyListOf, Num, Result, Str, Value, ValueData,
+};
 
 /// Adds the built-in operators and functions.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
@@ -91,6 +93,32 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             let mut l = l;
             l.reverse();
             l
+        }),
+        ("sorted", |_, l: EmptyList| -> EmptyList { l }),
+        (
+            "sorted",
+            |_, l: NonEmptyListOf<Num>| -> NonEmptyListOf<Num> {
+                let mut l = l;
+                l.0.sort_by(|(a, _), (b, _)| Num::total_cmp(a, b));
+                l
+            }
+        ),
+        (
+            "sorted",
+            |_, l: NonEmptyListOf<Str>| -> NonEmptyListOf<Str> {
+                let mut l = l;
+                l.0.sort_by(|(a, _), (b, _)| Str::cmp(a, b));
+                l
+            }
+        ),
+        // Maps
+        ("keys", |ctx, m: Arc<Map>| -> List {
+            m.keys()
+                .map(|k| ValueData::from(&**k).at(ctx.caller_span))
+                .collect()
+        }),
+        ("values", |_, m: Arc<Map>| -> List {
+            m.values().cloned().collect()
         }),
     ])
 }
