@@ -8,7 +8,7 @@ Based on [Learn X in Y Minutes](https://learnxinyminutes.com/)
 
 ### Basics
 
-```
+```c
 // single-line comment
 /*
 multi-line comment
@@ -66,7 +66,7 @@ print(another_string, 14) // separated by spaces
 
 ### Math
 
-```
+```c
 
 // numeric comparisons use approximate equality
 assert(0.1 + 0.2 == 0.3)
@@ -134,7 +134,7 @@ assert_eq(sinh(5), (exp(5) - exp(-5))/2) // hyperbolic trig
 
 ### Collections
 
-```
+```c
 // there are two list types: NonEmptyList ⊂ List
 some_list: List = [1, 2, "hello", "world"]
 assert_eq(1, some_list[0]) // lists are zero-indexed
@@ -227,7 +227,7 @@ assert_eq([b, c, nonexistent], [8, 12, null])
 
 ### Functions
 
-```
+```c
 // functions use Rust-like notation, but type annotations are optional
 fn summon(name: Str) -> NonEmptyList[Str] {
     // repr() puts a string in quotes and escapes any characters
@@ -344,7 +344,7 @@ assert_eq(
 
 ### Special variables
 
-```
+```c
 // special variables begin with `#`
 // these variables can be accessed from within functions, but can only be overwritten by starting a new scope using `with`
 fn regular_convex_polytopes() -> Nat {
@@ -372,7 +372,7 @@ with #ndim = 4 {
 
 #### some_module.hps
 
-```
+```c
 a = 10 // private
 export b = 20 // public
 assert_eq(b, 20) // `b` is also now a local variable
@@ -387,7 +387,7 @@ export * from #{g=[1, 2], h=[3, 4]} // export `g` and `h`
 
 #### some_other_module.hps
 
-```
+```c
 m = @learn_x_in_y/some_module
 print(m) // just an ordinary map
 
@@ -406,7 +406,7 @@ assert_eq(h, [3, 4])
 
 ### Euclidean geometry
 
-```
+```c
 // import functions and operator overloads
 use * from euclid
 
