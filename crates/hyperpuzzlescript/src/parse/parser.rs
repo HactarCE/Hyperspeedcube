@@ -96,7 +96,12 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .then(opt_type_annotation.clone())
             .then(just(Token::Assign).ignore_then(boxed_expr.clone()).or_not())
             .map(|((name, ty), default)| ast::FnParam::Param { name, ty, default }),
-        just(Token::Star).to_span().map(ast::FnParam::SeqEnd),
+        just(Token::Star)
+            .ignore_then(ident.clone().or_not())
+            .map_with(|opt_ident, e| match opt_ident {
+                Some(ident) => ast::FnParam::SeqSplat(ident),
+                None => ast::FnParam::SeqEnd(e.span()),
+            }),
         just(Token::DoubleStar)
             .ignore_then(ident.clone())
             .map(ast::FnParam::NamedSplat),

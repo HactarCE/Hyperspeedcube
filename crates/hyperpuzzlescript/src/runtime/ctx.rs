@@ -961,7 +961,7 @@ impl EvalCtx<'_> {
         Ok(FnOverload {
             ty: FnType {
                 params: seq_params.iter().map(|(_, ty)| ty.clone()).collect(),
-                is_variadic: false,
+                is_variadic: seq_splat.is_some(),
                 ret: return_type.clone(),
             },
             call: Arc::new(move |ctx, args, mut kwargs| {
