@@ -135,7 +135,7 @@ assert_eq(sinh(5), (exp(5) - exp(-5))/2) // hyperbolic trig
 ### Collections
 
 ```c
-// there are two list types: NonEmptyList ⊂ List
+// there are three list types: EmptyList ∪ NonEmptyList = List
 some_list: List = [1, 2, "hello", "world"]
 assert_eq(1, some_list[0]) // lists are zero-indexed
 assert_eq(some_list[-1], "world") // negative numbers count from the end
