@@ -1,0 +1,88 @@
+// there are two list types: NonEmptyList ⊂ List
+some_list: List = [1, 2, "hello", "world"]
+assert_eq(1, some_list[0]) // lists are zero-indexed
+assert_eq(some_list[-1], "world") // negative numbers count from the end
+assert_eq(null, some_list[4]) // out-of-bounds indices are null
+// element type may be specified
+some_typed_list: List[Str | Nat] = ["a", 4] // -2 here would cause an error
+
+// `??` is the "null-coalescing" operator
+assert_eq("world", some_list[3] ?? 42)
+assert_eq(42, some_list[4] ?? 42)
+
+// all functions can be used with `.` notation
+assert_eq(some_list.len(), len(some_list))
+assert_eq((π/2).sin().acos(), acos(sin(π/2)))
+
+// boolean operators use words
+assert(true or false)
+assert(not (true and false))
+
+// maps use string keys. values may be any type.
+some_map: Map = #{
+  hello = 1,
+  "all keys are strings" = "that's right!",
+  "${some_list[3]}" = some_list,
+}
+print(some_map) // prints contents of the map
+// values can be accessed in several ways:
+assert_eq(some_map.hello, some_map["hello"])
+use world, hello as renamed_var from some_map // introduces/assigns variables
+assert_eq(renamed_var, 1)
+assert_eq(world, some_list)
+// missing keys are null
+assert_eq(some_map.not_present, null)
+
+// use concatenation to append to a list
+some_list = some_list ++ ["new", "values"]
+some_list ++= ["are", "here"]
+// copies of the list stay unmodified
+assert_eq(some_list.len(), 8)
+assert_eq(world.len(), 4)
+
+// iterate over lists
+for elem in world {
+    print(elem)
+}
+// iterate over lists with index
+for i, elem in world {
+    assert_eq(world[i], elem)
+}
+
+assert_eq(sorted(["b", "a", "c"]), ["a", "b", "c"])
+assert_eq(rev([1, 2, 3]), [3, 2, 1])
+assert_eq(sorted(keys(some_map)), ["all keys are strings", "hello", "world"])
+
+// ranges can include or exclude the last number
+assert_eq(0..5, [0, 1, 2, 3, 4])
+assert_eq(0..=5, [0, 1, 2, 3, 4, 5])
+// backward ranges are empty
+assert_eq(5..0, [])
+// use `rev()` to iterate backward
+for i in rev(0..5) {
+    print(i) // 4, 3, 2, 1, 0
+}
+
+// iterate over maps
+for key, value in some_map {
+    print(key, value)
+}
+
+// `*` to "splat" a list
+pair = [10, 20]
+assert_eq([1, 2, *pair, 3, 4], [1, 2, 10, 20, 3, 4])
+assert_eq(min(*pair), 10)
+// `**` to "splat" a map
+m = #{a = 4, b = 8, c = 12}
+assert_eq(#{**m, q = 14}, #{a = 4, b = 8, c = 12, q = 14})
+
+// lists and maps can be destructured, even with splats
+[one, two, *remaining] = 1..=5
+assert_eq(one, 1)
+assert_eq(two, 2)
+assert_eq(remaining, [3, 4, 5])
+// when destructuring without a splat, the length must match
+[x, y, z] = [1, 2, 3]
+// destructuring maps sets nonexistent keys to null
+#{b, c, nonexistent, **rest_of_the_map} = m
+assert_eq([b, c, nonexistent], [8, 12, null])

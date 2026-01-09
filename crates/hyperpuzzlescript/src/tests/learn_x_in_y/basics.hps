@@ -1,0 +1,53 @@
+// single-line comment
+/*
+multi-line comment
+*/
+
+// whitespace is insignificant, except newlines outside parentheses
+
+// variables are dynamically typed
+some_string = "strings use double quotes"
+another_string = "${some_string} and support interpolation" ++ " and concatenation" ++ "
+and literal newlines
+and \"escapes\" like \\ (backslash), \n (newline), and \t (tab)
+"
+
+// all numbers are 64-bit floating-point
+// there are three number types: Nat ⊂ Int ⊂ Num
+some_var = 12.1
+// type annotations are optional and are checked at runtime
+my_number: Num = 3.5
+my_integer: Int = 4
+// variables can be reassigned, even to different types
+my_number: Nat = 3.0 // equivalent to 3
+
+if my_number == 3 {
+    print("yes!")
+} else if my_number != 4 {
+    print("maybe!")
+} else {
+    print("no!")
+}
+
+// if-expressions are allowed, as long as each branch contains only a single expression
+print(if my_number == 3 { "yes" } else { "no!" })
+
+// it is an error to use an uninitialized variable
+// but variables may be assigned `null`, a special value of type `Null`
+this_var: Null = null
+// type unions use `|`
+// if-expressions without an `else` branch return `null`
+might_be_null: Int | Null = if my_number == 4 { "weird" }
+
+// variables cannot be used outside the scope where they are defined
+// but variables from outer scopes may be overwritten
+outer_var = 14
+{
+    outer_var = 10
+    inner_var = 2
+}
+assert_eq(outer_var, 10)
+// inner_var is undefined here
+
+// print() outputs to console
+print(another_string, 14) // separated by spaces

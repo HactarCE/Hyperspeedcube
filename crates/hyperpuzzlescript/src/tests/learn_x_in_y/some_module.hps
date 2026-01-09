@@ -1,0 +1,10 @@
+a = 10 // private
+export b = 20 // public
+assert_eq(b, 20) // `b` is also now a local variable
+
+fn some_func() {} // private
+export fn some_other_func(x) { x + 1 } // public
+assert_eq(some_other_func(2), 3) // `some_other_func` is also now a local variable
+
+export * from #{g=[1, 2], h=[3, 4]} // export `g` and `h`
+// `g` and `h` are exported, but are not local variables

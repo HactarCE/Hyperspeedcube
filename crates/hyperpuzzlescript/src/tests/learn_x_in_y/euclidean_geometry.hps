@@ -1,0 +1,12 @@
+// import functions and operator overloads
+use * from euclid
+
+v = vec(1, 3)
+u = vec(1)
+assert_eq(vec(1), vec(1, 0))
+assert_eq(u + v, vec(2, 3))
+assert_eq(u - v, vec(0, -3))
+assert_eq(v * 4, vec(4, 12))
+assert_eq(-u, vec(-1))
+
+// TODO: more math: point(), plane(), distance(), rot(), ...

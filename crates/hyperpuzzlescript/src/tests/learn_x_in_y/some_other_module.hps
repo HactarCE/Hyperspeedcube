@@ -1,0 +1,14 @@
+m = @learn_x_in_y/some_module
+print(m) // just an ordinary map
+
+// `some_module.hps` is only evaluated once
+assert_eq(@learn_x_in_y/some_module.b, 20)
+assert_eq(@learn_x_in_y/some_module.a, null) // private
+assert_eq(@learn_x_in_y/some_module.nonexistent, null)
+
+// use some or all entries from the module
+use * from @learn_x_in_y/some_module
+assert_eq(b, 20)
+assert_eq(some_other_func(5), 6)
+assert_eq(g, [1, 2])
+assert_eq(h, [3, 4])

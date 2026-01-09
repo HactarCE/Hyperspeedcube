@@ -1,0 +1,63 @@
+
+// numeric comparisons use approximate equality
+assert(0.1 + 0.2 == 0.3)
+assert(str(0.1 + 0.2) != str(0.3))
+// see https://0.30000000000000004.com/ if this is surprising to you
+
+// several math constants are built in with names and symbols
+assert_eq(pi, π)
+assert_eq(tau, τ)
+assert_eq(π*2, τ)
+assert_eq(phi, φ)
+assert_eq(inf, ∞)
+assert(2.71 < exp(1) and exp(1) < 2.72) // Euler's constant
+// `+` is a no-op
+assert_eq(17, +17)
+assert_neq(+∞, -∞)
+// `sqrt()` and `√` are equivalent
+assert_eq(sqrt(2), √2)
+assert_eq(φ, (1+√5)/2)
+// `^` for exponentiation
+assert_eq(2^4, 16)
+// multiply by `deg` to convert degrees to radians
+assert_eq(30*deg, pi/6)
+// or use `°`
+assert_eq(30°, π/6)
+// division never rounds
+assert_eq(5/2, 2.5)
+// `floor()`, `ceil()`, `trunc()`, and `round()` for rounding
+assert_eq(floor(5/3), 1) // rounds toward -∞
+assert_eq(ceil(5/3), 2) // rounds toward ∞
+assert_eq(round(5/3), 2) // rounds toward nearest (prefers away from 0)
+assert_eq(trunc(5/3), 1) // rounds toward 0
+// `%` performs Euclidean remainder
+a = -10
+b = 3
+assert_eq(floor(a / b) * b + a % b, a) // true for all inputs
+assert_eq(1/0, ∞) // division by 0 results in infinity
+// dividing 0 by 0 emits an error
+
+// other math functions:
+assert_eq(abs(a), 10)
+assert_eq(sign(a), -1)
+assert_eq(cbrt(10), 10^(1/3))
+assert_eq(factorial(4), 24)
+assert(is_even(a))
+assert(is_odd(b))
+assert_eq(min(a, b), -10)
+assert_eq(max(a, b), 3)
+assert_eq(clamp(55, a, b), b) // requires a <= b
+assert(is_infinite(-∞))
+assert(is_finite(999))
+assert_eq(ln(99)/ln(10), log10(99))
+assert_eq(ln(99)/ln(2), log2(99))
+assert_eq(exp2(7), 2^7)
+assert_eq(exp(1)^4, exp(4))
+
+// all trigonometric functions are available, including inverses, reciprocals, and inverse reciprocals
+assert_eq(sin(π/2), 1)
+assert_eq(cos(π/2), 0)
+assert_eq(tan(30°), 1/√3)
+assert_eq(cot(1.62), 1/tan(1.62))
+assert_eq(acos(1/3), arccos(1/3)) // inverse trig may use long or short names
+assert_eq(sinh(5), (exp(5) - exp(-5))/2) // hyperbolic trig

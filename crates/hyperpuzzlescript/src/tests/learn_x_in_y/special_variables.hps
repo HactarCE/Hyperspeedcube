@@ -1,0 +1,21 @@
+// special variables begin with `#`
+// these variables can be accessed from within functions, but can only be overwritten by starting a new scope using `with`
+fn regular_convex_polytopes() -> Nat {
+    regular_convex_polytopes(#ndim)
+}
+fn regular_convex_polytopes(dimension_count: Nat) -> Nat {
+    // fetch from the list; if that fails, use `3`
+    [1, 1, ∞, 5, 6][dimension_count] ?? 3
+}
+fn regular_convex_polytopes(dimension_count: Null) {
+    error("missing ndim")
+}
+
+with #ndim = 3 {
+    assert_eq(regular_convex_polytopes(), 5)
+}
+with #ndim = 4 {
+    assert_eq(regular_convex_polytopes(), 6)
+}
+
+// calling `regular_convex_polytopes()` here would emit an error saying "missing ndim"

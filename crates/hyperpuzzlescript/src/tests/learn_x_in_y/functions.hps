@@ -1,0 +1,112 @@
+// functions use Rust-like notation, but type annotations are optional
+fn summon(name: Str) -> NonEmptyList[Str] {
+    // repr() puts a string in quotes and escapes any characters
+    print("saying ${repr(name)} three times ...")
+    return [name, name, name]
+}
+// functions can be overloaded, as long as there's no overlap in the ways the function can be called
+fn summon() {
+    // if the function body is a single expression, `return` may be omitted
+    summon("Beetlejuice") // returns a list of 3 strings
+}
+
+// use `-> Null` to avoid implicitly returning a value
+fn summon_beetlejuice_and_return_nothing() -> Null {
+    summon()
+}
+
+// functions must be defined before they are called
+summon()
+summon("HactarCE")
+assert_eq(null, summon_beetlejuice_and_return_nothing())
+
+// functions are first-class values of type `Fn`
+print(summon) // function with 2 overloads
+
+// if `f` has no other overloads, then these two lines are equivalent:
+fn add(a, b) { a + b }
+add = fn(a, b) { a + b }
+
+// functions can take other functions as arguments
+fn do_10_times(f: Fn) {
+    for i in 1..=10 { f(i) }
+}
+do_10_times(print) // 1, 2, 3, ...
+do_10_times(fn(x) { print(1/x) }) // 1, 0.5, 0.3333...
+
+fn reduce(op: Fn, args) {
+    [init, *rest] = args
+    ret = init
+    for arg in rest {
+        ret = op(ret, arg)
+    }
+    return ret
+}
+fn sum(list) { reduce(fn(a, b) { a + b }, list) }
+fn product(list) { reduce(fn(a, b) { a * b }, list) }
+assert_eq(sum(1..=10), 55)
+assert_eq(product(1..=10), 3628800)
+
+// to override a built-in function, first set it to `null`
+factorial = null
+fn factorial(n: Nat) { product(1..=n) }
+assert_eq(factorial(10), 3628800)
+
+// splat can be used to make variadic functions
+fn reduce_variadic(op: Fn, first_arg, *args) {
+    ret = first_arg
+    for arg in args {
+        ret = op(ret, arg)
+    }
+    return ret
+}
+assert_eq(reduce_variadic(max, 5, 2, 30, 6), 30)
+
+// functions support keyword arguments
+// keyword arguments can be made optional by supplying a default value
+fn print_args(arg1, *other_args, kwarg1, kwarg2=10, **kwargs) {
+    print(arg1) // required
+    print(other_args) // list of remaining non-keyword arguments
+    print(kwarg1) // required
+    print(kwarg2) // optional; defaults to 10
+    print(kwargs) // map of remaining keyword arguments
+}
+
+print_args(
+    1, // arg1
+    2, 3, // other_args
+    kwarg1=4,
+    x=5, y=6, z=7, // kwargs
+)
+
+// when not using `*args`, use `*` to separate non-keyword args from keyword args
+fn keyword_only(*, k1, k2, **kwargs) {}
+keyword_only(k1=1, k2=3)
+
+// `export` is syntactic sugar for returning a map from a function
+// `export` and `return` cannot be used in the same function
+fn make_map_using_export(a) -> Map {
+    export a // existing variable
+    export b = 15 // new variable
+    export fn f(x) { x + a } // functions can capture variables
+    export c = f(b)
+    assert_eq(c, 15 + a)
+    // `export` supports all the same functionality as `use`
+    export d as q, e from #{ d = 35, e = 40, x = 45 }
+    // q and e are exported, but not acessible from the current scope
+}
+fn make_map_using_return(a) {
+    fn f(x) { x + a }
+    return #{
+        a = a,
+        b = 15,
+        f = f,
+        c = 15 + a,
+        q = 35,
+        e = 40,
+    }
+}
+assert_eq(
+    sorted(keys(make_map_using_export(5))),
+    sorted(keys(make_map_using_return(5))),
+)
