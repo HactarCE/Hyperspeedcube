@@ -4,7 +4,10 @@ use ecow::EcoString;
 use hypermath::Vector;
 use indexmap::IndexMap;
 
-use crate::{Error, FnValue, Key, List, Map, Result, Spanned, Type, TypeOf, Value, ValueData};
+use crate::{
+    EmptyList, Error, FnValue, Key, List, Map, NonEmptyVec, Result, Spanned, Type, TypeOf, Value,
+    ValueData,
+};
 
 /// Trait for values that can be acquired from an owned [`Value`].
 pub trait FromValue: Sized + TypeOf {
@@ -227,6 +230,41 @@ impl<const N: usize, T: FromValue> FromValue for [T; N] {
         let vec = Vec::<T>::from_value(value)?;
         let got = vec.len();
         <[T; N]>::try_from(vec).map_err(|_| Error::ListLengthError { expected: N, got }.at(span))
+    }
+}
+
+impl TypeOf for EmptyList {
+    fn hps_ty() -> Type {
+        Type::EmptyList
+    }
+}
+impl FromValue for EmptyList {
+    fn from_value(value: Value) -> Result<Self> {
+        value.typecheck(Type::EmptyList).map(|_| EmptyList)
+    }
+}
+impl<'a> FromValueRef<'a> for EmptyList {
+    fn from_value_ref(value: &'a Value) -> Result<Self> {
+        value.typecheck(Type::EmptyList).map(|_| EmptyList)
+    }
+}
+
+impl<T: TypeOf> TypeOf for NonEmptyVec<T> {
+    fn hps_ty() -> Type {
+        let inner_type = Some(T::hps_ty()).filter(|t| *t != Type::Any);
+        Type::NonEmptyList(inner_type.map(Box::new))
+    }
+}
+impl<T: FromValue> FromValue for NonEmptyVec<T> {
+    fn from_value(value: Value) -> Result<Self> {
+        value.typecheck(Self::hps_ty())?; // checks for empty list
+        Ok(Self(Vec::from_value(value)?))
+    }
+}
+impl<'a, T: FromValueRef<'a>> FromValueRef<'a> for NonEmptyVec<T> {
+    fn from_value_ref(value: &'a Value) -> Result<Self> {
+        value.typecheck(Self::hps_ty())?; // checks for empty list
+        Ok(Self(Vec::from_value_ref(value)?))
     }
 }
 

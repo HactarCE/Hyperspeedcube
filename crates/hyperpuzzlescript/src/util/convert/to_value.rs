@@ -4,7 +4,10 @@ use ecow::EcoString;
 use hypermath::Vector;
 use itertools::Itertools;
 
-use crate::{FnValue, Key, List, ListOf, Map, Scope, Type, Value, ValueData};
+use crate::{
+    EmptyList, FnValue, Key, List, ListOf, Map, NonEmptyList, NonEmptyListOf, NonEmptyVec, Scope,
+    Type, Value, ValueData,
+};
 
 macro_rules! impl_to_value_data {
     ($ty:ty, $value:pat => $ret:expr) => {
@@ -92,7 +95,14 @@ impl<V: Into<ValueData>> From<ListOf<V>> for ValueData {
         ))
     }
 }
+impl<V: Into<ValueData>> From<NonEmptyListOf<V>> for ValueData {
+    fn from(value: NonEmptyListOf<V>) -> Self {
+        ValueData::from(value.0)
+    }
+}
 impl_to_value_data!(List, values => ValueData::List(Arc::new(values)));
+impl_to_value_data!(NonEmptyList, NonEmptyVec(values) => ValueData::from(values));
+impl_to_value_data!(EmptyList, EmptyList => ValueData::List(Arc::new(vec![])));
 impl_to_value_data!(Arc<List>, values => ValueData::List(values));
 impl_to_value_data!(Map, values => ValueData::Map(Arc::new(values)));
 impl_to_value_data!(Arc<Map>, values => ValueData::Map(values));

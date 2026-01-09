@@ -40,8 +40,17 @@ pub type Str = ecow::EcoString;
 pub type List = Vec<Value>;
 /// Type used for [`ValueData::List`] with a specific type.
 pub type ListOf<T> = Vec<Spanned<T>>;
+/// Type used for non-empty [`ValueData::List`].
+pub type NonEmptyList = NonEmptyVec<Value>;
+/// Type used for non-empty [`ValueData::List`] with a specific type.
+pub type NonEmptyListOf<T> = NonEmptyVec<Spanned<T>>;
 /// Type used for [`ValueData::Map`].
 pub type Map = indexmap::IndexMap<Key, Value>;
+
+/// Type used for empty [`ValueData::List`].
+pub struct EmptyList;
+/// Type used for non-empty [`ValueData::List`] without spans.
+pub struct NonEmptyVec<T>(pub Vec<T>);
 
 /// Type used for keys in [`ValueData::Map`].
 pub type Key = arcstr::Substr;
