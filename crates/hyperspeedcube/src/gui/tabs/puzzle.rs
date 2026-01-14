@@ -9,7 +9,7 @@ use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{Timestamp, prelude::*};
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
@@ -418,11 +418,40 @@ impl PuzzleWidget {
 
         let (r, target_size) = allocate_puzzle_response(ui, view.downscale_rate());
 
-        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) {
-            self.reload(prefs);
-            // Don't even try to redraw the puzzle. Just wait for the next
-            // frame.
-            return;
+        if r.has_focus() {
+            if ui.input(|input| input.key_pressed(egui::Key::F5)) {
+                self.reload(prefs);
+                // Don't even try to redraw the puzzle. Just wait for the next
+                // frame.
+                return;
+            }
+
+            // Undo/redo keybinds
+            ui.input(|input| {
+                use egui::Key;
+
+                let mods = input.modifiers;
+                let cmd = !mods.alt && !mods.shift && mods.command;
+                let cmd_shift = !mods.alt && mods.shift && mods.command;
+
+                if cmd && input.key_pressed(egui::Key::Z) {
+                    view.sim
+                        .lock()
+                        .do_event(hyperpuzzle_view::ReplayEvent::Undo {
+                            time: Some(Timestamp::now()),
+                        });
+                }
+
+                if cmd_shift && input.key_pressed(egui::Key::Z)
+                    || cmd && input.key_pressed(egui::Key::Y)
+                {
+                    view.sim
+                        .lock()
+                        .do_event(hyperpuzzle_view::ReplayEvent::Redo {
+                            time: Some(Timestamp::now()),
+                        });
+                }
+            });
         }
 
         let exceeded_twist_drag_threshold = ui
