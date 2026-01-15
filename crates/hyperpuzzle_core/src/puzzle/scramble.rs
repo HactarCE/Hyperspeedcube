@@ -11,10 +11,15 @@ use timecheck::drand::DrandRound;
 use super::LayeredTwist;
 use crate::{BoxDynPuzzleState, Timestamp};
 
+pub const CURRENT_SCRAMBLE_VERSION: u32 = 1;
+
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ScrambleParams {
+    /// Scramble algorithm version.
+    pub version: u32,
+
     /// Type of scramble to generate.
     pub ty: ScrambleType,
     /// Timestamp when the scramble was requested.
@@ -34,6 +39,8 @@ impl ScrambleParams {
         let time = Timestamp::now();
         let seed = Self::seed_from_time_and_u64(time, rand::rng().random());
         Self {
+            version: CURRENT_SCRAMBLE_VERSION,
+
             ty,
             time,
             seed,
@@ -59,6 +66,8 @@ impl ScrambleParams {
         let time = Timestamp::now();
         let seed = Self::seed_from_time_and_bytes(time, &drand_round.signature);
         Ok(Self {
+            version: CURRENT_SCRAMBLE_VERSION,
+
             ty,
             time,
             seed,
@@ -207,6 +216,8 @@ pub enum ScrambleError {
     Drand(#[from] timecheck::drand::DrandError),
     #[error("canceled")]
     Canceled,
+    #[error("unsupported version")]
+    UnsupportedVersion,
     #[error("{0}")]
     Other(String),
 }

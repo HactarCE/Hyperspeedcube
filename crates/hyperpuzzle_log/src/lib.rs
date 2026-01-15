@@ -199,6 +199,9 @@ pub struct Scramble {
     /// Scramble type selected by the user.
     #[kdl(argument, proxy = KdlProxy)]
     pub ty: ScrambleType,
+    /// Scramble algorithm version.
+    #[kdl(property("version"))]
+    pub version: u32,
     /// Optional timestamp at which the scramble was generated.
     #[kdl(property("time"), optional, proxy = KdlProxy)]
     pub time: Option<Timestamp>,
@@ -223,6 +226,7 @@ impl Scramble {
     /// Returns `None` if the scramble was generated nondeterministically.
     pub fn params(&self) -> Option<ScrambleParams> {
         Some(ScrambleParams {
+            version: self.version,
             ty: self.ty,
             time: self.time?,
             seed: self.seed.clone()?,
@@ -235,6 +239,7 @@ impl Scramble {
     /// Constructs a scramble from scramble parameters and a twist sequence.
     pub fn new(params: ScrambleParams, twists: String) -> Self {
         Self {
+            version: params.version,
             ty: params.ty,
             time: Some(params.time),
             seed: Some(params.seed),
@@ -493,6 +498,7 @@ mod tests {
                 solved: true,
                 duration: Some(5 * 60 * 1000),
                 scramble: Some(Scramble {
+                    version: 1,
                     ty: ScrambleType::Partial(3),
                     time: Some(Timestamp::now()),
                     seed: Some("abc".to_string()),

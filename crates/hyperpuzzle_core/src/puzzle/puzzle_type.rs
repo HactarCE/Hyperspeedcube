@@ -114,6 +114,10 @@ impl Puzzle {
         params: ScrambleParams,
         progress: Option<Arc<ScrambleProgress>>,
     ) -> Result<ScrambledPuzzle, ScrambleError> {
+        if params.version != 1 {
+            return Err(ScrambleError::UnsupportedVersion);
+        }
+
         let ScrambleParams { ty, seed, .. } = &params;
 
         let mut sha256 = sha2::Sha256::new();
