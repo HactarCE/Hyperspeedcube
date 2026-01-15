@@ -263,6 +263,12 @@ presets {
 }
 
 prefs {
+  (HoverStrings)record_time "Record time" {
+    desc """
+      Show speedsolve time after completing a qualifying speedsolve.
+      This is required for leaderboard verification of speedsolves.
+    """
+  }
   (HoverStrings)online_mode "Online mode" {
     desc """
       This setting allows leaderboard verification for speedsolves of certain puzzles without video recording.

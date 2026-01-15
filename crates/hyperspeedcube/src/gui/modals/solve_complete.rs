@@ -22,6 +22,7 @@ struct SolveCompletePopup {
     file_path: PathBuf,
     file_name: String,
     new_pbs: NewPbs,
+    time_disabled_via_prefs: bool,
     verification: SolveVerification,
     saved: bool,
 
@@ -270,13 +271,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         app.active_puzzle.with_sim(|sim| {
             if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
                 let replay = sim.serialize(true);
-                let verification = hyperpuzzle_log::verify::verify(
+
+                let mut verification = hyperpuzzle_log::verify::verify(
                     &hyperpuzzle::catalog(),
                     &replay,
                     hyperpuzzle_log::verify::VerificationOptions::QUICK,
                 )
                 .map_err(|e| log::error!("solve verification error: {e}"))
                 .ok()?;
+
                 let (file_path, file_name) = hyperpaths::solve_autosave_file(
                     &replay.puzzle.id,
                     &verification
@@ -287,6 +290,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     verification.solution_stm,
                 )
                 .ok()?;
+
+                let time_disabled_via_prefs = !app.prefs.record_time;
+                if time_disabled_via_prefs {
+                    verification.durations = Default::default();
+                }
+
                 let new_pbs = app.stats.check_new_pb(&verification);
 
                 if new_pbs.first {
@@ -301,6 +310,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     file_path,
                     file_name,
                     new_pbs,
+                    time_disabled_via_prefs,
                     verification,
                     saved: false,
 

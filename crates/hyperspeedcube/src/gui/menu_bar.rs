@@ -194,13 +194,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
 
         let mut changed = false;
-        PrefsUi {
+        let mut prefs_ui = PrefsUi {
             ui,
             current: &mut app_ui.app.prefs,
             defaults: None,
             changed: &mut changed,
-        }
-        .checkbox(&L.prefs.online_mode, access!(.online_mode));
+        };
+        prefs_ui.checkbox(&L.prefs.record_time, access!(.record_time));
+        prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
         app_ui.app.prefs.needs_save |= changed;
 
         // TODO: add "auto" mode that follows OS
