@@ -8,8 +8,8 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-keywords = []
-categories = []
+keywords = ["client", "api", "hypercubing"]
+categories = ["api-bindings"]
 license = "MIT OR Apache-2.0"
 
 [lints]

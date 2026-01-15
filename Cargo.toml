@@ -26,7 +26,7 @@ resolver = "3"
 authors = ["Andrew Farkas"]
 documentation = "https://dev.hypercubing.xyz/internals/"
 edition = "2024"
-rust-version = "1.88.0"
+rust-version = "1.92.0"
 homepage = "https://ajfarkas.dev/projects/hyperspeedcube/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
 

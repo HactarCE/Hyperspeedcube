@@ -1152,13 +1152,13 @@ struct_with_constructor! {
                 /*
                  * VIEW PARAMETERS AND TRANSFORMS
                  */
-                /// NxN transformation matrix for the whole puzzle.
+                /// N-by-N transformation matrix for the whole puzzle.
                 puzzle_transform: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("puzzle_transform"),
                     ndim as usize * 4,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
-                /// NxN transformation matrix for each piece.
+                /// N-by-N transformation matrix for each piece.
                 piece_transforms: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("piece_transforms"),
                     ndim as usize * ndim as usize * mesh.piece_count,

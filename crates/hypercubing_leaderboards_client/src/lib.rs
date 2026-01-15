@@ -54,9 +54,9 @@ fn default_agent(timeout: Duration, domain: &str) -> Agent {
 #[allow(missing_docs)]
 pub enum Error {
     #[error("{0}")]
-    Ureq(#[from] ureq::Error),
+    Ureq(#[from] Box<ureq::Error>),
     #[error("unknown response: {}", .0.status())]
-    UnknownResponse(ureq::http::Response<ureq::Body>),
+    UnknownResponse(Box<ureq::http::Response<ureq::Body>>),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("auth timeout")]
@@ -69,7 +69,13 @@ pub enum Error {
 
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
-        Error::Ureq(ureq::Error::Json(e))
+        ureq::Error::Json(e).into()
+    }
+}
+
+impl From<ureq::Error> for Error {
+    fn from(e: ureq::Error) -> Self {
+        Box::new(e).into()
     }
 }
 
@@ -154,7 +160,7 @@ impl AuthFlow {
             // success! this is a token
             StatusCode::OK => Ok(Some(response.into_body().read_to_string()?)),
 
-            _ => Err(Error::UnknownResponse(response)), // other response
+            _ => Err(Error::UnknownResponse(Box::new(response))), // other response
         }
     }
 

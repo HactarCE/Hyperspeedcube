@@ -244,7 +244,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     popup.fetch_pbs(lb);
                     solve_complete_popup.set(Some(Some(popup.clone())));
                 }
-                match &*popup.pbs.as_ref().unwrap().lock() {
+                let pbs = popup.pbs.as_ref().expect("should have been initialized by fetch_pbs()");
+                match &*pbs.lock() {
                     Some(Ok(pbs)) => {
                         let speed_duration = (popup.verification.durations.blindsolve)
                             .or(popup.verification.durations.speedsolve);

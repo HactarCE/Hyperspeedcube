@@ -169,6 +169,7 @@ impl CoxeterGroup {
                 return Err(GroupError::BadCD);
             }
 
+            #[allow(clippy::needless_range_loop)] // it's clearer this way
             for i in 0..mirror_count as _ {
                 for j in 0..=i {
                     if coxeter_matrix[i][j] < 1 {
