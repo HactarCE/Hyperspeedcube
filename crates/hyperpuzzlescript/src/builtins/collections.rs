@@ -42,7 +42,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         // Length getters
         ("len", |_, l: Arc<List>| -> usize { l.len() }),
         ("len", |_, m: Arc<Map>| -> usize { m.len() }),
-        ("len", |_, s: Str| -> usize { s.len() }),
+        ("len", |_, s: Str| -> usize { s.chars().count() }),
         ("is_empty", |_, l: Arc<List>| -> bool { l.is_empty() }),
         ("is_empty", |_, m: Arc<Map>| -> bool { m.is_empty() }),
         ("is_empty", |_, s: Str| -> bool { s.is_empty() }),
