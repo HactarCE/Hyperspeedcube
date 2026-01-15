@@ -820,7 +820,6 @@ fn common_ndim_and_parity(m1: &Motor, m2: &Motor) -> Option<(u8, bool)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assert_approx_eq;
 
     /// Test a formula for extracting the second fixed axis of a rotation in 4D,
     /// given the rotation and one known fixed axis.
