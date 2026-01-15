@@ -149,7 +149,7 @@ pub trait IndexNewtype:
 
     /// Increments the index, or returns an error if it does not fit.
     fn next(self) -> Result<Self, IndexOverflow> {
-        Self::try_from_usize(self.to_usize().checked_add(1).unwrap_or(usize::MAX))
+        Self::try_from_usize(self.to_usize().saturating_add(1))
     }
     /// Increments the index in-place and returns the old one, or returns an
     /// error if it doesn't fit.

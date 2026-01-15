@@ -152,11 +152,11 @@ impl PuzzleState for NdEuclidPuzzleState {
 
         let mut segments: Vec<(Float, Float)> = vec![];
         for (_layer, layer_info) in grip_layers {
-            if let Some((_prev_top, prev_bottom)) = segments.last_mut() {
-                if APPROX.eq(layer_info.top, *prev_bottom) {
-                    *prev_bottom = layer_info.bottom;
-                    continue;
-                }
+            if let Some((_prev_top, prev_bottom)) = segments.last_mut()
+                && APPROX.eq(layer_info.top, *prev_bottom)
+            {
+                *prev_bottom = layer_info.bottom;
+                continue;
             }
             segments.push((layer_info.top, layer_info.bottom));
         }

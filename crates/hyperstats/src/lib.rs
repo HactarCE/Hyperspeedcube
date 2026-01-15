@@ -111,22 +111,18 @@ impl StatsDb {
             });
         }
 
-        if speed {
-            if let Some(dur) = verification.durations.speedsolve {
-                pbs.speed = Some(SpeedPB {
-                    file: filename.to_string(),
-                    duration: dur.num_milliseconds(),
-                });
-            }
+        if speed && let Some(dur) = verification.durations.speedsolve {
+            pbs.speed = Some(SpeedPB {
+                file: filename.to_string(),
+                duration: dur.num_milliseconds(),
+            });
         }
 
-        if blind {
-            if let Some(dur) = verification.durations.blindsolve {
-                pbs.blind = Some(SpeedPB {
-                    file: filename.to_string(),
-                    duration: dur.num_milliseconds(),
-                });
-            }
+        if blind && let Some(dur) = verification.durations.blindsolve {
+            pbs.blind = Some(SpeedPB {
+                file: filename.to_string(),
+                duration: dur.num_milliseconds(),
+            });
         }
     }
 

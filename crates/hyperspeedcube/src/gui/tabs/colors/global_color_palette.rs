@@ -39,13 +39,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .show(ui, |ui| {
                 match yaml.is_open(ui) {
                     true => {
-                        if let Some(r) = yaml.show(ui) {
-                            if r.changed() {
-                                // Update value from YAML editor.
-                                if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
-                                    app.prefs.color_palette.reload_from_serde(&(), deserialized);
-                                    app.prefs.needs_save = true;
-                                }
+                        if let Some(r) = yaml.show(ui)
+                            && r.changed()
+                        {
+                            // Update value from YAML editor.
+                            if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
+                                app.prefs.color_palette.reload_from_serde(&(), deserialized);
+                                app.prefs.needs_save = true;
                             }
                         }
                     }

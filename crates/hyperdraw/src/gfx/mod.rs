@@ -21,7 +21,7 @@ pub use structs::GfxEffectParams;
 fn pad_buffer_to_wgpu_copy_buffer_alignment<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
     loop {
         let bytes_len = bytemuck::cast_slice::<T, u8>(buf).len();
-        if bytes_len > 0 && bytes_len as u64 % wgpu::COPY_BUFFER_ALIGNMENT == 0 {
+        if bytes_len > 0 && (bytes_len as u64).is_multiple_of(wgpu::COPY_BUFFER_ALIGNMENT) {
             break;
         }
         buf.push(T::default());

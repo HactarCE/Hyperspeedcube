@@ -71,12 +71,11 @@ impl DndReorderExt<PuzzleFilterPreferences> for ReorderDndMove<FilterPresetName>
         }
 
         // Remove empty sequences
-        if let Some(seq_name) = &payload.seq {
-            if let Some(seq) = collection.sequences.get(seq_name) {
-                if seq.value.is_empty() {
-                    collection.sequences.remove(seq_name);
-                }
-            }
+        if let Some(seq_name) = &payload.seq
+            && let Some(seq) = collection.sequences.get(seq_name)
+            && seq.value.is_empty()
+        {
+            collection.sequences.remove(seq_name);
         }
     }
 }

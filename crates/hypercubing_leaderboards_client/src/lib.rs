@@ -421,7 +421,7 @@ fn json_map_to_query_pairs<T: serde::Serialize>(
                 return Err(Error::Internal("expected JSON primitive; got object"));
             }
         };
-        query_pairs.push((k.clone(), value_string))
+        query_pairs.push((k.clone(), value_string));
     }
     Ok(query_pairs)
 }

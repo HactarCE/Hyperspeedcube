@@ -473,18 +473,15 @@ impl Schema {
             self.path_to_type
                 .insert(path.clone(), Type::Struct(struct_name));
 
-            if let Some((parent, field_name)) = path.split() {
-                if let Some(Type::Struct(struct_name)) = self.path_to_type.get(&parent) {
-                    if let Some(struct_schema) = self.structs.get_mut(struct_name) {
-                        if let Some(field) = struct_schema.fields.get_mut(field_name) {
-                            if matches!(field.ty, StructFieldType::StaticStr) {
-                                field.ty = StructFieldType::DynTemplate {
-                                    template_trait_name,
-                                };
-                            }
-                        }
-                    }
-                }
+            if let Some((parent, field_name)) = path.split()
+                && let Some(Type::Struct(struct_name)) = self.path_to_type.get(&parent)
+                && let Some(struct_schema) = self.structs.get_mut(struct_name)
+                && let Some(field) = struct_schema.fields.get_mut(field_name)
+                && matches!(field.ty, StructFieldType::StaticStr)
+            {
+                field.ty = StructFieldType::DynTemplate {
+                    template_trait_name,
+                };
             }
         }
     }

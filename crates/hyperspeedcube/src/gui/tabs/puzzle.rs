@@ -843,12 +843,14 @@ fn show_nd_euclid_puzzle_view(
     }
 
     // Ctrl+shift+click = edit sticker color
-    if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
-        if let Some(hov) = nd_euclid.puzzle_hover_state() {
-            if let Some(sticker) = hov.sticker {
-                ret.color_to_edit = Some(puzzle.stickers[sticker].color);
-            }
-        }
+    if r.secondary_clicked()
+        && modifiers.command
+        && modifiers.shift
+        && !modifiers.alt
+        && let Some(hov) = nd_euclid.puzzle_hover_state()
+        && let Some(sticker) = hov.sticker
+    {
+        ret.color_to_edit = Some(puzzle.stickers[sticker].color);
     }
 
     let cam = nd_euclid.transient_camera(sim);

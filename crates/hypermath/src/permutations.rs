@@ -41,7 +41,7 @@ pub fn permutation_parity(mut n: usize) -> Parity {
     let mut res = Parity::Even;
     let mut i = 2;
     while n > 0 {
-        if (n % i) % 2 != 0 {
+        if !(n % i).is_multiple_of(2) {
             res = res.opposite();
         }
         n /= i;

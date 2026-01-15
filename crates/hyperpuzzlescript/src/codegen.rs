@@ -76,11 +76,9 @@ fn generic_orbit_hps_code<T: PuzzleElement>(
             }
             let Some(next) = gen_seq.end else { break };
             elem_index = next;
-            if compact {
-                if let Some(Some(other_name)) = new_element_names.get(elem_index) {
-                    s += &format!(", {}", to_str_literal(other_name));
-                    break;
-                }
+            if compact && let Some(Some(other_name)) = new_element_names.get(elem_index) {
+                s += &format!(", {}", to_str_literal(other_name));
+                break;
             }
         }
         s += "],\n";

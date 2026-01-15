@@ -96,16 +96,16 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                 }
             });
             ui.separator();
-            if ui.button(L.menu.file.copy_hsc_log).clicked() {
-                if let Some(copy_text) = app_ui.app.serialize_puzzle_log(false) {
-                    ui.ctx().copy_text(copy_text);
-                }
+            if ui.button(L.menu.file.copy_hsc_log).clicked()
+                && let Some(copy_text) = app_ui.app.serialize_puzzle_log(false)
+            {
+                ui.ctx().copy_text(copy_text);
             }
             ui.add_enabled_ui(has_replay, |ui| {
-                if ui.button(L.menu.file.copy_hsc_replay).clicked() {
-                    if let Some(copy_text) = app_ui.app.serialize_puzzle_log(true) {
-                        ui.ctx().copy_text(copy_text);
-                    }
+                if ui.button(L.menu.file.copy_hsc_replay).clicked()
+                    && let Some(copy_text) = app_ui.app.serialize_puzzle_log(true)
+                {
+                    ui.ctx().copy_text(copy_text);
                 }
             });
         });
@@ -236,11 +236,11 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         app_ui.app.prefs.needs_save |= r.changed();
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Ok(hps_dir) = hyperpaths::hps_dir() {
-                if ui.button(L.menu.puzzles.show_hps_dir).clicked() {
-                    ui.close();
-                    crate::open_dir(hps_dir);
-                }
+            if let Ok(hps_dir) = hyperpaths::hps_dir()
+                && ui.button(L.menu.puzzles.show_hps_dir).clicked()
+            {
+                ui.close();
+                crate::open_dir(hps_dir);
             }
             #[cfg(not(target_arch = "wasm32"))]
             if ui.button(L.menu.puzzles.extract_hps).clicked() {

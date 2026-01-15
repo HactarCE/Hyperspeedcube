@@ -109,16 +109,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     }
                 }
 
-                if !found {
-                    if let Some(segment_string) = action.segment_string() {
-                        if !new_search_query_string.is_empty()
-                            && !new_search_query_string.ends_with(" ")
-                        {
-                            new_search_query_string += " ";
-                        }
-                        new_search_query_string += &segment_string;
+                if !found && let Some(segment_string) = action.segment_string() {
+                    if !new_search_query_string.is_empty()
+                        && !new_search_query_string.ends_with(" ")
+                    {
                         new_search_query_string += " ";
                     }
+                    new_search_query_string += &segment_string;
+                    new_search_query_string += " ";
                 }
 
                 search_query_string = new_search_query_string.trim().to_owned();

@@ -72,7 +72,7 @@ impl SolveCompletePopup {
             .serialize(),
         };
         let submission = Arc::clone(&self.submission);
-        let leaderboards = Arc::clone(&leaderboards);
+        let leaderboards = Arc::clone(leaderboards);
         std::thread::spawn(move || {
             match leaderboards.submit_solve_to_auto_verify(data_to_submit) {
                 Ok(url) => *submission.lock() = SubmissionState::Ok(url.to_string()),
@@ -92,7 +92,7 @@ impl SolveCompletePopup {
 
         let pbs = Arc::new(Mutex::new(None));
         self.pbs = Some(Arc::clone(&pbs));
-        let leaderboards = Arc::clone(&leaderboards);
+        let leaderboards = Arc::clone(leaderboards);
         std::thread::spawn(move || {
             let result = leaderboards.get_pbs(&request);
             *pbs.lock() = Some(result.map_err(|e| e.to_string()));
@@ -200,37 +200,33 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             ui.add_enabled_ui(!timestamp_in_progress, |ui| {
                 if popup.saved {
                     ui.label(format!("Saved to {}", popup.file_name));
-                    if let Some(dir_path) = popup.file_path.parent() {
-                        if ui.button("Show folder").clicked() {
-                            if let Err(e) = opener::open(dir_path) {
+                    if let Some(dir_path) = popup.file_path.parent()
+                        && ui.button("Show folder").clicked()
+                            && let Err(e) = opener::open(dir_path) {
                                 log::error!("{e}");
                             }
-                        }
+                } else if ui.button("Save this solve").clicked() {
+                    // Save log file
+                    if let Some(p) = popup.file_path.parent() {
+                        std::fs::create_dir_all(p);
                     }
-                } else {
-                    if ui.button("Save this solve").clicked() {
-                        // Save log file
-                        if let Some(p) = popup.file_path.parent() {
-                            std::fs::create_dir_all(p);
+                    // TODO: handle error
+                    if let Ok(()) = std::fs::write(
+                        &popup.file_path,
+                        LogFile {
+                            program: Some(crate::PROGRAM.clone()),
+                            solves: vec![popup.replay.clone()],
                         }
-                        // TODO: handle error
-                        if let Ok(()) = std::fs::write(
-                            &popup.file_path,
-                            LogFile {
-                                program: Some(crate::PROGRAM.clone()),
-                                solves: vec![popup.replay.clone()],
-                            }
-                            .serialize(),
-                        ) {
-                            popup.saved = true;
-                            solve_complete_popup.set(Some(Some(popup.clone())));
+                        .serialize(),
+                    ) {
+                        popup.saved = true;
+                        solve_complete_popup.set(Some(Some(popup.clone())));
 
-                            // Save PBs
-                            if popup.new_pbs.any() {
-                                app.stats
-                                    .record_new_pb(&popup.verification, &popup.file_name);
-                                hyperstats::save(&app.stats);
-                            }
+                        // Save PBs
+                        if popup.new_pbs.any() {
+                            app.stats
+                                .record_new_pb(&popup.verification, &popup.file_name);
+                            hyperstats::save(&app.stats);
                         }
                     }
                 }
@@ -357,13 +353,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 ui.label("Submitted!");
                                 ui.hyperlink_to("View your submission", s);
                                 false
-                            })
-                            .inner;
+                            });
                             ui.button("Submit to leaderboards").clicked()
                         }
                     };
                     if try_submit {
-                        popup.try_submit(&lb);
+                        popup.try_submit(lb);
                         changed = true;
                     }
                     if changed {

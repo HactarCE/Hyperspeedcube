@@ -53,7 +53,7 @@ impl VerificationOptions {
 /// **This function blocks while waiting for a response from the Time Stamp
 /// Authority.**
 pub fn timestamp(digest: &[u8]) -> timecheck::tsa::Result<String> {
-    Ok(TSA.timestamp(&digest)?.to_string())
+    Ok(TSA.timestamp(digest)?.to_string())
 }
 
 /// Verifies a log file.
@@ -219,12 +219,12 @@ pub fn verify(
 
         let completion = if options.verify_completion_timestamp {
             let timestamp_result = if let Some(signature) = &solve.tsa_signature_v1 {
-                timecheck::tsa::Signature::from_str(&signature)
+                timecheck::tsa::Signature::from_str(signature)
                     .map_err(|e| timecheck::tsa::TsaError::Other(e.into()))
                     .and_then(|sig| {
                         let expected_digest = solve.digest_v1();
                         TSA.verify(&expected_digest, &sig)?;
-                        Ok(sig.timestamp()?)
+                        sig.timestamp()
                     })
             } else {
                 Err(timecheck::tsa::TsaError::Other("no signature".into()))

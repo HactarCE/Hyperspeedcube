@@ -91,11 +91,11 @@ impl PieceTypeHierarchy {
         let node = self
             .entry(path)?
             .or_insert_with(|| PieceTypeHierarchyNode::new(piece_type_count));
-        if let PieceTypeHierarchyNodeContents::Category(sub) = &node.contents {
-            if !sub.nodes.is_empty() {
-                let subtype_names = sub.nodes.keys().collect_vec();
-                bail!("piece type {path:?} cannot have subtypes {subtype_names:?}");
-            }
+        if let PieceTypeHierarchyNodeContents::Category(sub) = &node.contents
+            && !sub.nodes.is_empty()
+        {
+            let subtype_names = sub.nodes.keys().collect_vec();
+            bail!("piece type {path:?} cannot have subtypes {subtype_names:?}");
         }
         node.contents = PieceTypeHierarchyNodeContents::Type(piece_type_id);
         self.add_piece_type_along_path(path, piece_type_id);
@@ -103,10 +103,10 @@ impl PieceTypeHierarchy {
     }
     fn add_piece_type_along_path(&mut self, path: &str, piece_type_id: PieceType) {
         for prefix in Self::path_prefixes(path) {
-            if let Ok(indexmap::map::Entry::Occupied(e)) = self.entry(prefix) {
-                if let PieceTypeHierarchyNodeContents::Category(cat) = &mut e.into_mut().contents {
-                    cat.types.insert(piece_type_id);
-                }
+            if let Ok(indexmap::map::Entry::Occupied(e)) = self.entry(prefix)
+                && let PieceTypeHierarchyNodeContents::Category(cat) = &mut e.into_mut().contents
+            {
+                cat.types.insert(piece_type_id);
             }
         }
         self.types.insert(piece_type_id);

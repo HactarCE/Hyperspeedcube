@@ -214,10 +214,10 @@ impl Chain {
         } = round;
         let result = match &self.public_key {
             DrandChainPubKey::G1(g1_pubkey) => {
-                g1_pubkey.verify(*round, &previous_signature, &signature)
+                g1_pubkey.verify(*round, previous_signature, signature)
             }
             DrandChainPubKey::G2(g2_pubkey_rfc) => {
-                g2_pubkey_rfc.verify(*round, &previous_signature, &signature)
+                g2_pubkey_rfc.verify(*round, previous_signature, signature)
             }
         };
         match result? {

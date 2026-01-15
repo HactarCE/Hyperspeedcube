@@ -175,10 +175,10 @@ impl PuzzleSimulation {
             }
 
             // Partial twist drag
-            if let Some(nd_euclid) = &self.nd_euclid {
-                if let Some(ret) = nd_euclid.partial_twist_drag_render_state(&self.latest_state) {
-                    return ret;
-                }
+            if let Some(nd_euclid) = &self.nd_euclid
+                && let Some(ret) = nd_euclid.partial_twist_drag_render_state(&self.latest_state)
+            {
+                return ret;
             }
 
             // No animation
@@ -232,7 +232,7 @@ impl PuzzleSimulation {
         let puzzle_type = Arc::clone(self.puzzle_type());
         let progress = Arc::new(ScrambleProgress::new());
         let (tx, rx) = mpsc::channel();
-        self.scramble_waiting = Some((ty.clone(), Arc::clone(&progress), rx));
+        self.scramble_waiting = Some((ty, Arc::clone(&progress), rx));
         self.scramble_error = None;
         std::thread::spawn(move || {
             let params = if online && ty == ScrambleType::Full {
@@ -254,15 +254,13 @@ impl PuzzleSimulation {
                 Some(progress) // still waiting
             }
             Err(mpsc::TryRecvError::Disconnected) => {
-                self.scramble_error = Some((
-                    ty.clone(),
-                    ScrambleError::Other("channel disconnected".to_string()),
-                ));
+                self.scramble_error =
+                    Some((ty, ScrambleError::Other("channel disconnected".to_string())));
                 self.scramble = None;
                 None
             }
             Ok(Err(e)) => {
-                self.scramble_error = Some((ty.clone(), e));
+                self.scramble_error = Some((ty, e));
                 self.scramble = None;
                 None
             }
@@ -510,15 +508,15 @@ impl PuzzleSimulation {
         let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
 
         let mut nd_euclid_initial_transform = None;
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            if let Some(partial) = nd_euclid.partial_twist_drag_state.take() {
-                if partial.grip == grip {
-                    nd_euclid_initial_transform = Some(partial.transform);
-                } else {
-                    self.cancel_popped_partial_twist(partial);
-                    // That call doesn't modify the puzzle state, so `grip` can
-                    // stay the same.
-                }
+        if let Some(nd_euclid) = &mut self.nd_euclid
+            && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
+        {
+            if partial.grip == grip {
+                nd_euclid_initial_transform = Some(partial.transform);
+            } else {
+                self.cancel_popped_partial_twist(partial);
+                // That call doesn't modify the puzzle state, so `grip` can
+                // stay the same.
             }
         }
 
@@ -671,10 +669,10 @@ impl PuzzleSimulation {
     ///
     /// If there is no partial twist active, then this does nothing.
     pub fn cancel_partial_twist(&mut self) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            if let Some(partial) = nd_euclid.partial_twist_drag_state.take() {
-                self.cancel_popped_partial_twist(partial);
-            }
+        if let Some(nd_euclid) = &mut self.nd_euclid
+            && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
+        {
+            self.cancel_popped_partial_twist(partial);
         }
     }
     /// Cancels a partial twist that has already been removed.
@@ -699,40 +697,40 @@ impl PuzzleSimulation {
     ///
     /// If there is no partial twist active, then this does nothing.
     pub fn confirm_partial_twist(&mut self) {
-        if let Some(nd_euclid) = &mut self.nd_euclid {
-            if let Some(partial) = &nd_euclid.partial_twist_drag_state {
-                let puzzle = self.latest_state.ty();
+        if let Some(nd_euclid) = &mut self.nd_euclid
+            && let Some(partial) = &nd_euclid.partial_twist_drag_state
+        {
+            let puzzle = self.latest_state.ty();
 
-                let closest_twist = nd_euclid
-                    .geom
-                    .twist_transforms
-                    .iter()
-                    .filter(|&(twist, _)| puzzle.twists.twists[twist].axis == partial.axis)
-                    .max_by_key(|&(_, twist_transform)| {
-                        FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
-                    });
-                if let Some((twist, twist_transform)) = closest_twist {
-                    let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
-                    let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
-                    if dot_with_twist > dot_with_identity {
-                        let twist = LayeredTwist {
-                            layers: partial.layers,
-                            transform: twist,
-                        };
-                        let axis = partial.axis;
-                        let time = Some(Timestamp::now());
-                        self.do_event(ReplayEvent::DragTwist { time, axis });
-                        self.do_event(ReplayEvent::Twists(smallvec![twist]));
-                    } else {
-                        // The identity twist is closer.
-                        self.cancel_partial_twist();
-                    }
+            let closest_twist = nd_euclid
+                .geom
+                .twist_transforms
+                .iter()
+                .filter(|&(twist, _)| puzzle.twists.twists[twist].axis == partial.axis)
+                .max_by_key(|&(_, twist_transform)| {
+                    FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
+                });
+            if let Some((twist, twist_transform)) = closest_twist {
+                let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
+                let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
+                if dot_with_twist > dot_with_identity {
+                    let twist = LayeredTwist {
+                        layers: partial.layers,
+                        transform: twist,
+                    };
+                    let axis = partial.axis;
+                    let time = Some(Timestamp::now());
+                    self.do_event(ReplayEvent::DragTwist { time, axis });
+                    self.do_event(ReplayEvent::Twists(smallvec![twist]));
                 } else {
-                    // There are no possible twists. Why did we even let the user
-                    // drag the mouse in the first place? Questions such as these
-                    // may never know an answer.
+                    // The identity twist is closer.
                     self.cancel_partial_twist();
                 }
+            } else {
+                // There are no possible twists. Why did we even let the user
+                // drag the mouse in the first place? Questions such as these
+                // may never know an answer.
+                self.cancel_partial_twist();
             }
         }
     }
@@ -946,7 +944,7 @@ impl PuzzleSimulation {
                 &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }),
                 &LogEvent::Redo { time } => ret.replay_event(ReplayEvent::Redo { time }),
                 &LogEvent::SetBlindfold { time, enabled } => {
-                    ret.replay_event(ReplayEvent::SetBlindfold { time, enabled })
+                    ret.replay_event(ReplayEvent::SetBlindfold { time, enabled });
                 }
                 &LogEvent::InvalidateFilterless { time } => {
                     ret.replay_event(ReplayEvent::InvalidateFilterless { time });

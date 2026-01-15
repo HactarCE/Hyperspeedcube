@@ -139,11 +139,11 @@ impl Value {
     pub fn typecheck<'a>(&self, expected: impl Into<Cow<'a, Type>>) -> Result<()> {
         let expected: Cow<'a, Type> = expected.into();
 
-        if let Type::List(Some(inner)) | Type::NonEmptyList(Some(inner)) = &*expected {
-            if let Ok(l) = self.as_ref::<List>() {
-                for elem in &**l {
-                    elem.typecheck(&**inner)?;
-                }
+        if let Type::List(Some(inner)) | Type::NonEmptyList(Some(inner)) = &*expected
+            && let Ok(l) = self.as_ref::<List>()
+        {
+            for elem in &**l {
+                elem.typecheck(&**inner)?;
             }
         }
 
@@ -439,29 +439,28 @@ impl FnValue {
     /// Adds an overload to the function. Returns an error if the new overload
     /// overlaps with an existing one.
     pub fn push_overload(&mut self, overload: FnOverload) -> Result<()> {
-        if crate::CHECK_FN_OVERLOAD_CONFLICTS {
-            if let Some(conflict) = self
+        if crate::CHECK_FN_OVERLOAD_CONFLICTS
+            && let Some(conflict) = self
                 .overloads
                 .iter()
                 .find(|existing| existing.ty.might_conflict_with(&overload.ty))
-            {
-                let error = Error::FnOverloadConflict {
-                    new_ty: Box::new(overload.ty),
-                    old_ty: Box::new(conflict.ty.clone()),
-                    old_span: match conflict.debug_info {
-                        FnDebugInfo::Span(span) => Some(span),
-                        FnDebugInfo::Internal(_) => None,
-                    },
-                }
-                .at(overload.debug_info.to_span().unwrap_or(crate::BUILTIN_SPAN));
-
-                #[cfg(debug_assertions)]
-                if let FnDebugInfo::Internal(name) = overload.debug_info {
-                    panic!("error in internal {name:?}: {error:?}")
-                }
-
-                return Err(error);
+        {
+            let error = Error::FnOverloadConflict {
+                new_ty: Box::new(overload.ty),
+                old_ty: Box::new(conflict.ty.clone()),
+                old_span: match conflict.debug_info {
+                    FnDebugInfo::Span(span) => Some(span),
+                    FnDebugInfo::Internal(_) => None,
+                },
             }
+            .at(overload.debug_info.to_span().unwrap_or(crate::BUILTIN_SPAN));
+
+            #[cfg(debug_assertions)]
+            if let FnDebugInfo::Internal(name) = overload.debug_info {
+                panic!("error in internal {name:?}: {error:?}")
+            }
+
+            return Err(error);
         }
 
         self.overloads.push(overload);
@@ -530,10 +529,9 @@ impl FnValue {
             return_value = ValueData::Map(Arc::new(exports)).at(call_span);
         }
         return_value.typecheck(&overload.ty.ret).map_err(|e| {
+            #[cfg(debug_assertions)]
             if let FnDebugInfo::Internal(name) = overload.debug_info {
-                if cfg!(debug_assertions) {
-                    panic!("bad return type for built-in function {name:?}: {e:?}");
-                }
+                panic!("bad return type for built-in function {name:?}: {e:?}");
             }
             e
         })?;

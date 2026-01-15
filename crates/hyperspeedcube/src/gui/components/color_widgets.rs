@@ -133,10 +133,9 @@ impl<'a> ColorsUi<'a> {
                 index: 0,
                 total,
             } = palette_color
+                && let Ok(g) = gradient_name.parse()
             {
-                if let Ok(g) = gradient_name.parse() {
-                    self.gradient_totals.insert(g, *total);
-                }
+                self.gradient_totals.insert(g, *total);
             }
         }
     }
@@ -353,10 +352,10 @@ impl<'a> ColorsUi<'a> {
         let old_name = self.palette_color_to_puzzle_color.get(&new_assignment);
         let old_assignment = map.insert(name, new_assignment);
 
-        if let Some(old_assignment) = old_assignment {
-            if let Some(old_name) = old_name {
-                map.insert(old_name.clone(), old_assignment);
-            }
+        if let Some(old_assignment) = old_assignment
+            && let Some(old_name) = old_name
+        {
+            map.insert(old_name.clone(), old_assignment);
         }
     }
 
@@ -741,10 +740,10 @@ pub fn color_edit(
     }
 
     // Alt+click to delete
-    if let Some(on_delete) = on_delete {
-        if crate::gui::middle_clicked(ui, &r) {
-            on_delete();
-        }
+    if let Some(on_delete) = on_delete
+        && crate::gui::middle_clicked(ui, &r)
+    {
+        on_delete();
     }
 
     // Left-click to edit
@@ -781,13 +780,12 @@ pub fn color_edit(
             })
     });
     #[allow(clippy::collapsible_match)]
-    if let Some(r) = popup_response.filter(|_| !reopen.get()) {
-        if let TextEditPopupResponse::Confirm(new_hex_string) = r {
-            if let Ok(new_color) = new_hex_string.parse() {
-                *color = new_color;
-                changed = true;
-            }
-        }
+    if let Some(r) = popup_response.filter(|_| !reopen.get())
+        && let TextEditPopupResponse::Confirm(new_hex_string) = r
+        && let Ok(new_color) = new_hex_string.parse()
+    {
+        *color = new_color;
+        changed = true;
     }
 
     if changed {

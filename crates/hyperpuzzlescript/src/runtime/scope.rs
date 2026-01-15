@@ -106,10 +106,10 @@ impl Scope {
                 e.insert(value);
             }
             indexmap::map::Entry::Vacant(e) => {
-                if let Some(parent) = &self.parent {
-                    if parent.is_mutable() {
-                        return parent.scope.set(name, value);
-                    }
+                if let Some(parent) = &self.parent
+                    && parent.is_mutable()
+                {
+                    return parent.scope.set(name, value);
                 }
                 e.insert(value);
             }

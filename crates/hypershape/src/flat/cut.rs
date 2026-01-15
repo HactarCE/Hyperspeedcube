@@ -137,11 +137,11 @@ impl Cut {
                             }
                         }
                     }
-                    if flush_polytopes.is_empty() {
-                        if let Some(intersection_point) = intersection {
-                            let v = space.add_vertex(intersection_point)?.into();
-                            flush_polytopes.push(space.add_polytope(v)?);
-                        }
+                    if flush_polytopes.is_empty()
+                        && let Some(intersection_point) = intersection
+                    {
+                        let v = space.add_vertex(intersection_point)?.into();
+                        flush_polytopes.push(space.add_polytope(v)?);
                     }
                 } else {
                     for b in boundary.iter() {

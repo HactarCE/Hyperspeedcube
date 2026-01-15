@@ -15,7 +15,7 @@ pub fn show_leaderboards_ui(
     ui.horizontal(|ui| {
         let mut lb = leaderboards_state.lock();
         let mut wants_sign_out = false;
-        let leaderboards_msg = match &*lb {
+        match &*lb {
             LeaderboardsClientState::NotSignedIn => {
                 ui.menu_button("Leaderboards sign-in", |ui| {
                     ui.set_max_width(ui.spacing().menu_width / 2.0);
@@ -31,7 +31,7 @@ pub fn show_leaderboards_ui(
                         ),
                     );
                     if ui.link("Sign into the leaderboards").clicked() {
-                        let url = lb.init_auth(Arc::clone(&leaderboards_state));
+                        let url = lb.init_auth(Arc::clone(leaderboards_state));
                         ui.ctx().open_url(egui::OpenUrl::new_tab(url));
                     }
                 });

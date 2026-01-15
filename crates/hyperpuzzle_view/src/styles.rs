@@ -49,10 +49,7 @@ impl PuzzleStyleStates {
 
     /// Returns whether all pieces have the same base style.
     pub fn all_equal(&self) -> bool {
-        self.piece_sets
-            .iter()
-            .map(|(state, _piece_set)| &state.base)
-            .all_equal()
+        self.piece_sets.keys().map(|state| &state.base).all_equal()
     }
 
     /// Modifies the states of a piece set, given their current state.

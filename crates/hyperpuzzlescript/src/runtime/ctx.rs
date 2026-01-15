@@ -312,15 +312,14 @@ impl EvalCtx<'_> {
             }
             ValueData::Vec(v) | ValueData::EuclidPoint(hypermath::Point(v)) => {
                 let field_name = &self[field];
-                if field_name.len() == 1 {
-                    if let Some(i) = field_name
+                if field_name.len() == 1
+                    && let Some(i) = field_name
                         .chars()
                         .next()
                         .and_then(hypermath::axis_from_char)
-                    {
-                        v[i] = new_value.to()?;
-                        return Ok(());
-                    }
+                {
+                    v[i] = new_value.to()?;
+                    return Ok(());
                 }
             }
             _ => (),
@@ -529,11 +528,11 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::UseAllFrom(source) => {
                 self.for_all_from_map(source, |this, k, v| {
-                    if let Some(old_var) = self.scope.get(&k) {
-                        if !(old_var.is_func() && v.is_func()) {
-                            let w = Warning::ShadowedVariable((k.clone(), old_var.span), true);
-                            this.runtime.report_diagnostic(w.at(span));
-                        }
+                    if let Some(old_var) = self.scope.get(&k)
+                        && !(old_var.is_func() && v.is_func())
+                    {
+                        let w = Warning::ShadowedVariable((k.clone(), old_var.span), true);
+                        this.runtime.report_diagnostic(w.at(span));
                     }
                     self.scope.add(k, v)
                 })?;
@@ -541,11 +540,11 @@ impl EvalCtx<'_> {
             }
             ast::NodeContents::UseFrom(items, source) => {
                 self.for_each_field(items, source, |this, k, v| {
-                    if let Some(old_var) = self.scope.get(&k) {
-                        if !(old_var.is_func() && v.is_func()) {
-                            let w = Warning::ShadowedVariable((k.clone(), old_var.span), false);
-                            this.runtime.report_diagnostic(w.at(span));
-                        }
+                    if let Some(old_var) = self.scope.get(&k)
+                        && !(old_var.is_func() && v.is_func())
+                    {
+                        let w = Warning::ShadowedVariable((k.clone(), old_var.span), false);
+                        this.runtime.report_diagnostic(w.at(span));
                     }
                     self.scope.add(k, v)
                 })?;

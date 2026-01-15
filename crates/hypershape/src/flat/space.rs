@@ -179,10 +179,10 @@ impl Space {
         &self,
         p: PolytopeData,
     ) -> Result<Option<ElementId>, IndexOverflow> {
-        if let PolytopeData::Polytope { rank, boundary, .. } = &p {
-            if boundary.len() <= *rank as usize {
-                return Ok(None);
-            }
+        if let PolytopeData::Polytope { rank, boundary, .. } = &p
+            && boundary.len() <= *rank as usize
+        {
+            return Ok(None);
         }
         self.add_polytope(p).map(Some)
     }
@@ -209,13 +209,13 @@ impl Space {
         };
         let new_id = self.add_polytope_if_non_degenerate(p)?;
 
-        if let Some(new) = new_id {
-            if self.polytopes.lock()[new].rank() + 1 == self.ndim {
-                // Intersection is a new facet! Copy the facet hyperplane.
-                let mut cache = self.cached_hyperplane_of_facet.lock();
-                if let Some(plane) = cache.get(&original).cloned() {
-                    cache.insert(new, plane);
-                }
+        if let Some(new) = new_id
+            && self.polytopes.lock()[new].rank() + 1 == self.ndim
+        {
+            // Intersection is a new facet! Copy the facet hyperplane.
+            let mut cache = self.cached_hyperplane_of_facet.lock();
+            if let Some(plane) = cache.get(&original).cloned() {
+                cache.insert(new, plane);
             }
         }
 
@@ -270,10 +270,10 @@ impl Space {
         let mut ret = Set64::<ElementId>::new();
         let mut queue = vec![root];
         while let Some(p) = queue.pop() {
-            if ret.insert(p) {
-                if let Ok(boundary) = self.polytopes.lock()[p].boundary() {
-                    queue.extend(boundary.iter());
-                }
+            if ret.insert(p)
+                && let Ok(boundary) = self.polytopes.lock()[p].boundary()
+            {
+                queue.extend(boundary.iter());
             }
         }
         ret

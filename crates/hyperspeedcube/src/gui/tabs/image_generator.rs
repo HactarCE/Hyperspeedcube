@@ -34,20 +34,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             r = r.on_disabled_hover_text(l.errors.no_active_puzzle);
         }
 
-        if r.clicked() {
-            if let Some(dir) = &app.prefs.image_generator.dir {
-                let file_path = dir.join(&app.prefs.image_generator.filename);
-                status.set(Some(
-                    if file_path.is_file() && !matches!(status.get(), Some(Status::Exists)) {
-                        Status::Exists
-                    } else {
-                        match save_screenshot(app, &file_path) {
-                            Ok(()) => Status::Success,
-                            Err(e) => Status::Error(e.to_string()),
-                        }
-                    },
-                ));
-            }
+        if r.clicked()
+            && let Some(dir) = &app.prefs.image_generator.dir
+        {
+            let file_path = dir.join(&app.prefs.image_generator.filename);
+            status.set(Some(
+                if file_path.is_file() && !matches!(status.get(), Some(Status::Exists)) {
+                    Status::Exists
+                } else {
+                    match save_screenshot(app, &file_path) {
+                        Ok(()) => Status::Success,
+                        Err(e) => Status::Error(e.to_string()),
+                    }
+                },
+            ));
         }
 
         match status.get() {

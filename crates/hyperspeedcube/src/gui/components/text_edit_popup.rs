@@ -218,21 +218,19 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 self.new_name.set(Some(s.clone()));
 
                 let s = if self.text_edit_trim { s.trim() } else { &s };
-                if let Some(validator) = self.validate_confirm {
-                    if self.auto_confirm || validated_button(ui, "✔", validator(s), true) {
-                        response = Some(TextEditPopupResponse::Confirm(s.to_string()));
-                        if !self.auto_confirm
-                            || ui.input(|input| input.key_pressed(egui::Key::Enter))
-                        {
-                            ui.close();
-                        }
-                    }
-                }
-                if let Some(validator) = self.validate_delete {
-                    if validated_button(ui, "🗑", validator(s), false) {
-                        response = Some(TextEditPopupResponse::Delete);
+                if let Some(validator) = self.validate_confirm
+                    && (self.auto_confirm || validated_button(ui, "✔", validator(s), true))
+                {
+                    response = Some(TextEditPopupResponse::Confirm(s.to_string()));
+                    if !self.auto_confirm || ui.input(|input| input.key_pressed(egui::Key::Enter)) {
                         ui.close();
                     }
+                }
+                if let Some(validator) = self.validate_delete
+                    && validated_button(ui, "🗑", validator(s), false)
+                {
+                    response = Some(TextEditPopupResponse::Delete);
+                    ui.close();
                 }
             });
 

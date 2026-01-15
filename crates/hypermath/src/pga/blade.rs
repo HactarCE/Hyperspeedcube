@@ -285,10 +285,10 @@ impl Blade {
     /// with e₀. If the blade does have some component with e₀, it is returned
     /// unmodified.
     pub fn ensure_nonzero_weight(&self) -> Blade {
-        if self.weight_is_zero() {
-            if let Some(product) = Blade::wedge(&Blade::from_term(Term::e0(1.0)), self) {
-                return product;
-            }
+        if self.weight_is_zero()
+            && let Some(product) = Blade::wedge(&Blade::from_term(Term::e0(1.0)), self)
+        {
+            return product;
         }
         self.clone()
     }

@@ -54,10 +54,10 @@ pub fn with_reset_button<'a, T: PartialEq>(
 
         let mut r = widget(ui, value);
 
-        if let Some(reset_resp) = reset_resp {
-            if reset_resp.clicked() {
-                r.mark_changed();
-            }
+        if let Some(reset_resp) = reset_resp
+            && reset_resp.clicked()
+        {
+            r.mark_changed();
         }
         r
     })

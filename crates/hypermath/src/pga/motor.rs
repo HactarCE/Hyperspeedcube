@@ -738,7 +738,7 @@ impl TransformByMotor for Blade {
                 }
             }
         }
-        if m.is_reflection() && ndim % 2 == 0 {
+        if m.is_reflection() && ndim.is_multiple_of(2) {
             -result
         } else {
             result

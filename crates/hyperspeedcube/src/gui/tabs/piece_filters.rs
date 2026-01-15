@@ -111,10 +111,10 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App, allow_ad_hoc: b
                         &mut changed,
                         fallback_style,
                     );
-                    if let Some(rect) = ad_hoc_rect {
-                        if show_ad_hoc_preset_name(ui, rect, &view.filters.base).clicked() {
-                            view.filters.load_preset(filter_prefs, None);
-                        }
+                    if let Some(rect) = ad_hoc_rect
+                        && show_ad_hoc_preset_name(ui, rect, &view.filters.base).clicked()
+                    {
+                        view.filters.load_preset(filter_prefs, None);
                     }
                     if changed {
                         view.filters.reload(filter_prefs);
@@ -618,10 +618,10 @@ fn show_current_filter_preset_ui_contents(
     let puz = view.puzzle();
     let filter_prefs = prefs.filters_mut(&puz);
 
-    if let Some(preset_ref) = &view.filters.base {
-        if !filter_prefs.has_preset(&preset_ref.name()) {
-            view.filters.base = None;
-        }
+    if let Some(preset_ref) = &view.filters.base
+        && !filter_prefs.has_preset(&preset_ref.name())
+    {
+        view.filters.base = None;
     }
 
     let preset_name = view.filters.base.as_ref().map(|r| r.to_string());
@@ -843,12 +843,12 @@ fn show_filter_expr_ui(
                 .desired_width(f32::INFINITY)
                 .desired_rows(1),
         );
-        if let Some(e) = err {
-            if r.has_focus() || r.hovered() {
-                r.show_tooltip_ui(|ui| {
-                    ui.colored_label(ui.visuals().warn_fg_color, e);
-                });
-            }
+        if let Some(e) = err
+            && (r.has_focus() || r.hovered())
+        {
+            r.show_tooltip_ui(|ui| {
+                ui.colored_label(ui.visuals().warn_fg_color, e);
+            });
         }
         r
     })

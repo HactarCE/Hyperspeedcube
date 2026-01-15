@@ -465,13 +465,13 @@ where
             .auto_shrink(!self.vscroll)
             .show(ui, |ui| match yaml.is_open(ui) {
                 true => {
-                    if let Some(r) = yaml.show(ui) {
-                        if r.changed() {
-                            // Update value from YAML editor.
-                            if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
-                                self.current.value = deserialized;
-                                *self.changed = true;
-                            }
+                    if let Some(r) = yaml.show(ui)
+                        && r.changed()
+                    {
+                        // Update value from YAML editor.
+                        if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
+                            self.current.value = deserialized;
+                            *self.changed = true;
                         }
                     }
                 }

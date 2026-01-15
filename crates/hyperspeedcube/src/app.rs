@@ -138,13 +138,13 @@ impl App {
         }
     }
     pub(crate) fn save_file_as(&mut self, replay: bool) {
-        if let Some(contents) = self.serialize_puzzle_log(replay) {
-            if let Some(path) = Self::prompt_file_save_path() {
-                // TODO: handle error
-                std::fs::write(path.clone(), contents);
-                self.active_puzzle
-                    .with_sim(|sim| sim.last_log_file = Some(path));
-            }
+        if let Some(contents) = self.serialize_puzzle_log(replay)
+            && let Some(path) = Self::prompt_file_save_path()
+        {
+            // TODO: handle error
+            std::fs::write(path.clone(), contents);
+            self.active_puzzle
+                .with_sim(|sim| sim.last_log_file = Some(path));
         }
     }
     pub(crate) fn serialize_puzzle_log(&mut self, replay: bool) -> Option<String> {
