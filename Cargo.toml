@@ -83,12 +83,12 @@ timecheck = { path = "crates/timecheck" }
 
 # Data structures
 approx_collections = { version = "3.1.0" }
-ball-tree = { version = "0.5.1" }
+ball-tree = { version = "0.5.2" }
 bitflags = { version = "2.10.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
 ecow = { version = "0.2.5" }
-indexmap = { version = "2.12.1" }                                              # must match serde_norway
+indexmap = { version = "2.13.0" }                                              # must match serde_norway
 smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }
 
@@ -167,7 +167,7 @@ wgpu = { version = "25.0.0", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
 opener = { version = "0.8.3" }
-rfd = { version = "0.16.0" }
+rfd = { version = "0.17.2" }
 key-names = { version = "3.0.0" }
 
 # Colors
