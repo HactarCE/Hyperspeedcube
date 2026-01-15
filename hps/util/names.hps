@@ -1,0 +1,12 @@
+export fn nth_uppercase(n: Nat) -> Str {
+    latin_letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[n % 26]
+    return nth_big_greek(floor(n / 26)) ++ latin_letter
+}
+
+BIG_GREEK_LETTERS = "ΓΔΘΛΞΠΣΦΨΩ"
+
+export fn nth_big_greek(n: Nat) -> Str {
+    if n==0 { return "" }
+    last_digit = (n - 1) % len(BIG_GREEK_LETTERS) + 1
+    return nth_big_greek((n - last_digit) / len(BIG_GREEK_LETTERS)) ++ BIG_GREEK_LETTERS[last_digit - 1]
+}

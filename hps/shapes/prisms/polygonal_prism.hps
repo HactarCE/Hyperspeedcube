@@ -46,7 +46,7 @@ export fn facet_colors_list(n: Nat) -> List[Map] {
         ++
         (0..n).map(fn(i) {
             #{
-                name = "F${to_base26(i)}",
+                name = "F${@util.names.nth_uppercase(i)}",
                 default = "Rainbow [${i}/${n}]",
             }
         })

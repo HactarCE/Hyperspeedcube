@@ -59,16 +59,10 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    laminated = n <= 2,
-                    real = n <= 3,
-                    super = n <= 2,
-                },
+                "cuts/canonical" = n == 3,
+                "cuts/depth/shallow" = n >= 3,
                 "cuts/depth/deep/to_adjacent" = n.is_even(),
                 "cuts/depth/half" = n.is_even(),
-                "external/leaderboard" = n >= 2,
-                "pieces/acronic" = n <= 3,
-                "pieces/standard" = true,
             },
         }
     },
@@ -79,9 +73,8 @@ add_puzzle_generator(
         author = ["Andrew Farkas", "Milo Jacquet"],
         shape = "3d/platonic/cube",
         axes = "3d/elementary/cubic",
-        turns_by = ["facet", "face"],
+        turns_by = "3d/rank2",
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = "depth/shallow",
     },
 
     examples = [
@@ -92,7 +85,6 @@ add_puzzle_generator(
         #{params = [3], aliases = ["Rubik's Cube"], tags = #{
             inventor = "Ernő Rubik",
             external = #{gelatinbrain = "3.1.2", museum = 7629, wca = "333"},
-            canonical = true,
         }},
         #{params = [4], aliases = ["Rubik's Revenge"], tags = #{
             inventor = "Peter Sebesteny",
@@ -153,9 +145,6 @@ add_puzzle_generator(
                 type = "puzzle",
                 "cuts/depth/deep/to_adjacent" = n.is_even(),
                 "cuts/depth/half" = n.is_even(),
-                "external/leaderboard" = n >= 2,
-                "pieces/acronic" = n <= 3,
-                "pieces/standard" = true,
             },
         }
     },
@@ -165,8 +154,7 @@ add_puzzle_generator(
         author = ["Andrew Farkas"],
         shape = "3d/platonic/cube",
         axes = "3d/elementary/cubic",
-        turns_by = ["facet", "face"],
-        completeness = ["laminated", "super", "real"],
+        turns_by = "3d/rank2",
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = "depth/shallow",
     },
@@ -261,16 +249,11 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    laminated = n <= 2,
-                    real = n <= 3,
-                    super = n <= 2,
-                },
+                "cuts/canonical" = n == 3,
+                "cuts/depth/shallow" = n >= 3,
                 "cuts/depth/deep/to_adjacent" = n.is_even(),
                 "cuts/depth/half" = n.is_even(),
                 "external/leaderboard" = n >= 2,
-                "pieces/acronic" = n <= 3,
-                "pieces/standard" = true,
             },
         }
     },
@@ -281,18 +264,18 @@ add_puzzle_generator(
         author = ["Andrew Farkas", "Milo Jacquet"],
         shape = "4d/platonic/hypercube",
         axes = "4d/elementary/hypercubic",
-        turns_by = ["facet", "cell"],
-        algebraic = ["doctrinaire", "pseudo/doctrinaire", "orientations/non_abelian"],
+        turns_by = "4d/rank3",
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = "depth/shallow",
     },
 
     examples = [
-        #{params = [2], tags = #{external = #{gelatinbrain = "8.1.1"}}},
-        #{params = [3], tags = #{canonical = true}},
-        #{params = [4]},
-        #{params = [5]},
-        #{params = [6]},
-        #{params = [7]},
+        #{params = [2], tags = #{external = #{wca = "322"}}},
+        #{params = [3], tags = #{external = #{wca = "333"}, "cuts/canonical" = true}},
+        #{params = [4], tags = #{external = #{wca = "444"}}},
+        #{params = [5], tags = #{external = #{wca = "555"}}},
+        #{params = [6], tags = #{external = #{wca = "666"}}},
+        #{params = [7], tags = #{external = #{wca = "777"}}},
     ],
 )
 
@@ -400,16 +383,10 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    laminated = n <= 2,
-                    real = n <= 3,
-                    super = n <= 2,
-                },
                 "cuts/depth/deep/to_adjacent" = n.is_even(),
                 "cuts/depth/half" = n.is_even(),
                 // no leaderboard support; use dimension-specific generators
-                "pieces/acronic" = n <= 3,
-                "pieces/standard" = true,
+                turns_by = "${d}d/rank${d-1}",
             },
         }
     },
@@ -417,8 +394,7 @@ add_puzzle_generator(
     tags = #{
         schema = 1,
         author = ["Andrew Farkas"],
-        turns_by = ["facet"],
-        algebraic = ["doctrinaire", "pseudo/doctrinaire", "orientations/non_abelian"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = "depth/shallow",
     },
 )

@@ -5,7 +5,6 @@ return #{
         external = #{
             gelatinbrain = "1.1.1",
             hof = "https://superliminal.com/cube/halloffame.htm",
-            mc4d = false,
             leaderboard = true,
             link = ["url1", "url2"],
             museum = 7629,
@@ -13,19 +12,13 @@ return #{
         },
 
         big = false,
-        bulitin = "2.0.0",
         stable = "2.0.0",
         type = "puzzle", // or "shape"
         shape = "3d/TODO",
         colors = ["multi_per_facet", "multi_facet_per"],
         shapeshifting = true,
         axes = ["3d/TODO", "hybrid", "multicore"],
-        turns_by = [
-            "facet", "ridge", "peak",
-            "cell", "face", "edge", "vertex",
-            "other",
-        ],
-        completeness = ["super", "real", "laminated", "complex"],
+        turns_by = ["3d/rank0", "3d/rank1", "3d/rank2"],
         algebraic = [
             "total/doctrinaire", "pseudo/doctrinaire",
             "abelian", "fused", "non_faithful_action",
@@ -33,9 +26,8 @@ return #{
             "trivial",
             "weird_orbits",
         ],
-        cuts = ["depth/TODO", "stored", "wedge"],
+        cuts = ["canonical", "depth/TODO", "stored", "wedge"],
         pieces = ["acronic", "sphenic", "standard", "trivial"],
-        canonical = true,
         family = "TODO",
         "variant/isomorphic_to" = "TODO",
         meme = true,

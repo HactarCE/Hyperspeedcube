@@ -91,6 +91,12 @@ __separator
 __heading "Twists"
 
 axes "Axis system" expected=1 {
+  _1d "1D" {
+    axial "Axial"
+  }
+  _2d "2D" {
+    polygonal "Polygonal"
+  }
   _3d "3D" {
     elementary "Elementary" {
       cubic "Cubic"
@@ -103,16 +109,9 @@ axes "Axis system" expected=1 {
       rhombic_triacontahedral "Rhombic triacontahedral"
     }
     archimedean "Archimedean" {
-      cuboctahedral "Cuboctahedral"
-      rhombicubocdahedral "Rhombicuboctahedral"
+      snub_cubic "Snub Cubic"
+      snub_dodecahedral "Snub Dodecahedral"
     }
-    catalan "Catalan" {
-      rhombic_dodecahedron "Rhombic dodecahedron"
-    }
-    compound "Compound" {
-      _5tetrahedra "5 tetrahedra"
-    }
-    prism "Prism"
     other "Other"
   }
   _4d "4D" {
@@ -124,12 +123,12 @@ axes "Axis system" expected=1 {
       _120cell "120-cell"
       _600cell "600-cell"
     }
-    prism "Prism" {
-      dodecahedral "Dodecahedral prism"
-    }
-    duoprism "Duoprism"
   }
-  hybrid "Hybrid" expected=1
+  hybrid "Hybrid" expected=1 {
+    prismatic "Prismatic"
+    duoprismatic "Duoprismatic"
+    trioprismatic "Trioprismatic"
+  }
   multicore "Multi-core" expected=1
 }
 
@@ -138,23 +137,51 @@ twists "Twists" {
 }
 
 turns_by "Turning element" expected=1 {
-  facet "Facet-turning"
-  ridge "Ridge-turning"
-  peak "Peak-turning"
-  __separator
-  cell "Cell-turning"
-  face "Face-turning"
-  edge "Edge-turning"
-  vertex "Vertex-turning"
-  __separator
-  other "Other"
-}
-
-completeness "Completeness" {
-  super "Super" expected=1
-  real "Real" expected=1 // all non-core internal pieces are present and each can be unsolved
-  laminated "Laminated" expected=1
-  complex "Complex" expected=1
+  _2d "2D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    other "Other"
+  }
+  _3d "3D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    rank2 "Face"
+    other "Other"
+  }
+  _4d "4D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    rank2 "Ridge"
+    rank3 "Facet"
+    other "Other"
+  }
+  _5d "5D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    rank2 "Peak"
+    rank3 "Ridge"
+    rank4 "Facet"
+    other "Other"
+  }
+  _6d "6D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    rank2 "Face"
+    rank3 "Peak"
+    rank4 "Ridge"
+    rank5 "Facet"
+    other "Other"
+  }
+  _7d "7D" {
+    rank0 "Vertex"
+    rank1 "Edge"
+    rank2 "Face"
+    rank3 "Cell"
+    rank4 "Peak"
+    rank5 "Ridge"
+    rank6 "Facet"
+    other "Other"
+  }
 }
 
 algebraic "Algebraic properties" {
@@ -175,9 +202,6 @@ algebraic "Algebraic properties" {
   // grip group whose action on the grips is identity (e.g., U4 on quaternion
   // cube)
   non_faithful_action "Non-faithful action" expected=1
-  orientations inline=#true {
-    non_abelian "Non-abelian orientations" expected=1
-  }
   // `trivial` means the state space is equivalent to a product of "lines,"
   // where a "line" is a puzzle with at most two moves available from any
   // position
@@ -190,31 +214,27 @@ __separator
 __heading "Cuts"
 
 cuts inline=#true {
-  depth "Cut depth" expected=1 {
+  canonical "Canonical" expected=1 // only 1 axis type; its cuts are shallowest possible planar cut
+  depth "Cut depth" expected=1 { // tag with all that apply
     shallow "Shallow"
     deep "Deep" {
       to_adjacent "To adjacent"
       past_adjacent "Past adjacent"
       past_origin "Past origin"
     }
-    half "Half-cut"
+    half "Half-cut" // cut to origin
   }
   stored "Stored cuts" expected=1
   wedge "Wedge cuts" expected=1
 }
 
 pieces "Pieces" {
-  acronic "Acronic" // only acra and grip subsets thereof
-  sphenic "Sphenic" // only core, axles, and sphenes
-  standard "Standard" // only has pieces turnable by 1 cut, 2 adjacent cuts, 3 mutually adjacent cuts, etc. up to the rank of the puzzle
-  trivial "Trivial" // only has axis pieces turnable by one cut
+  sphenic "Sphenic" // only core, axles, and sphenes, and there is at least one sphene
 }
 
 __separator
 
 __heading "Categories"
-
-canonical "Canonical" expected=1
 
 family "Family" expected=1 {
   gap "Gap" {
@@ -261,7 +281,6 @@ __heading "Miscellaneous"
 
 solved "Solved" auto=#true
 generated "Generated" auto=#true
-(str)builtin "Built-in" expected=1 // program version that first had this puzzle built-in
 (str)stable "Stable" hidden=#true expected=1 // program version that first had this puzzle stable
 external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=1

@@ -32,30 +32,30 @@ export fn new(n: Nat, m: Nat, t: Transform) -> Map {
     export sym, a, b
 
     export a_facet_pole = a.edge_pole
-    export a_facet_names = "A${a.edge_names}"
+    export a_facet_names = "ε${a.edge_names}"
 
     export b_facet_pole = b.edge_pole
-    export b_facet_names = "B${b.edge_names}"
+    export b_facet_names = "η${b.edge_names}"
 
     export a_facet_opposite_pole = a.edge_opposite_pole
-    export a_facet_opposite_names = "Z${a.edge_opposite_names}"
+    export a_facet_opposite_names = "ω${a.edge_opposite_names}"
 
     export b_facet_opposite_pole = b.edge_opposite_pole
-    export b_facet_opposite_names = "Y${b.edge_opposite_names}"
+    export b_facet_opposite_names = "ψ${b.edge_opposite_names}"
 }
 
 export fn facet_colors_list(n: Nat, m: Nat) -> List[Map] {
     (
         (0..n).map(fn(i) {
             #{
-                name = "A${to_base26(i)}",
+                name = "ε${@util.names.nth_uppercase(i)}",
                 default = "Dark Rainbow [${i}/${n}]",
             }
         })
         ++
         (0..m).map(fn(i) {
             #{
-                name = "B${to_base26(i)}",
+                name = "η${@util.names.nth_uppercase(i)}",
                 default = "Light Rainbow [${i}/${n}]",
             }
         })

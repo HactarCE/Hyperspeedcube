@@ -24,7 +24,7 @@ export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_t
 // Face-Turning Polygonal Prism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_prism",
-    version = "0.1.0",
+    version = "1.0.0",
     name = "Face-Turning Polygonal Prism (Shallow)",
     params = [
         param_polygon_size("Polygon size"),
@@ -37,7 +37,7 @@ add_puzzle_generator(
             name = ft_polygonal_prism_name(n, width, height, "Shallow"),
             ndim = 3,
             colors = "polygonal_prism:${n}",
-            twists = "ft_polygonal_prismic:${n}",
+            twists = "ft_polygonal_prismatic:${n}",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
                     polygon = @shapes/i/polygon.new(n),
@@ -61,34 +61,34 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    laminated = n <= 2, // TODO
-                    real = n <= 3, // TODO
-                    super = n <= 2, // TODO
-                },
-                "cuts/depth/deep/to_adjacent" = n.is_even(), // TODO
-                "cuts/depth/half" = n.is_even(), // TODO
-                "external/leaderboard" = n >= 2, // TODO
-                "pieces/standard" = true,
+                "turns_by/3d/rank1" = n == 3,
+                "algebraic/abelian" = width == 1,
+                trivial = width == 1 or (n == 4 and width == 2 and height == 1),
+                "cuts/canonical" = width == 3 and height == 3,
+                "cuts/depth/shallow" = width > 2 or height > 2,
+                "cuts/depth/deep/to_adjacent" = height.is_even() or (width.is_even() and n > 3),
+                "cuts/depth/half" = height.is_even() or (n <= 4 and width.is_even()),
+                "cuts/depth/shallow" = width == 3 and height == 3,
+                "pieces/sphenic" = width <= 3 and height == 1,
             },
         }
     },
 
     tags = #{
         schema = 1,
+        stable = "2.0.0",
         author = ["Andrew Farkas", "Luna Harran"],
         shape = "3d/prism",
-        axes = "3d/prism",
-        turns_by = ["facet", "face"],
+        axes = ["1d/axial", "2d/polygonal", "hybrid/prismatic"],
+        turns_by = "3d/rank2",
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = "depth/shallow", // TODO
     },
 )
 
 // Face-Turning Triminx Prism generator
 add_puzzle_generator(
     id = "ft_triminx_prism",
-    version = "0.1.0",
+    version = "1.0.0",
     name = "Face-Turning Triminx Prism",
     params = [
         param_polygon_width("Width"),
@@ -96,15 +96,14 @@ add_puzzle_generator(
     ],
     engine = "euclid",
     gen = fn(width, height) {
-        n = 3 // TODO
         return #{
             name = ft_polygonal_prism_name(3, width, height, "Triminx"),
             ndim = 3,
             colors = "polygonal_prism:3",
-            twists = "ft_polygonal_prismic:3",
+            twists = "ft_polygonal_prismatic:3",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
-                    polygon = @shapes/i/polygon.new(n),
+                    polygon = @shapes/i/polygon.new(3),
                     line = @shapes/line.new(),
                 })
                 h = polygon.edge_length / 2
@@ -125,33 +124,29 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    laminated = n <= 2, // TODO
-                    real = n <= 3, // TODO
-                    super = n <= 2, // TODO
-                },
-                "cuts/depth/deep/to_adjacent" = n.is_even(), // TODO
-                "cuts/depth/half" = n.is_even(), // TODO
-                "external/leaderboard" = n >= 2, // TODO
-                // "pieces/standard" = true, // TODO
+                "cuts/depth/shallow" = height == 3 or width >= 4,
+                "cuts/depth/deep/to_adjacent" = height.is_even() or width.is_odd(),
+                "cuts/depth/half" = height.is_even() or width.is_odd(),
+                "algebraic/trivial" = width == 1 or (height == 1 and width == 2),
+                "pieces/sphenic" = width == 2 and height >= 2,
             },
         }
     },
 
     tags = #{
         schema = 1,
+        stable = "2.0.0",
         author = ["Andrew Farkas", "Luna Harran"],
         shape = "3d/prism",
-        axes = "3d/prism",
-        turns_by = ["facet", "face"],
+        axes = ["1d/axial", "2d/polygonal", "hybrid/prismatic"],
+        turns_by = ["3d/rank1", "3d/rank2"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = "depth/shallow", // TODO
     },
 )
 
 // Face-Turning Polygonal Prism twist system generator
 add_twist_system_generator(
-    id = "ft_polygonal_prismic",
+    id = "ft_polygonal_prismatic",
     name = "Face-Turning Polygonal Prism",
     params = [param_polygon_size("Polygon Size")],
     engine = "euclid",
@@ -247,7 +242,7 @@ fn build_ft_polygonal_duoprism(shape: Map, a_depths: List[Num], b_depths: List[N
 // Facet-Turning Polygonal Duoprism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism",
-    version = "0.1.0",
+    version = "1.0.0",
     name = "Facet-Turning Polygonal Duoprism (Shallow)",
     params = @shapes/prisms/polygonal_duoprism.params ++ [
         param_polygon_width("Layers A"),
@@ -275,51 +270,53 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    real = true,
-                },
+                "turns_by/4d/rank2" = n == 3 or m == 3,
+                "cuts/canonical" = n_layers == 3 and m_layers == 3,
+                "cuts/depth/shallow" = not (n == 4 and m == 4 and n_layers == 2 and m_layers == 2),
+                "cuts/depth/deep/to_adjacent" = (n == 4 and n_layers.is_even()) or (m == 4 and m_layers.is_even()),
+                "cuts/depth/half" = (n == 4 and n_layers.is_even()) or (m == 4 and m_layers.is_even()),
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
-                "pieces/standard" = true,
                 canonical_id = canonical_id,
+                big = n > 50 or m > 50,
             },
         }
     },
 
     tags = #{
         schema = 1,
+        stable = "2.0.0",
         author = ["Andrew Farkas", "Luna Harran"],
         shape = "4d/duoprism",
-        axes = "4d/duoprism",
-        turns_by = ["facet", "cell"],
+        axes = ["2d/polygonal", "hybrid/duoprismatic"],
+        turns_by = ["4d/rank3"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = "depth/shallow",
     },
 
     examples = [
         // All the ones in MC4D
-        #{params = [3, 3, 3, 3], tags = #{meme = true}},
-        // #{params = [4, 3, 3, 3], tags = #{meme = true}},
-        #{params = [5, 4, 3, 3], tags = #{meme = true}},
-        // #{params = [6, 4, 3, 3], tags = #{meme = true}},
-        // #{params = [7, 4, 3, 3], tags = #{meme = true}},
-        // #{params = [8, 4, 3, 3], tags = #{meme = true}},
-        // #{params = [10, 4, 3, 3], tags = #{meme = true}},
-        #{params = [5, 3, 3, 3], tags = #{meme = true}},
-        #{params = [10, 5, 3, 3], tags = #{meme = true}},
-        #{params = [5, 5, 3, 3], tags = #{meme = true}},
-        // #{params = [6, 6, 3, 3], tags = #{meme = true}},
-        // #{params = [7, 7, 3, 3], tags = #{meme = true}},
-        // #{params = [8, 8, 3, 3], tags = #{meme = true}},
-        // #{params = [9, 9, 3, 3], tags = #{meme = true}},
-        // #{params = [10, 10, 3, 3], tags = #{meme = true}},
-        // #{params = [100, 4, 3, 3], tags = #{meme = true}},
+        #{params = [3, 3, 3, 3]},
+        // #{params = [4, 3, 3, 3]},
+        #{params = [5, 4, 3, 3]},
+        // #{params = [6, 4, 3, 3]},
+        // #{params = [7, 4, 3, 3]},
+        // #{params = [8, 4, 3, 3]},
+        // #{params = [10, 4, 3, 3]},
+        #{params = [5, 3, 3, 3]},
+        #{params = [10, 5, 3, 3]},
+        #{params = [5, 5, 3, 3]},
+        // #{params = [6, 6, 3, 3]},
+        // #{params = [7, 7, 3, 3]},
+        // #{params = [8, 8, 3, 3]},
+        // #{params = [9, 9, 3, 3]},
+        // #{params = [10, 10, 3, 3]},
+        #{params = [100, 4, 3, 3], tags = #{meme = true}},
     ],
 )
 
 // Facet-Turning Polygonal Duoprism (Shallow, Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx",
-    version = "0.1.0",
+    version = "1.0.0",
     name = "Facet-Turning Polygonal Duoprism (Shallow, Triminx)",
     params = [
         @shapes/prisms/polygonal_duoprism.params[0],
@@ -343,23 +340,22 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    real = true,
-                },
+                "cuts/depth/deep/to_adjacent" = n_layers.is_odd() or (m == 4 and m_layers.is_even()),
+                "cuts/depth/half" = n_layers.is_odd() or (m == 4 and m_layers.is_even()),
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
-                "pieces/standard" = true,
             },
         }
     },
 
     tags = #{
         schema = 1,
+        stable = "2.0.0",
         author = ["Andrew Farkas", "Luna Harran"],
         shape = "4d/duoprism",
-        axes = "4d/duoprism",
-        turns_by = ["facet", "cell"],
+        axes = ["2d/polygonal", "hybrid/duoprismatic"],
+        turns_by = ["4d/rank2", "4d/rank3"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = ["depth/shallow", "depth/half"],
+        cuts = ["depth/shallow"],
     },
 
     examples = [
@@ -373,7 +369,7 @@ add_puzzle_generator(
 // Facet-Turning Polygonal Duoprism (Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx_3_minx",
-    version = "0.1.0",
+    version = "1.0.0",
     name = "Facet-Turning Polygonal Duoprism (Triminx)",
     params = [
         param_polygon_width("Layers A"),
@@ -397,11 +393,9 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                completeness = #{
-                    real = true,
-                },
+                "cuts/depth/deep/to_adjacent" = n_layers.is_odd() or m_layers.is_odd(),
+                "cuts/depth/half" = n_layers.is_odd() or m_layers.is_odd(),
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
-                "pieces/standard" = true,
                 canonical_id = canonical_id,
             },
         }
@@ -409,12 +403,13 @@ add_puzzle_generator(
 
     tags = #{
         schema = 1,
+        stable = "2.0.0",
         author = ["Andrew Farkas", "Luna Harran"],
         shape = "4d/duoprism",
-        axes = "4d/duoprism",
-        turns_by = ["facet", "cell"],
+        axes = ["2d/polygonal", "hybrid/duoprismatic"],
+        turns_by = ["4d/rank2", "4d/rank3"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
-        cuts = ["depth/shallow", "depth/half"],
+        cuts = ["depth/shallow"],
     },
 
     examples = [
@@ -487,15 +482,15 @@ add_twist_system_generator(
                         [shape.a_facet_pole, shape.a_facet_names],
                         [shape.b_facet_pole, shape.b_facet_names],
                     ],
-                    init = ["AA", "AB", "BA"],
+                    init = ["εA", "εB", "ηA"],
                 )
 
                 // Add facet-centered XZ/YW vantage set
-                use AA, AB, BA, BB from #axes
+                use εA, εB, ηA, ηB from #axes
                 xy = shape.sym.thru([1, 0])
-                AZ = xy.rev().transform(AA)
+                εZ = xy.rev().transform(εA)
                 zw = shape.sym.thru([3, 2])
-                BZ = zw.rev().transform(BA)
+                ηZ = zw.rev().transform(ηA)
 
                 add_vantage_set(
                     name = "Facet-centered XZ/YW",
@@ -503,8 +498,8 @@ add_twist_system_generator(
                     view_offset = ident(), // TODO
                     transforms = #{ xy = xy, zw = zw }, // TODO: more
                     axes = #{
-                        L = AZ, F = AA, R = AB,
-                        D = BZ, I = BA, U = BB,
+                        L = εZ, F = εA, R = εB,
+                        D = ηZ, I = ηA, U = ηB,
                     },
                 )
             },

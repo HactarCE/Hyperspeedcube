@@ -38,9 +38,9 @@ export fn adjective(n: Nat) -> Str { ADJECTIVES[n] ?? "${n}-gonal" }
 export ndim = 2
 
 fn generic_names(n: Nat, m2: Nat, m1: Nat) {
-    names = #{"${to_base26(0)}" = []}
+    names = #{"${@util.names.nth_uppercase(0)}" = []}
     for i in 1..n {
-        names["${to_base26(i)}"] = [m2, m1, "${to_base26(i-1)}"]
+        names["${@util.names.nth_uppercase(i)}"] = [m2, m1, "${@util.names.nth_uppercase(i-1)}"]
     }
     return names
 }
