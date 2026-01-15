@@ -1,18 +1,18 @@
 //! Hypercubing leaderboards authentication.
 
+use std::borrow::Cow;
 use std::time::Duration;
 
 use base64::prelude::*;
-use chrono::NaiveDate;
-use rand::{SeedableRng, seq::IndexedRandom};
+use chrono::{DateTime, NaiveDate, Utc};
+use rand::SeedableRng;
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use ureq::{
-    Agent, RequestBuilder,
-    config::Config,
-    http::StatusCode,
-    typestate::{WithBody, WithoutBody},
-};
+use ureq::config::Config;
+use ureq::http::StatusCode;
+use ureq::typestate::{WithBody, WithoutBody};
+use ureq::{Agent, RequestBuilder};
 
 /// Domain for the official Hypercubing leaderboards.
 ///
@@ -63,6 +63,14 @@ pub enum Error {
     AuthTimeout,
     #[error("bad token")]
     BadToken,
+    #[error("internal error: {0}")]
+    Internal(&'static str),
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::Ureq(ureq::Error::Json(e))
+    }
 }
 
 /// Info about the signed-in leaderboards user.
@@ -142,8 +150,11 @@ impl AuthFlow {
         match response.status() {
             StatusCode::UNAUTHORIZED => Err(Error::AuthTimeout), // probably timeout
             StatusCode::NO_CONTENT => Ok(None),                  // keep polling
-            StatusCode::OK => Ok(Some(response.into_body().read_to_string()?)), // success! this is a token
-            _ => Err(Error::UnknownResponse(response)),                         // other response
+
+            // success! this is a token
+            StatusCode::OK => Ok(Some(response.into_body().read_to_string()?)),
+
+            _ => Err(Error::UnknownResponse(response)), // other response
         }
     }
 
@@ -256,6 +267,16 @@ impl Leaderboards {
         Ok(solve_submission_url.to_string())
     }
 
+    /// Returns PBs for a specific puzzle for the current user.
+    pub fn get_pbs(&self, request: &PersonalBestRequest) -> Result<PersonalBests, Error> {
+        Ok(self
+            .req_get("/api/solver-pbs")
+            .query_pairs(json_map_to_query_pairs(request)?)
+            .call()?
+            .into_body()
+            .read_json()?)
+    }
+
     /// Invalidates the current token.
     ///
     /// **This method blocks and should be run on a background thread.**
@@ -312,4 +333,95 @@ pub struct AutoVerifySubmission {
     pub log_file_name: String,
     /// Log file contents.
     pub log_file_contents: String,
+}
+
+/// Parameters for requesting puzzle PBs.
+///
+/// `puzzle_id` and `hsc_puzzle_id` are mutually exclusive; one of them is
+/// required. All other fields are optional. `target_user` is assumed to be the
+/// current user.
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct PersonalBestRequest {
+    /// Leaderboards ID for the puzzle. If `None`, use `hsc_puzzle_id` instead.
+    pub puzzle_id: Option<i32>,
+    /// HSC2 ID for the puzzle. If `None`, use `puzzle_id` instead.
+    pub hsc_puzzle_id: Option<String>,
+
+    /// User whose PBs to fetch. If `None`, use the currently logged-in user.
+    pub target_user: Option<i32>,
+
+    /// Flags: average
+    pub average: bool,
+    /// Flags: blindfolded
+    pub blind: bool,
+    /// Flags: filters (if `None`, use the default for the puzzle)
+    pub filters: Option<bool>,
+    /// Flags: macros (if `None`, use the default for the puzzle)
+    pub macros: Option<bool>,
+    /// Flags: one-handed
+    pub one_handed: bool,
+
+    /// Whether to only consider verified (approved) solves. If `None`, then
+    /// unverified solves are included as well.
+    pub require_verified: bool,
+}
+
+/// Personal best solves in a category.
+#[derive(Deserialize, Debug, Default, Clone)]
+pub struct PersonalBests {
+    /// Speed PB
+    pub speed: Option<Solve>,
+    /// FMC PB
+    pub fmc: Option<Solve>,
+    /// Computer-assisted FMC PB
+    pub fmcca: Option<Solve>,
+}
+
+/// Solve on the leaderboards.
+#[derive(Deserialize, Debug, Clone)]
+pub struct Solve {
+    /// Numeric ID of the solve.
+    pub id: i32,
+    /// Absolute URL to the solve page.
+    pub url: String,
+    /// Date that the solve was performed.
+    pub solve_date: DateTime<Utc>,
+    /// Move count, if known if authorized to be shown.
+    pub move_count: Option<i32>,
+    /// Speedsolve duration in centiseconds, if known and if authorized to be
+    /// shown.
+    pub speed_cs: Option<i32>,
+    /// FMC verification status. `None` if not unverified, `Some(false)` if
+    /// rejected, `Some(true)` if approved.
+    pub fmc_verified: Option<bool>,
+    /// Speed verification status. `None` if not unverified, `Some(false)` if
+    /// rejected, `Some(true)` if approved.
+    pub speed_verified: Option<bool>,
+}
+
+fn json_map_to_query_pairs<T: serde::Serialize>(
+    value: &T,
+) -> Result<Vec<(String, Cow<'static, str>)>, Error> {
+    let mut query_pairs: Vec<(String, Cow<'static, str>)> = vec![];
+    let json_value = serde_json::to_value(value)?;
+    for (k, v) in json_value
+        .as_object()
+        .ok_or(Error::Internal("expected JSON object"))?
+    {
+        let value_string = match v {
+            serde_json::Value::Null => continue, // skip
+            serde_json::Value::Bool(false) => "false".into(),
+            serde_json::Value::Bool(true) => "true".into(),
+            serde_json::Value::Number(number) => number.to_string().into(),
+            serde_json::Value::String(s) => s.clone().into(),
+            serde_json::Value::Array(_) => {
+                return Err(Error::Internal("expected JSON primitive; got array"));
+            }
+            serde_json::Value::Object(_) => {
+                return Err(Error::Internal("expected JSON primitive; got object"));
+            }
+        };
+        query_pairs.push((k.clone(), value_string))
+    }
+    Ok(query_pairs)
 }

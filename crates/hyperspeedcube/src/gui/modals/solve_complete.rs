@@ -2,16 +2,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use hypercubing_leaderboards_client::{AutoVerifySubmission, Leaderboards};
-use hyperpuzzle::chrono::Utc;
+use hypercubing_leaderboards_client::{
+    AutoVerifySubmission, Leaderboards, PersonalBestRequest, PersonalBests,
+};
+use hyperpuzzle::chrono::{DateTime, Utc};
 use hyperpuzzle::verification::SolveVerification;
 use hyperpuzzle::{Timestamp, chrono};
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
 use parking_lot::Mutex;
+use serde::Deserialize;
 
 use crate::gui::App;
+use crate::gui::markdown::md;
 use crate::gui::util::EguiTempValue;
 use crate::leaderboards::LeaderboardsClientState;
 
@@ -28,6 +32,8 @@ struct SolveCompletePopup {
 
     signature: Arc<Mutex<SignedState>>,
     digest: Arc<[u8]>,
+
+    pbs: Option<Arc<Mutex<Option<Result<PersonalBests, String>>>>>,
 
     solver_notes: String,
     computer_assisted: bool,
@@ -74,6 +80,24 @@ impl SolveCompletePopup {
             }
         });
     }
+
+    fn fetch_pbs(&mut self, leaderboards: &Arc<Leaderboards>) {
+        let request = PersonalBestRequest {
+            hsc_puzzle_id: Some(self.verification.puzzle_canonical_id.clone()),
+            blind: self.verification.durations.blindsolve.is_some(),
+            filters: Some(self.verification.used_filters),
+            macros: Some(self.verification.used_macros),
+            ..Default::default()
+        };
+
+        let pbs = Arc::new(Mutex::new(None));
+        self.pbs = Some(Arc::clone(&pbs));
+        let leaderboards = Arc::clone(&leaderboards);
+        std::thread::spawn(move || {
+            let result = leaderboards.get_pbs(&request);
+            *pbs.lock() = Some(result.map_err(|e| e.to_string()));
+        });
+    }
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -85,10 +109,22 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .unwrap_or(true)
     }) {
         let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
-            ui.heading(format!(
-                "Yay! You solved the {} in {} twists",
+            let mut heading = format!(
+                "Yay! You solved {} in {} twists",
                 popup.puzzle_name, popup.verification.solution_stm,
-            ));
+            );
+            if let Some(dur) = popup
+                .verification
+                .durations
+                .blindsolve
+                .or(popup.verification.durations.speedsolve)
+            {
+                heading += &format!(
+                    " and {}",
+                    format_cs((dur.as_seconds_f64() * 100.0).floor() as i32),
+                );
+            }
+            ui.heading(heading);
 
             if let Some(dur) = popup
                 .verification
@@ -149,7 +185,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
 
             let timestamp_in_progress = matches!(*signature_state, SignedState::Waiting);
-            let timestamp_ok = matches!(*signature_state, SignedState::OkDone);
+            let timestamp_ok = matches!(
+                *signature_state,
+                SignedState::OkDone
+            );
 
             drop(signature_state); // unlock mutex
             if try_sign {
@@ -199,18 +238,95 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             ui.separator();
 
-            ui.label(
-                "Please do not submit a solve to the leaderboard unless it is a personal best.",
-            );
+            crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
+
+            ui.separator();
+
+            if let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock() {
+                let mut fetch_pbs = false;
+                if popup.pbs.is_none() {
+                    popup.fetch_pbs(lb);
+                    solve_complete_popup.set(Some(Some(popup.clone())));
+                }
+                match &*popup.pbs.as_ref().unwrap().lock() {
+                    Some(Ok(pbs)) => {
+                        let speed_duration = (popup.verification.durations.blindsolve)
+                            .or(popup.verification.durations.speedsolve);
+                        if let Some(dur) = speed_duration {
+                            if let Some(old_speed_pb) = &pbs.speed
+                                && let Some(old_speed_pb_cs) = old_speed_pb.speed_cs
+                            {
+                                let verified = old_speed_pb.speed_verified == Some(true);
+                                md(ui, format!(
+                                    "Your [best time on the leaderboards]({}){} is {}.",
+                                    old_speed_pb.url,
+                                    if verified { "" } else { " (unverified)" },
+                                    format_cs(old_speed_pb_cs),
+                                ));
+                                if ((dur.as_seconds_f64() * 100.0).floor() as i32) < old_speed_pb_cs
+                                {
+                                    ui.strong("This solve is faster!");
+                                }
+                            } else {
+                                ui.strong("You don't have a speedsolve on \
+                                           the leaderboards for this puzzle.");
+                            }
+                        }
+
+                        let stm = popup.verification.solution_stm;
+                        let old_fmc_pb = if popup.computer_assisted {
+                            &pbs.fmcca
+                        } else {
+                            &pbs.fmc
+                        };
+                        if let Some(old_fmc_pb) = old_fmc_pb
+                            && let Some(old_fmc_pb_stm) = old_fmc_pb.move_count
+                        {
+                            let verified = old_fmc_pb.fmc_verified == Some(true);
+                            md(ui, format!(
+                                "Your [shortest solution on the leaderboards]({}){} is {} STM.",
+                                old_fmc_pb.url,
+                                if verified { "" } else { " (unverified)" },
+                                old_fmc_pb_stm,
+                            ));
+                            if stm < old_fmc_pb_stm as u64 {
+                                ui.strong("This solve is shorter!");
+                            }
+                        } else {
+                            ui.strong("You don't have a fewest-moves solve \
+                                       on the leaderboards for this puzzle.");
+                        }
+
+                        fetch_pbs |= ui.button("Refresh").clicked();
+                    }
+                    Some(Err(e)) => {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("Error fetching PBs from leaderboard: {e}"));
+                            fetch_pbs |= ui.button("Retry").clicked();
+                        });
+                    }
+                    None => {
+                        ui.label("Fetching PBs from leaderboard ...");
+                    }
+                }
+                if fetch_pbs {
+                    popup.pbs = None;
+                    solve_complete_popup.set(Some(Some(popup.clone())));
+                }
+
+                ui.separator();
+            }
 
             ui.add_enabled_ui(timestamp_ok, |ui| {
-                crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
                 if let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock() {
                     let mut changed = false;
                     let try_submit = match &*popup.submission.lock() {
                         SubmissionState::Init => {
                             changed |= ui
-                                .checkbox(&mut popup.computer_assisted, "Computer-assisted FMC")
+                                .checkbox(
+                                    &mut popup.computer_assisted,
+                                    "This is a computer-assisted FMC solve",
+                                )
                                 .changed();
                             changed |= ui
                                 .checkbox(
@@ -220,7 +336,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 .changed();
                             ui.label("Notes (optional)");
                             changed |= ui.text_edit_multiline(&mut popup.solver_notes).changed();
-                            ui.button("Submit to leaderboards").clicked()
+                            let submit = ui.button("Submit to leaderboards").clicked();
+                            ui.label("Please only submit if this is better than your existing leaderboard time");
+                            submit
                         }
                         SubmissionState::Waiting => {
                             ui.horizontal(|ui| {
@@ -240,7 +358,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 ui.hyperlink_to("View your submission", s);
                                 false
                             })
-                            .inner
+                            .inner;
+                            ui.button("Submit to leaderboards").clicked()
                         }
                     };
                     if try_submit {
@@ -317,6 +436,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     signature: Arc::new(Mutex::new(SignedState::Init)),
                     digest,
 
+                    pbs: None,
+
                     solver_notes: String::new(),
                     computer_assisted: false,
                     will_upload_video: false,
@@ -355,4 +476,22 @@ enum SubmissionState {
     Waiting,
     Err(String),
     Ok(String),
+}
+
+fn format_cs(centiseconds: i32) -> String {
+    let cs = centiseconds % 100;
+    let s = (centiseconds / 100) % 60;
+    let m = (centiseconds / (100 * 60)) % 60;
+    let h = (centiseconds / (100 * 60 * 60)) % 24;
+    let d = centiseconds / (100 * 60 * 60 * 24);
+
+    if d > 0 {
+        format!("{d}d {h:0>2}h {m:0>2}m {s:0>2}.{cs:0>2}s",)
+    } else if h > 0 {
+        format!("{h}h {m:0>2}m {s:0>2}.{cs:0>2}s")
+    } else if m > 0 {
+        format!("{m}m {s:0>2}.{cs:0>2}s")
+    } else {
+        format!("{s}.{cs:0>2}s")
+    }
 }

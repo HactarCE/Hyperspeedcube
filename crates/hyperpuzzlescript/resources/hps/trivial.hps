@@ -1,0 +1,22 @@
+use * from euclid
+
+add_puzzle(
+    id = "trivial",
+    version = "0.1.0",
+    name = "Trivial",
+    aliases = ["Boob Cube"],
+    colors = "cube",
+    twists = "ft_cubic",
+    engine = "euclid",
+    ndim = 3,
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        with #sym = cube.sym { carve(plane(cube.facet_pole), cube.facet_names) }
+        add_layers(#axes.U, [1, 0, -1])
+        add_layers(#axes.D, [1, 0, -1])
+    },
+    tags = #{
+        type = "puzzle",
+        "external/leaderboard" = true,
+    },
+)
