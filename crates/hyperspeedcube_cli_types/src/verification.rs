@@ -19,8 +19,8 @@ pub struct SolveVerification {
 
     /// Timestamps of various events, according to the log file.
     pub timestamps: Timestamps,
-    /// Timestamps of various events that were able to be cryptographically verified
-    /// with a third party.
+    /// Timestamps of various events that were able to be cryptographically
+    /// verified with a third party.
     pub verified_timestamps: VerifiedTimestamps,
     /// Durations of various time intervals.
     ///
@@ -104,7 +104,8 @@ pub struct Durations {
     /// Duration between `timestamps.inspection_start` and
     /// `timestamps.first_move`, or `None` if the solve is a blindsolve.
     ///
-    /// This is the time taken for inspection. `None` if the solve is a blindsolve.
+    /// This is the time taken for inspection. `None` if the solve is a
+    /// blindsolve.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inspection: Option<Duration>,
     /// Duration between `timestamps.first_move` and `timestamps.last_move`.

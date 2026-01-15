@@ -35,15 +35,15 @@
 //! # Ok::<(), timecheck::drand::DrandError>(())
 //! ```
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use drand_verify::{G1Pubkey, G2PubkeyRfc, Pubkey};
 use hex_literal::hex;
+use serde::{Deserialize, Serialize};
 
 use crate::Verified;
 

@@ -1,8 +1,8 @@
 //! Types used by the `puzzle` subcommand.
 
-use serde::{Deserialize, Serialize};
-
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Common metadata about a puzzle or puzzle generator.
 ///

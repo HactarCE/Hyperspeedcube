@@ -6,9 +6,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::notation::TwistParseError;
-
 use super::*;
+use crate::notation::TwistParseError;
 
 const TSA: timecheck::tsa::Tsa = timecheck::tsa::Tsa::FREETSA;
 
@@ -29,7 +28,8 @@ pub struct VerificationOptions {
     pub verify_completion_timestamp: bool,
 }
 impl VerificationOptions {
-    /// Perform all checks, including those that may be expensive or require a network connection.
+    /// Perform all checks, including those that may be expensive or require a
+    /// network connection.
     pub const FULL: Self = Self {
         verify_scramble: true,
         verify_solution: true,
@@ -131,7 +131,7 @@ pub fn verify(
     let mut used_macros = false;
     for event in log {
         match event {
-            LogEvent::Scramble { .. } => return Err(SolveVerificationError::DoubleScramble), // don't scramble again!
+            LogEvent::Scramble { .. } => return Err(SolveVerificationError::DoubleScramble), /* don't scramble again */
             LogEvent::Click { .. } | LogEvent::DragTwist { .. } => (), // ignore interaction events
             LogEvent::Twists(twists_str) => {
                 bld_fsm.do_twist();

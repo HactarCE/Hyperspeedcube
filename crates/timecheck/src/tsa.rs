@@ -37,7 +37,10 @@
 //! # Ok::<(), timecheck::tsa::TsaError>(())
 //! ```
 
-use std::{borrow::Cow, error::Error, fmt, str::FromStr};
+use std::borrow::Cow;
+use std::error::Error;
+use std::fmt;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -272,7 +272,8 @@ impl PuzzleSimulation {
             }
         }
     }
-    /// Returns an error encountered while scrambling the puzzle, if there is one.
+    /// Returns an error encountered while scrambling the puzzle, if there is
+    /// one.
     pub fn scramble_error(&self) -> &Option<(ScrambleType, ScrambleError)> {
         &self.scramble_error
     }
@@ -345,7 +346,7 @@ impl PuzzleSimulation {
             ReplayEvent::Twists(twists) => {
                 self.do_action(Action::Twists(twists));
             }
-            ReplayEvent::SetBlindfold { enabled, .. } => self.blindfolded = enabled, // TODO: actually have an effect
+            ReplayEvent::SetBlindfold { enabled, .. } => self.blindfolded = enabled, /* TODO: actually have an effect */
             ReplayEvent::InvalidateFilterless { .. } => self.invalidated_filterless = true,
             ReplayEvent::StartSolve { time, duration } => {
                 self.do_action(Action::StartSolve { time, duration });
@@ -950,7 +951,7 @@ impl PuzzleSimulation {
                 &LogEvent::InvalidateFilterless { time } => {
                     ret.replay_event(ReplayEvent::InvalidateFilterless { time });
                 }
-                LogEvent::Macro { time: _ } => log::error!("macros are unsupported"), // TODO apply macro
+                LogEvent::Macro { time: _ } => log::error!("macros are unsupported"), /* TODO apply macro */
                 LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
                     ret.replay_event(ReplayEvent::StartSolve {

@@ -9,7 +9,8 @@ use eyre::{OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
-use hyperpuzzle::{Timestamp, prelude::*};
+use hyperpuzzle::Timestamp;
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,

@@ -3,7 +3,8 @@ use std::sync::{Arc, Weak};
 
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
-use hyperpuzzle::{Timestamp, prelude::*};
+use hyperpuzzle::Timestamp;
+use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
