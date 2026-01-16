@@ -591,6 +591,12 @@ impl PuzzleWidget {
             r.request_focus(); // TODO: what does this do
             self.wants_focus = true;
         }
+
+        if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
+            ui.scope_builder(egui::UiBuilder::new().max_rect(r.rect), |ui| {
+                crate::gui::components::show_ariadne_error_in_egui(ui, error);
+            });
+        }
     }
 }
 
