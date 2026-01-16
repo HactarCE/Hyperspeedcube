@@ -67,9 +67,6 @@ fn show_puzzle_load_hint(
                 }
             });
         });
-        if ui.button("See the full list").clicked() {
-            todo!("open & focus puzzle list")
-        }
     })
     .response
 }
