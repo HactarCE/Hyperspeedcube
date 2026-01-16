@@ -63,7 +63,7 @@ add_puzzle_generator(
                 type = "puzzle",
                 "turns_by/3d/rank1" = n == 3,
                 "algebraic/abelian" = width == 1,
-                trivial = width == 1 or (n == 4 and width == 2 and height == 1),
+                "algebraic/trivial" = width == 1 or (n == 4 and width == 2 and height == 1),
                 "cuts/canonical" = width == 3 and height == 3,
                 "cuts/depth/shallow" = width > 2 or height > 2,
                 "cuts/depth/deep/to_adjacent" = height.is_even() or (width.is_even() and n > 3),
@@ -340,8 +340,8 @@ add_puzzle_generator(
 
             tags = #{
                 type = "puzzle",
-                "cuts/depth/deep/to_adjacent" = n_layers.is_odd() or (m == 4 and m_layers.is_even()),
-                "cuts/depth/half" = n_layers.is_odd() or (m == 4 and m_layers.is_even()),
+                "cuts/depth/deep/to_adjacent" = (n == 4 and n_layers.is_even()) or m_layers.is_odd(),
+                "cuts/depth/half" = (n == 4 and n_layers.is_even()) or m_layers.is_odd(),
                 "external/leaderboard" = n_layers >= 2 and m_layers >= 2,
             },
         }
