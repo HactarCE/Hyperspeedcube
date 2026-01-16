@@ -347,9 +347,10 @@ impl Catalog {
                 notify: NotifyWhenDropped::new(),
             };
             log::trace!("building {type_str} {id:?}");
-            // Unlock the mutex before during expensive object generation.
-            let cache_entry_value =
-                MutexGuard::unlocked(&mut cache_entry_guard, || build_fn(&id, &progress));
+            // Unlock the mutex during expensive object generation.
+            drop(cache_entry_guard);
+            let cache_entry_value = build_fn(&id, &progress);
+            cache_entry_guard = cache_entry.lock();
             log::trace!("storing {type_str} {id:?}");
             // Store the result.
             *cache_entry_guard = cache_entry_value;
@@ -359,9 +360,9 @@ impl Catalog {
         if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
             log::trace!("waiting for another thread to build {type_str} {id:?}");
             let waiter = notify.waiter();
-            MutexGuard::unlocked(&mut cache_entry_guard, || {
-                waiter.wait();
-            });
+            drop(cache_entry_guard);
+            waiter.wait();
+            cache_entry_guard = cache_entry.lock();
             log::trace!("done waiting on {id:?}");
         }
 
