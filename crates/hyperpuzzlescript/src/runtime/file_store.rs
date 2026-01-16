@@ -105,6 +105,9 @@ impl Modules {
 
     /// Adds files recursively from a directory on disk.
     pub fn add_from_directory(&mut self, directory: &std::path::Path) {
+        if !directory.is_dir() {
+            return;
+        }
         for entry in walkdir::WalkDir::new(directory).follow_links(true) {
             match entry {
                 Ok(entry) => {
