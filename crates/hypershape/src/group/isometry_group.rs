@@ -80,6 +80,7 @@ impl IsometryGroup {
 
         dbg!("begin rayon");
         rayon::scope(|s| -> GroupResult<()> {
+            dbg!("begin scope");
             // Use `elements` as a queue. Keep pushing elements onto the end of
             // it, and "popping" them off the front by moving
             // `next_unprocessed_id` forward.
@@ -122,13 +123,18 @@ impl IsometryGroup {
                             let task = Arc::new(Task::new());
                             unprocessed_successors.push(Arc::clone(&task))?;
                             let generators_ref = &generators;
-                            s.spawn(move |_| {
+                            let do_task_fn = move || {
                                 task.store(generators_ref.map_ref(|_id, generator| {
                                     (&new_elem * generator)
                                         .canonicalize()
                                         .unwrap_or_else(|| pga::Motor::ident(ndim))
                                 }));
-                            });
+                            };
+                            if num_cpus::get() > 1 {
+                                s.spawn(move |_| do_task_fn());
+                            } else {
+                                do_task_fn();
+                            }
 
                             e.insert(id);
                         }
@@ -140,6 +146,8 @@ impl IsometryGroup {
             }
             // We've applyied every generator to every element, so we've
             // generated the whole group.
+
+            dbg!("end scope");
 
             Ok(())
         })?;

@@ -178,6 +178,7 @@ oklab = { version = "1.0.1" }
 lab = { version = "0.11.0" }                                                     # as required by empfindung
 
 # Async and multithreading
+num_cpus = { version = "1.17.0" }
 parking_lot = { version = "0.12.5" }
 pollster = { version = "0.4.0" }
 rayon = { version = "1.11.0" }
