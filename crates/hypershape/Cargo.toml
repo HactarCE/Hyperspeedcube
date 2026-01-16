@@ -21,6 +21,7 @@ hypermath = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
 itertools = { workspace = true }
+num_cpus = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
 smallvec = { workspace = true, features = ["const_new"] }

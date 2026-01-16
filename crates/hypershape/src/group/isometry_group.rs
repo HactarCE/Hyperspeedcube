@@ -121,13 +121,22 @@ impl IsometryGroup {
                             let task = Arc::new(Task::new());
                             unprocessed_successors.push(Arc::clone(&task))?;
                             let generators_ref = &generators;
-                            s.spawn(move |_| {
+
+                            // On single-core CPUs, do not spawn new threads.
+                            // This causes a hang on the leaderboard server and
+                            // I don't really know why.
+                            let do_task_fn = move || {
                                 task.store(generators_ref.map_ref(|_id, generator| {
                                     (&new_elem * generator)
                                         .canonicalize()
                                         .unwrap_or_else(|| pga::Motor::ident(ndim))
                                 }));
-                            });
+                            };
+                            if num_cpus::get() > 1 {
+                                s.spawn(move |_| do_task_fn());
+                            } else {
+                                do_task_fn();
+                            }
 
                             e.insert(id);
                         }
