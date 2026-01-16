@@ -26,6 +26,8 @@ use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 /// This can be made customizable in the future using the crate `atomic`.
 const L: locales::Lang = locales::en::LANG;
 
+const GITHUB_REPO_OWNER: &str = "HactarCE";
+const GITHUB_REPO_NAME: &str = "Hyperspeedcube";
 const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");

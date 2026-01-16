@@ -156,6 +156,7 @@ confirm_discard {
   open_another_file "Discard puzzle state and open another file?"
   reset_puzzle "Discard puzzle state and reset puzzle?"
   scramble "Discard puzzle state and scramble?"
+  update "Discord puzzle state and update the application?"
 }
 
 reset "Reset"
@@ -282,6 +283,11 @@ prefs {
       - Completed solves are timestamped using a 3rd-party time stamp authority.
 
       If scrambling or timestamping fails, then offline scrambles are used as a fallback.
+    """
+  }
+  (HoverStrings)check_for_updates "Check for updates on startup" {
+    desc """
+      Hyperspeedcube will never automatically update without your explicit consent.
     """
   }
   animations {

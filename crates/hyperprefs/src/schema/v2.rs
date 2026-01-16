@@ -16,6 +16,7 @@ pub use crate::{
 pub struct Preferences {
     pub record_time: bool,
     pub online_mode: bool,
+    pub check_for_updates: bool,
 
     pub eula: bool,
 

@@ -2,6 +2,7 @@
 # `version` is not needed for defaults
 record_time: true
 online_mode: true
+check_for_updates: true
 info:
   metric: STM
   keybinds_reference:

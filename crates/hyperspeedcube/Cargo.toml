@@ -55,6 +55,7 @@ pollster = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 rfd = { workspace = true }
+self_update = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 serde_norway = { workspace = true }

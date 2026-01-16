@@ -65,6 +65,7 @@ pub struct Preferences {
     pub eula: bool,
     pub record_time: bool,
     pub online_mode: bool,
+    pub check_for_updates: bool,
 
     pub log_file: Option<PathBuf>,
 
@@ -103,6 +104,7 @@ impl schema::PrefsConvert for Preferences {
             needs_save_eventually: _,
             record_time,
             online_mode,
+            check_for_updates,
             eula,
             log_file,
             info,
@@ -129,6 +131,7 @@ impl schema::PrefsConvert for Preferences {
         schema::current::Preferences {
             record_time: *record_time,
             online_mode: *online_mode,
+            check_for_updates: *check_for_updates,
             eula: *eula,
             log_file: log_file.clone(),
             info: info.clone(),
@@ -149,6 +152,7 @@ impl schema::PrefsConvert for Preferences {
         let schema::current::Preferences {
             record_time,
             online_mode,
+            check_for_updates,
             eula,
             log_file,
             info,
@@ -167,6 +171,7 @@ impl schema::PrefsConvert for Preferences {
 
         self.record_time = record_time;
         self.online_mode = online_mode;
+        self.check_for_updates = check_for_updates;
         self.eula = eula;
         self.log_file = log_file;
         self.info = info;
