@@ -319,6 +319,16 @@ impl PuzzleSimulation {
     }
     /// Plays a replay event on the puzzle when deserializing.
     fn replay_event(&mut self, event: ReplayEvent) {
+        let is_no_op = match event {
+            ReplayEvent::Undo { .. } => !self.has_undo(),
+            ReplayEvent::Redo { .. } => !self.has_redo(),
+            ReplayEvent::InvalidateFilterless { .. } => self.invalidated_filterless,
+            _ => false,
+        };
+        if is_no_op {
+            return; // Do not push to replay events
+        }
+
         if let Some(replay_events) = &mut self.replay {
             if event.is_cosmetic() {
                 // Remove previous similar event

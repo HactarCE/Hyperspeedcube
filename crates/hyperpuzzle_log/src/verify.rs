@@ -138,13 +138,18 @@ pub fn verify(
                 for twist_group in notation::parse_grouped_twists(&puzzle.twists.names, twists_str)
                 {
                     undo_stack.push(twist_group.into_iter().try_collect()?);
+                    redo_stack.clear();
                 }
             }
             LogEvent::Undo { .. } => {
-                redo_stack.push(undo_stack.pop().ok_or(SolveVerificationError::UndoError)?);
+                if let Some(twist) = undo_stack.pop() {
+                    redo_stack.push(twist);
+                }
             }
             LogEvent::Redo { .. } => {
-                undo_stack.push(redo_stack.pop().ok_or(SolveVerificationError::RedoError)?);
+                if let Some(twist) = redo_stack.pop() {
+                    undo_stack.push(twist);
+                }
             }
             LogEvent::SetBlindfold { time, enabled } => {
                 bld_fsm.set_blindfold_state(*enabled);
