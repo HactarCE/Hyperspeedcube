@@ -349,7 +349,9 @@ impl Catalog {
             log::trace!("building {type_str} {id:?}");
             // Unlock the mutex during expensive object generation.
             drop(cache_entry_guard);
+            log::trace!("dropped guard for {type_str} {id:?}. calling build_fn ...");
             let cache_entry_value = build_fn(&id, &progress);
+            log::trace!("reacquiring mutex on {type_str} {id:?} ...");
             cache_entry_guard = cache_entry.lock();
             log::trace!("storing {type_str} {id:?}");
             // Store the result.
@@ -366,9 +368,12 @@ impl Catalog {
             log::trace!("done waiting on {id:?}");
         }
 
+        dbg!("a");
+
         match &*cache_entry_guard {
             // The object was requested but has not started being built.
             CacheEntry::NotStarted => {
+                dbg!("not started");
                 Err("internal error: object did not start building".to_owned())
             }
 
@@ -376,6 +381,7 @@ impl Catalog {
             CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
                 let new_id = new_id.clone();
                 drop(cache_entry_guard);
+                dbg!("redirect", &new_id);
                 self.build_generic_with_redirect_handling::<T>(
                     new_id,
                     redirect_sequence,
@@ -383,11 +389,17 @@ impl Catalog {
                     build_fn,
                 )
             }
-            CacheEntry::Ok(Redirectable::Direct(output)) => Ok(Arc::clone(output)),
+            CacheEntry::Ok(Redirectable::Direct(output)) => {
+                dbg!("returning ok");
+                Ok(Arc::clone(output))
+            }
             CacheEntry::Err(e) => Err(e.clone()),
 
             // The object has already been built or is being built.
-            CacheEntry::Building { .. } => Err("unexpected Building entry".to_owned()),
+            CacheEntry::Building { .. } => {
+                dbg!("building");
+                Err("unexpected Building entry".to_owned())
+            }
         }
     }
 }
