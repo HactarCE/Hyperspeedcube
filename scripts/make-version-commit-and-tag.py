@@ -8,7 +8,7 @@ from util import CURRENT_VERSION, WORKSPACE_DIR
 os.chdir(WORKSPACE_DIR)
 
 git_commands = [
-    f'git add Cargo.toml Cargo.lock',
+    f'git add crates/hyperspeedcube/Cargo.toml Cargo.lock',
     f'git commit -m "Version {CURRENT_VERSION}"',
     f'git push',
     f"git tag v{CURRENT_VERSION}",

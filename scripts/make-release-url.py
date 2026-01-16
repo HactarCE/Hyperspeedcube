@@ -8,11 +8,14 @@ from util import CURRENT_VERSION, WORKSPACE_DIR
 REPO = "HactarCE/Hyperspeedcube"
 
 
+changelog_body = ''
 with open(os.path.join(WORKSPACE_DIR, 'CHANGELOG.md')) as f:
-    changelog_body = re.search(
+    m = re.search(
         rf'## \[{CURRENT_VERSION}\].*\n((\n|[^#\n].*\n|###.*\n)*)',
         f.read(),
-    ).group(1)
+    )
+    if m:
+        changelog_body = m.group(1)
 with open(os.path.join(WORKSPACE_DIR, 'tmp_release_notes.txt'), 'w') as f:
     f.write(
         changelog_body.strip()
