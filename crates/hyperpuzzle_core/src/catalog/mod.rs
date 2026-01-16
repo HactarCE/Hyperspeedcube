@@ -292,17 +292,23 @@ impl Catalog {
             // Get the object spec, which may be expensive.
             progress.lock().task = BuildTask::GeneratingSpec;
             let spec = match self.build_spec_generic_blocking::<T>(id) {
-                Ok(spec) => spec,
+                Ok(spec) => {
+                    dbg!("ok spec in object");
+                    spec
+                }
                 Err(e) => return CacheEntry::Err(e),
             };
             // Redirect if necessary.
             let new_id = spec.id();
             if new_id != id {
+                dbg!("redirect!", &new_id, &id);
                 return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
             }
             // Build the object, which may be expensive.
             let ctx = BuildCtx::new(&self.default_logger, progress);
+            dbg!("build obj from spec", id);
             let result = T::build_object_from_spec(ctx.clone(), &spec);
+            dbg!("built obj from spec", id);
             CacheEntry::from(result)
         };
 
