@@ -78,6 +78,7 @@ impl IsometryGroup {
         let mut generator_inverses =
             PerGenerator::from_iter((0..generator_count).map(|_| GroupElementId::IDENTITY));
 
+        dbg!("begin rayon");
         rayon::scope(|s| -> GroupResult<()> {
             // Use `elements` as a queue. Keep pushing elements onto the end of
             // it, and "popping" them off the front by moving
@@ -142,6 +143,7 @@ impl IsometryGroup {
 
             Ok(())
         })?;
+        dbg!("end rayon")
 
         let group = g.build()?;
         debug_assert_eq!(elements.len(), group.element_count());
