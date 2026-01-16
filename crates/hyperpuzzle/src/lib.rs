@@ -106,8 +106,12 @@ pub fn load_catalog(catalog: &Catalog) {
     rt.modules.add_default_files();
     rt.exec_all_files();
     std::thread::spawn(move || {
+        let mut i = 0;
         for eval_request in eval_rx {
+            dbg!("received eval req", i);
             eval_request(&mut rt);
+            dbg!("completed eval req", i);
+            i += 1;
         }
     });
 }

@@ -31,6 +31,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
             id: id.clone(),
             name: name.clone(),
             build: Box::new(move |build_ctx| {
+                dbg!("into the twist system build!");
                 let id = id.clone();
                 let builder = ArcMut::new(TwistSystemBuilder::new_shared(
                     id.clone(),
@@ -38,6 +39,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                     ndim,
                 ));
 
+                dbg!("make scope");
                 let mut scope = Scope::default();
                 scope.special.ndim = Some(ndim);
                 scope.special.twists = builder.clone().at(BUILTIN_SPAN);
@@ -47,8 +49,10 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
 
                 let build_fn = Arc::clone(&build);
 
+                dbg!("eval plz");
                 eval_tx
                     .eval_blocking(move |runtime| {
+                        dbg!("sweet, we got a runtime");
                         let mut ctx = EvalCtx {
                             scope: &scope,
                             runtime,

@@ -150,6 +150,7 @@ impl CatalogObjectImpl for TwistSystem {
     }
 
     fn build_object_from_spec(ctx: BuildCtx, spec: &Arc<Self::Spec>) -> BuildResult<Self> {
+        dbg!("build twist sys from spec");
         (spec.build)(ctx).map_err(|e| format!("{e:#}"))
     }
     fn generate_spec(
