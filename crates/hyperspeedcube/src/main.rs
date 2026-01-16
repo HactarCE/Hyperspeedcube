@@ -49,6 +49,9 @@ pub const DEFAULT_STYLE_NAME: &str = "Default";
 fn main() -> eyre::Result<()> {
     use clap::Parser;
 
+    // Initialize logging.
+    env_logger::builder().init();
+
     let args = cli::Args::parse();
 
     if let Some(subcommand) = args.subcommand {
@@ -56,9 +59,6 @@ fn main() -> eyre::Result<()> {
         cli::exec(subcommand)?;
         return Ok(());
     }
-
-    // Initialize logging.
-    env_logger::builder().init();
 
     #[cfg(debug_assertions)]
     color_eyre::install().expect("error initializing panic handler");
