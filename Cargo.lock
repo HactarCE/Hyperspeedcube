@@ -3011,7 +3011,7 @@ dependencies = [
 
 [[package]]
 name = "hyperspeedcube"
-version = "2.0.0-zeta.1"
+version = "2.0.0-zeta.2"
 dependencies = [
  "cgmath",
  "clap",
