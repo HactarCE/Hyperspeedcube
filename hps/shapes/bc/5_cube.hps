@@ -1,6 +1,6 @@
 use * from euclid
 
-export id = "5cube"
+export id = "5_cube"
 export name = "5-Cube"
 export adjective = "5-Cubic"
 export aliases = ["4D Cube", "Pentaract", "1x1x1x1x1", "1^5"]

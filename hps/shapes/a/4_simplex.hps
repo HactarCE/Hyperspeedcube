@@ -1,6 +1,6 @@
 use * from euclid
 
-export id = "4simplex"
+export id = "4_simplex"
 export name = "4-Simplex"
 export adjective = "4-Simplicial"
 export aliases = []
@@ -24,7 +24,7 @@ export fn new(t: Transform) -> Map {
         BL = [0, "BR"],
     })
 
-    export vertex_pole = sym.xooo.unit
+    export vertex_pole = sym.xooo.unit * 4
     export vertex_names = sym.names(point(vertex_pole), #{
         R = [],
         L = [0, "R"],

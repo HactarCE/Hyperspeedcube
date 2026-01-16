@@ -20,9 +20,8 @@ return #{
         axes = ["3d/TODO", "hybrid", "multicore"],
         turns_by = ["3d/rank0", "3d/rank1", "3d/rank2"],
         algebraic = [
-            "total/doctrinaire", "pseudo/doctrinaire",
+            "doctrinaire", "pseudo/doctrinaire",
             "abelian", "fused", "non_faithful_action",
-            "oriententations/non_abelian",
             "trivial",
             "weird_orbits",
         ],

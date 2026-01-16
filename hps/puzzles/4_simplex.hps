@@ -1,0 +1,152 @@
+use * from euclid
+
+GIZMO_EDGE_FACTOR = 0.8
+
+COMMON_METADATA = #{
+    version = "1.0.0",
+    colors = "4_simplex",
+    twists = "ft_4_simplex",
+    engine = "euclid",
+    ndim = 4,
+    tags = #{
+        author = "Andrew Farkas",
+        stable = "2.0.0",
+        shape = "4d/platonic/simplex",
+        axes = "4d/elementary/simplicial",
+        turns_by = ["4d/rank0", "4d/rank3"],
+        algebraic = ["doctrinaire", "pseudo/doctrinaire"],
+        "external/leaderboard" = true,
+    },
+}
+
+GENERATOR_METADATA = #{
+    params = [#{name = "Cuts", type = Int, default = 1, min = 1, max = 10}],
+    examples = [#{params = [1]}],
+    **COMMON_METADATA,
+}
+
+fn build_vt_4_simplex(vertex_internal_cut_depths) {
+    vertex_cuts = [∞, *vertex_internal_cut_depths, -∞]
+    facet_cuts = @util/layers.opposite_depths(vertex_cuts)
+
+    simplex = @shapes/a/4_simplex.new()
+    with #sym = simplex.sym {
+        // Carve simplex
+        carve(plane(simplex.facet_pole), simplex.facet_names)
+
+        // Slice layers
+        add_layers(#twists.facet_axis, facet_cuts)
+        add_layers(#twists.vertex_axis, vertex_cuts)
+    }
+}
+
+fn n_layer_prefix(n, *, default=1) { if n == default { "" } else { "${n}-Layer " } }
+
+add_puzzle_generator(
+    id = "ft_4_simplex_a",
+    name = "N-Layer 4-Simplex A",
+    gen = fn(n) { #{
+        name = n_layer_prefix(n) ++ "4-Simplex A",
+        build = fn() { build_vt_4_simplex(rev(@util.layers.inclusive_exclusive(2/3, 3/2, n))) },
+        tags = #{
+            type = "puzzle",
+            cuts = [], // no tags using vertex cuts
+            "external/leaderboard" = true,
+        },
+    } },
+    **GENERATOR_METADATA,
+)
+
+add_puzzle_generator(
+    id = "ft_4_simplex_b",
+    name = "N-Layer 4-Simplex B",
+    gen = fn(n) { #{
+        name = n_layer_prefix(n) ++ "4-Simplex B",
+        build = fn() { build_vt_4_simplex(@util.layers.exclusive(2/3, 1/4, n, padding=1/2)) },
+        tags = #{
+            type = "puzzle",
+            cuts = [], // no tags using vertex cuts
+            "external/leaderboard" = true,
+        },
+    } },
+    **GENERATOR_METADATA,
+)
+
+m = COMMON_METADATA
+m.tags.type = "puzzle"
+m.tags.cuts = ["depth/deep/to_adjacent"]
+m.tags["external/leaderboard"] = true
+add_puzzle(
+    id = "ft_4_simplex_c",
+    name = "4-Simplex C",
+    build = fn() { build_vt_4_simplex([1/4]) },
+    **m,
+)
+
+add_puzzle_generator(
+    id = "ft_4_simplex_d",
+    name = "N-Layer 4-Simplex D",
+    gen = fn(n) { #{
+        name = n_layer_prefix(n) ++ "4-Simplex D",
+        build = fn() { build_vt_4_simplex(@util.layers.inclusive_exclusive(0, -1, n)) },
+        tags = #{
+            type = "puzzle",
+            cuts = ["canonical", "depth/shallow", "depth/half"],
+            "external/leaderboard" = true,
+        },
+    } },
+    **GENERATOR_METADATA,
+)
+
+add_puzzle_generator(
+    id = "ft_4_simplex_pyraminx",
+    name = "N-Layer 4-Simplex Pyraminx",
+    params = [#{name = "Layers", type = Int, default = 3, min = 2, max = 10}],
+    examples = [#{params = [3], name = "4-Simplex Pyraminx"}],
+    gen = fn(n) { #{
+        name = "${n}-Layer 4-Simplex Pyraminx",
+        build = fn() { build_vt_4_simplex(@util.layers.exclusive(4, -1, n-1)) },
+        tags = #{
+            type = "puzzle",
+            cuts = #{
+                "depth/shallow" = true,
+                "depth/half" = n % 5 == 0,
+                "depth/deep/to_adjacent" = n % 4 == 0,
+            },
+            "algebraic/trivial" = n == 2,
+            "external/leaderboard" = n >= 3,
+        },
+    } },
+    **COMMON_METADATA,
+)
+
+add_twist_system(
+    id = "ft_4_simplex",
+    name = "Facet-Turning 4-Simplex",
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        simplex = @shapes/a/4_simplex.new()
+
+        // Add axes and twists
+        with #sym = simplex.sym {
+            export facet_axis = add_axis(simplex.facet_pole, simplex.facet_names)
+            a0 = facet_axis
+            a1 = #sym.thru(3).transform(a0)
+            a2 = #sym.thru(2).transform(a1)
+            a3 = #sym.thru(1).transform(a2)
+            add_twist(a0, #sym.thru([0, 1]), "_${a1}", gizmo_pole_distance = 1)
+            add_twist(a0, #sym.thru([0, 2]), "_{${a1}_${a2}}", gizmo_pole_distance = 2/√3)
+            add_twist(a0, #sym.thru([1, 2]), "_{${a1}_${a2}_${a3}}", gizmo_pole_distance = 1)
+
+            export vertex_axis = add_axis(simplex.vertex_pole, simplex.vertex_names)
+            a0 = vertex_axis
+            a1 = #sym.thru(0).transform(a0)
+            a2 = #sym.thru(1).transform(a1)
+            a3 = #sym.thru(2).transform(a2)
+            add_twist(a0, #sym.thru([3, 2]), "_${a1}", gizmo_pole_distance = 1)
+            add_twist(a0, #sym.thru([3, 1]), "_{${a1}_${a2}}", gizmo_pole_distance = 2/√3)
+            add_twist(a0, #sym.thru([2, 1]), "_{${a1}_${a2}_${a3}}", gizmo_pole_distance = 1)
+        }
+    },
+)

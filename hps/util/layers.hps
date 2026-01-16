@@ -16,6 +16,18 @@ export fn inclusive(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
     return ret
 }
 
+/// Returns evenly-spaced layer depths, including `start` but not `stop`.
+///
+/// Typically, `start > stop`.
+export fn inclusive_exclusive(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
+    if layer_count == 1 {
+        return [start]
+    }
+
+    layer_size = (stop - start) / layer_count
+    return inclusive(start, stop - layer_size, layer_count - 1)
+}
+
 /// Returns evenly-spaced layer depths for half of a puzzle.
 ///
 /// - For even numbers of layers, includes both endpoints.
@@ -45,8 +57,25 @@ export fn inclusive_inf(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
     }
 }
 
-/// Returns evenly-spaced layer depths, excluding both endpoints and with `∞`
-/// on one side.
+/// Returns evenly-spaced layer depths, excluding both endpoints.
+///
+/// `padding` is left on either end.
+///
+/// Typically, `start > stop`.
+export fn exclusive(start: Num, stop: Num, cut_count: Nat, *, padding=1) -> List[Num] {
+    adjusted_cut_count = cut_count - 1 + 2*padding
+
+    ret = []
+    for i in 0..cut_count {
+        ret ++= [lerp(start, stop, (i + padding) / adjusted_cut_count)]
+    }
+    return ret
+}
+
+/// Returns evenly-spaced layer depths out from a center, excluding both
+/// endpoints.
+///
+/// Half of a layer space is left at either endpoint.
 export fn exclusive_centered(center: Num, half_range: Num, cut_count: Nat) -> List[Num] {
     if cut_count == 0 {
         return []
