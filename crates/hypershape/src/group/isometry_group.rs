@@ -143,7 +143,7 @@ impl IsometryGroup {
 
             Ok(())
         })?;
-        dbg!("end rayon")
+        dbg!("end rayon");
 
         let group = g.build()?;
         debug_assert_eq!(elements.len(), group.element_count());
