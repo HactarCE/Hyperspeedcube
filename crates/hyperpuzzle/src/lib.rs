@@ -64,25 +64,25 @@ pub fn load_catalog(catalog: &Catalog) {
     let mut rt = hyperpuzzlescript::Runtime::new();
 
     let logger = catalog.default_logger().clone();
-    rt.on_print = Box::new(move |msg| {
-        logger.log(LogLine {
-            level: Level::Info,
-            msg,
-            full: None,
-        });
-    });
+    // rt.on_print = Box::new(move |msg| {
+    //     logger.log(LogLine {
+    //         level: Level::Info,
+    //         msg,
+    //         full: None,
+    //     });
+    // });
 
     let logger = catalog.default_logger().clone();
-    rt.on_diagnostic = Box::new(move |modules, diagnostic| {
-        logger.log(LogLine {
-            level: match diagnostic.msg {
-                hyperpuzzlescript::Diagnostic::Error(_) => Level::Error,
-                hyperpuzzlescript::Diagnostic::Warning(_) => Level::Warn,
-            },
-            msg: diagnostic.msg.to_string(),
-            full: Some(diagnostic.to_string(modules)),
-        });
-    });
+    // rt.on_diagnostic = Box::new(move |modules, diagnostic| {
+    //     logger.log(LogLine {
+    //         level: match diagnostic.msg {
+    //             hyperpuzzlescript::Diagnostic::Error(_) => Level::Error,
+    //             hyperpuzzlescript::Diagnostic::Warning(_) => Level::Warn,
+    //         },
+    //         msg: diagnostic.msg.to_string(),
+    //         full: Some(diagnostic.to_string(modules)),
+    //     });
+    // });
 
     let (eval_tx, eval_rx) = hyperpuzzlescript::EvalRequestTx::new();
 

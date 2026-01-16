@@ -60,13 +60,16 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                             exports: &mut None,
                             stack_depth: 0,
                         };
+                        dbg!("calling build_fn");
                         let exports = build_fn
                             .call(build_span, &mut ctx, vec![], Map::new())
                             .map_err(|e| {
+                                dbg!("error. reporting it ...");
                                 ctx.runtime.report_diagnostic(e);
                                 eyre!("unable to build twist system `{id}`; see HPS logs")
                             })?;
 
+                        dbg!("locking builder");
                         let mut b = builder.lock();
                         if let Ok(exports_map) = exports.to::<Arc<Map>>() {
                             b.hps_exports = exports_map;
@@ -74,6 +77,7 @@ impl hyperpuzzlescript::EngineCallback<IdAndName, TwistSystemSpec> for HpsNdEucl
                         b.is_modified = false;
 
                         let puzzle_id = None;
+                        dbg!("calling final b.build()");
                         b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
                             .map(|ok| Redirectable::Direct(Arc::new(ok)))
                     })

@@ -169,12 +169,16 @@ add_twist_system(
     build = fn() {
         cube = @shapes/bc/cube.new()
 
+        print("hello from hps!", 1)
+
         // Add axes and twists
         with #sym = cube.sym {
             export facet_axis = add_axis(cube.facet_pole, cube.facet_names)
             use F, U, R from #axes
             add_twist(F, #sym.thru([1, 0]), gizmo_pole_distance = 1)
         }
+
+        print("hello from hps!", 2)
 
         // Add global twist directions
         fn cw(axis) { #twists[axis.name] }
@@ -184,33 +188,35 @@ add_twist_system(
         add_twist_direction("CCW", fn(ax) { [ccw(ax)] })
         add_twist_direction("CCW2", fn(ax) { [ccw(ax), ccw(ax)] })
 
-        // Add vantage group
-        add_vantage_group(
-            id = "cubic",
-            symmetry = cube.sym,
-            refs = [[cube.facet_pole, cube.facet_names]],
-            init = ["F", "U"],
-        )
+        print("hello from hps!", 3)
 
-        // Add face-centered vantage set
-        F = cube.sym.oox
-        U = cube.sym.thru(2).transform(F)
-        R = cube.sym.thru(1).transform(U)
-        x = rot(fix = U, start = R, end = F)
-        y = rot(fix = R, start = F, end = U)
-        z = rot(fix = F, start = U, end = R)
-        add_vantage_set(
-            name = "Face-centered",
-            group = "cubic",
-            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-            transforms = #{
-                x = x, "x'" = x.rev(),
-                y = y, "y'" = y.rev(),
-                z = z, "z'" = z.rev(),
-            },
-            axes = "*",
-        )
+        // // Add vantage group
+        // add_vantage_group(
+        //     id = "cubic",
+        //     symmetry = cube.sym,
+        //     refs = [[cube.facet_pole, cube.facet_names]],
+        //     init = ["F", "U"],
+        // )
+
+        // // Add face-centered vantage set
+        // F = cube.sym.oox
+        // U = cube.sym.thru(2).transform(F)
+        // R = cube.sym.thru(1).transform(U)
+        // x = rot(fix = U, start = R, end = F)
+        // y = rot(fix = R, start = F, end = U)
+        // z = rot(fix = F, start = U, end = R)
+        // add_vantage_set(
+        //     name = "Face-centered",
+        //     group = "cubic",
+        //     view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+        //                 * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+        //     transforms = #{
+        //         x = x, "x'" = x.rev(),
+        //         y = y, "y'" = y.rev(),
+        //         z = z, "z'" = z.rev(),
+        //     },
+        //     axes = "*",
+        // )
     },
 )
 
