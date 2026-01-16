@@ -8,9 +8,7 @@ import subprocess
 import sys
 import tempfile
 
-from util import WORKSPACE_DIR
-
-REPO = "HactarCE/Hyperspeedcube"
+from util import REPO, WORKSPACE_DIR
 
 
 # Shamelessly stolen from https://stackoverflow.com/a/31499114/4958484

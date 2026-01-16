@@ -3,6 +3,7 @@ name: Build
 on:
     push:
         branches: [stable]
+        tags: ["**"]
     workflow_dispatch:
 
 env:
