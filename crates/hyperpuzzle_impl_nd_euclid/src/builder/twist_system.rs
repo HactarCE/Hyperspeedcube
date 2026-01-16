@@ -205,7 +205,7 @@ impl TwistSystemBuilder {
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<TwistSystem> {
         if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingTwists;
+            build_ctx.progress.lock().unwrap().task = BuildTask::BuildingTwists;
         }
 
         let mut id = self.id.clone();

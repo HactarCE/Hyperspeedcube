@@ -1,7 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 pub use log::Level;
-use parking_lot::{Mutex, MutexGuard};
 
 /// Logger for puzzle construction.
 ///
@@ -23,7 +22,7 @@ impl Logger {
 
     /// Logs a line.
     pub fn log(&self, line: LogLine) {
-        self.lines.lock().push(line);
+        self.lines.lock().unwrap().push(line);
     }
     fn log_with_level(&self, level: Level, msg: String) {
         self.log(LogLine {
@@ -56,11 +55,11 @@ impl Logger {
 
     /// Clear all log lines.
     pub fn clear(&self) {
-        self.lines.lock().clear();
+        self.lines.lock().unwrap().clear();
     }
     /// Returns all the log lines so far.
     pub fn lines(&self) -> MutexGuard<'_, Vec<LogLine>> {
-        self.lines.lock()
+        self.lines.lock().unwrap()
     }
 }
 

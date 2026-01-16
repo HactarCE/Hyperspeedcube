@@ -182,7 +182,7 @@ pub fn define_in(
                 params: gen_meta.params.clone(),
                 examples: example_specs,
                 generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
+                    build_ctx.progress.lock().unwrap().task = BuildTask::GeneratingSpec;
 
                     let cat2 = cat2.clone();
                     let tx2 = tx.clone();

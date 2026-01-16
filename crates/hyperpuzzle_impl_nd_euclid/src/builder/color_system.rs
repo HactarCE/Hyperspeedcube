@@ -180,7 +180,7 @@ impl ColorSystemBuilder {
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<ColorSystem> {
         if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingColors;
+            build_ctx.progress.lock().unwrap().task = BuildTask::BuildingColors;
         }
 
         let mut id = self.id.clone();

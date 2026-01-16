@@ -172,7 +172,7 @@ impl PuzzleWidget {
         use hyperpuzzle::catalog::CacheEntry;
 
         let cache_entry = hyperpuzzle::catalog().build::<Puzzle>(&puzzle_id);
-        let cache_entry_guard = cache_entry.lock();
+        let cache_entry_guard = cache_entry.lock().unwrap();
         match &*cache_entry_guard {
             CacheEntry::NotStarted => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
@@ -327,7 +327,7 @@ impl PuzzleWidget {
                         use hyperpuzzle::catalog::BuildTask;
 
                         let task = match status {
-                            Some(s) => s.lock().task,
+                            Some(s) => s.lock().unwrap().task,
                             None => Default::default(),
                         };
                         loading_header = Some(match task {
@@ -732,7 +732,7 @@ pub enum PuzzleWidgetLoading {
     /// Waiting for a puzzle to build.
     BuildingPuzzle {
         puzzle_id: String,
-        progress: Option<Arc<Mutex<hyperpuzzle::catalog::Progress>>>,
+        progress: Option<Arc<std::sync::Mutex<hyperpuzzle::catalog::Progress>>>,
         solve_to_load: Option<Arc<Solve>>,
     },
     /// Waiting for a log file to load.

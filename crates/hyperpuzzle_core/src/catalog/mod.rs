@@ -5,8 +5,8 @@ use std::collections::{BTreeSet, HashMap, hash_map};
 use std::fmt;
 use std::sync::Arc;
 
-use parking_lot::{Mutex, MutexGuard};
 use serde::Serialize;
+use std::sync::{Mutex, MutexGuard};
 
 mod db;
 mod entry;
@@ -50,7 +50,7 @@ impl Catalog {
     /// **WARNING: This is a low-level operation and can cause deadlocks. Prefer
     /// higher-level methods if possible.**
     pub fn lock_db(&self) -> MutexGuard<'_, Db> {
-        self.db.lock()
+        self.db.lock().unwrap()
     }
 
     /// Returns a list of puzzle specs, including examples for generators, in an
@@ -64,43 +64,43 @@ impl Catalog {
     /// Returns the specification for the object with the given ID, if it
     /// exists. This does not find generated objects.
     pub fn get_spec<T: CatalogObject>(&self, id: &str) -> Option<Arc<T::Spec>> {
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         db.get_mut::<T>().loaded_specs.get(id).map(Arc::clone)
     }
     /// Returns the generator with the given ID, if it exists.
     pub fn get_generator<T: CatalogObject>(&self, id: &str) -> Option<Arc<T::SpecGenerator>> {
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         db.get_mut::<T>().loaded_generators.get(id).map(Arc::clone)
     }
 
     /// Returns a list of object specs, including examples for generators, in an
     /// unspecified order.
     pub fn object_specs<T: CatalogObject>(&self) -> Arc<Vec<Arc<T::Spec>>> {
-        self.db.lock().get_mut::<T>().specs()
+        self.db.lock().unwrap().get_mut::<T>().specs()
     }
 
     /// Returns all entries that might show in the puzzle list, in an
     /// unspecified order: non-generated puzzles, example puzzles, and
     /// puzzle generators.
     pub fn puzzle_list_entries(&self) -> Arc<Vec<Arc<PuzzleListMetadata>>> {
-        self.db.lock().puzzles.puzzle_list_entries()
+        self.db.lock().unwrap().puzzles.puzzle_list_entries()
     }
 
     /// Returns a sorted list of all puzzle authors.
     pub fn authors(&self) -> Vec<String> {
-        self.db.lock().authors.iter().cloned().collect()
+        self.db.lock().unwrap().authors.iter().cloned().collect()
     }
 
     /// Adds a puzzle to the catalog.
     pub fn add_puzzle(&self, spec: Arc<PuzzleSpec>) -> eyre::Result<()> {
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         db.puzzles.add_spec(Arc::clone(&spec))?;
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         Ok(())
     }
     /// Adds a puzzle generator to the catalog.
     pub fn add_puzzle_generator(&self, spec: Arc<PuzzleSpecGenerator>) -> eyre::Result<()> {
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         db.puzzles.add_spec_generator(Arc::clone(&spec))?;
         db.authors.extend(spec.meta.tags.authors().iter().cloned());
         Ok(())
@@ -108,26 +108,34 @@ impl Catalog {
 
     /// Adds a color system to the catalog.
     pub fn add_color_system(&self, colors: Arc<ColorSystem>) -> eyre::Result<()> {
-        self.db.lock().color_systems.add_spec(colors)
+        self.db.lock().unwrap().color_systems.add_spec(colors)
     }
     /// Adds a color system generator to the catalog.
     pub fn add_color_system_generator(
         &self,
         colors_gen: Arc<ColorSystemGenerator>,
     ) -> eyre::Result<()> {
-        self.db.lock().color_systems.add_spec_generator(colors_gen)
+        self.db
+            .lock()
+            .unwrap()
+            .color_systems
+            .add_spec_generator(colors_gen)
     }
 
     /// Adds a twist system to the catalog.
     pub fn add_twist_system(&self, twists: Arc<TwistSystemSpec>) -> eyre::Result<()> {
-        self.db.lock().twist_systems.add_spec(twists)
+        self.db.lock().unwrap().twist_systems.add_spec(twists)
     }
     /// Adds a twist system generator to the catalog.
     pub fn add_twist_system_generator(
         &self,
         twists_gen: Arc<TwistSystemSpecGenerator>,
     ) -> eyre::Result<()> {
-        self.db.lock().twist_systems.add_spec_generator(twists_gen)
+        self.db
+            .lock()
+            .unwrap()
+            .twist_systems
+            .add_spec_generator(twists_gen)
     }
 
     /// Requests an object to be built if it has not been built already, and
@@ -142,7 +150,7 @@ impl Catalog {
     /// let rubiks_cube = catalog.build::<Puzzle>("ft_cube:3");
     /// println!("Requested Rubik's cube ...");
     /// loop {
-    ///     let cache_entry_guard = rubiks_cube.lock();
+    ///     let cache_entry_guard = rubiks_cube.lock().unwrap();
     ///     match &*cache_entry_guard {
     ///         CacheEntry::NotStarted => {
     ///             std::thread::sleep(std::time::Duration::from_secs(1));
@@ -167,7 +175,7 @@ impl Catalog {
     /// ```
     pub fn build<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T>>> {
         let id = id.to_owned();
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         self.build_non_blocking(
             id.clone(),
             db.get_mut::<T>().objects.entry(id.clone()),
@@ -197,7 +205,7 @@ impl Catalog {
     /// thread, see [`Self::build_spec_blocking()`].
     pub fn build_spec<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T::Spec>>> {
         let id = id.to_owned();
-        let mut db = self.db.lock();
+        let mut db = self.db.lock().unwrap();
         self.build_non_blocking(
             id.clone(),
             db.get_mut::<T>().generated_specs.entry(id.clone()),
@@ -237,16 +245,16 @@ impl Catalog {
         initial_id: &str,
     ) -> Result<Arc<T::Spec>, String> {
         let get_cache_entry_fn = |id: &str| {
-            let mut db = self.db.lock();
+            let mut db = self.db.lock().unwrap();
             let subcatalog = db.get_mut::<T>();
             Arc::clone(subcatalog.generated_specs.entry(id.to_owned()).or_default())
         };
 
         let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
-            let mut db_guard = self.db.lock();
+            let mut db_guard = self.db.lock().unwrap();
             let subcatalog = db_guard.get_mut::<T>();
             // Get the object spec, which may be expensive.
-            progress.lock().task = BuildTask::GeneratingSpec;
+            progress.lock().unwrap().task = BuildTask::GeneratingSpec;
             let generator_output = match crate::parse_generated_id(id) {
                 None => match subcatalog.loaded_specs.get(id).cloned() {
                     None => Err(format!("no {} with ID {id:?}", T::NAME)),
@@ -284,13 +292,13 @@ impl Catalog {
 
     fn build_object_generic_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
         let get_cache_entry_fn = |id: &str| {
-            let mut db = self.db.lock();
+            let mut db = self.db.lock().unwrap();
             Arc::clone(db.get_mut::<T>().objects.entry(id.to_owned()).or_default())
         };
 
         let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
             // Get the object spec, which may be expensive.
-            progress.lock().task = BuildTask::GeneratingSpec;
+            progress.lock().unwrap().task = BuildTask::GeneratingSpec;
             let spec = match self.build_spec_generic_blocking::<T>(id) {
                 Ok(spec) => spec,
                 Err(e) => return CacheEntry::Err(e),
@@ -336,7 +344,7 @@ impl Catalog {
         }
 
         let cache_entry = get_cache_entry_fn(&id);
-        let mut cache_entry_guard = cache_entry.lock();
+        let mut cache_entry_guard = cache_entry.lock().unwrap();
 
         if let CacheEntry::NotStarted = &*cache_entry_guard {
             log::trace!("{type_str} {id:?} not yet started");
@@ -348,8 +356,9 @@ impl Catalog {
             };
             log::trace!("building {type_str} {id:?}");
             // Unlock the mutex before during expensive object generation.
-            let cache_entry_value =
-                MutexGuard::unlocked(&mut cache_entry_guard, || build_fn(&id, &progress));
+            drop(cache_entry_guard);
+            let cache_entry_value = build_fn(&id, &progress);
+            cache_entry_guard = cache_entry.lock().unwrap();
             log::trace!("storing {type_str} {id:?}");
             // Store the result.
             *cache_entry_guard = cache_entry_value;
@@ -359,9 +368,9 @@ impl Catalog {
         if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
             log::trace!("waiting for another thread to build {type_str} {id:?}");
             let waiter = notify.waiter();
-            MutexGuard::unlocked(&mut cache_entry_guard, || {
-                waiter.wait();
-            });
+            drop(cache_entry_guard);
+            waiter.wait();
+            cache_entry_guard = cache_entry.lock().unwrap();
             log::trace!("done waiting on {id:?}");
         }
 

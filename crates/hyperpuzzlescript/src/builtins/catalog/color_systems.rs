@@ -79,7 +79,7 @@ pub fn define_in(
                 name,
                 params: gen_meta.params.clone(),
                 generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
+                    build_ctx.progress.lock().unwrap().task = BuildTask::GeneratingSpec;
 
                     let mut scope = Scope::default();
                     scope.special.id = Some((&gen_meta.id).into());

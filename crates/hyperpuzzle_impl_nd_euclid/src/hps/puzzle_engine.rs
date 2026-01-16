@@ -64,7 +64,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
                 // Build color system.
                 if let Some(color_system_id) = &colors {
-                    build_ctx.progress.lock().task = BuildTask::BuildingColors;
+                    build_ctx.progress.lock().unwrap().task = BuildTask::BuildingColors;
                     let colors = catalog.build_blocking(color_system_id)?;
                     builder.shape().lock().colors =
                         ColorSystemBuilder::unbuild(&colors).map_err(|e| format!("{e:#}"))?;
@@ -72,13 +72,13 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
                 // Build twist system.
                 if let Some(twist_system_id) = &twists {
-                    build_ctx.progress.lock().task = BuildTask::BuildingTwists;
+                    build_ctx.progress.lock().unwrap().task = BuildTask::BuildingTwists;
                     let twists = catalog.build_blocking(twist_system_id)?;
                     *builder.twists().lock() =
                         TwistSystemBuilder::unbuild(&twists).map_err(|e| format!("{e:#}"))?;
                 }
 
-                build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+                build_ctx.progress.lock().unwrap().task = BuildTask::BuildingPuzzle;
 
                 if let Some(remove_internals) = remove_internals {
                     builder.shape().lock().remove_internals = remove_internals;

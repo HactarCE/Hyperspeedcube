@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::{Condvar, Mutex};
+use std::sync::{Condvar, Mutex};
 
 use super::Redirectable;
 
@@ -68,7 +68,7 @@ impl NotifyWhenDropped {
 impl Drop for NotifyWhenDropped {
     fn drop(&mut self) {
         let (mutex, condvar) = &*self.0;
-        *mutex.lock() = true;
+        *mutex.lock().unwrap() = true;
         condvar.notify_all();
     }
 }
@@ -80,7 +80,9 @@ impl Waiter {
     /// Waits until the flag is set.
     pub fn wait(self) {
         let (mutex, condvar) = &*self.0;
-        condvar.wait_while(&mut mutex.lock(), |is_done| !*is_done);
+        condvar
+            .wait_while(mutex.lock().unwrap(), |is_done| !*is_done)
+            .unwrap();
     }
 }
 

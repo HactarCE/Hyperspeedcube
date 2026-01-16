@@ -132,7 +132,7 @@ impl PuzzleBuilder {
         let twists = Arc::new(twists_builder.build(build_ctx, opt_id, warn_fn)?);
 
         if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+            build_ctx.progress.lock().unwrap().task = BuildTask::BuildingPuzzle;
         }
 
         // Build shape.
