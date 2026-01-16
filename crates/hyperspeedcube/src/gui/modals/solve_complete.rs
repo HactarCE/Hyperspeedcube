@@ -355,7 +355,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 ui.hyperlink_to("View your submission", s);
                                 false
                             });
-                            ui.button("Submit to leaderboards").clicked()
+                            false
                         }
                     };
                     if try_submit {
