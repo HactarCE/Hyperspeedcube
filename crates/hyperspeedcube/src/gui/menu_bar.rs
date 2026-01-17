@@ -7,6 +7,7 @@ use hyperpuzzle::ScrambleType;
 use super::{AppUi, Tab};
 use crate::L;
 use crate::gui::components::{PrefsUi, show_leaderboards_ui};
+use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::leaderboards::LeaderboardsClientState;
 
@@ -277,16 +278,23 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
             if let Ok(hps_dir) = hyperpaths::hps_dir()
-                && ui.button(L.menu.puzzles.show_hps_dir).clicked()
+                && ui
+                    .button(L.menu.puzzles.show_hps_dir.label)
+                    .on_i18n_hover_explanation(&L.menu.puzzles.show_hps_dir)
+                    .clicked()
             {
                 ui.close();
                 crate::open_dir(hps_dir);
             }
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button(L.menu.puzzles.extract_hps).clicked() {
+            if ui
+                .button(L.menu.puzzles.extract_hps.label)
+                .on_i18n_hover_explanation(&L.menu.puzzles.extract_hps)
+                .clicked()
+            {
                 ui.close();
                 if let Some(mut dir_path) = rfd::FileDialog::new()
-                    .set_title(L.menu.puzzles.extract_hps)
+                    .set_title(L.menu.puzzles.extract_hps.label)
                     .pick_folder()
                 {
                     dir_path.push("hps");

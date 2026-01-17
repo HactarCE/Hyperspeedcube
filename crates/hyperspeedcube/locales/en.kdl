@@ -26,7 +26,7 @@ tabs {
     timeline "Timeline"
     timer "Timer"
 
-    hps_logs "Hyperpuzzlescript logs"
+    hps_logs "HPS logs"
     dev_tools "Developer tools"
 
     debug "Debug output"
@@ -62,7 +62,7 @@ tabs {
     timeline "Timeline"
     timer "Timer"
 
-    hps_logs "Hyperpuzzlescript Logs"
+    hps_logs "HPS Logs"
     dev_tools "Developer Tools"
 
     debug "Debug Output"
@@ -112,8 +112,12 @@ menu {
   puzzles {
     title "Puzzles"
     custom "Custom puzzles"
-    show_hps_dir "Show HPS directory"
-    extract_hps "Extra built-in HPS files…"
+    (HoverStrings)show_hps_dir "Show HPS directory" {
+      full "TODO: Explain that you can put Hyperpuzzlescript files here, and where to find docs"
+    }
+    (HoverStrings)extract_hps "Extra built-in HPS files…" {
+      full "TODO: Explain that you can use this to view how built-in puzzles are made, and even modify them"
+    }
     show_experimental "Show experimental puzzles"
   }
   help {
