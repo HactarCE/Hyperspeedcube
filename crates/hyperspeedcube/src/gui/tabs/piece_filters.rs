@@ -48,6 +48,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
                     ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
                     ui.selectable_value(&mut tab, FiltersTab::EditPresets, l.edit_presets);
+                    HelpHoverWidget::show_right_aligned(ui, L.help.piece_filters);
                 });
             });
     });
@@ -62,7 +63,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     egui::ScrollArea::vertical()
                         .id_salt("current_filter")
                         .auto_shrink(false)
-                        .show(ui, |ui| show_current_filter_preset_ui(ui, app));
+                        .show(ui, |ui| show_current_filter_preset_ui(ui, app, false));
                 }
                 FiltersTab::PresetsList => {
                     ui.set_min_width(PRESET_LIST_MIN_WIDTH);
@@ -81,7 +82,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             egui::ScrollArea::vertical()
                                 .id_salt("current_filter")
                                 .auto_shrink(false)
-                                .show(ui, |ui| show_current_filter_preset_ui(ui, app));
+                                .show(ui, |ui| show_current_filter_preset_ui(ui, app, true));
                         });
                     });
                 }
@@ -594,10 +595,10 @@ fn show_preset_name(
     }
 }
 
-fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
+fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App, show_header_row: bool) {
     app.active_puzzle.with_opt_view(|view| {
         if let Some(view) = view {
-            show_current_filter_preset_ui_contents(ui, &mut app.prefs, view);
+            show_current_filter_preset_ui_contents(ui, &mut app.prefs, view, show_header_row);
         } else {
             ui.label("No active puzzle");
         }
@@ -607,6 +608,7 @@ fn show_current_filter_preset_ui_contents(
     ui: &mut egui::Ui,
     prefs: &mut Preferences,
     view: &mut PuzzleView,
+    show_header_row: bool,
 ) {
     ui.set_min_width(CURRENT_PRESET_MIN_WIDTH);
 
@@ -626,16 +628,18 @@ fn show_current_filter_preset_ui_contents(
 
     let preset_name = view.filters.base.as_ref().map(|r| r.to_string());
 
-    ui.add(PresetHeaderUi::<()> {
-        text: &L.presets.piece_filters,
-        preset_name: preset_name.as_deref().unwrap_or(""),
+    if show_header_row {
+        ui.add(PresetHeaderUi::<()> {
+            text: &L.presets.piece_filters,
+            preset_name: preset_name.as_deref().unwrap_or(""),
 
-        help_contents: Some(L.help.piece_filters),
-        yaml: None,
-        save_status: PresetSaveStatus::Autosave,
+            help_contents: None,
+            yaml: None,
+            save_status: PresetSaveStatus::Autosave,
 
-        save_preset: &mut false,
-    });
+            save_preset: &mut false,
+        });
+    }
 
     let puz = view.puzzle();
 
