@@ -50,7 +50,7 @@ impl AppUi {
         // Initialize UI.
         let puzzle_widget = app.new_puzzle_widget();
         app.update_active_puzzle(&puzzle_widget);
-        app.load_puzzle("ft_cube:3");
+        app.load_puzzle("ft_cube:4");
         let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(puzzle_widget)]);
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
