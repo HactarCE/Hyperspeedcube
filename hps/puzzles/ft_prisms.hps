@@ -164,9 +164,9 @@ add_twist_system_generator(
                     add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = shape.h)
                     add_twist(side_axis, #sym.thru([2, 0]), gizmo_pole_distance = 1)
 
-                    export opposite_side_axis = null
+                    opposite_side_axis = null
                     if n == 3 {
-                        export opposite_side_axis = add_axis(
+                        opposite_side_axis = add_axis(
                             -shape.side_pole,
                             #sym.names(
                                 point(shape.side_pole),
@@ -175,6 +175,7 @@ add_twist_system_generator(
                         )
                         add_twist(opposite_side_axis, #sym.thru([0, 2]), gizmo_pole_distance = 1)
                     }
+                    export opposite_side_axis
                 }
 
                 // Add global twist directions
