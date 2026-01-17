@@ -1,7 +1,7 @@
 tabs {
   menu {
     puzzle "New puzzle view"
-    puzzle_catalog "Puzzle catalog"
+    catalog "Catalog"
     puzzle_info "Puzzle info"
     keybinds_reference "Keybinds reference"
     about "About"
@@ -37,7 +37,7 @@ tabs {
       loading "Loading {{id}}"
       error "Error loading {{id}}"
     }
-    puzzle_catalog "Puzzle Catalog"
+    catalog "Catalog"
     puzzle_info "Puzzle Info"
     keybinds_reference "Keybinds Reference"
     about "About"

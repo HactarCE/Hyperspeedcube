@@ -54,8 +54,7 @@ impl AppUi {
         let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(puzzle_widget)]);
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
-        let [main, left] =
-            surface.split_left(main, 0.15, vec![Tab::PuzzleCatalog, Tab::PuzzleControls]);
+        let [main, left] = surface.split_left(main, 0.15, vec![Tab::Catalog, Tab::PuzzleControls]);
         surface.split_below(left, 0.6, vec![Tab::HpsLogs, Tab::PuzzleInfo]);
         let [_main, right] = surface.split_right(
             main,

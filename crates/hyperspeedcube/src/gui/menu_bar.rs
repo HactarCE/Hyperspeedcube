@@ -252,6 +252,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::Camera);
         show_tab_toggle(ui, app_ui, Tab::PieceFilters);
         show_tab_toggle(ui, app_ui, Tab::Timer);
+        show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Macros);
         show_tab_toggle(ui, app_ui, Tab::MoveInput);
@@ -265,7 +266,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
     menu_button_that_stays_open(L.menu.puzzles.title, ui, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::PuzzleCatalog);
+        show_tab_toggle(ui, app_ui, Tab::Catalog);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
         ui.separator();
