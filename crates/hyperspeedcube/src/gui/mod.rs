@@ -65,7 +65,7 @@ impl AppUi {
                 Tab::Colors,
                 Tab::Styles,
                 Tab::View,
-                Tab::Animations,
+                Tab::Animation,
                 Tab::Interaction,
             ],
         );

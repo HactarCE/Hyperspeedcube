@@ -3,7 +3,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 mod about;
-mod animations;
+mod animation;
 mod camera;
 mod colors;
 mod debug;
@@ -46,7 +46,7 @@ pub enum Tab {
     Colors,
     Styles,
     View,
-    Animations,
+    Animation,
 
     // Input
     Interaction,
@@ -92,7 +92,7 @@ impl Tab {
             Tab::Colors => l.colors,
             Tab::Styles => l.styles,
             Tab::View => l.view,
-            Tab::Animations => l.animations,
+            Tab::Animation => l.animation,
 
             Tab::Interaction => l.interaction,
             Tab::Keybinds => l.keybinds,
@@ -128,7 +128,7 @@ impl Tab {
             Tab::Colors => l.colors.into(),
             Tab::Styles => l.styles.into(),
             Tab::View => l.view.into(),
-            Tab::Animations => l.animations.into(),
+            Tab::Animation => l.animation.into(),
 
             Tab::Interaction => l.interaction.into(),
             Tab::Keybinds => l.keybinds.into(),
@@ -163,7 +163,7 @@ impl Tab {
             Tab::Colors => colors::show(ui, app),
             Tab::Styles => styles::show(ui, app),
             Tab::View => view::show(ui, app),
-            Tab::Animations => animations::show(ui, app),
+            Tab::Animation => animation::show(ui, app),
 
             Tab::Interaction => interaction::show(ui, app),
             Tab::Keybinds => keybinds::show(ui, app),

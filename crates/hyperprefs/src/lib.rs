@@ -18,7 +18,7 @@ use eyre::{OptionExt, eyre};
 use hyperpuzzle_core::{PerspectiveDim, Puzzle, Rgb};
 use serde::{Deserialize, Serialize};
 
-mod animations;
+mod animation;
 mod colors;
 mod filters;
 mod image_generator;
@@ -34,7 +34,7 @@ mod serde_impl;
 mod styles;
 mod view;
 
-pub use animations::*;
+pub use animation::*;
 pub use colors::*;
 pub use filters::*;
 pub use image_generator::*;

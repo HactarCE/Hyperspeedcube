@@ -9,7 +9,7 @@ tabs {
     colors "Colors"
     styles "Styles"
     view "View"
-    animations "Animations"
+    animation "Animation"
 
     interaction "Interaction"
     keybinds "Keybinds"
@@ -45,7 +45,7 @@ tabs {
     colors "Colors"
     styles "Styles"
     view "View"
-    animations "Animations"
+    animation "Animation"
 
     interaction "Interaction"
     keybinds "Keybinds"
@@ -334,7 +334,7 @@ prefs {
       Hyperspeedcube will never automatically update without your explicit consent.
     """
   }
-  animations {
+  animation {
     twists {
       title "Twists"
       (HoverStrings)dynamic_twist_speed "Dynamic twist speed" {

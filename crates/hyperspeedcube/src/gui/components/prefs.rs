@@ -322,7 +322,7 @@ impl<T> PrefsUi<'_, T> {
     ) -> egui::Response {
         /// Returns the human-friendly strings for the interpolation function.
         fn get_strings(f: InterpolateFn) -> &'static HoverStrings {
-            let l = &L.prefs.animations.twists.interpolations;
+            let l = &L.prefs.animation.twists.interpolations;
             match f {
                 InterpolateFn::Lerp => &l.lerp,
                 InterpolateFn::Cosine => &l.cosine,
@@ -339,7 +339,7 @@ impl<T> PrefsUi<'_, T> {
 
         /// Returns the D&D alignment of the interpolation function.
         pub fn get_dnd_alignment(f: InterpolateFn) -> &'static str {
-            let l = &L.prefs.animations.twists.interpolations.alignments;
+            let l = &L.prefs.animation.twists.interpolations.alignments;
             match f {
                 InterpolateFn::Lerp => l.true_neutral,
                 InterpolateFn::Cosine => l.neutral_good,
@@ -379,7 +379,7 @@ impl<T> PrefsUi<'_, T> {
                                 let desc = get_strings(f).desc;
                                 let alignment_str = L
                                     .prefs
-                                    .animations
+                                    .animation
                                     .twists
                                     .interpolations
                                     .alignment
@@ -434,13 +434,13 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
     });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {
-    let l = &L.prefs.animations.twists;
+    let l = &L.prefs.animation.twists;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.dynamic_twist_speed, access!(.dynamic_twist_speed));
         prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
         prefs_ui.interpolation_fn(&l.twist_interpolation, access!(.twist_interpolation));
     });
-    let l = &L.prefs.animations.other;
+    let l = &L.prefs.animation.other;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.animation_duration(
             &l.blocking_animation_duration,

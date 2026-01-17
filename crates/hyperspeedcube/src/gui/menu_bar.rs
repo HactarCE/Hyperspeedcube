@@ -227,7 +227,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::Colors);
         show_tab_toggle(ui, app_ui, Tab::Styles);
         show_tab_toggle(ui, app_ui, Tab::View);
-        show_tab_toggle(ui, app_ui, Tab::Animations);
+        show_tab_toggle(ui, app_ui, Tab::Animation);
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Interaction);
         show_tab_toggle(ui, app_ui, Tab::Keybinds);
