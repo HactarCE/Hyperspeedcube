@@ -107,7 +107,7 @@ styles:
       mode: fixed
       color: '#000000'
     outline_lighting: false
-custom_styles:
+filter_styles:
   last_loaded: Hidden
   presets:
     Hidden:
