@@ -4,6 +4,7 @@ use egui::AtomExt;
 use hypercubing_leaderboards_client::Leaderboards;
 use parking_lot::Mutex;
 
+use crate::L;
 use crate::gui::markdown::md;
 use crate::gui::util::text_width;
 use crate::leaderboards::{LEADERBOARDS_DOMAIN, LeaderboardsClientState};
@@ -17,39 +18,37 @@ pub fn show_leaderboards_ui(
         let mut wants_sign_out = false;
         match &*lb {
             LeaderboardsClientState::NotSignedIn => {
-                ui.menu_button("Leaderboards sign-in", |ui| {
+                let sign_in_text = if hyperpaths::IS_OFFICIAL_BUILD {
+                    L.leaderboards.sign_in
+                } else {
+                    L.leaderboards.sign_in_localhost
+                };
+                ui.menu_button(sign_in_text, |ui| {
                     ui.set_max_width(ui.spacing().menu_width / 2.0);
-                    md(
-                        ui,
-                        format!(
-                            "Hyperspeedcube is integrated with the \
-                             [Hypercubing leaderboards]({LEADERBOARDS_DOMAIN}).\n\
-                             \n\
-                             If you sign in, you can automatically upload your \
-                             fastest speedsolves and shortest solutions to the \
-                             leaderboards.",
-                        ),
-                    );
-                    if ui.link("Sign into the leaderboards").clicked() {
+                    md(ui, L.leaderboards.sign_in_desc.with(LEADERBOARDS_DOMAIN));
+                    if ui.link(L.leaderboards.actions.sign_in).clicked() {
                         let url = lb.init_auth(Arc::clone(leaderboards_state));
                         ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+                    }
+                    if !hyperpaths::IS_OFFICIAL_BUILD {
+                        md(ui, L.leaderboards.sign_in_desc_localhost);
                     }
                 });
             }
             LeaderboardsClientState::WaitingForUserAuth { url } => {
                 ui.spinner();
                 ui.push_id("waiting_for_auth", |ui| {
-                    ui.menu_button("Waiting for authentication ...", |ui| {
-                        ui.hyperlink_to("Sign in using browser", url);
-                        wants_sign_out |= ui.button("Cancel").clicked();
+                    ui.menu_button(L.leaderboards.loading.waiting_for_auth, |ui| {
+                        ui.hyperlink_to(L.leaderboards.actions.sign_in_using_browser, url);
+                        wants_sign_out |= ui.button(L.cancel).clicked();
                     });
                 });
             }
             LeaderboardsClientState::FetchingProfileInfo { token } => {
                 ui.spinner();
                 ui.push_id("fetching_info", |ui| {
-                    ui.menu_button("Fetching profile info ...", |ui| {
-                        wants_sign_out |= ui.button("Cancel").clicked();
+                    ui.menu_button(L.leaderboards.loading.fetching_profile_info, |ui| {
+                        wants_sign_out |= ui.button(L.cancel).clicked();
                     });
                 });
             }
@@ -70,20 +69,20 @@ pub fn show_leaderboards_ui(
                 }
                 ui.push_id("signed_in", |ui| {
                     ui.menu_button(menu_button_label, |ui: &mut egui::Ui| {
-                        ui.hyperlink_to("My profile", lb.profile_url());
-                        ui.hyperlink_to("My submissions", lb.submissions_url());
-                        ui.hyperlink_to("Settings", lb.settings_url());
+                        ui.hyperlink_to(L.leaderboards.links.profile, lb.profile_url());
+                        ui.hyperlink_to(L.leaderboards.links.submissions, lb.submissions_url());
+                        ui.hyperlink_to(L.leaderboards.links.settings, lb.settings_url());
                         ui.separator();
-                        wants_sign_out |= ui.button("Sign out").clicked();
+                        wants_sign_out |= ui.button(L.leaderboards.actions.sign_out).clicked();
                     });
                 });
             }
             LeaderboardsClientState::Error { token, error } => {
                 let error_msg = error.to_string();
                 ui.push_id("error", |ui| {
-                    ui.menu_button("Error (click for details)", |ui| {
+                    ui.menu_button(L.leaderboards.error_button, |ui| {
                         ui.label(error_msg);
-                        if ui.button("Try again").clicked() {
+                        if ui.button(L.try_again).clicked() {
                             lb.sign_out();
                         }
                     });

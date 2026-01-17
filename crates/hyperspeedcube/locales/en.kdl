@@ -147,6 +147,43 @@ inputs {
   drag "**Drag**"
 }
 
+leaderboards {
+  sign_in "Leaderboards sign-in"
+  sign_in_localhost "Leaderboards sign-in (localhost)"
+  sign_in_desc """
+    Hyperspeedcube is integrated with the
+    [Hypercubing leaderboards]({{LEADERBOARDS_DOMAIN}}).
+
+    If you sign in, you can automatically upload your
+    fastest speedsolves and shortest solutions to the
+    leaderboards.
+  """
+  sign_in_desc_localhost """
+    This is a development build of Hyperspeedcube, so
+    leaderboard integration requires running a local
+    copy of the leaderboards.
+  """
+
+  actions {
+    sign_in "Sign into the leaderboards"
+    sign_in_using_browser "Sign in using browser"
+    sign_out "Sign out"
+  }
+
+  loading {
+    waiting_for_auth "Waiting for authentication ..."
+    fetching_profile_info "Fetching profile info ..."
+  }
+
+  links {
+    profile "My profile"
+    submissions "My submissions"
+    settings "Settings"
+  }
+
+  error_button "Error (click for details)"
+}
+
 statuses {
   saved "Saved!"
   copied "Copied!"
@@ -167,6 +204,9 @@ reset "Reset"
 reset_to_value "Reset to {{value}}"
 
 no_active_puzzle "No active puzzle"
+
+cancel "Cancel"
+try_again "Try again"
 
 (HoverStrings)edit_as_plaintext {
   full "Edit as plaintext"
