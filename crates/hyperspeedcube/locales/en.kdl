@@ -152,7 +152,7 @@ leaderboards {
   sign_in_localhost "Leaderboards sign-in (localhost)"
   sign_in_desc """
     Hyperspeedcube is integrated with the
-    [Hypercubing leaderboards]({{LEADERBOARDS_DOMAIN}}).
+    [Hypercubing leaderboards]({{leaderboards_domain}}).
 
     If you sign in, you can automatically upload your
     fastest speedsolves and shortest solutions to the
@@ -288,15 +288,15 @@ presets {
       delete "Delete color scheme"
     }
   }
-  (PresetStrings)custom_styles {
-    saved_presets "Custom styles"
+  (PresetStrings)filter_styles {
+    saved_presets "Filter styles"
     current "{{current}} style"
     current_empty "No style"
     new_name_hint "New style name"
     (PresetErrors)errors {
       empty_name "Style name cannot be empty"
       name_conflict "There is already a style with this name"
-      cannot_delete_last "Cannot delete last custom style"
+      cannot_delete_last "Cannot delete last filter style"
     }
     (PresetActions)actions {
       add "Add style"
@@ -701,10 +701,10 @@ help {
     **Replay files** may be required for speedsolving verification.
   """
   cant_save_replay "⚠ This solve was not loaded from a replay file so it cannot be saved as one."
-  custom_piece_styles """
-    # Custom piece styles
+  filter_styles """
+    # Filter styles
 
-    Custom styles can be applied to pieces using the **piece filters** tool.
+    Filter styles can be applied to pieces using the **piece filters** tool.
   """
   color_assignments """
     # Color assignments

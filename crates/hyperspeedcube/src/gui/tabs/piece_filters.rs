@@ -613,7 +613,7 @@ fn show_current_filter_preset_ui_contents(
     ui.set_min_width(CURRENT_PRESET_MIN_WIDTH);
 
     let mut style_options = vec![(None, crate::DEFAULT_STYLE_NAME.into())];
-    for style in prefs.custom_styles.user_presets() {
+    for style in prefs.filter_styles.user_presets() {
         style_options.push((Some(style.new_ref()), style.name().to_owned().into()));
     }
 

@@ -52,7 +52,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         md(
             ui,
             L.presets
-                .custom_styles
+                .filter_styles
                 .current
                 .with(&md_bold_user_text(name)),
         );
@@ -63,22 +63,22 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     let mut current = app
         .prefs
-        .custom_styles
+        .filter_styles
         .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
 
-    let help_contents = L.help.custom_piece_styles;
+    let help_contents = L.help.filter_styles;
     let presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
-        presets: &mut app.prefs.custom_styles,
+        presets: &mut app.prefs.filter_styles,
         current: &mut current,
         changed: &mut changed,
-        text: &L.presets.custom_styles,
+        text: &L.presets.filter_styles,
         autosave: true,
         vscroll: false,
         help_contents: Some(help_contents),
         extra_validation: Some(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
-                Err(L.presets.custom_styles.errors.name_conflict.into())
+                Err(L.presets.filter_styles.errors.name_conflict.into())
             } else {
                 Ok(())
             }

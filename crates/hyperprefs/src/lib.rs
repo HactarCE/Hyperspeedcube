@@ -76,7 +76,7 @@ pub struct Preferences {
     pub animation: PresetsList<AnimationPreferences>,
     pub interaction: InteractionPreferences,
     pub styles: StylePreferences,
-    pub custom_styles: PresetsList<PieceStyle>,
+    pub filter_styles: PresetsList<PieceStyle>,
 
     pub view_3d: PresetsList<ViewPreferences>,
     pub view_4d: PresetsList<ViewPreferences>,
@@ -112,7 +112,7 @@ impl schema::PrefsConvert for Preferences {
             animation,
             interaction,
             styles,
-            custom_styles,
+            filter_styles,
             view_3d,
             view_4d,
             color_palette,
@@ -139,7 +139,7 @@ impl schema::PrefsConvert for Preferences {
             animation: animation.to_serde(),
             interaction: interaction.clone(),
             styles: styles.clone(),
-            custom_styles: custom_styles.to_serde(),
+            filter_styles: filter_styles.to_serde(),
             view_3d: view_3d.to_serde(),
             view_4d: view_4d.to_serde(),
             color_palette: color_palette.to_serde(),
@@ -160,7 +160,7 @@ impl schema::PrefsConvert for Preferences {
             animation,
             interaction,
             styles,
-            custom_styles,
+            filter_styles,
             view_3d,
             view_4d,
             color_palette,
@@ -180,7 +180,7 @@ impl schema::PrefsConvert for Preferences {
 
         self.animation.reload_from_serde(ctx, animation);
         self.interaction.reload_from_serde(ctx, interaction);
-        self.custom_styles.reload_from_serde(ctx, custom_styles);
+        self.filter_styles.reload_from_serde(ctx, filter_styles);
 
         self.view_3d.reload_from_serde(ctx, view_3d);
         self.view_4d.reload_from_serde(ctx, view_4d);
@@ -191,8 +191,8 @@ impl schema::PrefsConvert for Preferences {
         let defaults = &DEFAULT_PREFS_RAW;
         self.animation
             .set_builtin_presets_from_default_prefs(ctx, &defaults.animation);
-        self.custom_styles
-            .set_builtin_presets_from_default_prefs(ctx, &defaults.custom_styles);
+        self.filter_styles
+            .set_builtin_presets_from_default_prefs(ctx, &defaults.filter_styles);
         self.view_3d
             .set_builtin_presets_from_default_prefs(ctx, &defaults.view_3d);
         self.view_4d
@@ -200,7 +200,7 @@ impl schema::PrefsConvert for Preferences {
 
         self.show_experimental_puzzles = show_experimental_puzzles;
 
-        schema::reload_btreemap(&mut self.filters, &self.custom_styles, filters);
+        schema::reload_btreemap(&mut self.filters, &self.filter_styles, filters);
     }
 }
 impl Preferences {
@@ -303,12 +303,12 @@ impl Preferences {
     }
 
     pub fn first_custom_style(&self) -> Option<PresetRef> {
-        Some(self.custom_styles.user_presets().next()?.new_ref())
+        Some(self.filter_styles.user_presets().next()?.new_ref())
     }
     pub fn base_style(&self, style_ref: &Option<PresetRef>) -> PieceStyle {
         style_ref
             .as_ref()
-            .and_then(|p| self.custom_styles.get(&p.name()))
+            .and_then(|p| self.filter_styles.get(&p.name()))
             .map(|preset| preset.value)
             .unwrap_or(self.styles.default)
     }

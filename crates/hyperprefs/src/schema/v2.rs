@@ -30,7 +30,8 @@ pub struct Preferences {
     pub animation: PresetsList<AnimationPreferences>,
     pub interaction: InteractionPreferences,
     pub styles: StylePreferences,
-    pub custom_styles: PresetsList<PieceStyle>,
+    #[serde(alias = "custom_styles")] // v2.0.0-zeta.3 or earlier
+    pub filter_styles: PresetsList<PieceStyle>,
 
     pub view_3d: PresetsList<ViewPreferences>,
     pub view_4d: PresetsList<ViewPreferences>,
