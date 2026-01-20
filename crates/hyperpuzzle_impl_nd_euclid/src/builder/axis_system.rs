@@ -68,9 +68,9 @@ impl AxisSystemBuilder {
         name_spec: Option<String>,
         warn_fn: impl FnOnce(BadName),
     ) -> Result<Axis> {
-        let vector = vector
-            .normalize()
-            .ok_or_eyre("axis vector cannot be zero")?;
+        if APPROX.eq_zero(&vector) {
+            bail!("axis vector cannot be zero")
+        }
 
         // Check that the vector isn't already taken.
         let id = match self.vector_to_id.entry(vector.clone()) {
@@ -103,7 +103,7 @@ impl AxisSystemBuilder {
 
     /// Returns an axis ID from its vector.
     pub fn vector_to_id(&self, vector: impl VectorRef) -> Option<Axis> {
-        Some(*self.vector_to_id.get(vector.normalize()?)?)
+        Some(*self.vector_to_id.get(vector.to_vector())?)
     }
 
     /// Returns an iterator over all the axes, in the canonical ordering.

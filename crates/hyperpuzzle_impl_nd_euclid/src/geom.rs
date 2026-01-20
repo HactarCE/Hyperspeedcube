@@ -28,6 +28,8 @@ pub struct NdEuclidPuzzleGeometry {
     ///
     /// The axis vector is perpendicular to all layer boundaries on the axis and
     /// is fixed by all turns on the axis.
+    ///
+    /// This vector is **not** necessarily unit.
     pub axis_vectors: Arc<PerAxis<Vector>>,
     /// Transforation to apply to pieces for each twist.
     pub twist_transforms: Arc<PerTwist<pga::Motor>>,
@@ -75,10 +77,12 @@ impl NdEuclidPuzzleGeometry {
     pub fn piece_min_max_on_axis(
         &self,
         piece: Piece,
-        axis: impl VectorRef,
+        axis_vector: impl VectorRef,
     ) -> Option<(Float, Float)> {
+        let normalized_axis_vector = axis_vector.normalize()?;
         let vertex_coordinates = self.piece_vertex_sets[piece].iter().map(|i| self.vertex(i));
-        let vertex_distances_along_axis = vertex_coordinates.map(|vertex| axis.dot(vertex));
+        let vertex_distances_along_axis =
+            vertex_coordinates.map(|vertex| normalized_axis_vector.dot(vertex));
         hypermath::util::min_max(vertex_distances_along_axis)
     }
 }
