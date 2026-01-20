@@ -11,7 +11,7 @@ GIZMO_EDGE_FACTOR = 0.8
 add_puzzle(
     id = "ft_120_cell_shallow",
     version = "0.1.0",
-    name = "Facet-Turning 120-Cell (Shallow)",
+    name = "FT 120-Cell (Shallow)",
     colors = "120cell",
     scramble = 5000,
     engine = "euclid",

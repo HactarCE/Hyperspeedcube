@@ -25,11 +25,11 @@ export fn cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
     return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
 }
 
-// NxNxN Face-Turning Cube generator
+// NxNxN FT Cube generator
 add_puzzle_generator(
     id = "ft_cube",
     version = "1.0.0",
-    name = "NxNxN Face-Turning Cube",
+    name = "NxNxN FT Cube",
     aliases = ["N^3"],
     params = [
         #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
@@ -105,11 +105,11 @@ add_puzzle_generator(
     ],
 )
 
-// Super Real NxNxN Face-Turning Cube generator
+// Super Real NxNxN FT Cube generator
 add_puzzle_generator(
     id = "ft_cube_super_real",
     version = "0.1.0",
-    name = "Super Real NxNxN Face-Turning Cube",
+    name = "Super Real NxNxN FT Cube",
     aliases = ["N^3"],
     params = [
         #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
@@ -214,11 +214,11 @@ add_twist_system(
     },
 )
 
-// NxNxNxN Facet-Turning Cube
+// NxNxNxN FT Cube
 add_puzzle_generator(
     id = "ft_hypercube",
     version = "1.0.0",
-    name = "NxNxNxN Facet-Turning Cube",
+    name = "NxNxNxN FT Cube",
     aliases = ["N^4"],
     params = [
         #{name = "Layers", type = Int, default = 3, min = 1, max = 49},
@@ -230,8 +230,8 @@ add_puzzle_generator(
     gen = fn(n) {
         if n == 1 { return "hypercube" }
         return #{
-            name = "${n}x${n}x${n}x${n}",
-            aliases = ["${n}^4"],
+            name = "${n}^4",
+            aliases = ["${n}x${n}x${n}x${n}"],
             build = fn() {
                 hypercube = @shapes/bc/hypercube.new()
 
@@ -345,11 +345,11 @@ add_twist_system(
     },
 )
 
-// N^D Facet-Turning Hypercube generator
+// N^D FT Hypercube generator
 add_puzzle_generator(
     id = "ft_nd_hypercube",
     version = "0.1.0",
-    name = "N^D Facet-Turning Hypercube",
+    name = "N^D FT Hypercube",
     aliases = ["N^D"],
     params = [
         #{name = "Layers", type = Int, default = 3, min = 1, max = 49},

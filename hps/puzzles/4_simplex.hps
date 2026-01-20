@@ -122,7 +122,7 @@ add_puzzle_generator(
 
 add_twist_system(
     id = "ft_4_simplex",
-    name = "Facet-Turning 4-Simplex",
+    name = "FT 4-Simplex",
     engine = "euclid",
     ndim = 4,
     build = fn() {

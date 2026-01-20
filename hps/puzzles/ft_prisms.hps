@@ -7,25 +7,31 @@ param_polygon_size = @shapes/i/polygon.param_size
 fn param_polygon_width(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 fn param_line_height(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 
+fn n_by_m_if_not_3(width: Nat, height: Nat) -> Str {
+    if width == 3 and height == 3 { "" } else { " ${width}x${height}" }
+}
+
 export fn ft_polygonal_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
-    "Face-Turning ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
+    "FT ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type}${n_by_m_if_not_3(width, height)})"
 }
 export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
-    "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${cut_type} ${n_layers}x${m_layers})"
+    "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${cut_type}${n_by_m_if_not_3(n_layers, m_layers)})"
 }
 export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
     if n_cut_type == m_cut_type {
         ft_duoprism_name(n, m, n_layers, m_layers, n_cut_type)
+    } else if n_layers == 3 and m_layers == 3 {
+        "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} x ${m_cut_type})"
     } else {
-        "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
+        "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
     }
 }
 
-// Face-Turning Polygonal Prism (Shallow) generator
+// FT Polygonal Prism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_prism",
     version = "1.0.0",
-    name = "Face-Turning Polygonal Prism (Shallow)",
+    name = "FT Polygonal Prism (Shallow)",
     params = [
         param_polygon_size("Polygon size"),
         param_polygon_width("Width"),
@@ -85,11 +91,11 @@ add_puzzle_generator(
     },
 )
 
-// Face-Turning Triminx Prism generator
+// FT Triminx Prism generator
 add_puzzle_generator(
     id = "ft_triminx_prism",
     version = "1.0.0",
-    name = "Face-Turning Triminx Prism",
+    name = "FT Triminx Prism",
     params = [
         param_polygon_width("Width"),
         param_line_height("Height"),
@@ -144,16 +150,16 @@ add_puzzle_generator(
     },
 )
 
-// Face-Turning Polygonal Prism twist system generator
+// FT Polygonal Prism twist system generator
 add_twist_system_generator(
     id = "ft_polygonal_prismatic",
-    name = "Face-Turning Polygonal Prism",
+    name = "FT Polygonal Prism",
     params = [param_polygon_size("Polygon Size")],
     engine = "euclid",
     ndim = 3,
     gen = fn(n) {
         return #{
-            name = "Face-Turning ${@shapes/prisms/polygonal_prism.name(n)}",
+            name = "FT ${@shapes/prisms/polygonal_prism.name(n)}",
             build = fn() {
                 shape = @shapes/prisms/polygonal_prism.new(n)
 
@@ -240,11 +246,11 @@ fn build_ft_polygonal_duoprism(shape: Map, a_depths: List[Num], b_depths: List[N
     }
 }
 
-// Facet-Turning Polygonal Duoprism (Shallow) generator
+// FT Polygonal Duoprism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism",
     version = "1.0.0",
-    name = "Facet-Turning Polygonal Duoprism (Shallow)",
+    name = "FT Polygonal Duoprism (Shallow)",
     params = @shapes/prisms/polygonal_duoprism.params ++ [
         param_polygon_width("Layers A"),
         param_polygon_width("Layers B"),
@@ -314,11 +320,11 @@ add_puzzle_generator(
     ],
 )
 
-// Facet-Turning Polygonal Duoprism (Shallow, Triminx) generator
+// FT Polygonal Duoprism (Shallow, Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx",
     version = "1.0.0",
-    name = "Facet-Turning Polygonal Duoprism (Shallow, Triminx)",
+    name = "FT Polygonal Duoprism (Shallow, Triminx)",
     params = [
         @shapes/prisms/polygonal_duoprism.params[0],
         param_polygon_width("Layers A"),
@@ -367,11 +373,11 @@ add_puzzle_generator(
     ],
 )
 
-// Facet-Turning Polygonal Duoprism (Triminx) generator
+// FT Polygonal Duoprism (Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx_3_minx",
     version = "1.0.0",
-    name = "Facet-Turning Polygonal Duoprism (Triminx)",
+    name = "FT Polygonal Duoprism (Triminx)",
     params = [
         param_polygon_width("Layers A"),
         param_polygon_width("Layers B"),
@@ -418,16 +424,16 @@ add_puzzle_generator(
     ],
 )
 
-// Facet-Turning Polygonal Duoprism twist system generator
+// FT Polygonal Duoprism twist system generator
 add_twist_system_generator(
     id = "ft_polygonal_duoprism",
-    name = "Facet-Turning Polygonal Duoprism",
+    name = "FT Polygonal Duoprism",
     params = [param_polygon_size("Polygon A"), param_polygon_size("Polygon B")],
     engine = "euclid",
     ndim = 4,
     gen = fn(n, m) {
         return #{
-            name = "Facet-Turning ${@shapes/prisms/polygonal_duoprism.name(n, m)}",
+            name = "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)}",
             build = fn() {
                 shape = @shapes/prisms/polygonal_duoprism.new(n, m)
 
