@@ -67,6 +67,8 @@ pub fn verify(
 ) -> Result<SolveVerification, SolveVerificationError> {
     let mut errors: Vec<String> = vec![];
 
+    let is_replay = solve.replay.unwrap_or(false);
+
     if !solve.solved {
         return Err(SolveVerificationError::NotSolved);
     }
@@ -261,7 +263,7 @@ pub fn verify(
 
         timestamps,
         verified_timestamps,
-        durations: if single_session {
+        durations: if is_replay && single_session {
             Durations::new(timestamps, verified_timestamps, is_valid_blindsolve)
         } else {
             Durations::default() // empty
@@ -269,22 +271,6 @@ pub fn verify(
 
         errors,
     })
-
-    // Ok(SolveVerification {
-    //     puzzle: solve.puzzle.clone(),
-    //     scramble: scramble_params,
-    //     is_scramble_correct,
-    //     solution_stm_count: solution_stm,
-    //     single_session,
-    //     used_macros: false, // not yet implemented
-    //     inspection_duration: speedsolve_start.map(Duration::milliseconds),
-    //     speedsolve_duration,
-    //     blindsolve_duration: None, // not yet implemented
-    //     time_completed,
-    //     verified_scramble_timestamp_range: scramble_timestamp_range,
-    //     verified_completion_timestamp: completion_timestamp,
-    //     errors,
-    // })
 }
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
