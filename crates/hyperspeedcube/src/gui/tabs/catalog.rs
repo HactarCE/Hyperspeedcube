@@ -681,11 +681,13 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
             ui.separator();
 
             for icon in icons {
-                // TODO: when ui.label() supports atoms, use that here instead
-                ui.horizontal(|ui| {
-                    ui.add(icon.to_image(ui));
-                    ui.label(icon.description);
-                });
+                if !icon.description.is_empty() {
+                    // TODO: when ui.label() supports atoms, use that here instead
+                    ui.horizontal(|ui| {
+                        ui.add(icon.to_image(ui));
+                        ui.label(icon.description);
+                    });
+                }
             }
         })
     }

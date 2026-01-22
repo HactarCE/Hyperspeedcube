@@ -1,0 +1,14 @@
+for d in 2..=7 {
+    add_puzzle(
+        id = "${d}d_demo",
+        name = "${d}D Demo",
+        version="0.1.0",
+        engine = "euclid",
+        ndim = d,
+        build = fn() {},
+        tags = #{
+            type = "shape",
+            "shape/${d}d" = true,
+        },
+    )
+}

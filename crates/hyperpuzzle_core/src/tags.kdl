@@ -15,6 +15,7 @@ __separator
 __heading "Shape"
 
 shape expected=1 inline=#true {
+  _2d "2D"
   _3d "3D" {
     platonic "Platonic" {
       cube "Cube"

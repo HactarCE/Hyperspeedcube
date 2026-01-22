@@ -13,7 +13,7 @@ impl CatalogIcon {
     pub fn to_image(&self, ui: &egui::Ui) -> egui::Image<'static> {
         egui::Image::from(self.icon_data.clone())
             .tint(self.color.to_color32(ui))
-            .fit_to_exact_size(egui::vec2(SVG_ICON_SIZE, SVG_ICON_SIZE))
+            .fit_to_exact_size(egui::vec2(SVG_ICON_SIZE * 1.5, SVG_ICON_SIZE * 1.5))
     }
     pub fn to_atom(&self, ui: &egui::Ui) -> egui::Atom<'static> {
         self.to_image(ui).into()
@@ -82,33 +82,53 @@ impl CatalogIcon {
     const TYPE_PUZZLE: Self = svg_catalog_icon!("type/puzzle", "Puzzle", Left, "#c089ff");
     const TYPE_GENERATED_PUZZLE: Self =
         svg_catalog_icon!("type/puzzle-cog", "Puzzle", Left, "#c089ff");
-    const TYPE_SHAPE: Self = svg_catalog_icon!("type/pentagon", "Shape", Left, "#e1de82");
+    const TYPE_SHAPE: Self = svg_catalog_icon!("type/pentagon", "Shape", Left, "#dad77d");
     const TYPE_GENERATED_SHAPE: Self =
-        svg_catalog_icon!("type/pentagon-cog", "Generated shape", Left, "#e1de82");
+        svg_catalog_icon!("type/pentagon-cog", "Generated shape", Left, "#dad77d");
     const TYPE_SHAPE_GENERATOR: Self =
         svg_catalog_icon!("type/cog", "Shape generator", Left, "#eaa560");
     const TYPE_UNKNOWN: Self = svg_catalog_icon!("type/help", "Missing `type` tag", Left, Error);
 
-    const EXPERIMENTAL: Self = svg_catalog_icon!("test-tube", "Experimental", Right, "#1aeb8a");
+    const EXPERIMENTAL: Self = svg_catalog_icon!("test-tube", "Experimental", Right, "#17d97f");
     const BIG: Self = svg_catalog_icon!("alert", "Big/slow to generate", Right, Warn);
 
-    const NDIM_1D: Self = svg_catalog_icon!("ndim/1d", "1D", Right);
-    const NDIM_2D: Self = svg_catalog_icon!("ndim/2d", "2D", Right);
-    const NDIM_3D: Self = svg_catalog_icon!("ndim/3d", "3D", Right);
-    const NDIM_4D: Self = svg_catalog_icon!("ndim/4d", "4D", Right);
-    const NDIM_5D: Self = svg_catalog_icon!("ndim/5d", "5D", Right);
-    const NDIM_6D: Self = svg_catalog_icon!("ndim/6d", "6D", Right);
-    const NDIM_7D: Self = svg_catalog_icon!("ndim/7d", "7D", Right);
-    const NDIM_8D: Self = svg_catalog_icon!("ndim/8d", "8D", Right);
+    const NDIM_1D: Self = svg_catalog_icon!("ndim/1d", "1D", Left);
+    const NDIM_2D: Self = svg_catalog_icon!("ndim/2d", "2D", Left, "#dad77d"); // yellow (like D)
+    const NDIM_3D: Self = svg_catalog_icon!("ndim/3d", "3D", Left, "#17d97f"); // green (like F)
+    const NDIM_4D: Self = svg_catalog_icon!("ndim/4d", "4D", Left, "#c089ff"); // pink (like O)
+    const NDIM_5D: Self = svg_catalog_icon!("ndim/5d", "5D", Left, "#00a9cb"); // blue
+    const NDIM_6D: Self = svg_catalog_icon!("ndim/6d", "6D", Left, "#da811a"); // orange
+    const NDIM_7D: Self = svg_catalog_icon!("ndim/7d", "7D", Left, "#d22e2e"); // red
+    const NDIM_8D: Self = svg_catalog_icon!("ndim/8d", "8D", Left);
+    const NDIM_UNKNOWN: Self = svg_catalog_icon!("empty", "", Left);
 
     pub fn icons_from_tags(tags: &hyperpuzzle::TagSet) -> Vec<CatalogIcon> {
         let mut ret = vec![];
+
+        // Dimension
+        let mut ndim_icon = None;
+        for (tag, icon) in [
+            ("shape/1d", Self::NDIM_1D),
+            ("shape/2d", Self::NDIM_2D),
+            ("shape/3d", Self::NDIM_3D),
+            ("shape/4d", Self::NDIM_4D),
+            ("shape/5d", Self::NDIM_5D),
+            ("shape/6d", Self::NDIM_6D),
+            ("shape/7d", Self::NDIM_7D),
+            ("shape/8d", Self::NDIM_8D),
+        ] {
+            if tags.has_present(tag) {
+                ndim_icon = Some(icon);
+                break;
+            }
+        }
+        ret.push(ndim_icon.unwrap_or(Self::NDIM_UNKNOWN));
 
         // Type
         let is_shape = tags.has_present("type/shape");
         let is_puzzle = tags.has_present("type/puzzle");
         let is_generator = tags.has_present("type/generator");
-        let is_generated = tags.has_present("type/generated");
+        let is_generated = tags.has_present("generated");
         ret.push(match (is_shape, is_puzzle) {
             (true, _) if is_generator => Self::TYPE_SHAPE_GENERATOR,
             (true, _) if is_generated => Self::TYPE_GENERATED_SHAPE,
@@ -127,22 +147,6 @@ impl CatalogIcon {
         // Big
         if tags.has_present("big") {
             ret.push(Self::BIG);
-        }
-
-        // Dimension
-        for (tag, icon) in [
-            ("shape/1d", Self::NDIM_1D),
-            ("shape/2d", Self::NDIM_2D),
-            ("shape/3d", Self::NDIM_3D),
-            ("shape/4d", Self::NDIM_4D),
-            ("shape/5d", Self::NDIM_5D),
-            ("shape/6d", Self::NDIM_6D),
-            ("shape/7d", Self::NDIM_7D),
-            ("shape/8d", Self::NDIM_8D),
-        ] {
-            if tags.has_present(tag) {
-                ret.push(icon);
-            }
         }
 
         ret
