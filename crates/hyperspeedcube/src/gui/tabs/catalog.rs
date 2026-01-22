@@ -33,6 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hyperpaths::hps_dir().is_ok() {
+                // TODO: proper icon
                 let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()
@@ -52,6 +53,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     |ui| {
                         let query = Query::from_str(&search_query_string);
 
+                        // TODO: proper icon
                         let (r, _) = MenuButton::new("🏷")
                             .config(
                                 MenuConfig::default()

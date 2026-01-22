@@ -218,6 +218,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 self.new_name.set(Some(s.clone()));
 
                 let s = if self.text_edit_trim { s.trim() } else { &s };
+                // TODO: proper icon
                 if let Some(validator) = self.validate_confirm
                     && (self.auto_confirm || validated_button(ui, "✔", validator(s), true))
                 {
@@ -226,6 +227,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                         ui.close();
                     }
                 }
+                // TODO: proper icon
                 if let Some(validator) = self.validate_delete
                     && validated_button(ui, "🗑", validator(s), false)
                 {

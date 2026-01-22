@@ -532,7 +532,7 @@ where
                             }
 
                             let r = ui
-                                .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
+                                .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾")) // TODO: proper icon
                                 .on_hover_explanation(L.presets.save_changes, {
                                     let current = md_bold_user_text(self.preset_name);
                                     if overwrite {

@@ -454,10 +454,10 @@ fn show_seq_preset_name(
             if value.include_previous {
                 let inactive_text_color = &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
                 *inactive_text_color = inactive_text_color.gamma_multiply(0.3);
-                label = "⮩";
+                label = "⮩"; // TODO: proper icon (custom L shape with arrow)
                 hover = L.piece_filters.include_previous;
             } else {
-                label = "★";
+                label = "★"; // TODO: proper icon (dot)
                 hover = L.piece_filters.ignore_previous;
             }
 
