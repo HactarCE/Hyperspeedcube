@@ -232,7 +232,7 @@ presets {
       cannot_delete_last "Cannot delete last preset"
     }
     (PresetActions)actions {
-      add "Add preset"
+      add "Add preset with current settings"
       add_all_builtin "Add all built-in presets"
       rename "Rename preset"
       delete "Delete preset"
@@ -252,7 +252,7 @@ presets {
     current "{{current}} piece filters"
     current_empty "Ad-hoc piece filters"
     (PresetActions)actions {
-      add "Add filter preset"
+      add "Add filter preset with current settings"
       add_all_builtin "Add all built-in filter presets"
       rename "Rename filter preset"
       delete "Delete filter preset"
@@ -282,7 +282,7 @@ presets {
       cannot_delete_last "Cannot delete last color scheme"
     }
     (PresetActions)actions {
-      add "Add color scheme"
+      add "Add color scheme with current settings"
       add_all_builtin "Add all built-in color schemes"
       rename "Rename color scheme"
       delete "Delete color scheme"
@@ -299,7 +299,7 @@ presets {
       cannot_delete_last "Cannot delete last filter style"
     }
     (PresetActions)actions {
-      add "Add style"
+      add "Add style with current settings"
       add_all_builtin "Add all built-in styles"
       rename "Rename style"
       delete "Delete style"
