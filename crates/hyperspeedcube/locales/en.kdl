@@ -743,6 +743,10 @@ help {
     # Piece filters
 
     TODO: explain filters
+
+    - Piece filters are per-puzzle
+    - Ad-hoc is never saved
+    - Filters auto-save when editing
   """
   piece_filter_presets """
     # Piece filter presets
