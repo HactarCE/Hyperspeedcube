@@ -28,7 +28,7 @@ export fn cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
 // NxNxN FT Cube generator
 add_puzzle_generator(
     id = "ft_cube",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "NxNxN FT Cube",
     aliases = ["N^3"],
     params = [
@@ -217,7 +217,7 @@ add_twist_system(
 // NxNxNxN FT Cube
 add_puzzle_generator(
     id = "ft_hypercube",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "NxNxNxN FT Cube",
     aliases = ["N^4"],
     params = [
@@ -270,12 +270,12 @@ add_puzzle_generator(
     },
 
     examples = [
-        #{params = [2], tags = #{external = #{wca = "322"}}},
-        #{params = [3], tags = #{external = #{wca = "333"}, "cuts/canonical" = true}},
-        #{params = [4], tags = #{external = #{wca = "444"}}},
-        #{params = [5], tags = #{external = #{wca = "555"}}},
-        #{params = [6], tags = #{external = #{wca = "666"}}},
-        #{params = [7], tags = #{external = #{wca = "777"}}},
+        #{params = [2]},
+        #{params = [3], tags = #{"cuts/canonical" = true}},
+        #{params = [4]},
+        #{params = [5]},
+        #{params = [6]},
+        #{params = [7]},
     ],
 )
 

@@ -43,7 +43,7 @@ export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_
 // FT Polygonal Prism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_prism",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "FT Polygonal Prism (Shallow)",
     params = [
         param_polygon_size("Polygon size"),
@@ -108,7 +108,7 @@ add_puzzle_generator(
 // FT Triminx Prism generator
 add_puzzle_generator(
     id = "ft_triminx_prism",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "FT Triminx Prism",
     params = [
         param_polygon_width("Width"),
@@ -264,7 +264,7 @@ fn build_ft_polygonal_duoprism(shape: Map, a_depths: List[Num], b_depths: List[N
 // FT Polygonal Duoprism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "FT Polygonal Duoprism (Shallow)",
     params = @shapes/prisms/polygonal_duoprism.params ++ [
         param_polygon_width("Layers A"),
@@ -338,7 +338,7 @@ add_puzzle_generator(
 // FT Polygonal Duoprism (Shallow, Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "FT Polygonal Duoprism (Shallow, Triminx)",
     params = [
         @shapes/prisms/polygonal_duoprism.params[0],
@@ -391,7 +391,7 @@ add_puzzle_generator(
 // FT Polygonal Duoprism (Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx_3_minx",
-    version = "1.0.0",
+    version = "1.0.1",
     name = "FT Polygonal Duoprism (Triminx)",
     params = [
         param_polygon_width("Layers A"),
