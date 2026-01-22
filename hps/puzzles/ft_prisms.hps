@@ -14,6 +14,9 @@ fn n_by_m_if_not_3(width: Nat, height: Nat) -> Str {
 export fn ft_polygonal_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
     "FT ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type}${n_by_m_if_not_3(width, height)})"
 }
+export fn ft_polygonal_prism_long_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
+    "Facet-Turning ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
+}
 export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
     "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${cut_type}${n_by_m_if_not_3(n_layers, m_layers)})"
 }
@@ -24,6 +27,16 @@ export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_t
         "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} x ${m_cut_type})"
     } else {
         "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
+    }
+}
+export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
+    "Facet-Turning ${@shapes/prisms/polygonal_duoprism.long_name(n, m)} (${cut_type} ${n_layers}x${m_layers})"
+}
+export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
+    if n_cut_type == m_cut_type {
+        ft_duoprism_long_name(n, m, n_layers, m_layers, n_cut_type)
+    } else {
+        "Facet-Turning ${@shapes/prisms/polygonal_duoprism.long_name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
     }
 }
 
@@ -41,6 +54,7 @@ add_puzzle_generator(
     gen = fn(n, width, height) {
         return #{
             name = ft_polygonal_prism_name(n, width, height, "Shallow"),
+            aliases = [ft_polygonal_prism_long_name(n, width, height, "Shallow")],
             ndim = 3,
             colors = "polygonal_prism:${n}",
             twists = "ft_polygonal_prismatic:${n}",
@@ -104,6 +118,7 @@ add_puzzle_generator(
     gen = fn(width, height) {
         return #{
             name = ft_polygonal_prism_name(3, width, height, "Triminx"),
+            aliases = [ft_polygonal_prism_long_name(3, width, height, "Triminx")],
             ndim = 3,
             colors = "polygonal_prism:3",
             twists = "ft_polygonal_prismatic:3",
@@ -265,7 +280,7 @@ add_puzzle_generator(
 
         return #{
             name = ft_duoprism_name(n, m, n_layers, m_layers, "Shallow"),
-            aliases = [ft_duoprism_name(m, n, m_layers, n_layers, "Shallow")],
+            aliases = [ft_duoprism_long_name(m, n, m_layers, n_layers, "Shallow")],
             colors = "polygonal_duoprism:${n},${m}",
             twists = "ft_polygonal_duoprism:${n},${m}",
             build = fn() {
@@ -335,7 +350,7 @@ add_puzzle_generator(
     gen = fn(n, n_layers, m_layers) {
         return #{
             name = ft_duoprism_name(n, 3, n_layers, m_layers, "Shallow", "Triminx"),
-            aliases = [ft_duoprism_name(3, n, m_layers, n_layers, "Triminx", "Shallow")],
+            aliases = [ft_duoprism_long_name(3, n, m_layers, n_layers, "Triminx", "Shallow")],
             colors = "polygonal_duoprism:${n},3",
             twists = "ft_polygonal_duoprism:${n},3",
             build = fn() {
@@ -388,7 +403,7 @@ add_puzzle_generator(
         canonical_id = (if n_layers > m_layers { "${#id}:${n_layers},${m_layers}" } else { "${#id}:${m_layers},${n_layers}" })
         return #{
             name = ft_duoprism_name(3, 3, n_layers, m_layers, "Triminx"),
-            aliases = [ft_duoprism_name(3, 3, m_layers, n_layers, "Triminx")],
+            aliases = [ft_duoprism_long_name(3, 3, m_layers, n_layers, "Triminx")],
             colors = "polygonal_duoprism:3,3",
             twists = "ft_polygonal_duoprism:3,3",
             build = fn() {

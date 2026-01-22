@@ -1,9 +1,8 @@
 use * from euclid
 
-export fn name(n: Nat, m: Nat) -> Str {
-    "{${n}}x{${m}} Duoprism"
-}
-export fn aliases(n: Nat, m: Nat) -> List[Str] { [] }
+export fn name(n: Nat, m: Nat) -> Str { "{${n}}x{${m}}" }
+export fn long_name(n: Nat, m: Nat) -> Str { "{${n}}x{${m}} Duoprism" }
+export fn aliases(n: Nat, m: Nat) -> List[Str] { [long_name(n, m)] }
 export fn adjective(n: Nat, m: Nat) -> Str { name(n, m) }
 export fn facet_colors(n: Nat, m: Nat) -> Str { "polygonal_duoprism:${n},${m}" }
 export ndim = 4
