@@ -1,11 +1,11 @@
 Puzzles
-- catalog = view-list, folder
+- catalog = view-list, folder, magnify
 - puzzle info = information-box
 - HPS logs = alert
 
 Speed tools
 - camera = camera
-- piece filters = magnify
+- piece filters = filter
 - timer = timer
 - keybinds reference = keyboard-variant
 
