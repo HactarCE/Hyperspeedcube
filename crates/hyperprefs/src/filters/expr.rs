@@ -8,7 +8,7 @@ use regex::Regex;
 lazy_static! {
     /// Regex matching a name, or any single symbol.
     static ref TOKEN_REGEX: Regex =
-        Regex::new(r"['@]?([a-zA-Z_][a-zA-Z0-9_]*)|.").expect("bad regex");
+        Regex::new(r"['@]?([a-zA-Z_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ][a-zA-Z0-9_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ]*)|.").expect("bad regex");
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
