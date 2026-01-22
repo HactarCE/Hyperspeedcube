@@ -114,7 +114,7 @@ walkdir = { version = "2.4.0" }
 arcstr = { version = "1.2.0" }
 ariadne = { version = "0.6.0" }
 chumsky = { version = "0.12.0", features = ["pratt"] }
-human-sort = { version = "0.2.2" }
+numeric-sort = { version = "0.1.5" }
 ident_case = { version = "1.0.1" }
 nom = { version = "8.0.0" }
 regex = { version = "1.12.2" }

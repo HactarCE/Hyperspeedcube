@@ -23,7 +23,7 @@ hyperspeedcube_cli_types = { workspace = true }
 chrono = { workspace = true }
 eyre = { workspace = true }
 hex = { workspace = true }
-human-sort = { workspace = true }
+numeric-sort = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 kdl = { workspace = true }
