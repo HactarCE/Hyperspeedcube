@@ -1,0 +1,109 @@
+use * from euclid
+
+fn qmul(a,b,c) {qmul(qmul(a,b),c)}
+fn qmul(q, r) {
+    return vec(
+        r.x * q.x - r.y * q.y - r.z * q.z - r.w * q.w,
+        r.x * q.y + r.y * q.x - r.z * q.w + r.w * q.z,
+        r.x * q.z + r.y * q.w + r.z * q.x - r.w * q.y,
+        r.x * q.w - r.y * q.z + r.z * q.y + r.w * q.x,
+    )
+}
+
+Quaternion = Vec
+
+// basis quaternions
+i: Quaternion = vec(0, 1, 0, 0)
+j: Quaternion = vec(0, 0, 1, 0)
+k: Quaternion = vec(0, 0, 0, 1)
+
+// conversion from Quaternion to Transform
+fn rot_from_quaternion(q) { rot_from_quaternion(q, 1) }
+fn rot_from_quaternion(q, handedness) {
+    q = q.unit
+    a = vec(q.y, q.z, q.w)
+    with #ndim = 3 {
+        rot_in_3d = rot(fix=a, angle=acos(q.x))
+    }
+    b = vec(0, 0, 0, 1)
+    return rot_in_3d * rot(start=a, end=b, angle=handedness * acos(q.x))
+}
+
+// quaternions for groups
+w = 1/2 * vec(-1, 1, 1, 1) // order 3
+i_O = 1/√2 * vec(0, 0, 1, 1) // order 4
+i_I = 1/2 * vec(0, 1, (√5-1)/2, (√5+1)/2) // order 4
+fn e_n(n) { vec(cos(π/n), sin(π/n), 0, 0 ) } // order 2n
+
+// groups
+with #ndim = 4 {
+    sym_2I = [i_I, w]
+    sym_2O = [i_O, w]
+    sym_2T = [i, w]
+    fn sym_2D_2n(n) { [e_n(n), j] }
+    fn sym_2C_n(n) { [e_n(n)] }
+    fn sym_1C_n(n) { [e_n(n/2)] }
+}
+
+
+fn qbar(q: Quaternion) -> Quaternion { vec(q.x, -q.y, -q.z, -q.w) }
+
+fn qpair(l: Quaternion, r: Quaternion) -> Transform { rot_from_quaternion(l) * rot_from_quaternion(r, -1) }
+
+fn funny_pair_symmetry(l: List[Quaternion], r: List[Quaternion]) {
+    symmetry(l.map(rot_from_quaternion) ++ r.map(fn(q) { rot_from_quaternion(q, -1) }))
+}
+
+with #ndim = 4 {
+    invert_ijk: Transform = refl() * refl(vec(1))
+}
+
+// with #ndim = 4 {
+//     rot1 = rot_from_quaternion(w, 1)
+//     v = vec(1, 2, 3, 4)
+//     print(qmul(w, i_I).rot_from_quaternion().transform(v))
+//     print((w.rot_from_quaternion() * i_I.rot_from_quaternion()).transform(v))
+//     // print(rot1.transform(rot1.transform(rot1.transform(v))))
+// }
+
+with #ndim = 4 {
+    print(qmul(qbar(i_I), vec(0, 1, 2, 3), i_I))
+    print((rot_from_quaternion(i_I) * rot_from_quaternion(i_I, -1)).transform(vec(1,2,3)))
+    // print((rot_from_quaternion(i_I).transform(rot_from_quaternion(i_I, -1).transform(vec(1,2,3,4)))))
+}
+
+add_puzzle(
+    id = "swirltest1",
+    version = "0.1.0",
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        // with #sym = funny_pair_symmetry(sym_2O, sym_2C_n(8)) {
+        //     print("a")
+        //     print(#sym.thru([0, 1]).transform(vec(1,2,3,4)))
+        //     print(#sym.thru([0, 1]).transform(vec(1,)))
+        //     // print(#sym.thru([0, 2]).transform(vec(1,2,3,4)))
+        //     // print(#sym.thru([1, 2]).transform(vec(1,2,3,4)))
+        //     print(#sym.thru(2))
+        //     carve(plane(vec(1)))
+        //     // ax = add_axis(vec(1), [∞, 0.97])
+        // }
+
+
+        with #sym = funny_pair_symmetry(sym_2T, sym_2C_n(6)) {
+            pole = vec(1+√3,1,1).unit
+            carve(plane(pole))
+            ax = add_axis(pole, [∞, 0.95])
+        }
+
+        // print(rot(a=1))
+        // print(rot(start=vec(1), end=vec(0,1)))
+        // // yz xz xy
+        // print()
+        // with #sym = cd([]) {
+        //     carve(plane(#sym.))
+        //     ax = add_axis(#sym.)
+        //     ax.add_twist()
+        // }
+    },
+)

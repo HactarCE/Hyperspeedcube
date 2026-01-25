@@ -1,0 +1,30 @@
+use * from euclid
+
+add_puzzle(
+    id = "tetrahedron_x_square",
+    version = "0.1.0",
+    engine = "euclid",
+    ndim = 5,
+    build = fn() {
+        with #sym = cd([3,3,2,4]) {
+            carve(plane(#sym.ooxoo.unit))
+            carve(plane(#sym.oooox.unit))
+            ax1 = add_axis(#sym.ooxoo.unit, [∞, -1/3])
+            ax2 = add_axis(#sym.oooox.unit, [∞, 1/3])
+            // ax.add_twist()
+        }
+    },
+)
+
+add_puzzle(
+    id = "tetrahedron_cuts",
+    version = "0.1.0",
+    engine = "euclid",
+    ndim = 3,
+    build = fn() {
+        with #sym = cd([3,3]) {
+            carve(plane(#sym.oox.unit))
+            ax = add_axis(#sym.oox, [∞, -1])
+        }
+    },
+)

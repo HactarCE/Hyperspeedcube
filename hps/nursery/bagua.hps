@@ -1,8 +1,7 @@
 use * from euclid
 
 // issues:
-// - bandaging on Dj R2 Uj' Rj' F*
-// - 45-degree `Rj`
+// - 45-degree `Rh`
 // - multistage scrambling
 // - center orientation hints
 add_puzzle(
@@ -17,21 +16,69 @@ add_puzzle(
         d = 0.46
 
         fn ccw45(fix) { rot(fix=fix.vec, angle=π/4) }
+        fn cw45(fix) { rot(fix=fix.vec, angle=-π/4) }
         fn diag_cut(fix, a, _b) { ccw45(fix).transform(plane(a.vec.unit * d)) }
 
         with #sym = cube.sym {
             carve(plane(cube.facet_pole), cube.facet_names)
             a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
-            t = add_twist(a, ccw45(a), gizmo_pole_distance=1)
+            t = add_twist(a, cw45(a), gizmo_pole_distance=1)
             use R, L, U, F from #axes
             UF_edge_region = F[1] & ~L[1] & ~R[1]
             slice(diag_cut(F, R, U), region=UF_edge_region)
-            // slice((t.transform * cube.sym.thru([2])).transform(plane(a.vec, d)), region = a[1])
-            // TODO: unbandage the triangles
+            slice(plane((cw45(U) * cw45(R)).transform(F.vec), d), region=ccw45(U).transform(F[1] & ~L[1]) & ~R[1] & U[1])
         }
     },
     tags = #{
         type = "puzzle",
+        shape = "3d/platonic/cube",
+    },
+)
+
+
+// issues:
+// - 45-degree `Rj`
+// - multistage scrambling
+// - center orientation hints
+add_puzzle(
+    id = "bagua_cube_prism",
+    version = "0.0.1",
+    name = "Bagua Cube Prism",
+    engine = "euclid",
+    ndim = 4,
+    colors = "hypercube",
+    build = fn() {
+        cube = @shapes/bc/cube.new()
+        d = 0.46
+
+        fn ccw45(fix) { with #ndim = 3 { return rot(fix=fix.vec, angle=π/4) } }
+        fn cw45(fix) { with #ndim = 3 { return rot(fix=fix.vec, angle=-π/4) } }
+        fn diag_cut(fix, a, _b) { ccw45(fix).transform(plane(a.vec.unit * d)) }
+
+        with #sym = cube.sym {
+            // with #ndim = 3 {
+                carve(plane(cube.facet_pole), cube.facet_names)
+                a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
+                t = add_twist(a, ccw45(a), gizmo_pole_distance=1)
+                use R, L, U, F from #axes
+                UF_edge_region = F[1] & ~L[1] & ~R[1]
+                slice(diag_cut(F, R, U), region=UF_edge_region)
+                slice(plane((cw45(U) * cw45(R)).transform(F.vec), d), region=ccw45(U).transform(F[1] & ~L[1]) & ~R[1] & U[1])
+                a.add_twist(#sym.thru(0) * refl(vec(0,0,0,1)), gizmo_pole_distance=1)
+            // }
+        }
+        with #sym = cd([4,3,2]) {
+            v = #sym.ooox
+            names = #sym.names(point(#sym.ooox), #{O=[], I=[3,"O"]})
+            carve(plane(v), names)
+            a = add_axis(v, names, [1,1/3,-1/3,-1])
+            bc4 = cd("bc4")
+            a.add_twist(bc4.thru([0,1]), gizmo_pole_distance=1)
+        }
+    },
+    tags = #{
+        type = "puzzle",
+        shape = "4d/duoprism",
     },
 )
 
@@ -55,5 +102,6 @@ add_puzzle(
     },
     tags = #{
         type = "puzzle",
+        shape = "3d/platonic/dodecahedron",
     },
 )

@@ -18,12 +18,12 @@ add_puzzle(
             hex_face = add_axis(hex_face_pole, octa.facet_names, [∞, 2/3])
             square_face = add_axis(square_face_pole, [∞, square_face_pole.mag * 3/4])
 
-            add_twist(hex_face, #sym.thru([2, 1]), gizmo_pole_distance = hex_face_pole.mag)
-            add_twist(square_face, #sym.thru([1, 0]), gizmo_pole_distance = square_face_pole.mag)
+            add_twist(hex_face, #sym.thru([2, 1]), gizmo_pole_distance = 1)
+            add_twist(square_face, #sym.thru([1, 0]), gizmo_pole_distance = 1)
         }
     },
     tags = #{
-        shape = "3d",
+        shape = "3d/archimedean/truncated_octahedron",
         type = "puzzle",
     },
 )

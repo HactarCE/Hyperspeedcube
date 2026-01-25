@@ -30,6 +30,7 @@ add_puzzle(
     },
     tags = #{
         type = "puzzle",
+        shape = "3d/platonic/cube",
     },
 )
 
@@ -54,5 +55,6 @@ add_puzzle(
     },
     tags = #{
         type = "puzzle",
+        shape = "3d/platonic/cube",
     },
 )

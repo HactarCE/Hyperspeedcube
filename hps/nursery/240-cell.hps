@@ -1,0 +1,137 @@
+//! 240-cell
+
+use * from euclid
+
+fn qleft(e, i, j, k) {
+    angle = arccos(e)
+    //print(angle)
+    rot1 = rot(start = vec(1, 0, 0, 0), end = vec(0, i, j, k), angle = angle)
+    rot2 = rot(start = vec(0, j, -i, 0), end = vec(0, i*k, j*k, -i^2-j^2), angle = angle)
+    //assert_eq(rot2.transform(vec(1, 0, 0, 0)), vec(1, 0, 0, 0))
+    //assert_eq(vec(0, i, j, k).dot(vec(0, j, -i, 0)), 0)
+    //print(-1-1)
+    //assert_eq(vec(0, i, j, k).dot(vec(0, i*k, j*k, -i^2-j^2)), 0)
+    //assert_eq(rot2.transform(vec(0, i, j, k)), vec(0, i, j, k))
+    assert_eq(rot1 * rot2, rot2 * rot1)
+    return rot1 * rot2
+}
+
+fn qright(e, i, j, k) {
+    angle = arccos(e)
+    //print(angle)
+    rot1 = rot(start = vec(1, 0, 0, 0), end = vec(0, i, j, k), angle = angle)
+    rot2 = rot(start = vec(0, j, -i, 0), end = vec(0, i*k, j*k, -i^2-j^2), angle = -angle)
+    assert_eq(rot1 * rot2, rot2 * rot1)
+    return rot1 * rot2
+}
+
+add_puzzle(
+    id = "240_cell",
+    version = "0.1.0",
+    name = "240-cell",
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        liI = qleft(0, 1/2, (√5-1)/4, (√5+1)/4)
+        lω = qleft(-1/2, 1/2, 1/2, 1/2)
+        riO = qright(0, 0, 1/√2, 1/√2)
+        rω = qright(-1/2, 1/2, 1/2, 1/2)
+        sym = symmetry([liI, lω, riO, rω])
+
+        print(liI)
+
+        ord = 0
+        for v in sym.orbit(vec(1,10,100,1000)) {
+            ord += 1
+            if ord == 15000 {
+                error("too big")
+            }
+        }
+        print(ord)
+
+        with #sym = sym {
+            pole = vec(1, 0, 0, 0)
+            carve(plane(pole))
+        }
+    },
+    tags = #{
+        author = ["Milo Jacquet"],
+        type = "shape",
+        big = true,
+    },
+)
+
+add_puzzle(
+    id = "swirl_32_cell",
+    version = "0.1.0",
+    name = "Swirl 32-cell",
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        li = qleft(0, 1, 0, 0)
+        ren = qright(cos(π/4), sin(π/4), 0, 0)
+        lωre3n = qleft(-1/2, 1/2, 1/2, 1/2) * qright(cos(π/12), sin(π/12), 0, 0)
+        sym = symmetry([li, ren, lωre3n])
+
+        ord = 0
+        for v in sym.orbit(vec(1,10,100,1000)) {
+            ord += 1
+            if ord == 15000 {
+                error("too big")
+            }
+        }
+        print(ord)
+
+        print(qleft(-1/2, 1/2, 1/2, 1/2)*qleft(-1/2, 1/2, 1/2, 1/2)*qleft(-1/2, 1/2, 1/2, 1/2))
+
+        with #sym = sym {
+            //pole = vec(1, 0, 0, 0)
+            pole = vec(0, 1+√3, 1, 1).unit
+            carve(plane(pole))
+        }
+    },
+    tags = #{
+        author = ["Milo Jacquet"],
+        type = "shape",
+        big = true,
+    },
+)
+
+add_puzzle(
+    id = "swirl_32_cell_3",
+    version = "0.1.0",
+    name = "Swirl 32-cell (3-layer)",
+    engine = "euclid",
+    ndim = 4,
+    build = fn() {
+        li = qleft(0, 1, 0, 0)
+        ren = qright(cos(π/4), sin(π/4), 0, 0)
+        lωre3 = qleft(-1/2, 1/2, 1/2, 1/2) * qright(cos(π/3), sin(π/3), 0, 0)
+        sym = symmetry([li, ren, lωre3])
+
+        ord = 0
+        for v in sym.orbit(vec(1,10,100,1000)) {
+            ord += 1
+            if ord == 15000 {
+                error("too big")
+            }
+        }
+        print(ord)
+
+        with #sym = sym {
+            //pole = vec(1, 0, 0, 0)
+            pole = vec(0, 1+√3, 1, 1).unit
+            carve(plane(pole))
+
+            a = add_axis(pole, [∞, 0.9])
+            //print(lωre3.transform(pole))
+            t = add_twist(a, lωre3*lωre3, gizmo_pole_distance=0.3)
+            slice(plane(pole * 0.9))
+        }
+    },
+    tags = #{
+        author = ["Milo Jacquet"],
+        type = "shape",
+        big = true,
+    },
+)
