@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="3 2.5 18 18">
+    <defs>
+        <linearGradient id="rainbow" x1="0.0" y1="0.35" x2="0.92" y2="0.65">
+            <stop style="stop-color:#ff9999;stop-opacity:1;" offset="0"></stop>
+            <stop style="stop-color:#f7ff99;stop-opacity:1;" offset="0.333"></stop>
+            <stop style="stop-color:#99ff99;stop-opacity:1;" offset="0.667"></stop>
+            <stop style="stop-color:#99ffff;stop-opacity:1;" offset="1"></stop>
+        </linearGradient>
+   </defs>
+    <path fill="url(#rainbow)" d="M5,10H9A2,2 0 0,1 11,12V17H9V12H7V17H5M13,7H16A3,3 0 0,1 19,10V14A3,3 0 0,1 16,17H13V7M16,15A1,1 0 0,0 17,14V10A1,1 0 0,0 16,9H15V15H16Z" />
+</svg>
