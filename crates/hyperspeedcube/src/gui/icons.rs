@@ -100,7 +100,7 @@ impl CatalogIcon {
     const NDIM_6D: Self = svg_catalog_icon!("ndim/6d", "6D", Left, "#da811a"); // orange
     const NDIM_7D: Self = svg_catalog_icon!("ndim/7d", "7D", Left, "#d22e2e"); // red
     const NDIM_8D: Self = svg_catalog_icon!("ndim/8d", "8D", Left);
-    const NDIM_UNKNOWN: Self = svg_catalog_icon!("empty", "", Left);
+    const NDIM_UNKNOWN: Self = svg_catalog_icon!("ndim/nd", "Multidimensional", Left);
 
     pub fn icons_from_tags(tags: &hyperpuzzle::TagSet) -> Vec<CatalogIcon> {
         let mut ret = vec![];
