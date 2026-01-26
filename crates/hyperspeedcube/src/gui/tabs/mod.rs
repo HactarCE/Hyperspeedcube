@@ -83,7 +83,7 @@ impl UtilityTab {
 
             Self::Colors => (mdi!(PALETTE), l1.colors, l2.colors),
             Self::Styles => (mdi!(PALETTE_SWATCH), l1.styles, l2.styles),
-            Self::View => (mdi!(CAMERA_IRIS), l1.view, l2.view),
+            Self::View => (mdi!(CAMERA), l1.view, l2.view),
             Self::Animation => (mdi!(MOTION), l1.animation, l2.animation),
 
             Self::Interaction => (mdi!(BUTTON_CURSOR), l1.interaction, l2.interaction),
