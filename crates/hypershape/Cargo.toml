@@ -16,14 +16,14 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath = { workspace = true }
+hypermath.workspace = true
 
-eyre = { workspace = true }
-float-ord = { workspace = true }
-itertools = { workspace = true }
-num_cpus = { workspace = true }
-parking_lot = { workspace = true }
-rayon = { workspace = true }
+eyre.workspace = true
+float-ord.workspace = true
+itertools.workspace = true
+num_cpus.workspace = true
+parking_lot.workspace = true
+rayon.workspace = true
 smallvec = { workspace = true, features = ["const_new"] }
-thiserror = { workspace = true }
-tinyset = { workspace = true }
+thiserror.workspace = true
+tinyset.workspace = true

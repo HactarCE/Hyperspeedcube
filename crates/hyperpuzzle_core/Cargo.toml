@@ -16,29 +16,29 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath = { workspace = true }
-hypershape = { workspace = true }
-hyperspeedcube_cli_types = { workspace = true }
+hypermath.workspace = true
+hypershape.workspace = true
+hyperspeedcube_cli_types.workspace = true
 
-chrono = { workspace = true }
-eyre = { workspace = true }
-hex = { workspace = true }
-numeric-sort = { workspace = true }
-indexmap = { workspace = true }
-itertools = { workspace = true }
-kdl = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-nom = { workspace = true }
-parking_lot = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
-serde = { workspace = true }
-sha2 = { workspace = true }
-smallvec = { workspace = true }
-strum = { workspace = true }
-thiserror = { workspace = true }
-tinyset = { workspace = true }
+chrono.workspace = true
+eyre.workspace = true
+hex.workspace = true
+numeric-sort.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+kdl.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+nom.workspace = true
+parking_lot.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+serde.workspace = true
+sha2.workspace = true
+smallvec.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+tinyset.workspace = true
 
 # timecheck
 base64 = { workspace = true, optional = true }

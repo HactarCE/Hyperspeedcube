@@ -16,17 +16,17 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperdraw = { workspace = true }
-hypermath = { workspace = true }
-hyperprefs = { workspace = true }
-hyperpuzzle = { workspace = true }
-hyperpuzzle_log = { workspace = true }
+hyperdraw.workspace = true
+hypermath.workspace = true
+hyperprefs.workspace = true
+hyperpuzzle.workspace = true
+hyperpuzzle_log.workspace = true
 
-cgmath = { workspace = true }
-eyre = { workspace = true }
-float-ord = { workspace = true }
-itertools = { workspace = true }
-log = { workspace = true }
-parking_lot = { workspace = true }
-smallvec = { workspace = true }
-web-time = { workspace = true }
+cgmath.workspace = true
+eyre.workspace = true
+float-ord.workspace = true
+itertools.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+smallvec.workspace = true
+web-time.workspace = true

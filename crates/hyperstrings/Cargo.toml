@@ -14,11 +14,11 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-ident_case = { workspace = true }
-indexmap = { workspace = true }
-itertools = { workspace = true }
-kdl = { workspace = true }
-lazy_static = { workspace = true }
-owo-colors = { workspace = true }
-regex = { workspace = true }
-unindent = { workspace = true }
+ident_case.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+kdl.workspace = true
+lazy_static.workspace = true
+owo-colors.workspace = true
+regex.workspace = true
+unindent.workspace = true

@@ -16,55 +16,55 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypercubing_leaderboards_client = { workspace = true }
-hyperdraw = { workspace = true }
-hypermath = { workspace = true }
-hyperpaths = { workspace = true }
-hyperprefs = { workspace = true }
+hypercubing_leaderboards_client.workspace = true
+hyperdraw.workspace = true
+hypermath.workspace = true
+hyperpaths.workspace = true
+hyperprefs.workspace = true
 hyperpuzzle = { workspace = true, features = ["oklab"] }
-hyperpuzzle_log = { workspace = true }
-hyperpuzzle_view = { workspace = true }
+hyperpuzzle_log.workspace = true
+hyperpuzzle_view.workspace = true
 hyperpuzzlescript = { workspace = true, features = ["hyperpaths"] }
-hyperstats = { workspace = true }
+hyperstats.workspace = true
 
-cgmath = { workspace = true }
-clap = { workspace = true }
-clio = { workspace = true }
-color-eyre = { workspace = true }
-color-hex = { workspace = true }
-comrak = { workspace = true }
-eframe = { workspace = true }
-egui = { workspace = true }
-egui_dock = { workspace = true }
-egui_extras = { workspace = true }
-egui-winit = { workspace = true }
-empfindung = { workspace = true }
-env_logger = { workspace = true }
-eyre = { workspace = true }
-float-ord = { workspace = true }
+cgmath.workspace = true
+clap.workspace = true
+clio.workspace = true
+color-eyre.workspace = true
+color-hex.workspace = true
+comrak.workspace = true
+eframe.workspace = true
+egui.workspace = true
+egui_dock.workspace = true
+egui_extras.workspace = true
+egui-winit.workspace = true
+empfindung.workspace = true
+env_logger.workspace = true
+eyre.workspace = true
+float-ord.workspace = true
 hcegui = { workspace = true, features = ["reorder"] }
-indexmap = { workspace = true }
-itertools = { workspace = true }
-lab = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-material-design-icons = { workspace = true }
-names = { workspace = true }
-opener = { workspace = true }
-parking_lot = { workspace = true }
-pollster = { workspace = true }
-rand = { workspace = true }
-regex = { workspace = true }
-rfd = { workspace = true }
-self_update = { workspace = true }
+indexmap.workspace = true
+itertools.workspace = true
+lab.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+material-design-icons.workspace = true
+names.workspace = true
+opener.workspace = true
+parking_lot.workspace = true
+pollster.workspace = true
+rand.workspace = true
+regex.workspace = true
+rfd.workspace = true
+self_update.workspace = true
 serde = { workspace = true, features = ["rc"] }
-serde_json = { workspace = true }
-serde_norway = { workspace = true }
-smallvec = { workspace = true }
-strum = { workspace = true }
-sublime_fuzzy = { workspace = true }
-wgpu = { workspace = true }
-winit = { workspace = true }
+serde_json.workspace = true
+serde_norway.workspace = true
+smallvec.workspace = true
+strum.workspace = true
+sublime_fuzzy.workspace = true
+wgpu.workspace = true
+winit.workspace = true
 
 # Profiling
 optick = { version = "1.3.4", optional = true }
@@ -96,7 +96,7 @@ optick = ["dep:optick", "dep:optick-attr"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [build-dependencies]
-hyperstrings = { workspace = true }
+hyperstrings.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

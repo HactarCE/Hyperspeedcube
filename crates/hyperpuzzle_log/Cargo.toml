@@ -16,19 +16,19 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperkdl = { workspace = true }
-hyperkdl_derive = { workspace = true }
-hyperpuzzle_core = { workspace = true }
+hyperkdl.workspace = true
+hyperkdl_derive.workspace = true
+hyperpuzzle_core.workspace = true
 
-hex = { workspace = true }
-itertools = { workspace = true }
-kdl = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-regex = { workspace = true }
-serde = { workspace = true }
+hex.workspace = true
+itertools.workspace = true
+kdl.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+regex.workspace = true
+serde.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
-sha2 = { workspace = true }
-smallvec = { workspace = true }
-thiserror = { workspace = true }
-timecheck = { workspace = true }
+sha2.workspace = true
+smallvec.workspace = true
+thiserror.workspace = true
+timecheck.workspace = true

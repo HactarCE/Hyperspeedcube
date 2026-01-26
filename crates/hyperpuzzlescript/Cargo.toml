@@ -16,25 +16,22 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath = { workspace = true }
+hypermath.workspace = true
 hyperpaths = { workspace = true, optional = true }
-hyperpuzzle_core = { workspace = true }
+hyperpuzzle_core.workspace = true
 
-arcstr = { workspace = true }
-ariadne = { workspace = true }
-chumsky = { workspace = true }
-# disjoint = { workspace = true }
-ecow = { workspace = true }
-# float-ord = { workspace = true }
-include_dir = { workspace = true }
-indexmap = { workspace = true }
-itertools = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-parking_lot = { workspace = true }
-# rayon = { workspace = true }
-thiserror = { workspace = true }
-walkdir = { workspace = true }
+arcstr.workspace = true
+ariadne.workspace = true
+chumsky.workspace = true
+ecow.workspace = true
+include_dir.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+walkdir.workspace = true
 
 # Color conversions
 ecolor = { workspace = true, optional = true }

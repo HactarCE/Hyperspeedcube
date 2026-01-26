@@ -16,8 +16,8 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-directories = { workspace = true }
-eyre = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-time = { workspace = true }
+directories.workspace = true
+eyre.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+time.workspace = true

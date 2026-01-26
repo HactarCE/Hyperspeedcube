@@ -22,18 +22,18 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-approx_collections = { workspace = true }
-ball-tree = { workspace = true }
-bitflags = { workspace = true }
-bitvec = { workspace = true }
+approx_collections.workspace = true
+ball-tree.workspace = true
+bitflags.workspace = true
+bitvec.workspace = true
 bytemuck = { workspace = true, optional = true }
-float-ord = { workspace = true }
-itertools = { workspace = true }
-log = { workspace = true }
-num-traits = { workspace = true }
+float-ord.workspace = true
+itertools.workspace = true
+log.workspace = true
+num-traits.workspace = true
 serde = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["const_new"] }
-tinyset = { workspace = true }
+tinyset.workspace = true
 
 [features]
 serde = ["dep:serde", "smallvec/serde"]

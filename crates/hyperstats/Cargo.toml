@@ -16,12 +16,12 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperkdl = { workspace = true }
-hyperkdl_derive = { workspace = true }
-hyperpaths = { workspace = true }
-hyperpuzzle_core = { workspace = true }
-hyperpuzzle_log = { workspace = true }
+hyperkdl.workspace = true
+hyperkdl_derive.workspace = true
+hyperpaths.workspace = true
+hyperpuzzle_core.workspace = true
+hyperpuzzle_log.workspace = true
 
-eyre = { workspace = true }
-kdl = { workspace = true }
-log = { workspace = true }
+eyre.workspace = true
+kdl.workspace = true
+log.workspace = true

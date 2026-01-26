@@ -16,24 +16,24 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath = { workspace = true }
-hyperpaths = { workspace = true }
+hypermath.workspace = true
+hyperpaths.workspace = true
 hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
 
-bitvec = { workspace = true }
-colorous = { workspace = true }
-config = { workspace = true }
-eyre = { workspace = true }
+bitvec.workspace = true
+colorous.workspace = true
+config.workspace = true
+eyre.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-itertools = { workspace = true }
-key-names = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-parking_lot = { workspace = true }
-rand = { workspace = true }
-regex = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-serde_norway = { workspace = true }
-strum = { workspace = true }
-winit = { workspace = true }
+itertools.workspace = true
+key-names.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+rand.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+strum.workspace = true
+winit.workspace = true

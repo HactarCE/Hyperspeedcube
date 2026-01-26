@@ -16,10 +16,10 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-chrono = { workspace = true }
+chrono.workspace = true
 hex = { workspace = true, features = ["serde"] }
-serde = { workspace = true }
-thiserror = { workspace = true }
+serde.workspace = true
+thiserror.workspace = true
 
 # drand-only
 drand-verify = { workspace = true, optional = true }
@@ -31,7 +31,7 @@ tempfile = { workspace = true, optional = true }
 tsp-http-client = { workspace = true, optional = true }
 
 [dev-dependencies]
-sha2 = { workspace = true }
+sha2.workspace = true
 
 [features]
 default = ["drand", "tsa"]
