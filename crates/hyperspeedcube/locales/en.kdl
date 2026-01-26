@@ -494,6 +494,7 @@ prefs {
       (HoverStrings)downscale_factor "Downscale factor"
       (HoverStrings)downscale_interpolation "Downscale interpolation"
     }
+    reset "Reset camera"
   }
 }
 
