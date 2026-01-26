@@ -56,16 +56,14 @@ add_puzzle(
         fn diag_cut(fix, a, _b) { ccw45(fix).transform(plane(a.vec.unit * d)) }
 
         with #sym = cube.sym {
-            // with #ndim = 3 {
-                carve(plane(cube.facet_pole), cube.facet_names)
-                a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
-                t = add_twist(a, ccw45(a), gizmo_pole_distance=1)
-                use R, L, U, F from #axes
-                UF_edge_region = F[1] & ~L[1] & ~R[1]
-                slice(diag_cut(F, R, U), region=UF_edge_region)
-                slice(plane((cw45(U) * cw45(R)).transform(F.vec), d), region=ccw45(U).transform(F[1] & ~L[1]) & ~R[1] & U[1])
-                a.add_twist(#sym.thru(0) * refl(vec(0,0,0,1)), gizmo_pole_distance=1)
-            // }
+            carve(plane(cube.facet_pole), cube.facet_names)
+            a = add_axis(cube.facet_pole, cube.facet_names, [∞, d])
+            t = add_twist(a, ccw45(a), gizmo_pole_distance=1)
+            use R, L, U, F from #axes
+            UF_edge_region = F[1] & ~L[1] & ~R[1]
+            slice(diag_cut(F, R, U), region=UF_edge_region)
+            slice(plane((cw45(U) * cw45(R)).transform(F.vec), d), region=ccw45(U).transform(F[1] & ~L[1]) & ~R[1] & U[1])
+            a.add_twist(#sym.thru(0) * refl(vec(0,0,0,1)), gizmo_pole_distance=1)
         }
         with #sym = cd([4,3,2]) {
             v = #sym.ooox
