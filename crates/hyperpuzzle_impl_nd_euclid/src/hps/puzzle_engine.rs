@@ -47,7 +47,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
         if let Err(e) = meta
             .tags
-            .insert_named(&format!("shape/{ndim}d"), TagValue::True)
+            .insert_named(&format!("ndim"), TagValue::Int(ndim as i64))
         {
             ctx.warn(e.to_string());
         }

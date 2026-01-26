@@ -71,6 +71,7 @@ add_puzzle_generator(
         schema = 1,
         stable = "2.0.0",
         author = ["Andrew Farkas", "Milo Jacquet"],
+        ndim = 3,
         shape = "3d/platonic/cube",
         axes = "3d/elementary/cubic",
         turns_by = "3d/rank2",
@@ -152,6 +153,7 @@ add_puzzle_generator(
     tags = #{
         schema = 1,
         author = ["Andrew Farkas"],
+        ndim = 3,
         shape = "3d/platonic/cube",
         axes = "3d/elementary/cubic",
         turns_by = "3d/rank2",
@@ -262,6 +264,7 @@ add_puzzle_generator(
         schema = 1,
         stable = "2.0.0",
         author = ["Andrew Farkas", "Milo Jacquet"],
+        ndim = 4,
         shape = "4d/platonic/hypercube",
         axes = "4d/elementary/hypercubic",
         turns_by = "4d/rank3",
@@ -396,5 +399,6 @@ add_puzzle_generator(
         author = ["Andrew Farkas"],
         algebraic = ["doctrinaire", "pseudo/doctrinaire"],
         cuts = "depth/shallow",
+        ndim = "generic",
     },
 )

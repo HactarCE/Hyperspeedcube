@@ -11,6 +11,7 @@ COMMON_METADATA = #{
     tags = #{
         author = "Andrew Farkas",
         stable = "2.0.0",
+        ndim = 4,
         shape = "4d/platonic/simplex",
         axes = "4d/elementary/simplicial",
         turns_by = ["4d/rank0", "4d/rank3"],

@@ -337,7 +337,7 @@ fn unpack_tags_recursive(ctx: &mut EvalCtx<'_>, tags: &mut TagSet, m: Map, prefi
         let result = (|| {
             if v.is::<Map>() {
                 unpack_tags_recursive(ctx, tags, v.unwrap_or_clone_arc()?, &format!("{tag_name}/"));
-            } else if v.is::<str>() && tag.ty == TagType::Bool {
+            } else if v.is::<str>() && tag.ty != TagType::Str {
                 tags.insert_named(&format!("{k}/{v}"), TagValue::True)
                     .map_err(|e| Warning::from(e.to_string()).at(v_span))?;
             } else if v.is::<List>() && tag.ty == TagType::Bool {

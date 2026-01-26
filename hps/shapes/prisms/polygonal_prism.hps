@@ -86,5 +86,6 @@ add_puzzle_generator(
         type = "shape",
         stable = "2.0.0",
         shape = shape_tag,
+        ndim = 3,
     },
 )

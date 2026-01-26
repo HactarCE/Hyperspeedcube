@@ -14,6 +14,10 @@ __separator
 
 __heading "Shape"
 
+(int)ndim "Dimension" expected=1 {
+  generic "Dimension-generic"
+}
+
 shape expected=1 inline=#true {
   _2d "2D"
   _3d "3D" {
@@ -26,6 +30,7 @@ shape expected=1 inline=#true {
     }
     archimedean "Archimedean" {
       cuboctahedron "Cuboctahedron"
+      truncated_octahedron "Truncated Octahedron"
     }
     catalan "Catalan" {
       rhombic_dodecahedron "Rhombic dodecahedron"
