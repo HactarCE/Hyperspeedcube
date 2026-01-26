@@ -4,7 +4,6 @@ use parking_lot::Mutex;
 
 mod about;
 mod animation;
-mod camera;
 mod catalog;
 mod colors;
 mod debug;
@@ -20,7 +19,6 @@ mod mousebinds;
 mod move_input;
 mod piece_filters;
 mod puzzle;
-mod puzzle_controls;
 mod puzzle_info;
 mod scrambler;
 mod styles;
@@ -31,13 +29,13 @@ mod view;
 pub use about::about_text;
 pub use catalog::Query;
 pub use puzzle::PuzzleWidget;
+use serde::{Deserialize, Serialize};
 
 use super::App;
 use crate::L;
 
-#[derive(Debug, Clone)]
-pub enum Tab {
-    Puzzle(Arc<Mutex<PuzzleWidget>>),
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum UtilityTab {
     Catalog,
     PuzzleInfo,
     KeybindsReference,
@@ -54,13 +52,10 @@ pub enum Tab {
     Mousebinds,
 
     // Tools
-    Camera,
     ImageGenerator,
     Macros,
-    ModifierKeys,
     MoveInput,
     PieceFilters,
-    PuzzleControls,
     Scrambler,
     Timeline,
     Timer,
@@ -71,11 +66,103 @@ pub enum Tab {
     #[allow(unused)]
     Debug,
 }
+impl UtilityTab {
+    /// Returns the icon, menu name, and tab title.
+    fn data(self) -> (egui::Image<'static>, &'static str, &'static str) {
+        let l1 = &L.tabs.menu;
+        let l2 = &L.tabs.titles;
+        match self {
+            Self::Catalog => (mdi!(FOLDER), l1.catalog, l2.catalog),
+            Self::PuzzleInfo => (mdi!(INFORMATION_BOX), l1.puzzle_info, l2.puzzle_info),
+            Self::KeybindsReference => (
+                mdi!(KEYBOARD_VARIANT),
+                l1.keybinds_reference,
+                l2.keybinds_reference,
+            ),
+            Self::About => (mdi!(INFORMATION), l1.about, l2.about),
+
+            Self::Colors => (mdi!(PALETTE), l1.colors, l2.colors),
+            Self::Styles => (mdi!(PALETTE_SWATCH), l1.styles, l2.styles),
+            Self::View => (mdi!(CAMERA_IRIS), l1.view, l2.view),
+            Self::Animation => (mdi!(MOTION), l1.animation, l2.animation),
+
+            Self::Interaction => (mdi!(BUTTON_CURSOR), l1.interaction, l2.interaction),
+            Self::Keybinds => (mdi!(KEYBOARD), l1.keybinds, l2.keybinds),
+            Self::Mousebinds => (mdi!(MOUSE), l1.mousebinds, l2.mousebinds),
+
+            Self::ImageGenerator => (mdi!(IMAGE), l1.image_generator, l2.image_generator),
+            Self::Macros => (mdi!(SCRIPT_TEXT_PLAY), l1.macros, l2.macros),
+            Self::MoveInput => (mdi!(FORM_TEXTBOX), l1.move_input, l2.move_input),
+            Self::PieceFilters => (mdi!(FILTER), l1.piece_filters, l2.piece_filters),
+            Self::Scrambler => (mdi!(SHUFFLE), l1.scrambler, l2.scrambler),
+            Self::Timeline => (mdi!(CHART_TIMELINE), l1.timeline, l2.timeline),
+            Self::Timer => (mdi!(TIMER), l1.timer, l2.timer),
+
+            Self::HpsLogs => (mdi!(FILE_DOCUMENT), l1.hps_logs, l2.hps_logs),
+            Self::DevTools => (mdi!(CODE_BLOCK_BRACES), l1.dev_tools, l2.dev_tools),
+
+            Self::Debug => (mdi!(BUG), l1.debug, l2.debug),
+        }
+    }
+
+    pub fn icon(self) -> egui::Image<'static> {
+        self.data().0
+    }
+
+    pub fn menu_name(self) -> &'static str {
+        self.data().1
+    }
+
+    pub fn title(self) -> &'static str {
+        self.data().2
+    }
+
+    pub fn ui(self, ui: &mut egui::Ui, app: &mut App) {
+        match self {
+            Self::Catalog => catalog::show(ui, app),
+            Self::PuzzleInfo => puzzle_info::show(ui, app),
+            Self::KeybindsReference => keybinds_reference::show(ui, app),
+            Self::About => about::show(ui, app),
+
+            Self::Colors => colors::show(ui, app),
+            Self::Styles => styles::show(ui, app),
+            Self::View => view::show(ui, app),
+            Self::Animation => animation::show(ui, app),
+
+            Self::Interaction => interaction::show(ui, app),
+            Self::Keybinds => keybinds::show(ui, app),
+            Self::Mousebinds => mousebinds::show(ui, app),
+
+            Self::ImageGenerator => image_generator::show(ui, app),
+            Self::Macros => macros::show(ui, app),
+            Self::MoveInput => move_input::show(ui, app),
+            Self::PieceFilters => piece_filters::show(ui, app),
+            Self::Scrambler => scrambler::show(ui, app),
+            Self::Timeline => timeline::show(ui, app),
+            Self::Timer => timer::show(ui, app),
+
+            Self::HpsLogs => hps_logs::show(ui, app),
+            Self::DevTools => dev_tools::show(ui, app),
+
+            Self::Debug => debug::show(ui, app),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Tab {
+    Puzzle(
+        #[serde(skip_serializing, skip_deserializing, default)] Option<Arc<Mutex<PuzzleWidget>>>,
+    ),
+    Utility(UtilityTab),
+}
 impl PartialEq for Tab {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Puzzle(_), Self::Puzzle(_)) => true,
-            _ => std::mem::discriminant(self) == std::mem::discriminant(other),
+            (Self::Puzzle(_), _) => false,
+            (Self::Utility(a), Self::Utility(b)) => a == b,
+            (Self::Utility(_), _) => false,
         }
     }
 }
@@ -84,106 +171,34 @@ impl Tab {
         let l = &L.tabs.menu;
         match self {
             Tab::Puzzle(_) => l.puzzle,
-            Tab::Catalog => l.catalog,
-            Tab::PuzzleInfo => l.puzzle_info,
-            Tab::KeybindsReference => l.keybinds_reference,
-            Tab::About => l.about,
-
-            Tab::Colors => l.colors,
-            Tab::Styles => l.styles,
-            Tab::View => l.view,
-            Tab::Animation => l.animation,
-
-            Tab::Interaction => l.interaction,
-            Tab::Keybinds => l.keybinds,
-            Tab::Mousebinds => l.mousebinds,
-
-            Tab::Camera => l.camera,
-            Tab::ImageGenerator => l.image_generator,
-            Tab::Macros => l.macros,
-            Tab::ModifierKeys => l.modifier_keys,
-            Tab::MoveInput => l.move_input,
-            Tab::PieceFilters => l.piece_filters,
-            Tab::PuzzleControls => l.puzzle_controls,
-            Tab::Scrambler => l.scrambler,
-            Tab::Timeline => l.timeline,
-            Tab::Timer => l.timer,
-
-            Tab::HpsLogs => l.hps_logs,
-            Tab::DevTools => l.dev_tools,
-
-            Tab::Debug => l.debug,
+            Tab::Utility(u) => u.menu_name(),
         }
     }
 
     pub fn title(&self) -> egui::WidgetText {
         let l = &L.tabs.titles;
         match self {
-            Tab::Puzzle(puzzle_widget) => puzzle_widget.lock().title().into(),
-            Tab::Catalog => l.catalog.into(),
-            Tab::PuzzleInfo => l.puzzle_info.into(),
-            Tab::KeybindsReference => l.keybinds_reference.into(),
-            Tab::About => l.about.into(),
-
-            Tab::Colors => l.colors.into(),
-            Tab::Styles => l.styles.into(),
-            Tab::View => l.view.into(),
-            Tab::Animation => l.animation.into(),
-
-            Tab::Interaction => l.interaction.into(),
-            Tab::Keybinds => l.keybinds.into(),
-            Tab::Mousebinds => l.mousebinds.into(),
-
-            Tab::Camera => l.camera.into(),
-            Tab::ImageGenerator => l.image_generator.into(),
-            Tab::Macros => l.macros.into(),
-            Tab::ModifierKeys => l.modifier_keys.into(),
-            Tab::MoveInput => l.move_input.into(),
-            Tab::PieceFilters => l.piece_filters.into(),
-            Tab::PuzzleControls => l.puzzle_controls.into(),
-            Tab::Scrambler => l.scrambler.into(),
-            Tab::Timeline => l.timeline.into(),
-            Tab::Timer => l.timer.into(),
-
-            Tab::HpsLogs => l.hps_logs.into(),
-            Tab::DevTools => l.dev_tools.into(),
-
-            Tab::Debug => l.debug.into(),
+            Tab::Puzzle(None) => l.puzzle.empty.into(),
+            Tab::Puzzle(Some(puzzle_widget)) => puzzle_widget.lock().title().into(),
+            Tab::Utility(u) => u.title().into(),
         }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, app: &mut App) {
         match self {
-            Tab::Puzzle(puzzle_widget) => puzzle::show(ui, app, puzzle_widget),
-            Tab::Catalog => catalog::show(ui, app),
-            Tab::PuzzleInfo => puzzle_info::show(ui, app),
-            Tab::KeybindsReference => keybinds_reference::show(ui, app),
-            Tab::About => about::show(ui, app),
+            Tab::Puzzle(puzzle_widget) => puzzle::show(
+                ui,
+                app,
+                puzzle_widget.get_or_insert_with(|| app.new_puzzle_widget()),
+            ),
+            Tab::Utility(u) => u.ui(ui, app),
+        }
+    }
 
-            Tab::Colors => colors::show(ui, app),
-            Tab::Styles => styles::show(ui, app),
-            Tab::View => view::show(ui, app),
-            Tab::Animation => animation::show(ui, app),
-
-            Tab::Interaction => interaction::show(ui, app),
-            Tab::Keybinds => keybinds::show(ui, app),
-            Tab::Mousebinds => mousebinds::show(ui, app),
-
-            Tab::Camera => camera::show(ui, app),
-            Tab::ImageGenerator => image_generator::show(ui, app),
-            Tab::Macros => macros::show(ui, app),
-            Tab::ModifierKeys => modifier_keys::show(ui, app),
-            Tab::MoveInput => move_input::show(ui, app),
-            Tab::PieceFilters => piece_filters::show(ui, app),
-            Tab::PuzzleControls => puzzle_controls::show(ui, app),
-            Tab::Scrambler => scrambler::show(ui, app),
-            Tab::Timeline => timeline::show(ui, app),
-            Tab::Timer => timer::show(ui, app),
-
-            Tab::HpsLogs => hps_logs::show(ui, app),
-            Tab::DevTools => dev_tools::show(ui, app),
-
-            Tab::Debug => debug::show(ui, app),
+    pub fn utility_tab(&self) -> Option<UtilityTab> {
+        match self {
+            Tab::Puzzle(_) => None,
+            Tab::Utility(tab) => Some(*tab),
         }
     }
 }

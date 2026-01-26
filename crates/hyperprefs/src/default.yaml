@@ -3,6 +3,9 @@
 record_time: true
 online_mode: true
 check_for_updates: true
+sidebar:
+  show: true
+  show_labels: true
 info:
   metric: STM
   keybinds_reference:

@@ -9,6 +9,7 @@ use crate::L;
 use crate::gui::components::{PrefsUi, show_leaderboards_ui};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
+use crate::gui::tabs::UtilityTab;
 use crate::leaderboards::LeaderboardsClientState;
 
 lazy_static! {
@@ -44,7 +45,7 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             let version_text = egui::RichText::new(PROGRAM).small();
             let version_button = egui::Button::new(version_text).frame(false);
             if ui.add(version_button).clicked() {
-                app_ui.set_tab_state(&Tab::About, !app_ui.has_tab(&Tab::About));
+                app_ui.activate_docked_utility(UtilityTab::About);
             }
 
             #[cfg(target_arch = "wasm32")]
@@ -102,10 +103,19 @@ fn width_of_all_menu_buttons(ui: &mut egui::Ui) -> f32 {
     .sum()
 }
 fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
-    fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: Tab) {
-        let mut open = app_ui.has_tab(&tab);
-        if ui.checkbox(&mut open, tab.menu_name()).clicked() {
-            app_ui.set_tab_state(&tab, open);
+    fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: UtilityTab) {
+        let mut open = app_ui.is_docked_utility_open(tab);
+        if ui
+            .checkbox(
+                &mut open,
+                (
+                    tab.icon().fit_to_original_size(0.5),
+                    egui::Atom::from(tab.menu_name()),
+                ),
+            )
+            .clicked()
+        {
+            app_ui.toggle_docked_utility(tab);
         }
     }
 
@@ -221,17 +231,17 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             }
         }
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::Scrambler);
+        show_tab_toggle(ui, app_ui, UtilityTab::Scrambler);
     });
     menu_button_that_stays_open(L.menu.settings.title, ui, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::Colors);
-        show_tab_toggle(ui, app_ui, Tab::Styles);
-        show_tab_toggle(ui, app_ui, Tab::View);
-        show_tab_toggle(ui, app_ui, Tab::Animation);
+        show_tab_toggle(ui, app_ui, UtilityTab::Colors);
+        show_tab_toggle(ui, app_ui, UtilityTab::Styles);
+        show_tab_toggle(ui, app_ui, UtilityTab::View);
+        show_tab_toggle(ui, app_ui, UtilityTab::Animation);
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::Interaction);
-        show_tab_toggle(ui, app_ui, Tab::Keybinds);
-        show_tab_toggle(ui, app_ui, Tab::Mousebinds);
+        show_tab_toggle(ui, app_ui, UtilityTab::Interaction);
+        show_tab_toggle(ui, app_ui, UtilityTab::Keybinds);
+        show_tab_toggle(ui, app_ui, UtilityTab::Mousebinds);
         ui.separator();
 
         let mut changed = false;
@@ -243,31 +253,31 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         };
         prefs_ui.checkbox(&L.prefs.record_time, access!(.record_time));
         prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
-        app_ui.app.prefs.needs_save |= changed;
+        prefs_ui.checkbox(&L.prefs.check_for_updates, access!(.check_for_updates));
+        prefs_ui.ui.separator();
+        prefs_ui.checkbox(&L.prefs.show_sidebar, access!(.sidebar.show));
+        egui::global_theme_preference_buttons(prefs_ui.ui);
 
-        // TODO: add "auto" mode that follows OS
-        egui::global_theme_preference_buttons(ui);
+        app_ui.app.prefs.needs_save |= changed;
     });
     menu_button_that_stays_open(L.menu.tools.title, ui, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::Camera);
-        show_tab_toggle(ui, app_ui, Tab::PieceFilters);
-        show_tab_toggle(ui, app_ui, Tab::Timer);
-        show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
+        show_tab_toggle(ui, app_ui, UtilityTab::PieceFilters);
+        show_tab_toggle(ui, app_ui, UtilityTab::Macros);
+        show_tab_toggle(ui, app_ui, UtilityTab::MoveInput);
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::Macros);
-        show_tab_toggle(ui, app_ui, Tab::MoveInput);
-        show_tab_toggle(ui, app_ui, Tab::Timeline);
+        show_tab_toggle(ui, app_ui, UtilityTab::Timer);
+        show_tab_toggle(ui, app_ui, UtilityTab::KeybindsReference);
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::PuzzleControls);
-        show_tab_toggle(ui, app_ui, Tab::ModifierKeys);
+        show_tab_toggle(ui, app_ui, UtilityTab::Timeline);
+        show_tab_toggle(ui, app_ui, UtilityTab::Scrambler);
+        show_tab_toggle(ui, app_ui, UtilityTab::ImageGenerator);
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::Scrambler);
-        ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
     menu_button_that_stays_open(L.menu.puzzles.title, ui, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::Catalog);
-        show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
+        show_tab_toggle(ui, app_ui, UtilityTab::Catalog);
+        show_tab_toggle(ui, app_ui, UtilityTab::PuzzleInfo);
+        show_tab_toggle(ui, app_ui, UtilityTab::HpsLogs);
+        show_tab_toggle(ui, app_ui, UtilityTab::DevTools);
 
         ui.separator();
 
@@ -277,49 +287,47 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         );
         app_ui.app.prefs.needs_save |= r.changed();
 
-        ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Ok(hps_dir) = hyperpaths::hps_dir()
-                && ui
-                    .button(L.menu.puzzles.show_hps_dir.label)
-                    .on_i18n_hover_explanation(&L.menu.puzzles.show_hps_dir)
-                    .clicked()
-            {
-                ui.close();
-                crate::open_dir(hps_dir);
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if ui
-                .button(L.menu.puzzles.extract_hps.label)
-                .on_i18n_hover_explanation(&L.menu.puzzles.extract_hps)
+        ui.separator();
+
+        if let Ok(hps_dir) = hyperpaths::hps_dir()
+            && ui
+                .button(L.menu.puzzles.show_hps_dir.label)
+                .on_i18n_hover_explanation(&L.menu.puzzles.show_hps_dir)
                 .clicked()
+        {
+            ui.close();
+            crate::open_dir(hps_dir);
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if ui
+            .button(L.menu.puzzles.extract_hps.label)
+            .on_i18n_hover_explanation(&L.menu.puzzles.extract_hps)
+            .clicked()
+        {
+            ui.close();
+            if let Some(mut dir_path) = rfd::FileDialog::new()
+                .set_title(L.menu.puzzles.extract_hps.label)
+                .pick_folder()
             {
-                ui.close();
-                if let Some(mut dir_path) = rfd::FileDialog::new()
-                    .set_title(L.menu.puzzles.extract_hps.label)
-                    .pick_folder()
-                {
-                    dir_path.push("hps");
-                    match hyperpuzzlescript::extract_builtin_files(&dir_path) {
-                        Ok(()) => crate::open_dir(&dir_path),
-                        Err(e) => log::error!("Error extracting built-in HPS files: {e}"),
-                    }
+                dir_path.push("hps");
+                match hyperpuzzlescript::extract_builtin_files(&dir_path) {
+                    Ok(()) => crate::open_dir(&dir_path),
+                    Err(e) => log::error!("Error extracting built-in HPS files: {e}"),
                 }
             }
-
-            show_tab_toggle(ui, app_ui, Tab::HpsLogs);
-            show_tab_toggle(ui, app_ui, Tab::DevTools);
-        });
+        }
     });
     menu_button_that_stays_open(L.menu.help.title, ui, |ui| {
         ui.heading(L.menu.help.guides);
         let _ = ui.button("Welcome");
-        show_tab_toggle(ui, app_ui, Tab::About);
+        show_tab_toggle(ui, app_ui, UtilityTab::About);
         ui.separator();
-        show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
+        show_tab_toggle(ui, app_ui, UtilityTab::KeybindsReference);
     });
     #[cfg(debug_assertions)]
     menu_button_that_stays_open(L.menu.debug.title, ui, |ui| {
-        show_tab_toggle(ui, app_ui, Tab::Debug);
+        show_tab_toggle(ui, app_ui, UtilityTab::Debug);
     });
 }
 

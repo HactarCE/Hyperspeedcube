@@ -1,3 +1,5 @@
+lang "en"
+
 tabs {
   menu {
     puzzle "New puzzle view"
@@ -15,13 +17,10 @@ tabs {
     keybinds "Keybinds"
     mousebinds "Mousebinds"
 
-    camera "Camera"
     image_generator "Image generator"
     macros "Macros"
-    modifier_keys "Modifier keys"
     move_input "Move input"
-    piece_filters "Piece filters"
-    puzzle_controls "Puzzle controls"
+    piece_filters "Filters"
     scrambler "Custom scrambler"
     timeline "Timeline"
     timer "Timer"
@@ -51,14 +50,11 @@ tabs {
     keybinds "Keybinds"
     mousebinds "Mousebinds"
 
-    camera "Camera"
     image_generator "Image Generator"
     macros "Macros"
-    modifier_keys "Modifier Keys"
     move_input "Move Input"
-    piece_filters "Piece Filters"
-    puzzle_controls "Puzzle Controls"
-    scrambler "Scrambles"
+    piece_filters "Filters"
+    scrambler "Scrambler"
     timeline "Timeline"
     timer "Timer"
 
@@ -129,6 +125,11 @@ menu {
   }
 }
 
+sidebar {
+  show_labels "Show labels"
+  hide_labels "Hide labels"
+}
+
 click_to {
   activate "{{click}} to activate"
   copy_hex "{{click}} to copy hex"
@@ -137,11 +138,15 @@ click_to {
   rename "{{click}} to rename"
   rename_or_delete "{{click}} to rename or delete"
   reorder "{{click}} to reorder"
+  open_in_sidebar "{{click}} to open in sidebar"
+  open_in_docked_tab "{{click}} to open in docked tab"
+  close "{{click}} to close"
 }
 
 inputs {
   click "**Click**"
   right_click "**Right-click**"
+  middle_click "**Middle-click**"
   middle_click_or_alt_click "**Middle-click** or **alt + click**"
   alt_click "**Alt + click**"
   drag "**Drag**"
@@ -329,6 +334,7 @@ prefs {
       If scrambling or timestamping fails, then offline scrambles are used as a fallback.
     """
   }
+  (HoverStrings)show_sidebar "Show sidebar"
   (HoverStrings)check_for_updates "Check for updates on startup" {
     desc """
       Hyperspeedcube will never automatically update without your explicit consent.
@@ -450,6 +456,16 @@ prefs {
           When **disabled**, piece filter rules are listed in order from **highest to lowest** priority, so **earlier rules override later ones**.
 
           When **enabled**, piece filter rules are listed in order from **lowest to highest** priority, so **later rules override earlier ones**.
+        """
+      }
+      (HoverStrings)swap_sidebar_mouse_buttons "Swap sidebar mouse buttons" {
+        desc """
+          When **disabled**:
+
+          - **Click** an icon in the sidebar to open the utility in the sidebar
+          - **Right-click** an icon in the sidebar to open the utility as a tab
+
+          When **enabled**, these are swapped.
         """
       }
     }
@@ -615,12 +631,6 @@ styles {
     fixed "fixed color {{color}}"
     rainbow "gay"
   }
-}
-
-camera {
-  reset "Reset camera"
-  w_axis_hint "Hold {{modifier}} to rotate through W axis"
-  v_axis_hint "Hold {{modifier}} to rotate through V axis"
 }
 
 _debug {

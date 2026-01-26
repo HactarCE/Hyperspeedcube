@@ -79,9 +79,23 @@ pub fn text_size(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Vec2
         .into_galley(ui, wrap, max_width, egui::TextStyle::Button)
         .size()
 }
+pub fn text_size_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) -> egui::Vec2 {
+    text.into()
+        .into_galley_impl(
+            ctx,
+            &ctx.style(),
+            egui::text::TextWrapping::no_max_width(),
+            egui::TextStyle::Button.into(),
+            egui::Align::TOP,
+        )
+        .size()
+}
 
 pub fn text_width(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> f32 {
     text_size(ui, text).x
+}
+pub fn text_width_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) -> f32 {
+    text_size_ctx(ctx, text).x
 }
 
 /// Returns whether a widget of the given width will be put on the next line,
@@ -246,4 +260,50 @@ pub fn set_menu_style(style: &mut egui::Style) {
     style.visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
     style.visuals.widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+}
+
+macro_rules! mdi {
+    ($name:ident) => {{
+        const PATH_DATA: &[u8] = ::material_design_icons::$name.as_bytes();
+        ::egui::Image::from_bytes(
+            concat!("MDI_", stringify!($name), ".svg"),
+            &const {
+                $crate::gui::util::const_concat_3::<
+                    { PATH_DATA.len() + $crate::gui::util::SVG_EXTRA_LEN },
+                >(
+                    $crate::gui::util::SVG_PRE,
+                    PATH_DATA,
+                    $crate::gui::util::SVG_POST,
+                )
+            },
+        )
+    }};
+}
+
+#[doc(hidden)]
+pub const SVG_PRE: &[u8] =
+    br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d=""#;
+#[doc(hidden)]
+pub const SVG_POST: &[u8] = br#"" /></svg>"#;
+#[doc(hidden)]
+pub const SVG_EXTRA_LEN: usize = SVG_PRE.len() + SVG_POST.len();
+
+#[doc(hidden)]
+pub const fn const_copy_slice_from_to(src: &[u8], dst: &mut [u8], start: &mut usize) {
+    let mut i = 0;
+    while i < src.len() {
+        dst[*start + i] = src[i];
+        i += 1;
+    }
+    *start += i;
+}
+
+#[doc(hidden)]
+pub const fn const_concat_3<const OUT: usize>(a: &[u8], b: &[u8], c: &[u8]) -> [u8; OUT] {
+    let mut ret = [0; OUT];
+    let mut i = 0;
+    const_copy_slice_from_to(a, &mut ret, &mut i);
+    const_copy_slice_from_to(b, &mut ret, &mut i);
+    const_copy_slice_from_to(c, &mut ret, &mut i);
+    ret
 }

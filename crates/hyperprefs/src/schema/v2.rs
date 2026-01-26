@@ -5,11 +5,11 @@ use hyperpuzzle_core::PaletteColor;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::FilterPieceSet;
 pub use crate::{
     AnimationPreferences, ImageGeneratorPreferences, InfoPreferences, InteractionPreferences,
     PieceStyle, StylePreferences, ViewPreferences,
 };
+use crate::{FilterPieceSet, SidebarPreferences};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
@@ -22,6 +22,8 @@ pub struct Preferences {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
+
+    pub sidebar: SidebarPreferences,
 
     pub info: InfoPreferences,
 

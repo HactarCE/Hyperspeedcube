@@ -431,6 +431,10 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.middle_click_delete, access!(.middle_click_delete));
         prefs_ui.checkbox(&l.reverse_filter_rules, access!(.reverse_filter_rules));
+        prefs_ui.checkbox(
+            &l.swap_sidebar_mouse_buttons,
+            access!(.swap_sidebar_mouse_buttons),
+        );
     });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {
@@ -451,7 +455,7 @@ pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) 
 
 pub fn build_perspective_dim_view_section(
     dim: PerspectiveDim,
-    mut prefs_ui: PrefsUi<'_, ViewPreferences>,
+    prefs_ui: &mut PrefsUi<'_, ViewPreferences>,
 ) {
     let l = &L.prefs.view.projection;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {

@@ -16,6 +16,7 @@ use crate::leaderboards::LeaderboardsClientState;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
+    pub(crate) egui_wgpu_renderer: Arc<egui::mutex::RwLock<eframe::egui_wgpu::Renderer>>,
 
     pub(crate) prefs: Preferences,
     pub(crate) stats: StatsDb,
@@ -24,8 +25,6 @@ pub struct App {
     pub active_puzzle: ActivePuzzleWidget,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
-
-    egui_wgpu_renderer: Arc<egui::mutex::RwLock<eframe::egui_wgpu::Renderer>>,
 
     pub(crate) key_events: Vec<winit::event::KeyEvent>,
 }
@@ -46,6 +45,7 @@ impl App {
                 &wgpu_render_state.device,
                 &wgpu_render_state.queue,
             )),
+            egui_wgpu_renderer: Arc::clone(&wgpu_render_state.renderer),
 
             prefs,
             stats,
@@ -55,13 +55,11 @@ impl App {
 
             animation_prefs,
 
-            egui_wgpu_renderer: Arc::clone(&wgpu_render_state.renderer),
-
             key_events: vec![],
         }
     }
 
-    pub(crate) fn update_active_puzzle(&mut self, new_puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
+    pub(crate) fn set_active_puzzle(&mut self, new_puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
         self.active_puzzle = ActivePuzzleWidget(Arc::downgrade(new_puzzle_widget));
         self.notify_active_puzzle_changed();
     }

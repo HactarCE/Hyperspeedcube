@@ -14,4 +14,6 @@ pub struct InteractionPreferences {
 
     pub middle_click_delete: bool,
     pub reverse_filter_rules: bool,
+
+    pub swap_sidebar_mouse_buttons: bool,
 }

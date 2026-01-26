@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::{Arc, mpsc};
 
 use egui_dock::tab_viewer::OnCloseResponse;
@@ -19,6 +20,7 @@ mod icons;
 mod markdown;
 mod menu_bar;
 mod modals;
+mod sidebar;
 mod tabs;
 
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
@@ -26,11 +28,17 @@ use util::EguiTempFlag;
 
 use crate::L;
 pub use crate::app::App;
+use crate::gui::tabs::UtilityTab;
+use crate::gui::util::text_width;
 
 pub struct AppUi {
     pub app: App,
     dock_state: egui_dock::DockState<Tab>,
     raw_winit_event_rx: mpsc::Receiver<winit::event::WindowEvent>,
+
+    sidebar_utility: UtilityTab,
+    is_sidebar_open: bool,
+    floating_utilities: HashSet<UtilityTab>,
 }
 
 impl AppUi {
@@ -49,25 +57,9 @@ impl AppUi {
 
         // Initialize UI.
         let puzzle_widget = app.new_puzzle_widget();
-        app.update_active_puzzle(&puzzle_widget);
+        app.set_active_puzzle(&puzzle_widget);
         app.load_puzzle("ft_hypercube:3");
-        let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(puzzle_widget)]);
-        let main = NodeIndex::root();
-        let surface = dock_state.main_surface_mut();
-        let [main, left] = surface.split_left(main, 0.15, vec![Tab::Catalog, Tab::PuzzleControls]);
-        surface.split_below(left, 0.6, vec![Tab::HpsLogs, Tab::PuzzleInfo]);
-        let [_main, right] = surface.split_right(
-            main,
-            0.65,
-            vec![
-                Tab::PieceFilters,
-                Tab::Colors,
-                Tab::Styles,
-                Tab::View,
-                Tab::Animation,
-                Tab::Interaction,
-            ],
-        );
+        let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]);
 
         // Install WindowEvent hook (workaround to get raw keyboard events).
         let (raw_winit_event_tx, raw_winit_event_rx) = std::sync::mpsc::channel();
@@ -77,6 +69,14 @@ impl AppUi {
             app,
             dock_state,
             raw_winit_event_rx,
+
+            sidebar_utility: UtilityTab::Catalog,
+            is_sidebar_open: true,
+            floating_utilities: HashSet::from_iter([
+                UtilityTab::About,
+                UtilityTab::Timer,
+                UtilityTab::KeybindsReference,
+            ]),
         }
     }
 
@@ -119,6 +119,19 @@ impl AppUi {
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, self));
 
+        sidebar::show(self, ctx);
+
+        let show_sidebar_utility = self.app.prefs.sidebar.show && self.is_sidebar_open;
+        egui::SidePanel::left("sidebar_utility")
+            .default_width(400.0)
+            .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
+            .show_animated(ctx, show_sidebar_utility, |ui| {
+                ui.heading(self.sidebar_utility.title());
+                ui.add_space(6.0);
+                self.sidebar_utility.ui(ui, &mut self.app);
+                ui.set_width(ui.available_rect_before_wrap().width());
+            });
+
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.label("todo");
         });
@@ -145,11 +158,11 @@ impl AppUi {
                 for index in tab_viewer.added_nodes {
                     self.dock_state.set_focused_node_and_surface(index);
                     self.dock_state
-                        .push_to_focused_leaf(Tab::Puzzle(self.app.new_puzzle_widget()));
+                        .push_to_focused_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
                 if self.dock_state.iter_all_tabs().next().is_none() {
                     self.dock_state
-                        .push_to_first_leaf(Tab::Puzzle(self.app.new_puzzle_widget()));
+                        .push_to_first_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
 
                 modals::solve_complete::show(ui, &mut self.app);
@@ -157,8 +170,8 @@ impl AppUi {
 
         // Animate puzzle views.
         let mut puzzle_widget_to_focus = None;
-        for (i, tab) in self.dock_state.iter_all_tabs() {
-            if let Tab::Puzzle(puzzle_widget) = tab {
+        for (i, tab) in self.dock_state.iter_all_tabs_mut() {
+            if let Tab::Puzzle(Some(puzzle_widget)) = tab {
                 let mut puzzle_widget = puzzle_widget.lock();
                 if puzzle_widget.wants_focus {
                     puzzle_widget.wants_focus = false;
@@ -179,10 +192,10 @@ impl AppUi {
             self.dock_state.set_focused_node_and_surface(i);
         }
 
-        if let Some((_rect, Tab::Puzzle(p))) = self.dock_state.find_active_focused()
+        if let Some((_rect, Tab::Puzzle(Some(p)))) = self.dock_state.find_active_focused()
             && !self.app.active_puzzle.contains(p)
         {
-            self.app.update_active_puzzle(p);
+            self.app.set_active_puzzle(p);
         }
 
         // Submit wgpu commands before egui does.
@@ -208,39 +221,69 @@ impl AppUi {
             })
     }
 
-    pub fn find_tab(&self, tab: &Tab) -> Option<(SurfaceIndex, NodeIndex, TabIndex)> {
+    pub fn find_docked_utility(
+        &self,
+        tab: UtilityTab,
+    ) -> Option<(SurfaceIndex, NodeIndex, TabIndex)> {
         self.iter_tabs()
-            .find(|&(_, t)| t == tab)
+            .find(|&(_, t)| *t == Tab::Utility(tab))
             .map(|(index, _)| index)
     }
 
-    pub fn has_tab(&self, tab: &Tab) -> bool {
-        self.find_tab(tab).is_some()
+    pub fn is_docked_utility_open(&self, tab: UtilityTab) -> bool {
+        self.find_docked_utility(tab).is_some()
     }
 
-    pub fn open_tab(&mut self, tab: &Tab) {
-        match self.find_tab(tab) {
-            // surface, node, tab
-            Some((s, n, t)) => {
-                self.dock_state.set_focused_node_and_surface((s, n));
-                self.dock_state.set_active_tab((s, n, t));
-            }
-            None => {
-                self.dock_state.push_to_focused_leaf(tab.clone());
-            }
+    fn close_sidebar_utility(&mut self, tab: UtilityTab) {
+        if self.sidebar_utility == tab {
+            self.is_sidebar_open = false;
         }
     }
 
-    pub fn close_tab(&mut self, tab: &Tab) {
-        if let Some(index) = self.find_tab(tab) {
+    pub fn close_utility(&mut self, tab: UtilityTab) {
+        self.close_sidebar_utility(tab);
+        if let Some(index) = self.find_docked_utility(tab) {
             self.dock_state.remove_tab(index);
         }
     }
 
-    pub fn set_tab_state(&mut self, tab: &Tab, new_state: bool) {
-        match new_state {
-            true => self.open_tab(tab),
-            false => self.close_tab(tab),
+    pub fn toggle_sidebar_utility(&mut self, tab: UtilityTab) {
+        if self.is_sidebar_open && self.sidebar_utility == tab {
+            self.is_sidebar_open = false;
+        } else {
+            self.sidebar_utility = tab;
+            self.is_sidebar_open = true;
+        }
+    }
+
+    pub fn toggle_docked_utility(&mut self, tab: UtilityTab) {
+        self.close_sidebar_utility(tab);
+        if let Some((s, n, t)) = self.find_docked_utility(tab) {
+            let Some(leaf) = self.dock_state[s][n].get_leaf_mut() else {
+                log::error!("found tab at non-leaf");
+                return;
+            };
+            let is_visible = leaf.active == t;
+            if is_visible {
+                // Open and visible, so close the tab
+                self.dock_state.remove_tab((s, n, t));
+            } else {
+                // Open but not visible, so focus the tab
+                leaf.set_active_tab(t);
+                self.dock_state.set_focused_node_and_surface((s, n));
+            }
+        } else {
+            // Not open, so open the tab
+            self.dock_state.push_to_focused_leaf(Tab::Utility(tab));
+        }
+    }
+
+    pub fn activate_docked_utility(&mut self, tab: UtilityTab) {
+        if let Some((s, n, t)) = self.find_docked_utility(tab) {
+            self.dock_state.set_active_tab((s, n, t));
+            self.dock_state.set_focused_node_and_surface((s, n));
+        } else {
+            self.dock_state.push_to_focused_leaf(Tab::Utility(tab));
         }
     }
 
@@ -264,8 +307,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
         match tab {
-            Tab::Puzzle(puz) => egui::Id::new(Arc::as_ptr(puz)),
-            _ => egui::Id::new(tab.title().text()),
+            Tab::Puzzle(puz) => egui::Id::new(Arc::as_ptr(
+                puz.get_or_insert_with(|| self.app.new_puzzle_widget()),
+            )),
+            Tab::Utility(utility) => egui::Id::new(utility),
         }
     }
 

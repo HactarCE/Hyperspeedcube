@@ -3041,6 +3041,7 @@ dependencies = [
  "lab",
  "lazy_static",
  "log",
+ "material-design-icons",
  "names",
  "opener",
  "optick",
@@ -3659,6 +3660,12 @@ checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "material-design-icons"
+version = "7.4.48"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de4ae9d9037d3a25389a261952526dad800bcf25cdf510450306320927b693ec"
 
 [[package]]
 name = "maybe-rayon"

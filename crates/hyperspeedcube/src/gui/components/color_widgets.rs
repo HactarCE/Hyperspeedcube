@@ -161,7 +161,7 @@ impl<'a> ColorsUi<'a> {
         let large_space = ui.spacing().item_spacing.x;
         let small_space = ui.spacing().item_spacing.y;
         ui.spacing_mut().item_spacing.y = large_space;
-        ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
+        ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
 
         if !self.palette.custom_colors.is_empty() {
             ui.group(|ui| {
