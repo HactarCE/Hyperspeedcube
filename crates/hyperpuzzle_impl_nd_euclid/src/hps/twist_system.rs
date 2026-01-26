@@ -613,6 +613,11 @@ impl ApproxHash for GeometricTwistKey {
         self.transform.interned_hash(state);
     }
 }
+impl Ndim for GeometricTwistKey {
+    fn ndim(&self) -> u8 {
+        std::cmp::max(self.axis_vector.ndim(), self.transform.ndim())
+    }
+}
 impl TransformByMotor for GeometricTwistKey {
     fn transform_by(&self, m: &Motor) -> Self {
         let t = m.transform(&self.transform);

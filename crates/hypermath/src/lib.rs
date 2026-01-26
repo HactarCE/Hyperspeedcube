@@ -64,12 +64,14 @@ pub mod collections;
 pub mod centroid;
 pub mod hyperplane;
 pub mod matrix;
+pub mod ndim;
 pub mod permutations;
 pub mod pga;
 pub mod sign;
 pub mod util;
 pub mod which_side;
 
+pub use ndim::Ndim;
 pub use sign::Sign;
 pub use which_side::PointWhichSide;
 
@@ -102,6 +104,7 @@ pub mod traits {
     pub use tinyset::Fits64;
 
     pub use crate::collections::IndexNewtype;
+    pub use crate::ndim::Ndim;
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;
     pub use crate::vector::VectorRef;

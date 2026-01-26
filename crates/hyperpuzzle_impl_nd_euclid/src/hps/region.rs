@@ -122,6 +122,20 @@ impl HpsRegion {
     }
 }
 
+impl Ndim for HpsRegion {
+    fn ndim(&self) -> u8 {
+        match self {
+            HpsRegion::None => 0,
+            HpsRegion::All => 0,
+            HpsRegion::HalfSpace(h) => h.normal().ndim(),
+            HpsRegion::And(xs) | HpsRegion::Or(xs) => {
+                xs.iter().map(|x| x.ndim()).max().unwrap_or(0)
+            }
+            HpsRegion::Not(x) => x.ndim(),
+        }
+    }
+}
+
 impl TransformByMotor for HpsRegion {
     fn transform_by(&self, m: &hypermath::pga::Motor) -> Self {
         match self {

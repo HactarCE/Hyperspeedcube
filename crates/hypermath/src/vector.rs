@@ -9,7 +9,7 @@ use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{APPROX, Float, util};
+use crate::{APPROX, Float, Ndim, util};
 
 /// Constructs an N-dimensional vector, using the same syntax as `vec![]`.
 #[macro_export]
@@ -29,14 +29,11 @@ macro_rules! vector {
 pub struct Vector(pub SmallVec<[Float; 4]>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
-pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero {
+pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero + Ndim {
     /// Converts the vector to a `Vector`.
     fn to_vector(&self) -> Vector {
         self.iter().collect()
     }
-
-    /// Returns the number of components in the vector.
-    fn ndim(&self) -> u8;
 
     /// Returns a component of the vector. If the index is out of bounds,
     /// returns zero.
@@ -148,41 +145,49 @@ impl<V: VectorRef> Iterator for VectorIter<V> {
     }
 }
 
-impl VectorRef for Vector {
+impl Ndim for Vector {
+    /// Returns the number of components in the vector.
     fn ndim(&self) -> u8 {
         self.0.len() as _
     }
-
+}
+impl VectorRef for Vector {
     fn get(&self, idx: u8) -> Float {
         self.0.get(idx as usize).copied().unwrap_or(0.0)
     }
 }
 
+impl Ndim for &[Float] {
+    /// Returns the number of components in the vector.
+    fn ndim(&self) -> u8 {
+        self.len().try_into().unwrap_or(u8::MAX)
+    }
+}
 impl VectorRef for &[Float] {
-    fn ndim(&self) -> u8 {
-        self.len().try_into().unwrap_or(u8::MAX)
-    }
-
     fn get(&self, idx: u8) -> Float {
         <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
     }
 }
 
+impl<const N: usize> Ndim for [Float; N] {
+    /// Returns the number of components in the vector.
+    fn ndim(&self) -> u8 {
+        self.len().try_into().unwrap_or(u8::MAX)
+    }
+}
 impl<const N: usize> VectorRef for [Float; N] {
-    fn ndim(&self) -> u8 {
-        self.len().try_into().unwrap_or(u8::MAX)
-    }
-
     fn get(&self, idx: u8) -> Float {
         <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
     }
 }
 
-impl<V: VectorRef> VectorRef for &'_ V {
+impl<V: VectorRef> Ndim for &'_ V {
+    /// Returns the number of components in the vector.
     fn ndim(&self) -> u8 {
         (*self).ndim()
     }
-
+}
+impl<V: VectorRef> VectorRef for &'_ V {
     fn get(&self, idx: u8) -> Float {
         (*self).get(idx)
     }
@@ -330,6 +335,14 @@ impl Vector {
         }
         self[axis] = value;
     }
+    /// Resizes the vector in-place to the minimum dimension with the same
+    /// value.
+    ///
+    /// This uses exact equality, _not_ approximate equality.
+    fn resize_to_min_ndim(&mut self) {
+        let new_len = self.0.len() - self.0.iter().rev().take_while(|&&x| x == 0.0).count();
+        self.0.truncate(new_len);
+    }
 
     /// Returns an iterator over two vectors, both padded to the same length.
     pub fn zip<A: VectorRef, B: VectorRef>(
@@ -371,10 +384,11 @@ impl_vector_approx_eq!(impl for Vector);
 impl ApproxHash for Vector {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.0.intern_floats(f);
+        self.resize_to_min_ndim();
     }
 
     fn interned_eq(&self, other: &Self) -> bool {
-        self.0.interned_eq(&other.0)
+        Vector::zip(self, other).all(|(a, b)| a.interned_eq(&b))
     }
 
     fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {

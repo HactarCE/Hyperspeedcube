@@ -104,7 +104,7 @@ pub(super) fn orbit_spanned<T>(
     object: T,
 ) -> Vec<Spanned<T>>
 where
-    T: ApproxHash + Clone + TransformByMotor,
+    T: ApproxHash + Clone + Ndim + TransformByMotor,
 {
     sym.orbit(object)
         .into_iter()
@@ -123,6 +123,14 @@ impl PartialEq for HpsSymmetry {
         self.generators.len() == other.generators.len()
             && std::iter::zip(&*self.generators, &*other.generators)
                 .all(|(g1, g2)| APPROX.eq(g1, g2))
+    }
+}
+
+impl Ndim for HpsSymmetry {
+    /// Returns the minimum number of dimensions required to represent the
+    /// symmetry group.
+    fn ndim(&self) -> u8 {
+        self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1)
     }
 }
 
@@ -285,12 +293,6 @@ impl HpsSymmetry {
         Ok(mirror_basis * v)
     }
 
-    /// Returns the minimum number of dimensions required to represent the
-    /// symmetry group.
-    pub fn ndim(&self) -> u8 {
-        self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1)
-    }
-
     /// Returns a motor representing a sequence of generators, specified using
     /// indices into the list of generators.
     pub fn motor_for_gen_seq(&self, gen_seq: &GenSeq, span: Span) -> Result<Motor> {
@@ -310,7 +312,7 @@ impl HpsSymmetry {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: ApproxHash + Clone + TransformByMotor>(
+    pub fn orbit<T: ApproxHash + Clone + Ndim + TransformByMotor>(
         &self,
         object: T,
     ) -> Vec<(AbbrGenSeq, Motor, T)> {

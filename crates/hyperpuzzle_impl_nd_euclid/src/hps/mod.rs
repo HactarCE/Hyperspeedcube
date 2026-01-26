@@ -4,7 +4,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{ApproxEq, ApproxHash, IndexNewtype, Point, Precision, TransformByMotor, Vector};
+use hypermath::{
+    ApproxEq, ApproxHash, IndexNewtype, Ndim, Point, Precision, TransformByMotor, Vector,
+};
 use hyperpuzzle_core::{Axis, NameSpec, Twist};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
@@ -151,6 +153,11 @@ struct CanonicalMotor(Motor);
 impl CanonicalMotor {
     pub fn new(m: Motor) -> Self {
         Self(m.canonicalize_up_to_180().unwrap_or(m))
+    }
+}
+impl Ndim for CanonicalMotor {
+    fn ndim(&self) -> u8 {
+        self.0.ndim()
     }
 }
 impl TransformByMotor for CanonicalMotor {

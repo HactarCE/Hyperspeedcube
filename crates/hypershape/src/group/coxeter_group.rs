@@ -316,7 +316,7 @@ impl CoxeterGroup {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: ApproxHash + Clone + TransformByMotor>(
+    pub fn orbit<T: ApproxHash + Clone + Ndim + TransformByMotor>(
         &self,
         object: T,
         chiral: bool,

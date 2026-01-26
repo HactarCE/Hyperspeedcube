@@ -109,12 +109,9 @@ impl HpsAxisSystem {
     pub fn add_axes(
         &self,
         ctx: &mut EvalCtx<'_>,
-        mut vector: Vector,
+        vector: Vector,
         names: Option<Names>,
     ) -> Result<Option<HpsAxis>> {
-        // Canonicalize number of dimensions
-        vector.resize(ctx.ndim()?);
-
         let span = ctx.caller_span;
         let ctx_symmetry = HpsSymmetry::get(ctx)?;
         let mut this = self.lock();

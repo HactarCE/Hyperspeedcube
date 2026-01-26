@@ -4,11 +4,16 @@ use super::{AbbrGenSeq, GenSeq};
 
 /// Returns the orbit of an object under the symmetry. Each generator is
 /// specified along with its generator sequence.
-pub fn orbit<T: Clone + ApproxHash + TransformByMotor>(
+pub fn orbit<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     generators: &[(GenSeq, pga::Motor)],
     mut object: T,
 ) -> Vec<(AbbrGenSeq, pga::Motor, T)> {
-    let ndim = generators.iter().map(|(_, m)| m.ndim()).max().unwrap_or(1);
+    let ndim = generators
+        .iter()
+        .map(|(_, m)| m.ndim())
+        .max()
+        .unwrap_or(1)
+        .max(object.ndim());
 
     let mut seen = ApproxHashMap::new(APPROX);
     seen.entry_with_mut_key(&mut object).or_insert(());

@@ -4,7 +4,7 @@ use std::ops::*;
 
 use approx_collections::{ApproxEq, Precision};
 
-use crate::{Float, Vector, VectorRef, permutations};
+use crate::{Float, Ndim, Vector, VectorRef, permutations};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
@@ -135,11 +135,6 @@ impl Matrix {
             *ret.get_mut(i, i) = elem;
         }
         ret
-    }
-
-    /// Returns the number of dimensions (size) of the matrix.
-    pub fn ndim(&self) -> u8 {
-        self.ndim
     }
 
     /// Pads the matrix with identity up to `ndim`, avoiding reallocation if
@@ -307,6 +302,12 @@ impl FromIterator<Float> for Matrix {
         Self::from_elems(iter.into_iter().collect())
     }
 }
+impl Ndim for Matrix {
+    /// Returns the width and height of the matrix.
+    fn ndim(&self) -> u8 {
+        self.ndim
+    }
+}
 
 /// Constructs a matrix from columns.
 #[macro_export]
@@ -329,11 +330,12 @@ pub struct MatrixCol<'a> {
     matrix: &'a Matrix,
     col: u8,
 }
-impl VectorRef for MatrixCol<'_> {
+impl Ndim for MatrixCol<'_> {
     fn ndim(&self) -> u8 {
         std::cmp::max(self.matrix.ndim(), self.col + 1)
     }
-
+}
+impl VectorRef for MatrixCol<'_> {
     fn get(&self, row: u8) -> Float {
         self.matrix.get(self.col, row)
     }
@@ -351,11 +353,12 @@ pub struct MatrixRow<'a> {
     matrix: &'a Matrix,
     row: u8,
 }
-impl VectorRef for MatrixRow<'_> {
+impl Ndim for MatrixRow<'_> {
     fn ndim(&self) -> u8 {
         std::cmp::max(self.matrix.ndim(), self.row + 1)
     }
-
+}
+impl VectorRef for MatrixRow<'_> {
     fn get(&self, col: u8) -> Float {
         self.matrix.get(col, self.row)
     }

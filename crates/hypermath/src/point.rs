@@ -5,6 +5,7 @@ use std::ops::*;
 
 use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
 
+use crate::Ndim;
 use crate::{Float, Vector, VectorRef};
 
 /// Constructs an N-dimensional Euclidean point, using the same syntax as
@@ -31,6 +32,13 @@ impl<V: VectorRef> From<V> for Point {
     }
 }
 
+impl Ndim for Point {
+    /// Returns the number of components in the point.
+    fn ndim(&self) -> u8 {
+        self.0.ndim()
+    }
+}
+
 impl Point {
     /// Zero-dimensional origin point.
     pub const ORIGIN: Point = Point(Vector::EMPTY);
@@ -52,11 +60,6 @@ impl Point {
     /// Returns the vector from the origin to the point.
     pub fn into_vector(self) -> Vector {
         self.0
-    }
-
-    /// Returns the number of components in the point.
-    pub fn ndim(&self) -> u8 {
-        self.0.ndim()
     }
 
     /// Projects the point onto `other`.

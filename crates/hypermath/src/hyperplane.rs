@@ -4,7 +4,7 @@ use std::fmt;
 
 use approx_collections::{ApproxEq, ApproxHash, Precision};
 
-use crate::{APPROX, AXIS_NAMES, Float, Point, PointWhichSide, Vector, VectorRef};
+use crate::{APPROX, AXIS_NAMES, Float, Ndim, Point, PointWhichSide, Vector, VectorRef};
 
 /// Hyperplane in Euclidean space, which is also used to represent a half-space.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +57,12 @@ impl ApproxHash for Hyperplane {
     fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.normal.interned_hash(state);
         self.distance.interned_hash(state);
+    }
+}
+
+impl Ndim for Hyperplane {
+    fn ndim(&self) -> u8 {
+        self.normal.ndim()
     }
 }
 
