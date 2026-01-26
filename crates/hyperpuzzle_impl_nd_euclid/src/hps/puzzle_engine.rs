@@ -45,10 +45,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
         }
 
-        if let Err(e) = meta
-            .tags
-            .insert_named(&format!("ndim"), TagValue::Int(ndim as i64))
-        {
+        if let Err(e) = meta.tags.insert_named("ndim", TagValue::Int(ndim as i64)) {
             ctx.warn(e.to_string());
         }
 
