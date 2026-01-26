@@ -1,17 +1,24 @@
 use egui::AtomExt;
+use hyperpuzzle::TagValue;
 
 const SVG_ICON_SIZE: f32 = 12.0;
 
 #[derive(Debug, Clone)]
 pub struct CatalogIcon {
     pub icon_data: egui::ImageSource<'static>,
+    pub icon_data_dark_mode: Option<egui::ImageSource<'static>>,
     pub description: &'static str,
     pub side: egui::panel::Side,
     pub color: IconColor,
 }
 impl CatalogIcon {
     pub fn to_image(&self, ui: &egui::Ui) -> egui::Image<'static> {
-        egui::Image::from(self.icon_data.clone())
+        let icon_data = if ui.visuals().dark_mode {
+            self.icon_data_dark_mode.as_ref().unwrap_or(&self.icon_data)
+        } else {
+            &self.icon_data
+        };
+        egui::Image::from(icon_data.clone())
             .tint(self.color.to_color32(ui))
             .fit_to_exact_size(egui::vec2(SVG_ICON_SIZE * 1.5, SVG_ICON_SIZE * 1.5))
     }
@@ -52,29 +59,39 @@ impl IconColor {
 }
 
 macro_rules! svg_catalog_icon {
-    ($source:literal, $description:literal, $side:ident) => {
+    ($source:tt, $description:literal, $side:ident) => {
         svg_catalog_icon!($source, $description, $side, Neutral)
     };
-    ($source:literal, $description:literal, $side:ident, $color:literal) => {{
+    ($source:tt, $description:literal, $side:ident, $color:literal) => {{
         let [r, g, b] = color_hex::color_from_hex!($color);
         let color = egui::Color32::from_rgb(r, g, b);
         svg_catalog_icon!($source, $description, $side, IconColor::Custom(color))
     }};
-    ($source:literal, $description:literal, $side:ident, $color:ident) => {
+    ($source:tt, $description:literal, $side:ident, $color:ident) => {
         svg_catalog_icon!($source, $description, $side, IconColor::$color)
     };
-    ($source:literal, $description:literal, $side:ident, $color:expr) => {
+    ($source:tt, $description:literal, $side:ident, $color:expr) => {{
+        let (light, dark) = svg_catalog_icon!(@sources $source);
         CatalogIcon {
-            icon_data: egui::include_image!(concat!(
-                "../../resources/img/catalog/",
-                $source,
-                ".svg",
-            )),
+            icon_data: light,
+            icon_data_dark_mode: dark,
             description: $description,
             side: egui::panel::Side::$side,
             color: $color,
         }
+    }};
+    (@sources $source:literal) => {
+        (svg_catalog_icon!(@single_source $source), None)
     };
+    (@sources ($light_mode_source:literal, $dark_mode_source:literal)) => {
+        (
+            svg_catalog_icon!(@single_source $light_mode_source),
+            Some(svg_catalog_icon!(@single_source $dark_mode_source)),
+        )
+    };
+    (@single_source $source:literal) => {
+        egui::include_image!(concat!("../../resources/img/catalog/", $source, ".svg"))
+    }
 }
 
 impl CatalogIcon {
@@ -82,47 +99,49 @@ impl CatalogIcon {
     const TYPE_PUZZLE: Self = svg_catalog_icon!("type/puzzle", "Puzzle", Left, "#c089ff");
     const TYPE_GENERATED_PUZZLE: Self =
         svg_catalog_icon!("type/puzzle-cog", "Puzzle", Left, "#c089ff");
-    const TYPE_SHAPE: Self = svg_catalog_icon!("type/pentagon", "Shape", Left, "#dad77d");
+    const TYPE_SHAPE: Self = svg_catalog_icon!("type/pentagon", "Shape", Left, "#cdc72a");
     const TYPE_GENERATED_SHAPE: Self =
-        svg_catalog_icon!("type/pentagon-cog", "Generated shape", Left, "#dad77d");
+        svg_catalog_icon!("type/pentagon-cog", "Generated shape", Left, "#cdc72a");
     const TYPE_SHAPE_GENERATOR: Self =
         svg_catalog_icon!("type/cog", "Shape generator", Left, "#eaa560");
     const TYPE_UNKNOWN: Self = svg_catalog_icon!("type/help", "Missing `type` tag", Left, Error);
 
-    const EXPERIMENTAL: Self = svg_catalog_icon!("test-tube", "Experimental", Right, "#17d97f");
+    const EXPERIMENTAL: Self = svg_catalog_icon!("test-tube", "Experimental", Right, "#12c06f");
     const BIG: Self = svg_catalog_icon!("alert", "Big/slow to generate", Right, Warn);
 
     const NDIM_1D: Self = svg_catalog_icon!("ndim/1d", "1D", Left);
-    const NDIM_2D: Self = svg_catalog_icon!("ndim/2d", "2D", Left, "#dad77d"); // yellow (like D)
-    const NDIM_3D: Self = svg_catalog_icon!("ndim/3d", "3D", Left, "#17d97f"); // green (like F)
+    const NDIM_2D: Self = svg_catalog_icon!("ndim/2d", "2D", Left, "#cdc72a"); // yellow (like D)
+    const NDIM_3D: Self = svg_catalog_icon!("ndim/3d", "3D", Left, "#12c06f"); // green (like F)
     const NDIM_4D: Self = svg_catalog_icon!("ndim/4d", "4D", Left, "#c089ff"); // pink (like O)
     const NDIM_5D: Self = svg_catalog_icon!("ndim/5d", "5D", Left, "#00a9cb"); // blue
     const NDIM_6D: Self = svg_catalog_icon!("ndim/6d", "6D", Left, "#da811a"); // orange
     const NDIM_7D: Self = svg_catalog_icon!("ndim/7d", "7D", Left, "#d22e2e"); // red
     const NDIM_8D: Self = svg_catalog_icon!("ndim/8d", "8D", Left);
-    const NDIM_UNKNOWN: Self = svg_catalog_icon!("ndim/nd", "Multidimensional", Left);
+    #[rustfmt::skip]
+    const NDIM_ND: Self = svg_catalog_icon!(("ndim/nd_light", "ndim/nd_dark"), "Dimension-generic", Left, "#ffffff"); // rainbow
+    const NDIM_UNKNOWN: Self = svg_catalog_icon!("ndim/unknown", "Unknown dimension", Left);
 
     pub fn icons_from_tags(tags: &hyperpuzzle::TagSet) -> Vec<CatalogIcon> {
         let mut ret = vec![];
 
         // Dimension
-        let mut ndim_icon = None;
-        for (tag, icon) in [
-            ("shape/1d", Self::NDIM_1D),
-            ("shape/2d", Self::NDIM_2D),
-            ("shape/3d", Self::NDIM_3D),
-            ("shape/4d", Self::NDIM_4D),
-            ("shape/5d", Self::NDIM_5D),
-            ("shape/6d", Self::NDIM_6D),
-            ("shape/7d", Self::NDIM_7D),
-            ("shape/8d", Self::NDIM_8D),
-        ] {
-            if tags.has_present(tag) {
-                ndim_icon = Some(icon);
-                break;
+        ret.push(match tags.get("ndim") {
+            Some(TagValue::Int(1)) => Self::NDIM_1D,
+            Some(TagValue::Int(2)) => Self::NDIM_2D,
+            Some(TagValue::Int(3)) => Self::NDIM_3D,
+            Some(TagValue::Int(4)) => Self::NDIM_4D,
+            Some(TagValue::Int(5)) => Self::NDIM_5D,
+            Some(TagValue::Int(6)) => Self::NDIM_6D,
+            Some(TagValue::Int(7)) => Self::NDIM_7D,
+            Some(TagValue::Int(8)) => Self::NDIM_8D,
+            _ => {
+                if tags.has_present("ndim/generic") {
+                    Self::NDIM_ND
+                } else {
+                    Self::NDIM_UNKNOWN
+                }
             }
-        }
-        ret.push(ndim_icon.unwrap_or(Self::NDIM_UNKNOWN));
+        });
 
         // Type
         let is_shape = tags.has_present("type/shape");
