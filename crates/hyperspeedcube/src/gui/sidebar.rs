@@ -2,16 +2,12 @@ use std::collections::HashSet;
 
 use egui::AtomExt;
 
-use crate::{
-    L,
-    gui::{
-        App, AppUi, Tab,
-        components::PrefsUi,
-        markdown::md,
-        tabs::UtilityTab,
-        util::{text_width, text_width_ctx},
-    },
-};
+use crate::L;
+use crate::gui::components::PrefsUi;
+use crate::gui::markdown::md;
+use crate::gui::tabs::UtilityTab;
+use crate::gui::util::{text_width, text_width_ctx};
+use crate::gui::{App, AppUi, Tab};
 
 const ICON_SIZE: f32 = 24.0;
 const FONT_SIZE: f32 = 15.0;

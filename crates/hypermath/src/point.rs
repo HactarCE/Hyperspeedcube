@@ -5,8 +5,7 @@ use std::ops::*;
 
 use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
 
-use crate::Ndim;
-use crate::{Float, Vector, VectorRef};
+use crate::{Float, Ndim, Vector, VectorRef};
 
 /// Constructs an N-dimensional Euclidean point, using the same syntax as
 /// `vec![]`.

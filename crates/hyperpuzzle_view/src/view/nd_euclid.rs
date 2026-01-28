@@ -240,7 +240,6 @@ impl NdEuclidViewState {
             if ndim >= 4 {
                 offset *= pga::Motor::from_angle_in_axis_plane(1, 3, angle);
                 meta_offset *= pga::Motor::from_angle_in_axis_plane(2, 3, 1.0);
-                // meta_offset *= pga::Motor::from_angle_in_axis_plane(0, 3, 0.25 * angle);
             }
             if ndim != 4 {
                 meta_offset *= pga::Motor::from_angle_in_axis_plane(0, 1, 0.5 * angle);
