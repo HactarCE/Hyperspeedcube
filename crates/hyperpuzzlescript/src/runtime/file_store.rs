@@ -145,7 +145,7 @@ impl Modules {
         let new_file_id;
         let mut module = Module::new(file_path, contents.into());
         match self.0.entry(Substr::from(&module_path_str)) {
-            indexmap::map::Entry::Occupied(e) if !e.get().contents.is_empty() => {
+            indexmap::map::Entry::Occupied(mut e) if !e.get().contents.is_empty() => {
                 new_file_id = e.index() as FileId;
                 log::warn!(
                     "files {:?} and {:?} have the same module path of {:?}",
@@ -153,6 +153,7 @@ impl Modules {
                     module.file_path,
                     module_path_str,
                 );
+                e.insert(module);
             }
             indexmap::map::Entry::Occupied(mut e) => {
                 new_file_id = e.index() as FileId;
