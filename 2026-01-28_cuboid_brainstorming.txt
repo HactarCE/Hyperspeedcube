@@ -1,0 +1,13 @@
+3 kinds of cuboids:
+- nonshapeshifting: layers must be EXACTLY the same number to interchange
+- internally bandaged:
+    - centers extend inward.
+    - naturally defined by cutting just the layers you asked for.
+    - every layer (except outermost) is the same thickness from the origin.
+- unbandaged:
+    - centers are shallow.
+    - naturally defined by cutting a big cube and bandaging pieces externally.
+- equal divisions (of a cube?)
+
+
+3x3x5 = 3x3 square x 3-layer line
