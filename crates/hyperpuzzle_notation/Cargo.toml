@@ -1,0 +1,27 @@
+[package]
+name = "hyperpuzzle_notation"
+description = "Hyper Puzzle Notation parser and serializer"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["filesystem", "parsing"]
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+chumsky.workspace = true
+smallvec.workspace = true
+lean_string.workspace = true
+
+[dev-dependencies]
+lazy_static.workspace = true
+pretty_assertions.workspace = true
+proptest-derive.workspace = true
+proptest.workspace = true

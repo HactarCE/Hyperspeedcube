@@ -22,7 +22,7 @@ hyperpuzzle_core.workspace = true
 
 arcstr.workspace = true
 ariadne.workspace = true
-chumsky.workspace = true
+chumsky = { workspace = true, features = ["pratt"] }
 ecow.workspace = true
 include_dir.workspace = true
 indexmap.workspace = true

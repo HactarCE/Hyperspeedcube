@@ -10,6 +10,7 @@ members = [
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
+    "crates/hyperpuzzle_notation",
     "crates/hyperpuzzle_view",
     "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
@@ -73,6 +74,7 @@ hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
+hyperpuzzle_notation = { path = "crates/hyperpuzzle_notation" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
@@ -113,10 +115,11 @@ walkdir = { version = "2.4.0" }
 # String manipulation
 arcstr = { version = "1.2.0" }
 ariadne = { version = "0.6.0" }
-chumsky = { version = "0.12.0", features = ["pratt"] }
-numeric-sort = { version = "0.1.5" }
+chumsky = { version = "0.12.0" }
 ident_case = { version = "1.0.1" }
+lean_string = { version = "0.5.1" }
 nom = { version = "8.0.0" }
+numeric-sort = { version = "0.1.5" }
 regex = { version = "1.12.2" }
 sublime_fuzzy = { version = "0.7.0" }
 unindent = { version = "0.2.4" }
@@ -127,15 +130,16 @@ float-ord = { version = "0.3.2" }
 num-traits = { version = "0.2.19" }
 
 # Logging & error handling
-env_logger = { version = "0.11.5" }
-eyre = { version = "0.6.12" }
-log = { version = "0.4.29" }
-owo-colors = { version = "4.2.3" }
-thiserror = { version = "2.0.17" }
 color-eyre = { version = "0.6.2", default-features = false, features = [
     "track-caller",
     "capture-spantrace",
 ] } # blocked on https://github.com/eyre-rs/eyre/pull/188
+env_logger = { version = "0.11.5" }
+eyre = { version = "0.6.12" }
+log = { version = "0.4.29" }
+owo-colors = { version = "4.2.3" }
+pretty_assertions = { version = "1.4.1" }
+thiserror = { version = "2.0.17" }
 
 # Command-line interface
 clap = { version = "4.5.53" }
@@ -204,6 +208,8 @@ chrono = { version = "0.4.42", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
+proptest = { version = "1.9.0" }
+proptest-derive = { version = "0.7.0" }
 time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
