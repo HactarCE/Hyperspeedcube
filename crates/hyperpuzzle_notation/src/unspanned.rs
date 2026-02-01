@@ -230,6 +230,41 @@ impl fmt::Display for LayerMaskContents {
     }
 }
 
+impl LayerMaskContents {
+    /// Resolves the layer mask to a definite set of layer ranges.
+    ///
+    /// Layers are 1-indexed. Each range is inclusive and in order (i.e., `[lo,
+    /// hi]` where `lo <= hi`). Ranges are in arbitrary order.
+    ///
+    /// - `1` is the outermost layer
+    /// - `n` is the innermost layer, where `n` is `layer_count`
+    /// - There is no layer zero `0`
+    pub fn to_ranges(&self, layer_count: u16) -> Vec<[u16; 2]> {
+        match self {
+            LayerMaskContents::Single(l) => {
+                if (1..=layer_count).contains(l) {
+                    vec![[*l; 2]]
+                } else {
+                    return vec![];
+                }
+            }
+            LayerMaskContents::Range(l1, l2) => {
+                let lo = std::cmp::min(*l1, *l2);
+                let hi = std::cmp::max(*l1, *l2);
+                if hi >= 1 && lo <= layer_count {
+                    vec![[lo.max(1), hi.min(layer_count)]]
+                } else {
+                    vec![]
+                }
+            }
+            LayerMaskContents::Set(layer_mask_set_elements) => layer_mask_set_elements
+                .iter()
+                .filter_map(|elem| elem.to_range(layer_count))
+                .collect(),
+        }
+    }
+}
+
 /// Element of a layer set.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
@@ -248,5 +283,15 @@ impl fmt::Display for LayerMaskSetElement {
             LayerMaskSetElement::Single(i) => write!(f, "{i}"),
             LayerMaskSetElement::Range(i, j) => write!(f, "{i}..{j}"),
         }
+    }
+}
+
+impl LayerMaskSetElement {
+    fn to_range(self, layer_count: u16) -> Option<[u16; 2]> {
+        let range = match self {
+            LayerMaskSetElement::Single(l) => [l, l],
+            LayerMaskSetElement::Range(l1, l2) => [l1, l2],
+        };
+        crate::resolve_signed_layer_range(layer_count, range)
     }
 }

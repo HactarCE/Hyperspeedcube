@@ -200,3 +200,72 @@ fn assert_notation_roundtrip(node_list: NodeList) {
         Ok(node_list),
     );
 }
+
+#[test]
+fn test_resolve_signed_layer() {
+    assert_eq!(None, resolve_signed_layer(3, -4));
+    assert_eq!(Some(1), resolve_signed_layer(3, -3));
+    assert_eq!(Some(2), resolve_signed_layer(3, -2));
+    assert_eq!(Some(3), resolve_signed_layer(3, -1));
+    assert_eq!(None, resolve_signed_layer(3, 0));
+    assert_eq!(Some(1), resolve_signed_layer(3, 1));
+    assert_eq!(Some(2), resolve_signed_layer(3, 2));
+    assert_eq!(Some(3), resolve_signed_layer(3, 3));
+    assert_eq!(None, resolve_signed_layer(3, 4));
+}
+
+proptest! {
+    #[test]
+    fn proptest_resolve_signed_layer_no_panic(layer_count: u16, signed_layer: i16) {
+        resolve_signed_layer(layer_count, signed_layer); // don't panic!
+    }
+
+    #[test]
+    fn proptest_resolve_signed_layer_range_no_panic(layer_count: u16, range: [i16; 2]) {
+        resolve_signed_layer_range(layer_count, range); // don't panic!
+    }
+
+    #[test]
+    fn proptest_resolve_signed_layer_range_correctness(
+        layer_count in 1..=5_u16,
+        mut lo in -10..=10_i16,
+        mut hi in -10..=10_i16,
+    ) {
+        let actual: Vec<u16> = resolve_signed_layer_range(layer_count, [lo, hi])
+            .map(|[a, b]| (a..=b).collect())
+            .unwrap_or_default();
+        if lo < 0 {
+            lo = layer_count as i16 + lo + 1;
+        }
+        if hi < 0 {
+            hi = layer_count as i16 + hi + 1;
+        }
+        prop_assume!(lo <= hi);
+        let expected: Vec<u16> = (lo..=hi)
+            .filter(|x| (1..=layer_count as i16).contains(x))
+            .map(|i| i as u16)
+            .collect();
+        assert_eq!(expected, actual);
+    }
+}
+
+#[test]
+fn test_layer_mask_contents_to_ranges() {
+    let empty: Vec<[u16; 2]> = vec![];
+
+    assert_eq!(LayerMaskContents::Single(0).to_ranges(5), empty);
+    assert_eq!(LayerMaskContents::Single(1).to_ranges(5), vec![[1, 1]]);
+    assert_eq!(LayerMaskContents::Single(2).to_ranges(5), vec![[2, 2]]);
+    assert_eq!(LayerMaskContents::Single(5).to_ranges(5), vec![[5, 5]]);
+    assert_eq!(LayerMaskContents::Single(6).to_ranges(5), empty);
+
+    assert_eq!(LayerMaskContents::Range(0, 0).to_ranges(5), empty);
+    assert_eq!(LayerMaskContents::Range(0, 1).to_ranges(5), vec![[1, 1]]);
+    assert_eq!(LayerMaskContents::Range(0, 3).to_ranges(5), vec![[1, 3]]);
+    assert_eq!(LayerMaskContents::Range(1, 3).to_ranges(5), vec![[1, 3]]);
+    assert_eq!(LayerMaskContents::Range(2, 4).to_ranges(5), vec![[2, 4]]);
+    assert_eq!(LayerMaskContents::Range(2, 10).to_ranges(5), vec![[2, 5]]);
+    assert_eq!(LayerMaskContents::Range(0, 10).to_ranges(5), vec![[1, 5]]);
+    assert_eq!(LayerMaskContents::Range(5, 10).to_ranges(5), vec![[5, 5]]);
+    assert_eq!(LayerMaskContents::Range(6, 10).to_ranges(5), empty);
+}
