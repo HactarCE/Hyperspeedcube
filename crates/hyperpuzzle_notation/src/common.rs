@@ -12,18 +12,44 @@ use crate::InvertError;
 pub enum GroupKind {
     /// Simple group.
     ///
+    /// A simple group's move count should be equivalent to the moves on their
+    /// own.
+    ///
+    /// A simple group should affect animation speed slightly or not at all.
+    ///
     /// Example: `(R U R' U')`
     #[default]
     Simple,
     /// Macro group.
     ///
+    /// A macro group's move count should be equivalent to the moves on their
+    /// own.
+    ///
+    /// A macro group should animate very quickly or not at all.
+    ///
     /// Example: `!(R U R' U R U2' R')`
     Macro,
-    /// Simultaneous group.
+    /// Simultaneous group, which represents moves done simultaneously.
+    ///
+    /// A simultaneous group should count as 1 move in Execution Turn Metric.
+    ///
+    /// A simultaneous group should animate simultaneously if possible. It may
+    /// animate sequentially, but should take the same amount of time as a
+    /// single move.
     ///
     /// Example: `&(U' D2)`
     Simultaneous,
-    /// Normal/inverse scramble switch group.
+    /// Normal/inverse scramble switch group, which represents moves done on the
+    /// inverse puzzle state.
+    ///
+    /// A NISS group's move count should be equivalent to the moves on their
+    /// own.
+    ///
+    /// A NISS group's moves may be animated inverted before the scramble (most
+    /// useful while constructing a solution) or inverted after the forwards
+    /// solution (most useful while viewing a completed solution). These two
+    /// might not be equivalent if the combined scramble + forwards solution +
+    /// NISS solution is not the identity.
     ///
     /// Example: `^(U R' D2)`
     Niss,
@@ -49,13 +75,9 @@ impl GroupKind {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum BinaryGroupKind {
-    /// Commutator.
-    ///
-    /// Example: `[R U R', U]`
+    /// Commutator `[A, B]` that expands to `A B A' B'`.
     Commutator,
-    /// Macro group.
-    ///
-    /// Example: `[R: U]`
+    /// Conjugate `[A: B]` that expands to `A B A'`.
     Conjugate,
 }
 
