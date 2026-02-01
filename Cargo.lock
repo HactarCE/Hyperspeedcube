@@ -2971,6 +2971,7 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "smallvec",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

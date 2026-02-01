@@ -4,6 +4,8 @@
 
 use std::{fmt, str::FromStr};
 
+use crate::InvertError;
+
 /// Kind of group.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
@@ -94,6 +96,19 @@ impl fmt::Display for Sq1Move {
     }
 }
 
+impl Sq1Move {
+    /// Returns the inverse move.
+    pub fn inv(self) -> Result<Self, InvertError> {
+        match self {
+            Sq1Move::UD { u, d } => Ok(Sq1Move::UD {
+                u: u.checked_neg().ok_or(InvertError::IntegerOverflow)?,
+                d: d.checked_neg().ok_or(InvertError::IntegerOverflow)?,
+            }),
+            Sq1Move::Slash => Ok(Sq1Move::Slash),
+        }
+    }
+}
+
 /// WCA Megaminx scrambling move.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
@@ -115,6 +130,19 @@ impl fmt::Display for MegaminxScrambleMove {
             MegaminxScrambleMove::Rmm => write!(f, "R--"),
             MegaminxScrambleMove::Dpp => write!(f, "D++"),
             MegaminxScrambleMove::Dmm => write!(f, "D--"),
+        }
+    }
+}
+
+impl MegaminxScrambleMove {
+    /// Returns the inverse move.
+    #[must_use]
+    pub fn inv(self) -> Self {
+        match self {
+            MegaminxScrambleMove::Rpp => MegaminxScrambleMove::Rmm,
+            MegaminxScrambleMove::Rmm => MegaminxScrambleMove::Rpp,
+            MegaminxScrambleMove::Dpp => MegaminxScrambleMove::Dmm,
+            MegaminxScrambleMove::Dmm => MegaminxScrambleMove::Dpp,
         }
     }
 }
@@ -166,6 +194,16 @@ impl FromStr for Multiplier {
             _ => Ok(Self(
                 i32::try_from(s.parse::<u32>().map_err(|_| ())?).map_err(|_| ())?,
             )),
+        }
+    }
+}
+
+impl Multiplier {
+    /// Returns the inverse multiplier.
+    pub fn inv(self) -> Result<Multiplier, InvertError> {
+        match self.0.checked_neg() {
+            Some(m) => Ok(Self(m)),
+            None => Err(InvertError::IntegerOverflow),
         }
     }
 }

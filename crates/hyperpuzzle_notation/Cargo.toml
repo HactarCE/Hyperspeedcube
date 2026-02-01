@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 chumsky.workspace = true
 smallvec.workspace = true
+thiserror.workspace = true
 lean_string.workspace = true
 
 [dev-dependencies]

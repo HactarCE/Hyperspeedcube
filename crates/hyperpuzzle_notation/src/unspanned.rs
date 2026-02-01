@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-use crate::{Features, ParseError, Str};
+use crate::{Features, InvertError, ParseError, Str};
 
 pub use crate::common::*;
 
@@ -23,6 +23,18 @@ pub struct NodeList(pub Vec<Node>);
 impl fmt::Display for NodeList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_separated_list(f, &self.0, " ")
+    }
+}
+
+impl NodeList {
+    /// Returns a list with all nodes inverted, in reverse order.
+    pub fn inv(&self) -> Result<Self, InvertError> {
+        self.0
+            .iter()
+            .rev()
+            .map(|n| n.inv())
+            .collect::<Result<_, _>>()
+            .map(Self)
     }
 }
 
@@ -72,6 +84,24 @@ impl From<Sq1Move> for Node {
 impl From<MegaminxScrambleMove> for Node {
     fn from(value: MegaminxScrambleMove) -> Self {
         Self::MegaminxScrambleMove(value)
+    }
+}
+
+impl Node {
+    /// Returns the inverse node.
+    ///
+    /// Returns an error if there are any NISS nodes.
+    pub fn inv(&self) -> Result<Self, InvertError> {
+        match self {
+            Node::RepeatedNode { inner, multiplier } => {
+                Ok(inner.clone().with_multiplier(multiplier.inv()?))
+            }
+            Node::Pause => Ok(Node::Pause),
+            Node::Sq1Move(sq1_move) => Ok(Node::Sq1Move(sq1_move.inv()?)),
+            Node::MegaminxScrambleMove(megaminx_scramble_move) => {
+                Ok(Node::MegaminxScrambleMove(megaminx_scramble_move.inv()))
+            }
+        }
     }
 }
 
