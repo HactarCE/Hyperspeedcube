@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "timecheck")]
 use timecheck::drand::DrandRound;
 
 use super::LayeredTwist;
@@ -211,7 +212,9 @@ pub struct ScrambledPuzzle {
 /// Error returned when scrambling a puzzle.
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs)]
+#[non_exhaustive]
 pub enum ScrambleError {
+    #[cfg(feature = "timecheck")]
     #[error("{0}")]
     Drand(#[from] timecheck::drand::DrandError),
     #[error("canceled")]

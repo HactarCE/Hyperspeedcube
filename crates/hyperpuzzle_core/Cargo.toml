@@ -53,7 +53,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
 timecheck = ["dep:base64", "dep:timecheck"]
-default = ["timecheck"]
 
 [[bench]]
 name = "name_spec_bench"

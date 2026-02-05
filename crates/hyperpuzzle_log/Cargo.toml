@@ -18,7 +18,9 @@ workspace = true
 [dependencies]
 hyperkdl.workspace = true
 hyperkdl_derive.workspace = true
-hyperpuzzle_core.workspace = true
+hyperpuzzle_core = { workspace = true, features = [
+    "timecheck",
+] } # TODO: extract types
 
 hex.workspace = true
 itertools.workspace = true
