@@ -4,12 +4,14 @@ pub mod charsets;
 pub mod common;
 mod errors;
 pub mod family;
+pub mod layer;
 mod parse;
 pub mod spanned;
 pub mod transform;
 pub mod unspanned;
 
 pub use errors::InvertError;
+pub use layer::*;
 pub use parse::ParseError;
 pub use unspanned::*;
 
@@ -114,30 +116,6 @@ impl LayerMaskFeatures {
         layer_sets: true,
         hsc1_layer_ranges: true,
     };
-}
-
-/// Resolves a signed layer to an unsigned layer, clamping it to within the
-/// layer range. Returns `None` if `signed_layer` is 0.
-pub fn resolve_signed_layer(layer_count: u16, signed_layer: i16) -> Option<u16> {
-    Some(resolve_signed_layer_unchecked(layer_count, signed_layer))
-        .filter(|l| (1..=layer_count).contains(l))
-}
-
-/// Resolves a signed layer range to an unsigned layer, clamping it to within
-/// the layer range. Returns `None` if the whole range is out of bounds.
-pub fn resolve_signed_layer_range(layer_count: u16, range: [i16; 2]) -> Option<[u16; 2]> {
-    let mut range = range.map(|l| resolve_signed_layer_unchecked(layer_count, l));
-    range.sort();
-    let [lo, hi] = range;
-    (hi >= 1 && lo <= layer_count).then_some([lo.max(1), hi.min(layer_count)])
-}
-
-fn resolve_signed_layer_unchecked(layer_count: u16, signed_layer: i16) -> u16 {
-    if signed_layer < 0 {
-        layer_count.saturating_sub((-(signed_layer + 1)) as u16)
-    } else {
-        signed_layer as u16
-    }
 }
 
 #[cfg(test)]

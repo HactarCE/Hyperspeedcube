@@ -1,9 +1,9 @@
-use std::{num::ParseIntError, str::FromStr};
+use std::str::FromStr;
 
 use chumsky::prelude::*;
 
-use crate::{Features, GroupKind};
-use crate::{Span, spanned::*};
+use crate::spanned::*;
+use crate::{Features, GroupKind, Span};
 
 /// Error produced while parsing puzzle notation.
 ///
@@ -169,12 +169,12 @@ fn group_kind<'src>() -> impl NotationParser<'src, GroupKind> {
 
 fn layer_mask<'src>() -> impl NotationParser<'src, LayerMask> {
     let signed_layer_range = choice((
-        signed_layer_range().map(|(i, j)| LayerMaskSetElement::Range(i, j)),
+        signed_layer_range().map(|(i, j)| LayerMaskSetElement::Range([i, j])),
         unsigned_layer_range()
             .contextual()
             .configure(|_, ctx: &Features| ctx.layers.hsc1_layer_ranges)
-            .map(|(i, j)| LayerMaskSetElement::Range(i, j)),
-        sint().map(|i| LayerMaskSetElement::Single(i)),
+            .map(|(i, j)| LayerMaskSetElement::Range([i, j])),
+        sint().map(LayerMaskSetElement::Single),
     ))
     .spanned()
     .separated_by(just(',').padded())
@@ -191,7 +191,7 @@ fn layer_mask<'src>() -> impl NotationParser<'src, LayerMask> {
 
     let layer_mask_contents = choice((
         signed_layer_range.map(LayerMaskContents::Set),
-        unsigned_layer_range().map(|(i, j)| LayerMaskContents::Range(i, j)),
+        unsigned_layer_range().map(|(i, j)| LayerMaskContents::Range([i, j])),
         uint().map(LayerMaskContents::Single),
     ));
 
@@ -251,12 +251,11 @@ fn sint<'src, I: FromSignedInt>() -> impl NotationParser<'src, I> {
         .try_map_with(|s: &str, e| s.parse().map_err(|err| Rich::custom(e.span(), err)))
 }
 
-trait FromUnsignedInt: FromStr<Err = ParseIntError> {}
-impl FromUnsignedInt for u16 {}
-impl FromUnsignedInt for u32 {}
-impl FromUnsignedInt for i16 {}
+trait FromUnsignedInt: FromStr<Err: ToString> {}
 impl FromUnsignedInt for i32 {}
+impl FromUnsignedInt for Layer {}
+impl FromUnsignedInt for SignedLayer {}
 
-trait FromSignedInt: FromStr<Err = ParseIntError> {}
-impl FromSignedInt for i16 {}
+trait FromSignedInt: FromStr<Err: ToString> {}
 impl FromSignedInt for i32 {}
+impl FromSignedInt for SignedLayer {}

@@ -2,7 +2,7 @@
 
 /// Returns whether `c` is a letter of the Latin alphabet.
 pub fn is_latin_letter(c: char) -> bool {
-    matches!(c, 'A'..='Z' | 'a'..='z')
+    c.is_ascii_alphabetic()
 }
 
 /// Returns whether `c` is a letter of the Greek alphabet that is visually
@@ -10,9 +10,12 @@ pub fn is_latin_letter(c: char) -> bool {
 /// [`SMALL_LOWERCASE_GREEK`], or [`LARGE_LOWERCASE_GREEK`].
 pub fn is_greek_letter(c: char) -> bool {
     match c {
-        'Γ' | 'Δ' | 'Θ' | 'Λ' | 'Ξ' | 'Π' | 'Σ' | 'Φ' | 'Ψ' | 'Ω' => true, // Greek uppercase
-        'β' | 'δ' | 'ζ' | 'θ' | 'λ' | 'ξ' => true, // Greek lowercase (large)
-        'ε' | 'η' | 'κ' | 'μ' | 'π' | 'τ' | 'φ' | 'ψ' | 'ω' => true, // Greek lowercase (small)
+        // Greek uppercase
+        'Γ' | 'Δ' | 'Θ' | 'Λ' | 'Ξ' | 'Π' | 'Σ' | 'Φ' | 'Ψ' | 'Ω' => true,
+        // Greek lowercase (large)
+        'β' | 'δ' | 'ζ' | 'θ' | 'λ' | 'ξ' => true,
+        // Greek lowercase (small)
+        'ε' | 'η' | 'κ' | 'μ' | 'π' | 'τ' | 'φ' | 'ψ' | 'ω' => true,
         _ => false,
     }
 }

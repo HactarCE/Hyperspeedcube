@@ -2,9 +2,11 @@
 //!
 //! These are also re-exported by each of the above modules.
 
-use std::{fmt, str::FromStr};
+use std::fmt;
+use std::str::FromStr;
 
 use crate::InvertError;
+pub use crate::layer::{Layer, LayerRange, LayerSet, SignedLayer};
 
 /// Kind of group.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]

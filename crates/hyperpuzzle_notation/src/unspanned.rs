@@ -5,10 +5,10 @@
 //! scratch.
 
 use std::fmt;
-
-use crate::{Features, InvertError, ParseError, Str};
+use std::ops::{Deref, DerefMut};
 
 pub use crate::common::*;
+use crate::{Features, InvertError, ParseError, Str};
 
 /// Parses a string containing puzzle notation into a list of [`Node`]s.
 pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<ParseError<'_>>> {
@@ -26,7 +26,26 @@ impl fmt::Display for NodeList {
     }
 }
 
+impl Deref for NodeList {
+    type Target = Vec<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NodeList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl NodeList {
+    /// Constructs a new empty node list.
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
     /// Returns a list with all nodes inverted, in reverse order.
     pub fn inv(&self) -> Result<Self, InvertError> {
         self.0
@@ -227,6 +246,14 @@ impl From<Option<LayerMaskContents>> for LayerMask {
     }
 }
 
+impl<T: Into<LayerMaskContents>> From<T> for LayerMask {
+    fn from(value: T) -> Self {
+        let invert = false;
+        let contents = Some(value.into());
+        Self { invert, contents }
+    }
+}
+
 /// Contents of a layer mask for a move.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
@@ -234,11 +261,11 @@ pub enum LayerMaskContents {
     /// Single positive layer.
     ///
     /// Example: `3`
-    Single(u16),
+    Single(Layer),
     /// Positive layer range.
     ///
     /// Example: `3-4`
-    Range(u16, u16),
+    Range(LayerRange),
     /// Layer set, which supports negative numbers.
     ///
     /// Example: `{1..-2,6}`
@@ -249,7 +276,7 @@ impl fmt::Display for LayerMaskContents {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LayerMaskContents::Single(i) => write!(f, "{i}"),
-            LayerMaskContents::Range(i, j) => write!(f, "{i}-{j}"),
+            LayerMaskContents::Range(range) => write!(f, "{range}"),
             LayerMaskContents::Set(elements) => {
                 write!(f, "{{")?;
                 write_separated_list(f, elements, ",")?;
@@ -261,37 +288,97 @@ impl fmt::Display for LayerMaskContents {
 }
 
 impl LayerMaskContents {
-    /// Resolves the layer mask to a definite set of layer ranges.
-    ///
-    /// Layers are 1-indexed. Each range is inclusive and in order (i.e., `[lo,
-    /// hi]` where `lo <= hi`). Ranges are in arbitrary order.
-    ///
-    /// - `1` is the outermost layer
-    /// - `n` is the innermost layer, where `n` is `layer_count`
-    /// - There is no layer zero `0`
-    pub fn to_ranges(&self, layer_count: u16) -> Vec<[u16; 2]> {
+    /// Resolves the layer mask to a definite set of layer ranges in arbitrary
+    /// order.
+    pub fn to_ranges(&self, layer_count: u16) -> Vec<LayerRange> {
         match self {
-            LayerMaskContents::Single(l) => {
-                if (1..=layer_count).contains(l) {
-                    vec![[*l; 2]]
-                } else {
-                    return vec![];
-                }
-            }
-            LayerMaskContents::Range(l1, l2) => {
-                let lo = std::cmp::min(*l1, *l2);
-                let hi = std::cmp::max(*l1, *l2);
-                if hi >= 1 && lo <= layer_count {
-                    vec![[lo.max(1), hi.min(layer_count)]]
-                } else {
-                    vec![]
-                }
-            }
+            LayerMaskContents::Single(l) => (*l <= layer_count)
+                .then_some(LayerRange::from_layer(*l))
+                .into_iter()
+                .collect(),
+            LayerMaskContents::Range(range) => range
+                .clamp_to_layer_count(layer_count)
+                .into_iter()
+                .collect(),
             LayerMaskContents::Set(layer_mask_set_elements) => layer_mask_set_elements
                 .iter()
                 .filter_map(|elem| elem.to_range(layer_count))
                 .collect(),
         }
+    }
+
+    /// Returns the set of layers specified by the layer mask.
+    pub fn layer_set(&self, layer_count: u16) -> LayerSet {
+        match self {
+            LayerMaskContents::Single(l) => LayerSet::from_layer(*l),
+            LayerMaskContents::Range(range) => LayerSet::from_range(*range),
+            LayerMaskContents::Set(elements) => {
+                let mut ret = LayerSet::new();
+                for elem in elements {
+                    if let Some(range) = elem.to_range(layer_count) {
+                        ret.insert_range(range);
+                    }
+                }
+                ret
+            }
+        }
+    }
+
+    /// Canonicalizes the layer mask.
+    ///
+    /// Returns `None` if the layer mask does not include any layers.
+    pub fn simplify(&self, layer_count: u16) -> Option<Self> {
+        Some(Self::from_ranges(self.to_ranges(layer_count))).filter(|contents| !contents.is_empty())
+    }
+
+    /// Returns whether the layer mask is an empty set.
+    pub fn is_empty(&self) -> bool {
+        matches!(self, LayerMaskContents::Set(list) if list.is_empty())
+    }
+
+    fn from_ranges(mut ranges: Vec<LayerRange>) -> Self {
+        let mut ret: Vec<LayerRange> = vec![];
+        ranges.sort();
+        for r2 in ranges {
+            if let Some(r1) = ret.last_mut()
+                && let Some(combined) = r1.union(r2)
+            {
+                *r1 = combined;
+            } else {
+                ret.push(r2);
+            }
+        }
+        match ret.as_slice() {
+            [range] => match range.to_single_layer() {
+                Some(layer) => Self::Single(layer),
+                None => Self::Range(*range),
+            },
+            _ => Self::Set(ret.into_iter().map(|r| r.into()).collect()),
+        }
+    }
+}
+
+impl FromIterator<LayerRange> for LayerMaskContents {
+    fn from_iter<T: IntoIterator<Item = LayerRange>>(iter: T) -> Self {
+        Self::from_ranges(iter.into_iter().collect())
+    }
+}
+
+impl From<LayerSet> for LayerMaskContents {
+    fn from(value: LayerSet) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&LayerSet> for LayerMaskContents {
+    fn from(value: &LayerSet) -> Self {
+        value.iter().map(LayerRange::from_layer).collect()
+    }
+}
+
+impl FromIterator<Layer> for LayerMaskContents {
+    fn from_iter<T: IntoIterator<Item = Layer>>(iter: T) -> Self {
+        iter.into_iter().collect()
     }
 }
 
@@ -300,28 +387,36 @@ impl LayerMaskContents {
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum LayerMaskSetElement {
     /// Signed layer in a layer set.
-    Single(i16),
+    Single(SignedLayer),
     /// Signed layer in a layer set.
     ///
     /// Example: `1..-2`
-    Range(i16, i16),
+    Range([SignedLayer; 2]),
 }
 
 impl fmt::Display for LayerMaskSetElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LayerMaskSetElement::Single(i) => write!(f, "{i}"),
-            LayerMaskSetElement::Range(i, j) => write!(f, "{i}..{j}"),
+            LayerMaskSetElement::Range([i, j]) => write!(f, "{i}..{j}"),
+        }
+    }
+}
+
+impl From<LayerRange> for LayerMaskSetElement {
+    fn from(range: LayerRange) -> Self {
+        match range.to_single_layer() {
+            Some(layer) => LayerMaskSetElement::Single(layer.to_signed()),
+            None => LayerMaskSetElement::Range([range.start(), range.end()].map(Layer::to_signed)),
         }
     }
 }
 
 impl LayerMaskSetElement {
-    fn to_range(self, layer_count: u16) -> Option<[u16; 2]> {
-        let range = match self {
-            LayerMaskSetElement::Single(l) => [l, l],
-            LayerMaskSetElement::Range(l1, l2) => [l1, l2],
-        };
-        crate::resolve_signed_layer_range(layer_count, range)
+    fn to_range(self, layer_count: u16) -> Option<LayerRange> {
+        match self {
+            LayerMaskSetElement::Single(l) => l.resolve(layer_count).map(LayerRange::from_layer),
+            LayerMaskSetElement::Range(range) => SignedLayer::resolve_range(range, layer_count),
+        }
     }
 }

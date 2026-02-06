@@ -31,7 +31,7 @@ fn test_nested_notation() {
                 RepeatableNode::Move {
                     layer_mask: LayerMask {
                         invert: true,
-                        contents: Some(LayerMaskContents::Single(2)),
+                        contents: Some(LayerMaskContents::Single(Layer::new(2).unwrap())),
                     },
                     family: "aC".into(),
                     transform: None,
@@ -207,7 +207,6 @@ fn test_resolve_signed_layer() {
     assert_eq!(Some(1), resolve_signed_layer(3, -3));
     assert_eq!(Some(2), resolve_signed_layer(3, -2));
     assert_eq!(Some(3), resolve_signed_layer(3, -1));
-    assert_eq!(None, resolve_signed_layer(3, 0));
     assert_eq!(Some(1), resolve_signed_layer(3, 1));
     assert_eq!(Some(2), resolve_signed_layer(3, 2));
     assert_eq!(Some(3), resolve_signed_layer(3, 3));
@@ -216,34 +215,39 @@ fn test_resolve_signed_layer() {
 
 proptest! {
     #[test]
-    fn proptest_resolve_signed_layer_no_panic(layer_count: u16, signed_layer: i16) {
-        resolve_signed_layer(layer_count, signed_layer); // don't panic!
+    fn proptest_resolve_signed_layer_no_panic(signed_layer: SignedLayer, layer_count: u16) {
+        signed_layer.resolve(layer_count); // don't panic!
     }
 
     #[test]
-    fn proptest_resolve_signed_layer_range_no_panic(layer_count: u16, range: [i16; 2]) {
-        resolve_signed_layer_range(layer_count, range); // don't panic!
+    fn proptest_resolve_signed_layer_range_no_panic(range: [SignedLayer; 2], layer_count: u16) {
+        SignedLayer::resolve_range(range, layer_count); // don't panic!
     }
 
     #[test]
     fn proptest_resolve_signed_layer_range_correctness(
         layer_count in 1..=5_u16,
-        mut lo in -10..=10_i16,
-        mut hi in -10..=10_i16,
+        lo in -10..=10_i16,
+        hi in -10..=10_i16,
     ) {
-        let actual: Vec<u16> = resolve_signed_layer_range(layer_count, [lo, hi])
-            .map(|[a, b]| (a..=b).collect())
+        prop_assume!(lo != 0 && hi != 0);
+        let lo = SignedLayer::new(lo).unwrap();
+        let hi = SignedLayer::new(hi).unwrap();
+        let actual: Vec<Layer> = SignedLayer::resolve_range([lo, hi], layer_count)
+            .map(|range| range.into_iter().collect())
             .unwrap_or_default();
+        let mut lo = lo.to_i16();
         if lo < 0 {
             lo = layer_count as i16 + lo + 1;
         }
+        let mut hi = hi.to_i16();
         if hi < 0 {
             hi = layer_count as i16 + hi + 1;
         }
         prop_assume!(lo <= hi);
-        let expected: Vec<u16> = (lo..=hi)
+        let expected: Vec<Layer> = (lo..=hi)
             .filter(|x| (1..=layer_count as i16).contains(x))
-            .map(|i| i as u16)
+            .map(|i| Layer::new(i as u16).unwrap())
             .collect();
         assert_eq!(expected, actual);
     }
@@ -251,21 +255,40 @@ proptest! {
 
 #[test]
 fn test_layer_mask_contents_to_ranges() {
+    fn to_ranges(contents: LayerMaskContents, layer_count: u16) -> Vec<[u16; 2]> {
+        contents
+            .to_ranges(layer_count)
+            .into_iter()
+            .map(|r| [r.start().to_u16(), r.end().to_u16()])
+            .collect()
+    }
+
+    let single = |i| LayerMaskContents::Single(Layer::new(i).unwrap());
+
+    let range = |i, j| {
+        LayerMaskContents::Range(LayerRange::new(
+            Layer::new(i).unwrap(),
+            Layer::new(j).unwrap(),
+        ))
+    };
+
     let empty: Vec<[u16; 2]> = vec![];
 
-    assert_eq!(LayerMaskContents::Single(0).to_ranges(5), empty);
-    assert_eq!(LayerMaskContents::Single(1).to_ranges(5), vec![[1, 1]]);
-    assert_eq!(LayerMaskContents::Single(2).to_ranges(5), vec![[2, 2]]);
-    assert_eq!(LayerMaskContents::Single(5).to_ranges(5), vec![[5, 5]]);
-    assert_eq!(LayerMaskContents::Single(6).to_ranges(5), empty);
+    assert_eq!(to_ranges(single(1), 5), vec![[1, 1]]);
+    assert_eq!(to_ranges(single(2), 5), vec![[2, 2]]);
+    assert_eq!(to_ranges(single(5), 5), vec![[5, 5]]);
+    assert_eq!(to_ranges(single(6), 5), empty);
 
-    assert_eq!(LayerMaskContents::Range(0, 0).to_ranges(5), empty);
-    assert_eq!(LayerMaskContents::Range(0, 1).to_ranges(5), vec![[1, 1]]);
-    assert_eq!(LayerMaskContents::Range(0, 3).to_ranges(5), vec![[1, 3]]);
-    assert_eq!(LayerMaskContents::Range(1, 3).to_ranges(5), vec![[1, 3]]);
-    assert_eq!(LayerMaskContents::Range(2, 4).to_ranges(5), vec![[2, 4]]);
-    assert_eq!(LayerMaskContents::Range(2, 10).to_ranges(5), vec![[2, 5]]);
-    assert_eq!(LayerMaskContents::Range(0, 10).to_ranges(5), vec![[1, 5]]);
-    assert_eq!(LayerMaskContents::Range(5, 10).to_ranges(5), vec![[5, 5]]);
-    assert_eq!(LayerMaskContents::Range(6, 10).to_ranges(5), empty);
+    assert_eq!(to_ranges(range(1, 3), 5), vec![[1, 3]]);
+    assert_eq!(to_ranges(range(2, 4), 5), vec![[2, 4]]);
+    assert_eq!(to_ranges(range(2, 10), 5), vec![[2, 5]]);
+    assert_eq!(to_ranges(range(5, 10), 5), vec![[5, 5]]);
+    assert_eq!(to_ranges(range(6, 10), 5), empty);
+}
+
+fn resolve_signed_layer(layer_count: u16, layer: i16) -> Option<u16> {
+    SignedLayer::new(layer)
+        .unwrap()
+        .resolve(layer_count)
+        .map(|l| l.to_u16())
 }

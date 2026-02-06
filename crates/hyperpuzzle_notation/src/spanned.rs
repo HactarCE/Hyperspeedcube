@@ -5,10 +5,8 @@
 
 use chumsky::Parser;
 
-use crate::{Features, LayerMaskFeatures, ParseError, Span, Spanned, Str};
-
 pub use crate::common::*;
-use crate::unspanned;
+use crate::{Features, LayerMaskFeatures, ParseError, Span, Spanned, Str, unspanned};
 
 /// Resolves a span to a string.
 fn src(source: &str, span: Span) -> Str {
@@ -216,11 +214,11 @@ pub enum LayerMaskContents {
     /// Single positive layer.
     ///
     /// Example: `3`
-    Single(u16),
+    Single(Layer),
     /// Positive layer range.
     ///
     /// Example: `3-4`
-    Range(Spanned<u16>, Spanned<u16>),
+    Range([Spanned<Layer>; 2]),
     /// Layer set, which supports negative numbers.
     ///
     /// Example: `{1..-2,6}`
@@ -232,7 +230,9 @@ impl LayerMaskContents {
     pub fn to_unspanned(&self) -> unspanned::LayerMaskContents {
         match self {
             LayerMaskContents::Single(i) => unspanned::LayerMaskContents::Single(*i),
-            LayerMaskContents::Range(i, j) => unspanned::LayerMaskContents::Range(**i, **j),
+            LayerMaskContents::Range([i, j]) => {
+                unspanned::LayerMaskContents::Range(LayerRange::new(**i, **j))
+            }
             LayerMaskContents::Set(elements) => unspanned::LayerMaskContents::Set(
                 elements.iter().map(|e| e.to_unspanned()).collect(),
             ),
@@ -244,11 +244,11 @@ impl LayerMaskContents {
 #[derive(Debug, Copy, Clone)]
 pub enum LayerMaskSetElement {
     /// Signed layer in a layer set.
-    Single(i16),
+    Single(SignedLayer),
     /// Signed layer in a layer set.
     ///
     /// Example: `1..-2`
-    Range(Spanned<i16>, Spanned<i16>),
+    Range([Spanned<SignedLayer>; 2]),
 }
 
 impl LayerMaskSetElement {
@@ -256,7 +256,7 @@ impl LayerMaskSetElement {
     pub fn to_unspanned(&self) -> unspanned::LayerMaskSetElement {
         match self {
             LayerMaskSetElement::Single(i) => unspanned::LayerMaskSetElement::Single(*i),
-            LayerMaskSetElement::Range(i, j) => unspanned::LayerMaskSetElement::Range(**i, **j),
+            LayerMaskSetElement::Range([i, j]) => unspanned::LayerMaskSetElement::Range([**i, **j]),
         }
     }
 }

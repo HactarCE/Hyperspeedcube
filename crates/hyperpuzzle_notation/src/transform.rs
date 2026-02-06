@@ -1,6 +1,7 @@
 //! Utility functions for working with common bracketed transform syntaxes.
 
-use std::{fmt, str::FromStr};
+use std::fmt;
+use std::str::FromStr;
 
 use crate::{Multiplier, Str, write_separated_list};
 

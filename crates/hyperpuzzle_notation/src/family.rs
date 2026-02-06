@@ -1,7 +1,9 @@
 //! Utility functions for working with common family names for moves and
 //! rotations.
 
-use std::{fmt, ops::RangeInclusive, str::FromStr};
+use std::fmt;
+use std::ops::RangeInclusive;
+use std::str::FromStr;
 
 use chumsky::container::Seq;
 use smallvec::SmallVec;
@@ -32,7 +34,7 @@ fn is_jumbling_suffix(c: char) -> bool {
 /// it could not be parsed.
 pub fn strip_sequential_lowercase_prefix(s: &str) -> Option<(SequentialLowercaseName, &str)> {
     // +1 is ok because Latin letters are exactly 1 byte
-    let i = s.find(|c| matches!(c, 'a'..='z'))? + 1;
+    let i = s.find(|c: char| c.is_ascii_lowercase())? + 1;
     Some((s[..i].parse().ok()?, &s[i..]))
 }
 
@@ -174,12 +176,12 @@ fn parse_sequential_name(
     }
     // last byte is ASCII, so it's safe to slice here
     let greek_prefix = s[..s.len() - 1].parse::<UppercaseGreekPrefix>()?;
-    Ok(greek_prefix
+    greek_prefix
         .0
         .checked_mul(latin_alphabet.len() as u32)
         .ok_or(ParseSequentialNameError)?
         .checked_add((*last_byte - latin_alphabet.start()) as u32)
-        .ok_or(ParseSequentialNameError)?)
+        .ok_or(ParseSequentialNameError)
 }
 
 /// One-indexed sequential uppercase Greek prefix.

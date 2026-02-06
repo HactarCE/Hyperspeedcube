@@ -16,10 +16,11 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+bitvec.workspace = true
 chumsky.workspace = true
+lean_string.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true
-lean_string.workspace = true
 
 [dev-dependencies]
 lazy_static.workspace = true

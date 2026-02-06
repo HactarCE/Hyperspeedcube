@@ -2964,6 +2964,7 @@ dependencies = [
 name = "hyperpuzzle_notation"
 version = "0.1.0"
 dependencies = [
+ "bitvec",
  "chumsky",
  "lazy_static",
  "lean_string",
