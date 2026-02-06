@@ -32,6 +32,11 @@ pub fn is_bracketed_transform_char(c: char) -> bool {
     is_family_char(c) || matches!(c, ' ' | '0'..='9' | '\'' | '<' | '>' | '|' | '-')
 }
 
+/// Returns whether `c` is a jumbling suffix character `h`, `j`, or `k`.
+pub fn is_jumbling_suffix(c: char) -> bool {
+    matches!(c, 'h' | 'j' | 'k')
+}
+
 /// Uppercase Greek letters that are visually distinct from Latin letters.
 pub const UPPERCASE_GREEK: [char; 10] = ['Γ', 'Δ', 'Θ', 'Λ', 'Ξ', 'Π', 'Σ', 'Φ', 'Ψ', 'Ω'];
 /// Small lowercase Greek letters that are visually distinct from Latin letters.

@@ -10,6 +10,13 @@ use smallvec::SmallVec;
 
 pub use crate::charsets::{LARGE_LOWERCASE_GREEK, SMALL_LOWERCASE_GREEK, UPPERCASE_GREEK};
 
+/// Removes a wide-move `w` or full-puzzle `v` suffix from a twist family.
+///
+/// These suffixes are generally only seen on 3D puzzles.
+pub fn strip_layer_suffix(s: &str) -> (&str, Option<char>) {
+    strip_suffix_char(s, |c| matches!(c, 'w' | 'v'))
+}
+
 /// Removes a jumbling suffix `h`, `j`, or `k` from a twist family.
 ///
 /// The first element of the returned tuple is the twist name without the
@@ -19,14 +26,14 @@ pub use crate::charsets::{LARGE_LOWERCASE_GREEK, SMALL_LOWERCASE_GREEK, UPPERCAS
 /// If no jumbling suffix is present, the first element of the tuple is the same
 /// as the input string.
 pub fn strip_jumbling_suffix(s: &str) -> (&str, Option<char>) {
-    match s.chars().next_back() {
-        Some(c) if is_jumbling_suffix(c) => (&s[..s.len() - c.len_utf8()], Some(c)),
-        _ => (s, None),
-    }
+    strip_suffix_char(s, crate::charsets::is_jumbling_suffix)
 }
 
-fn is_jumbling_suffix(c: char) -> bool {
-    matches!(c, 'h' | 'j' | 'k')
+fn strip_suffix_char(s: &str, is_char_allowed: fn(char) -> bool) -> (&str, Option<char>) {
+    match s.chars().next_back() {
+        Some(c) if is_char_allowed(c) => (&s[..s.len() - c.len_utf8()], Some(c)),
+        _ => (s, None),
+    }
 }
 
 /// Removes a sequential lowercase name from the beginnning of `s` if one is
