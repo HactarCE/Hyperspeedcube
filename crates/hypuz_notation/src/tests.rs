@@ -7,16 +7,7 @@ use crate::*;
 fn test_bracketed_transform() {
     let cfg = Features::default();
 
-    let expected = NodeList(vec![
-        RepeatableNode::Move(Move {
-            layers: LayerPrefix::default(),
-            rot: Rotation {
-                family: "R".into(),
-                transform: Some("F -> U".into()),
-            },
-        })
-        .with_multiplier(1),
-    ]);
+    let expected = NodeList(vec![Move::new((), "R", Some("F -> U")).with_multiplier(1)]);
     assert_eq!(expected, parse_notation("R[ F -> U ]", cfg).unwrap());
     assert_eq!(expected, parse_notation("R[F -> U]", cfg).unwrap());
     assert_eq!(expected.to_string(), "R[F -> U]");
@@ -30,49 +21,29 @@ fn test_nested_notation() {
         RepeatableNode::Group {
             kind: GroupKind::Simple,
             contents: NodeList(vec![
-                RepeatableNode::Move(Move {
-                    layers: LayerPrefix {
+                Transform::new("aC", None)
+                    .into_move(LayerPrefix {
                         invert: true,
                         contents: Some(LayerPrefixContents::Single(Layer::new(2).unwrap())),
-                    },
-                    rot: Rotation {
-                        family: "aC".into(),
-                        transform: None,
-                    },
-                })
-                .with_multiplier(16),
-                RepeatableNode::Rotation(Rotation {
+                    })
+                    .with_multiplier(16),
+                Transform {
                     family: Str::default(),
-                    transform: None,
-                })
+                    bracketed: None,
+                }
+                .into_rotation()
                 .with_multiplier(1),
                 RepeatableNode::BinaryGroup {
                     kind: BinaryGroupKind::Commutator,
                     contents: [
                         NodeList(vec![
-                            RepeatableNode::Rotation(Rotation {
-                                family: "yx".into(),
-                                transform: None,
-                            })
-                            .with_multiplier(-1),
+                            RepeatableNode::Rotation(Rotation::new("yx", None)).with_multiplier(-1),
                         ]),
                         NodeList(vec![
-                            RepeatableNode::Rotation(Rotation {
-                                family: "U".into(),
-                                transform: Some("1 j".into()),
-                            })
-                            .with_multiplier(-1),
-                            RepeatableNode::Move(Move {
-                                layers: LayerPrefix {
-                                    invert: true,
-                                    contents: None,
-                                },
-                                rot: Rotation {
-                                    family: "IUR".into(),
-                                    transform: None,
-                                },
-                            })
-                            .with_multiplier(16),
+                            RepeatableNode::Rotation(Rotation::new("U", Some("1 j")))
+                                .with_multiplier(-1),
+                            RepeatableNode::Move(Move::new(!LayerPrefix::default(), "IUR", None))
+                                .with_multiplier(16),
                         ]),
                     ],
                 }
@@ -183,16 +154,13 @@ impl Arbitrary for Move {
         use crate::charsets::FAMILY_REGEX;
 
         let layers = LayerPrefix::arbitrary();
-        let family = FAMILY_REGEX.prop_map_into();
-        let opt_transform = prop_oneof![
-            Just(None),
-            "[A-Z]([A-Z ]*[A-Z])?".prop_map_into().prop_map(Some)
-        ];
+        let family = FAMILY_REGEX.boxed(); // not sure why `.boxed()` is necessary
+        let opt_bracketed_transform =
+            prop_oneof![Just(None), "[A-Z]([A-Z ]*[A-Z])?".prop_map(Some)];
 
-        (layers, family, opt_transform)
-            .prop_map(|(layers, family, transform)| Move {
-                layers,
-                rot: Rotation { family, transform },
+        (layers, family, opt_bracketed_transform)
+            .prop_map(|(layers, family, bracketed_transform)| {
+                Move::new(layers, family, bracketed_transform)
             })
             .boxed()
     }
@@ -206,15 +174,12 @@ impl Arbitrary for Rotation {
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
         use crate::charsets::FAMILY_REGEX;
 
-        let opt_family =
-            prop_oneof![Just(String::new()), FAMILY_REGEX.prop_map_into().boxed()].prop_map_into();
-        let opt_transform = prop_oneof![
-            Just(None),
-            "[A-Z]([A-Z ]*[A-Z])?".prop_map_into().prop_map(Some)
-        ];
+        let opt_family = prop_oneof![Just(String::new()), FAMILY_REGEX.boxed()];
+        let opt_bracketed_transform =
+            prop_oneof![Just(None), "[A-Z]([A-Z ]*[A-Z])?".prop_map(Some)];
 
-        (opt_family, opt_transform)
-            .prop_map(|(family, transform)| Rotation { family, transform })
+        (opt_family, opt_bracketed_transform)
+            .prop_map(|(family, bracketed_transform)| Rotation::new(family, bracketed_transform))
             .boxed()
     }
 

@@ -5,7 +5,7 @@
 //! scratch.
 
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Not};
 
 pub use crate::common::*;
 use crate::{Features, InvertError, ParseError, Str};
@@ -191,7 +191,41 @@ impl RepeatableNode {
     }
 }
 
-/// Move containing a layer prefix and a rotation.
+/// Rotation containing a transform.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct Rotation {
+    /// Optional move family and optional bracketed transform.
+    pub transform: Transform,
+}
+
+impl fmt::Display for Rotation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { transform } = self;
+        write!(f, "@{transform}")
+    }
+}
+
+impl From<Transform> for Rotation {
+    fn from(value: Transform) -> Self {
+        value.into_rotation()
+    }
+}
+
+impl Rotation {
+    /// Constructs a rotation.
+    pub fn new<S: Into<Str>>(family: S, bracketed: Option<S>) -> Self {
+        Self {
+            transform: Transform::new(family, bracketed),
+        }
+    }
+
+    /// Returns a `Node` that contains this rotation followed by a multiplier.
+    pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
+        RepeatableNode::from(self).with_multiplier(multiplier)
+    }
+}
+
+/// Move containing a layer prefix and a transform.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Move {
     /// Layer prefix, which may be empty.
@@ -199,45 +233,54 @@ pub struct Move {
     /// An empty layer prefix is typically equivalent to a layer prefix that
     /// includes only layer 1.
     pub layers: LayerPrefix,
-    /// Move family and transform.
+    /// Move family and optional bracketed transform.
     ///
     /// If the family is empty, then it displays as a single underscore `_`.
-    pub rot: Rotation,
+    pub transform: Transform,
 }
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { layers, rot } = self;
-        let Rotation { family, transform } = rot;
-        write!(f, "{layers}{family}")?;
-        if family.is_empty() {
+        let Self { layers, transform } = self;
+        write!(f, "{layers}")?;
+        if transform.family.is_empty() {
             // If family name is empty, add an underscore so that at
             // least it parses back correctly.
             write!(f, "_")?;
         }
-        if let Some(tf) = transform {
-            write!(f, "[{tf}]")?;
-        }
+        write!(f, "{transform}")?;
         Ok(())
     }
 }
 
-impl From<Rotation> for Move {
-    fn from(value: Rotation) -> Self {
+impl From<Transform> for Move {
+    fn from(value: Transform) -> Self {
         value.into_move(LayerPrefix::default())
     }
 }
 
 impl Move {
+    /// Constructs a move.
+    pub fn new<S: Into<Str>>(
+        layers: impl Into<LayerPrefix>,
+        family: S,
+        bracketed: Option<S>,
+    ) -> Self {
+        Self {
+            layers: layers.into(),
+            transform: Transform::new(family, bracketed),
+        }
+    }
+
     /// Returns a `Node` that contains this move followed by a multiplier.
     pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
         RepeatableNode::from(self).with_multiplier(multiplier)
     }
 }
 
-/// Rotation, which may be displayed on its own or as part of a move.
+/// Transform, which may be used in a rotation or as part of a move.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Rotation {
+pub struct Transform {
     /// Move family, which may be empty for a rotation but must be nonempty for
     /// a transform.
     ///
@@ -249,33 +292,38 @@ pub struct Rotation {
     ///
     /// Example: `R -> F` in the move `{1..-1}U[ R -> F ]` or the rotation `@U[
     /// R -> F ]`
-    pub transform: Option<Str>,
+    pub bracketed: Option<Str>,
 }
 
-impl fmt::Display for Rotation {
+impl fmt::Display for Transform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { family, transform } = self;
-        write!(f, "@{family}")?;
-        if let Some(tf) = transform {
-            write!(f, "[{tf}]")?;
+        let Self { family, bracketed } = self;
+        write!(f, "{family}")?;
+        if let Some(bracketed) = bracketed {
+            write!(f, "[{bracketed}]")?;
         }
         Ok(())
     }
 }
 
-impl Rotation {
-    /// Constructs a move.
-    pub fn into_move(self, layers: LayerPrefix) -> Move {
-        let rotation = self;
-        Move {
-            layers,
-            rot: rotation,
+impl Transform {
+    /// Constructs a transform.
+    pub fn new<S: Into<Str>>(family: S, bracketed: Option<S>) -> Self {
+        Self {
+            family: family.into(),
+            bracketed: bracketed.map(|s| s.into()),
         }
     }
 
-    /// Returns a `Node` that contains this rotation followed by a multiplier.
-    pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
-        RepeatableNode::from(self).with_multiplier(multiplier)
+    /// Constructs a move with this transform.
+    pub fn into_move(self, layers: LayerPrefix) -> Move {
+        let transform = self;
+        Move { layers, transform }
+    }
+
+    /// Constructs a rotation with this transform.
+    pub fn into_rotation(self) -> Rotation {
+        Rotation { transform: self }
     }
 }
 
@@ -308,6 +356,12 @@ impl From<Option<LayerPrefixContents>> for LayerPrefix {
     }
 }
 
+impl From<()> for LayerPrefix {
+    fn from((): ()) -> Self {
+        Self::default()
+    }
+}
+
 impl<T: Into<LayerPrefixContents>> From<T> for LayerPrefix {
     fn from(value: T) -> Self {
         let invert = false;
@@ -322,6 +376,15 @@ impl LayerPrefix {
         invert: false,
         contents: None,
     };
+}
+
+impl Not for LayerPrefix {
+    type Output = Self;
+
+    fn not(mut self) -> Self::Output {
+        self.invert = !self.invert;
+        self
+    }
 }
 
 /// Contents of a layer prefix for a move.
@@ -424,6 +487,27 @@ impl FromIterator<LayerRange> for LayerPrefixContents {
     }
 }
 
+impl From<Layer> for LayerPrefixContents {
+    fn from(layer: Layer) -> Self {
+        Self::Single(layer)
+    }
+}
+
+impl From<LayerRange> for LayerPrefixContents {
+    fn from(range: LayerRange) -> Self {
+        Self::Range(range)
+    }
+}
+
+impl From<SignedLayer> for LayerPrefixContents {
+    fn from(layer: SignedLayer) -> Self {
+        match layer.to_unsigned() {
+            Some(l) => Self::Single(l),
+            None => Self::Set(LayerSet::from_iter([layer])),
+        }
+    }
+}
+
 impl From<LayerMask> for LayerPrefixContents {
     fn from(value: LayerMask) -> Self {
         Self::from(&value)
@@ -494,13 +578,6 @@ impl LayerSet {
     }
 }
 
-impl FromIterator<LayerRange> for LayerSet {
-    fn from_iter<T: IntoIterator<Item = LayerRange>>(iter: T) -> Self {
-        let elements = iter.into_iter().map(|r| r.into()).collect();
-        LayerSet { elements }
-    }
-}
-
 impl From<LayerMask> for LayerSet {
     fn from(value: LayerMask) -> Self {
         Self::from(&value)
@@ -513,9 +590,10 @@ impl From<&LayerMask> for LayerSet {
     }
 }
 
-impl FromIterator<Layer> for LayerSet {
-    fn from_iter<T: IntoIterator<Item = Layer>>(iter: T) -> Self {
-        iter.into_iter().collect()
+impl<E: Into<LayerSetElement>> FromIterator<E> for LayerSet {
+    fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
+        let elements = iter.into_iter().map(|l| l.into()).collect();
+        LayerSet { elements }
     }
 }
 
@@ -537,6 +615,18 @@ impl fmt::Display for LayerSetElement {
             LayerSetElement::Single(i) => write!(f, "{i}"),
             LayerSetElement::Range([i, j]) => write!(f, "{i}..{j}"),
         }
+    }
+}
+
+impl From<Layer> for LayerSetElement {
+    fn from(layer: Layer) -> Self {
+        Self::Single(layer.to_signed())
+    }
+}
+
+impl From<SignedLayer> for LayerSetElement {
+    fn from(layer: SignedLayer) -> Self {
+        Self::Single(layer)
     }
 }
 

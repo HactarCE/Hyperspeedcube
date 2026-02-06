@@ -151,9 +151,9 @@ impl RepeatableNode {
                 transform,
             } => unspanned::RepeatableNode::Move(unspanned::Move {
                 layers: layers.to_unspanned(),
-                rot: unspanned::Rotation {
+                transform: unspanned::Transform {
                     family: src(source, *family),
-                    transform: transform.map(|s| src(source, *s)),
+                    bracketed: transform.map(|s| src(source, *s)),
                 },
             }),
             RepeatableNode::Rotation {
@@ -161,8 +161,10 @@ impl RepeatableNode {
                 family,
                 transform,
             } => unspanned::RepeatableNode::Rotation(unspanned::Rotation {
-                family: src(source, *family),
-                transform: transform.map(|s| src(source, *s)),
+                transform: unspanned::Transform {
+                    family: src(source, *family),
+                    bracketed: transform.map(|s| src(source, *s)),
+                },
             }),
             RepeatableNode::Group { kind, contents } => unspanned::RepeatableNode::Group {
                 kind: **kind,

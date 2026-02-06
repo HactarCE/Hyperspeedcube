@@ -1,5 +1,6 @@
 //! Hyper Puzzle Notation parser and serializer.
 
+pub mod bracketed;
 pub mod charsets;
 pub mod common;
 pub mod error;
@@ -7,7 +8,6 @@ pub mod family;
 pub mod layer;
 mod parse;
 pub mod spanned;
-pub mod transform;
 pub mod unspanned;
 
 pub use error::InvertError;

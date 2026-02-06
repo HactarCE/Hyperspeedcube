@@ -8,15 +8,15 @@ use crate::{Multiplier, Str, write_separated_list};
 /// Simultaneous transforms separated by `|`.
 ///
 /// Example: `[R->F | U->I]`
-pub struct SimultaneousTransforms(pub Vec<Str>);
+pub struct BracketedSimultaneousTransforms(pub Vec<Str>);
 
-impl fmt::Display for SimultaneousTransforms {
+impl fmt::Display for BracketedSimultaneousTransforms {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_separated_list(f, &self.0, " | ")
     }
 }
 
-impl FromStr for SimultaneousTransforms {
+impl FromStr for BracketedSimultaneousTransforms {
     type Err = std::convert::Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -28,9 +28,9 @@ impl FromStr for SimultaneousTransforms {
 ///
 /// Example: `[1 j']`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct SequentialTransforms(pub Vec<Str>);
+pub struct BracketedSequentialTransforms(pub Vec<Str>);
 
-impl fmt::Display for SequentialTransforms {
+impl fmt::Display for BracketedSequentialTransforms {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_separated_list(f, &self.0, " ")
     }
@@ -38,7 +38,7 @@ impl fmt::Display for SequentialTransforms {
 
 /// Single transform in a list of sequential transforms.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Transform {
+pub struct BracketedTransform {
     /// Transform name
     pub name: Str,
     /// Multiplier.
@@ -47,7 +47,7 @@ pub struct Transform {
     pub multiplier: Multiplier,
 }
 
-impl fmt::Display for Transform {
+impl fmt::Display for BracketedTransform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self { name, multiplier } = self;
         if name.is_empty() && *multiplier == Multiplier(1) {
@@ -58,7 +58,7 @@ impl fmt::Display for Transform {
     }
 }
 
-impl FromStr for Transform {
+impl FromStr for BracketedTransform {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
