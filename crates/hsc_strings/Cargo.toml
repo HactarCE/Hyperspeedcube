@@ -1,6 +1,6 @@
 [package]
-name = "hyperstrings"
-description = "Opinionated localization and static string management library"
+name = "hsc_strings"
+description = "Opinionated localization and static string management library for Hyperspeedcube"
 version = "0.1.0"
 authors = ["Andrew Farkas"]
 edition.workspace = true

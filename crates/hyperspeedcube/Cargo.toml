@@ -96,7 +96,7 @@ optick = ["dep:optick", "dep:optick-attr"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [build-dependencies]
-hyperstrings.workspace = true
+hsc_strings.workspace = true
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

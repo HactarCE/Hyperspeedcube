@@ -4,7 +4,7 @@ fn main() {
     // Rebuild when locale files change
     println!("cargo::rerun-if-changed=locales");
 
-    hyperstrings::generate_locale_source_code("locales", "src/locales.rs");
+    hsc_strings::generate_locale_source_code("locales", "src/locales.rs");
 
     #[cfg(all(windows, not(debug_assertions)))]
     {

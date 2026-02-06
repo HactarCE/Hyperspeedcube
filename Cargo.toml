@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/hsc_strings",
     "crates/hypercubing_leaderboards_client",
     "crates/hyperdraw",
     "crates/hyperkdl_derive",
@@ -17,7 +18,6 @@ members = [
     "crates/hyperspeedcube_cli_types",
     "crates/hyperspeedcube",
     "crates/hyperstats",
-    "crates/hyperstrings",
     "crates/hypuz_notation",
     "crates/hypuz_util",
     "crates/timecheck",
@@ -64,6 +64,7 @@ opt-level = 1
 [workspace.dependencies]
 
 # Crates that are part of the project
+hsc_strings = { path = "crates/hsc_strings" }
 hypercubing_leaderboards_client = { path = "crates/hypercubing_leaderboards_client" }
 hyperdraw = { path = "crates/hyperdraw" }
 hyperkdl = { path = "crates/hyperkdl" }
@@ -80,7 +81,6 @@ hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
 hyperspeedcube_cli_types = { path = "crates/hyperspeedcube_cli_types" }
 hyperstats = { path = "crates/hyperstats" }
-hyperstrings = { path = "crates/hyperstrings" }
 hypuz_notation = { path = "crates/hypuz_notation" }
 hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }

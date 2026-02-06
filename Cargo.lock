@@ -2648,6 +2648,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hsc_strings"
+version = "0.1.0"
+dependencies = [
+ "ident_case",
+ "indexmap",
+ "itertools 0.14.0",
+ "kdl",
+ "lazy_static",
+ "owo-colors 4.2.3",
+ "regex",
+ "unindent",
+]
+
+[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3039,6 +3053,7 @@ dependencies = [
  "eyre",
  "float-ord",
  "hcegui",
+ "hsc_strings",
  "hypercubing_leaderboards_client",
  "hyperdraw",
  "hypermath",
@@ -3049,7 +3064,6 @@ dependencies = [
  "hyperpuzzle_view",
  "hyperpuzzlescript",
  "hyperstats",
- "hyperstrings",
  "indexmap",
  "itertools 0.14.0",
  "js-sys",
@@ -3103,20 +3117,6 @@ dependencies = [
  "hyperpuzzle_log",
  "kdl",
  "log",
-]
-
-[[package]]
-name = "hyperstrings"
-version = "0.1.0"
-dependencies = [
- "ident_case",
- "indexmap",
- "itertools 0.14.0",
- "kdl",
- "lazy_static",
- "owo-colors 4.2.3",
- "regex",
- "unindent",
 ]
 
 [[package]]

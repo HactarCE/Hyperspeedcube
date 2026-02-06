@@ -2,6 +2,9 @@
 
 Hyperspeedcube consists of many crates, split into several categories and ordered from highest-level to lowest-level. Each crate contains a `README.md` with more info about it.
 
+> [!WARNING]
+> As of Feb 2026, this document is out-of-date. TODO: update this document.
+
 [dev.hypercubing.xyz](https://dev.hypercubing.xyz/) may contain other useful information.
 
 ## User interface
