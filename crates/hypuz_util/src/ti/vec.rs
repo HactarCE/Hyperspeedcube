@@ -13,6 +13,8 @@ use crate::error::{IndexOutOfRange, IndexOverflow};
 /// must implement [`TypedIndex`] and can be defined using
 /// [`typed_index_struct!`].
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct TiVec<I, E> {
     values: Vec<E>,
     _phantom: PhantomData<I>,

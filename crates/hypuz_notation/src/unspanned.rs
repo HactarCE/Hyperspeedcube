@@ -17,6 +17,7 @@ pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<Parse
 
 /// List of notation elements.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct NodeList(pub Vec<Node>);
 
@@ -59,6 +60,7 @@ impl NodeList {
 
 /// Notation element.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Node {
     /// Notation element that can be repeated.
     RepeatedNode {
@@ -126,6 +128,7 @@ impl Node {
 
 /// Notation element that can be repeated.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RepeatableNode {
     /// Move, such as `x` or `IR2` or `{1..-1}U[R->F]`
     Move(Move),
@@ -193,6 +196,7 @@ impl RepeatableNode {
 
 /// Rotation containing a transform.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rotation {
     /// Optional move family and optional bracketed transform.
     pub transform: Transform,
@@ -227,6 +231,7 @@ impl Rotation {
 
 /// Move containing a layer prefix and a transform.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Move {
     /// Layer prefix, which may be empty.
     ///
@@ -280,6 +285,7 @@ impl Move {
 
 /// Transform, which may be used in a rotation or as part of a move.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Transform {
     /// Move family, which may be empty for a rotation but must be nonempty for
     /// a transform.
@@ -329,6 +335,7 @@ impl Transform {
 
 /// Layer prefix for a move.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct LayerPrefix {
     /// Whether the layer set is inverted using `~`.
@@ -392,6 +399,7 @@ impl Not for LayerPrefix {
 /// This type directly corresponds to notation. When computing layer masks,
 /// prefer [`LayerMask`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum LayerPrefixContents {
     /// Single positive layer.
@@ -531,6 +539,8 @@ impl FromIterator<Layer> for LayerPrefixContents {
 /// This type directly corresponds to notation. When computing layer masks,
 /// prefer [`LayerMask`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct LayerSet {
     /// Elements of the set, in arbitrary order.
@@ -599,6 +609,7 @@ impl<E: Into<LayerSetElement>> FromIterator<E> for LayerSet {
 
 /// Element of a [`LayerSet`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum LayerSetElement {
     /// Signed layer in a layer set.

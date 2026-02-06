@@ -21,6 +21,7 @@ hypuz_util = { workspace = true, optional = true }
 bitvec.workspace = true
 chumsky.workspace = true
 lean_string.workspace = true
+serde = { workspace = true, optional = true }
 smallvec.workspace = true
 thiserror.workspace = true
 
@@ -32,3 +33,4 @@ proptest.workspace = true
 
 [features]
 typed_index = ["dep:hypuz_util"]
+serde = ["dep:hypuz_util", "dep:serde", "hypuz_util/serde", "lean_string/serde"]

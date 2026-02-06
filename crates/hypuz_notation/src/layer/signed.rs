@@ -20,6 +20,7 @@ use crate::error::ParseLayerError;
 /// This type implements `From<`[`Layer`]`>` and can be negated for convenience.
 /// To convert this to a [`Layer`], use [`SignedLayer::resolve()`]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SignedLayer(pub(super) NonZeroI16);
 
 impl SignedLayer {
@@ -157,6 +158,18 @@ impl Neg for SignedLayer {
 
     fn neg(self) -> Self::Output {
         Self(-self.0)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for SignedLayer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        i16::deserialize(deserializer).and_then(|i| {
+            Self::new(i).ok_or_else(|| serde::de::Error::custom("invalid signed layer"))
+        })
     }
 }
 

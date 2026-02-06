@@ -25,6 +25,7 @@ pub type Spanned<T> = chumsky::span::SimpleSpanned<T>;
 
 /// Set of features to enable when parsing puzzle notation.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Features {
     /// Layer prefix features.
     pub layers: LayerFeatures,
@@ -79,6 +80,7 @@ impl Features {
 
 /// Set of features to enable when parsing layer prefixes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerFeatures {
     /// Whether to allow inverting layer prefixes.
     pub inverting: bool,

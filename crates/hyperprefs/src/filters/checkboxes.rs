@@ -7,9 +7,9 @@ use super::expr::*;
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct FilterCheckboxes {
-    #[serde(with = "crate::serde_impl::vec_opt_bool")]
+    #[serde(with = "hypuz_util::serde_impl::tivec_opt_bool")]
     pub colors: PerColor<Option<bool>>,
-    #[serde(with = "crate::serde_impl::vec_opt_bool")]
+    #[serde(with = "hypuz_util::serde_impl::tivec_opt_bool")]
     pub piece_types: PerPieceType<Option<bool>>,
 }
 impl FilterCheckboxes {

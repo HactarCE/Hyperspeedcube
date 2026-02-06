@@ -18,4 +18,5 @@ workspace = true
 [dependencies]
 bitvec.workspace = true
 itertools.workspace = true
+serde = { workspace = true, optional = true }
 tinyset.workspace = true

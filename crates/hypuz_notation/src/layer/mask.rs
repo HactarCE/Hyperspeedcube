@@ -584,6 +584,36 @@ fn panicking_layer_from_index(n: usize) -> Layer {
     Layer::new((n + 1) as u16).expect("layer out of range")
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for LayerMask {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use hypuz_util::serde_impl::hex_bitvec;
+
+        match self.as_ref_enum() {
+            LayerMaskEnum::Bitmask(bits) => {
+                hex_bitvec::serialize(&BitVec::from_element(bits), serializer)
+            }
+            LayerMaskEnum::BitVec(vec) => hex_bitvec::serialize(vec, serializer),
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for LayerMask {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bitvec = hypuz_util::serde_impl::hex_bitvec::deserialize(deserializer)?;
+        let mut ret = Self::from_bitvec(Box::new(bitvec));
+        ret.shrink_to_fit();
+        Ok(ret)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;

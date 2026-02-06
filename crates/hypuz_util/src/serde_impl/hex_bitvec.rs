@@ -1,14 +1,24 @@
+//! Serialization/deserialization of [`BitVec`] as a string using a base-10
+//! length, then a `:`, then a sequence of hexadecimal digits.
+//!
+//! Only [`bitvec::order::Lsb0`] (the default in the [`bitvec`] crate) is
+//! supported.
+
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+/// Serializes a [`BitVec`] using [`bitvec_to_b16_string()`].
 pub fn serialize<S: Serializer>(value: &BitVec, serializer: S) -> Result<S::Ok, S::Error> {
     bitvec_to_b16_string(value).serialize(serializer)
 }
 
+/// Deserializes a [`BitVec`] using [`b16_string_to_bitvec()`].
 pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<BitVec, D::Error> {
     Ok(b16_string_to_bitvec(&<String>::deserialize(deserializer)?))
 }
 
+/// Serializes a [`BitVec`] as a base-10 length, then a `:`, then a sequence of
+/// hexadecimal digits. The least significant hex digits are first.
 pub fn bitvec_to_b16_string(bits: &BitVec) -> String {
     let mut ret = bits.len().to_string();
     ret.push(':');
@@ -24,6 +34,9 @@ pub fn bitvec_to_b16_string(bits: &BitVec) -> String {
     ret
 }
 
+/// Deserializes a [`BitVec`] from a string containing a base-10 length, then a
+/// `:`, then a sequence of hexadecimal digits. The least significant hex digits
+/// must be first.
 pub fn b16_string_to_bitvec(string: &str) -> BitVec {
     let (len, contents) = string.split_once(':').unwrap_or(("", string));
     contents

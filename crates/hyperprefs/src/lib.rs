@@ -31,7 +31,6 @@ mod sidebar;
 pub mod persist;
 mod presets;
 mod schema;
-mod serde_impl;
 mod styles;
 mod view;
 
@@ -326,7 +325,7 @@ impl Preferences {
 #[serde(default)]
 pub struct PieceFilter {
     /// Hexadecimal-encoded bitstring of which pieces are visible.
-    #[serde(with = "crate::serde_impl::hex_bitvec")]
+    #[serde(with = "hypuz_util::serde_impl::hex_bitvec")]
     pub visible_pieces: BitVec,
     /// Opacity of hidden pieces.
     #[serde(skip_serializing_if = "Option::is_none")]

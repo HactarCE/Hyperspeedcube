@@ -2868,6 +2868,7 @@ dependencies = [
  "eyre",
  "hyperpaths",
  "hyperpuzzle_core",
+ "hypuz_util",
  "indexmap",
  "itertools 0.14.0",
  "key-names",
@@ -3131,6 +3132,7 @@ dependencies = [
  "pretty_assertions",
  "proptest",
  "proptest-derive",
+ "serde",
  "smallvec",
  "thiserror 2.0.17",
 ]
@@ -3141,6 +3143,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "itertools 0.14.0",
+ "serde",
  "tinyset",
 ]
 
@@ -3598,6 +3601,7 @@ dependencies = [
  "castaway",
  "itoa",
  "ryu",
+ "serde",
 ]
 
 [[package]]

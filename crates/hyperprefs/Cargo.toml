@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 hyperpaths.workspace = true
 hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
+hypuz_util = { workspace = true, features = ["serde"] }
 
 bitvec.workspace = true
 colorous.workspace = true

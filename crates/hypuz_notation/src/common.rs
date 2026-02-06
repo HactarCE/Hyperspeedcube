@@ -10,6 +10,7 @@ pub use crate::layer::{Layer, LayerMask, LayerRange, SignedLayer};
 
 /// Kind of group.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum GroupKind {
     /// Simple group.
@@ -75,6 +76,7 @@ impl GroupKind {
 
 /// Kind of binary group.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum BinaryGroupKind {
     /// Commutator `[A, B]` that expands to `A B A' B'`.
@@ -96,6 +98,7 @@ impl BinaryGroupKind {
 
 /// Square-1 move.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum Sq1Move {
     /// Move of the top and bottom layers.
@@ -135,6 +138,7 @@ impl Sq1Move {
 
 /// WCA Megaminx scrambling move.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum MegaminxScrambleMove {
     /// R++
@@ -175,6 +179,8 @@ impl MegaminxScrambleMove {
 ///
 /// The default multiplier is `Multiplier(1)`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct Multiplier(pub i32);
 

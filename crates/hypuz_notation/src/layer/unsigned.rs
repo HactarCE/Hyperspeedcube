@@ -22,6 +22,7 @@ use crate::error::ParseLayerError;
 /// [`hypuz_util::ti::TypedIndex`] with an offset of 1: `Layer(1)`
 /// corresponds to index 0, `Layer(2)` corresponds to index 1, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Layer(pub(super) NonZeroI16); // invariant: always positive
 
 impl Layer {
@@ -127,6 +128,18 @@ impl TryFrom<SignedLayer> for Layer {
     fn try_from(value: SignedLayer) -> Result<Self, Self::Error> {
         NonZeroU16::try_from(value.0)?;
         Ok(Self(value.0))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Layer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        u16::deserialize(deserializer).and_then(|i| {
+            Self::new(i).ok_or_else(|| serde::de::Error::custom("invalid unsigned layer"))
+        })
     }
 }
 

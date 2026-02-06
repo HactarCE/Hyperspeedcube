@@ -6,6 +6,7 @@ use super::Layer;
 ///
 /// This is stored as a minimum and maximum layer.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct LayerRange {
     /// Minimum layer, inclusive.
     min: Layer,
@@ -103,6 +104,22 @@ impl IntoIterator for LayerRange {
     fn into_iter(self) -> Self::IntoIter {
         (self.min.to_u16()..=self.max.to_u16())
             .map(|i| Layer::new(i).expect("layer range produced out-of-bounds layer"))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for LayerRange {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct LayerRangeSerdeProxy {
+            min: Layer,
+            max: Layer,
+        }
+
+        LayerRangeSerdeProxy::deserialize(deserializer).map(|proxy| Self::new(proxy.min, proxy.max))
     }
 }
 
