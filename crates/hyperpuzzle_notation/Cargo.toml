@@ -16,6 +16,8 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hyperpuzzle_util = { workspace = true, optional = true }
+
 bitvec.workspace = true
 chumsky.workspace = true
 lean_string.workspace = true
@@ -27,3 +29,6 @@ lazy_static.workspace = true
 pretty_assertions.workspace = true
 proptest-derive.workspace = true
 proptest.workspace = true
+
+[features]
+typed_index = ["dep:hyperpuzzle_util"]

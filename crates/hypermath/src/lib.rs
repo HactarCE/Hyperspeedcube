@@ -83,9 +83,7 @@ pub mod prelude {
     pub use approx_collections::{self, ApproxHashMap, FloatPool, Precision};
 
     pub use crate::centroid::Centroid;
-    pub use crate::collections::{
-        GenericVec, IndexOutOfRange, IndexOverflow, MotorNearestNeighborMap, VecMap,
-    };
+    pub use crate::collections::{MotorNearestNeighborMap, VecMap};
     pub use crate::hyperplane::*;
     pub use crate::matrix::*;
     pub use crate::permutations::{self, Parity};
@@ -103,7 +101,6 @@ pub mod traits {
     pub use approx_collections::traits::*;
     pub use tinyset::Fits64;
 
-    pub use crate::collections::IndexNewtype;
     pub use crate::ndim::Ndim;
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;

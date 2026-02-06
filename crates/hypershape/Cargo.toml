@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 hypermath.workspace = true
+hyperpuzzle_util.workspace = true
 
 eyre.workspace = true
 float-ord.workspace = true

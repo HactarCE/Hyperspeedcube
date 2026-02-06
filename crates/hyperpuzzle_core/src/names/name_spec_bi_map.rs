@@ -1,17 +1,17 @@
 use std::ops::Index;
 
-use hypermath::{GenericVec, IndexNewtype, IndexOutOfRange};
+use hyperpuzzle_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
 
 use super::*;
 
 /// Immutable bi-directional map between IDs and name specifications.
 #[derive(Debug, Default, Clone)]
 pub struct NameSpecBiMap<I> {
-    id_to_name: GenericVec<I, NameSpec>,
+    id_to_name: TiVec<I, NameSpec>,
     name_to_id: NameSpecMap<I>,
 }
 
-impl<I: IndexNewtype> NameSpecBiMap<I> {
+impl<I: TypedIndex> NameSpecBiMap<I> {
     /// Constructs a new empty bi-map.
     pub fn new() -> Self {
         Self::default()
@@ -27,7 +27,7 @@ impl<I: IndexNewtype> NameSpecBiMap<I> {
     }
 
     /// Returns an iterator over IDs.
-    pub fn iter_keys(&self) -> hypermath::collections::generic_vec::IndexIter<I> {
+    pub fn iter_keys(&self) -> TypedIndexIter<I> {
         self.id_to_name.iter_keys()
     }
     /// Returns an iterator over names.
@@ -61,7 +61,7 @@ impl<I: IndexNewtype> NameSpecBiMap<I> {
 
 /// Non-panicking indexing that returns the preferred name, or `"?"` if there is
 /// no value.
-impl<I: IndexNewtype> Index<I> for NameSpecBiMap<I> {
+impl<I: TypedIndex> Index<I> for NameSpecBiMap<I> {
     type Output = str;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -75,11 +75,11 @@ impl<I: IndexNewtype> Index<I> for NameSpecBiMap<I> {
 /// Mutable bi-directional map between IDs and name specifications.
 #[derive(Debug, Default, Clone)]
 pub struct NameSpecBiMapBuilder<I> {
-    id_to_name: GenericVec<I, Option<NameSpec>>,
+    id_to_name: TiVec<I, Option<NameSpec>>,
     name_to_id: NameSpecMap<I>,
 }
 
-impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
+impl<I: TypedIndex> NameSpecBiMapBuilder<I> {
     /// Constructs a new empty bi-map.
     pub fn new() -> Self {
         Self::default()
@@ -182,13 +182,13 @@ impl<I: IndexNewtype> NameSpecBiMapBuilder<I> {
         Some(NameSpecBiMap {
             id_to_name: I::iter(len)
                 .map(|id| self.get(id).cloned())
-                .collect::<Option<GenericVec<I, NameSpec>>>()?,
+                .collect::<Option<TiVec<I, NameSpec>>>()?,
             name_to_id: self.name_to_id.clone(),
         })
     }
 }
 
-impl<I: IndexNewtype> From<NameSpecBiMap<I>> for NameSpecBiMapBuilder<I> {
+impl<I: TypedIndex> From<NameSpecBiMap<I>> for NameSpecBiMapBuilder<I> {
     fn from(value: NameSpecBiMap<I>) -> Self {
         NameSpecBiMapBuilder {
             id_to_name: value.id_to_name.map(|_, name| Some(name)),

@@ -11,6 +11,7 @@ members = [
     "crates/hyperpuzzle_impl_nd_euclid",
     "crates/hyperpuzzle_log",
     "crates/hyperpuzzle_notation",
+    "crates/hyperpuzzle_util",
     "crates/hyperpuzzle_view",
     "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
@@ -75,6 +76,7 @@ hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_nd_euclid = { path = "crates/hyperpuzzle_impl_nd_euclid" }
 hyperpuzzle_log = { path = "crates/hyperpuzzle_log" }
 hyperpuzzle_notation = { path = "crates/hyperpuzzle_notation" }
+hyperpuzzle_util = { path = "crates/hyperpuzzle_util" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }

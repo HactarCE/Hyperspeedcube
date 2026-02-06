@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
-use hypermath::{GenericVec, IndexNewtype, IndexOutOfRange};
+use hyperpuzzle_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
 
 use super::BadName;
 
 /// Immutable bi-directional map between IDs and strings.
 #[derive(Debug, Default, Clone)]
 pub struct StringBiMap<I> {
-    id_to_string: GenericVec<I, String>,
+    id_to_string: TiVec<I, String>,
     string_to_id: HashMap<String, I>,
 }
 
-impl<I: IndexNewtype> StringBiMap<I> {
+impl<I: TypedIndex> StringBiMap<I> {
     /// Constructs a new empty bi-map.
     pub fn new() -> Self {
         Self::default()
@@ -28,7 +28,7 @@ impl<I: IndexNewtype> StringBiMap<I> {
     }
 
     /// Returns an iterator over IDs.
-    pub fn iter_keys(&self) -> hypermath::collections::generic_vec::IndexIter<I> {
+    pub fn iter_keys(&self) -> TypedIndexIter<I> {
         self.id_to_string.iter_keys()
     }
     /// Returns an iterator over strings.
@@ -57,7 +57,7 @@ impl<I: IndexNewtype> StringBiMap<I> {
 }
 
 /// Non-panicking indexing that returns `"?"` if there is no value.
-impl<I: IndexNewtype> Index<I> for StringBiMap<I> {
+impl<I: TypedIndex> Index<I> for StringBiMap<I> {
     type Output = str;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -68,11 +68,11 @@ impl<I: IndexNewtype> Index<I> for StringBiMap<I> {
 /// Immutable bi-directional map between IDs and strings.
 #[derive(Debug, Default, Clone)]
 pub struct StringBiMapBuilder<I> {
-    id_to_string: GenericVec<I, Option<String>>,
+    id_to_string: TiVec<I, Option<String>>,
     string_to_id: HashMap<String, I>,
 }
 
-impl<I: IndexNewtype> StringBiMapBuilder<I> {
+impl<I: TypedIndex> StringBiMapBuilder<I> {
     /// Constructs a new empty bi-map.
     pub fn new() -> Self {
         Self::default()
@@ -136,13 +136,13 @@ impl<I: IndexNewtype> StringBiMapBuilder<I> {
         Some(StringBiMap {
             id_to_string: I::iter(len)
                 .map(|id| self.get(id).cloned())
-                .collect::<Option<GenericVec<I, String>>>()?,
+                .collect::<Option<TiVec<I, String>>>()?,
             string_to_id: self.string_to_id.clone(),
         })
     }
 }
 
-impl<I: IndexNewtype> From<StringBiMap<I>> for StringBiMapBuilder<I> {
+impl<I: TypedIndex> From<StringBiMap<I>> for StringBiMapBuilder<I> {
     fn from(value: StringBiMap<I>) -> Self {
         StringBiMapBuilder {
             id_to_string: value.id_to_string.map(|_, string| Some(string)),

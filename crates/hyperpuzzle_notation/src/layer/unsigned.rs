@@ -3,7 +3,7 @@ use std::num::{NonZeroI16, NonZeroU16};
 use std::str::FromStr;
 
 use super::SignedLayer;
-use crate::errors::ParseLayerError;
+use crate::error::ParseLayerError;
 
 /// 1-indexed unsigned layer number.
 ///
@@ -15,6 +15,12 @@ use crate::errors::ParseLayerError;
 /// bytes.
 ///
 /// This type implements `Into<`[`SignedLayer`]`>` for convenience.
+///
+/// ## Typed index
+///
+/// When the `typed_index` feature is envaled, `Layer` implements
+/// [`hyperpuzzle_util::ti::TypedIndex`] with an offset of 1: `Layer(1)`
+/// corresponds to index 0, `Layer(2)` corresponds to index 1, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Layer(pub(super) NonZeroI16); // invariant: always positive
 
@@ -121,6 +127,32 @@ impl TryFrom<SignedLayer> for Layer {
     fn try_from(value: SignedLayer) -> Result<Self, Self::Error> {
         NonZeroU16::try_from(value.0)?;
         Ok(Self(value.0))
+    }
+}
+
+#[cfg(feature = "typed_index")]
+impl hyperpuzzle_util::ti::Fits64 for Layer {
+    unsafe fn from_u64(x: u64) -> Self {
+        Layer(unsafe { NonZeroI16::new_unchecked(x as i16) })
+    }
+
+    fn to_u64(self) -> u64 {
+        self.to_u16() as u64
+    }
+}
+
+#[cfg(feature = "typed_index")]
+impl hyperpuzzle_util::ti::TypedIndex for Layer {
+    const MAX: Self = Layer::MAX;
+    const MAX_INDEX: usize = Layer::MAX.to_usize() - 1;
+    const TYPE_NAME: &'static str = "Layer";
+
+    fn to_index(self) -> usize {
+        self.to_usize() - 1
+    }
+
+    fn try_from_index(index: usize) -> Result<Self, hyperpuzzle_util::error::IndexOverflow> {
+        Self::new((index + 1) as u16).ok_or(hyperpuzzle_util::error::IndexOverflow::new::<Self>())
     }
 }
 

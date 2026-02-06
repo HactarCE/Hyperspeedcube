@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use hypermath::{APPROX, GenericVec, Vector, pga};
+use hypermath::{APPROX, Vector, pga};
 use hyperpuzzle_core::prelude::*;
 use hypershape::{Group, GroupElementId, IsometryGroup};
 use itertools::Itertools;
@@ -9,13 +9,13 @@ use smallvec::SmallVec;
 
 use crate::{NdEuclidTwistSystemEngineData, TwistKey};
 
-hypermath::idx_struct! {
+hyperpuzzle_core::typed_index_struct! {
     /// ID of a reference vector in a vantage group.
     pub struct ReferenceVector(u16);
 }
 
 /// List containing a value per reference vector.
-pub type PerReferenceVector<T> = GenericVec<ReferenceVector, T>;
+pub type PerReferenceVector<T> = TiVec<ReferenceVector, T>;
 
 /// Vantage group for an N-dimensional Euclidean puzzle that is based on a
 /// finite isometry group of N-dimensional Euclidean space.

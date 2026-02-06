@@ -489,7 +489,7 @@ impl PuzzleWidget {
             (|| {
                 let id = puzzle.colors.names.id_from_name(name)?;
                 let rgb = prefs.color_palette.get(palette_color)?;
-                sticker_colors[id.to_usize()] = rgb.rgb;
+                sticker_colors[id.to_index()] = rgb.rgb;
                 Some(())
             })();
         }

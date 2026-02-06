@@ -1,0 +1,21 @@
+[package]
+name = "hyperpuzzle_util"
+description = "Utilities for Hyperspeedcube"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["data-structures", "utilities"]
+categories = ["data-structures"]
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+bitvec.workspace = true
+itertools.workspace = true
+tinyset.workspace = true

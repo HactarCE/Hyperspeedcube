@@ -1,5 +1,7 @@
 use std::fmt;
 
+use hyperpuzzle_util::ti::TypedIndex;
+
 use super::NameSpecBiMapBuilder;
 
 /// Automatic names for puzzle elements.
@@ -27,10 +29,7 @@ impl Default for AutoNames {
 
 impl AutoNames {
     /// Returns the next unused autoname.
-    pub fn next_unused<I: hypermath::IndexNewtype>(
-        &mut self,
-        names: &NameSpecBiMapBuilder<I>,
-    ) -> String {
+    pub fn next_unused<I: TypedIndex>(&mut self, names: &NameSpecBiMapBuilder<I>) -> String {
         self.find(|s| names.id_from_string(s).is_none())
             .expect("ran out of autonames")
     }

@@ -4,7 +4,7 @@ use std::ops::Neg;
 use std::str::FromStr;
 
 use super::{Layer, LayerRange};
-use crate::errors::ParseLayerError;
+use crate::error::ParseLayerError;
 
 /// 1-indexed signed layer number.
 ///

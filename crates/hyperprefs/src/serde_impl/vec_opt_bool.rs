@@ -1,8 +1,8 @@
-use hypermath::{GenericVec, IndexNewtype};
+use hyperpuzzle_core::ti::{TiVec, TypedIndex};
 use serde::{Deserializer, Serializer};
 
-pub fn serialize<S: Serializer, I: IndexNewtype>(
-    value: &GenericVec<I, Option<bool>>,
+pub fn serialize<S: Serializer, I: TypedIndex>(
+    value: &TiVec<I, Option<bool>>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     super::hex_bitvec::serialize(
@@ -14,9 +14,9 @@ pub fn serialize<S: Serializer, I: IndexNewtype>(
     )
 }
 
-pub fn deserialize<'de, D: Deserializer<'de>, I: IndexNewtype>(
+pub fn deserialize<'de, D: Deserializer<'de>, I: TypedIndex>(
     deserializer: D,
-) -> Result<GenericVec<I, Option<bool>>, D::Error> {
+) -> Result<TiVec<I, Option<bool>>, D::Error> {
     Ok(super::hex_bitvec::deserialize(deserializer)?
         .chunks_exact(2)
         .map(|pair| pair[0].then_some(pair[1]))

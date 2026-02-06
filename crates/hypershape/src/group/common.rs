@@ -1,4 +1,5 @@
 use hypermath::prelude::*;
+use hyperpuzzle_util::ti::{IndexOverflow, TiVec, TypedIndex};
 
 use super::{AbbrGenSeq, GenSeq};
 
@@ -41,7 +42,7 @@ pub fn orbit<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     ret
 }
 
-hypermath::idx_struct! {
+hyperpuzzle_util::typed_index_struct! {
     /// ID of a group generator.
     pub struct GeneratorId(pub u8);
     /// ID of a group element.
@@ -58,9 +59,9 @@ impl GroupElementId {
 }
 
 /// List containing a value per group generator.
-pub type PerGenerator<T> = GenericVec<GeneratorId, T>;
+pub type PerGenerator<T> = TiVec<GeneratorId, T>;
 /// List containing a value per group element.
-pub type PerGroupElement<T> = GenericVec<GroupElementId, T>;
+pub type PerGroupElement<T> = TiVec<GroupElementId, T>;
 
 /// Error that can occur during group construction.
 #[allow(missing_docs)]
@@ -127,7 +128,7 @@ impl<T: Default + Clone> EggTable<T> {
     }
     /// Adds a new element to the table.
     pub fn add_element(&mut self, value: T) -> GroupResult<GroupElementId> {
-        let new_element = GroupElementId::try_from_usize(self.element_count)?;
+        let new_element = GroupElementId::try_from_index(self.element_count)?;
         self.element_count += 1;
         self.contents
             .extend(std::iter::repeat_n(value, self.generator_count));

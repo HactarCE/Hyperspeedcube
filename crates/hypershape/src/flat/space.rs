@@ -1,3 +1,5 @@
+use hyperpuzzle_util::ti::IndexOverflow;
+
 use super::*;
 
 /// Patch of Euclidean (i.e., flat) space in which polytopes can be constructed.

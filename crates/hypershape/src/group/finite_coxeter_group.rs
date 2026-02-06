@@ -4,6 +4,7 @@
 use std::fmt;
 
 use hypermath::prelude::*;
+use hyperpuzzle_util::ti::TypedIndex;
 
 use super::{
     AbstractGroup, CoxeterGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult,
@@ -144,7 +145,7 @@ impl FiniteCoxeterGroup {
         let mut element_id = 0;
 
         while element_id < g.element_count() {
-            let element = GroupElementId::try_from_usize(element_id)?;
+            let element = GroupElementId::try_from_index(element_id)?;
 
             for generator in GeneratorId::iter(n) {
                 // If we already know the result of `element * generator` then

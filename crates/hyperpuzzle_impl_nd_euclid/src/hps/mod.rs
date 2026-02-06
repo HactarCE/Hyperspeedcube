@@ -4,10 +4,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{
-    ApproxEq, ApproxHash, IndexNewtype, Ndim, Point, Precision, TransformByMotor, Vector,
-};
-use hyperpuzzle_core::{Axis, NameSpec, Twist};
+use hypermath::{ApproxEq, ApproxHash, Ndim, Point, Precision, TransformByMotor, Vector};
+use hyperpuzzle_core::{Axis, NameSpec, Twist, TypedIndex};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
 
@@ -233,7 +231,7 @@ fn fmt_puzzle_element(
     f: &mut fmt::Formatter<'_>,
     array_name: &str,
     name: Option<NameSpec>,
-    id: impl IndexNewtype,
+    id: impl TypedIndex,
 ) -> fmt::Result {
     match name {
         Some(name) => {

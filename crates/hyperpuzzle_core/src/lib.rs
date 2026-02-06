@@ -20,6 +20,8 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
+/// Re-export of `hyperpuzzle_util`.
+pub use hyperpuzzle_util::*;
 /// Re-export of `hypershape`.
 pub use hypershape;
 /// Re-export of `hyperspeedcube_cli_types`.
@@ -49,6 +51,7 @@ pub mod prelude {
     };
     pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
     pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};
+    pub use crate::ti::*;
     pub use crate::traits::*;
     pub use crate::version::Version;
 }

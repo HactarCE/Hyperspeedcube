@@ -1,9 +1,9 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hypermath::collections::GenericMask;
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzle_util::ti::{TiMask, TiVec, TypedIndex};
 use itertools::Itertools;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use tinyset::Set64;
 use super::LayerMask;
 use crate::Rgb;
 
-hypermath::idx_struct! {
+hyperpuzzle_util::typed_index_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.
     #[derive(Serialize, Deserialize)]
@@ -77,25 +77,25 @@ impl Vantage {
 }
 
 /// List containing a value per piece.
-pub type PerPiece<T> = GenericVec<Piece, T>;
+pub type PerPiece<T> = TiVec<Piece, T>;
 /// List containing a value per sticker.
-pub type PerSticker<T> = GenericVec<Sticker, T>;
+pub type PerSticker<T> = TiVec<Sticker, T>;
 /// List containing a value per twist gizmo face.
-pub type PerGizmoFace<T> = GenericVec<GizmoFace, T>;
+pub type PerGizmoFace<T> = TiVec<GizmoFace, T>;
 /// List containing a value per surface.
-pub type PerSurface<T> = GenericVec<Surface, T>;
+pub type PerSurface<T> = TiVec<Surface, T>;
 /// List containing a value per color.
-pub type PerColor<T> = GenericVec<Color, T>;
+pub type PerColor<T> = TiVec<Color, T>;
 /// List containing a value per twist axis.
-pub type PerAxis<T> = GenericVec<Axis, T>;
+pub type PerAxis<T> = TiVec<Axis, T>;
 /// List containing a value per twist.
-pub type PerTwist<T> = GenericVec<Twist, T>;
+pub type PerTwist<T> = TiVec<Twist, T>;
 /// List containing a value per layer.
-pub type PerLayer<T> = GenericVec<Layer, T>;
+pub type PerLayer<T> = TiVec<Layer, T>;
 /// List containing a value per piece type.
-pub type PerPieceType<T> = GenericVec<PieceType, T>;
+pub type PerPieceType<T> = TiVec<PieceType, T>;
 /// List containing a value per vantage.
-pub type PerVantage<T> = GenericVec<Vantage, T>;
+pub type PerVantage<T> = TiVec<Vantage, T>;
 
 /// Sparse set of pieces in a puzzle.
 pub type PieceSet = Set64<Piece>;
@@ -107,9 +107,9 @@ pub type SurfaceSet = Set64<Surface>;
 pub type ColorSet = Set64<Color>;
 
 /// Dense set of pieces in a puzzle.
-pub type PieceMask = GenericMask<Piece>;
+pub type PieceMask = TiMask<Piece>;
 /// Dense set of piece types in a puzzle.
-pub type PieceTypeMask = GenericMask<PieceType>;
+pub type PieceTypeMask = TiMask<PieceType>;
 
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]

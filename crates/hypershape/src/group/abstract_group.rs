@@ -1,6 +1,6 @@
 use std::fmt;
 
-use hypermath::IndexNewtype;
+use hyperpuzzle_util::ti::{TypedIndex, TypedIndexIter};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
@@ -23,11 +23,11 @@ pub trait Group {
     }
 
     /// Returns an iterator over the generators used to generate the group.
-    fn generators(&self) -> hypermath::collections::generic_vec::IndexIter<GeneratorId> {
+    fn generators(&self) -> TypedIndexIter<GeneratorId> {
         GeneratorId::iter(self.generator_count())
     }
     /// Returns an iterator over the elements of the group.
-    fn elements(&self) -> hypermath::collections::generic_vec::IndexIter<GroupElementId> {
+    fn elements(&self) -> TypedIndexIter<GroupElementId> {
         GroupElementId::iter(self.element_count())
     }
 
@@ -172,7 +172,7 @@ impl GroupBuilder {
     /// Constructs a new `GroupBuilder` containing just the identity.
     pub fn new(generator_count: usize) -> GroupResult<Self> {
         // Check that there aren't too many generators.
-        GeneratorId::try_from_usize(generator_count)?;
+        GeneratorId::try_from_index(generator_count)?;
 
         let mut factorizations = PerGroupElement::new();
         let table = EggTable::new(generator_count);

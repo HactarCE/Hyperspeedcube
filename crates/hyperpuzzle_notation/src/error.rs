@@ -1,3 +1,5 @@
+//! Error types.
+
 use std::num::ParseIntError;
 
 use thiserror::Error;

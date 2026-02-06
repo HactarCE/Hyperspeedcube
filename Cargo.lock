@@ -2823,7 +2823,6 @@ dependencies = [
  "approx_collections",
  "ball-tree",
  "bitflags 2.10.0",
- "bitvec",
  "bytemuck",
  "float-ord",
  "itertools 0.14.0",
@@ -2853,7 +2852,6 @@ dependencies = [
  "colorous",
  "config",
  "eyre",
- "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
  "indexmap",
@@ -2895,6 +2893,7 @@ dependencies = [
  "eyre",
  "hex",
  "hypermath",
+ "hyperpuzzle_util",
  "hypershape",
  "hyperspeedcube_cli_types",
  "indexmap",
@@ -2966,6 +2965,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "chumsky",
+ "hyperpuzzle_util",
  "lazy_static",
  "lean_string",
  "pretty_assertions",
@@ -2973,6 +2973,15 @@ dependencies = [
  "proptest-derive",
  "smallvec",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "hyperpuzzle_util"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "itertools 0.14.0",
+ "tinyset",
 ]
 
 [[package]]
@@ -3024,6 +3033,7 @@ dependencies = [
  "eyre",
  "float-ord",
  "hypermath",
+ "hyperpuzzle_util",
  "itertools 0.14.0",
  "num_cpus",
  "parking_lot",

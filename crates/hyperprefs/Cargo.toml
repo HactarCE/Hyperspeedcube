@@ -16,7 +16,6 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath.workspace = true
 hyperpaths.workspace = true
 hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
 

@@ -1,8 +1,7 @@
 use std::fmt;
 
-use hypermath::IndexOutOfRange;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{NameSpec, Twist};
+use hyperpuzzle_core::{IndexOutOfRange, NameSpec, Twist};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, FnValue, Map, Result, Span, Spanned, Value, ValueData, hps_fns,
     impl_simple_custom_type,

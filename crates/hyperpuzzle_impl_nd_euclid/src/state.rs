@@ -9,8 +9,8 @@ use parking_lot::Mutex;
 
 use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
 
-type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
-hypermath::idx_struct! {
+type PerCachedTransform<T> = TiVec<CachedTransform, T>;
+hyperpuzzle_core::typed_index_struct! {
     struct CachedTransform(usize);
 }
 

@@ -1,4 +1,4 @@
-use hypermath::IndexOutOfRange;
+use hyperpuzzle_util::ti::IndexOutOfRange;
 use serde::{Deserialize, Serialize};
 
 use super::{LayerMask, Puzzle, Twist};

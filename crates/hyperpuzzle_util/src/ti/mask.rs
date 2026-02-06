@@ -5,19 +5,21 @@ use bitvec::bitbox;
 use bitvec::boxed::BitBox;
 use bitvec::vec::BitVec;
 
-use super::IndexNewtype;
+use super::TypedIndex;
 
-/// Dense subset of elements from a `GenericVec`.
+/// Dense set of typed indexes.
+///
+/// For a sparse set, use [`tinyset::Set64`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct GenericMask<I> {
-    /// Bitmask of elements.
+pub struct TiMask<I> {
+    /// Bitmask of indexes.
     ///
     /// Uninitialized bits must be set to zero!
     bits: BitBox,
     _phantom: PhantomData<I>,
 }
 
-impl<I> GenericMask<I> {
+impl<I> TiMask<I> {
     /// Constructs an empty set.
     pub fn new_empty(len: usize) -> Self {
         Self {
@@ -26,7 +28,7 @@ impl<I> GenericMask<I> {
         }
         .clear_uninit()
     }
-    /// Constructs a set containing every element in the puzzle.
+    /// Constructs a set containing every element up to (but not including) len.
     pub fn new_full(len: usize) -> Self {
         Self {
             bits: bitbox![1; len],
@@ -48,7 +50,7 @@ impl<I> GenericMask<I> {
         self
     }
 
-    /// Returns the total number of elements in the puzzle.
+    /// Returns the total number of indexes in the puzzle.
     pub fn max_len(&self) -> usize {
         self.bits.len()
     }
@@ -84,7 +86,7 @@ impl<I> GenericMask<I> {
     }
 }
 
-impl<I: IndexNewtype> GenericMask<I> {
+impl<I: TypedIndex> TiMask<I> {
     /// Constructs a set containing a single element.
     pub fn from_element(len: usize, element: I) -> Self {
         Self::from_iter(len, [element])
@@ -102,42 +104,44 @@ impl<I: IndexNewtype> GenericMask<I> {
     pub fn iter(&self) -> impl '_ + Iterator<Item = I> {
         self.bits
             .iter_ones()
-            .filter_map(|i| I::try_from_usize(i).ok())
+            .filter_map(|i| I::try_from_index(i).ok())
     }
 
     /// Returns whether `element` is in the set.
     pub fn contains(&self, element: I) -> bool {
-        self.bits[element.to_usize()]
+        self.bits[element.to_index()]
     }
     /// Inserts `element` into the set.
     pub fn insert(&mut self, element: I) {
-        self.bits.set(element.to_usize(), true);
+        self.bits.set(element.to_index(), true);
     }
     /// Removes `element` from the set.
     pub fn remove(&mut self, element: I) {
-        self.bits.set(element.to_usize(), false);
+        self.bits.set(element.to_index(), false);
     }
 }
 
 macro_rules! impl_forward_owned_ops_to_assign_ops {
     ($assign_trait:ident :: $assign_func:ident, $trait:ident :: $func:ident) => {
-        impl<I> ::std::ops::$assign_trait<GenericMask<I>> for GenericMask<I> {
+        impl<I> ::std::ops::$assign_trait<TiMask<I>> for TiMask<I> {
             fn $assign_func(&mut self, rhs: Self) {
                 ::std::ops::$assign_trait::$assign_func(self, &rhs)
             }
         }
-        impl<I> ::std::ops::$trait<&GenericMask<I>> for GenericMask<I> {
-            type Output = GenericMask<I>;
 
-            fn $func(mut self, rhs: &GenericMask<I>) -> Self::Output {
+        impl<I> ::std::ops::$trait<&TiMask<I>> for TiMask<I> {
+            type Output = TiMask<I>;
+
+            fn $func(mut self, rhs: &TiMask<I>) -> Self::Output {
                 ::std::ops::$assign_trait::$assign_func(&mut self, rhs);
                 self
             }
         }
-        impl<I> ::std::ops::$trait<GenericMask<I>> for GenericMask<I> {
-            type Output = GenericMask<I>;
 
-            fn $func(mut self, rhs: GenericMask<I>) -> Self::Output {
+        impl<I> ::std::ops::$trait<TiMask<I>> for TiMask<I> {
+            type Output = TiMask<I>;
+
+            fn $func(mut self, rhs: TiMask<I>) -> Self::Output {
                 ::std::ops::$assign_trait::$assign_func(&mut self, rhs);
                 self
             }
@@ -145,8 +149,8 @@ macro_rules! impl_forward_owned_ops_to_assign_ops {
     };
 }
 
-impl<I> Not for GenericMask<I> {
-    type Output = GenericMask<I>;
+impl<I> Not for TiMask<I> {
+    type Output = TiMask<I>;
 
     fn not(mut self) -> Self::Output {
         // This may modify the extra bits at the end of the slice; according to
@@ -157,15 +161,15 @@ impl<I> Not for GenericMask<I> {
         self.clear_uninit()
     }
 }
-impl<I> Not for &GenericMask<I> {
-    type Output = GenericMask<I>;
+impl<I> Not for &TiMask<I> {
+    type Output = TiMask<I>;
 
     fn not(self) -> Self::Output {
-        GenericMask::from_raw_iter(self.max_len(), self.raw_iter().map(|data| !data))
+        TiMask::from_raw_iter(self.max_len(), self.raw_iter().map(|data| !data))
     }
 }
 
-impl<I> BitOrAssign<&Self> for GenericMask<I> {
+impl<I> BitOrAssign<&Self> for TiMask<I> {
     fn bitor_assign(&mut self, rhs: &Self) {
         for (l, r) in std::iter::zip(self.raw_iter_mut(), rhs.raw_iter()) {
             *l |= r;
@@ -174,7 +178,7 @@ impl<I> BitOrAssign<&Self> for GenericMask<I> {
 }
 impl_forward_owned_ops_to_assign_ops!(BitOrAssign::bitor_assign, BitOr::bitor);
 
-impl<I> BitAndAssign<&Self> for GenericMask<I> {
+impl<I> BitAndAssign<&Self> for TiMask<I> {
     fn bitand_assign(&mut self, rhs: &Self) {
         for (l, r) in std::iter::zip(self.raw_iter_mut(), rhs.raw_iter()) {
             *l &= r;
@@ -183,7 +187,7 @@ impl<I> BitAndAssign<&Self> for GenericMask<I> {
 }
 impl_forward_owned_ops_to_assign_ops!(BitAndAssign::bitand_assign, BitAnd::bitand);
 
-impl<I> BitXorAssign<&Self> for GenericMask<I> {
+impl<I> BitXorAssign<&Self> for TiMask<I> {
     fn bitxor_assign(&mut self, rhs: &Self) {
         for (l, r) in std::iter::zip(self.raw_iter_mut(), rhs.raw_iter()) {
             *l ^= r;

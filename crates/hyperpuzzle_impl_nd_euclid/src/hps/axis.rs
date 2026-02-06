@@ -1,8 +1,8 @@
 use std::fmt;
 
+use hypermath::Vector;
 use hypermath::pga::Motor;
-use hypermath::{IndexOutOfRange, Vector};
-use hyperpuzzle_core::{Axis, NameSpec};
+use hyperpuzzle_core::{Axis, IndexOutOfRange, NameSpec};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Value, ValueData, impl_simple_custom_type,
 };
