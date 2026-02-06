@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
-use hyperpuzzle_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
+use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
 
 use super::BadName;
 

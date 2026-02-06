@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak};
 use eyre::{OptionExt, Result, bail, ensure, eyre};
 use float_ord::FloatOrd;
 use hypermath::prelude::*;
-use hyperpuzzle_util::ti::TiVec;
+use hypuz_util::ti::TiVec;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::{SmallVec, smallvec};
@@ -32,7 +32,7 @@ pub use simplicial::{Simplex, SimplexBlob};
 pub use space::Space;
 pub use spaceref::SpaceRef;
 
-hyperpuzzle_util::typed_index_struct! {
+hypuz_util::typed_index_struct! {
     /// ID for a memoized element of a polytope in a [`Space`].
     pub struct ElementId(pub u32);
     /// ID for a memoized top-level polytope in a [`Space`].

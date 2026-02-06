@@ -1,6 +1,6 @@
 use std::fmt;
 
-use hyperpuzzle_util::ti::TypedIndex;
+use hypuz_util::ti::TypedIndex;
 
 use super::NameSpecBiMapBuilder;
 

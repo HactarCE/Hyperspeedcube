@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_util::ti::{TiMask, TiVec, TypedIndex};
+use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
 use itertools::Itertools;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use tinyset::Set64;
 use super::LayerMask;
 use crate::Rgb;
 
-hyperpuzzle_util::typed_index_struct! {
+hypuz_util::typed_index_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.
     #[derive(Serialize, Deserialize)]

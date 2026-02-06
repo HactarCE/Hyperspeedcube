@@ -1,4 +1,4 @@
-use hyperpuzzle_util::ti::IndexOverflow;
+use hypuz_util::ti::IndexOverflow;
 
 use super::*;
 

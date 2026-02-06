@@ -4,7 +4,7 @@
 use std::fmt;
 
 use hypermath::prelude::*;
-use hyperpuzzle_util::ti::TypedIndex;
+use hypuz_util::ti::TypedIndex;
 
 use super::{
     AbstractGroup, CoxeterGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult,

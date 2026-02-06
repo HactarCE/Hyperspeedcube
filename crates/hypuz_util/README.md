@@ -1,3 +1,3 @@
-# hyperpuzzle_util
+# hypuz_util
 
 Utilities for Hyperspeedcube

@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzle_notation"
+name = "hypuz_notation"
 description = "Hyper Puzzle Notation parser and serializer"
 version = "0.1.0"
 authors.workspace = true
@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperpuzzle_util = { workspace = true, optional = true }
+hypuz_util = { workspace = true, optional = true }
 
 bitvec.workspace = true
 chumsky.workspace = true
@@ -31,4 +31,4 @@ proptest-derive.workspace = true
 proptest.workspace = true
 
 [features]
-typed_index = ["dep:hyperpuzzle_util"]
+typed_index = ["dep:hypuz_util"]

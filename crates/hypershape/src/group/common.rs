@@ -1,5 +1,5 @@
 use hypermath::prelude::*;
-use hyperpuzzle_util::ti::{IndexOverflow, TiVec, TypedIndex};
+use hypuz_util::ti::{IndexOverflow, TiVec, TypedIndex};
 
 use super::{AbbrGenSeq, GenSeq};
 
@@ -42,7 +42,7 @@ pub fn orbit<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     ret
 }
 
-hyperpuzzle_util::typed_index_struct! {
+hypuz_util::typed_index_struct! {
     /// ID of a group generator.
     pub struct GeneratorId(pub u8);
     /// ID of a group element.

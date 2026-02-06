@@ -19,7 +19,7 @@ use crate::error::ParseLayerError;
 /// ## Typed index
 ///
 /// When the `typed_index` feature is envaled, `Layer` implements
-/// [`hyperpuzzle_util::ti::TypedIndex`] with an offset of 1: `Layer(1)`
+/// [`hypuz_util::ti::TypedIndex`] with an offset of 1: `Layer(1)`
 /// corresponds to index 0, `Layer(2)` corresponds to index 1, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Layer(pub(super) NonZeroI16); // invariant: always positive
@@ -131,7 +131,7 @@ impl TryFrom<SignedLayer> for Layer {
 }
 
 #[cfg(feature = "typed_index")]
-impl hyperpuzzle_util::ti::Fits64 for Layer {
+impl hypuz_util::ti::Fits64 for Layer {
     unsafe fn from_u64(x: u64) -> Self {
         Layer(unsafe { NonZeroI16::new_unchecked(x as i16) })
     }
@@ -142,7 +142,7 @@ impl hyperpuzzle_util::ti::Fits64 for Layer {
 }
 
 #[cfg(feature = "typed_index")]
-impl hyperpuzzle_util::ti::TypedIndex for Layer {
+impl hypuz_util::ti::TypedIndex for Layer {
     const MAX: Self = Layer::MAX;
     const MAX_INDEX: usize = Layer::MAX.to_usize() - 1;
     const TYPE_NAME: &'static str = "Layer";
@@ -151,8 +151,8 @@ impl hyperpuzzle_util::ti::TypedIndex for Layer {
         self.to_usize() - 1
     }
 
-    fn try_from_index(index: usize) -> Result<Self, hyperpuzzle_util::error::IndexOverflow> {
-        Self::new((index + 1) as u16).ok_or(hyperpuzzle_util::error::IndexOverflow::new::<Self>())
+    fn try_from_index(index: usize) -> Result<Self, hypuz_util::error::IndexOverflow> {
+        Self::new((index + 1) as u16).ok_or(hypuz_util::error::IndexOverflow::new::<Self>())
     }
 }
 

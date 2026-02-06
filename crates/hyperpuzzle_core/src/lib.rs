@@ -20,25 +20,24 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
-/// Re-export of `hyperpuzzle_util`.
-pub use hyperpuzzle_util::*;
 /// Re-export of `hypershape`.
 pub use hypershape;
 /// Re-export of `hyperspeedcube_cli_types`.
 pub use hyperspeedcube_cli_types::*;
+/// Re-export of `hypuz_util`.
+pub use hypuz_util::*;
 pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 
 pub use crate::logging::*;
 pub use crate::names::{
-    AutoNames, is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec,
+    is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec, AutoNames,
 };
 pub use crate::rgb::Rgb;
 pub use crate::timestamp::Timestamp;
 
 /// Prelude of common imports.
 pub mod prelude {
-    pub use crate::LayerMaskUint;
     pub use crate::catalog::{
         Catalog, ColorSystemCatalog, ColorSystemGenerator, GeneratorParam, GeneratorParamError,
         GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
@@ -54,6 +53,7 @@ pub mod prelude {
     pub use crate::ti::*;
     pub use crate::traits::*;
     pub use crate::version::Version;
+    pub use crate::LayerMaskUint;
 }
 
 /// Unsigned integer type used for [`LayerMask`].

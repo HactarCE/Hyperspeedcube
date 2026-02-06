@@ -17,7 +17,7 @@ workspace = true
 
 [dependencies]
 hypermath.workspace = true
-hyperpuzzle_util.workspace = true
+hypuz_util.workspace = true
 hypershape.workspace = true
 hyperspeedcube_cli_types.workspace = true
 

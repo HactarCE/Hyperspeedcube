@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzle_util"
+name = "hypuz_util"
 description = "Utilities for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
