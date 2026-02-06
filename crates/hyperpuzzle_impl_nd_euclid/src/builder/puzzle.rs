@@ -284,8 +284,6 @@ impl PuzzleBuilder {
             scramble_twists,
             full_scramble_length: self.full_scramble_length,
 
-            notation: Notation {},
-
             axis_layers,
             axis_opposites,
             twists,

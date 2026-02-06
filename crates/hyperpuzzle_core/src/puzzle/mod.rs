@@ -6,7 +6,6 @@ mod dev_data;
 mod layers;
 mod mesh;
 mod metric;
-mod notation;
 mod piece_type_hierarchy;
 mod puzzle_type;
 mod scramble;
@@ -21,7 +20,6 @@ pub use info::*;
 pub use layers::LayerMask;
 pub use mesh::*;
 pub use metric::TwistMetric;
-pub use notation::Notation;
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
 #[cfg(feature = "timecheck")]

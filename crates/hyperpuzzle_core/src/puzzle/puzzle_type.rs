@@ -42,9 +42,6 @@ pub struct Puzzle {
     /// Number of moves for a full scramble.
     pub full_scramble_length: u32,
 
-    /// Move notation.
-    pub notation: Notation,
-
     /// Layers for each axis.
     pub axis_layers: PerAxis<AxisLayersInfo>,
     /// For each axis, its opposite axis if there is one.

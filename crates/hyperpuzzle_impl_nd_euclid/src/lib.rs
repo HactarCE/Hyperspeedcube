@@ -89,7 +89,6 @@ lazy_static! {
             colors: Arc::new(ColorSystem::new_empty()),
             scramble_twists: vec![],
             full_scramble_length: 0,
-            notation: Notation {},
             axis_layers: PerAxis::new(),
             axis_opposites: PerAxis::new(),
             twists,
