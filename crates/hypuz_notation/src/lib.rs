@@ -26,8 +26,8 @@ pub type Spanned<T> = chumsky::span::SimpleSpanned<T>;
 /// Set of features to enable when parsing puzzle notation.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Features {
-    /// Layer mask features.
-    pub layers: LayerMaskFeatures,
+    /// Layer prefix features.
+    pub layers: LayerFeatures,
 
     /// Whether to allow rotations using generalized rotation (`@`) syntax.
     pub generalized_rotations: bool,
@@ -52,7 +52,7 @@ impl Default for Features {
 impl Features {
     /// Minimal feature set with no hypercubing-specific notation.
     pub const MINIMAL: Self = Self {
-        layers: LayerMaskFeatures::SIMPLE,
+        layers: LayerFeatures::SIMPLE,
         generalized_rotations: false,
         megaminx: false,
         sq1: false,
@@ -61,7 +61,7 @@ impl Features {
     /// Typical 3D puzzle notation, including special notation for specific WCA
     /// puzzles but not hypercubing-specific notation.
     pub const WCA: Self = Self {
-        layers: LayerMaskFeatures::SIMPLE,
+        layers: LayerFeatures::SIMPLE,
         generalized_rotations: false,
         megaminx: true,
         sq1: true,
@@ -70,17 +70,17 @@ impl Features {
     /// Maximumal feature set, including hypercubing notation and special
     /// notation for specific WCA puzzles.
     pub const MAXIMAL: Self = Self {
-        layers: LayerMaskFeatures::HYPERCUBING,
+        layers: LayerFeatures::HYPERCUBING,
         generalized_rotations: true,
         megaminx: true,
         sq1: true,
     };
 }
 
-/// Set of features to enable when parsing layer masks.
+/// Set of features to enable when parsing layer prefixes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct LayerMaskFeatures {
-    /// Whether to allow inverting layer masks.
+pub struct LayerFeatures {
+    /// Whether to allow inverting layer prefixes.
     pub inverting: bool,
 
     /// Whether to allow layer sets.
@@ -96,13 +96,13 @@ pub struct LayerMaskFeatures {
     pub hsc1_layer_ranges: bool,
 }
 
-impl Default for LayerMaskFeatures {
+impl Default for LayerFeatures {
     fn default() -> Self {
         Self::SIMPLE
     }
 }
 
-impl LayerMaskFeatures {
+impl LayerFeatures {
     /// Minimal feature set with no hypercubing-specific notation.
     pub const SIMPLE: Self = Self {
         inverting: false,

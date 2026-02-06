@@ -6,7 +6,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::InvertError;
-pub use crate::layer::{Layer, LayerRange, LayerSet, SignedLayer};
+pub use crate::layer::{Layer, LayerMask, LayerRange, SignedLayer};
 
 /// Kind of group.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]

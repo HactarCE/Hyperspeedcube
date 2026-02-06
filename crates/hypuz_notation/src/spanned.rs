@@ -6,7 +6,7 @@
 use chumsky::Parser;
 
 pub use crate::common::*;
-use crate::{Features, LayerMaskFeatures, ParseError, Span, Spanned, Str, unspanned};
+use crate::{Features, LayerFeatures, ParseError, Span, Spanned, Str, unspanned};
 
 /// Resolves a span to a string.
 fn src(source: &str, span: Span) -> Str {
@@ -86,12 +86,12 @@ impl Node {
 pub enum RepeatableNode {
     /// Move, such as `x` or `IR2` or `{1..-1}U[ R->F ]`
     Move {
-        /// Layer mask.
+        /// Layer prefix.
         ///
-        /// For an empty layer mask, this has an empty span.
+        /// For an empty layer prefix, this has an empty span.
         ///
         /// Example `{1..-1}` in the move `{1..-1}U[ R->F ]`
-        layer_mask: Spanned<LayerMask>,
+        layers: Spanned<LayerPrefix>,
         /// Span of the move family, which must not be empty.
         ///
         /// Example: `U` in the move `{1..-1}U[ R->F ]`
@@ -146,22 +146,24 @@ impl RepeatableNode {
     pub fn to_unspanned(&self, source: &str) -> unspanned::RepeatableNode {
         match self {
             RepeatableNode::Move {
-                layer_mask,
+                layers,
                 family,
                 transform,
-            } => unspanned::RepeatableNode::Move {
-                layer_mask: layer_mask.to_unspanned(),
-                family: src(source, *family),
-                transform: transform.map(|s| src(source, *s)),
-            },
+            } => unspanned::RepeatableNode::Move(unspanned::Move {
+                layers: layers.to_unspanned(),
+                rot: unspanned::Rotation {
+                    family: src(source, *family),
+                    transform: transform.map(|s| src(source, *s)),
+                },
+            }),
             RepeatableNode::Rotation {
                 at_sign: _,
                 family,
                 transform,
-            } => unspanned::RepeatableNode::Rotation {
+            } => unspanned::RepeatableNode::Rotation(unspanned::Rotation {
                 family: src(source, *family),
                 transform: transform.map(|s| src(source, *s)),
-            },
+            }),
             RepeatableNode::Group { kind, contents } => unspanned::RepeatableNode::Group {
                 kind: **kind,
                 contents: contents.to_unspanned(source),
@@ -177,40 +179,36 @@ impl RepeatableNode {
     }
 }
 
-/// Layer mask for a move.
+/// Layer prefix for a move.
 #[derive(Debug, Clone)]
-pub struct LayerMask {
-    /// Span of the preceding `~` indicating to invert the layer mask, if there
+pub struct LayerPrefix {
+    /// Span of the preceding `~` indicating to invert the layer set, if there
     /// is one.
     pub invert: Option<Span>,
-    /// Contents of the layer mask, if there is one.
-    pub contents: Option<Spanned<LayerMaskContents>>,
+    /// Contents of the layer set, if it is nonempty.
+    pub contents: Option<Spanned<LayerPrefixContents>>,
 }
 
-impl LayerMask {
-    /// Converts to [`unspanned::LayerMask`].
-    pub fn to_unspanned(&self) -> unspanned::LayerMask {
-        unspanned::LayerMask {
+impl LayerPrefix {
+    /// Converts to [`unspanned::LayerPrefix`].
+    pub fn to_unspanned(&self) -> unspanned::LayerPrefix {
+        unspanned::LayerPrefix {
             invert: self.invert.is_some(),
             contents: self.contents.as_ref().map(|c| c.to_unspanned()),
         }
     }
 
-    /// Parses a layer mask from a string.
-    pub fn from_str(s: &'_ str, features: LayerMaskFeatures) -> Result<Self, Vec<ParseError<'_>>> {
-        let features = Features {
-            layers: features,
-            ..Default::default()
-        };
-        crate::parse::layer_mask_with_features(features) // TODO: only require layer mask features (more elegant)
+    /// Parses a layer prefix from a string.
+    pub fn from_str(s: &str, features: LayerFeatures) -> Result<Self, Vec<ParseError<'_>>> {
+        crate::parse::layer_prefix_with_features(features)
             .parse(s)
             .into_result()
     }
 }
 
-/// Contents of a layer mask for a move.
+/// Contents of a layer prefix for a move.
 #[derive(Debug, Clone)]
-pub enum LayerMaskContents {
+pub enum LayerPrefixContents {
     /// Single positive layer.
     ///
     /// Example: `3`
@@ -222,27 +220,29 @@ pub enum LayerMaskContents {
     /// Layer set, which supports negative numbers.
     ///
     /// Example: `{1..-2,6}`
-    Set(Vec<Spanned<LayerMaskSetElement>>),
+    Set(Vec<Spanned<LayerSetElement>>),
 }
 
-impl LayerMaskContents {
-    /// Converts to [`unspanned::LayerMaskContents`].
-    pub fn to_unspanned(&self) -> unspanned::LayerMaskContents {
+impl LayerPrefixContents {
+    /// Converts to [`unspanned::LayerPrefixContents`].
+    pub fn to_unspanned(&self) -> unspanned::LayerPrefixContents {
         match self {
-            LayerMaskContents::Single(i) => unspanned::LayerMaskContents::Single(*i),
-            LayerMaskContents::Range([i, j]) => {
-                unspanned::LayerMaskContents::Range(LayerRange::new(**i, **j))
+            LayerPrefixContents::Single(i) => unspanned::LayerPrefixContents::Single(*i),
+            LayerPrefixContents::Range([i, j]) => {
+                unspanned::LayerPrefixContents::Range(LayerRange::new(**i, **j))
             }
-            LayerMaskContents::Set(elements) => unspanned::LayerMaskContents::Set(
-                elements.iter().map(|e| e.to_unspanned()).collect(),
-            ),
+            LayerPrefixContents::Set(elements) => {
+                unspanned::LayerPrefixContents::Set(unspanned::LayerSet {
+                    elements: elements.iter().map(|e| e.to_unspanned()).collect(),
+                })
+            }
         }
     }
 }
 
 /// Element of a layer set.
 #[derive(Debug, Copy, Clone)]
-pub enum LayerMaskSetElement {
+pub enum LayerSetElement {
     /// Signed layer in a layer set.
     Single(SignedLayer),
     /// Signed layer in a layer set.
@@ -251,12 +251,12 @@ pub enum LayerMaskSetElement {
     Range([Spanned<SignedLayer>; 2]),
 }
 
-impl LayerMaskSetElement {
-    /// Converts to [`unspanned::LayerMaskSetElement`].
-    pub fn to_unspanned(&self) -> unspanned::LayerMaskSetElement {
+impl LayerSetElement {
+    /// Converts to [`unspanned::LayerSetElement`].
+    pub fn to_unspanned(&self) -> unspanned::LayerSetElement {
         match self {
-            LayerMaskSetElement::Single(i) => unspanned::LayerMaskSetElement::Single(*i),
-            LayerMaskSetElement::Range([i, j]) => unspanned::LayerMaskSetElement::Range([**i, **j]),
+            LayerSetElement::Single(i) => unspanned::LayerSetElement::Single(*i),
+            LayerSetElement::Range([i, j]) => unspanned::LayerSetElement::Range([**i, **j]),
         }
     }
 }

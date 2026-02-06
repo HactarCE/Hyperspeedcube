@@ -2,8 +2,7 @@ use std::str::FromStr;
 
 use chumsky::prelude::*;
 
-use crate::spanned::*;
-use crate::{Features, GroupKind, Span};
+use crate::{Features, GroupKind, LayerFeatures, Span, spanned::*};
 
 /// Error produced while parsing puzzle notation.
 ///
@@ -28,10 +27,14 @@ pub(crate) fn node_list_with_features<'src>(
     node_list().with_ctx(features)
 }
 
-pub(crate) fn layer_mask_with_features<'src>(
-    features: Features,
-) -> impl NotationParser<'src, LayerMask> {
-    layer_mask().with_ctx(features)
+pub(crate) fn layer_prefix_with_features<'src>(
+    features: LayerFeatures,
+) -> impl NotationParser<'src, LayerPrefix> {
+    let features = Features {
+        layers: features,
+        ..Default::default()
+    };
+    layer_prefix().with_ctx(features)
 }
 
 fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
@@ -71,12 +74,12 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
             .configure(|_, ctx: &Features| ctx.generalized_rotations)
             .labelled("rotation");
 
-        let move_ = layer_mask()
+        let move_ = layer_prefix()
             .spanned()
             .then(family(1))
             .then(bracketed_transform().or_not())
-            .map(|((layer_mask, family), transform)| RepeatableNode::Move {
-                layer_mask,
+            .map(|((layers, family), transform)| RepeatableNode::Move {
+                layers,
                 family,
                 transform,
             })
@@ -167,14 +170,14 @@ fn group_kind<'src>() -> impl NotationParser<'src, GroupKind> {
         .map(Option::unwrap_or_default)
 }
 
-fn layer_mask<'src>() -> impl NotationParser<'src, LayerMask> {
+fn layer_prefix<'src>() -> impl NotationParser<'src, LayerPrefix> {
     let signed_layer_range = choice((
-        signed_layer_range().map(|(i, j)| LayerMaskSetElement::Range([i, j])),
+        signed_layer_range().map(|(i, j)| LayerSetElement::Range([i, j])),
         unsigned_layer_range()
             .contextual()
             .configure(|_, ctx: &Features| ctx.layers.hsc1_layer_ranges)
-            .map(|(i, j)| LayerMaskSetElement::Range([i, j])),
-        sint().map(LayerMaskSetElement::Single),
+            .map(|(i, j)| LayerSetElement::Range([i, j])),
+        sint().map(LayerSetElement::Single),
     ))
     .spanned()
     .separated_by(just(',').padded())
@@ -189,16 +192,16 @@ fn layer_mask<'src>() -> impl NotationParser<'src, LayerMask> {
         .contextual()
         .configure(|_, ctx: &Features| ctx.layers.inverting);
 
-    let layer_mask_contents = choice((
-        signed_layer_range.map(LayerMaskContents::Set),
-        unsigned_layer_range().map(|(i, j)| LayerMaskContents::Range([i, j])),
-        uint().map(LayerMaskContents::Single),
+    let layer_prefix_contents = choice((
+        signed_layer_range.map(LayerPrefixContents::Set),
+        unsigned_layer_range().map(|(i, j)| LayerPrefixContents::Range([i, j])),
+        uint().map(LayerPrefixContents::Single),
     ));
 
     tilde
         .or_not()
-        .then(layer_mask_contents.spanned().or_not())
-        .map(|(invert, contents)| LayerMask { invert, contents })
+        .then(layer_prefix_contents.spanned().or_not())
+        .map(|(invert, contents)| LayerPrefix { invert, contents })
 }
 
 fn multiplier<'src>() -> impl NotationParser<'src, Multiplier> {

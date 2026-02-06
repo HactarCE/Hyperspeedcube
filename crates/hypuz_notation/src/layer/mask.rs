@@ -17,70 +17,70 @@ fn assert_ptr_tagging_exists() {
     );
 }
 
-/// Bitmask of positive [`Layer`]s.
+/// Bitmask of positive [`Layer`]s. For a layer mask used in notation, see
+/// [`crate::LayerPrefix`].
 ///
 /// This is optimized to fit in only one `usize` and avoid allocation when all
 /// layer numbers are sufficiently small (≤63 on 64-bit platforms, and ≤31 on
 /// 32-bit platforms) but higher layer numbers require allocation to store the
 /// bitmask.
 ///
-/// Be wary: constructing a `LayerSet` that contains a large layer number will
+/// Be wary: constructing a `LayerMask` that contains a large layer number will
 /// allocate bits for all layers smaller than it. For example,
-/// `LayerSet::from_layer(Layer::new(300).unwrap())` allocates at least 40
+/// `LayerMask::from_layer(Layer::new(300).unwrap())` allocates at least 40
 /// bytes.
-pub union LayerSet {
-    /// If `bits & 1 == 1`, then this is a bitset. Otherwise it is
-    /// a pointer.
-    bitmask: usize,
-    /// Pointer to a bitset.
-    ///
-    /// `usize` is always
+pub union LayerMask {
+    /// If `bitmask & 1 == 1`, then this is an inline bitmask. Otherwise it is
+    /// a pointer to a [`BitVec`].
+    inline_bitmask: usize,
+    /// Pointer to a [`BitVec`].
     pointer: NonNull<BitVec>,
 }
 
-enum LayerSetEnum<Ptr> {
-    /// Bitmask. The lowest bit is always zero.
+enum LayerMaskEnum<Ptr> {
+    /// Inline bitmask, with the lowest bit equal to zero.
     Bitmask(usize),
+    /// Pointer to a [`BitVec`].
     BitVec(Ptr),
 }
 
-impl<Ptr> LayerSetEnum<Ptr> {
-    fn map<U>(self, f: fn(Ptr) -> U) -> LayerSetEnum<U> {
+impl<Ptr> LayerMaskEnum<Ptr> {
+    fn map<U>(self, f: fn(Ptr) -> U) -> LayerMaskEnum<U> {
         match self {
-            LayerSetEnum::Bitmask(bits) => LayerSetEnum::Bitmask(bits),
-            LayerSetEnum::BitVec(ptr) => LayerSetEnum::BitVec(f(ptr)),
+            LayerMaskEnum::Bitmask(bits) => LayerMaskEnum::Bitmask(bits),
+            LayerMaskEnum::BitVec(ptr) => LayerMaskEnum::BitVec(f(ptr)),
         }
     }
 }
 
-impl LayerSet {
+impl LayerMask {
     /// Empty layer set.
     pub const EMPTY: Self = Self::from_bits(0);
 
     fn as_usize_ref(&self) -> &usize {
         // SAFETY: it is always sound to reinterpret a `pointer` as a `usize`
-        unsafe { &self.bitmask }
+        unsafe { &self.inline_bitmask }
     }
     fn as_usize(&self) -> usize {
         *self.as_usize_ref()
     }
 
-    /// Returns whether this is a bitset as opposed to a pointer.
+    /// Returns whether this is an inline bitmask as opposed to a pointer.
     ///
     /// If this function returns `false`, then it is sound to access and
     /// to deference `pointer`.
-    fn is_bitset(&self) -> bool {
+    fn is_inline(&self) -> bool {
         self.as_usize() & 1 == 1
     }
 
     /// Returns whether this is a pointer, null or not.
     fn is_pointer(&self) -> bool {
-        !self.is_bitset()
+        !self.is_inline()
     }
 
-    /// Returns the bitmask, if this is not a pointer.
-    fn as_bitmask(&self) -> Option<usize> {
-        self.is_bitset().then(|| self.as_usize() & !1)
+    /// Returns the inline bitmask, if this is not a pointer.
+    fn as_inline(&self) -> Option<usize> {
+        self.is_inline().then(|| self.as_usize() & !1)
     }
 
     /// Returns the pointer, if this is a pointer.
@@ -98,18 +98,18 @@ impl LayerSet {
         self.as_pointer().map(|mut ptr| unsafe { ptr.as_mut() })
     }
 
-    fn as_ptr_enum(&self) -> LayerSetEnum<NonNull<BitVec>> {
+    fn as_ptr_enum(&self) -> LayerMaskEnum<NonNull<BitVec>> {
         match self.as_pointer() {
-            Some(ptr) => LayerSetEnum::BitVec(ptr),
-            None => LayerSetEnum::Bitmask(self.as_bitmask().expect("expected bitmask")),
+            Some(ptr) => LayerMaskEnum::BitVec(ptr),
+            None => LayerMaskEnum::Bitmask(self.as_inline().expect("expected bitmask")),
         }
     }
-    fn as_ref_enum(&self) -> LayerSetEnum<&BitVec> {
+    fn as_ref_enum(&self) -> LayerMaskEnum<&BitVec> {
         // SAFETY: The pointer is always valid, and the returned lifetime is
         //         borrowing from `self`.
         self.as_ptr_enum().map(|ptr| unsafe { ptr.as_ref() })
     }
-    fn as_mut_enum(&mut self) -> LayerSetEnum<&mut BitVec> {
+    fn as_mut_enum(&mut self) -> LayerMaskEnum<&mut BitVec> {
         // SAFETY: The pointer is always valid, and the returned lifetime is
         //         borrowing mutably from `self`.
         self.as_ptr_enum().map(|mut ptr| unsafe { ptr.as_mut() })
@@ -119,16 +119,17 @@ impl LayerSet {
     /// zero.
     fn first_usize(&self) -> usize {
         match self.as_ref_enum() {
-            LayerSetEnum::Bitmask(bits) => bits,
-            LayerSetEnum::BitVec(vec) => *vec.as_raw_slice().first().unwrap_or(&0),
+            LayerMaskEnum::Bitmask(bits) => bits,
+            LayerMaskEnum::BitVec(vec) => *vec.as_raw_slice().first().unwrap_or(&0),
         }
     }
 
     /// Constructs a layer set from a bitmask, ignoring the least significant
     /// bit.
     const fn from_bits(bits: usize) -> Self {
-        // SAFETY: bit-or with `1` to indicate that this is a bitset.
-        Self { bitmask: bits | 1 }
+        // SAFETY: bit-or with `1` to indicate that this is a bitmask.
+        let inline_bitmask = bits | 1;
+        Self { inline_bitmask }
     }
     fn from_bitvec(vec: Box<BitVec>) -> Self {
         assert_ptr_tagging_exists();
@@ -139,8 +140,8 @@ impl LayerSet {
     /// Returns whether the set is empty.
     pub fn is_empty(&self) -> bool {
         match self.as_ref_enum() {
-            LayerSetEnum::Bitmask(bits) => bits == 0,
-            LayerSetEnum::BitVec(vec) => vec.as_raw_slice().iter().all(|&bits| bits == 0),
+            LayerMaskEnum::Bitmask(bits) => bits == 0,
+            LayerMaskEnum::BitVec(vec) => vec.as_raw_slice().iter().all(|&bits| bits == 0),
         }
     }
 
@@ -168,10 +169,10 @@ impl LayerSet {
         let l = layer.to_usize();
         self.set_min_capacity(layer);
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(bits) => {
+            LayerMaskEnum::Bitmask(bits) => {
                 *self = Self::from_bits(bits | (1 << l));
             }
-            LayerSetEnum::BitVec(vec) => {
+            LayerMaskEnum::BitVec(vec) => {
                 vec.set(l, true);
             }
         }
@@ -181,8 +182,8 @@ impl LayerSet {
     pub fn insert_range(&mut self, range: LayerRange) {
         self.set_min_capacity(range.end());
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(bits) => *self = Self::from_bits(bits | range_mask_usize(range)),
-            LayerSetEnum::BitVec(vec) => {
+            LayerMaskEnum::Bitmask(bits) => *self = Self::from_bits(bits | range_mask_usize(range)),
+            LayerMaskEnum::BitVec(vec) => {
                 vec[range.start().to_usize()..=range.end().to_usize()].fill(true);
             }
         }
@@ -192,12 +193,12 @@ impl LayerSet {
     pub fn remove(&mut self, layer: Layer) {
         let l = layer.to_usize();
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(bits) => {
+            LayerMaskEnum::Bitmask(bits) => {
                 if l < usize::BITS as usize {
                     *self = Self::from_bits(bits & !(1 << l));
                 }
             }
-            LayerSetEnum::BitVec(vec) => {
+            LayerMaskEnum::BitVec(vec) => {
                 if l < vec.len() {
                     vec.set(l, false);
                 }
@@ -211,8 +212,10 @@ impl LayerSet {
             return;
         };
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(bits) => *self = Self::from_bits(bits & !range_mask_usize(range)),
-            LayerSetEnum::BitVec(vec) => {
+            LayerMaskEnum::Bitmask(bits) => {
+                *self = Self::from_bits(bits & !range_mask_usize(range));
+            }
+            LayerMaskEnum::BitVec(vec) => {
                 vec[range.start().to_usize()..=range.end().to_usize()].fill(false);
             }
         }
@@ -234,15 +237,15 @@ impl LayerSet {
     /// Returns the maximum layer that fits in the set at its current size.
     fn capacity(&self) -> Layer {
         Layer::new_clamped(match self.as_ref_enum() {
-            LayerSetEnum::Bitmask(_) => usize::BITS as u16 - 1,
-            LayerSetEnum::BitVec(vec) => (vec.len() - 1) as u16,
+            LayerMaskEnum::Bitmask(_) => usize::BITS as u16 - 1,
+            LayerMaskEnum::BitVec(vec) => (vec.len() - 1) as u16,
         })
     }
 
     /// Grows the set if necessary to ensure that `max_layer` fits.
     fn set_min_capacity(&mut self, max_layer: Layer) {
         if max_layer >= usize::BITS
-            && let Some(bitmask) = self.as_bitmask()
+            && let Some(bitmask) = self.as_inline()
         {
             *self = Self::from_bitvec(Box::new(BitVec::from_element(bitmask)));
         }
@@ -271,12 +274,12 @@ impl LayerSet {
     /// This canonicalizes the layer set.
     pub fn shrink_to_fit(&mut self) {
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(bits) => {
+            LayerMaskEnum::Bitmask(bits) => {
                 if bits == 0 {
                     *self = Self::EMPTY;
                 }
             }
-            LayerSetEnum::BitVec(vec) => match vec.last_one() {
+            LayerMaskEnum::BitVec(vec) => match vec.last_one() {
                 None => *self = Self::EMPTY,
                 Some(i) => {
                     if i < usize::BITS as usize {
@@ -293,8 +296,8 @@ impl LayerSet {
     /// Returns a bit slice **excluding bit 0**.
     fn as_bitslice_from_1(&self) -> &BitSlice {
         match self.as_ref_enum() {
-            LayerSetEnum::Bitmask(_) => &BitSlice::from_element(self.as_usize_ref())[1..],
-            LayerSetEnum::BitVec(vec) => &vec[1..],
+            LayerMaskEnum::Bitmask(_) => &BitSlice::from_element(self.as_usize_ref())[1..],
+            LayerMaskEnum::BitVec(vec) => &vec[1..],
         }
     }
 
@@ -304,9 +307,9 @@ impl LayerSet {
     }
 }
 
-impl Drop for LayerSet {
+impl Drop for LayerMask {
     fn drop(&mut self) {
-        if let LayerSetEnum::BitVec(ptr) = self.as_ptr_enum() {
+        if let LayerMaskEnum::BitVec(ptr) = self.as_ptr_enum() {
             // SAFETY: The pointer is valid. The value is veing dropped so it is
             //         safe to take ownership.
             drop(unsafe { Box::from_raw(ptr.as_ptr()) });
@@ -314,10 +317,10 @@ impl Drop for LayerSet {
     }
 }
 
-impl fmt::Debug for LayerSet {
+impl fmt::Debug for LayerMask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut first = true;
-        write!(f, "LayerSet {{")?;
+        write!(f, "LayerMask {{")?;
         for l in self.iter() {
             if first {
                 first = false;
@@ -331,28 +334,28 @@ impl fmt::Debug for LayerSet {
     }
 }
 
-impl fmt::Display for LayerSet {
+impl fmt::Display for LayerMask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", crate::LayerMask::from(self))
+        write!(f, "{}", crate::LayerSet::from(self))
     }
 }
 
-impl Clone for LayerSet {
+impl Clone for LayerMask {
     fn clone(&self) -> Self {
         match self.as_ref_enum() {
-            LayerSetEnum::Bitmask(bits) => Self::from_bits(bits),
-            LayerSetEnum::BitVec(vec) => Self::from_bitvec(Box::new(vec.clone())),
+            LayerMaskEnum::Bitmask(bits) => Self::from_bits(bits),
+            LayerMaskEnum::BitVec(vec) => Self::from_bitvec(Box::new(vec.clone())),
         }
     }
 }
 
-impl Default for LayerSet {
+impl Default for LayerMask {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl FromIterator<Layer> for LayerSet {
+impl FromIterator<Layer> for LayerMask {
     fn from_iter<T: IntoIterator<Item = Layer>>(iter: T) -> Self {
         let mut ret = Self::new();
         for layer in iter {
@@ -362,7 +365,7 @@ impl FromIterator<Layer> for LayerSet {
     }
 }
 
-impl FromIterator<LayerRange> for LayerSet {
+impl FromIterator<LayerRange> for LayerMask {
     fn from_iter<T: IntoIterator<Item = LayerRange>>(iter: T) -> Self {
         let mut ret = Self::new();
         for range in iter {
@@ -372,7 +375,7 @@ impl FromIterator<LayerRange> for LayerSet {
     }
 }
 
-impl<'a> IntoIterator for &'a LayerSet {
+impl<'a> IntoIterator for &'a LayerMask {
     type Item = Layer;
 
     type IntoIter = LayerSetIter<'a>;
@@ -382,8 +385,8 @@ impl<'a> IntoIterator for &'a LayerSet {
     }
 }
 
-impl BitAnd for &LayerSet {
-    type Output = LayerSet;
+impl BitAnd for &LayerMask {
+    type Output = LayerMask;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         let max_layer = std::cmp::min(self.capacity(), rhs.capacity());
@@ -391,17 +394,17 @@ impl BitAnd for &LayerSet {
     }
 }
 
-impl BitAnd<&LayerSet> for LayerSet {
-    type Output = LayerSet;
+impl BitAnd<&LayerMask> for LayerMask {
+    type Output = LayerMask;
 
-    fn bitand(mut self, rhs: &LayerSet) -> Self::Output {
+    fn bitand(mut self, rhs: &LayerMask) -> Self::Output {
         self &= rhs;
         self
     }
 }
 
-impl BitAnd for LayerSet {
-    type Output = LayerSet;
+impl BitAnd for LayerMask {
+    type Output = LayerMask;
 
     fn bitand(mut self, rhs: Self) -> Self::Output {
         self &= rhs;
@@ -409,15 +412,15 @@ impl BitAnd for LayerSet {
     }
 }
 
-impl BitAndAssign<&LayerSet> for LayerSet {
-    fn bitand_assign(&mut self, rhs: &LayerSet) {
+impl BitAndAssign<&LayerMask> for LayerMask {
+    fn bitand_assign(&mut self, rhs: &LayerMask) {
         let len = std::cmp::min(self.capacity(), rhs.capacity()).to_usize();
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(b1) => {
+            LayerMaskEnum::Bitmask(b1) => {
                 let b2 = rhs.first_usize();
                 *self = Self::from_bits(b1 & b2);
             }
-            LayerSetEnum::BitVec(b1) => {
+            LayerMaskEnum::BitVec(b1) => {
                 let b2 = rhs.as_bitslice_from_1();
                 b1[1..=len] &= &b2[..len];
                 b1[len + 1..].fill(false);
@@ -426,14 +429,14 @@ impl BitAndAssign<&LayerSet> for LayerSet {
     }
 }
 
-impl BitAndAssign for LayerSet {
+impl BitAndAssign for LayerMask {
     fn bitand_assign(&mut self, rhs: Self) {
         *self &= &rhs;
     }
 }
 
-impl BitOr for &LayerSet {
-    type Output = LayerSet;
+impl BitOr for &LayerMask {
+    type Output = LayerMask;
 
     fn bitor(self, rhs: Self) -> Self::Output {
         let max_layer = std::cmp::max(self.capacity(), rhs.capacity());
@@ -441,17 +444,17 @@ impl BitOr for &LayerSet {
     }
 }
 
-impl BitOr<&LayerSet> for LayerSet {
-    type Output = LayerSet;
+impl BitOr<&LayerMask> for LayerMask {
+    type Output = LayerMask;
 
-    fn bitor(mut self, rhs: &LayerSet) -> Self::Output {
+    fn bitor(mut self, rhs: &LayerMask) -> Self::Output {
         self |= rhs;
         self
     }
 }
 
-impl BitOr for LayerSet {
-    type Output = LayerSet;
+impl BitOr for LayerMask {
+    type Output = LayerMask;
 
     fn bitor(mut self, rhs: Self) -> Self::Output {
         self |= rhs;
@@ -459,15 +462,15 @@ impl BitOr for LayerSet {
     }
 }
 
-impl BitOrAssign<&LayerSet> for LayerSet {
-    fn bitor_assign(&mut self, rhs: &LayerSet) {
+impl BitOrAssign<&LayerMask> for LayerMask {
+    fn bitor_assign(&mut self, rhs: &LayerMask) {
         self.set_min_capacity(rhs.capacity());
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(b1) => {
+            LayerMaskEnum::Bitmask(b1) => {
                 let b2 = rhs.first_usize();
                 *self = Self::from_bits(b1 | b2);
             }
-            LayerSetEnum::BitVec(b1) => {
+            LayerMaskEnum::BitVec(b1) => {
                 let b2 = rhs.as_bitslice_from_1();
                 b1[1..=b2.len()] |= b2;
             }
@@ -475,14 +478,14 @@ impl BitOrAssign<&LayerSet> for LayerSet {
     }
 }
 
-impl BitOrAssign for LayerSet {
+impl BitOrAssign for LayerMask {
     fn bitor_assign(&mut self, rhs: Self) {
         *self |= &rhs;
     }
 }
 
-impl BitXor for &LayerSet {
-    type Output = LayerSet;
+impl BitXor for &LayerMask {
+    type Output = LayerMask;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         let max_layer = std::cmp::max(self.capacity(), rhs.capacity());
@@ -490,17 +493,17 @@ impl BitXor for &LayerSet {
     }
 }
 
-impl BitXor<&LayerSet> for LayerSet {
-    type Output = LayerSet;
+impl BitXor<&LayerMask> for LayerMask {
+    type Output = LayerMask;
 
-    fn bitxor(mut self, rhs: &LayerSet) -> Self::Output {
+    fn bitxor(mut self, rhs: &LayerMask) -> Self::Output {
         self ^= rhs;
         self
     }
 }
 
-impl BitXor for LayerSet {
-    type Output = LayerSet;
+impl BitXor for LayerMask {
+    type Output = LayerMask;
 
     fn bitxor(mut self, rhs: Self) -> Self::Output {
         self ^= rhs;
@@ -508,15 +511,15 @@ impl BitXor for LayerSet {
     }
 }
 
-impl BitXorAssign<&LayerSet> for LayerSet {
-    fn bitxor_assign(&mut self, rhs: &LayerSet) {
+impl BitXorAssign<&LayerMask> for LayerMask {
+    fn bitxor_assign(&mut self, rhs: &LayerMask) {
         self.set_min_capacity(rhs.capacity());
         match self.as_mut_enum() {
-            LayerSetEnum::Bitmask(b1) => {
+            LayerMaskEnum::Bitmask(b1) => {
                 let b2 = rhs.first_usize();
                 *self = Self::from_bits(b1 ^ b2);
             }
-            LayerSetEnum::BitVec(b1) => {
+            LayerMaskEnum::BitVec(b1) => {
                 let b2 = rhs.as_bitslice_from_1();
                 b1[1..=b2.len()] ^= b2;
             }
@@ -524,13 +527,13 @@ impl BitXorAssign<&LayerSet> for LayerSet {
     }
 }
 
-impl BitXorAssign for LayerSet {
+impl BitXorAssign for LayerMask {
     fn bitxor_assign(&mut self, rhs: Self) {
         *self ^= &rhs;
     }
 }
 
-/// Iterator over layers in a [`LayerSet`].
+/// Iterator over layers in a [`LayerMask`].
 ///
 /// Layers are yielded in ascending order (shallowest to deepest) with no
 /// duplicates.
@@ -593,7 +596,7 @@ mod tests {
         #[test]
         fn proptest_layer_set_ops(ops in prop::collection::vec(arbitrary_op(), 0..10)) {
             let mut expected = HashSet::new();
-            let mut actual = LayerSet::new();
+            let mut actual = LayerMask::new();
             for op in ops {
                 op.apply_to_hash_set(&mut expected);
                 op.apply_to_layer_set(&mut actual);
@@ -615,7 +618,7 @@ mod tests {
         })
     }
 
-    fn assert_consistency(expected: &HashSet<Layer>, actual: &LayerSet) {
+    fn assert_consistency(expected: &HashSet<Layer>, actual: &LayerMask) {
         assert_eq!(*expected, actual.iter().collect());
         for l in (1..=200).map(|i| Layer::new(i).unwrap()) {
             assert_eq!(expected.contains(&l), actual.contains(l))
@@ -661,7 +664,7 @@ mod tests {
             }
         }
 
-        fn apply_to_layer_set(self, set: &mut LayerSet) {
+        fn apply_to_layer_set(self, set: &mut LayerMask) {
             match self {
                 Op::Insert(layer) => set.insert(layer),
                 Op::Remove(layer) => set.remove(layer),

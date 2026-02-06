@@ -23,7 +23,7 @@ pub fn is_greek_letter(c: char) -> bool {
 /// Returns whether `c` is a character allowed in a move or rotation family
 /// name.
 pub fn is_family_char(c: char) -> bool {
-    is_latin_letter(c) || is_greek_letter(c)
+    is_latin_letter(c) || is_greek_letter(c) || c == '_'
 }
 
 /// Returns whether `c` is a character allowed in a bracketed transform,

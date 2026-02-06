@@ -19,13 +19,13 @@
 //!
 //! Two collection types are provided: [`LayerRange`] and [`LayerSet`].
 
+mod mask;
 mod range;
-mod set;
 mod signed;
 mod unsigned;
 
+pub use mask::{LayerMask, LayerSetIter};
 pub use range::LayerRange;
-pub use set::{LayerSet, LayerSetIter};
 pub use signed::SignedLayer;
 pub use unsigned::Layer;
 

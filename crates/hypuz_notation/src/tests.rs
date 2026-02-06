@@ -8,11 +8,13 @@ fn test_bracketed_transform() {
     let cfg = Features::default();
 
     let expected = NodeList(vec![
-        RepeatableNode::Move {
-            layer_mask: LayerMask::default(),
-            family: "R".into(),
-            transform: Some("F -> U".into()),
-        }
+        RepeatableNode::Move(Move {
+            layers: LayerPrefix::default(),
+            rot: Rotation {
+                family: "R".into(),
+                transform: Some("F -> U".into()),
+            },
+        })
         .with_multiplier(1),
     ]);
     assert_eq!(expected, parse_notation("R[ F -> U ]", cfg).unwrap());
@@ -28,44 +30,48 @@ fn test_nested_notation() {
         RepeatableNode::Group {
             kind: GroupKind::Simple,
             contents: NodeList(vec![
-                RepeatableNode::Move {
-                    layer_mask: LayerMask {
+                RepeatableNode::Move(Move {
+                    layers: LayerPrefix {
                         invert: true,
-                        contents: Some(LayerMaskContents::Single(Layer::new(2).unwrap())),
+                        contents: Some(LayerPrefixContents::Single(Layer::new(2).unwrap())),
                     },
-                    family: "aC".into(),
-                    transform: None,
-                }
+                    rot: Rotation {
+                        family: "aC".into(),
+                        transform: None,
+                    },
+                })
                 .with_multiplier(16),
-                RepeatableNode::Rotation {
+                RepeatableNode::Rotation(Rotation {
                     family: Str::default(),
                     transform: None,
-                }
+                })
                 .with_multiplier(1),
                 RepeatableNode::BinaryGroup {
                     kind: BinaryGroupKind::Commutator,
                     contents: [
                         NodeList(vec![
-                            RepeatableNode::Rotation {
+                            RepeatableNode::Rotation(Rotation {
                                 family: "yx".into(),
                                 transform: None,
-                            }
+                            })
                             .with_multiplier(-1),
                         ]),
                         NodeList(vec![
-                            RepeatableNode::Rotation {
+                            RepeatableNode::Rotation(Rotation {
                                 family: "U".into(),
                                 transform: Some("1 j".into()),
-                            }
+                            })
                             .with_multiplier(-1),
-                            RepeatableNode::Move {
-                                layer_mask: LayerMask {
+                            RepeatableNode::Move(Move {
+                                layers: LayerPrefix {
                                     invert: true,
                                     contents: None,
                                 },
-                                family: "IUR".into(),
-                                transform: None,
-                            }
+                                rot: Rotation {
+                                    family: "IUR".into(),
+                                    transform: None,
+                                },
+                            })
                             .with_multiplier(16),
                         ]),
                     ],
@@ -133,25 +139,9 @@ impl Arbitrary for Node {
     type Parameters = ();
 
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
-        use crate::charsets::*;
-
-        let family = FAMILY_REGEX.prop_map_into();
-        let opt_family = prop_oneof![Just(String::new()), FAMILY_REGEX.boxed()].prop_map_into();
-        let opt_transform = prop_oneof![
-            Just(None),
-            "[A-Z]([A-Z ]*[A-Z])?".prop_map_into().prop_map(Some)
-        ];
-
         let leaf_repeatable_node = prop_oneof![
-            (LayerMask::arbitrary(), family, opt_transform.clone()).prop_map(
-                |(layer_mask, family, transform)| RepeatableNode::Move {
-                    layer_mask,
-                    family,
-                    transform,
-                }
-            ),
-            (opt_family, opt_transform)
-                .prop_map(|(family, transform)| RepeatableNode::Rotation { family, transform }),
+            Move::arbitrary().prop_map(RepeatableNode::from),
+            Rotation::arbitrary().prop_map(RepeatableNode::from),
         ];
         let leaf_node = prop_oneof![
             (leaf_repeatable_node, Multiplier::arbitrary())
@@ -180,6 +170,51 @@ impl Arbitrary for Node {
                     branch_node
                 },
             )
+            .boxed()
+    }
+
+    type Strategy = BoxedStrategy<Self>;
+}
+
+impl Arbitrary for Move {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use crate::charsets::FAMILY_REGEX;
+
+        let layers = LayerPrefix::arbitrary();
+        let family = FAMILY_REGEX.prop_map_into();
+        let opt_transform = prop_oneof![
+            Just(None),
+            "[A-Z]([A-Z ]*[A-Z])?".prop_map_into().prop_map(Some)
+        ];
+
+        (layers, family, opt_transform)
+            .prop_map(|(layers, family, transform)| Move {
+                layers,
+                rot: Rotation { family, transform },
+            })
+            .boxed()
+    }
+
+    type Strategy = BoxedStrategy<Self>;
+}
+
+impl Arbitrary for Rotation {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use crate::charsets::FAMILY_REGEX;
+
+        let opt_family =
+            prop_oneof![Just(String::new()), FAMILY_REGEX.prop_map_into().boxed()].prop_map_into();
+        let opt_transform = prop_oneof![
+            Just(None),
+            "[A-Z]([A-Z ]*[A-Z])?".prop_map_into().prop_map(Some)
+        ];
+
+        (opt_family, opt_transform)
+            .prop_map(|(family, transform)| Rotation { family, transform })
             .boxed()
     }
 
@@ -254,8 +289,8 @@ proptest! {
 }
 
 #[test]
-fn test_layer_mask_contents_to_ranges() {
-    fn to_ranges(contents: LayerMaskContents, layer_count: u16) -> Vec<[u16; 2]> {
+fn test_layer_prefix_contents_to_ranges() {
+    fn to_ranges(contents: LayerPrefixContents, layer_count: u16) -> Vec<[u16; 2]> {
         contents
             .to_ranges(layer_count)
             .into_iter()
@@ -263,10 +298,10 @@ fn test_layer_mask_contents_to_ranges() {
             .collect()
     }
 
-    let single = |i| LayerMaskContents::Single(Layer::new(i).unwrap());
+    let single = |i| LayerPrefixContents::Single(Layer::new(i).unwrap());
 
     let range = |i, j| {
-        LayerMaskContents::Range(LayerRange::new(
+        LayerPrefixContents::Range(LayerRange::new(
             Layer::new(i).unwrap(),
             Layer::new(j).unwrap(),
         ))
