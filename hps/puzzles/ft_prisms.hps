@@ -184,7 +184,7 @@ add_twist_system_generator(
                 with #sym = shape.sym {
                     export base_axis = add_axis(shape.base_pole, shape.base_names)
                     export side_axis = add_axis(shape.side_pole, shape.side_names)
-                    add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = shape.h)
+                    add_twist(base_axis, #sym.thru([1, 0]), gizmo_pole_distance = 1)
                     add_twist(side_axis, #sym.thru([2, 0]), gizmo_pole_distance = 1)
 
                     opposite_side_axis = null
