@@ -34,3 +34,6 @@ proptest.workspace = true
 [features]
 typed_index = ["dep:hypuz_util"]
 serde = ["dep:hypuz_util", "dep:serde", "hypuz_util/serde", "lean_string/serde"]
+
+[package.metadata.docs.rs]
+all-features = true

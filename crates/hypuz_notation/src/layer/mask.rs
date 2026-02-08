@@ -1,4 +1,5 @@
 use std::fmt;
+use std::hash::Hash;
 use std::iter::FusedIterator;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 use std::ptr::NonNull;
@@ -17,18 +18,26 @@ fn assert_ptr_tagging_exists() {
     );
 }
 
-/// Bitmask of positive [`Layer`]s. For a layer mask used in notation, see
-/// [`crate::LayerPrefix`].
+/// Bitmask of positive [`Layer`]s.
 ///
-/// This is optimized to fit in only one `usize` and avoid allocation when all
-/// layer numbers are sufficiently small (≤63 on 64-bit platforms, and ≤31 on
-/// 32-bit platforms) but higher layer numbers require allocation to store the
+/// This is optimized to fit in exactly one `usize` and avoid allocation when
+/// all layer numbers are sufficiently small (≤63 on 64-bit platforms, and ≤31
+/// on 32-bit platforms). Higher layer numbers require allocation to store the
 /// bitmask.
+///
+/// Bitwise operations are also incredibly efficient.
 ///
 /// Be wary: constructing a `LayerMask` that contains a large layer number will
 /// allocate bits for all layers smaller than it. For example,
 /// `LayerMask::from_layer(Layer::new(300).unwrap())` allocates at least 40
 /// bytes.
+///
+/// ## Other collections
+///
+/// For a sparse set of layers on axes with 64 or more layers, consider
+/// [`hypuz_util::ti::TiSet`]`<`[`Layer`]`>`.
+///
+/// For a layer mask used in notation, see [`crate::LayerPrefix`].
 pub union LayerMask {
     /// If `bitmask & 1 == 1`, then this is an inline bitmask. Otherwise it is
     /// a pointer to a [`BitVec`].
@@ -131,8 +140,9 @@ impl LayerMask {
         let inline_bitmask = bits | 1;
         Self { inline_bitmask }
     }
-    fn from_bitvec(vec: Box<BitVec>) -> Self {
+    fn from_bitvec(mut vec: Box<BitVec>) -> Self {
         assert_ptr_tagging_exists();
+        vec.set(0, false);
         let pointer = NonNull::new(Box::into_raw(vec)).expect("Box pointer must be non-null");
         Self { pointer }
     }
@@ -257,6 +267,8 @@ impl LayerMask {
     }
 
     /// Clones the set and resizes it to fit exactly `new_capacity`.
+    ///
+    /// This may remove layers from the mask.
     fn clone_resized(&self, max_layer: Layer) -> Self {
         if max_layer >= usize::BITS {
             let mut vec = BitVec::repeat(false, max_layer.to_usize() + 1);
@@ -294,10 +306,24 @@ impl LayerMask {
     }
 
     /// Returns a bit slice **excluding bit 0**.
+    ///
+    /// The returned bitslice may be empty.
     fn as_bitslice_from_1(&self) -> &BitSlice {
         match self.as_ref_enum() {
             LayerMaskEnum::Bitmask(_) => &BitSlice::from_element(self.as_usize_ref())[1..],
             LayerMaskEnum::BitVec(vec) => &vec[1..],
+        }
+    }
+
+    /// Returns a bit slice **excluding bit 0** and truncated as much as
+    /// possible without removing any layers present in the mask.
+    ///
+    /// The returned bitslice may be empty.
+    fn as_truncated_bitslice_from_1(&self) -> &BitSlice {
+        let bitslice = self.as_bitslice_from_1();
+        match bitslice.last_one() {
+            Some(i) => &bitslice[..i + 1],
+            None => BitSlice::empty(),
         }
     }
 
@@ -382,6 +408,33 @@ impl<'a> IntoIterator for &'a LayerMask {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl PartialEq for LayerMask {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_truncated_bitslice_from_1() == other.as_truncated_bitslice_from_1()
+    }
+}
+
+impl Eq for LayerMask {}
+
+impl PartialOrd for LayerMask {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for LayerMask {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_truncated_bitslice_from_1()
+            .cmp(other.as_truncated_bitslice_from_1())
+    }
+}
+
+impl Hash for LayerMask {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_truncated_bitslice_from_1().hash(state);
     }
 }
 
@@ -615,6 +668,24 @@ impl<'de> serde::Deserialize<'de> for LayerMask {
 }
 
 #[cfg(test)]
+impl proptest::arbitrary::Arbitrary for LayerMask {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use proptest::prelude::*;
+
+        prop_oneof![
+            usize::arbitrary().prop_map(|bits| LayerMask::from_bits(bits)),
+            <[usize; 3]>::arbitrary()
+                .prop_map(|elems| LayerMask::from_bitvec(Box::new(BitVec::from_slice(&elems))))
+        ]
+        .boxed()
+    }
+
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+}
+
+#[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
@@ -624,7 +695,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn proptest_layer_set_ops(ops in prop::collection::vec(arbitrary_op(), 0..10)) {
+        fn proptest_layer_mask_insert_remove(ops in prop::collection::vec(arbitrary_op(), 0..10)) {
             let mut expected = HashSet::new();
             let mut actual = LayerMask::new();
             for op in ops {
@@ -632,8 +703,6 @@ mod tests {
                 op.apply_to_layer_set(&mut actual);
             }
 
-            assert_consistency(&expected, &actual);
-            actual.shrink_to_fit();
             assert_consistency(&expected, &actual);
         }
     }
@@ -661,6 +730,7 @@ mod tests {
             small_layer().prop_map(Op::Remove),
             small_layer_range().prop_map(Op::InsertRange),
             small_layer_range().prop_map(Op::RemoveRange),
+            Just(Op::ShrinkToFit),
         ]
     }
 
@@ -670,6 +740,7 @@ mod tests {
         Remove(Layer),
         InsertRange(LayerRange),
         RemoveRange(LayerRange),
+        ShrinkToFit,
     }
 
     impl Op {
@@ -691,6 +762,7 @@ mod tests {
                         set.remove(&l);
                     }
                 }
+                Op::ShrinkToFit => (),
             }
         }
 
@@ -700,7 +772,38 @@ mod tests {
                 Op::Remove(layer) => set.remove(layer),
                 Op::InsertRange(range) => set.insert_range(range),
                 Op::RemoveRange(range) => set.remove_range(range),
+                Op::ShrinkToFit => set.shrink_to_fit(),
             }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_layer_mask_bit_ops(l1: LayerMask, l2: LayerMask) {
+            let s1: HashSet<Layer> = l1.iter().collect();
+            let s2: HashSet<Layer> = l2.iter().collect();
+            let intersection: HashSet<Layer> = s1.intersection(&s2).copied().collect();
+            let union: HashSet<Layer> = s1.union(&s2).copied().collect();
+            let symmetric_difference: HashSet<Layer> = s1.symmetric_difference(&s2).copied().collect();
+            assert_eq!(intersection, (&l1 & &l2).iter().collect());
+            assert_eq!(union, (&l1 | &l2).iter().collect());
+            assert_eq!(symmetric_difference, (&l1 ^ &l2).iter().collect());
+        }
+
+        #[test]
+        fn proptest_layer_mask_from_iterator(l1: LayerMask) {
+            let l2 = LayerMask::from_iter(&l1);
+            let s1: HashSet<Layer> = l1.iter().collect();
+            let s2: HashSet<Layer> = l2.iter().collect();
+            assert_eq!(s1, s2);
+            assert_eq!(l1, l2);
+        }
+
+        #[test]
+        fn proptest_layer_mask_eq(l1: LayerMask, l2: LayerMask) {
+            let s1: HashSet<Layer> = l1.iter().collect();
+            let s2: HashSet<Layer> = l2.iter().collect();
+            assert_eq!(s1 == s2, l1 == l2);
         }
     }
 }

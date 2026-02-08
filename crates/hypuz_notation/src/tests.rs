@@ -227,10 +227,9 @@ proptest! {
     #[test]
     fn proptest_resolve_signed_layer_range_correctness(
         layer_count in 1..=5_u16,
-        lo in -10..=10_i16,
-        hi in -10..=10_i16,
+        lo in prop_oneof![-10..=-1_i16, 1..=10_i16],
+        hi in prop_oneof![-10..=-1_i16, 1..=10_i16],
     ) {
-        prop_assume!(lo != 0 && hi != 0);
         let lo = SignedLayer::new(lo).unwrap();
         let hi = SignedLayer::new(hi).unwrap();
         let actual: Vec<Layer> = SignedLayer::resolve_range([lo, hi], layer_count)
@@ -244,11 +243,11 @@ proptest! {
         if hi < 0 {
             hi = layer_count as i16 + hi + 1;
         }
-        prop_assume!(lo <= hi);
-        let expected: Vec<Layer> = (lo..=hi)
-            .filter(|x| (1..=layer_count as i16).contains(x))
-            .map(|i| Layer::new(i as u16).unwrap())
-            .collect();
+        let expected: Vec<Layer> =
+            (std::cmp::min(lo, hi)..=std::cmp::max(lo, hi))
+                .filter(|x| (1..=layer_count as i16).contains(x))
+                .map(|i| Layer::new(i as u16).unwrap())
+                .collect();
         assert_eq!(expected, actual);
     }
 }

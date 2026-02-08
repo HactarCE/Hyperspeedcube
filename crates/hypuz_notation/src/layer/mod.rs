@@ -15,9 +15,7 @@
 //! cases, use [`Layer`]. When you want to support negative layer numbers, use
 //! [`SignedLayer`].
 //!
-//! ## Collections
-//!
-//! Two collection types are provided: [`LayerRange`] and [`LayerSet`].
+//! For a collection of layers, see [`LayerMask`].
 
 mod mask;
 mod range;
