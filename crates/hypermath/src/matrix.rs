@@ -8,25 +8,16 @@ use crate::{Float, Ndim, Vector, VectorRef, permutations};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Matrix {
-    /// Number of dimensions of the matrix.
-    ndim: u8,
     /// Elements stored in **column-major** order.
-    elems: Vec<Float>,
+    elems: Box<[Float]>,
 }
 impl Matrix {
-    /// 0-by-0 matrix that functions as the identity matrix.
-    pub const EMPTY_IDENT: Self = Matrix {
-        ndim: 0,
-        elems: vec![],
-    };
-
     /// Constructs a matrix with all zeros.
     pub fn zero(ndim: u8) -> Self {
         Self {
-            ndim,
-            elems: vec![0.0; ndim as usize * ndim as usize],
+            elems: vec![0.0; ndim as usize * ndim as usize].into_boxed_slice(),
         }
     }
     /// Constructs an identity matrix.
@@ -50,15 +41,15 @@ impl Matrix {
     ///     ],
     /// );
     /// ```
-    pub fn from_elems(elems: Vec<Float>) -> Self {
-        let ndim = (elems.len() as Float).sqrt() as u8;
+    pub fn from_elems(elems: Box<[Float]>) -> Self {
+        let ndim = (elems.len() as Float).sqrt();
         assert_eq!(
             ndim as usize * ndim as usize,
             elems.len(),
             "matrix must have square number of elements; got {} elements",
             elems.len(),
         );
-        Matrix { ndim, elems }
+        Matrix { elems }
     }
     /// Returns a slice of the n^2 elements in **column-major** order.
     ///
@@ -86,7 +77,6 @@ impl Matrix {
         let cols = cols.into_iter();
         let ndim = cols.len() as u8;
         Self {
-            ndim,
             elems: cols
                 .flat_map(|col| (0..ndim).map(move |i| col.get(i)))
                 .collect(),
@@ -167,12 +157,12 @@ impl Matrix {
     /// possible.
     #[must_use]
     pub fn at_ndim(&self, ndim: u8) -> Matrix {
-        if self.ndim == ndim {
+        if self.ndim() == ndim {
             self.clone()
         } else {
             let mut ret = Matrix::ident(ndim);
-            for i in 0..ret.ndim() {
-                for j in 0..ret.ndim() {
+            for i in 0..ndim {
+                for j in 0..ndim {
                     *ret.get_mut(i, j) = self.get(i, j);
                 }
             }
@@ -254,7 +244,7 @@ impl Matrix {
 
     /// Returns the determinant of the matrix.
     pub fn determinant(&self) -> Float {
-        permutations::permutations_with_parity(0..self.ndim)
+        permutations::permutations_with_parity(0..self.ndim())
             .map(|(permutation, parity)| {
                 let parity = match parity {
                     permutations::Parity::Even => 1.0,
@@ -272,15 +262,16 @@ impl Matrix {
 
     /// Returns the inverse of the matrix, or `None` if the determinant is zero.
     pub fn inverse(&self) -> Option<Matrix> {
+        let ndim = self.ndim();
         let determinant = self.determinant();
         let recip_determinant = 1.0 / determinant;
         recip_determinant.is_finite().then(|| {
             Matrix::from_elems(
-                (0..self.ndim)
+                (0..ndim)
                     .flat_map(|j| {
-                        (0..self.ndim).map(move |i| {
+                        (0..ndim).map(move |i| {
                             let mut a = self.clone();
-                            for k in 0..self.ndim {
+                            for k in 0..ndim {
                                 *a.get_mut(i, k) = 0.0;
                             }
                             *a.get_mut(i, j) = 1.0;
@@ -305,7 +296,14 @@ impl FromIterator<Float> for Matrix {
 impl Ndim for Matrix {
     /// Returns the width and height of the matrix.
     fn ndim(&self) -> u8 {
-        self.ndim
+        let ndim = (self.elems.len() as Float).sqrt() as u8;
+        assert_eq!(
+            ndim as usize * ndim as usize,
+            self.elems.len(),
+            "matrix must have square number of elements; got {} elements",
+            self.elems.len(),
+        );
+        ndim
     }
 }
 
@@ -313,14 +311,14 @@ impl Ndim for Matrix {
 #[macro_export]
 macro_rules! col_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        $crate::Matrix::from_elems(vec![$($($n as Float),*),*])
+        $crate::Matrix::from_elems(::std::vec![$($($n as Float),*),*].into_boxed_slice())
     };
 }
 /// Constructs a matrix from rows.
 #[macro_export]
 macro_rules! row_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        $crate::Matrix::from_elems(vec![$($($n as Float),*),*]).transpose()
+        $crate::Matrix::from_elems(::std::vec![$($($n as Float),*),*].into_boxed_slice()).transpose()
     };
 }
 
@@ -484,12 +482,12 @@ mod tests {
     #[test]
     fn test_matrix_empty_ident() {
         assert_eq!(
-            Matrix::EMPTY_IDENT * vector![1.0, 2.0, 3.0, 4.0],
+            Matrix::ident(0) * vector![1.0, 2.0, 3.0, 4.0],
             vector![1.0, 2.0, 3.0, 4.0],
         );
         let m = col_matrix![[1, 2, 3], [4, 5, 6], [7, 8, 9]];
-        assert_eq!(m, Matrix::EMPTY_IDENT * &m);
-        assert_eq!(m, &m * Matrix::EMPTY_IDENT);
+        assert_eq!(m, Matrix::ident(0) * &m);
+        assert_eq!(m, &m * Matrix::ident(0));
     }
 
     #[test]
