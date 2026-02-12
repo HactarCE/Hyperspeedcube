@@ -105,11 +105,15 @@ pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero + Ndim {
     }
 
     /// Returns the component of the vector that is parallel to `other`.
+    ///
+    /// Returns `None` if `other` is zero.
     fn projected_to(&self, other: &Vector) -> Option<Vector> {
         let scale_factor = util::try_div(self.dot(other), other.mag2())?;
         Some(other * scale_factor)
     }
     /// Returns the component of the vector that is perpendicular to `other`.
+    ///
+    /// Returns `None` if `other` is zero.
     fn rejected_from(&self, other: &Vector) -> Option<Vector> {
         Some(-self.projected_to(other)? + self)
     }

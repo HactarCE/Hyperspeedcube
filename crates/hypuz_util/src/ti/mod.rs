@@ -16,7 +16,7 @@ mod mask;
 pub mod vec;
 
 pub use index::{TypedIndex, TypedIndexIter};
-pub use mask::TiMask;
+pub use mask::{TiMask, TiMaskIter};
 pub use vec::TiVec;
 
 pub use crate::error::{IndexOutOfRange, IndexOverflow};

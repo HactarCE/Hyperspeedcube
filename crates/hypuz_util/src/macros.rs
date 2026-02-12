@@ -41,7 +41,7 @@ macro_rules! typed_index_struct {
                 const TYPE_NAME: &'static str = stringify!($struct_name);
 
                 fn to_index(self) -> usize {
-                    self.to_u64() as usize
+                    $crate::ti::Fits64::to_u64(self) as usize
                 }
 
                 fn try_from_index(index: usize) -> Result<Self, $crate::error::IndexOverflow> {

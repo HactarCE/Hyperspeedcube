@@ -3,9 +3,16 @@ use std::ops::{BitAndAssign, BitOrAssign, BitXorAssign, Not};
 
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
+use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 
 use super::TypedIndex;
+
+// TODO: make a separate type for `TiMaskIter`
+
+/// Iterator over elements in a [`TiMask`].
+pub type TiMaskIter<'a, I> =
+    std::iter::FilterMap<bitvec::slice::IterOnes<'a, usize, Lsb0>, fn(usize) -> Option<I>>;
 
 /// Dense set of typed indexes.
 ///
@@ -50,11 +57,11 @@ impl<I> TiMask<I> {
         self
     }
 
-    /// Returns the total number of indexes in the puzzle.
+    /// Returns the maximum number of elements that could be in the set.
     pub fn max_len(&self) -> usize {
         self.bits.len()
     }
-    /// Returns the number of pieces in the set.
+    /// Returns the number of elements in the set.
     pub fn len(&self) -> usize {
         self.bits.count_ones()
     }
@@ -101,7 +108,7 @@ impl<I: TypedIndex> TiMask<I> {
     }
 
     /// Returns an iterator over every element in the set.
-    pub fn iter(&self) -> impl '_ + Iterator<Item = I> {
+    pub fn iter(&self) -> TiMaskIter<'_, I> {
         self.bits
             .iter_ones()
             .filter_map(|i| I::try_from_index(i).ok())
@@ -118,6 +125,21 @@ impl<I: TypedIndex> TiMask<I> {
     /// Removes `element` from the set.
     pub fn remove(&mut self, element: I) {
         self.bits.set(element.to_index(), false);
+    }
+
+    /// Removes the first element from the set and returns it, if any. The first
+    /// element is always the minimum element in the set.
+    pub fn pop_first(&mut self) -> Option<I> {
+        let i = self.bits.first_one()?;
+        self.bits.set(i, false);
+        I::try_from_index(i).ok()
+    }
+    /// Removes the last element from the set and returns it, if any. The last
+    /// element is always the maximum element in the set.
+    pub fn pop_last(&mut self) -> Option<I> {
+        let i = self.bits.last_one()?;
+        self.bits.set(i, false);
+        I::try_from_index(i).ok()
     }
 }
 
@@ -195,3 +217,13 @@ impl<I> BitXorAssign<&Self> for TiMask<I> {
     }
 }
 impl_forward_owned_ops_to_assign_ops!(BitXorAssign::bitxor_assign, BitXor::bitxor);
+
+impl<'a, I: TypedIndex> IntoIterator for &'a TiMask<I> {
+    type Item = I;
+
+    type IntoIter = TiMaskIter<'a, I>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}

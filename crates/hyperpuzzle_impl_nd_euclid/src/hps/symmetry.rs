@@ -316,7 +316,7 @@ impl HpsSymmetry {
         &self,
         object: T,
     ) -> Vec<(AbbrGenSeq, Motor, T)> {
-        hypershape::orbit(
+        hypershape::orbit_geometric(
             &self
                 .generators
                 .iter()

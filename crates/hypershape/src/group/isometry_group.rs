@@ -1,20 +1,20 @@
-use std::ops::Index;
 use std::sync::Arc;
+use std::{fmt, ops::Index};
 
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
 
 use super::{
-    AbstractGroup, GeneratorId, Group, GroupBuilder, GroupElementId, GroupError, GroupResult,
-    PerGenerator, PerGroupElement,
+    AbstractGroup, GeneratorId, Group, GroupAction, GroupBuilder, GroupElementId, GroupError,
+    GroupResult, PerGenerator, PerGroupElement, PerRefPoint, RefPoint,
 };
 
 /// Discrete subgroup of the [isometry group](https://w.wiki/7QFZ) of a space.
 #[derive(Debug, Clone)]
 pub struct IsometryGroup {
     /// Underlying group structure.
-    group: AbstractGroup,
+    group: Arc<AbstractGroup>,
     /// Elements of the group, indexed by ID.
     elements: PerGroupElement<pga::Motor>,
     /// Nearest neighbors data structure.
@@ -152,7 +152,7 @@ impl IsometryGroup {
             Ok(())
         })?;
 
-        let group = g.build()?;
+        let group = Arc::new(g.build()?);
         debug_assert_eq!(elements.len(), group.element_count());
 
         let nearest_neighbors =
@@ -177,6 +177,53 @@ impl IsometryGroup {
     pub fn element_from_motor(&self, motor: &pga::Motor) -> Option<GroupElementId> {
         let nearest = self.nearest_neighbors.nearest(motor).copied();
         nearest.filter(|&id| self.elements[id].is_equivalent_to(motor))
+    }
+
+    /// Returns the action of the group on a set of points.
+    pub fn action_on_points(
+        &self,
+        points: &PerRefPoint<Point>,
+    ) -> Result<GroupAction, PartialGroupAction> {
+        let geom_to_ref_point =
+            ApproxHashMap::from_iter(APPROX, points.iter().map(|(i, p)| (p.clone(), i)));
+        Ok(GroupAction {
+            group: Arc::clone(&self.group),
+            reference_point_count: points.len(),
+            action_table: self
+                .generators()
+                .map(|g| {
+                    points.try_map_ref(|i, p| {
+                        Ok(*geom_to_ref_point
+                            .get(self[g].transform(p))
+                            .ok_or_else(|| PartialGroupAction::new(g, i))?)
+                    })
+                })
+                .try_collect()?,
+        })
+    }
+}
+
+/// Error returned when a group action is partial; i.e., there is some missing
+/// reference point.
+#[derive(Debug, Default, Clone, PartialEq, Hash)]
+pub struct PartialGroupAction {
+    pub generator: GeneratorId,
+    pub point: RefPoint,
+}
+
+impl PartialGroupAction {
+    fn new(generator: GeneratorId, point: RefPoint) -> Self {
+        Self { generator, point }
+    }
+}
+
+impl fmt::Display for PartialGroupAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { generator, point } = self;
+        write!(
+            f,
+            "point {point} has no successor for generator {generator}",
+        )
     }
 }
 

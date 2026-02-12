@@ -2,16 +2,23 @@
 //! groups.
 
 mod abstract_group;
+mod action;
 mod common;
+mod constraints;
 mod coxeter_group;
 mod finite_coxeter_group;
 mod isometry_group;
+mod subgroup;
 
 pub use abstract_group::{AbstractGroup, Group, GroupBuilder};
+use action::SubgroupOrbits;
+pub use action::{GroupAction, PerRefPoint, RefPoint};
 pub use common::*;
+pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
 pub use coxeter_group::*;
 pub use finite_coxeter_group::FiniteCoxeterGroup;
 pub use isometry_group::IsometryGroup;
+pub use subgroup::{Coset, Subgroup};
 
 /// Parses a single character of a vector in limited Dynkin notation, where `o`
 /// represents `0` and `x` represents `1`. Returns `None` for all other
