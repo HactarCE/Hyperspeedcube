@@ -31,13 +31,14 @@ pub use tags::{AllTags, TAGS};
 
 pub use crate::logging::*;
 pub use crate::names::{
-    is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec, AutoNames,
+    AutoNames, is_name_spec_valid, name_spec_matches_name, preferred_name_from_name_spec,
 };
 pub use crate::rgb::Rgb;
 pub use crate::timestamp::Timestamp;
 
 /// Prelude of common imports.
 pub mod prelude {
+    pub use crate::LayerMaskUint;
     pub use crate::catalog::{
         Catalog, ColorSystemCatalog, ColorSystemGenerator, GeneratorParam, GeneratorParamError,
         GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
@@ -53,7 +54,6 @@ pub mod prelude {
     pub use crate::ti::*;
     pub use crate::traits::*;
     pub use crate::version::Version;
-    pub use crate::LayerMaskUint;
 }
 
 /// Unsigned integer type used for [`LayerMask`].

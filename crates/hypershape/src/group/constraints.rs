@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use hypuz_util::ti::TiVec;
 use smallvec::SmallVec;

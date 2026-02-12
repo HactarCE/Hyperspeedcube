@@ -1,8 +1,9 @@
 //! Serialization/deserialization of a list of optional booleans using
 //! [`super::hex_bitvec`].
 
-use crate::ti::{TiVec, TypedIndex};
 use serde::{Deserializer, Serializer};
+
+use crate::ti::{TiVec, TypedIndex};
 
 /// Serializes a `TiVec<I, Option<bool>>` using a hex bitvec.
 pub fn serialize<S: Serializer, I: TypedIndex>(

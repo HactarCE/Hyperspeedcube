@@ -1,5 +1,6 @@
+use std::fmt;
+use std::ops::Index;
 use std::sync::Arc;
-use std::{fmt, ops::Index};
 
 use hypermath::prelude::*;
 use itertools::Itertools;

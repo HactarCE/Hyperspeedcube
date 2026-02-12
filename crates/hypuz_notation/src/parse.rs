@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use chumsky::prelude::*;
 
-use crate::{Features, GroupKind, LayerFeatures, Span, spanned::*};
+use crate::spanned::*;
+use crate::{Features, GroupKind, LayerFeatures, Span};
 
 /// Error produced while parsing puzzle notation.
 ///
