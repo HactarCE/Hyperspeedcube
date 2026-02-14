@@ -42,6 +42,7 @@ impl<'pass> PassParams<'pass> {
             label: Some("render_ids"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: self.ids_texture,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: match self.clear {

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use hcegui::reorder::Dnd;
+use hcegui::dnd::Dnd;
 use hyperprefs::{
     ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
     FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,

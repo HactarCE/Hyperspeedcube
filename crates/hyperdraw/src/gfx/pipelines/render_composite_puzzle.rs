@@ -50,6 +50,7 @@ impl<'pass> PassParams<'pass> {
             label: Some("render_composite_puzzle"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: self.target,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: match self.clear {

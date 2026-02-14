@@ -31,18 +31,16 @@ cgmath.workspace = true
 clap.workspace = true
 clio.workspace = true
 color-eyre.workspace = true
-color-hex.workspace = true
 comrak.workspace = true
 eframe.workspace = true
-egui.workspace = true
+egui = { workspace = true, features = ["color-hex"] }
 egui_dock.workspace = true
 egui_extras.workspace = true
-egui-winit.workspace = true
 empfindung.workspace = true
 env_logger.workspace = true
 eyre.workspace = true
 float-ord.workspace = true
-hcegui = { workspace = true, features = ["reorder"] }
+hcegui = { workspace = true, features = ["ansi", "dnd"] }
 indexmap.workspace = true
 itertools.workspace = true
 lab.workspace = true
@@ -73,7 +71,6 @@ optick-attr = { version = "0.3.0", optional = true }
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-# egui-winit = { version = "0.29.1", default-features = false, features = ["links"] } # TODO: is this necessary?
 js-sys = "=0.3.77"
 tracing-wasm = "0.2"
 wasm-bindgen = "0.2"

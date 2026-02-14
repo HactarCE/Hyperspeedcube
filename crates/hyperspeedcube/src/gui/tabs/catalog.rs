@@ -471,7 +471,7 @@ impl<'a> Query<'a> {
             }
         }
 
-        ui.fonts(|fonts| fonts.layout_job(job))
+        ui.fonts_mut(|fonts| fonts.layout_job(job))
     }
 
     pub fn try_match<'b>(&self, object: &'b PuzzleListMetadata) -> Option<FuzzyQueryMatch<'b>> {

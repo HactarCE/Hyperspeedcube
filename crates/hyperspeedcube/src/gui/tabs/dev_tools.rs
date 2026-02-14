@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hcegui::reorder::Dnd;
+use hcegui::dnd::Dnd;
 use hyperprefs::Preferences;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::{NdEuclidViewState, PuzzleView};

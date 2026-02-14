@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hcegui::reorder::{BeforeOrAfter, Dnd, DndMove, DndResponse, ReorderDndMove};
+use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse, ReorderDndMove};
 use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
 use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;

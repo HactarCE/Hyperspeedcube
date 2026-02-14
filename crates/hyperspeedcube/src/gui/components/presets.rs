@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use hcegui::reorder::{Dnd, DndStyle, ReorderDnd};
+use hcegui::dnd::{Dnd, DndStyle, ReorderDnd};
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
@@ -590,7 +590,7 @@ fn elide_overflowing_line(ui: &mut egui::Ui, s: &str, max_width: f32) -> String 
     let mut job = egui::text::LayoutJob::simple_singleline(s.to_owned(), font_id, color);
     job.wrap.max_rows = 1;
     job.wrap.max_width = max_width;
-    ui.fonts(|fonts| fonts.layout_job(job))
+    ui.fonts_mut(|fonts| fonts.layout_job(job))
         .rows
         .first()
         .map(|row| row.text())

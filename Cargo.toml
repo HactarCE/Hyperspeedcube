@@ -148,8 +148,8 @@ clap = { version = "4.5.53" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
-hcegui = { git = "https://github.com/HactarCE/hcegui.git", rev = "8754c83deddb6dec01f6e58f5cf21bde0ae09ecf" }
-eframe = { version = "0.32.0", default-features = false, features = [
+hcegui = { git = "https://github.com/HactarCE/hcegui.git", rev = "c3144964f3c1b059ca2347825fdd063cf02d50b9" }
+eframe = { version = "0.33.3", default-features = false, features = [
     "accesskit",
     "default_fonts",
     "wayland",
@@ -157,19 +157,18 @@ eframe = { version = "0.32.0", default-features = false, features = [
     "wgpu",
     "x11",
 ] }
-ecolor = { version = "0.32.0" }
-egui = { version = "0.32.0" }
-egui_dock = { version = "0.17.0" }
-egui_extras = { version = "0.32.0", features = [
+ecolor = { version = "0.33.3" }
+egui = { version = "0.33.3" }
+egui_dock = { version = "0.18.0" }
+egui_extras = { version = "0.33.3", features = [
     "svg",
     "http", # for discord avatars
     "webp", # for discord avatars
 ] }
-egui-winit = { version = "0.32.0" }
 winit = { version = "0.30.12", features = [
     "serde",
 ] } # must match egui-winit and key-names
-wgpu = { version = "25.0.0", features = ["webgl"] } # must match egui-wgpu
+wgpu = { version = "27.0.1", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
 material-design-icons = "7.4.48"
@@ -178,7 +177,6 @@ rfd = { version = "0.17.2" }
 key-names = { version = "3.0.0" }
 
 # Colors
-color-hex = { version = "0.2.0" }
 colorous = { version = "1.0.15" }
 empfindung = { version = "0.2.6", default-features = false, features = ["lab"] }
 oklab = { version = "1.0.1" }
@@ -216,11 +214,6 @@ time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
 [patch.crates-io]
-egui = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.32.0" }
-egui-winit = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.32.0" }
-epaint = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.32.0" }
-ecolor = { git = "https://github.com/HactarCE/egui.git", branch = "raw-keyboard-input-0.32.0" }
-
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs
 # editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
 color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1" }

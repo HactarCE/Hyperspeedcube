@@ -25,8 +25,6 @@ pub struct App {
     pub active_puzzle: ActivePuzzleWidget,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
-
-    pub(crate) key_events: Vec<winit::event::KeyEvent>,
 }
 
 impl App {
@@ -54,8 +52,6 @@ impl App {
             active_puzzle: ActivePuzzleWidget::default(),
 
             animation_prefs,
-
-            key_events: vec![],
         }
     }
 

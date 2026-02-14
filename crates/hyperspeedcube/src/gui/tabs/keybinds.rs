@@ -1,4 +1,4 @@
-use hcegui::reorder::Dnd;
+use hcegui::dnd::Dnd;
 
 use crate::app::App;
 use crate::gui::util::EguiTempValue;

@@ -63,8 +63,7 @@ macro_rules! svg_catalog_icon {
         svg_catalog_icon!($source, $description, $side, Neutral)
     };
     ($source:tt, $description:literal, $side:ident, $color:literal) => {{
-        let [r, g, b] = color_hex::color_from_hex!($color);
-        let color = egui::Color32::from_rgb(r, g, b);
+        let color = egui::hex_color!($color);
         svg_catalog_icon!($source, $description, $side, IconColor::Custom(color))
     }};
     ($source:tt, $description:literal, $side:ident, $color:ident) => {

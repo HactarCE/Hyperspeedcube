@@ -1,4 +1,4 @@
-use hcegui::reorder::{BeforeOrAfter, ReorderDndMove};
+use hcegui::dnd::{BeforeOrAfter, ReorderDndMove};
 use hyperprefs::{
     FilterPresetName, FilterSeqPreset, PresetData, PresetsList, PuzzleFilterPreferences,
 };

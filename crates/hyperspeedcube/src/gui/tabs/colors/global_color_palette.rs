@@ -1,6 +1,6 @@
 use egui::Widget;
 use float_ord::FloatOrd;
-use hcegui::reorder::Dnd;
+use hcegui::dnd::Dnd;
 use hyperprefs::{DEFAULT_PREFS, GlobalColorPalette, PrefsConvert};
 use itertools::Itertools;
 use rand::Rng;

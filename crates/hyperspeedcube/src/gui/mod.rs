@@ -34,7 +34,6 @@ use crate::gui::util::text_width;
 pub struct AppUi {
     pub app: App,
     dock_state: egui_dock::DockState<Tab>,
-    raw_winit_event_rx: mpsc::Receiver<winit::event::WindowEvent>,
 
     sidebar_utility: UtilityTab,
     is_sidebar_open: bool,
@@ -61,14 +60,9 @@ impl AppUi {
         app.load_puzzle("ft_hypercube:3");
         let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]);
 
-        // Install WindowEvent hook (workaround to get raw keyboard events).
-        let (raw_winit_event_tx, raw_winit_event_rx) = std::sync::mpsc::channel();
-        egui_winit::install_windowevent_hook(raw_winit_event_tx);
-
         AppUi {
             app,
             dock_state,
-            raw_winit_event_rx,
 
             sidebar_utility: UtilityTab::Catalog,
             is_sidebar_open: true,
@@ -81,19 +75,6 @@ impl AppUi {
     }
 
     pub fn build(&mut self, ctx: &egui::Context) {
-        self.app.key_events = self
-            .raw_winit_event_rx
-            .try_iter()
-            .filter_map(|ev| match ev {
-                winit::event::WindowEvent::KeyboardInput {
-                    event,
-                    is_synthetic,
-                    ..
-                } => Some(event),
-                _ => None,
-            })
-            .collect();
-
         set_middle_click_delete(ctx, self.app.prefs.interaction.middle_click_delete);
 
         if !self.app.prefs.eula {

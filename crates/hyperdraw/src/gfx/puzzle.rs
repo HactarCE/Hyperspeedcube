@@ -274,6 +274,7 @@ impl NdEuclidPuzzleRenderer {
                 label: Some("screenshot_effects_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_texture_view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations::default(),
                 })],
@@ -314,29 +315,24 @@ impl NdEuclidPuzzleRenderer {
             screenshot_size,
         );
 
+        let (tx, rx) = mpsc::channel();
+        let output_buffer_ref = output_buffer.clone();
+        encoder.map_buffer_on_submit(&output_buffer, wgpu::MapMode::Read, .., move |result| {
+            // IIFE to mimic try_block
+            let _ = tx.send((|| {
+                result?;
+                let data = output_buffer_ref.slice(..).get_mapped_range();
+                ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, data.to_vec())
+                    .ok_or_eyre("error constructing image buffer")
+            })());
+        });
+
         drop(encoder);
 
-        let output_buffer = Arc::new(output_buffer);
-        let buffer_slice = output_buffer.slice(..);
-
-        let (tx, rx) = mpsc::channel();
-
-        // We have to create the mapping THEN `device.poll()` before awaiting
-        // the future. Otherwise the application will freeze.
-        let output_buffer_ref = Arc::clone(&output_buffer);
-        self.gfx
-            .device
-            .poll(wgpu::PollType::wait_for(self.gfx.submit()))?;
-        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            result.expect("error mapping buffer slice");
-            let data = output_buffer_ref.slice(..).get_mapped_range();
-
-            let _ = tx.send(
-                ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, data.to_vec())
-                    .ok_or_eyre("error constructing image buffer"),
-            );
-        });
-        self.gfx.device.poll(wgpu::PollType::Wait)?;
+        self.gfx.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(self.gfx.submit()),
+            timeout: Some(std::time::Duration::from_secs(5)),
+        })?;
         output_buffer.unmap();
 
         rx.recv_timeout(std::time::Duration::from_secs(5))?
@@ -435,6 +431,7 @@ impl NdEuclidPuzzleRenderer {
                     label: Some("screen_effects_pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &self.buffers.effects_texture.view,
+                        depth_slice: None,
                         resolve_target: None,
                         ops: wgpu::Operations::default(),
                     })],
