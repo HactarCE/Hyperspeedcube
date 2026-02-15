@@ -7,8 +7,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     ui.group(|ui| {
-        ui.strong(L.prefs.interaction.title);
-        ui.separator();
+        ui.set_width(ui.available_width());
 
         let prefs_ui = crate::gui::components::PrefsUi {
             ui,
