@@ -306,6 +306,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
         self.added_nodes.push((surface, node));
     }
+
+    fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
+        [false; 2]
+    }
 }
 
 fn middle_clicked(ui: &egui::Ui, r: &egui::Response) -> bool {

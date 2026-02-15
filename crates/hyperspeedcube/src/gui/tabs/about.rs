@@ -5,35 +5,35 @@ use crate::app::App;
 use crate::gui::markdown::md;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
-    ui.set_width(400.0);
     ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
         ui.set_width(400.0);
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            // We can't just use display `about_text()` directly because the
+            // Markdown renderer can't center things properly.
 
-        // We can't just use display `about_text()` directly because the
-        // Markdown renderer can't center things properly.
+            let version = env!("CARGO_PKG_VERSION");
+            md(ui, format!("# {} v{}", crate::TITLE, version));
 
-        let version = env!("CARGO_PKG_VERSION");
-        md(ui, format!("# {} v{}", crate::TITLE, version));
+            let license = env!("CARGO_PKG_LICENSE").replace('-', " ");
+            md(ui, L.licensed_under.with(&license));
 
-        let license = env!("CARGO_PKG_LICENSE").replace('-', " ");
-        md(ui, L.licensed_under.with(&license));
+            ui.label(env!("CARGO_PKG_DESCRIPTION"));
+            ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
 
-        ui.label(env!("CARGO_PKG_DESCRIPTION"));
-        ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
+            ui.add_space(ui.spacing().item_spacing.y);
 
-        ui.add_space(ui.spacing().item_spacing.y);
+            md(ui, L.created_by);
+            ui.hyperlink(L.created_by_url);
 
-        md(ui, L.created_by);
-        ui.hyperlink(L.created_by_url);
+            ui.add_space(ui.spacing().item_spacing.y);
 
-        ui.add_space(ui.spacing().item_spacing.y);
+            md(ui, L.dedicated_to);
+            ui.hyperlink(L.dedicated_to_url);
 
-        md(ui, L.dedicated_to);
-        ui.hyperlink(L.dedicated_to_url);
+            ui.add_space(ui.spacing().item_spacing.y);
 
-        ui.add_space(ui.spacing().item_spacing.y);
-
-        md(ui, L.about.with(&markdown_puzzle_authors_list()));
+            md(ui, L.about.with(&markdown_puzzle_authors_list()));
+        });
     });
 }
 
