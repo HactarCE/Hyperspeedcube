@@ -168,7 +168,7 @@ impl ApproxEq for HpsRegion {
     }
 }
 
-impl ApproxHash for HpsRegion {
+impl ApproxInternable for HpsRegion {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         match self {
             HpsRegion::None | HpsRegion::All => (),
@@ -177,7 +177,8 @@ impl ApproxHash for HpsRegion {
             HpsRegion::Not(r) => r.intern_floats(f),
         }
     }
-
+}
+impl ApproxHash for HpsRegion {
     fn interned_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (HpsRegion::None, HpsRegion::None) => true,

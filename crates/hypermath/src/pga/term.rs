@@ -37,11 +37,12 @@ impl ApproxEqZero for Term {
         prec.eq_zero(self.coef)
     }
 }
-impl ApproxHash for Term {
+impl ApproxInternable for Term {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.coef.intern_floats(f);
     }
-
+}
+impl ApproxHash for Term {
     fn interned_eq(&self, other: &Self) -> bool {
         self.axes == other.axes && self.coef.interned_eq(&other.coef)
     }

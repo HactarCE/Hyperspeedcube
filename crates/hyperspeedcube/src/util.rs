@@ -1,5 +1,5 @@
 use float_ord::FloatOrd;
-use rand::Rng;
+use rand::RngExt;
 use rand::seq::IndexedRandom;
 
 pub const INVALID_STR: &str = "<invalid>";

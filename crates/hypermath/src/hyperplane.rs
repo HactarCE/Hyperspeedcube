@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use approx_collections::{ApproxEq, ApproxHash, Precision};
+use approx_collections::{ApproxEq, ApproxHash, ApproxInternable, Precision};
 
 use crate::{APPROX, AXIS_NAMES, Float, Ndim, Point, PointWhichSide, Vector, VectorRef};
 
@@ -44,12 +44,14 @@ impl ApproxEq for Hyperplane {
     }
 }
 
-impl ApproxHash for Hyperplane {
+impl ApproxInternable for Hyperplane {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.normal.intern_floats(f);
         self.distance.intern_floats(f);
     }
+}
 
+impl ApproxHash for Hyperplane {
     fn interned_eq(&self, other: &Self) -> bool {
         self.normal.interned_eq(&other.normal) && self.distance.interned_eq(&other.distance)
     }

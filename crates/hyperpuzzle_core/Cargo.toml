@@ -21,6 +21,7 @@ hypuz_util.workspace = true
 hypershape.workspace = true
 hyperspeedcube_cli_types.workspace = true
 
+chacha20.workspace = true
 chrono.workspace = true
 eyre.workspace = true
 hex.workspace = true
@@ -33,7 +34,6 @@ log.workspace = true
 nom.workspace = true
 parking_lot.workspace = true
 rand.workspace = true
-rand_chacha.workspace = true
 serde.workspace = true
 sha2.workspace = true
 smallvec.workspace = true

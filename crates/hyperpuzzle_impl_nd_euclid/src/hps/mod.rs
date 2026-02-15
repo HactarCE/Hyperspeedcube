@@ -4,7 +4,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
-use hypermath::{ApproxEq, ApproxHash, Ndim, Point, Precision, TransformByMotor, Vector};
+use hypermath::{
+    ApproxEq, ApproxHash, ApproxInternable, Ndim, Point, Precision, TransformByMotor, Vector,
+};
 use hyperpuzzle_core::{Axis, NameSpec, Twist, TypedIndex};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
 use parking_lot::{Mutex, MutexGuard};
@@ -168,11 +170,12 @@ impl ApproxEq for CanonicalMotor {
         prec.eq(&self.0, &other.0)
     }
 }
-impl ApproxHash for CanonicalMotor {
+impl ApproxInternable for CanonicalMotor {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.0.intern_floats(f);
     }
-
+}
+impl ApproxHash for CanonicalMotor {
     fn interned_eq(&self, other: &Self) -> bool {
         self.0.interned_eq(&other.0)
     }

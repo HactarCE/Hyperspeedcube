@@ -3,7 +3,7 @@
 use std::fmt;
 use std::ops::*;
 
-use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, ApproxInternable, Precision};
 
 use crate::{Float, Ndim, Vector, VectorRef};
 
@@ -94,11 +94,12 @@ impl ApproxEqZero for Point {
     }
 }
 
-impl ApproxHash for Point {
+impl ApproxInternable for Point {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.0.intern_floats(f);
     }
-
+}
+impl ApproxHash for Point {
     fn interned_eq(&self, other: &Self) -> bool {
         self.0.interned_eq(&other.0)
     }

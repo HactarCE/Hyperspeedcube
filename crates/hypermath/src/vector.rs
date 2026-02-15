@@ -5,7 +5,7 @@ use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::*;
 
-use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash};
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, ApproxInternable};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -385,12 +385,13 @@ macro_rules! impl_vector_approx_eq {
 
 impl_vector_approx_eq!(impl for Vector);
 
-impl ApproxHash for Vector {
+impl ApproxInternable for Vector {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.0.intern_floats(f);
         self.resize_to_min_ndim();
     }
-
+}
+impl ApproxHash for Vector {
     fn interned_eq(&self, other: &Self) -> bool {
         Vector::zip(self, other).all(|(a, b)| a.interned_eq(&b))
     }

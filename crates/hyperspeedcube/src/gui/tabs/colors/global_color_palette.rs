@@ -3,7 +3,7 @@ use float_ord::FloatOrd;
 use hcegui::dnd::Dnd;
 use hyperprefs::{DEFAULT_PREFS, GlobalColorPalette, PrefsConvert};
 use itertools::Itertools;
-use rand::Rng;
+use rand::RngExt;
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::L;

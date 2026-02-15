@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, ApproxInternable, Precision};
 
 use super::{Axes, Blade, Term};
 use crate::pga::blade::BivectorDecomposition;
@@ -666,11 +666,12 @@ impl ApproxEqZero for Motor {
         self.coefs().all(|x| prec.eq_zero(x))
     }
 }
-impl ApproxHash for Motor {
+impl ApproxInternable for Motor {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.coefficients.intern_floats(f);
     }
-
+}
+impl ApproxHash for Motor {
     fn interned_eq(&self, other: &Self) -> bool {
         self.is_reflection == other.is_reflection
             && self.coefficients.interned_eq(&other.coefficients)

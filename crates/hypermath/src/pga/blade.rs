@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
-use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, Precision};
+use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, ApproxInternable, Precision};
 use float_ord::FloatOrd;
 use itertools::Itertools;
 
@@ -51,11 +51,12 @@ impl ApproxEqZero for Blade {
         self.coefficients.iter().all(|x| prec.eq_zero(x))
     }
 }
-impl ApproxHash for Blade {
+impl ApproxInternable for Blade {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.coefficients.intern_floats(f);
     }
-
+}
+impl ApproxHash for Blade {
     fn interned_eq(&self, other: &Self) -> bool {
         self.ndim == other.ndim
             && self.grade == other.grade

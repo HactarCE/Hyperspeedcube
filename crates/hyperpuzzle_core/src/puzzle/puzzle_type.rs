@@ -4,7 +4,7 @@ use std::io::Write;
 use std::sync::{Arc, Weak};
 
 use rand::seq::IndexedRandom;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
@@ -123,7 +123,7 @@ impl Puzzle {
         let digest = sha256.finalize();
 
         let mut rng =
-            rand_chacha::ChaCha12Rng::from_seed(<[u8; 32]>::try_from(&digest[..32]).unwrap());
+            chacha20::ChaCha12Rng::from_seed(<[u8; 32]>::try_from(&digest[..32]).unwrap());
 
         let scramble_length = match ty {
             ScrambleType::Full => self.full_scramble_length,
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_stable_deterministic_scrambles() {
-        let mut rng = rand_chacha::ChaCha12Rng::from_seed((0..32).collect_array().unwrap());
+        let mut rng = chacha20::ChaCha12Rng::from_seed((0..32).collect_array().unwrap());
         let a = rng.random::<[u64; 4]>();
         assert_eq!(
             a,

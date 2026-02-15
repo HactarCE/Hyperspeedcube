@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use base64::prelude::*;
 use chrono::{DateTime, NaiveDate, Utc};
-use rand::SeedableRng;
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -318,7 +317,7 @@ const BASE64_URL_SAFE_ALPHABET: &[u8; 64] =
 /// Returns a crypto-safe random base-64 string of the specified length.
 #[allow(clippy::unwrap_used)]
 pub fn random_b64_string(len: usize) -> String {
-    let mut rng = rand::rngs::StdRng::from_os_rng();
+    let mut rng = rand::rng();
     (0..len)
         .map(|_| *BASE64_URL_SAFE_ALPHABET.choose(&mut rng).unwrap() as char)
         .collect()

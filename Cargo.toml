@@ -86,9 +86,9 @@ hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }
 
 # Data structures
-approx_collections = { version = "3.1.0" }
+approx_collections = { version = "4.0.0" }
 ball-tree = { version = "0.5.2" }
-bitflags = { version = "2.10.0" }
+bitflags = { version = "2.11.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 disjoint = { version = "0.8.0" }
 ecow = { version = "0.2.5" }
@@ -98,7 +98,7 @@ tinyset = { version = "0.5.1" }
 
 # Serialization and filesystem
 base64 = { version = "0.22.1" }
-comrak = { version = "0.49.0", default-features = false }
+comrak = { version = "0.50.0", default-features = false }
 config = { version = "0.15.19", features = ["preserve_order"] }
 directories = { version = "6.0.0" }
 hex = { version = "0.4.3" }
@@ -135,11 +135,11 @@ num-traits = { version = "0.2.19" }
 color-eyre = { version = "0.6.2", default-features = false, features = [
     "track-caller",
     "capture-spantrace",
-] } # blocked on https://github.com/eyre-rs/eyre/pull/188
+] }
 env_logger = { version = "0.11.5" }
 eyre = { version = "0.6.12" }
 log = { version = "0.4.29" }
-owo-colors = { version = "4.2.3" }
+owo-colors = { version = "4.2.0" } # blocked on https://github.com/owo-colors/owo-colors/pull/141
 pretty_assertions = { version = "1.4.1" }
 thiserror = { version = "2.0.17" }
 
@@ -149,6 +149,7 @@ clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
 hcegui = { git = "https://github.com/HactarCE/hcegui.git", rev = "c3144964f3c1b059ca2347825fdd063cf02d50b9" }
+ecolor = { version = "0.33.3" }
 eframe = { version = "0.33.3", default-features = false, features = [
     "accesskit",
     "default_fonts",
@@ -157,7 +158,6 @@ eframe = { version = "0.33.3", default-features = false, features = [
     "wgpu",
     "x11",
 ] }
-ecolor = { version = "0.33.3" }
 egui = { version = "0.33.3" }
 egui_dock = { version = "0.18.0" }
 egui_extras = { version = "0.33.3", features = [
@@ -189,18 +189,18 @@ pollster = { version = "0.4.0" }
 rayon = { version = "1.11.0" }
 
 # Networking, cryptography, hashing, and PRNG
+chacha20 = { version = "0.10.0" }                 # needs stable output
 drand-verify = { version = "0.6.2" }
-rand = { version = "0.9.2" }                      # must match rand_chacha
-rand_chacha = { version = "0.9.0" }               # needs stable output
+rand = { version = "0.10.0" }                     # must match chacha20
 sha2 = { version = "0.10.9" }
 tsp-http-client = { version = "0.1.0" }
-ureq = { version = "3.1.4", features = ["json"] }
+ureq = { version = "3.2.0", features = ["json"] }
 self_update = { version = "0.42.0" }
 
 # Procedural macro utilities
 proc-macro2 = { version = "1.0.104" }
 quote = { version = "1.0.42" }
-syn = { version = "2.0.112" }
+syn = { version = "2.0.115" }
 
 # Other dependencies
 bytemuck = { version = "1.24.0", features = ["derive"] }
@@ -209,11 +209,12 @@ itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
 proptest = { version = "1.9.0" }
-proptest-derive = { version = "0.7.0" }
+proptest-derive = { version = "0.8.0" }
 time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
 [patch.crates-io]
-# Fork of color-eyre that does not re-export color_owo, which otherwise clogs
-# editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
-color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1" }
+eframe = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
+ecolor = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
+egui = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
+owo-colors = { git = "https://github.com/owo-colors/owo-colors/", rev = "111387563a3f04aae2b7b451fee5e8ea888d8e8d" } # https://github.com/owo-colors/owo-colors/pull/141

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::hash::Hash;
 
-use hypermath::{ApproxEq, ApproxHash, Precision, pga};
+use hypermath::{ApproxEq, ApproxHash, ApproxInternable, Precision, pga};
 use hyperpuzzle_core::Axis;
 
 /// Unique key for a twist.
@@ -22,11 +22,13 @@ impl ApproxEq for TwistKey {
     }
 }
 
-impl ApproxHash for TwistKey {
+impl ApproxInternable for TwistKey {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.transform.intern_floats(f);
     }
+}
 
+impl ApproxHash for TwistKey {
     fn interned_eq(&self, other: &Self) -> bool {
         self.axis == other.axis && self.transform.interned_eq(&other.transform)
     }

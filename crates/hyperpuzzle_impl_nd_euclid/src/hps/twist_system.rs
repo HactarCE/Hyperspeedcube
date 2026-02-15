@@ -597,12 +597,13 @@ impl ApproxEq for GeometricTwistKey {
         prec.eq(&self.axis_vector, &other.axis_vector) && prec.eq(&self.transform, &other.transform)
     }
 }
-impl ApproxHash for GeometricTwistKey {
+impl ApproxInternable for GeometricTwistKey {
     fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
         self.axis_vector.intern_floats(f);
         self.transform.intern_floats(f);
     }
-
+}
+impl ApproxHash for GeometricTwistKey {
     fn interned_eq(&self, other: &Self) -> bool {
         self.axis_vector.interned_eq(&other.axis_vector)
             && self.transform.interned_eq(&other.transform)

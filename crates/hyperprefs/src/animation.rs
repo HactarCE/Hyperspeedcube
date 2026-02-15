@@ -15,7 +15,7 @@ pub mod interpolation {
 
     use std::f32::consts::PI;
 
-    use rand::Rng;
+    use rand::RngExt;
     use serde::{Deserialize, Serialize};
 
     /// Function that maps a float from the range 0.0 to 1.0 to another float
