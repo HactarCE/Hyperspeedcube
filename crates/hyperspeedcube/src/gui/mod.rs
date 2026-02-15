@@ -158,6 +158,12 @@ impl AppUi {
                 style.tab.active_with_kb_focus = style.tab.active.clone();
                 style.tab.active_with_kb_focus.outline_color = active_fg_color;
 
+                style.tab.focused = egui_dock::TabInteractionStyle {
+                    bg_fill: active_bg_color,
+                    text_color: ui.visuals().strong_text_color(),
+                    ..base_tab_style.clone()
+                };
+
                 let mut tab_viewer = TabViewer {
                     app: &mut self.app,
                     added_nodes: vec![],
