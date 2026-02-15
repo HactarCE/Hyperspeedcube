@@ -118,6 +118,22 @@ filter_styles:
       face_opacity: 0.05
       outline_opacity: 0.05
       outline_size: 0.0
+      outline_lighting: false
+    Invisible:
+      interactable: false
+      face_opacity: 0.0
+      outline_opacity: 0.0
+      outline_size: 0.0
+      outline_lighting: false
+    Grayed:
+      interactable: false
+      face_opacity: 0.2
+      face_color:
+        mode: fixed
+        color: '#444444'
+      outline_opacity: 0.2
+      outline_size: 0.0
+      outline_lighting: false
 view_3d:
   last_loaded: Default
   presets:
