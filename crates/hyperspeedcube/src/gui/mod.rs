@@ -126,6 +126,38 @@ impl AppUi {
                 let mut style = egui_dock::Style::from_egui(ui.style());
                 style.tab_bar.fill_tab_bar = true;
                 style.overlay.overlay_type = egui_dock::OverlayType::HighlightedAreas;
+                style.tab.tab_body.stroke = egui::Stroke::NONE;
+                style.tab.tab_body.corner_radius = 0.0.into();
+
+                let inactive_bg_color = ui.visuals().extreme_bg_color;
+                let active_bg_color = ui.visuals().window_fill;
+                let active_fg_color = ui.visuals().widgets.active.fg_stroke.color;
+
+                let base_tab_style = egui_dock::TabInteractionStyle {
+                    outline_color: egui::Color32::TRANSPARENT,
+                    corner_radius: 0.0.into(),
+                    bg_fill: inactive_bg_color,
+                    text_color: ui.visuals().text_color(),
+                };
+
+                style.tab.inactive = base_tab_style.clone();
+
+                style.tab.hovered = egui_dock::TabInteractionStyle {
+                    bg_fill: inactive_bg_color.gamma_multiply(0.5).blend(active_bg_color),
+                    ..base_tab_style.clone()
+                };
+
+                style.tab.inactive_with_kb_focus = style.tab.hovered.clone();
+                style.tab.inactive_with_kb_focus.outline_color = active_fg_color;
+
+                style.tab.active = egui_dock::TabInteractionStyle {
+                    bg_fill: active_bg_color,
+                    ..base_tab_style.clone()
+                };
+
+                style.tab.active_with_kb_focus = style.tab.active.clone();
+                style.tab.active_with_kb_focus.outline_color = active_fg_color;
+
                 let mut tab_viewer = TabViewer {
                     app: &mut self.app,
                     added_nodes: vec![],
@@ -305,6 +337,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
         self.added_nodes.push((surface, node));
+    }
+
+    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
+        false // too buggy :(
     }
 
     fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
