@@ -188,20 +188,20 @@ impl SidebarItem {
                         egui::Color32::from_rgb(102, 102, 102)
                     };
 
-                    if !app_ui.app.prefs.sidebar.show_labels {
-                        r = r.on_hover_ui(|ui| {
+                    r = r.on_hover_ui(|ui| {
+                        if !app_ui.app.prefs.sidebar.show_labels {
                             ui.label(egui::RichText::from(tab.title()).size(FONT_SIZE));
                             ui.separator();
-                            let mut left_click = &L.click_to.open_in_sidebar;
-                            let mut right_click = &L.click_to.open_in_docked_tab;
-                            if app_ui.app.prefs.interaction.swap_sidebar_mouse_buttons {
-                                std::mem::swap(&mut left_click, &mut right_click);
-                            }
-                            md(ui, left_click.with(L.inputs.click));
-                            md(ui, right_click.with(L.inputs.right_click));
-                            md(ui, L.click_to.close.with(L.inputs.middle_click));
-                        });
-                    }
+                        }
+                        let mut left_click = &L.click_to.open_in_sidebar;
+                        let mut right_click = &L.click_to.open_in_docked_tab;
+                        if app_ui.app.prefs.interaction.swap_sidebar_mouse_buttons {
+                            std::mem::swap(&mut left_click, &mut right_click);
+                        }
+                        md(ui, left_click.with(L.inputs.click));
+                        md(ui, right_click.with(L.inputs.right_click));
+                        md(ui, L.click_to.close.with(L.inputs.middle_click));
+                    });
 
                     ui.add(
                         tab.icon()
