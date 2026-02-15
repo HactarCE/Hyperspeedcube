@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 pub struct Access<T, U> {
@@ -158,12 +159,15 @@ pub struct EguiTempValue<T> {
 impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
     /// Returns a temporary value based on the current position in the UI.
     pub fn new(ui: &mut egui::Ui) -> Self {
-        let ctx = ui.ctx().clone();
         let id = ui.next_auto_id();
         ui.skip_ahead_auto_ids(1);
+        Self::from_ctx_and_id(ui.ctx(), id)
+    }
+    /// Returns a temporary value based on `id_source`.
+    pub fn from_ctx_and_id(ctx: &egui::Context, id_source: impl Hash) -> Self {
         Self {
-            ctx,
-            id,
+            ctx: ctx.clone(),
+            id: egui::Id::new(id_source),
             _marker: PhantomData,
         }
     }
