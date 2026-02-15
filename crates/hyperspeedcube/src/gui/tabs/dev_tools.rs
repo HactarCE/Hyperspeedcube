@@ -38,7 +38,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut state = egui_stored_state.get().unwrap_or_default();
 
     ui.group(|ui| {
-        ui.set_min_size(ui.available_size());
+        ui.take_available_space();
 
         ui.horizontal_wrapped(|ui| {
             ui.selectable_value(
