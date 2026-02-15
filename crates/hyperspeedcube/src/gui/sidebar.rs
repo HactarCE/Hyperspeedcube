@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
 use egui::AtomExt;
+use egui::emath::GuiRounding;
 
 use crate::L;
 use crate::gui::components::PrefsUi;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{text_width, text_width_ctx};
+use crate::gui::util::{GuiRoundingExt, text_width, text_width_ctx};
 use crate::gui::{App, AppUi, Tab};
 
 const ICON_SIZE: f32 = 24.0;
@@ -61,7 +62,8 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
     let show_labels_anim = ctx.animate_bool(unique_id!(), app_ui.app.prefs.sidebar.show_labels);
     let show_labels = show_labels_anim == 1.0;
 
-    let sidebar_width = width_without_names + show_labels_anim * max_text_width;
+    let sidebar_width =
+        (width_without_names + show_labels_anim * max_text_width).ceil_to_pixels_ui(ctx);
 
     let docked_tabs: HashSet<UtilityTab> = app_ui
         .dock_state
@@ -76,7 +78,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
 
     egui::SidePanel::left("sidebar")
         .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
-        .exact_width(sidebar_width + 1.0) // not sure why +1 pixel is needed when collapsed
+        .exact_width(sidebar_width)
         .resizable(false)
         .show_animated(ctx, app_ui.app.prefs.sidebar.show, |ui| {
             let spacing = ui.spacing_mut();

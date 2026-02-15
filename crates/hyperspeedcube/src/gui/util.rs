@@ -266,6 +266,70 @@ pub fn set_menu_style(style: &mut egui::Style) {
     style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
 }
 
+pub trait GuiRoundingExt {
+    fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self;
+    fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self;
+}
+
+impl GuiRoundingExt for f32 {
+    fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        use egui::emath::GUI_ROUNDING;
+
+        let pixels_per_point = ctx.pixels_per_point();
+        let rounded_to_pixel = ((self * pixels_per_point).ceil() / pixels_per_point);
+        (rounded_to_pixel / GUI_ROUNDING).ceil() * GUI_ROUNDING
+    }
+
+    fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        use egui::emath::GUI_ROUNDING;
+
+        let pixels_per_point = ctx.pixels_per_point();
+        let rounded_to_pixel = ((self * pixels_per_point).ceil() / pixels_per_point);
+        (rounded_to_pixel / GUI_ROUNDING).ceil() * GUI_ROUNDING
+    }
+}
+
+impl GuiRoundingExt for egui::Vec2 {
+    fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        let Self { x, y } = self;
+        egui::vec2(x.floor_to_pixels_ui(ctx), y.floor_to_pixels_ui(ctx))
+    }
+
+    fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        let Self { x, y } = self;
+        egui::vec2(x.ceil_to_pixels_ui(ctx), y.ceil_to_pixels_ui(ctx))
+    }
+}
+
+impl GuiRoundingExt for egui::Pos2 {
+    fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        let Self { x, y } = self;
+        egui::pos2(x.floor_to_pixels_ui(ctx), y.floor_to_pixels_ui(ctx))
+    }
+
+    fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self {
+        let Self { x, y } = self;
+        egui::pos2(x.ceil_to_pixels_ui(ctx), y.ceil_to_pixels_ui(ctx))
+    }
+}
+
+pub trait GuiRoundingExtRect {
+    fn round_to_pixels_ui_inward(self, ctx: &egui::Context) -> Self;
+    fn round_to_pixels_ui_outward(self, ctx: &egui::Context) -> Self;
+}
+
+impl GuiRoundingExtRect for egui::Rect {
+    fn round_to_pixels_ui_inward(self, ctx: &egui::Context) -> Self {
+        let Self { min, max } = self;
+        egui::Rect::from_min_max(min.ceil_to_pixels_ui(ctx), max.floor_to_pixels_ui(ctx))
+    }
+
+    fn round_to_pixels_ui_outward(self, ctx: &egui::Context) -> Self {
+        let Self { min, max } = self;
+        egui::Rect::from_min_max(min.floor_to_pixels_ui(ctx), max.ceil_to_pixels_ui(ctx))
+    }
+}
+
 macro_rules! mdi {
     ($name:ident) => {{
         const PATH_DATA: &[u8] = ::material_design_icons::$name.as_bytes();
