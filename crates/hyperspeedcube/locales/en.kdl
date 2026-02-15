@@ -444,8 +444,8 @@ prefs {
         """
       }
     }
-    ui {
-      title "Preferences UI"
+    gui {
+      title "GUI"
       (HoverStrings)middle_click_delete "Middle click to delete" {
         desc """
           When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always works.
