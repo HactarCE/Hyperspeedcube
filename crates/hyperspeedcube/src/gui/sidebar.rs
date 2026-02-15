@@ -20,8 +20,8 @@ const SIDEBAR_ITEMS: &[SidebarItem] = &[
     SidebarItem::Tab(UtilityTab::Catalog),
     SidebarItem::Separator,
     SidebarItem::Tab(UtilityTab::PieceFilters),
-    SidebarItem::Tab(UtilityTab::Macros),
-    SidebarItem::Tab(UtilityTab::MoveInput),
+    // SidebarItem::Tab(UtilityTab::Macros),
+    // SidebarItem::Tab(UtilityTab::MoveInput),
     SidebarItem::Separator,
     SidebarItem::Tab(UtilityTab::Colors),
     SidebarItem::Tab(UtilityTab::Styles),
@@ -29,14 +29,14 @@ const SIDEBAR_ITEMS: &[SidebarItem] = &[
     SidebarItem::Tab(UtilityTab::Animation),
     SidebarItem::Separator,
     SidebarItem::Tab(UtilityTab::Interaction),
-    SidebarItem::Tab(UtilityTab::Keybinds),
-    SidebarItem::Tab(UtilityTab::Mousebinds),
+    // SidebarItem::Tab(UtilityTab::Keybinds),
+    // SidebarItem::Tab(UtilityTab::Mousebinds),
+    // SidebarItem::Separator,
+    // SidebarItem::Tab(UtilityTab::Timer),
+    // SidebarItem::Tab(UtilityTab::KeybindsReference),
     SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::Timer),
-    SidebarItem::Tab(UtilityTab::KeybindsReference),
-    SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::Timeline),
-    SidebarItem::Tab(UtilityTab::Scrambler),
+    // SidebarItem::Tab(UtilityTab::Timeline),
+    // SidebarItem::Tab(UtilityTab::Scrambler),
     SidebarItem::Tab(UtilityTab::ImageGenerator),
     SidebarItem::Separator,
     SidebarItem::Tab(UtilityTab::PuzzleInfo),
@@ -219,9 +219,10 @@ impl SidebarItem {
                         );
                     }
 
+                    let mods = ui.input(|input| input.modifiers);
                     let swap_clicks = app_ui.app.prefs.interaction.swap_sidebar_mouse_buttons;
-                    let mut clicked_primary = r.clicked();
-                    let mut clicked_secondary = r.secondary_clicked();
+                    let mut clicked_primary = r.clicked() && !mods.alt;
+                    let mut clicked_secondary = r.secondary_clicked() && !mods.alt;
                     if swap_clicks {
                         std::mem::swap(&mut clicked_primary, &mut clicked_secondary);
                     }
@@ -233,7 +234,7 @@ impl SidebarItem {
                         }
                     } else if clicked_secondary {
                         app_ui.toggle_docked_utility(*tab);
-                    } else if r.middle_clicked() {
+                    } else if r.middle_clicked() || r.clicked() && mods.alt {
                         app_ui.close_utility(*tab);
                     }
                 });
