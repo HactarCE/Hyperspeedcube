@@ -200,7 +200,10 @@ impl SidebarItem {
                         }
                         md(ui, left_click.with(L.inputs.click));
                         md(ui, right_click.with(L.inputs.right_click));
-                        md(ui, L.click_to.close.with(L.inputs.middle_click));
+                        md(
+                            ui,
+                            L.click_to.close.with(L.inputs.middle_click_or_alt_click),
+                        );
                     });
 
                     ui.add(
