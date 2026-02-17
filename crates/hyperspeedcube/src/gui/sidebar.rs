@@ -13,6 +13,7 @@ use crate::gui::{App, AppUi, Tab};
 const ICON_SIZE: f32 = 24.0;
 const FONT_SIZE: f32 = 15.0;
 const PADDING: f32 = 12.0;
+const TEXT_END_PADDING: f32 = 6.0;
 const ITEM_SPACING: egui::Vec2 = egui::vec2(12.0, 12.0);
 const ITEM_HEIGHT: f32 = 24.0;
 const CHEVRON_SIZE: f32 = 24.0;
@@ -55,7 +56,8 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
         .map(|item| item.min_width(ctx))
         .max_by(f32::total_cmp)
         .unwrap_or(0.0)
-        + PADDING;
+        + PADDING
+        + TEXT_END_PADDING;
 
     let width_without_names = ICON_SIZE + PADDING * 2.0;
 
