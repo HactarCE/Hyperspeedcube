@@ -123,6 +123,8 @@ impl AppUi {
                 egui::Color32::from_rgb(r, g, b)
             }))
             .show(ctx, |ui| {
+                ui.spacing_mut().window_margin.top += 18;
+
                 let mut style = egui_dock::Style::from_egui(ui.style());
                 style.tab_bar.fill_tab_bar = true;
                 style.overlay.overlay_type = egui_dock::OverlayType::HighlightedAreas;
@@ -343,10 +345,6 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
         self.added_nodes.push((surface, node));
-    }
-
-    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
-        false // too buggy :(
     }
 
     fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
