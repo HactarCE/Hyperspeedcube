@@ -135,6 +135,7 @@ impl UiLayout {
         // Add unused puzzle views
         if keep_extra_puzzle_views {
             let remaining_tabs = puzzle_views
+                .filter(|puzzle_view| puzzle_view.lock().view().is_some())
                 .map(|puzzle_view| Tab::Puzzle(Some(puzzle_view)))
                 .collect_vec();
             if !remaining_tabs.is_empty() {
