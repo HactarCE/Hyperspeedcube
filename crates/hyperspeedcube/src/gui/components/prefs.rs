@@ -112,6 +112,34 @@ impl<T> PrefsUi<'_, T> {
         .on_i18n_hover_explanation(strings)
     }
 
+    pub fn selectable_values<U: Clone + Eq>(
+        &mut self,
+        access: Access<T, U>,
+        values: &[(U, &str)],
+    ) -> egui::Response {
+        let reset_value = self.get_default(&access);
+        let reset_value_str = values
+            .iter()
+            .find(|(val, _name)| Some(val) == reset_value.as_ref())
+            .map(|(_val, name)| (*name).into());
+        self.add(|current| WidgetWithReset {
+            label: "".into(),
+            value: access.get_mut(current),
+            reset_value,
+            reset_value_str,
+            make_widget: |value| {
+                |ui: &mut egui::Ui| {
+                    ui.horizontal(|ui| {
+                        for (val, name) in values {
+                            ui.selectable_value(value, val.clone(), *name);
+                        }
+                    })
+                    .response
+                }
+            },
+        })
+    }
+
     pub fn num<N: egui::emath::Numeric + ToString>(
         &mut self,
         strings: &HoverStrings,

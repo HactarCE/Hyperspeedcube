@@ -35,6 +35,9 @@ pub struct PresetsUi<'a, T: PresetData + Default> {
     /// Whether to allow vertical scrolling in the content area.
     pub vscroll: bool,
     /// Help text to show for the current settings UI.
+    ///
+    /// The generic presets help text is always visible, regardless of whether
+    /// this is `Some`.
     pub help_contents: Option<&'a str>,
     /// Function to apply context-specific validation for new preset names.
     ///

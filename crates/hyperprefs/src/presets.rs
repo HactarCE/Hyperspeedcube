@@ -127,6 +127,7 @@ impl_preset_data_with_empty_tombstone!(super::ColorScheme);
 impl_preset_data_with_empty_tombstone!(super::FilterPreset);
 impl_preset_data_with_empty_tombstone!(super::FilterSeqPreset);
 impl_preset_data_with_empty_tombstone!(super::InteractionPreferences);
+impl_preset_data_with_empty_tombstone!(super::Layout);
 impl_preset_data_with_empty_tombstone!(super::PieceStyle);
 impl_preset_data_with_empty_tombstone!(super::ViewPreferences);
 impl<T: PresetData> PresetData for Preset<T> {
@@ -489,9 +490,17 @@ impl<T: PresetData> PresetsList<T> {
     pub fn set_last_loaded(&mut self, name: String) {
         self.last_loaded = name;
     }
-    /// Loads the most-recently-loaded preset, or returns some reasonable value
-    /// otherwise.
-    pub fn load_last_loaded(&self, default_preset_name: &str) -> ModifiedPreset<T>
+    /// Returns the most-recently-loaded preset, or else the first preset, or
+    /// else a default preset with the given name.
+    pub fn last_loaded_or_default(&self, default_preset_name: &str) -> PresetRef {
+        match self.last_loaded().or_else(|| self.user_presets().next()) {
+            Some(p) => p.new_ref(),
+            None => self.new_ref(default_preset_name),
+        }
+    }
+    /// Returns the most-recently-loaded preset, or else the first preset, or
+    /// else a default preset with the given name, as a modifiable preset.
+    pub fn load_last_loaded_or_default(&self, default_preset_name: &str) -> ModifiedPreset<T>
     where
         T: Default + Clone,
     {
@@ -777,10 +786,9 @@ pub struct ModifiedPreset<T> {
 }
 impl<T: Default> Default for ModifiedPreset<T> {
     fn default() -> Self {
+        let name = Arc::new(Mutex::new(String::new()));
         Self {
-            base: PresetRef {
-                name: Arc::new(Mutex::new(String::new())),
-            },
+            base: PresetRef { name },
             value: Default::default(),
         }
     }

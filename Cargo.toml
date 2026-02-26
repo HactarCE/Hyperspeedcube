@@ -214,7 +214,7 @@ time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }
 
 [patch.crates-io]
-eframe = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
 ecolor = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
+eframe = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
 egui = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
 owo-colors = { git = "https://github.com/owo-colors/owo-colors/", rev = "111387563a3f04aae2b7b451fee5e8ea888d8e8d" } # https://github.com/owo-colors/owo-colors/pull/141

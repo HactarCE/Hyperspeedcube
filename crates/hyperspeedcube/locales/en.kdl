@@ -70,6 +70,7 @@ top_bar {
   desktop_link_hover """
     The desktop version of Hyperspeedcube has the same features, but runs faster.
   """
+  ui_layout_presets "UI layouts"
 }
 
 menu {
@@ -310,6 +311,23 @@ presets {
       delete "Delete style"
     }
   }
+  (PresetStrings)ui_layout {
+    saved_presets "Saved UI layouts"
+    current "{{current}} layout"
+    current_empty "No saved layout"
+    new_name_hint "New layout name"
+    (PresetErrors)errors {
+      empty_name "Layout name cannot be empty"
+      name_conflict "There is already a layout with this name"
+      cannot_delete_last "Cannot delete last UI layout"
+    }
+    (PresetActions)actions {
+      add "Add preset with current UI layout"
+      add_all_builtin "Add all built-in presets"
+      rename "Rename preset"
+      delete "Delete preset"
+    }
+  }
 }
 
 prefs {
@@ -334,7 +352,6 @@ prefs {
       If scrambling or timestamping fails, then offline scrambles are used as a fallback.
     """
   }
-  (HoverStrings)show_sidebar "Show sidebar"
   (HoverStrings)check_for_updates "Check for updates on startup" {
     desc """
       Hyperspeedcube will never automatically update without your explicit consent.
@@ -468,6 +485,30 @@ prefs {
           When **enabled**, these are swapped.
         """
       }
+    }
+  }
+  layout {
+    sidebar {
+      title "Sidebar"
+
+      open "Currently open with **{{tab}}**"
+      closed "Currently closed"
+
+      disabled "Disabled"
+      collapsed "Collapsed"
+      expanded "Expanded"
+    }
+    dock_tree {
+      title "Layout"
+
+      empty "empty"
+      tab_group "tab group"
+      puzzle_view "puzzle view"
+      utility_tab "{{title}}"
+      h_split "horizontal split ({{percentage}})"
+      v_split "vertical split ({{percentage}})"
+
+      active_suffix " (selected)"
     }
   }
   view {

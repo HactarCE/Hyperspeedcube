@@ -156,6 +156,11 @@ pub enum Tab {
     ),
     Utility(UtilityTab),
 }
+impl Default for Tab {
+    fn default() -> Self {
+        Self::Puzzle(None)
+    }
+}
 impl PartialEq for Tab {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -195,6 +200,12 @@ impl Tab {
         }
     }
 
+    pub fn puzzle_widget(&self) -> Option<Arc<Mutex<PuzzleWidget>>> {
+        match self {
+            Tab::Puzzle(puzzle_widget) => puzzle_widget.clone(),
+            Tab::Utility(_) => None,
+        }
+    }
     pub fn utility_tab(&self) -> Option<UtilityTab> {
         match self {
             Tab::Puzzle(_) => None,

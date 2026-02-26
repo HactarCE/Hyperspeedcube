@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use egui::AtomExt;
 use egui::emath::GuiRounding;
+use hyperprefs::SidebarStyle;
 
 use crate::L;
 use crate::gui::components::PrefsUi;
@@ -61,8 +62,16 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
 
     let width_without_names = ICON_SIZE + PADDING * 2.0;
 
-    let show_labels_anim = ctx.animate_bool(unique_id!(), app_ui.app.prefs.sidebar.show_labels);
-    let show_labels = show_labels_anim == 1.0;
+    let show_sidebar = app_ui.sidebar_style.is_shown();
+
+    // Compute animations even when sidebar is not shown.
+    let show_labels = app_ui.sidebar_style == SidebarStyle::IconsAndText;
+    let show_labels_anim = ctx.animate_bool(unique_id!(), show_labels);
+    let show_labels_full = show_labels_anim == 1.0;
+
+    if show_labels_anim == 0.0 && !show_sidebar {
+        return;
+    }
 
     let sidebar_width =
         (width_without_names + show_labels_anim * max_text_width).ceil_to_pixels_ui(ctx);
@@ -82,7 +91,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
         .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
         .exact_width(sidebar_width)
         .resizable(false)
-        .show_animated(ctx, app_ui.app.prefs.sidebar.show, |ui| {
+        .show(ctx, |ui| {
             let spacing = ui.spacing_mut();
             spacing.item_spacing = ITEM_SPACING;
             spacing.button_padding.x = spacing.button_padding.y;
@@ -97,21 +106,21 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 frame.show(ui, |ui| {
                     let prefs = &mut app_ui.app.prefs;
-                    let icon = if prefs.sidebar.show_labels {
+                    let icon = if show_labels {
                         mdi!(CHEVRON_LEFT)
                     } else {
                         mdi!(CHEVRON_RIGHT)
                     };
                     if ui
                         .button(icon.atom_size(egui::vec2(CHEVRON_SIZE, CHEVRON_SIZE)))
-                        .on_hover_text(if prefs.sidebar.show_labels {
+                        .on_hover_text(if show_labels {
                             L.sidebar.hide_labels
                         } else {
                             L.sidebar.show_labels
                         })
                         .clicked()
                     {
-                        prefs.sidebar.show_labels ^= true;
+                        app_ui.sidebar_style = app_ui.sidebar_style.toggle_labels();
                         prefs.needs_save = true;
                     }
                 });
@@ -180,7 +189,7 @@ impl SidebarItem {
                             egui::StrokeKind::Inside,
                         );
                     }
-                    let color = if app_ui.sidebar_utility == *tab && app_ui.is_sidebar_open
+                    let color = if app_ui.sidebar_utility == Some(*tab)
                         || r.is_pointer_button_down_on()
                         || r.clicked()
                         || visible_tabs.contains(tab)
@@ -193,7 +202,7 @@ impl SidebarItem {
                     };
 
                     r = r.on_hover_ui(|ui| {
-                        if !app_ui.app.prefs.sidebar.show_labels {
+                        if !show_labels {
                             ui.label(egui::RichText::from(tab.title()).size(FONT_SIZE));
                             ui.separator();
                         }

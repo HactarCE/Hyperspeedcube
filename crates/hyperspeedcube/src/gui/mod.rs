@@ -3,6 +3,7 @@ use std::sync::{Arc, mpsc};
 
 use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
+use hyperprefs::{ModifiedPreset, PresetRef};
 use markdown::md;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
@@ -17,6 +18,7 @@ mod util;
 mod components;
 mod ext;
 mod icons;
+mod layout;
 mod markdown;
 mod menu_bar;
 mod modals;
@@ -33,11 +35,11 @@ use crate::gui::util::text_width;
 
 pub struct AppUi {
     pub app: App,
-    dock_state: egui_dock::DockState<Tab>,
 
-    sidebar_utility: UtilityTab,
-    is_sidebar_open: bool,
-    floating_utilities: HashSet<UtilityTab>,
+    is_ui_layout_window_visible: bool,
+    dock_state: egui_dock::DockState<Tab>,
+    sidebar_style: hyperprefs::SidebarStyle,
+    sidebar_utility: Option<UtilityTab>,
 }
 
 impl AppUi {
@@ -58,19 +60,53 @@ impl AppUi {
         let puzzle_widget = app.new_puzzle_widget();
         app.set_active_puzzle(&puzzle_widget);
         app.load_puzzle("ft_hypercube:3");
-        let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]);
+        let layout = app
+            .prefs
+            .layout
+            .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME)
+            .value;
 
-        AppUi {
+        let mut ret = AppUi {
             app,
-            dock_state,
 
-            sidebar_utility: UtilityTab::Catalog,
-            is_sidebar_open: true,
-            floating_utilities: HashSet::from_iter([
-                UtilityTab::About,
-                UtilityTab::Timer,
-                UtilityTab::KeybindsReference,
-            ]),
+            is_ui_layout_window_visible: false,
+            dock_state: egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]),
+            sidebar_style: hyperprefs::SidebarStyle::default(),
+            sidebar_utility: None,
+        };
+
+        // Load last layout.
+        ret.load_layout(&layout, false);
+
+        ret
+    }
+
+    pub fn load_layout(&mut self, layout: &hyperprefs::Layout, keep_extra_puzzle_views: bool) {
+        let puzzle_views = self
+            .dock_state
+            .iter_all_tabs()
+            .filter_map(|(_, tab)| tab.puzzle_widget())
+            .collect();
+
+        // Restore dock state.
+        if let Some(new_serialized_dock_state) = &layout.dock_state
+            && let Ok(mut new_dock_state) = layout::deserialize_dock_state(
+                new_serialized_dock_state,
+                puzzle_views,
+                keep_extra_puzzle_views,
+            )
+        {
+            self.dock_state = new_dock_state;
+        }
+
+        // Restore sidebar style.
+        self.sidebar_style = layout.sidebar_style;
+
+        // Restore sidebar utility.
+        if let Some(new_serialized_sidebar_utility) = &layout.sidebar_utility
+            && let Ok(new_sidebar_utility) = serde_json::from_str(new_serialized_sidebar_utility)
+        {
+            self.sidebar_utility = new_sidebar_utility;
         }
     }
 
@@ -102,16 +138,19 @@ impl AppUi {
 
         sidebar::show(self, ctx);
 
-        let show_sidebar_utility = self.app.prefs.sidebar.show && self.is_sidebar_open;
-        egui::SidePanel::left("sidebar_utility")
-            .default_width(400.0)
-            .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
-            .show_animated(ctx, show_sidebar_utility, |ui| {
-                ui.heading(self.sidebar_utility.title());
-                ui.add_space(6.0);
-                self.sidebar_utility.ui(ui, &mut self.app);
-                ui.set_width(ui.available_rect_before_wrap().width());
-            });
+        if self.sidebar_style.is_shown() && self.sidebar_utility.is_some() {
+            egui::SidePanel::left("sidebar_utility")
+                .default_width(400.0)
+                .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
+                .show(ctx, |ui| {
+                    if let Some(sidebar_utility) = self.sidebar_utility {
+                        ui.heading(sidebar_utility.title());
+                        ui.add_space(6.0);
+                        sidebar_utility.ui(ui, &mut self.app);
+                    }
+                    ui.set_width(ui.available_rect_before_wrap().width());
+                });
+        }
 
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.label("todo");
@@ -256,8 +295,8 @@ impl AppUi {
     }
 
     fn close_sidebar_utility(&mut self, tab: UtilityTab) {
-        if self.sidebar_utility == tab {
-            self.is_sidebar_open = false;
+        if self.sidebar_utility == Some(tab) {
+            self.sidebar_utility = None;
         }
     }
 
@@ -269,11 +308,10 @@ impl AppUi {
     }
 
     pub fn toggle_sidebar_utility(&mut self, tab: UtilityTab) {
-        if self.is_sidebar_open && self.sidebar_utility == tab {
-            self.is_sidebar_open = false;
+        if self.sidebar_utility == Some(tab) {
+            self.sidebar_utility = None;
         } else {
-            self.sidebar_utility = tab;
-            self.is_sidebar_open = true;
+            self.sidebar_utility = Some(tab);
         }
     }
 

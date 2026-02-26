@@ -64,7 +64,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut current = app
         .prefs
         .filter_styles
-        .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+        .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME);
 
     let help_contents = L.help.filter_styles;
     let presets_ui = crate::gui::components::PresetsUi {

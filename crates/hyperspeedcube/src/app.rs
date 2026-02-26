@@ -35,7 +35,7 @@ impl App {
 
         let animation_prefs = prefs
             .animation
-            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+            .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME);
 
         let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("no wgpu render state");
         Self {

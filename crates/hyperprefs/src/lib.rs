@@ -25,7 +25,7 @@ mod image_generator;
 mod info;
 mod interaction;
 mod key;
-mod sidebar;
+mod layout;
 // mod keybinds;
 // mod mousebinds;
 pub mod persist;
@@ -41,9 +41,9 @@ pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
 pub use key::AnyKey;
+pub use layout::*;
 pub use presets::*;
 pub use schema::PrefsConvert;
-pub use sidebar::*;
 pub use styles::*;
 pub use view::*;
 
@@ -70,7 +70,7 @@ pub struct Preferences {
 
     pub log_file: Option<PathBuf>,
 
-    pub sidebar: SidebarPreferences,
+    pub layout: PresetsList<Layout>,
 
     pub info: InfoPreferences,
 
@@ -110,7 +110,7 @@ impl schema::PrefsConvert for Preferences {
             check_for_updates,
             eula,
             log_file,
-            sidebar,
+            layout,
             info,
             image_generator,
             animation,
@@ -138,7 +138,7 @@ impl schema::PrefsConvert for Preferences {
             check_for_updates: *check_for_updates,
             eula: *eula,
             log_file: log_file.clone(),
-            sidebar: sidebar.clone(),
+            layout: layout.to_serde(),
             info: info.clone(),
             image_generator: image_generator.clone(),
             animation: animation.to_serde(),
@@ -160,7 +160,7 @@ impl schema::PrefsConvert for Preferences {
             check_for_updates,
             eula,
             log_file,
-            sidebar,
+            layout,
             info,
             image_generator,
             animation,
@@ -180,7 +180,7 @@ impl schema::PrefsConvert for Preferences {
         self.check_for_updates = check_for_updates;
         self.eula = eula;
         self.log_file = log_file;
-        self.sidebar = sidebar;
+        self.layout.reload_from_serde(ctx, layout);
         self.info = info;
         self.image_generator = image_generator;
         self.styles = styles;

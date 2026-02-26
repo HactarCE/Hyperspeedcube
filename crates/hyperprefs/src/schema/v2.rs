@@ -6,10 +6,9 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 pub use crate::{
-    AnimationPreferences, ImageGeneratorPreferences, InfoPreferences, InteractionPreferences,
-    PieceStyle, StylePreferences, ViewPreferences,
+    AnimationPreferences, FilterPieceSet, ImageGeneratorPreferences, InfoPreferences,
+    InteractionPreferences, Layout, PieceStyle, StylePreferences, ViewPreferences,
 };
-use crate::{FilterPieceSet, SidebarPreferences};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
@@ -23,7 +22,7 @@ pub struct Preferences {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 
-    pub sidebar: SidebarPreferences,
+    pub layout: PresetsList<Layout>,
 
     pub info: InfoPreferences,
 

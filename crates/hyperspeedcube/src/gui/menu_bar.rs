@@ -1,12 +1,15 @@
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use egui::AtomExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
+use hyperprefs::ModifiedPreset;
 use hyperpuzzle::ScrambleType;
+use itertools::Itertools;
 
 use super::{AppUi, Tab};
 use crate::L;
-use crate::gui::components::{PrefsUi, show_leaderboards_ui};
+use crate::gui::components::{PrefsUi, PresetsUi, show_leaderboards_ui};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
@@ -56,6 +59,17 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             let _ = (L.top_bar.desktop_link, L.top_bar.desktop_link_hover);
 
             egui::warn_if_debug_build(ui);
+
+            ui.separator();
+
+            ui.toggle_value(&mut app_ui.is_ui_layout_window_visible, mdi!(VIEW_QUILT))
+                .on_hover_text(L.top_bar.ui_layout_presets);
+
+            if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                app_ui.is_ui_layout_window_visible = false;
+            }
+
+            super::layout::build_layout_presets_ui(ui, app_ui);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if ui.available_width() < width_of_all_menu_buttons(ui) {
@@ -254,8 +268,6 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         prefs_ui.checkbox(&L.prefs.record_time, access!(.record_time));
         prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
         prefs_ui.checkbox(&L.prefs.check_for_updates, access!(.check_for_updates));
-        prefs_ui.ui.separator();
-        prefs_ui.checkbox(&L.prefs.show_sidebar, access!(.sidebar.show));
         egui::global_theme_preference_buttons(prefs_ui.ui);
 
         app_ui.app.prefs.needs_save |= changed;

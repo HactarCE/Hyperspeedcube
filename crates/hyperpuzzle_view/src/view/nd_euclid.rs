@@ -55,7 +55,7 @@ impl NdEuclidViewState {
 
         let view_preset = prefs
             .perspective_view_presets(PerspectiveDim::from_ndim(geom.ndim()))
-            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+            .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME);
 
         Some(Self {
             renderer,

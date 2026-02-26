@@ -163,7 +163,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
                             for list_item in node.children() {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label("•");
-                                    ui.scope(|ui| render_block(ui, list_item))
+                                    ui.vertical(|ui| render_block(ui, list_item))
                                 });
                             }
                         }

@@ -6,6 +6,17 @@ check_for_updates: true
 sidebar:
   show: true
   show_labels: true
+layout:
+  last_loaded: Basic
+  presets:
+    Basic:
+      dock_state: '{"main_surface":{"Leaf":{"tabs":[null],"active_tab":0}},"windows":[]}'
+      sidebar_style: icons_and_text
+      sidebar_utility: '"Catalog"'
+    Puzzle Development:
+      dock_state: '{"main_surface":{"SplitH":{"fraction":0.75,"left":{"SplitH":{"fraction":0.25,"left":{"Leaf":{"tabs":["Catalog","DevTools"],"active_tab":0}},"right":{"Leaf":{"tabs":[null],"active_tab":0}}}},"right":{"SplitV":{"fraction":0.5,"top":{"Leaf":{"tabs":["Colors","PieceFilters","View"],"active_tab":0}},"bottom":{"Leaf":{"tabs":["HpsLogs","PuzzleInfo"],"active_tab":0}}}}}},"windows":[]}'
+      sidebar_style: icons_only
+      sidebar_utility: 'null'
 info:
   metric: STM
   keybinds_reference:

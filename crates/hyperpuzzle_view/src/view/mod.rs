@@ -73,7 +73,7 @@ impl PuzzleView {
             .color_schemes
             .get_mut(&puzzle.colors)
             .schemes
-            .load_last_loaded(DEFAULT_PRESET_NAME);
+            .load_last_loaded_or_default(DEFAULT_PRESET_NAME);
 
         Self {
             sim: Arc::clone(sim),
