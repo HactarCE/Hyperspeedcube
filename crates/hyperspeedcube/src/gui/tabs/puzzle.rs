@@ -2,6 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use egui::Widget;
 use egui::mutex::RwLock;
@@ -19,7 +20,10 @@ use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::App;
+use crate::gui::components::IconButton;
 use crate::gui::components::color_assignment_popup;
+use crate::gui::ext::ResponseExt;
+use crate::gui::markdown::md;
 use crate::gui::util::EguiTempValue;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
@@ -30,6 +34,9 @@ const SEND_CURSOR_POS: bool = false;
 /// Whether to show the 3D mouse drag vector on the puzzle. This is useful for
 /// debugging purposes.
 const SHOW_DRAG_VECTOR: bool = false;
+
+const INSPECTION_WARNING_TIME: Duration = Duration::from_secs(50);
+const INSPECTION_ERROR_TIME: Duration = Duration::from_secs(60);
 
 /// Monotonically increasing ID for puzzle views, used to generate unique IDs.
 static PUZZLE_VIEW_ID: AtomicUsize = AtomicUsize::new(1);
@@ -308,6 +315,19 @@ impl PuzzleWidget {
                 ui.disable();
                 ui.multiply_opacity(0.5);
             }
+
+            if let Some(sim) = &sim {
+                egui::TopBottomPanel::bottom(unique_id!(self.id)).show_inside(ui, |ui| {
+                    egui::ScrollArea::horizontal()
+                        .auto_shrink([false, true])
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                show_status_bar_contents_for_sim(ui, prefs, &mut *sim.lock())
+                            });
+                        });
+                });
+            }
+
             self.show_puzzle_view(ui, prefs, animation);
         });
 
@@ -542,50 +562,8 @@ impl PuzzleWidget {
             }
         }
 
-        egui::Area::new(unique_id!(self.id))
-            .constrain_to(r.rect)
-            .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
-            .show(ui.ctx(), |ui| {
-                ui.set_width(r.rect.width());
-                ui.label(format!("Solved: {}", view.sim.lock().is_solved()));
-                ui.label(format!(
-                    "Used filters: {}",
-                    view.sim.lock().invalidated_filterless(),
-                ))
-            });
-
-        // TODO: draw debug plane??
-        // let group = hypershape::CoxeterGroup::new_linear(&[5, 3]).unwrap();
-        // for mirror in group.mirrors() {
-        //     let pole = mirror.hyperplane().unwrap().pole();
-        //     let basis =
-        //         pga::Blade::from_hyperplane(puzzle.ndim(),
-        // &mirror.hyperplane().unwrap()).basis();     basis[0]
-        // }
-
-        // (|| {
-        //     // TODO: reject polygons whose 3D normal vectors are nearly parallel
-        //     //       with the screen.
-        //     let [a, b, c, d] = [
-        //         project_point(&vector![1.0, -1.0, -1.0])?,
-        //         project_point(&vector![1.0, 1.0, -1.0])?,
-        //         project_point(&vector![1.0, 1.0, 1.0])?,
-        //         project_point(&vector![1.0, -1.0, 1.0])?,
-        //     ];
-        //     for (p, q) in [(a, b), (b, c), (c, d), (d, a)] {
-        //         painter.line_segment([p, q]);
-        //     }
-        //     painter.add(egui::Shape::convex_polygon(
-        //         vec![a, b, c, d],
-        //         egui::Color32::LIGHT_BLUE.gamma_multiply(0.2),
-        //         egui::Stroke::NONE,
-        //     ));
-        //     Some(())
-        // })();
-
         // Request focus on click.
         if r.is_pointer_button_down_on() {
-            r.request_focus(); // TODO: what does this do
             self.wants_focus = true;
         }
 
@@ -1030,6 +1008,167 @@ fn allocate_puzzle_response(ui: &mut egui::Ui, downscale_rate: u32) -> (egui::Re
         crate::gui::util::rounded_pixel_rect(ui, ui.available_rect_before_wrap(), downscale_rate);
     let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
     (r, target_size)
+}
+
+fn show_status_bar_contents_for_sim(
+    ui: &mut egui::Ui,
+    prefs: &Preferences,
+    sim: &mut PuzzleSimulation,
+) {
+    let mut first = true;
+    let mut show_separator_between = |ui: &mut egui::Ui| {
+        if !std::mem::take(&mut first) {
+            ui.separator();
+        }
+    };
+
+    // Move count
+    if prefs.interaction.show_move_count_in_status_bar {
+        show_separator_between(ui);
+        let move_count_text = egui::WidgetText::from(sim.stm_count().to_string()).monospace();
+        let atoms = (mdi!(POUND), move_count_text);
+        ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
+            .on_i18n_hover_explanation(&L.status_bar.move_count);
+    }
+
+    // Timer
+    if prefs.interaction.show_speedsolve_timer_in_status_bar
+        && sim.has_been_fully_scrambled()
+        && let Some(timer_text) = timer_text_for_sim(ui, &*sim)
+    {
+        show_separator_between(ui);
+        let atoms = (mdi!(TIMER), timer_text);
+        ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
+            .on_i18n_hover_explanation(&L.status_bar.timer);
+        ui.ctx().request_repaint();
+    }
+
+    if sim.has_been_fully_scrambled() {
+        show_separator_between(ui);
+
+        let show_scramble_info = |ui: &mut egui::Ui| {
+            let Some(scramble) = sim.get_scramble() else {
+                ui.label("No scramble");
+                return;
+            };
+
+            ui.strong(L.status_bar.scramble.seed);
+            if let Some(seed) = &scramble.seed {
+                ui.add(
+                    egui::Label::new(egui::RichText::new(seed).monospace())
+                        .wrap_mode(egui::TextWrapMode::Extend),
+                );
+            } else {
+                ui.label("unknown");
+            }
+
+            ui.separator();
+            ui.strong(L.status_bar.scramble.time);
+            if let Some(time) = scramble.time {
+                ui.add(
+                    egui::Label::new(egui::RichText::new(time.to_string()).monospace())
+                        .wrap_mode(egui::TextWrapMode::Extend),
+                );
+            } else {
+                ui.label("unknown");
+            }
+        };
+
+        // Scrambled/solved state
+        {
+            let button_text = if sim.has_been_solved() {
+                L.status_bar.state.solved_from_full_scramble
+            } else {
+                L.status_bar.state.fully_scrambled
+            };
+            let r = ui.add(egui::Button::new(button_text).fill(egui::Color32::TRANSPARENT));
+            if sim.has_been_solved() {
+                let r = r.on_hover_ui(|ui| {
+                    md(ui, L.click_to.view_solve_summary.with(L.inputs.click));
+                    ui.separator();
+                    show_scramble_info(ui);
+                });
+                if r.clicked() {
+                    sim.request_to_show_solve_summary();
+                }
+            } else {
+                r.on_hover_ui(show_scramble_info);
+            }
+        }
+
+        // Filterless indicator
+        if sim.has_been_filterless() {
+            let r = ui.add(IconButton::small(mdi!(FILTER_OFF)).transparent());
+            if r.hovered() || r.has_focus() {
+                r.show_tooltip_text(L.status_bar.filterless);
+            }
+        }
+    }
+}
+
+fn timer_text_for_sim(ui: &egui::Ui, sim: &PuzzleSimulation) -> Option<egui::WidgetText> {
+    if let Some(d) = sim.speedsolve_duration() {
+        Some(duration_to_widget_text(d, sim.has_been_solved()))
+    } else if let Some(d) = sim.inspection_duration() {
+        let text_color = if d >= INSPECTION_ERROR_TIME {
+            ui.visuals().error_fg_color
+        } else if d >= INSPECTION_WARNING_TIME {
+            ui.visuals().warn_fg_color
+        } else {
+            ui.visuals()
+                .text_color()
+                .blend(ui.visuals().warn_fg_color.gamma_multiply(0.5))
+        };
+        Some(duration_to_widget_text(d, false).color(text_color))
+    } else {
+        None
+    }
+}
+
+fn duration_to_widget_text(duration: Duration, exact: bool) -> egui::WidgetText {
+    let total_seconds = duration.as_secs();
+
+    let days = total_seconds / (60 * 60 * 24);
+    let hours = (total_seconds / (60 * 60)) % 24;
+    let minutes = (total_seconds / 60) % 60;
+    let seconds = total_seconds % 60;
+    let centiseconds = duration.subsec_millis() / 10;
+
+    let mut s = String::new();
+    let mut show_all_remaining_units = false;
+
+    show_all_remaining_units |= days > 0;
+    if show_all_remaining_units {
+        s += &format!("{days}d ");
+    }
+
+    if show_all_remaining_units && hours < 10 {
+        s += "0";
+    }
+    show_all_remaining_units |= hours > 0;
+    if show_all_remaining_units {
+        s += &format!("{hours}h ");
+    }
+
+    if show_all_remaining_units && minutes < 10 {
+        s += "0";
+    }
+    show_all_remaining_units |= minutes > 0;
+    if show_all_remaining_units {
+        s += &format!("{minutes}m ");
+    }
+
+    if show_all_remaining_units && seconds < 10 {
+        s += "0";
+    }
+    s += &format!("{seconds}");
+
+    if exact {
+        s += &format!(".{centiseconds:02}");
+    }
+    s += "s";
+
+    egui::WidgetText::from(s).monospace()
 }
 
 #[derive(Debug, Default)]

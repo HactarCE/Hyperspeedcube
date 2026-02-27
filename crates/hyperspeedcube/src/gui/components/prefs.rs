@@ -464,6 +464,15 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
             access!(.swap_sidebar_mouse_buttons),
         );
     });
+
+    let l = &L.prefs.interaction.status_bar;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.checkbox(&l.show_move_count, access!(.show_move_count_in_status_bar));
+        prefs_ui.checkbox(
+            &l.show_speedsolve_timer,
+            access!(.show_speedsolve_timer_in_status_bar),
+        );
+    });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {
     let l = &L.prefs.animation.twists;

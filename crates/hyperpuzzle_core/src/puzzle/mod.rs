@@ -19,7 +19,7 @@ pub use dev_data::*;
 pub use info::*;
 pub use layers::LayerMask;
 pub use mesh::*;
-pub use metric::count_stm;
+pub use metric::{StmCounter, count_stm};
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
 #[cfg(feature = "timecheck")]

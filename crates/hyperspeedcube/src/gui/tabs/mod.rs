@@ -196,7 +196,11 @@ impl Tab {
                 app,
                 puzzle_widget.get_or_insert_with(|| app.new_puzzle_widget()),
             ),
-            Tab::Utility(u) => u.ui(ui, app),
+            Tab::Utility(utility_tab) => {
+                egui::Frame::new()
+                    .inner_margin(4.0)
+                    .show(ui, |ui| utility_tab.ui(ui, app));
+            }
         }
     }
 

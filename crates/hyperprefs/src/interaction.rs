@@ -16,4 +16,7 @@ pub struct InteractionPreferences {
     pub reverse_filter_rules: bool,
 
     pub swap_sidebar_mouse_buttons: bool,
+
+    pub show_move_count_in_status_bar: bool,
+    pub show_speedsolve_timer_in_status_bar: bool,
 }

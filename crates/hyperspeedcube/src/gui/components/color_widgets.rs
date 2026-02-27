@@ -506,7 +506,7 @@ impl ColorButton {
                     r.rect,
                     egui::Label::new(label_contents.color(text_color)).selectable(false),
                 );
-                if is_shrunken && r.hovered() {
+                if is_shrunken && (r.hovered() || r.has_focus()) {
                     r.clone().on_hover_text(&puzzle_color);
                 }
 

@@ -64,38 +64,39 @@ pub struct IconButton<'a> {
     icon_size: f32,
     min_button_size: f32,
     selected: Option<bool>,
+    transparent: bool,
 }
 
 impl<'a> IconButton<'a> {
-    pub fn very_small(icon: egui::Image<'a>) -> Self {
+    fn new(icon: egui::Image<'a>, icon_size: f32, min_button_size: f32) -> Self {
         Self {
             icon,
-            icon_size: 12.0,
-            min_button_size: 0.0,
+            icon_size,
+            min_button_size,
             selected: None,
+            transparent: false,
         }
+    }
+
+    pub fn very_small(icon: egui::Image<'a>) -> Self {
+        Self::new(icon, 12.0, 0.0)
     }
 
     pub fn small(icon: egui::Image<'a>) -> Self {
-        Self {
-            icon,
-            icon_size: 12.0,
-            min_button_size: 18.0,
-            selected: None,
-        }
+        Self::new(icon, 12.0, 18.0)
     }
 
     pub fn big(icon: egui::Image<'a>) -> Self {
-        Self {
-            icon,
-            icon_size: 16.0,
-            min_button_size: 22.0,
-            selected: None,
-        }
+        Self::new(icon, 16.0, 22.0)
     }
 
     pub fn selectable(mut self, selected: bool) -> Self {
         self.selected = Some(selected);
+        self
+    }
+
+    pub fn transparent(mut self) -> Self {
+        self.transparent = true;
         self
     }
 }
@@ -111,13 +112,17 @@ impl egui::Widget for IconButton<'_> {
                 .icon
                 .fit_to_exact_size(egui::Vec2::splat(self.icon_size));
 
-            ui.add(
-                match self.selected {
-                    Some(selected) => egui::Button::selectable(selected, atoms),
-                    None => egui::Button::new(atoms),
-                }
-                .min_size(egui::Vec2::splat(self.min_button_size)),
-            )
+            let mut button = match self.selected {
+                Some(selected) => egui::Button::selectable(selected, atoms),
+                None => egui::Button::new(atoms),
+            }
+            .min_size(egui::Vec2::splat(self.min_button_size));
+
+            if self.transparent {
+                button = button.fill(egui::Color32::TRANSPARENT);
+            }
+
+            ui.add(button)
         })
         .inner
     }

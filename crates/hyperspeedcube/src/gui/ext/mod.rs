@@ -20,12 +20,10 @@ pub trait ResponseExt {
 }
 impl ResponseExt for egui::Response {
     fn on_i18n_hover_explanation(self, strings: &HoverStrings) -> Self {
-        let full = strings.full;
-        let desc = strings.desc;
-        if !full.is_empty() || !desc.is_empty() {
-            self.on_hover_explanation(full, desc)
-        } else {
+        if strings.full.is_empty() && strings.desc.is_empty() {
             self
+        } else {
+            self.on_hover_explanation(strings.full, strings.desc)
         }
     }
 
@@ -36,20 +34,24 @@ impl ResponseExt for egui::Response {
         detailed_message: impl AsRef<str>,
     ) -> Self {
         self.on_hover_ui(|ui| {
-            ui.allocate_ui_with_layout(
-                egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
-                egui::Layout::top_down(egui::Align::LEFT),
-                |ui| {
-                    if !strong_text.as_ref().is_empty() {
-                        ui.strong(strong_text.as_ref());
-                    }
-                    if !detailed_message.as_ref().is_empty() {
-                        md(ui, detailed_message);
-                    }
-                },
-            );
+            show_hover_explanation_internal(ui, strong_text.as_ref(), detailed_message.as_ref())
         })
     }
+}
+
+fn show_hover_explanation_internal(ui: &mut egui::Ui, strong_text: &str, detailed_message: &str) {
+    ui.allocate_ui_with_layout(
+        egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
+        egui::Layout::top_down(egui::Align::LEFT),
+        |ui| {
+            if !strong_text.is_empty() {
+                ui.strong(strong_text);
+            }
+            if !detailed_message.is_empty() {
+                md(ui, detailed_message);
+            }
+        },
+    );
 }
 
 pub trait ComboBoxExt {

@@ -54,16 +54,15 @@ animation:
       blocking_anim_duration: 0.25
       twist_interpolation: cosine
 interaction:
-  last_loaded: Default
-  presets:
-    Default:
-      confirm_discard_only_when_scrambled: true
-      drag_sensitivity: 0.7
-      scale_twist_drag_by_radius: false
-      realign_on_release: false
-      realign_on_keypress: true
-      smart_realign: true
-      middle_click_delete: true
+  confirm_discard_only_when_scrambled: true
+  drag_sensitivity: 0.7
+  scale_twist_drag_by_radius: false
+  realign_on_release: false
+  realign_on_keypress: true
+  smart_realign: true
+  middle_click_delete: true
+  show_move_count_in_status_bar: true
+  show_speedsolve_timer_in_status_bar: true
 styles:
   dark_background_color: '#1b1b1b'
   light_background_color: '#f8f8f8'

@@ -41,6 +41,8 @@ pub struct PuzzleSimulation {
     )>,
     scramble_error: Option<(ScrambleType, ScrambleError)>,
 
+    /// Move counter.
+    stm_counter: StmCounter,
     /// Scramble applied to the puzzle initially.
     scramble: Option<Scramble>,
     /// Whether the puzzle has unsaved changes.
@@ -57,8 +59,6 @@ pub struct PuzzleSimulation {
     started: bool,
     /// Whether the puzzle has been solved.
     solved: bool,
-    /// Whether the solved state has been handled by the UI.
-    solved_state_handled: bool,
     /// Total duration from previous sessions.
     old_duration: Option<i64>,
     /// Time that the puzzle was loaded.
@@ -74,6 +74,18 @@ pub struct PuzzleSimulation {
     /// This is used to detect color scheme changes which would invalidate a
     /// filterless solve.
     original_colors: Option<Vec<[u8; 3]>>,
+
+    /// Time of the start of inspection.
+    inspection_start_time: Option<Instant>,
+    /// Time of the first move.
+    first_move_time: Option<Instant>,
+    /// Time of the completion of the solve.
+    solve_complete_time: Option<Instant>,
+    /// Whether the solve summary should be shown on the next frame.
+    ///
+    /// This is only ever `true` for one frame at a time, either when the puzzle
+    /// is first solved or when requested by the user.
+    request_to_show_solve_summary: bool,
 
     /// Time of last frame, or `None` if we are not in the middle of an
     /// animation.
@@ -115,6 +127,7 @@ impl PuzzleSimulation {
             scramble_waiting: None,
             scramble_error: None,
 
+            stm_counter: StmCounter::new(),
             scramble: None,
             has_unsaved_changes: false,
             undo_stack: vec![],
@@ -124,13 +137,17 @@ impl PuzzleSimulation {
             }]),
             started: false,
             solved: false,
-            solved_state_handled: true,
             old_duration: Some(0),
             load_time: Instant::now(),
             is_single_session: true,
             blindfolded: false,
             invalidated_filterless: false,
             original_colors: None,
+
+            inspection_start_time: None,
+            first_move_time: None,
+            solve_complete_time: None,
+            request_to_show_solve_summary: false,
 
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
@@ -305,7 +322,9 @@ impl PuzzleSimulation {
         ]);
         self.latest_state = state;
         self.skip_twist_animations();
-        self.solved_state_handled = false;
+        self.inspection_start_time = Some(Instant::now());
+        self.first_move_time = None;
+        self.solve_complete_time = None;
     }
     /// Plays a replay event on the puzzle.
     pub fn do_event(&mut self, event: ReplayEvent) {
@@ -352,12 +371,16 @@ impl PuzzleSimulation {
                 self.do_action(Action::Scramble { time });
             }
             ReplayEvent::Twists(twists) => {
-                self.do_action(Action::Twists(twists));
+                self.do_action(Action::Twists {
+                    old_stm_counter: self.stm_counter.clone(),
+                    twists,
+                });
             }
             ReplayEvent::SetBlindfold { enabled, .. } => self.blindfolded = enabled, /* TODO: actually have an effect */
             ReplayEvent::InvalidateFilterless { .. } => self.invalidated_filterless = true,
             ReplayEvent::StartSolve { time, duration } => {
                 self.do_action(Action::StartSolve { time, duration });
+                self.stm_counter.reset();
             }
             ReplayEvent::EndSolve { time, duration } => {
                 self.do_action(Action::EndSolve { time, duration });
@@ -421,6 +444,10 @@ impl PuzzleSimulation {
     ///
     /// Clears the redo stack if applicable.
     fn do_action(&mut self, action: Action) {
+        if matches!(action, Action::Twists { .. }) && self.first_move_time.is_none() {
+            self.first_move_time = Some(Instant::now());
+        }
+
         self.has_unsaved_changes = true;
         match action.undo_behavior() {
             UndoBehavior::Action => self.redo_stack.clear(),
@@ -457,12 +484,17 @@ impl PuzzleSimulation {
                 }
                 None => false,
             },
-            Action::Twists(twists) => {
+            Action::Twists {
+                old_stm_counter: _,
+                twists,
+            } => {
                 let mut any_effect = false;
                 for &twist in twists {
                     any_effect |= self.do_twist(twist);
                 }
                 if any_effect && !self.solved && self.scramble.is_some() && self.is_solved() {
+                    self.solve_complete_time = Some(Instant::now());
+                    self.request_to_show_solve_summary = true;
                     self.do_event(ReplayEvent::EndSolve {
                         time: Some(Timestamp::now()),
                         duration: self.file_duration(),
@@ -484,16 +516,24 @@ impl PuzzleSimulation {
     /// stack.
     fn undo_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
-        let puz = self.puzzle_type();
+        let puz = self.latest_state.ty();
         match action {
             Action::Scramble { .. } => false, // shouldn't be possible
-            Action::Twists(twists) => self.do_action_internal(&Action::Twists(
-                twists
-                    .iter()
-                    .rev()
-                    .filter_map(|twist| twist.rev(puz).ok())
-                    .collect(),
-            )),
+            Action::Twists {
+                old_stm_counter,
+                twists,
+            } => {
+                let ret = self.do_action_internal(&Action::Twists {
+                    old_stm_counter: StmCounter::new(), // ignored
+                    twists: twists
+                        .iter()
+                        .rev()
+                        .filter_map(|twist| twist.rev(puz).ok())
+                        .collect(),
+                });
+                self.stm_counter = old_stm_counter.clone();
+                ret
+            }
             Action::StartSolve { .. } => false, // shouldn't be possible
             Action::EndSolve { .. } => {
                 self.solved = false;
@@ -533,6 +573,10 @@ impl PuzzleSimulation {
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
                 let state = std::mem::replace(&mut self.latest_state, new_state);
+
+                let axis = puzzle.twists.twists[twist.transform].axis;
+                self.stm_counter.count_twist(axis, twist.layers);
+
                 self.blocking_anim.clear();
 
                 if let Some(nd_euclid) = &self.nd_euclid {
@@ -768,9 +812,28 @@ impl PuzzleSimulation {
         }
     }
 
-    /// Returns the combined session time of the file, in milliseconds.
+    /// Returns the combined session time of the file in milliseconds.
     pub fn file_duration(&self) -> Option<i64> {
         Some(self.old_duration? + self.load_time.elapsed().as_millis() as i64)
+    }
+
+    /// Returns the inspection duration, if currently during inspection.
+    pub fn inspection_duration(&self) -> Option<Duration> {
+        if self.first_move_time.is_none() {
+            Some(self.inspection_start_time?.elapsed())
+        } else {
+            None
+        }
+    }
+
+    /// Returns the speedsolve duration, if currently speedsolving or after
+    /// completion of a speedsolve.
+    pub fn speedsolve_duration(&self) -> Option<Duration> {
+        self.is_single_session.then_some(
+            self.solve_complete_time
+                .unwrap_or_else(Instant::now)
+                .saturating_duration_since(self.first_move_time?),
+        )
     }
 
     /// Returns a log file as a string.
@@ -833,7 +896,10 @@ impl PuzzleSimulation {
             for action in &self.undo_stack {
                 match action {
                     &Action::Scramble { time } => log.push(LogEvent::Scramble { time }),
-                    Action::Twists(twists) => {
+                    Action::Twists {
+                        old_stm_counter: _,
+                        twists,
+                    } => {
                         if twists.is_empty() {
                             continue;
                         }
@@ -969,7 +1035,6 @@ impl PuzzleSimulation {
                 }
                 LogEvent::EndSolve { time, duration } => {
                     ret.solved = true;
-                    ret.solved_state_handled = true;
                     ret.replay_event(ReplayEvent::EndSolve {
                         time: *time,
                         duration: *duration,
@@ -999,15 +1064,27 @@ impl PuzzleSimulation {
         ret
     }
 
+    /// Returns the number of moves applied to the puzzle, measured in Slice
+    /// Turn Metric.
+    pub fn stm_count(&self) -> u64 {
+        self.stm_counter.count
+    }
+
     /// Returns whether the puzzle is _currently_ solved.
     pub fn is_solved(&self) -> bool {
         self.latest_state.is_solved()
     }
-    /// Returns whether the puzzle was _just_ solved.
-    ///
-    /// This returns `true` at most once until the simulation is recreated.
-    pub fn handle_newly_solved_state(&mut self) -> bool {
-        self.solved && !std::mem::replace(&mut self.solved_state_handled, true)
+    /// Returns whether the puzzle has _ever_ been solved.
+    pub fn has_been_solved(&self) -> bool {
+        self.solved
+    }
+    /// Requests to show the solve summary.
+    pub fn request_to_show_solve_summary(&mut self) {
+        self.request_to_show_solve_summary = true;
+    }
+    /// Returns whether the solve summary should be shown, and clears the flag.
+    pub fn handle_solve_summary_request(&mut self) -> bool {
+        std::mem::take(&mut self.request_to_show_solve_summary)
     }
     /// Updates the sticker colors and invalidates the no-filters status of the
     /// solve if they have changed.
@@ -1026,8 +1103,8 @@ impl PuzzleSimulation {
             time: Some(Timestamp::now()),
         });
     }
-    /// Returns whether the solve is invalid for a no-filters solve.
-    pub fn invalidated_filterless(&self) -> bool {
-        self.invalidated_filterless
+    /// Returns whether the solve is valid for a no-filters solve.
+    pub fn has_been_filterless(&self) -> bool {
+        !self.invalidated_filterless
     }
 }

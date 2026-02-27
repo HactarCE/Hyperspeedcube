@@ -156,10 +156,6 @@ impl AppUi {
                 });
         }
 
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
-            ui.label("todo");
-        });
-
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill({
                 let [r, g, b] = background_color.rgb;
@@ -173,6 +169,7 @@ impl AppUi {
                 style.overlay.overlay_type = egui_dock::OverlayType::HighlightedAreas;
                 style.tab.tab_body.stroke = egui::Stroke::NONE;
                 style.tab.tab_body.corner_radius = 0.0.into();
+                style.tab.tab_body.inner_margin = 0.0.into();
 
                 let inactive_bg_color = ui.visuals().extreme_bg_color;
                 let active_bg_color = ui.visuals().window_fill;

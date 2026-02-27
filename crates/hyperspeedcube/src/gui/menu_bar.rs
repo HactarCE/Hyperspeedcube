@@ -120,13 +120,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: UtilityTab) {
         let mut open = app_ui.is_docked_utility_open(tab);
         if ui
-            .checkbox(
-                &mut open,
-                (
-                    tab.icon().fit_to_original_size(0.5),
-                    egui::Atom::from(tab.menu_name()),
-                ),
-            )
+            .checkbox(&mut open, (tab.icon(), tab.menu_name()))
             .clicked()
         {
             app_ui.toggle_docked_utility(tab);

@@ -281,7 +281,7 @@ fn show_orbit_color(
             }
         });
         let r = ui.add(text_edit);
-        if r.hovered() {
+        if r.hovered() || r.has_focus() {
             app.active_puzzle.with_view(|view| {
                 if Arc::ptr_eq(&view.puzzle(), puz) {
                     let orig_color = view.get_rgb_color(color, &app.prefs).unwrap_or_default();

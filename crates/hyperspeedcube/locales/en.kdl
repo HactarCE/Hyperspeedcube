@@ -142,6 +142,7 @@ click_to {
   reorder "{{click}} to reorder"
   open_in_sidebar "{{click}} to open in sidebar"
   open_in_docked_tab "{{click}} to open in docked tab"
+  view_solve_summary "{{click}} to view solve summary"
   close "{{click}} to close"
 }
 
@@ -191,6 +192,38 @@ leaderboards {
   }
 
   error_button "Error (click for details)"
+}
+
+status_bar {
+  filterless "This solve is eligible for the no-filters category."
+  state {
+    solved_from_full_scramble "Solved from a full scramble"
+    fully_scrambled "Fully scrambled"
+  }
+  (HoverStrings)move_count {
+    full "Move count"
+    desc """
+      Move count is measured using Slice Turn Metric.
+
+      See [the Hypercubing wiki](https://hypercubing.xyz/notation/#turn-metrics) for more information.
+    """
+  }
+  (HoverStrings)timer {
+    full "Speedsolve timer"
+    desc """
+      **Inspection time** is measured from when the puzzle is first visible to the first twist.
+      Inspection time above 60 seconds (displayed in red) may be penalized.
+      The timer is yellow, orange, or red during inspection.
+
+      **Solve time** is measured from the first move to when the puzzle is solved.
+
+      Speedsolves must be completed in a single session.
+    """
+  }
+  scramble {
+    seed "Scramble seed"
+    time "Scramble generation time"
+  }
 }
 
 statuses {
@@ -490,6 +523,11 @@ prefs {
           When **enabled**, these are swapped.
         """
       }
+    }
+    status_bar {
+      title "Status bar"
+      (HoverStrings)show_move_count "Show move count"
+      (HoverStrings)show_speedsolve_timer "Show speedsolve timer"
     }
   }
   layout {

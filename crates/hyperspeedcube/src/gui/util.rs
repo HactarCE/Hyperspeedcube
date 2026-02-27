@@ -362,6 +362,7 @@ macro_rules! mdi {
                 )
             },
         )
+        .fit_to_original_size(0.5)
     }};
 }
 

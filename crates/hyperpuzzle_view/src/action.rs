@@ -13,7 +13,12 @@ pub enum Action {
     },
     /// Sequence of twists executed as a single unit. This is usually a single
     /// twist.
-    Twists(SmallVec<[LayeredTwist; 4]>),
+    Twists {
+        /// Move counter before the twist sequence.
+        old_stm_counter: StmCounter,
+        /// Twist sequence.
+        twists: SmallVec<[LayeredTwist; 4]>,
+    },
     /// Start of solve. Cannot be undone.
     StartSolve {
         /// Event timestamp.
@@ -34,7 +39,7 @@ impl Action {
     pub(crate) fn undo_behavior(&self) -> UndoBehavior {
         match self {
             Action::Scramble { .. } => UndoBehavior::Boundary,
-            Action::Twists(_) => UndoBehavior::Action,
+            Action::Twists { .. } => UndoBehavior::Action,
             Action::StartSolve { .. } => UndoBehavior::Boundary,
             Action::EndSolve { .. } => UndoBehavior::Marker,
         }

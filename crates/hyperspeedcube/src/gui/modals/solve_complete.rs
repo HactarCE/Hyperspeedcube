@@ -19,6 +19,9 @@ use crate::gui::markdown::md;
 use crate::gui::util::EguiTempValue;
 use crate::leaderboards::LeaderboardsClientState;
 
+// TODO: detect when already saved
+// TODO: store in simulation? so we remember whether the solve has been saved/uploaded
+
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {
     replay: Solve,
@@ -384,7 +387,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         }
     } else {
         app.active_puzzle.with_sim(|sim| {
-            if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
+            if sim.handle_solve_summary_request() {
                 let replay = sim.serialize(true);
 
                 let mut verification = hyperpuzzle_log::verify::verify(
