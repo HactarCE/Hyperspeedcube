@@ -12,11 +12,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
-## [2.0.0-zeta.4] - 2026-...
+## [2.0.0-zeta.4] - 2026-02-27
 
 ### Added
 
 - Sidebar
+- Status bar for each puzzle view
+  - Includes move count, timer, and a button to open the solve summary
 - UI layout presets
 - "Invisible" and "Grayed" default styles
 - Shift+click to paste a hex code into a color widget
@@ -35,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - macOS icon being missing/blurry
 - "Confirm discard" popup not appearing in various situations
   - It still does not appear when pressing <kbd>⌘</kbd>+<kbd>Q</kbd> on macOS due to [emilk/egui#7115](https://github.com/emilk/egui/issues/7115)
+- Trivial puzzles being able to be submitted to the leaderboards
 - Several minor GUI bugs
 
 ### Removed
