@@ -320,7 +320,7 @@ impl PuzzleWidget {
                         .auto_shrink([false, true])
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                show_status_bar_contents_for_sim(ui, prefs, &mut *sim.lock())
+                                show_status_bar_contents_for_sim(ui, prefs, &mut sim.lock());
                             });
                         });
                 });

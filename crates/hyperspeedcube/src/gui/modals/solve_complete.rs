@@ -7,7 +7,7 @@ use hypercubing_leaderboards_client::{
 };
 use hyperpuzzle::chrono::{DateTime, Utc};
 use hyperpuzzle::verification::SolveVerification;
-use hyperpuzzle::{Timestamp, chrono};
+use hyperpuzzle::{Puzzle, Timestamp, chrono};
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::NewPbs;
@@ -25,7 +25,7 @@ use crate::leaderboards::LeaderboardsClientState;
 #[derive(Debug, Clone)]
 struct SolveCompletePopup {
     replay: Solve,
-    puzzle_name: String,
+    puzzle: Arc<Puzzle>,
     file_path: PathBuf,
     file_name: String,
     new_pbs: NewPbs,
@@ -114,7 +114,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
             let mut heading = format!(
                 "Yay! You solved {} in {} twists",
-                popup.puzzle_name, popup.verification.solution_stm,
+                popup.puzzle.meta.name, popup.verification.solution_stm,
             );
             if let Some(dur) = popup
                 .verification
@@ -237,11 +237,17 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             ui.separator();
 
-            crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
+            let is_leaderboard_eligible = popup.puzzle.meta.tags.has_present("leaderboard");
 
-            ui.separator();
+            if is_leaderboard_eligible {
+                crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
+                ui.separator();
+            }
 
-            if let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock() {
+
+            if is_leaderboard_eligible
+                && let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock()
+            {
                 let mut fetch_pbs = false;
                 if popup.pbs.is_none() {
                     popup.fetch_pbs(lb);
@@ -318,7 +324,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
 
             ui.add_enabled_ui(timestamp_ok, |ui| {
-                if let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock() {
+                if is_leaderboard_eligible
+                    && let LeaderboardsClientState::SignedIn(lb) = &*app.leaderboards.lock()
+                {
                     let mut changed = false;
                     let try_submit = match &*popup.submission.lock() {
                         SubmissionState::Init => {
@@ -375,6 +383,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 "You must timestamp this solve before submitting to the leaderboards",
             );
 
+            if !is_leaderboard_eligible {
+                ui.label("This puzzle is not eligible for leaderboard submission");
+            }
+
             ui.separator();
 
             if ui.button("Close").clicked() {
@@ -424,7 +436,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                 let mut popup = SolveCompletePopup {
                     replay,
-                    puzzle_name: sim.puzzle_type().meta.name.clone(),
+                    puzzle: Arc::clone(sim.puzzle_type()),
                     file_path,
                     file_name,
                     new_pbs,

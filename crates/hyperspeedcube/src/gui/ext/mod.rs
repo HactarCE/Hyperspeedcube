@@ -34,7 +34,7 @@ impl ResponseExt for egui::Response {
         detailed_message: impl AsRef<str>,
     ) -> Self {
         self.on_hover_ui(|ui| {
-            show_hover_explanation_internal(ui, strong_text.as_ref(), detailed_message.as_ref())
+            show_hover_explanation_internal(ui, strong_text.as_ref(), detailed_message.as_ref());
         })
     }
 }
