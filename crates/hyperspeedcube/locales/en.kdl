@@ -704,6 +704,7 @@ catalog {
   refresh "Refresh"
   filter_by_tag "Filter by tag"
   generate_puzzle "Generate puzzle"
+  clear_search "Clear search"
 }
 
 piece_filters {

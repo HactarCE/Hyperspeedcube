@@ -122,11 +122,28 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 search_query_string = new_search_query_string.trim().to_owned();
             }
 
-            ui.add(
+            let r = ui.add(
                 egui::TextEdit::singleline(&mut search_query_string)
                     .desired_width(f32::INFINITY)
                     .layouter(&mut Query::text_layouter),
             );
+
+            let clear_button_rect = r
+                .rect
+                .with_min_x(r.rect.max.x - r.rect.height())
+                .shrink(2.0);
+            if !search_query_string.is_empty()
+                && ui
+                    .put(
+                        clear_button_rect,
+                        IconButton::very_small(mdi!(CLOSE)).selectable(false),
+                    )
+                    .on_hover_cursor(egui::CursorIcon::Default)
+                    .on_hover_text(L.catalog.clear_search)
+                    .clicked()
+            {
+                search_query_string.clear();
+            }
         });
 
         ui.add_space(ui.spacing().item_spacing.y);

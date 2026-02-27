@@ -62,16 +62,25 @@ pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option
 pub struct IconButton<'a> {
     icon: egui::Image<'a>,
     icon_size: f32,
-    button_size: f32,
+    min_button_size: f32,
     selected: Option<bool>,
 }
 
 impl<'a> IconButton<'a> {
+    pub fn very_small(icon: egui::Image<'a>) -> Self {
+        Self {
+            icon,
+            icon_size: 12.0,
+            min_button_size: 0.0,
+            selected: None,
+        }
+    }
+
     pub fn small(icon: egui::Image<'a>) -> Self {
         Self {
             icon,
             icon_size: 12.0,
-            button_size: 18.0,
+            min_button_size: 18.0,
             selected: None,
         }
     }
@@ -80,7 +89,7 @@ impl<'a> IconButton<'a> {
         Self {
             icon,
             icon_size: 16.0,
-            button_size: 22.0,
+            min_button_size: 22.0,
             selected: None,
         }
     }
@@ -96,6 +105,7 @@ impl egui::Widget for IconButton<'_> {
         ui.scope(|ui| {
             let spacing = ui.spacing_mut();
             spacing.button_padding.x = spacing.button_padding.y;
+            spacing.interact_size = egui::vec2(0.0, 0.0);
 
             let atoms = self
                 .icon
@@ -106,7 +116,7 @@ impl egui::Widget for IconButton<'_> {
                     Some(selected) => egui::Button::selectable(selected, atoms),
                     None => egui::Button::new(atoms),
                 }
-                .min_size(egui::Vec2::splat(self.button_size)),
+                .min_size(egui::Vec2::splat(self.min_button_size)),
             )
         })
         .inner
