@@ -52,6 +52,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
             egui::PopupAnchor::Pointer,
             egui::LayerId::new(egui::Order::Middle, popup_id),
         )
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .open_memory(None);
 
         Self {
@@ -244,16 +245,6 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 response = inner_response;
             }
         });
-
-        if let Some(r) = popup_response {
-            let clicked_elsewhere = crate::gui::util::clicked_elsewhere(ui, &r.response);
-            if (clicked_elsewhere && !self.is_first_frame)
-                || ui.input(|input| input.key_pressed(egui::Key::Escape))
-            {
-                response = Some(TextEditPopupResponse::Cancel);
-                egui::Popup::close_id(&self.ctx, popup_id);
-            }
-        }
 
         response
     }
