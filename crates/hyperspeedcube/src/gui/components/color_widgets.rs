@@ -9,7 +9,7 @@ use strum::IntoEnumIterator;
 use super::{TextEditPopup, TextEditPopupResponse};
 use crate::L;
 use crate::gui::markdown::md;
-use crate::gui::util::EguiTempFlag;
+use crate::gui::util::{EguiTempFlag, autosize_font};
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;
@@ -500,11 +500,15 @@ impl ColorButton {
                     self.color.constrasting_text_color()
                 };
 
+                let (label_contents, is_shrunken) =
+                    autosize_font(ui, &puzzle_color, r.rect.width());
                 ui.put(
                     r.rect,
-                    egui::Label::new(egui::RichText::new(&puzzle_color).color(text_color))
-                        .selectable(false),
+                    egui::Label::new(label_contents.color(text_color)).selectable(false),
                 );
+                if is_shrunken && r.hovered() {
+                    r.clone().on_hover_text(&puzzle_color);
+                }
 
                 (r.clone(), ())
             };

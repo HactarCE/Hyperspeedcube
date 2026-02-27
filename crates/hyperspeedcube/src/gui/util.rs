@@ -99,6 +99,23 @@ pub fn text_width_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) ->
     text_size_ctx(ctx, text).x
 }
 
+/// Reduces the font size of `text` as much as necessary to make it fit the given width.
+///
+/// Returns `true` if the text was shrunken.
+pub fn autosize_font(ui: &egui::Ui, text: &str, available_width: f32) -> (egui::RichText, bool) {
+    let w = text_width(ui, text);
+    if w < available_width {
+        (text.into(), false)
+    } else {
+        let mut font_id = egui::TextStyle::Button.resolve(ui.style());
+        // Adjust font size to fit
+        let font_size = (font_id.size) * available_width / w;
+        // Floor font size to 0.5
+        let font_size = (font_size * 2.0).floor() / 2.0;
+        (egui::RichText::new(text).size(font_size), true)
+    }
+}
+
 /// Returns whether a widget of the given width will be put on the next line,
 /// assuming a horizontal wrapping layout.
 pub fn will_wrap_for_width(ui: &egui::Ui, width: f32) -> bool {
