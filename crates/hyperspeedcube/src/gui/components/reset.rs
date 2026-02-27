@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::L;
+use crate::{L, gui::components::IconButton};
 
 #[must_use]
 pub struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {
@@ -72,7 +72,7 @@ pub fn reset_button<T: PartialEq>(
 ) -> egui::Response {
     let mut r = ui.add_enabled(
         *value != reset_value,
-        egui::Button::new("⟲").min_size(egui::vec2(20.0, 20.0)), // TODO: extract into constant
+        IconButton::small(mdi!(ARROW_U_LEFT_TOP)),
     );
     let hover_text: Cow<'_, str> = match reset_value_str {
         None => L.reset.into(),

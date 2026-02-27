@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use egui::AtomExt;
 use hcegui::dnd::{Dnd, DndStyle, ReorderDnd};
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use super::{
     TextEditPopupResponse, TextValidationResult,
 };
 use crate::L;
-use crate::gui::components::PlaintextYamlEditor;
+use crate::gui::components::{IconButton, PlaintextYamlEditor};
 use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
@@ -247,7 +248,7 @@ where
                 if dnd.is_dragging() {
                     ui.disable();
                 }
-                let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
+                let mut r = ui.add(IconButton::small(mdi!(PLUS)));
                 if !egui::Popup::is_any_open(ui.ctx()) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
@@ -534,16 +535,17 @@ where
                                 };
                             }
 
-                            let r = ui
-                                .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾")) // TODO: proper icon
-                                .on_hover_explanation(L.presets.save_changes, {
+                            let r = ui.add(IconButton::big(mdi!(FLOPPY))).on_hover_explanation(
+                                L.presets.save_changes,
+                                {
                                     let current = md_bold_user_text(self.preset_name);
                                     if overwrite {
                                         L.presets.overwrite_current.with(&current)
                                     } else {
                                         L.presets.create_current.with(&current)
                                     }
-                                });
+                                },
+                            );
                             *self.save_preset |= r.clicked();
                         });
                     }

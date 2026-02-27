@@ -14,7 +14,7 @@ use itertools::Itertools;
 use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
+    FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget, IconButton,
     PRESET_NAME_TEXT_EDIT_WIDTH, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
     TextEditPopupResponse,
 };
@@ -449,19 +449,19 @@ fn show_seq_preset_name(
                 value.include_previous = false;
                 *changed = true;
             }
-            let label;
+            let icon;
             let hover;
             if value.include_previous {
                 let inactive_text_color = &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
                 *inactive_text_color = inactive_text_color.gamma_multiply(0.3);
-                label = "⮩"; // TODO: proper icon (custom L shape with arrow)
+                icon = mdi!(ARROW_RIGHT_BOTTOM);
                 hover = L.piece_filters.include_previous;
             } else {
-                label = "★"; // TODO: proper icon (dot)
+                icon = mdi!(CIRCLE_OUTLINE);
                 hover = L.piece_filters.ignore_previous;
             }
 
-            let r = ui.selectable_label(false, label);
+            let r = ui.add(IconButton::small(icon).selectable(false));
             if r.hovered() || r.has_focus() {
                 // Unfortunately, egui tries to cache the tooltip size between
                 // frames so we need to pick a widget ahead of time.

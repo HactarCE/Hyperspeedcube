@@ -13,7 +13,7 @@ use regex::Regex;
 use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    BIG_ICON_BUTTON_SIZE, escape_tag_value, format_tag_and_value, unescape_tag_value,
+    BIG_ICON_BUTTON_SIZE, IconButton, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::EguiTempValue;
@@ -33,8 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hyperpaths::hps_dir().is_ok() {
-                // TODO: proper icon
-                let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
+                let r = ui.add(IconButton::big(mdi!(REFRESH)));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
@@ -53,8 +52,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     |ui| {
                         let query = Query::from_str(&search_query_string);
 
-                        // TODO: proper icon
-                        let (r, _) = MenuButton::new("🏷")
+                        let (r, _) = MenuButton::new(mdi!(TAG))
                             .config(
                                 MenuConfig::default()
                                     .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
