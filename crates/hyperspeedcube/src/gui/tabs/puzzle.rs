@@ -845,7 +845,7 @@ fn show_nd_euclid_puzzle_view(
         nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Pos);
     }
 
-    // Ctrl+shift+click = edit sticker color
+    // Ctrl + shift + right-click = edit sticker color
     if r.secondary_clicked()
         && modifiers.command
         && modifiers.shift

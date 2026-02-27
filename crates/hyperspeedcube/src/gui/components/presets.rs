@@ -220,7 +220,7 @@ where
                         r = r.on_hover_ui(|ui| {
                             for action in [
                                 L.click_to.activate.with(L.inputs.click),
-                                L.click_to.rename.with(L.inputs.right_click),
+                                L.click_to.rename.with(L.inputs.right_click_or_double_click),
                                 L.click_to.reorder.with(L.inputs.drag),
                                 crate::gui::middle_click_to_delete_text(ui),
                             ] {
@@ -234,8 +234,10 @@ where
                         preset_to_activate = Some(preset.name().clone());
                     }
 
-                    // Right-click -> Edit preset
-                    if r.secondary_clicked() && edit_popup.toggle(preset.name().clone()) {
+                    // Right-click or double-click -> Edit preset
+                    if (r.secondary_clicked() || r.double_clicked())
+                        && edit_popup.toggle(preset.name().clone())
+                    {
                         preset_to_edit.set(Some(preset.name().clone()));
                     }
 

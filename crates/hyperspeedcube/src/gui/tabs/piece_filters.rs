@@ -314,15 +314,20 @@ fn show_filter_presets_list_ui_contents(
             }
 
             let r = r.header_response.on_hover_ui(|ui| {
-                md(ui, L.click_to.rename_or_delete.with(L.inputs.right_click));
+                md(
+                    ui,
+                    L.click_to
+                        .rename_or_delete
+                        .with(L.inputs.right_click_or_double_click),
+                );
                 // No alt+click to delete because it's too easy to accidentally
                 // delete a whole filter sequence while trying to delete a bunch
                 // of presets.
             });
 
-            // Right-click to rename
+            // Right-click or double-click to rename
             let mut popup = TextEditPopup::new(ui);
-            if r.secondary_clicked() {
+            if r.secondary_clicked() || r.double_clicked() {
                 popup.open(seq_name.clone());
             }
             let popup_response = popup.if_open(|popup| {
@@ -543,7 +548,10 @@ fn show_preset_name(
 
     let r = r.on_hover_ui(|ui| {
         md(ui, L.click_to.activate.with(L.inputs.click));
-        md(ui, L.click_to.rename.with(L.inputs.right_click));
+        md(
+            ui,
+            L.click_to.rename.with(L.inputs.right_click_or_double_click),
+        );
         crate::gui::md_middle_click_to_delete(ui);
     });
 
@@ -554,7 +562,7 @@ fn show_preset_name(
 
     // Right-click to rename
     let mut popup = TextEditPopup::new(ui);
-    if r.secondary_clicked() {
+    if r.secondary_clicked() || r.double_clicked() {
         popup.open(name.preset.clone());
     }
     let popup_response = popup.if_open(|popup| {

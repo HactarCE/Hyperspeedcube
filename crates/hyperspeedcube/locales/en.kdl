@@ -147,6 +147,7 @@ click_to {
 inputs {
   click "**Click**"
   right_click "**Right-click**"
+  right_click_or_double_click "**Right-click** or **double-click**"
   middle_click "**Middle-click**"
   middle_click_or_alt_click "**Middle-click** or **alt + click**"
   alt_click "**Alt + click**"
