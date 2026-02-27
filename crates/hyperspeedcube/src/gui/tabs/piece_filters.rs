@@ -22,7 +22,7 @@ use crate::gui::ext::DndReorderExt;
 use crate::gui::markdown::{md, md_inline};
 use crate::gui::util::{EguiTempValue, text_width};
 
-const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
+const PRESET_LIST_MIN_WIDTH: f32 = 250.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;
 
 // TODO: factor out this (and `ColorsTab` and `DevToolsTab`)
@@ -284,24 +284,21 @@ fn show_filter_presets_list_ui_contents(
                         is_first = false;
                     }
 
-                    ui.horizontal(|ui| {
-                        ui.add_space(ui.spacing().indent + ui.spacing().item_spacing.x + 29.0);
-                        if ui.button(l.actions.add).clicked() {
-                            let desired_name = match &current.base {
-                                Some(r) => r.name().preset,
-                                None => make_unique_step_name(seq_list),
-                            };
-                            let preset_name = seq_list.save_preset_with_nonconflicting_name(
-                                &desired_name,
-                                current.current.clone(),
-                            );
-                            preset_to_activate = Some(FilterPresetName {
-                                seq: Some(seq_name.clone()),
-                                preset: preset_name,
-                            });
-                            *changed = true;
-                        }
-                    });
+                    if ui.button(l.actions.add).clicked() {
+                        let desired_name = match &current.base {
+                            Some(r) => r.name().preset,
+                            None => make_unique_step_name(seq_list),
+                        };
+                        let preset_name = seq_list.save_preset_with_nonconflicting_name(
+                            &desired_name,
+                            current.current.clone(),
+                        );
+                        preset_to_activate = Some(FilterPresetName {
+                            seq: Some(seq_name.clone()),
+                            preset: preset_name,
+                        });
+                        *changed = true;
+                    }
                 });
 
             if let Some(state) = collapsing_states.get_mut(&seq_name) {
