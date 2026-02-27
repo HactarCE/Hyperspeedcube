@@ -735,7 +735,9 @@ pub fn color_edit(
         r = r.on_hover_ui(|ui| {
             md(ui, L.click_to.edit.with(L.inputs.click));
             md(ui, L.click_to.copy_hex.with(L.inputs.right_click));
-            crate::gui::md_middle_click_to_delete(ui);
+            if on_delete.is_some() {
+                crate::gui::md_middle_click_to_delete(ui);
+            }
         });
     }
 
