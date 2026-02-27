@@ -108,7 +108,10 @@ LegalCopyright = "Copyright © 2025 HactarCE"
 [package.metadata.bundle]
 name = "Hyperspeedcube"
 identifier = "dev.ajfarkas.hyperspeedcube"
-icon = ["resources/icon/*.png", "resources/icon/*.ico"]
+icon = [
+    "crates/hyperspeedcube/resources/icon/*.png",
+    "crates/hyperspeedcube/resources/icon/*.ico",
+]
 copyright = "Copyright © 2025 HactarCE"
 category = "Puzzle Game"
 

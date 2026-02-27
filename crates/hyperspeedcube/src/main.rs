@@ -30,7 +30,7 @@ const GITHUB_REPO_OWNER: &str = "HactarCE";
 const GITHUB_REPO_NAME: &str = "Hyperspeedcube";
 const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
-const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
+const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_512x512.png");
 
 lazy_static! {
     static ref PROGRAM: hyperpuzzle_log::Program = hyperpuzzle_log::Program {
