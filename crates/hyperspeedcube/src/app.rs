@@ -136,8 +136,10 @@ impl App {
             if let Some(path) = last_file_path.or_else(Self::prompt_file_save_path) {
                 // TODO: handle error
                 std::fs::write(path.clone(), contents);
-                self.active_puzzle
-                    .with_sim(|sim| sim.last_log_file = Some(path));
+                self.active_puzzle.with_sim(|sim| {
+                    sim.last_log_file = Some(path);
+                    sim.clear_unsaved_changes();
+                });
             }
         }
     }
@@ -147,8 +149,10 @@ impl App {
         {
             // TODO: handle error
             std::fs::write(path.clone(), contents);
-            self.active_puzzle
-                .with_sim(|sim| sim.last_log_file = Some(path));
+            self.active_puzzle.with_sim(|sim| {
+                sim.last_log_file = Some(path);
+                sim.clear_unsaved_changes();
+            });
         }
     }
     pub(crate) fn serialize_puzzle_log(&mut self, replay: bool) -> Option<String> {
