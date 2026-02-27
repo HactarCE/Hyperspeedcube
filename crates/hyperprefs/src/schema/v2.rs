@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use hyperpuzzle_core::PaletteColor;
 use indexmap::IndexMap;
@@ -18,9 +17,6 @@ pub struct Preferences {
     pub check_for_updates: bool,
 
     pub eula: bool,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub log_file: Option<PathBuf>,
 
     pub layout: PresetsList<Layout>,
 

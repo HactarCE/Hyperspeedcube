@@ -26,6 +26,7 @@ mod modals;
 mod sidebar;
 mod tabs;
 
+use parking_lot::Mutex;
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
 use util::EguiTempFlag;
 
@@ -82,12 +83,14 @@ impl AppUi {
         ret
     }
 
-    pub fn load_layout(&mut self, layout: &hyperprefs::Layout, keep_extra_puzzle_views: bool) {
-        let puzzle_views = self
-            .dock_state
+    fn puzzle_widgets(&self) -> impl Iterator<Item = &Arc<Mutex<PuzzleWidget>>> {
+        self.dock_state
             .iter_all_tabs()
             .filter_map(|(_, tab)| tab.puzzle_widget())
-            .collect();
+    }
+
+    pub fn load_layout(&mut self, layout: &hyperprefs::Layout, keep_extra_puzzle_views: bool) {
+        let puzzle_views = self.puzzle_widgets().cloned().collect();
 
         // Restore dock state.
         if let Some(new_serialized_dock_state) = &layout.dock_state
@@ -267,6 +270,13 @@ impl AppUi {
 
         // Autosave if necessary.
         self.app.maybe_autosave();
+
+        // Confirm discard before close.
+        if ctx.input(|input| input.viewport().close_requested())
+            && !self.confirm_discard_all_puzzles(L.confirm_discard.exit)
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+        }
     }
 
     fn iter_tabs(&self) -> impl '_ + Iterator<Item = ((SurfaceIndex, NodeIndex, TabIndex), &Tab)> {
@@ -350,9 +360,27 @@ impl AppUi {
         }
     }
 
-    /// Helper method wrapper around [`App::confirm_discard_changes()`].
-    pub(crate) fn confirm_discard(&mut self, description: &str) -> bool {
-        self.app.confirm_discard_changes(description)
+    /// Shows a dialog asking the user to confirm discarding ALL puzzle states,
+    /// and returns `true` if they do confirm. The dialog is only shown if there
+    /// are unsaved changes that the user might want to save.
+    ///
+    /// Returns `true` if there is no puzzle views.
+    pub(crate) fn confirm_discard_all_puzzles(&mut self, description: &str) -> bool {
+        self.app
+            .confirm_discard_puzzles(self.puzzle_widgets(), description)
+    }
+
+    /// Shows a dialog asking the user to confirm discarding the current active
+    /// puzzle states, and returns `true` if they do confirm. The dialog is only
+    /// shown if there are unsaved changes that the user might want to save.
+    ///
+    /// Returns `true` if there is no active puzzle view.
+    pub(crate) fn confirm_discard_active_puzzle(&mut self, description: &str) -> bool {
+        let Some(active_puzzle) = self.app.active_puzzle.widget() else {
+            return true;
+        };
+        self.app
+            .confirm_discard_puzzles([&active_puzzle], description)
     }
 }
 
@@ -381,8 +409,15 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         tab.title()
     }
 
-    fn on_close(&mut self, _tab: &mut Self::Tab) -> OnCloseResponse {
-        OnCloseResponse::Close
+    fn on_close(&mut self, tab: &mut Self::Tab) -> OnCloseResponse {
+        if self
+            .app
+            .confirm_discard_puzzles(tab.puzzle_widget(), L.confirm_discard.close_tab)
+        {
+            OnCloseResponse::Close
+        } else {
+            OnCloseResponse::Ignore
+        }
     }
 
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {

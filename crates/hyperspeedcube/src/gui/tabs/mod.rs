@@ -200,9 +200,9 @@ impl Tab {
         }
     }
 
-    pub fn puzzle_widget(&self) -> Option<Arc<Mutex<PuzzleWidget>>> {
+    pub fn puzzle_widget(&self) -> Option<&Arc<Mutex<PuzzleWidget>>> {
         match self {
-            Tab::Puzzle(puzzle_widget) => puzzle_widget.clone(),
+            Tab::Puzzle(puzzle_widget) => puzzle_widget.as_ref(),
             Tab::Utility(_) => None,
         }
     }

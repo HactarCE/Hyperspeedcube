@@ -100,7 +100,9 @@ impl App {
     }
 
     pub(crate) fn load_puzzle(&mut self, puzzle_id: &str) {
-        if let Some(puzzle_widget) = self.active_puzzle.widget() {
+        if let Some(puzzle_widget) = self.active_puzzle.widget()
+            && self.confirm_discard_puzzles([&puzzle_widget], L.confirm_discard.load_new_puzzle)
+        {
             puzzle_widget.lock().load_puzzle(puzzle_id, &mut self.prefs);
         }
     }
@@ -217,36 +219,40 @@ impl App {
         });
     }
 
-    /// Shows a dialog asking the user to confirm discarding the puzzle state,
-    /// and returns `true` if they do confirm. The dialog is only shown if there
-    /// are unsaved changes that the user might want to save.
+    /// Shows a dialog asking the user to confirm discarding the puzzle
+    /// state(s), and returns `true` if they do confirm. The dialog is only
+    /// shown if there are unsaved changes that the user might want to save.
     ///
-    /// Returns `false` if there is no puzzle.
-    pub(crate) fn confirm_discard_changes(&mut self, description: &str) -> bool {
-        self.active_puzzle
-            .with_sim(|sim| {
-                let mut needs_save = sim.has_unsaved_changes();
+    /// Returns `true` when `sims` is empty.
+    pub(crate) fn confirm_discard_puzzles<'a>(
+        &self,
+        sims: impl IntoIterator<Item = &'a Arc<Mutex<PuzzleWidget>>>,
+        description: &str,
+    ) -> bool {
+        if sims.into_iter().any(|sim| self.needs_confirm_discard(sim)) {
+            rfd::MessageDialog::new()
+                .set_title(L.confirm_discard.title)
+                .set_description(description)
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .show()
+                == rfd::MessageDialogResult::Yes
+        } else {
+            true
+        }
+    }
 
-                if self.prefs.interaction.confirm_discard_only_when_scrambled
-                    && !sim.has_been_fully_scrambled()
-                {
-                    needs_save = false;
-                }
+    fn needs_confirm_discard(&self, puzzle_widget: &Mutex<PuzzleWidget>) -> bool {
+        let Some(sim) = puzzle_widget.lock().sim() else {
+            return false;
+        };
+        let sim = sim.lock();
+        if self.prefs.interaction.confirm_discard_only_when_scrambled
+            && !sim.has_been_fully_scrambled()
+        {
+            return false;
+        }
 
-                let confirm = !needs_save
-                    || rfd::MessageDialog::new()
-                        .set_title(L.confirm_discard.title)
-                        .set_description(description)
-                        .set_buttons(rfd::MessageButtons::YesNo)
-                        .show()
-                        == rfd::MessageDialogResult::Yes;
-                if confirm {
-                    self.prefs.log_file = None;
-                    self.prefs.needs_save = true;
-                }
-                confirm
-            })
-            .unwrap_or(false)
+        sim.has_unsaved_changes()
     }
 
     /// Saves preferences if needed and a timeout has elapsed.

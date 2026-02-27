@@ -11,7 +11,6 @@ extern crate lazy_static;
 extern crate strum;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use bitvec::vec::BitVec;
 use eyre::{OptionExt, eyre};
@@ -74,8 +73,6 @@ pub struct Preferences {
     pub online_mode: bool,
     pub check_for_updates: bool,
 
-    pub log_file: Option<PathBuf>,
-
     pub layout: PresetsList<Layout>,
 
     pub info: InfoPreferences,
@@ -115,7 +112,6 @@ impl schema::PrefsConvert for Preferences {
             online_mode,
             check_for_updates,
             eula,
-            log_file,
             layout,
             info,
             image_generator,
@@ -143,7 +139,6 @@ impl schema::PrefsConvert for Preferences {
             online_mode: *online_mode,
             check_for_updates: *check_for_updates,
             eula: *eula,
-            log_file: log_file.clone(),
             layout: layout.to_serde(),
             info: info.clone(),
             image_generator: image_generator.clone(),
@@ -165,7 +160,6 @@ impl schema::PrefsConvert for Preferences {
             online_mode,
             check_for_updates,
             eula,
-            log_file,
             layout,
             info,
             image_generator,
@@ -185,7 +179,6 @@ impl schema::PrefsConvert for Preferences {
         self.online_mode = online_mode;
         self.check_for_updates = check_for_updates;
         self.eula = eula;
-        self.log_file = log_file;
         self.layout.reload_from_serde(ctx, layout);
         self.info = info;
         self.image_generator = image_generator;

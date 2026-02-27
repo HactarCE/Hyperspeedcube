@@ -203,7 +203,9 @@ confirm_discard {
   title "Unsaved changes"
 
   exit "Discard puzzle state and exit?"
+  close_tab "Discard puzzle state and close tab?"
   open_another_file "Discard puzzle state and open another file?"
+  load_new_puzzle "Discard puzzle state and load new puzzle?"
   reset_puzzle "Discard puzzle state and reset puzzle?"
   scramble "Discard puzzle state and scramble?"
   update "Discord puzzle state and update the application?"

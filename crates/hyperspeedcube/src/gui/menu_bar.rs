@@ -135,7 +135,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
     ui.menu_button(L.menu.file.title, |ui| {
         if ui.button(L.menu.file.open).clicked()
-            && app_ui.confirm_discard(L.confirm_discard.open_another_file)
+            && app_ui.confirm_discard_active_puzzle(L.confirm_discard.open_another_file)
         {
             app_ui.app.open_file();
         }
@@ -193,9 +193,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             });
         }
 
-        ui.separator();
-        if ui.button(L.menu.file.exit).clicked() && app_ui.confirm_discard(L.confirm_discard.exit) {
-            todo!("exit, but not on web");
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ui.separator();
+            if ui.button(L.menu.file.exit).clicked()
+                && app_ui.confirm_discard_all_puzzles(L.confirm_discard.exit)
+            {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
         }
     });
 
@@ -210,7 +215,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         }
         ui.separator();
         if ui.button(L.menu.edit.reset_puzzle).clicked()
-            && app_ui.confirm_discard(L.confirm_discard.reset_puzzle)
+            && app_ui.confirm_discard_active_puzzle(L.confirm_discard.reset_puzzle)
         {
             ui.close();
             app_ui.app.reset_puzzle();
@@ -225,7 +230,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         let full_scramble_button = egui::Button::new(L.menu.scramble.full);
         if ui.add_enabled(can_scramble, full_scramble_button).clicked() {
             ui.close();
-            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+            if app_ui.confirm_discard_active_puzzle(L.confirm_discard.scramble) {
                 app_ui.app.scramble(ScrambleType::Full);
             }
         }
@@ -233,14 +238,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         let scramble_1_button = egui::Button::new(L.menu.scramble.one);
         if ui.add_enabled(can_scramble, scramble_1_button).clicked() {
             ui.close();
-            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+            if app_ui.confirm_discard_active_puzzle(L.confirm_discard.scramble) {
                 app_ui.app.scramble(ScrambleType::Partial(1));
             }
         }
         let scramble_2_button = egui::Button::new(L.menu.scramble.two);
         if ui.add_enabled(can_scramble, scramble_2_button).clicked() {
             ui.close();
-            if app_ui.confirm_discard(L.confirm_discard.scramble) {
+            if app_ui.confirm_discard_active_puzzle(L.confirm_discard.scramble) {
                 app_ui.app.scramble(ScrambleType::Partial(2));
             }
         }

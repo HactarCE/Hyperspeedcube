@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Sidebar
 - UI layout presets
 - "Invisible" and "Grayed" default styles
+- Shift+click to paste a hex code into a color widget
 
 ### Changed
 
@@ -32,6 +33,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Greek letters not being allowed in filter expressions
 - macOS icon being missing/blurry
+- "Confirm discard" popup not appearing in various situations
+  - It still does not appear when pressing <kbd>⌘</kbd>+<kbd>Q</kbd> on macOS due to [emilk/egui#7115](https://github.com/emilk/egui/issues/7115)
 - Several minor GUI bugs
 
 ## [2.0.0-pre.12-dev] - 2024-05-31
