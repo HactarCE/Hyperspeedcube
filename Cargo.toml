@@ -171,6 +171,7 @@ winit = { version = "0.30.12", features = [
 wgpu = { version = "27.0.1", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
+arboard = { version = "3" }       # should match egui
 material-design-icons = "7.4.48"
 opener = { version = "0.8.3" }
 rfd = { version = "0.17.2" }

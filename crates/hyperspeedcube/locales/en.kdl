@@ -134,6 +134,7 @@ sidebar {
 click_to {
   activate "{{click}} to activate"
   copy_hex "{{click}} to copy hex"
+  paste_hex "{{click}} to paste hex"
   delete "{{click}} to delete"
   edit "{{click}} to edit"
   rename "{{click}} to rename"
@@ -151,6 +152,7 @@ inputs {
   middle_click "**Middle-click**"
   middle_click_or_alt_click "**Middle-click** or **alt + click**"
   alt_click "**Alt + click**"
+  shift_click "**Shift + click**"
   drag "**Drag**"
 }
 

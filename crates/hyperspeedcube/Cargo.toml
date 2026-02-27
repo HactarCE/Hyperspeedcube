@@ -27,6 +27,7 @@ hyperpuzzle_view.workspace = true
 hyperpuzzlescript = { workspace = true, features = ["hyperpaths"] }
 hyperstats.workspace = true
 
+arboard.workspace = true
 cgmath.workspace = true
 clap.workspace = true
 clio.workspace = true

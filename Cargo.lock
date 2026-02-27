@@ -3134,6 +3134,7 @@ dependencies = [
 name = "hyperspeedcube"
 version = "2.0.0-zeta.3"
 dependencies = [
+ "arboard",
  "cgmath",
  "clap",
  "clio",

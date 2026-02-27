@@ -37,6 +37,8 @@ lazy_static! {
         name: Some(TITLE.to_string()),
         version: Some(env!("CARGO_PKG_VERSION").to_string()),
     };
+    static ref CLIPBOARD: Result<parking_lot::Mutex<arboard::Clipboard>, arboard::Error> =
+        arboard::Clipboard::new().map(parking_lot::Mutex::new);
 }
 
 /// Number of points that the mouse must be dragged to twist the puzzle.

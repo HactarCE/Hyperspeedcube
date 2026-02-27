@@ -735,6 +735,9 @@ pub fn color_edit(
         r = r.on_hover_ui(|ui| {
             md(ui, L.click_to.edit.with(L.inputs.click));
             md(ui, L.click_to.copy_hex.with(L.inputs.right_click));
+            if crate::CLIPBOARD.is_ok() {
+                md(ui, L.click_to.paste_hex.with(L.inputs.shift_click));
+            }
             if on_delete.is_some() {
                 crate::gui::md_middle_click_to_delete(ui);
             }
@@ -748,10 +751,23 @@ pub fn color_edit(
         on_delete();
     }
 
+    let shift = ui.input(|input| input.modifiers.shift);
+
+    // Shift+click to paste
+    if shift
+        && r.clicked()
+        && let Ok(clipboard) = &*crate::CLIPBOARD
+        && let Ok(text) = clipboard.lock().get_text()
+        && let Ok(new_color) = text.parse()
+    {
+        *color = new_color;
+        changed = true;
+    }
+
     // Left-click to edit
     let reopen = EguiTempFlag::new(ui);
     let mut hex_edit_popup = TextEditPopup::new(ui);
-    if r.clicked() {
+    if !shift && r.clicked() {
         hex_edit_popup.open(color.to_string());
     }
     if reopen.reset() {
