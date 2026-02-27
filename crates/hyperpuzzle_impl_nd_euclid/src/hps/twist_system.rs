@@ -361,7 +361,6 @@ impl HpsTwistSystem {
             inv_name: Option<Names>,
             inv_suffix: Option<Names>,
             name_fn: Option<Arc<FnValue>>,
-            qtm: Option<usize>,
             gizmo_pole_distance: Option<Num>,
         );
 
@@ -413,11 +412,6 @@ impl HpsTwistSystem {
         let name = name.unwrap_or_default();
         let inv_name = inv_name.unwrap_or_else(|| name.clone());
 
-        let qtm = qtm.unwrap_or(1);
-        if qtm < 1 {
-            ctx.warn("twist has QTM value less than 1");
-        }
-
         if gizmo_pole_distance.is_some() && ndim != 3 && ndim != 4 {
             return Err("twist gizmo is only supported in 3D and 4D".at(span));
         }
@@ -454,7 +448,6 @@ impl HpsTwistSystem {
         let builder = TwistBuilder {
             axis,
             transform,
-            qtm,
             gizmo_pole_distance,
             include_in_scrambles: true,
         };
@@ -467,7 +460,6 @@ impl HpsTwistSystem {
             let builder = TwistBuilder {
                 axis,
                 transform,
-                qtm,
                 gizmo_pole_distance: gizmo_pole_distance.filter(|_| ndim > 3),
                 include_in_scrambles: !is_equivalent_to_reverse,
             };
@@ -506,7 +498,6 @@ impl HpsTwistSystem {
             let builder = TwistBuilder {
                 axis,
                 transform,
-                qtm: qtm * i as usize,
                 gizmo_pole_distance: None, // no gizmo for multiples
                 include_in_scrambles: true,
             };
@@ -519,7 +510,6 @@ impl HpsTwistSystem {
                 let builder = TwistBuilder {
                     axis,
                     transform,
-                    qtm: qtm * i as usize,
                     gizmo_pole_distance: None, // no gizmo for multiples
                     include_in_scrambles: !is_equivalent_to_reverse,
                 };

@@ -133,7 +133,6 @@ fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEu
         let rev = twist_info.reverse;
         info_line(ui, "Reverse twist", &rev.to_string());
         info_line(ui, "Reverse twist name", &puz.twists.names[rev]);
-        info_line(ui, "QTM", &twist_info.qtm.to_string());
 
         ui.label("");
         ui.strong(format!("Axis {}", twist_info.axis));

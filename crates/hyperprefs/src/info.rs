@@ -1,13 +1,8 @@
-use hyperpuzzle_core::TwistMetric;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct InfoPreferences {
-    pub metric: TwistMetric,
-    #[serde(skip)]
-    pub qtm: bool,
-
     pub keybinds_reference: KeybindsReferencePreferences,
 
     pub modifier_toggles: bool,

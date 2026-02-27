@@ -37,6 +37,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - It still does not appear when pressing <kbd>⌘</kbd>+<kbd>Q</kbd> on macOS due to [emilk/egui#7115](https://github.com/emilk/egui/issues/7115)
 - Several minor GUI bugs
 
+### Removed
+
+- Twist metrics other than STM
+
 ## [2.0.0-pre.12-dev] - 2024-05-31
 
 ### Added

@@ -199,7 +199,7 @@ pub fn verify(
     } else {
         twists_done = twist_groups.into_iter().flatten().collect();
     }
-    let solution_stm = TwistMetric::Stm.count_twists(&puzzle, twists_done);
+    let solution_stm = count_stm(&puzzle, twists_done);
 
     let is_valid_blindsolve = bld_fsm == BlindsolveFsm::SolveComplete;
 

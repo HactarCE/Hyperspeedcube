@@ -198,8 +198,6 @@ impl TransformByMotor for LayerInfo {
 /// Twist info.
 #[derive(Debug, Clone)]
 pub struct TwistInfo {
-    /// Value of this twist in quarter turn metric.
-    pub qtm: usize,
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
     /// Reverse twist, which undoes this one.

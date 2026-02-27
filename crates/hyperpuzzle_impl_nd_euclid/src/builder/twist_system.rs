@@ -18,8 +18,6 @@ pub struct TwistBuilder {
     pub axis: Axis,
     /// Transform to apply to pieces.
     pub transform: pga::Motor,
-    /// Value in the quarter-turn metric (or its contextual equivalent).
-    pub qtm: usize,
     /// Distance of the pole for the corresponding facet in the 4D facet gizmo.
     pub gizmo_pole_distance: Option<f32>,
     /// Whether to include this twist in scrambles.
@@ -251,7 +249,6 @@ impl TwistSystemBuilder {
             }
 
             twists.push(TwistInfo {
-                qtm: twist.qtm,
                 axis,
                 reverse: Twist(0), // will be assigned later
                 include_in_scrambles: twist.include_in_scrambles,
@@ -290,7 +287,6 @@ impl TwistSystemBuilder {
             twist.reverse = new_twist_id;
             let is_self_reverse = twist_transform.is_self_reverse();
             let new_twist_info = TwistInfo {
-                qtm: twist.qtm,
                 axis: twist.axis,
                 reverse: id,
                 include_in_scrambles: !is_self_reverse,
@@ -427,7 +423,6 @@ impl TwistSystemBuilder {
             by_id: twists.map_ref(|id, twist| TwistBuilder {
                 axis: twist.axis,
                 transform: engine_data.twist_transforms[id].clone(),
-                qtm: twist.qtm,
                 gizmo_pole_distance: engine_data.gizmo_pole_distances[id],
                 include_in_scrambles: twist.include_in_scrambles,
             }),
