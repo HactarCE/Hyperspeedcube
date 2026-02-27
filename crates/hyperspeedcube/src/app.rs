@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
+use std::time::{Duration, Instant};
 
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
@@ -14,6 +15,9 @@ use crate::L;
 use crate::gui::PuzzleWidget;
 use crate::leaderboards::LeaderboardsClientState;
 
+/// How long to wait after auto-saving before auto-saving again.
+const AUTO_SAVE_TIMEOUT: Duration = Duration::from_secs(5);
+
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
     pub(crate) egui_wgpu_renderer: Arc<egui::mutex::RwLock<eframe::egui_wgpu::Renderer>>,
@@ -21,6 +25,7 @@ pub struct App {
     pub(crate) prefs: Preferences,
     pub(crate) stats: StatsDb,
     pub(crate) leaderboards: Arc<Mutex<LeaderboardsClientState>>,
+    last_autosave: Instant,
 
     pub active_puzzle: ActivePuzzleWidget,
 
@@ -48,6 +53,7 @@ impl App {
             prefs,
             stats,
             leaderboards,
+            last_autosave: Instant::now(),
 
             active_puzzle: ActivePuzzleWidget::default(),
 
@@ -61,6 +67,7 @@ impl App {
     }
     pub(super) fn notify_active_puzzle_changed(&mut self) {
         self.active_puzzle.with_view(|view| {
+            // Update latest view preset.
             if let Some(nd_euclid) = view.nd_euclid() {
                 let view_preset_name = nd_euclid.camera.view_preset.base.name();
                 match view.puzzle().view_prefs_set() {
@@ -73,6 +80,7 @@ impl App {
                 };
             }
 
+            // Update latest color scheme.
             self.prefs
                 .color_schemes
                 .get_mut(&view.puzzle().colors)
@@ -239,6 +247,22 @@ impl App {
                 confirm
             })
             .unwrap_or(false)
+    }
+
+    /// Saves preferences if needed and a timeout has elapsed.
+    pub fn maybe_autosave(&mut self) {
+        let now = Instant::now();
+        if self.prefs.needs_save && now - self.last_autosave > AUTO_SAVE_TIMEOUT {
+            self.last_autosave = now;
+            self.prefs.save();
+        }
+    }
+
+    /// Saves preferences if needed.
+    pub fn autosave(&mut self) {
+        if self.prefs.needs_save {
+            self.prefs.save();
+        }
     }
 }
 

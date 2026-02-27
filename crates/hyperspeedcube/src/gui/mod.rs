@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::sync::{Arc, mpsc};
+use std::time::Instant;
 
 use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
@@ -263,6 +264,9 @@ impl AppUi {
 
         // TODO: key combo popup
         // key_combo_popup::build(ctx, app);
+
+        // Autosave if necessary.
+        self.app.maybe_autosave();
     }
 
     fn iter_tabs(&self) -> impl '_ + Iterator<Item = ((SurfaceIndex, NodeIndex, TabIndex), &Tab)> {

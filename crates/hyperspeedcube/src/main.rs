@@ -142,17 +142,6 @@ impl eframe::App for gui::AppUi {
         self.build(ctx);
     }
 
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        let prefs = &mut self.app.prefs;
-        if prefs.needs_save {
-            prefs.save();
-        }
-    }
-
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(5)
-    }
-
     fn on_exit(&mut self) {
         let prefs = &mut self.app.prefs;
         if prefs.needs_save || prefs.needs_save_eventually {

@@ -60,7 +60,13 @@ lazy_static! {
 
 #[derive(Debug, Default)]
 pub struct Preferences {
+    /// Whether preferences have been modified and need to be saved.
     pub needs_save: bool,
+    /// Whether preferences have been modified only very slightly and should be
+    /// saved at some point.
+    ///
+    /// This is used for switching presets implicitly by focusing a different
+    /// puzzle view.
     pub needs_save_eventually: bool,
 
     pub eula: bool,
