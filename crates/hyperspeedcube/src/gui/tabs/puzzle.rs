@@ -54,7 +54,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWi
     }
 }
 
-// TODO: refactor this
 fn show_puzzle_load_hint(
     ui: &mut egui::Ui,
     puzzle_widget: &mut PuzzleWidget,
@@ -63,17 +62,16 @@ fn show_puzzle_load_hint(
     show_centered_with_sizing_pass(ui, true, true, |ui| {
         ui.spacing_mut().button_padding *= 4.0;
         ui.spacing_mut().item_spacing *= 4.0;
-        ui.heading("Load a puzzle");
-        show_centered_with_sizing_pass(ui, true, false, |ui| {
-            ui.horizontal(|ui| {
-                if ui.button("3D Rubik's Cube").clicked() {
-                    puzzle_widget.load_puzzle("ft_cube:3", prefs);
-                }
-                if ui.button("4D Rubik's Cube").clicked() {
-                    puzzle_widget.load_puzzle("ft_hypercube:3", prefs);
-                }
-            });
+        ui.heading("Select a puzzle");
+        ui.horizontal(|ui| {
+            if ui.button("3D Rubik's Cube").clicked() {
+                puzzle_widget.load_puzzle("ft_cube:3", prefs);
+            }
+            if ui.button("4D Rubik's Cube").clicked() {
+                puzzle_widget.load_puzzle("ft_hypercube:3", prefs);
+            }
         });
+        ui.label("Many more are available in the catalog.");
     })
     .response
 }
