@@ -12,6 +12,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [2.0.0-zeta.4] - 2026-...
+
+### Added
+
+- Sidebar
+- UI layout presets
+- "Invisible" and "Grayed" default styles
+
+### Changed
+
+- Icons are now SVGs from Material Design Icons
+- Improved tab styling
+- Overhauled catalog icons
+- Shortened puzzle and tab names
+- Changed default puzzle from 3^3 to 3^4
+
+### Fixed
+
+- Greek letters not being allowed in filter expressions
+- macOS icon being missing/blurry
+- Several minor GUI bugs
+
 ## [2.0.0-pre.12-dev] - 2024-05-31
 
 ### Added
