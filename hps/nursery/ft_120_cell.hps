@@ -20,8 +20,13 @@ add_puzzle(
         shape = @shapes/h/120_cell.new()
         with #sym = shape.sym {
             carve(plane(shape.facet_pole), shape.facet_names)
-            add_axis(shape.facet_pole, shape.facet_names, [∞, SHALLOW_CUT_DEPTH])
-            // TODO: twists
+            a0 = add_axis(shape.facet_pole, shape.facet_names, [∞, SHALLOW_CUT_DEPTH])
+            a1 = #sym.thru(3).transform(a0)
+            a2 = #sym.thru(2).transform(a1)
+            a3 = #sym.thru(1).transform(a2)
+            add_twist(a0, #sym.thru([0, 1]), "${a1}", gizmo_pole_distance = GIZMO_FACET_SIZE)
+            // add_twist(a0, #sym.thru([0, 2]), "{${a1}${a2}}", gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / √2)
+            // add_twist(a0, #sym.thru([1, 2]), "{${a1}${a2}${a3}}", gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / √3)
         }
     },
     tags = #{
