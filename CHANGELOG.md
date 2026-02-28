@@ -12,6 +12,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [2.0.0-zeta.5] - 2026-02-27
+
+### Fixed
+
+- 4-simplex vertex gizmos being very small
+- Undo/redo keybinds not working in puzzle view
+- Leaderboard upload suggestion never appearing
+
 ## [2.0.0-zeta.4] - 2026-02-27
 
 ### Added
