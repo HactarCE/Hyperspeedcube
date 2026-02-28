@@ -106,7 +106,7 @@ impl DrawParams {
             piece_explode: prefs.piece_explode,
 
             target_size: self.cam.target_size,
-            rot: Some(self.cam.rot.clone()),
+            rot: Some(self.cam.rot().clone()),
             piece_transforms: self.piece_transforms.clone(),
         }
     }
@@ -119,7 +119,7 @@ impl DrawParams {
             gizmo_scale: self.gizmo_scale(),
 
             target_size: self.cam.target_size,
-            rot: Some(self.cam.rot.clone()),
+            rot: Some(self.cam.rot().clone()),
         }
     }
 

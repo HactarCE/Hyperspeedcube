@@ -4,7 +4,6 @@ use std::sync::Arc;
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
-use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::prelude::*;
@@ -59,12 +58,7 @@ impl NdEuclidViewState {
 
         Some(Self {
             renderer,
-            camera: NdEuclidCamera {
-                view_preset,
-                target_size: [1, 1],
-                rot: Motor::ident(geom.ndim()),
-                zoom: 0.5,
-            },
+            camera: NdEuclidCamera::new(geom.ndim(), view_preset),
 
             geom,
 
@@ -78,7 +72,7 @@ impl NdEuclidViewState {
 
     /// Resets the camera.
     pub fn reset_camera(&mut self) {
-        self.camera.rot = Motor::ident(self.camera.rot.ndim());
+        self.camera.reset();
     }
 
     /// Returns what the cursor was hovering over.
@@ -138,10 +132,10 @@ impl NdEuclidViewState {
                         }
                         if *z_axis < ndim {
                             let cgmath::Vector2 { x: dx, y: dy } = delta;
-                            self.camera.rot =
+                            self.camera.rot_by(
                                 pga::Motor::from_angle_in_axis_plane(0, *z_axis, dx as _)
-                                    * pga::Motor::from_angle_in_axis_plane(1, *z_axis, dy as _)
-                                    * &self.camera.rot;
+                                    * pga::Motor::from_angle_in_axis_plane(1, *z_axis, dy as _),
+                            );
                         }
                     }
                 }
@@ -245,7 +239,7 @@ impl NdEuclidViewState {
                 meta_offset *= pga::Motor::from_angle_in_axis_plane(0, 1, 0.5 * angle);
             }
             offset = meta_offset.transform(&offset);
-            cam.rot = offset * cam.rot;
+            cam.rot_by(offset);
 
             // Adjust piece explode
             let control_amount = 1.0 - (2.0 * t - 1.0).powf(12.0);
@@ -364,6 +358,40 @@ impl NdEuclidViewState {
             });
             sim.do_event(ReplayEvent::Twists(smallvec![twist]));
         }
+    }
+
+    /// Applies a recenter to the camera based on the current mouse position.
+    ///
+    /// - If `piece` is true, then pieces are considered as click targets.
+    /// - If `gizmo` is true, then gizmos are considered as click targets.
+    ///
+    /// See [`NdEuclidCamera::animate_recenter()`] for an explanation of
+    /// `reverse` and `anti`.
+    pub fn do_click_recenter(
+        &mut self,
+        puzzle: &Arc<Puzzle>,
+        piece: bool,
+        gizmo: bool,
+        reverse: bool,
+        anti: bool,
+    ) {
+        let target_vector = if gizmo
+            && let Some(hov) = self.gizmo_hover_state
+            && let Ok(&twist) = self.geom.gizmo_twists.get(hov.gizmo_face)
+            && let Ok(twist_info) = puzzle.twists.twists.get(twist)
+            && let Ok(axis_vector) = self.geom.axis_vectors.get(twist_info.axis)
+        {
+            axis_vector
+        } else if piece
+            && let Some(hov) = &self.puzzle_hover_state
+            && let Ok(centroid) = self.geom.piece_centroids.get(hov.piece)
+        {
+            centroid.as_vector()
+        } else {
+            return;
+        };
+
+        self.camera.animate_recenter(target_vector, reverse, anti);
     }
 
     /// Completes a mouse drag.

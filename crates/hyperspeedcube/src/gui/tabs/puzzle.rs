@@ -517,13 +517,13 @@ impl PuzzleWidget {
         sim.lock().update_colors(&sticker_colors);
 
         let piece_styles = view.styles.values(prefs);
-
+        let show_puzzle_hover = view.show_puzzle_hover;
         let show_gizmo_hover = view.show_gizmo_hover;
-
         let temp_gizmo_highlight = view.temp_gizmo_highlight.take();
 
         let response;
         if let Some(nd_euclid) = view.nd_euclid_mut() {
+            nd_euclid.camera.update_animations(animation);
             response = Some(show_nd_euclid_puzzle_view(
                 ui,
                 &r,
@@ -532,6 +532,7 @@ impl PuzzleWidget {
                 &sim,
                 sticker_colors,
                 piece_styles,
+                show_puzzle_hover,
                 show_gizmo_hover,
                 temp_gizmo_highlight,
                 &mut self.queued_arrows,
@@ -724,6 +725,7 @@ fn show_nd_euclid_puzzle_view(
     sim: &Arc<Mutex<PuzzleSimulation>>,
     sticker_colors: Vec<[u8; 3]>,
     piece_styles: Vec<(PieceStyleValues, PieceMask)>,
+    show_puzzle_hover: bool,
     show_gizmo_hover: bool,
     temp_gizmo_highlight: Option<Axis>,
     queued_arrows: &mut Vec<[Point; 2]>,
@@ -820,6 +822,11 @@ fn show_nd_euclid_puzzle_view(
     }
     if r.secondary_clicked() && modifiers.is_none() {
         nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Pos);
+    }
+    if (r.clicked() || r.secondary_clicked()) && modifiers.command || r.middle_clicked() {
+        let reverse = r.secondary_clicked();
+        let anti = modifiers.alt;
+        nd_euclid.do_click_recenter(&puzzle, show_puzzle_hover, show_gizmo_hover, reverse, anti);
     }
 
     // Ctrl + shift + right-click = edit sticker color

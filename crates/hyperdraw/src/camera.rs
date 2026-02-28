@@ -1,29 +1,130 @@
+use std::time::Instant;
+
 use cgmath::EuclideanSpace;
 use eyre::{Result, bail};
-use hypermath::prelude::*;
-use hyperprefs::{ModifiedPreset, ViewPreferences};
+use hypermath::{pga::Motor, prelude::*};
+use hyperprefs::{AnimationPreferences, ModifiedPreset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
+const DEFAULT_ZOOM: f32 = 0.5;
+
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NdEuclidCamera {
+    /// Number of dimensions for the camera.
+    ndim: u8,
+
     /// Current view settings.
     pub view_preset: ModifiedPreset<ViewPreferences>,
 
-    /// Width and height of the target in pixels.
+    /// Width and height of the draw target in pixels.
     pub target_size: [u32; 2],
 
     /// Rotation to apply to the puzzle before drawing it.
-    pub rot: pga::Motor,
+    rot: Motor,
     /// Linear factor by which to scale the puzzle before drawing it.
     pub zoom: f32,
+
+    /// Rotation animation, represented as the start & end motors and a start
+    /// time.
+    rot_animation: Option<([Motor; 2], Instant)>,
 }
 impl NdEuclidCamera {
+    /// Constructs a new default camera.
+    pub fn new(ndim: u8, view_preset: ModifiedPreset<ViewPreferences>) -> Self {
+        Self {
+            ndim,
+            view_preset,
+            target_size: [1, 1],
+            rot: Motor::ident(ndim),
+            zoom: DEFAULT_ZOOM,
+            rot_animation: None,
+        }
+    }
+
     /// Returns the view preferences that the camera is using.
     pub fn prefs(&self) -> &ViewPreferences {
         &self.view_preset.value
+    }
+
+    /// Begins a recentering animation from `target_vector` to the top (2D),
+    /// front (3D), or the "in" of the 4D projection (4D+).
+    ///
+    /// - If `reverse` is `true`, then the bottom/back/"out" is used instead.
+    /// - If `anti` is `true`, then the rotation delta is reversed.
+    pub fn animate_recenter(&mut self, target_vector: impl VectorRef, reverse: bool, anti: bool) {
+        let mut initial_vector = self.rot.transform_vector(target_vector);
+        let mut final_vector = if self.ndim >= 4 {
+            -Vector::unit(3) // -W
+        } else {
+            Vector::unit(self.ndim - 1)
+        };
+        if anti {
+            final_vector = -final_vector;
+        }
+        if reverse {
+            std::mem::swap(&mut initial_vector, &mut final_vector);
+        }
+        let rotation_delta = Motor::rotation_infallible(initial_vector, final_vector);
+        self.animate_camera_toward(rotation_delta * &self.rot);
+    }
+    /// Begins animating the camera toward the target rotation.
+    fn animate_camera_toward(&mut self, target_rot: Motor) {
+        self.rot_animation = Some(([self.rot.clone(), target_rot], Instant::now()));
+    }
+    /// Cancels an animation if one is in progress.
+    fn cancel_animation(&mut self) {
+        self.rot_animation = None;
+    }
+
+    /// Updates the camera animations.
+    pub fn update_animations(&mut self, prefs: &AnimationPreferences) {
+        if let Some(([start_rot, end_rot], start_time)) = &self.rot_animation {
+            let t = start_time.elapsed().as_secs_f32() / prefs.twist_duration;
+            if t > 1.0 {
+                self.rot = end_rot.clone();
+                self.rot_animation = None;
+            } else {
+                self.rot = Motor::slerp_infallible(
+                    start_rot,
+                    end_rot,
+                    prefs.twist_interpolation.interpolate(t) as f64,
+                );
+            }
+        }
+    }
+
+    /// Resets the camera rotation and zoom.
+    pub fn reset(&mut self) {
+        self.rot = Motor::ident(self.ndim);
+        self.zoom = DEFAULT_ZOOM;
+    }
+
+    /// Returns the current camera rotation.
+    pub fn rot(&self) -> &Motor {
+        &self.rot
+    }
+    /// Resets the camera rotation.
+    pub fn reset_rot(&mut self) {
+        self.set_rot(Motor::ident(self.ndim));
+    }
+    /// Sets the camera rotation and cancels any rotation animation.
+    ///
+    /// Does nothing if `new_rot` has too many dimensions.
+    pub fn set_rot(&mut self, new_rot: Motor) {
+        if new_rot.ndim() > self.ndim {
+            return;
+        }
+        self.cancel_animation();
+        self.rot = new_rot.to_ndim_at_least(self.ndim);
+    }
+    /// Applies a delta to the left of the camera rotation.
+    ///
+    /// Does nothing if `delta` has too many dimensions.
+    pub fn rot_by(&mut self, delta: Motor) {
+        self.set_rot(delta * &self.rot);
     }
 
     /// Returns the number of pixels in 1 screen space unit.

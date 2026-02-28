@@ -240,16 +240,6 @@ impl PuzzleView {
         }
     }
 
-    /// Applies a twist to the puzzle based on the current mouse position.
-    pub fn do_click_twist(&self, layers: LayerMask, direction: Sign) {
-        match &self.specific {
-            SpecificPuzzleView::Empty => (),
-            SpecificPuzzleView::NdEuclid(nd_euclid) => {
-                nd_euclid.do_click_twist(&mut self.sim.lock(), layers, direction);
-            }
-        }
-    }
-
     /// Returns the color value for a given puzzle color, ignoring temporary
     /// per-frame overrides.
     pub fn get_rgb_color(

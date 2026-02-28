@@ -9,6 +9,7 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::{SmallVec, smallvec};
+use tinyset::Set64;
 
 use super::shape::ShapeBuildOutput;
 use super::{AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
@@ -175,17 +176,30 @@ impl PuzzleBuilder {
         let mut vertex_count = 0;
         let mut vertex_coordinates = vec![];
         let mut vertex_id_map = HashMap::new();
-        let piece_vertex_sets = piece_polytopes.map(|_piece, polytope_id| {
-            space
-                .get(polytope_id)
-                .vertex_set()
-                .map(|v| {
-                    *vertex_id_map.entry(v.id()).or_insert_with(|| {
-                        vertex_coordinates.extend(v.pos().as_vector().iter_ndim(space.ndim()));
-                        let i = vertex_count;
-                        vertex_count += 1;
-                        i
+        let piece_vertex_sets: TiVec<Piece, Set64<usize>> =
+            piece_polytopes.map(|_piece, polytope_id| {
+                space
+                    .get(polytope_id)
+                    .vertex_set()
+                    .map(|v| {
+                        *vertex_id_map.entry(v.id()).or_insert_with(|| {
+                            vertex_coordinates.extend(v.pos().as_vector().iter_ndim(ndim));
+                            let i = vertex_count;
+                            vertex_count += 1;
+                            i
+                        })
                     })
+                    .collect()
+            });
+
+        // Build piece center points.
+        let piece_centroids = piece_vertex_sets.map_ref(|_, point_set| {
+            (0..ndim as usize)
+                .map(|j| {
+                    point_set
+                        .iter()
+                        .map(|v| vertex_coordinates[v * ndim as usize + j])
+                        .sum()
                 })
                 .collect()
         });
@@ -204,6 +218,7 @@ impl PuzzleBuilder {
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates,
             piece_vertex_sets,
+            piece_centroids,
 
             planes,
             sticker_planes,

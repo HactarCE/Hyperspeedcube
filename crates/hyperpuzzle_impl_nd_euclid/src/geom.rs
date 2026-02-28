@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::{Float, Hyperplane, Vector, VectorRef, pga};
+use hypermath::{Float, Hyperplane, Point, Vector, VectorRef, pga};
 use hyperpuzzle_core::prelude::*;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
@@ -13,6 +13,11 @@ pub struct NdEuclidPuzzleGeometry {
     ///
     /// This is used to compute whether a move is allowed.
     pub piece_vertex_sets: PerPiece<tinyset::Set64<usize>>,
+    /// Centroid for each piece.
+    ///
+    /// This point is not guaranteed to actually be in the center of the piece.
+    /// The algorithm that generates it may be change in future versions.
+    pub piece_centroids: PerPiece<Point>,
 
     /// Face hyperplanes.
     pub planes: Vec<Hyperplane>,
@@ -44,6 +49,7 @@ impl NdEuclidPuzzleGeometry {
         Self {
             vertex_coordinates: vec![],
             piece_vertex_sets: PerPiece::new(),
+            piece_centroids: PerPiece::new(),
 
             planes: vec![],
             sticker_planes: PerSticker::new(),

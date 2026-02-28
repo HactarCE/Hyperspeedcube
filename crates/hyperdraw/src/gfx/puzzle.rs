@@ -539,7 +539,7 @@ impl NdEuclidPuzzleRenderer {
 
         // Write the puzzle transform.
         {
-            let puzzle_transform = draw_params.cam.rot.euclidean_rotation_matrix();
+            let puzzle_transform = draw_params.cam.rot().euclidean_rotation_matrix();
             let puzzle_transform: Vec<f32> = puzzle_transform
                 .cols_ndim(self.model.ndim)
                 .flat_map(|column| column.iter_ndim(4).collect_vec())

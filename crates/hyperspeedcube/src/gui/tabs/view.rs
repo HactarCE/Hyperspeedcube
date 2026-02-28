@@ -1,3 +1,4 @@
+use hyperdraw::NdEuclidCamera;
 use hypermath::pga::Motor;
 use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
 use hyperpuzzle::prelude::*;
@@ -18,9 +19,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 Some(PuzzleViewPreferencesSet::Perspective(dim)) => {
                     let presets = app.prefs.perspective_view_presets_mut(dim);
                     if let Some(cam) = view.nd_euclid_camera_mut() {
-                        let presets_ui =
-                            PresetsUi::new(id, presets, &mut cam.view_preset, &mut changed);
-                        show_contents_for_perspective(ui, dim, presets_ui, &mut cam.rot);
+                        show_contents_for_perspective(ui, id, dim, presets, cam, &mut changed);
                     } else {
                         show_disabled_contents(ui, id);
                     }
@@ -47,19 +46,27 @@ fn show_disabled_contents(ui: &mut egui::Ui, id: egui::Id) {
 
 fn show_contents_for_perspective(
     ui: &mut egui::Ui,
+    id: egui::Id,
     dim: PerspectiveDim,
-    presets_ui: PresetsUi<'_, ViewPreferences>,
-    rot: &mut Motor,
+    presets: &mut PresetsList<ViewPreferences>,
+    euclid_camera: &mut NdEuclidCamera,
+    changed: &mut bool,
 ) {
+    let mut wants_to_reset_camera = false;
+    let rot = euclid_camera.rot().clone();
+
+    let presets_ui = PresetsUi::new(id, presets, &mut euclid_camera.view_preset, changed);
     let presets_set = dim.as_ref();
     presets_ui
         .with_text(&L.presets.view_settings)
         .show(ui, Some(presets_set), |mut prefs_ui| {
             crate::gui::components::prefs::build_perspective_dim_view_section(dim, &mut prefs_ui);
             prefs_ui.ui.add_enabled_ui(!rot.is_ident(), |ui| {
-                if ui.button(L.prefs.view.reset).clicked() {
-                    *rot = Motor::ident(rot.ndim());
-                }
+                wants_to_reset_camera |= ui.button(L.prefs.view.reset).clicked();
             });
         });
+
+    if wants_to_reset_camera {
+        euclid_camera.reset_rot();
+    }
 }

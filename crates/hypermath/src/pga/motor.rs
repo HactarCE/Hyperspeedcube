@@ -100,11 +100,43 @@ impl Motor {
     }
     /// Constructs a rotation motor (also called a "rotor") that takes one
     /// vector to another.
+    ///
+    /// Returns `None` if either vector is zero or if the vectors are opposite.
     pub fn rotation(from: impl VectorRef, to: impl VectorRef) -> Option<Self> {
         let from = from.normalize()?;
         let to = to.normalize()?;
         let mid = (to + &from).normalize()?;
         Some(Self::from_normalized_vector_product(from, mid))
+    }
+    /// Constructs a rotation motor (also called a "rotor") that takes one
+    /// vector to another.
+    ///
+    /// If either vector is zero, returns the identity. If the vectors are
+    /// opposite and linearly independent from the X axis, returns a rotation
+    /// that takes `from` to `to` via the X axis. If the vectors are opposite
+    /// and not linearly independent from the X axis, returns a rotation that
+    /// takes `from` to `to` in the XY plane.
+    pub fn rotation_infallible(from: impl VectorRef, to: impl VectorRef) -> Self {
+        let ndim = std::cmp::max(from.ndim(), to.ndim());
+        match (from.normalize(), to.normalize()) {
+            (_, None) | (None, _) => Self::ident(ndim),
+            (Some(from), Some(to)) => {
+                if APPROX.ne(&from, &-&to)
+                    && let Some(mid) = (to + &from).normalize()
+                {
+                    Self::from_normalized_vector_product(from, mid)
+                } else {
+                    // The vectors are opposite.
+                    let Some(arbitrary_perpendicular_vector) =
+                        (0..=1).find_map(|i| Vector::unit(i).rejected_from(&from))
+                    else {
+                        log::error!("error computing arbitrary vector perpendicular to {from}");
+                        return Self::ident(ndim);
+                    };
+                    Self::from_normalized_vector_product(from, arbitrary_perpendicular_vector)
+                }
+            }
+        }
     }
     /// Constructs a rotation from an angle in an axis-aligned plane.
     ///
