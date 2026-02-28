@@ -12,7 +12,7 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
-use eyre::{OptionExt, Result, bail};
+use eyre::{OptionExt, Result, bail, ensure};
 use hypermath::prelude::*;
 use hyperprefs::StyleColorMode;
 use hyperpuzzle::prelude::*;
@@ -228,6 +228,8 @@ impl NdEuclidPuzzleRenderer {
         width: u32,
         height: u32,
     ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
+        ensure!(width > 0 && height > 0, "size cannot be zero");
+
         let screenshot_size = wgpu::Extent3d {
             width,
             height,
@@ -458,6 +460,7 @@ impl NdEuclidPuzzleRenderer {
 
         // Make the textures the right size.
         let size = draw_params.cam.target_size;
+        ensure!(size[0] > 0 && size[1] > 0, "target cannot be empty");
         self.buffers.polygons_texture.set_size(size);
         self.buffers.polygons_depth_texture.set_size(size);
         self.buffers.edge_ids_texture.set_size(size);

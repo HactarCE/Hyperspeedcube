@@ -64,9 +64,14 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
 
     let show_sidebar = app_ui.sidebar_style.is_shown();
 
+    let force_collapsed = ctx.available_rect().width() < 500.0; // not enough space!
+
     // Compute animations even when sidebar is not shown.
     let show_labels = app_ui.sidebar_style == SidebarStyle::IconsAndText;
-    let show_labels_anim = ctx.animate_bool(unique_id!(), show_labels);
+    let mut show_labels_anim = ctx.animate_bool(unique_id!(), show_labels);
+    if force_collapsed {
+        show_labels_anim = 0.0;
+    }
     let show_labels_full = show_labels_anim == 1.0;
 
     if show_labels_anim == 0.0 && !show_sidebar {
@@ -111,14 +116,15 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
                     } else {
                         mdi!(CHEVRON_RIGHT)
                     };
-                    if ui
-                        .button(icon.atom_size(egui::vec2(CHEVRON_SIZE, CHEVRON_SIZE)))
-                        .on_hover_text(if show_labels {
-                            L.sidebar.hide_labels
-                        } else {
-                            L.sidebar.show_labels
-                        })
-                        .clicked()
+                    if !force_collapsed
+                        && ui
+                            .button(icon.atom_size(egui::vec2(CHEVRON_SIZE, CHEVRON_SIZE)))
+                            .on_hover_text(if show_labels {
+                                L.sidebar.hide_labels
+                            } else {
+                                L.sidebar.show_labels
+                            })
+                            .clicked()
                     {
                         app_ui.sidebar_style = app_ui.sidebar_style.toggle_labels();
                         prefs.needs_save = true;

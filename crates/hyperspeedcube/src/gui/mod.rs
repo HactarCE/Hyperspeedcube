@@ -145,6 +145,7 @@ impl AppUi {
         if self.sidebar_style.is_shown() && self.sidebar_utility.is_some() {
             egui::SidePanel::left("sidebar_utility")
                 .default_width(400.0)
+                .max_width(ctx.available_rect().width() * 0.75)
                 .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
                 .show(ctx, |ui| {
                     if let Some(sidebar_utility) = self.sidebar_utility {
