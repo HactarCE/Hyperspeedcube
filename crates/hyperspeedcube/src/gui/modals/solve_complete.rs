@@ -237,7 +237,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             ui.separator();
 
-            let is_leaderboard_eligible = popup.puzzle.meta.tags.has_present("leaderboard");
+            let is_leaderboard_eligible =  popup.puzzle.meta.tags.has_present("external/leaderboard");
 
             if is_leaderboard_eligible {
                 crate::gui::components::show_leaderboards_ui(ui, &app.leaderboards);
