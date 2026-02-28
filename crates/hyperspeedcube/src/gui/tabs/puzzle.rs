@@ -563,6 +563,7 @@ impl PuzzleWidget {
         // Request focus on click.
         if r.is_pointer_button_down_on() {
             self.wants_focus = true;
+            r.request_focus(); // for keyboard input
         }
 
         if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
