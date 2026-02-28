@@ -131,7 +131,7 @@ add_twist_system(
 
         // Add axes and twists
         with #sym = simplex.sym {
-            export facet_axis = add_axis(simplex.facet_pole, simplex.facet_names)
+            export facet_axis = add_axis(simplex.facet_pole.unit, simplex.facet_names)
             a0 = facet_axis
             a1 = #sym.thru(3).transform(a0)
             a2 = #sym.thru(2).transform(a1)
@@ -140,7 +140,7 @@ add_twist_system(
             add_twist(a0, #sym.thru([0, 2]), "_{${a1}_${a2}}", gizmo_pole_distance = 2/√3)
             add_twist(a0, #sym.thru([1, 2]), "_{${a1}_${a2}_${a3}}", gizmo_pole_distance = 1)
 
-            export vertex_axis = add_axis(simplex.vertex_pole, simplex.vertex_names)
+            export vertex_axis = add_axis(simplex.vertex_pole.unit, simplex.vertex_names)
             a0 = vertex_axis
             a1 = #sym.thru(0).transform(a0)
             a2 = #sym.thru(1).transform(a1)
