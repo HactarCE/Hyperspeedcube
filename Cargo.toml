@@ -110,8 +110,8 @@ miette = { version = "7.5.0" }                                  # must match kdl
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.148" }
 serde_norway = { version = "0.9.42" }
-strum = { version = "0.27.2", features = ["derive"] }
-tempfile = { version = "3.24.0" }
+strum = { version = "0.28.0", features = ["derive"] }
+tempfile = { version = "3.26.0" }
 walkdir = { version = "2.4.0" }
 
 # String manipulation
@@ -139,12 +139,12 @@ color-eyre = { version = "0.6.2", default-features = false, features = [
 env_logger = { version = "0.11.5" }
 eyre = { version = "0.6.12" }
 log = { version = "0.4.29" }
-owo-colors = { version = "4.2.0" } # blocked on https://github.com/owo-colors/owo-colors/pull/141
+owo-colors = { version = "4.3.0" }
 pretty_assertions = { version = "1.4.1" }
-thiserror = { version = "2.0.17" }
+thiserror = { version = "2.0.18" }
 
 # Command-line interface
-clap = { version = "4.5.53" }
+clap = { version = "4.5.60" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
@@ -201,11 +201,11 @@ self_update = { version = "0.42.0" }
 # Procedural macro utilities
 proc-macro2 = { version = "1.0.104" }
 quote = { version = "1.0.42" }
-syn = { version = "2.0.115" }
+syn = { version = "2.0.117" }
 
 # Other dependencies
 bytemuck = { version = "1.24.0", features = ["derive"] }
-chrono = { version = "0.4.42", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 itertools = { version = "0.14.0" }
 lazy_static = { version = "1.5.0" }                        # TODO: replace with LazyLock
 names = { version = "0.14.0", default-features = false }
@@ -218,4 +218,3 @@ web-time = { version = "1.1.0" }
 ecolor = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
 eframe = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
 egui = { git = "https://github.com/HactarCE/egui", rev = "9e4b9fc69344ff3c43a623047fab2f0f82848bee" }
-owo-colors = { git = "https://github.com/owo-colors/owo-colors/", rev = "111387563a3f04aae2b7b451fee5e8ea888d8e8d" } # https://github.com/owo-colors/owo-colors/pull/141
