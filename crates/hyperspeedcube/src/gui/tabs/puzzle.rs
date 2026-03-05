@@ -26,6 +26,7 @@ use crate::gui::components::color_assignment_popup;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::util::EguiTempValue;
+use crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -249,14 +250,12 @@ impl PuzzleWidget {
         match &self.loading {
             Some(PuzzleWidgetLoading::BuildingPuzzle { puzzle_id, .. })
             | Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, .. }) => {
-                L.tabs.titles.puzzle.loading.with(puzzle_id)
+                L.tabs.puzzle_loading.with(puzzle_id)
             }
             None => match &self.contents {
-                PuzzleWidgetContents::None => L.tabs.titles.puzzle.empty.to_string(),
+                PuzzleWidgetContents::None => L.tabs.puzzle.title.to_string(),
                 PuzzleWidgetContents::Ok(view) => view.puzzle().meta.name.clone(),
-                PuzzleWidgetContents::Err { puzzle_id, .. } => {
-                    L.tabs.titles.puzzle.error.with(puzzle_id)
-                }
+                PuzzleWidgetContents::Err { puzzle_id, .. } => L.tabs.puzzle_error.with(puzzle_id),
             },
         }
     }
@@ -1033,14 +1032,7 @@ fn show_status_bar_contents_for_sim(
     if prefs.interaction.show_move_count_in_status_bar {
         show_separator_between(ui);
         let move_count_text = egui::WidgetText::from(sim.stm_count().to_string()).monospace();
-        let atoms = (
-            svg_icon_from_path!(
-                "rotate_square.svg",
-                crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE,
-            )
-            .fit_to_original_size(0.75),
-            move_count_text,
-        );
+        let atoms = (icon!(ui, MDI_STYLE_ICON_ROTATE_SQUARE, 18), move_count_text);
         ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
             .on_i18n_hover_explanation(&L.status_bar.move_count);
     }
@@ -1051,7 +1043,7 @@ fn show_status_bar_contents_for_sim(
         && let Some(timer_text) = timer_text_for_sim(ui, &*sim)
     {
         show_separator_between(ui);
-        let atoms = (mdi!(TIMER), timer_text);
+        let atoms = (mdi!(ui, TIMER), timer_text);
         ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
             .on_i18n_hover_explanation(&L.status_bar.timer);
         ui.ctx().request_repaint();
@@ -1116,7 +1108,7 @@ fn show_status_bar_contents_for_sim(
 
         // Filterless indicator
         if sim.has_been_filterless() {
-            let r = ui.add(IconButton::small(mdi!(FILTER_OFF)).transparent());
+            let r = ui.add(IconButton::small(mdi!(ui, FILTER_OFF)).transparent());
             if r.hovered() || r.has_focus() {
                 r.show_tooltip_text(L.status_bar.filterless);
             }

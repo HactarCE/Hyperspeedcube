@@ -33,7 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hyperpaths::hps_dir().is_ok() {
-                let r = ui.add(IconButton::big(mdi!(REFRESH)));
+                let r = ui.add(IconButton::big(mdi!(ui, REFRESH)));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
@@ -52,7 +52,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     |ui| {
                         let query = Query::from_str(&search_query_string);
 
-                        let (r, _) = MenuButton::new(mdi!(TAG))
+                        let (r, _) = MenuButton::new(mdi!(ui, TAG))
                             .config(
                                 MenuConfig::default()
                                     .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
@@ -136,7 +136,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 && ui
                     .put(
                         clear_button_rect,
-                        IconButton::very_small(mdi!(CLOSE)).selectable(false),
+                        IconButton::very_small(mdi!(ui, CLOSE)).selectable(false),
                     )
                     .on_hover_cursor(egui::CursorIcon::Default)
                     .on_hover_text(L.catalog.clear_search)

@@ -1,7 +1,7 @@
 use egui::AtomExt;
 use hyperpuzzle::TagValue;
 
-const SVG_ICON_SIZE: f32 = 12.0;
+use crate::gui::util::MDI_MEDIUM_SIZE;
 
 #[derive(Debug, Clone)]
 pub struct CatalogIcon {
@@ -20,7 +20,7 @@ impl CatalogIcon {
         };
         egui::Image::from(icon_data.clone())
             .tint(self.color.to_color32(ui))
-            .fit_to_exact_size(egui::vec2(SVG_ICON_SIZE * 1.5, SVG_ICON_SIZE * 1.5))
+            .fit_to_exact_size(MDI_MEDIUM_SIZE)
     }
     pub fn to_atom(&self, ui: &egui::Ui) -> egui::Atom<'static> {
         self.to_image(ui).into()

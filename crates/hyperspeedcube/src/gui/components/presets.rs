@@ -250,7 +250,7 @@ where
                 if dnd.is_dragging() {
                     ui.disable();
                 }
-                let mut r = ui.add(IconButton::small(mdi!(PLUS)));
+                let mut r = ui.add(IconButton::small(mdi!(ui, PLUS)));
                 if !egui::Popup::is_any_open(ui.ctx()) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
@@ -537,17 +537,16 @@ where
                                 };
                             }
 
-                            let r = ui.add(IconButton::big(mdi!(FLOPPY))).on_hover_explanation(
-                                L.presets.save_changes,
-                                {
+                            let r = ui
+                                .add(IconButton::big(mdi!(ui, FLOPPY)))
+                                .on_hover_explanation(L.presets.save_changes, {
                                     let current = md_bold_user_text(self.preset_name);
                                     if overwrite {
                                         L.presets.overwrite_current.with(&current)
                                     } else {
                                         L.presets.create_current.with(&current)
                                     }
-                                },
-                            );
+                                });
                             *self.save_preset |= r.clicked();
                         });
                     }

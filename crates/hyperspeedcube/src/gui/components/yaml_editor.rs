@@ -48,7 +48,7 @@ where
 
     pub fn show_edit_as_plaintext_button(&self, ui: &mut egui::Ui, value: &T) -> egui::Response {
         let r = ui
-            .add(IconButton::big(mdi!(PENCIL)).selectable(self.is_open(ui)))
+            .add(IconButton::big(mdi!(ui, PENCIL)).selectable(self.is_open(ui)))
             .on_i18n_hover_explanation(&L.edit_as_plaintext);
         if r.clicked() {
             match self.is_open(ui) {

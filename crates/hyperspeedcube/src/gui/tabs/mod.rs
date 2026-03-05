@@ -32,7 +32,7 @@ pub use puzzle::PuzzleWidget;
 use serde::{Deserialize, Serialize};
 
 use super::App;
-use crate::L;
+use crate::{L, gui::util::IconTint};
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum UtilityTab {
@@ -67,54 +67,76 @@ pub enum UtilityTab {
     Debug,
 }
 impl UtilityTab {
-    /// Returns the icon, menu name, and tab title.
-    fn data(self) -> (egui::Image<'static>, &'static str, &'static str) {
-        let l1 = &L.tabs.menu;
-        let l2 = &L.tabs.titles;
+    /// Returns the icon.
+    pub fn icon(self, tint: impl IconTint, size: f32) -> egui::Image<'static> {
         match self {
-            Self::Catalog => (mdi!(FOLDER), l1.catalog, l2.catalog),
-            Self::PuzzleInfo => (mdi!(INFORMATION_BOX), l1.puzzle_info, l2.puzzle_info),
-            Self::KeybindsReference => (
-                mdi!(KEYBOARD_VARIANT),
-                l1.keybinds_reference,
-                l2.keybinds_reference,
-            ),
-            Self::About => (mdi!(INFORMATION), l1.about, l2.about),
+            Self::Catalog => mdi!(tint, FOLDER, size),
+            Self::PuzzleInfo => mdi!(tint, INFORMATION_BOX, size),
+            Self::KeybindsReference => mdi!(tint, KEYBOARD_VARIANT, size),
+            Self::About => mdi!(tint, INFORMATION, size),
 
-            Self::Colors => (mdi!(PALETTE), l1.colors, l2.colors),
-            Self::Styles => (mdi!(PALETTE_SWATCH), l1.styles, l2.styles),
-            Self::View => (mdi!(CAMERA), l1.view, l2.view),
-            Self::Animation => (mdi!(MOTION), l1.animation, l2.animation),
+            Self::Colors => mdi!(tint, PALETTE, size),
+            Self::Styles => mdi!(tint, PALETTE_SWATCH, size),
+            Self::View => mdi!(tint, CAMERA, size),
+            Self::Animation => mdi!(tint, MOTION, size),
 
-            Self::Interaction => (mdi!(BUTTON_CURSOR), l1.interaction, l2.interaction),
-            Self::Keybinds => (mdi!(KEYBOARD), l1.keybinds, l2.keybinds),
-            Self::Mousebinds => (mdi!(MOUSE), l1.mousebinds, l2.mousebinds),
+            Self::Interaction => mdi!(tint, BUTTON_CURSOR, size),
+            Self::Keybinds => mdi!(tint, KEYBOARD, size),
+            Self::Mousebinds => mdi!(tint, MOUSE, size),
 
-            Self::ImageGenerator => (mdi!(IMAGE), l1.image_generator, l2.image_generator),
-            Self::Macros => (mdi!(SCRIPT_TEXT_PLAY), l1.macros, l2.macros),
-            Self::MoveInput => (mdi!(FORM_TEXTBOX), l1.move_input, l2.move_input),
-            Self::PieceFilters => (mdi!(FILTER), l1.piece_filters, l2.piece_filters),
-            Self::Scrambler => (mdi!(SHUFFLE), l1.scrambler, l2.scrambler),
-            Self::Timeline => (mdi!(CHART_TIMELINE), l1.timeline, l2.timeline),
-            Self::Timer => (mdi!(TIMER), l1.timer, l2.timer),
+            Self::ImageGenerator => mdi!(tint, IMAGE, size),
+            Self::Macros => mdi!(tint, SCRIPT_TEXT_PLAY, size),
+            Self::MoveInput => mdi!(tint, FORM_TEXTBOX, size),
+            Self::PieceFilters => mdi!(tint, FILTER, size),
+            Self::Scrambler => mdi!(tint, SHUFFLE, size),
+            Self::Timeline => mdi!(tint, CHART_TIMELINE, size),
+            Self::Timer => mdi!(tint, TIMER, size),
 
-            Self::HpsLogs => (mdi!(FILE_DOCUMENT), l1.hps_logs, l2.hps_logs),
-            Self::DevTools => (mdi!(CODE_BLOCK_BRACES), l1.dev_tools, l2.dev_tools),
+            Self::HpsLogs => mdi!(tint, FILE_DOCUMENT, size),
+            Self::DevTools => mdi!(tint, CODE_BLOCK_BRACES, size),
 
-            Self::Debug => (mdi!(BUG), l1.debug, l2.debug),
+            Self::Debug => mdi!(tint, BUG, size),
         }
     }
 
-    pub fn icon(self) -> egui::Image<'static> {
-        self.data().0
+    /// Returns the menu name and tab title.
+    fn strings(self) -> &'static crate::locales::Tab {
+        match self {
+            Self::Catalog => &L.tabs.catalog,
+            Self::PuzzleInfo => &L.tabs.puzzle_info,
+            Self::KeybindsReference => &L.tabs.keybinds_reference,
+            Self::About => &L.tabs.about,
+
+            Self::Colors => &L.tabs.colors,
+            Self::Styles => &L.tabs.styles,
+            Self::View => &L.tabs.view,
+            Self::Animation => &L.tabs.animation,
+
+            Self::Interaction => &L.tabs.interaction,
+            Self::Keybinds => &L.tabs.keybinds,
+            Self::Mousebinds => &L.tabs.mousebinds,
+
+            Self::ImageGenerator => &L.tabs.image_generator,
+            Self::Macros => &L.tabs.macros,
+            Self::MoveInput => &L.tabs.move_input,
+            Self::PieceFilters => &L.tabs.piece_filters,
+            Self::Scrambler => &L.tabs.scrambler,
+            Self::Timeline => &L.tabs.timeline,
+            Self::Timer => &L.tabs.timer,
+
+            Self::HpsLogs => &L.tabs.hps_logs,
+            Self::DevTools => &L.tabs.dev_tools,
+
+            Self::Debug => &L.tabs.debug,
+        }
     }
 
     pub fn menu_name(self) -> &'static str {
-        self.data().1
+        self.strings().menu
     }
 
     pub fn title(self) -> &'static str {
-        self.data().2
+        self.strings().title
     }
 
     pub fn ui(self, ui: &mut egui::Ui, app: &mut App) {
@@ -173,17 +195,15 @@ impl PartialEq for Tab {
 }
 impl Tab {
     pub fn menu_name(&self) -> &'static str {
-        let l = &L.tabs.menu;
         match self {
-            Tab::Puzzle(_) => l.puzzle,
+            Tab::Puzzle(_) => L.tabs.puzzle.menu,
             Tab::Utility(u) => u.menu_name(),
         }
     }
 
     pub fn title(&self) -> egui::WidgetText {
-        let l = &L.tabs.titles;
         match self {
-            Tab::Puzzle(None) => l.puzzle.empty.into(),
+            Tab::Puzzle(None) => L.tabs.puzzle.title.into(),
             Tab::Puzzle(Some(puzzle_widget)) => puzzle_widget.lock().title().into(),
             Tab::Utility(u) => u.title().into(),
         }

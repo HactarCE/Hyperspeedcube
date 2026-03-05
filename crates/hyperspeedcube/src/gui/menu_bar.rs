@@ -66,7 +66,7 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
             ui.toggle_value(
                 &mut app_ui.is_ui_layout_window_visible,
-                mdi!(VIEW_DASHBOARD),
+                mdi!(ui, VIEW_DASHBOARD),
             )
             .on_hover_text(L.top_bar.ui_layout_presets);
 
@@ -91,9 +91,7 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
 fn left_menu_ui(ui: &mut egui::Ui, app_ui: &mut AppUi, compact: bool) {
     if compact {
-        ui.menu_button(mdi!(MENU).fit_to_original_size(0.75), |ui| {
-            draw_menu_buttons(ui, app_ui)
-        });
+        ui.menu_button(mdi!(ui, MENU, 18), |ui| draw_menu_buttons(ui, app_ui));
     } else {
         draw_menu_buttons(ui, app_ui);
     }
@@ -124,7 +122,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: UtilityTab) {
         let mut open = app_ui.is_docked_utility_open(tab);
         if ui
-            .checkbox(&mut open, (tab.icon(), tab.menu_name()))
+            .checkbox(&mut open, (tab.icon(&ui, 12.0), tab.menu_name()))
             .clicked()
         {
             app_ui.toggle_docked_utility(tab);
@@ -285,7 +283,6 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, UtilityTab::Timeline);
         show_tab_toggle(ui, app_ui, UtilityTab::Scrambler);
         show_tab_toggle(ui, app_ui, UtilityTab::ImageGenerator);
-        ui.separator();
     });
     menu_button_that_stays_open(L.menu.puzzles.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Catalog);

@@ -112,9 +112,9 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
                 frame.show(ui, |ui| {
                     let prefs = &mut app_ui.app.prefs;
                     let icon = if show_labels {
-                        mdi!(CHEVRON_LEFT)
+                        mdi!(ui, CHEVRON_LEFT)
                     } else {
-                        mdi!(CHEVRON_RIGHT)
+                        mdi!(ui, CHEVRON_RIGHT)
                     };
                     if !force_collapsed
                         && ui
@@ -225,11 +225,7 @@ impl SidebarItem {
                         );
                     });
 
-                    ui.add(
-                        tab.icon()
-                            .fit_to_exact_size(egui::vec2(ICON_SIZE, ICON_SIZE))
-                            .tint(color),
-                    );
+                    ui.add(tab.icon(color, ICON_SIZE));
                     if show_labels {
                         // Paint text directly to avoid allocating too much width
                         ui.painter().text(

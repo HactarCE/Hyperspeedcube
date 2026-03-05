@@ -221,7 +221,8 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 let s = if self.text_edit_trim { s.trim() } else { &s };
                 // TODO: proper icon
                 if let Some(validator) = self.validate_confirm
-                    && (self.auto_confirm || validated_button(ui, mdi!(CHECK), validator(s), true))
+                    && (self.auto_confirm
+                        || validated_button(ui, mdi!(ui, CHECK), validator(s), true))
                 {
                     response = Some(TextEditPopupResponse::Confirm(s.to_string()));
                     if !self.auto_confirm || ui.input(|input| input.key_pressed(egui::Key::Enter)) {
@@ -230,7 +231,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 }
                 // TODO: proper icon
                 if let Some(validator) = self.validate_delete
-                    && validated_button(ui, mdi!(TRASH_CAN_OUTLINE), validator(s), false)
+                    && validated_button(ui, mdi!(ui, TRASH_CAN_OUTLINE), validator(s), false)
                 {
                     response = Some(TextEditPopupResponse::Delete);
                     ui.close();

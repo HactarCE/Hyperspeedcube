@@ -72,7 +72,7 @@ pub fn reset_button<T: PartialEq>(
 ) -> egui::Response {
     let mut r = ui.add_enabled(
         *value != reset_value,
-        IconButton::small(mdi!(ARROW_U_LEFT_TOP)),
+        IconButton::small(mdi!(ui, ARROW_U_LEFT_TOP)),
     );
     let hover_text: Cow<'_, str> = match reset_value_str {
         None => L.reset.into(),

@@ -456,10 +456,10 @@ fn show_seq_preset_name(
             if value.include_previous {
                 let inactive_text_color = &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
                 *inactive_text_color = inactive_text_color.gamma_multiply(0.3);
-                icon = mdi!(ARROW_RIGHT_BOTTOM);
+                icon = mdi!(ui, ARROW_RIGHT_BOTTOM);
                 hover = L.piece_filters.include_previous;
             } else {
-                icon = mdi!(CIRCLE_OUTLINE);
+                icon = mdi!(ui, CIRCLE_OUTLINE);
                 hover = L.piece_filters.ignore_previous;
             }
 

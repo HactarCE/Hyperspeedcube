@@ -1,68 +1,36 @@
 lang "en"
 
 tabs {
-  menu {
-    puzzle "New puzzle view"
-    catalog "Catalog"
-    puzzle_info "Puzzle info"
-    keybinds_reference "Keybinds reference"
-    about "About"
+  puzzle_loading "Loading {{id}}"
+  puzzle_error "Error loading {{id}}"
 
-    colors "Colors"
-    styles "Styles"
-    view "View"
-    animation "Animation"
+  (Tab)puzzle "New puzzle view" "No puzzle"
+  (Tab)catalog "Catalog" "Catalog"
+  (Tab)puzzle_info "Puzzle info" "Puzzle Info"
+  (Tab)keybinds_reference "Keybinds reference" "Keybinds Reference"
+  (Tab)about "About" "About"
 
-    interaction "Interaction"
-    keybinds "Keybinds"
-    mousebinds "Mousebinds"
+  (Tab)colors "Colors" "Colors"
+  (Tab)styles "Styles" "Styles"
+  (Tab)view "View" "View"
+  (Tab)animation "Animation" "Animation"
 
-    image_generator "Image generator"
-    macros "Macros"
-    move_input "Move input"
-    piece_filters "Filters"
-    scrambler "Custom scrambler"
-    timeline "Timeline"
-    timer "Timer"
+  (Tab)interaction "Interaction" "Interaction"
+  (Tab)keybinds "Keybinds" "Keybinds"
+  (Tab)mousebinds "Mousebinds" "Mousebinds"
 
-    hps_logs "HPS logs"
-    dev_tools "Developer tools"
+  (Tab)image_generator "Image generator" "Image Generator"
+  (Tab)macros "Macros" "Macros"
+  (Tab)move_input "Move input" "Move Input"
+  (Tab)piece_filters "Filters" "Filters"
+  (Tab)scrambler "Custom scrambler" "Scrambler"
+  (Tab)timeline "Timeline" "Timeline"
+  (Tab)timer "Timer" "Timer"
 
-    debug "Debug output"
-  }
-  titles {
-    puzzle {
-      empty "No Puzzle"
-      loading "Loading {{id}}"
-      error "Error loading {{id}}"
-    }
-    catalog "Catalog"
-    puzzle_info "Puzzle Info"
-    keybinds_reference "Keybinds Reference"
-    about "About"
+  (Tab)hps_logs "HPS logs" "HPS Logs"
+  (Tab)dev_tools "Developer tools" "Developer Tools"
 
-    colors "Colors"
-    styles "Styles"
-    view "View"
-    animation "Animation"
-
-    interaction "Interaction"
-    keybinds "Keybinds"
-    mousebinds "Mousebinds"
-
-    image_generator "Image Generator"
-    macros "Macros"
-    move_input "Move Input"
-    piece_filters "Filters"
-    scrambler "Scrambler"
-    timeline "Timeline"
-    timer "Timer"
-
-    hps_logs "HPS Logs"
-    dev_tools "Developer Tools"
-
-    debug "Debug Output"
-  }
+  (Tab)debug "Debug output" "Debug Output"
 }
 
 top_bar {

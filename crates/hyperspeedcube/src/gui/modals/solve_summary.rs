@@ -21,7 +21,10 @@ use crate::{
         App,
         ext::ResponseExt,
         markdown::md,
-        util::{GuiRoundingExtRect, MDI_BIG_SIZE, hyperlink_to, text_size, text_width},
+        util::{
+            GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, hyperlink_to,
+            text_size, text_width,
+        },
     },
     leaderboards::LeaderboardsClientState,
     util::centiseconds_to_string,
@@ -237,31 +240,24 @@ impl SolveSummaryModal {
 
     fn show_save_button(&mut self, ui: &mut egui::Ui, stats: &mut StatsDb) {
         let l = L.solve_summary.save;
-        let icon_size = egui::Vec2::splat(ui.spacing().interact_size.y);
         ui.horizontal(|ui| match &mut self.save_result {
             Some(Ok(())) => {
                 let mut sim = self.sim.lock();
                 sim.saved_to_autonamed_file = true;
                 sim.clear_unsaved_changes();
-                ui.add(mdi!(CONTENT_SAVE_CHECK).fit_to_exact_size(icon_size));
+                ui.add(mdi!(ui, CONTENT_SAVE_CHECK, 18));
                 ui.label("Saved!");
             }
             Some(Err(e)) => {
-                ui.add(
-                    mdi!(CONTENT_SAVE_ALERT_OUTLINE)
-                        .fit_to_exact_size(icon_size)
-                        .tint(ui.visuals().error_fg_color),
-                );
-                ui.colored_label(
-                    ui.visuals().error_fg_color,
-                    format!("Error saving solve: {e}"),
-                );
+                let error_fg_color = ui.visuals().error_fg_color;
+                ui.add(mdi!(error_fg_color, CONTENT_SAVE_ALERT_OUTLINE, 18));
+                ui.colored_label(error_fg_color, format!("Error saving solve: {e}"));
                 if ui.button(L.try_again).clicked() {
                     self.save_result = None;
                 }
             }
             None => {
-                if ui.button((mdi!(CONTENT_SAVE), l.button)).clicked() {
+                if ui.button((mdi!(ui, CONTENT_SAVE), l.button)).clicked() {
                     self.save_result = Some(self.try_save(stats));
                 }
             }
@@ -284,18 +280,18 @@ impl SolveSummaryModal {
         let mut error: Option<String> = None;
 
         let l = L.solve_summary.leaderboards;
-        let icon_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+        let icon_size = 18.0;
         ui.horizontal(|ui| {
             if !is_signed_in {
                 ui.disable();
             }
 
-            ui.set_min_height(icon_size.y);
+            ui.set_min_height(f32::max(ui.spacing().interact_size.y, icon_size));
             self.leaderboard_submission.try_recv();
 
             match &mut self.leaderboard_submission {
                 RequestState::Init => {
-                    if ui.button((mdi!(UPLOAD), l.submit)).clicked()
+                    if ui.button((mdi!(ui, UPLOAD), l.submit)).clicked()
                         && let LeaderboardsClientState::SignedIn(lb) = leaderboards
                     {
                         let data_to_submit = AutoVerifySubmission {
@@ -328,16 +324,13 @@ impl SolveSummaryModal {
                     ui.label(l.waiting);
                 }
                 RequestState::Ok(url) => {
-                    ui.add(mdi!(CHECK).fit_to_exact_size(icon_size));
+                    ui.add(mdi!(ui, CHECK, icon_size));
                     ui.hyperlink_to(l.success, url);
                 }
                 RequestState::Err(e) => {
-                    ui.add(
-                        mdi!(ALERT_OUTLINE)
-                            .fit_to_exact_size(icon_size)
-                            .tint(ui.visuals().error_fg_color),
-                    );
-                    ui.colored_label(ui.visuals().error_fg_color, l.error.with(&e));
+                    let error_fg_color = ui.visuals().error_fg_color;
+                    ui.add(mdi!(error_fg_color, ALERT_OUTLINE, icon_size));
+                    ui.colored_label(error_fg_color, l.error.with(&e));
                     if ui.button(L.try_again).clicked() {
                         self.timestamp_signature = RequestState::Init;
                     }
@@ -360,15 +353,15 @@ impl SolveSummaryModal {
         }
 
         let l = &L.solve_summary.timestamp;
-        let icon_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+        let icon_size = 18.0;
         ui.horizontal(|ui| {
-            ui.set_min_height(icon_size.y);
+            ui.set_min_height(f32::max(ui.spacing().interact_size.y, icon_size));
             self.timestamp_signature.try_recv();
 
             match &mut self.timestamp_signature {
                 RequestState::Init => {
                     if ui
-                        .button((mdi!(CLOCK_CHECK), l.button))
+                        .button((mdi!(ui, CLOCK_CHECK), l.button))
                         .on_i18n_hover_explanation(&l.hover)
                         .clicked()
                     {
@@ -380,14 +373,12 @@ impl SolveSummaryModal {
                     ui.label(l.waiting);
                 }
                 RequestState::Ok(_) => {
-                    ui.add(mdi!(CLOCK_CHECK).fit_to_exact_size(icon_size));
+                    ui.add(mdi!(ui, CLOCK_CHECK, icon_size));
                     ui.label(l.success);
                 }
                 RequestState::Err(e) => {
                     ui.add(
-                        mdi!(CLOCK_ALERT_OUTLINE)
-                            .fit_to_exact_size(icon_size)
-                            .tint(ui.visuals().error_fg_color),
+                        mdi!(ui, CLOCK_ALERT_OUTLINE, icon_size).tint(ui.visuals().error_fg_color),
                     );
                     ui.colored_label(ui.visuals().error_fg_color, l.error.with(&e));
                     if ui.button(L.try_again).clicked() {
@@ -567,18 +558,14 @@ impl SolveSummaryModal {
         let cell = |x, y| egui::Rect::from_x_y_ranges(col(x), row(y));
 
         // Draw header
-        let icon = svg_icon_from_path!(
-            "rotate_square.svg",
-            crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE,
-        )
-        .fit_to_original_size(0.75);
+        let icon = icon!(ui, MDI_STYLE_ICON_ROTATE_SQUARE, 18);
         ui.put(
             cell(1, 0),
             egui::AtomLayout::new((icon, move_count_header_text))
                 .align2(egui::Align2::RIGHT_CENTER),
         )
         .on_i18n_hover_explanation(&L.status_bar.move_count);
-        let icon = mdi!(TIMER).fit_to_original_size(0.75);
+        let icon = mdi!(ui, TIMER, 18);
         ui.put(
             cell(2, 0),
             egui::AtomLayout::new((icon, speed_header_text)).align2(egui::Align2::RIGHT_CENTER),
@@ -606,20 +593,20 @@ impl SolveSummaryModal {
         }
 
         // New solve
-        let row_label = (mdi_big!(NEW_BOX), L.solve_summary.table.this_solve);
+        let row_label = (mdi!(ui, NEW_BOX, 24), L.solve_summary.table.this_solve);
         put_left(ui, cell(0, 1), egui::AtomLayout::new(row_label));
         ui.put(cell(1, 1), this_solve_move_count);
         ui.put(cell(2, 1), this_solve_speed);
 
         // Saved personal best
-        let row_label = (mdi_big!(HARDDISK), L.solve_summary.table.saved_pb);
+        let row_label = (mdi!(ui, HARDDISK, 24), L.solve_summary.table.saved_pb);
         put_left(ui, cell(0, 2), egui::AtomLayout::new(row_label));
         ui.put(cell(1, 2), saved_pb_solve_move_count);
         ui.put(cell(2, 2), saved_pb_solve_speed);
 
         if self.is_leaderboard_eligible {
             // Leaderboard personal best
-            let row_label = (mdi_big!(MEDAL), L.solve_summary.table.leaderboard_pb);
+            let row_label = (mdi!(ui, MEDAL, 24), L.solve_summary.table.leaderboard_pb);
             put_left(ui, cell(0, 3), egui::AtomLayout::new(row_label));
             let merged_cell = || cell(1, 3).union(cell(2, 3));
             match &self.leaderboard_pbs {
@@ -652,7 +639,7 @@ impl SolveSummaryModal {
             }
 
             // Leaderboard world record
-            let row_label = (mdi_big!(TROPHY), L.solve_summary.table.world_record);
+            let row_label = (mdi!(ui, TROPHY, 24), L.solve_summary.table.world_record);
             put_left(ui, cell(0, 4), egui::AtomLayout::new(row_label));
             let merged_cell = || cell(1, 4).union(cell(2, 4));
             match &self.leaderboard_wrs {
@@ -939,7 +926,7 @@ impl egui::Widget for SolveMetric {
                     // Draw icon
                     if self.new_solve_is_better {
                         let icon =
-                            mdi_big!(ALERT_DECAGRAM).tint(egui::Color32::from_rgb(255, 255, 0));
+                            mdi!(ui, ALERT_DECAGRAM, 24).tint(egui::Color32::from_rgb(255, 255, 0));
                         let icon_response = match text_response {
                             Some(r) => {
                                 let icon_center = r.rect.left_center()
