@@ -8,7 +8,7 @@ use std::fmt;
 use std::ops::{Deref, DerefMut, Not};
 
 pub use crate::common::*;
-use crate::{Features, InvertError, ParseError, Str};
+use crate::{AxisLayersInfo, Features, InvertError, ParseError, Str};
 
 /// Parses a string containing puzzle notation into a list of [`Node`]s.
 pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<ParseError<'_>>> {
@@ -429,34 +429,34 @@ impl fmt::Display for LayerPrefixContents {
 impl LayerPrefixContents {
     /// Resolves the layer prefix to a list of positive layer ranges in
     /// arbitrary order.
-    pub fn to_ranges(&self, layer_count: u16) -> Vec<LayerRange> {
+    pub fn to_ranges(&self, layers_info: AxisLayersInfo) -> Vec<LayerRange> {
         match self {
-            LayerPrefixContents::Single(l) => (*l <= layer_count)
+            LayerPrefixContents::Single(l) => (*l <= layers_info.max_layer)
                 .then_some(LayerRange::from_layer(*l))
                 .into_iter()
                 .collect(),
             LayerPrefixContents::Range(range) => range
-                .clamp_to_layer_count(layer_count)
+                .clamp_to_layer_count(layers_info.max_layer)
                 .into_iter()
                 .collect(),
-            LayerPrefixContents::Set(set) => set.to_ranges(layer_count),
+            LayerPrefixContents::Set(set) => set.to_ranges(layers_info),
         }
     }
 
     /// Converts the layer prefix to a bitmask of layers.
-    pub fn to_layer_mask(&self, layer_count: u16) -> LayerMask {
+    pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         match self {
             LayerPrefixContents::Single(l) => LayerMask::from_layer(*l),
             LayerPrefixContents::Range(range) => LayerMask::from_range(*range),
-            LayerPrefixContents::Set(elements) => elements.to_layer_mask(layer_count),
+            LayerPrefixContents::Set(elements) => elements.to_layer_mask(layers_info),
         }
     }
 
     /// Canonicalizes the layer prefix.
     ///
     /// Returns `None` if the layer prefix does not include any layers.
-    pub fn simplify(&self, layer_count: u16) -> Option<Self> {
-        Some(Self::from_ranges(self.to_ranges(layer_count))).filter(|contents| !contents.is_empty())
+    pub fn simplify(&self, layers_info: AxisLayersInfo) -> Option<Self> {
+        Some(Self::from_ranges(self.to_ranges(layers_info))).filter(|contents| !contents.is_empty())
     }
 
     /// Returns whether the layer prefix is an empty set `{}`.
@@ -561,18 +561,18 @@ impl fmt::Display for LayerSet {
 impl LayerSet {
     /// Resolves the layer set to a list of positive layer ranges in arbitrary
     /// order.
-    pub fn to_ranges(&self, layer_count: u16) -> Vec<LayerRange> {
+    pub fn to_ranges(&self, layers_info: AxisLayersInfo) -> Vec<LayerRange> {
         self.elements
             .iter()
-            .filter_map(|elem| elem.to_range(layer_count))
+            .filter_map(|elem| elem.to_range(layers_info))
             .collect()
     }
 
     /// Converts the layer prefix to a bitmask of layers.
-    pub fn to_layer_mask(&self, layer_count: u16) -> LayerMask {
+    pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         let mut ret = LayerMask::new();
         for &elem in &self.elements {
-            if let Some(range) = elem.to_range(layer_count) {
+            if let Some(range) = elem.to_range(layers_info) {
                 ret.insert_range(range);
             }
         }
@@ -651,10 +651,10 @@ impl From<LayerRange> for LayerSetElement {
 }
 
 impl LayerSetElement {
-    fn to_range(self, layer_count: u16) -> Option<LayerRange> {
+    fn to_range(self, layers_info: AxisLayersInfo) -> Option<LayerRange> {
         match self {
-            LayerSetElement::Single(l) => l.resolve(layer_count).map(LayerRange::from_layer),
-            LayerSetElement::Range(range) => SignedLayer::resolve_range(range, layer_count),
+            LayerSetElement::Single(l) => layers_info.resolve(l).map(LayerRange::from_layer),
+            LayerSetElement::Range(range) => layers_info.resolve_range(range),
         }
     }
 }

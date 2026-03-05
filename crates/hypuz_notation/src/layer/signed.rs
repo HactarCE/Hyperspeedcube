@@ -3,22 +3,23 @@ use std::num::NonZeroI16;
 use std::ops::Neg;
 use std::str::FromStr;
 
-use super::{Layer, LayerRange};
+use super::Layer;
 use crate::error::ParseLayerError;
 
 /// 1-indexed signed layer number.
 ///
-/// Positive layers are indexed from shallowest (1) to deepest. Negative layers
-/// are indexed from deepest (-1) to shallowest (`-layer_count`).
+/// Positive layers are indexed from shallowest (1) to deepest. On axes that
+/// support negative layer numbers, negative layers are indexed from deepest
+/// (-1) to shallowest (`-layer_count`).
 ///
 /// The minimum and maximum allowed values are `±i16::MAX = ±32767`. Zero is not
-/// allowed value.
+/// an allowed value.
 ///
 /// Internally, this uses `NonZeroI16` so `Option<Layer>` takes up exactly 2
 /// bytes.
 ///
 /// This type implements `From<`[`Layer`]`>` and can be negated for convenience.
-/// To convert this to a [`Layer`], use [`SignedLayer::resolve()`]
+/// To convert this to a [`Layer`], use [`crate::AxisLayersInfo::resolve()`]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SignedLayer(pub(super) NonZeroI16);
@@ -60,22 +61,6 @@ impl SignedLayer {
         self.0.is_negative()
     }
 
-    /// Resolves a layer, given the number of layers on the axis. See the
-    /// [`SignedLayer`] documentation for how this mapping works.
-    ///
-    /// Returns `None` if the layer is out of range.
-    pub fn resolve(self, layer_count: u16) -> Option<Layer> {
-        if (self.0.abs().get() as u16) <= layer_count {
-            if self.is_positive() {
-                Some(Layer(self.0))
-            } else {
-                Layer::new(layer_count.saturating_sub((-self.0).get() as u16 - 1))
-            }
-        } else {
-            None
-        }
-    }
-
     /// Returns an unsigned layer, if this is positive. Returns `None` if it is
     /// negative. If the total number of layers on the axis is known, prefer
     /// [`SignedLayer::resolve()`] instead.
@@ -84,32 +69,6 @@ impl SignedLayer {
             Some(Layer(self.0))
         } else {
             None
-        }
-    }
-
-    /// Resolves a layer, given the number of layers on the axis.
-    ///
-    /// Returns sentinel values for layers that are out of range.
-    fn resolve_unclamped(self, layer_count: u16) -> ResolvedLayer {
-        match self.resolve(layer_count) {
-            Some(i) => ResolvedLayer::Concrete(i),
-            None if self.is_positive() => ResolvedLayer::BeyondDeepest,
-            None => ResolvedLayer::BeyondShallowest,
-        }
-    }
-
-    /// Resolves a layer range, given the number of layers on the axis.
-    pub(crate) fn resolve_range(range: [Self; 2], layer_count: u16) -> Option<LayerRange> {
-        let range @ [a, b] = range.map(|l| l.resolve_unclamped(layer_count));
-        if a == b && !matches!(a, ResolvedLayer::Concrete(_)) {
-            None
-        } else {
-            let [a, b] = range.map(|l| match l {
-                ResolvedLayer::BeyondShallowest => Layer::SHALLOWEST,
-                ResolvedLayer::Concrete(layer) => layer,
-                ResolvedLayer::BeyondDeepest => Layer::new_clamped(layer_count),
-            });
-            Some(LayerRange::new(a, b))
         }
     }
 
@@ -186,11 +145,4 @@ impl proptest::arbitrary::Arbitrary for SignedLayer {
     }
 
     type Strategy = proptest::strategy::BoxedStrategy<Self>;
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum ResolvedLayer {
-    BeyondShallowest,
-    Concrete(Layer),
-    BeyondDeepest,
 }

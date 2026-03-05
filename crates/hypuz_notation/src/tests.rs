@@ -203,60 +203,86 @@ fn assert_notation_roundtrip(node_list: NodeList) {
 
 #[test]
 fn test_resolve_signed_layer() {
-    assert_eq!(None, resolve_signed_layer(3, -4));
-    assert_eq!(Some(1), resolve_signed_layer(3, -3));
-    assert_eq!(Some(2), resolve_signed_layer(3, -2));
-    assert_eq!(Some(3), resolve_signed_layer(3, -1));
-    assert_eq!(Some(1), resolve_signed_layer(3, 1));
-    assert_eq!(Some(2), resolve_signed_layer(3, 2));
-    assert_eq!(Some(3), resolve_signed_layer(3, 3));
-    assert_eq!(None, resolve_signed_layer(3, 4));
+    assert_eq!(None, resolve_signed_layer(3, true, -4));
+    assert_eq!(Some(1), resolve_signed_layer(3, true, -3));
+    assert_eq!(Some(2), resolve_signed_layer(3, true, -2));
+    assert_eq!(Some(3), resolve_signed_layer(3, true, -1));
+    assert_eq!(Some(1), resolve_signed_layer(3, true, 1));
+    assert_eq!(Some(2), resolve_signed_layer(3, true, 2));
+    assert_eq!(Some(3), resolve_signed_layer(3, true, 3));
+    assert_eq!(None, resolve_signed_layer(3, true, 4));
+
+    assert_eq!(None, resolve_signed_layer(3, false, -4));
+    assert_eq!(None, resolve_signed_layer(3, false, -3));
+    assert_eq!(None, resolve_signed_layer(3, false, -2));
+    assert_eq!(None, resolve_signed_layer(3, false, -1));
+    assert_eq!(Some(1), resolve_signed_layer(3, false, 1));
+    assert_eq!(Some(2), resolve_signed_layer(3, false, 2));
+    assert_eq!(Some(3), resolve_signed_layer(3, false, 3));
+    assert_eq!(None, resolve_signed_layer(3, false, 4));
 }
 
 proptest! {
     #[test]
-    fn proptest_resolve_signed_layer_no_panic(signed_layer: SignedLayer, layer_count: u16) {
-        signed_layer.resolve(layer_count); // don't panic!
+    fn proptest_resolve_signed_layer_no_panic(layers_info: AxisLayersInfo, signed_layer: SignedLayer) {
+        layers_info.resolve(signed_layer); // don't panic!
     }
 
     #[test]
-    fn proptest_resolve_signed_layer_range_no_panic(range: [SignedLayer; 2], layer_count: u16) {
-        SignedLayer::resolve_range(range, layer_count); // don't panic!
+    fn proptest_resolve_signed_layer_range_no_panic(layers_info: AxisLayersInfo, range: [SignedLayer; 2]) {
+        layers_info.resolve_range(range); // don't panic!
     }
 
     #[test]
     fn proptest_resolve_signed_layer_range_correctness(
-        layer_count in 1..=5_u16,
+        max_layer in 1..=5_u16,
+        allow_negatives: bool,
         lo in prop_oneof![-10..=-1_i16, 1..=10_i16],
         hi in prop_oneof![-10..=-1_i16, 1..=10_i16],
     ) {
+        let layers_info = AxisLayersInfo {
+            max_layer,
+            allow_negatives,
+        };
         let lo = SignedLayer::new(lo).unwrap();
         let hi = SignedLayer::new(hi).unwrap();
-        let actual: Vec<Layer> = SignedLayer::resolve_range([lo, hi], layer_count)
+        let actual: Vec<Layer> = layers_info.resolve_range([lo, hi])
             .map(|range| range.into_iter().collect())
             .unwrap_or_default();
-        let mut lo = lo.to_i16();
-        if lo < 0 {
-            lo = layer_count as i16 + lo + 1;
-        }
-        let mut hi = hi.to_i16();
-        if hi < 0 {
-            hi = layer_count as i16 + hi + 1;
-        }
-        let expected: Vec<Layer> =
+
+        let expected = if (lo <= 0 || hi <= 0) && !allow_negatives {
+            vec![]
+        } else {
+            let mut lo = lo.to_i16();
+            if lo < 0 {
+                lo = layers_info.max_layer as i16 + lo + 1;
+            }
+            let mut hi = hi.to_i16();
+            if hi < 0 {
+                hi = layers_info.max_layer as i16 + hi + 1;
+            }
             (std::cmp::min(lo, hi)..=std::cmp::max(lo, hi))
-                .filter(|x| (1..=layer_count as i16).contains(x))
+                .filter(|x| (1..=layers_info.max_layer as i16).contains(x))
                 .map(|i| Layer::new(i as u16).unwrap())
-                .collect();
+                .collect()
+        };
+
         assert_eq!(expected, actual);
     }
 }
 
 #[test]
 fn test_layer_prefix_contents_to_ranges() {
-    fn to_ranges(contents: LayerPrefixContents, layer_count: u16) -> Vec<[u16; 2]> {
+    fn to_ranges(
+        contents: LayerPrefixContents,
+        max_layer: u16,
+        allow_negatives: bool,
+    ) -> Vec<[u16; 2]> {
         contents
-            .to_ranges(layer_count)
+            .to_ranges(AxisLayersInfo {
+                max_layer,
+                allow_negatives,
+            })
             .into_iter()
             .map(|r| [r.start().to_u16(), r.end().to_u16()])
             .collect()
@@ -273,21 +299,25 @@ fn test_layer_prefix_contents_to_ranges() {
 
     let empty: Vec<[u16; 2]> = vec![];
 
-    assert_eq!(to_ranges(single(1), 5), vec![[1, 1]]);
-    assert_eq!(to_ranges(single(2), 5), vec![[2, 2]]);
-    assert_eq!(to_ranges(single(5), 5), vec![[5, 5]]);
-    assert_eq!(to_ranges(single(6), 5), empty);
+    for b in [false, true] {
+        assert_eq!(to_ranges(single(1), 5, b), vec![[1, 1]]);
+        assert_eq!(to_ranges(single(2), 5, b), vec![[2, 2]]);
+        assert_eq!(to_ranges(single(5), 5, b), vec![[5, 5]]);
+        assert_eq!(to_ranges(single(6), 5, b), empty);
 
-    assert_eq!(to_ranges(range(1, 3), 5), vec![[1, 3]]);
-    assert_eq!(to_ranges(range(2, 4), 5), vec![[2, 4]]);
-    assert_eq!(to_ranges(range(2, 10), 5), vec![[2, 5]]);
-    assert_eq!(to_ranges(range(5, 10), 5), vec![[5, 5]]);
-    assert_eq!(to_ranges(range(6, 10), 5), empty);
+        assert_eq!(to_ranges(range(1, 3), 5, b), vec![[1, 3]]);
+        assert_eq!(to_ranges(range(2, 4), 5, b), vec![[2, 4]]);
+        assert_eq!(to_ranges(range(2, 10), 5, b), vec![[2, 5]]);
+        assert_eq!(to_ranges(range(5, 10), 5, b), vec![[5, 5]]);
+        assert_eq!(to_ranges(range(6, 10), 5, b), empty);
+    }
 }
 
-fn resolve_signed_layer(layer_count: u16, layer: i16) -> Option<u16> {
-    SignedLayer::new(layer)
-        .unwrap()
-        .resolve(layer_count)
-        .map(|l| l.to_u16())
+fn resolve_signed_layer(max_layer: u16, allow_negatives: bool, layer: i16) -> Option<u16> {
+    AxisLayersInfo {
+        max_layer,
+        allow_negatives,
+    }
+    .resolve(SignedLayer::new(layer).unwrap())
+    .map(|l| l.to_u16())
 }

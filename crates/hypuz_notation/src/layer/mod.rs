@@ -17,11 +17,13 @@
 //!
 //! For a collection of layers, see [`LayerMask`].
 
+mod count;
 mod mask;
 mod range;
 mod signed;
 mod unsigned;
 
+pub use count::AxisLayersInfo;
 pub use mask::{LayerMask, LayerSetIter};
 pub use range::LayerRange;
 pub use signed::SignedLayer;
