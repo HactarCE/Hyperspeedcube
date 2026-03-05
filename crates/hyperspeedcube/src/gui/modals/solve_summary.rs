@@ -238,25 +238,40 @@ impl SolveSummaryModal {
 
     fn show_save_button(&mut self, ui: &mut egui::Ui, stats: &mut StatsDb) {
         let l = L.solve_summary.save;
-        ui.horizontal(|ui| match &mut self.save_result {
-            Some(Ok(())) => {
-                let mut sim = self.sim.lock();
-                sim.saved_to_autonamed_file = true;
-                sim.clear_unsaved_changes();
-                ui.add(mdi!(ui, CONTENT_SAVE_CHECK, 18));
-                ui.label("Saved!");
-            }
-            Some(Err(e)) => {
-                let error_fg_color = ui.visuals().error_fg_color;
-                ui.add(mdi!(error_fg_color, CONTENT_SAVE_ALERT_OUTLINE, 18));
-                ui.colored_label(error_fg_color, format!("Error saving solve: {e}"));
-                if ui.button(L.try_again).clicked() {
-                    self.save_result = None;
+        ui.horizontal(|ui| {
+            match &mut self.save_result {
+                Some(Ok(())) => {
+                    let mut sim = self.sim.lock();
+                    sim.saved_to_autonamed_file = true;
+                    sim.clear_unsaved_changes();
+                    ui.add(mdi!(ui, CONTENT_SAVE_CHECK, 18));
+                    ui.label(l.success);
+                }
+                Some(Err(e)) => {
+                    let error_fg_color = ui.visuals().error_fg_color;
+                    ui.add(mdi!(error_fg_color, CONTENT_SAVE_ALERT_OUTLINE, 18));
+                    ui.colored_label(error_fg_color, format!("Error saving solve: {e}"));
+                    if ui.button(L.try_again).clicked() {
+                        self.save_result = None;
+                    }
+                }
+                None => {
+                    if ui.button((mdi!(ui, CONTENT_SAVE), l.button)).clicked() {
+                        self.save_result = Some(self.try_save(stats));
+                    }
                 }
             }
-            None => {
-                if ui.button((mdi!(ui, CONTENT_SAVE), l.button)).clicked() {
-                    self.save_result = Some(self.try_save(stats));
+            if let Ok(dir_path) = hyperpaths::solves_dir_for_puzzle(&self.puzzle.meta.id) {
+                if self.save_result == Some(Ok(())) {
+                    if let Ok(file_path) = &self.file_path
+                        && ui
+                            .add(egui::Hyperlink::new(l.show_this_saved_solve))
+                            .clicked()
+                    {
+                        open_with::show_in_folder(file_path.clone());
+                    }
+                } else if ui.add(egui::Hyperlink::new(l.show_saved_solves)).clicked() {
+                    crate::open_dir(&dir_path);
                 }
             }
         });
@@ -484,7 +499,7 @@ impl SolveSummaryModal {
         let mut saved_pb_solve_move_count = SolveMetric::new_move_count(fmc_pb.map(|pb| pb.stm))
             .with_file_path(fmc_pb.and_then(|pb| pb.abs_path().ok()))
             .compare_to_new_solve(
-                SolveMetricCategory::LeaderboardPb,
+                SolveMetricCategory::Saved,
                 this_move_count.map(|i| i as i64),
             );
         // IIFE to mimic try_block
@@ -667,6 +682,10 @@ impl SolveSummaryModal {
 
     fn show_special_puzzle_message(&self, ui: &mut egui::Ui, app: &mut App) {
         let mut message = None;
+
+        if !self.new_pbs.first {
+            return;
+        }
 
         if self.puzzle.meta.tags.has_present("algebraic/trivial") {
             return;
@@ -953,7 +972,9 @@ impl egui::Widget for SolveMetric {
                                 if let Some(category) = self.category {
                                     icon_response.on_hover_text(match category {
                                         SolveMetricCategory::Saved => l.first_saved_solve,
-                                        SolveMetricCategory::LeaderboardPb => l.leaderboard_pb,
+                                        SolveMetricCategory::LeaderboardPb => {
+                                            l.first_leaderboard_pb
+                                        }
                                         SolveMetricCategory::WorldRecord => l.first_wr,
                                     });
                                 }

@@ -247,7 +247,14 @@ impl AppUi {
                         };
                     }
                 });
-                if let Some(solve_summary_modal) = &mut self.solve_summary_modal {
+                let is_special_anim_in_progress = self
+                    .app
+                    .active_puzzle
+                    .with_sim(|s| s.special_anim_t().is_some())
+                    == Some(true);
+                if let Some(solve_summary_modal) = &mut self.solve_summary_modal
+                    && !is_special_anim_in_progress
+                {
                     let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
                         let target_size = egui::vec2(625.0, 750.0);
                         ui.set_max_size(

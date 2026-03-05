@@ -775,7 +775,7 @@ solve_summary {
   timestamp {
     button "Timestamp this solve"
     waiting "Waiting for response from timestamp authority"
-    success "This solve has been timestamped"
+    success "This solve has been timestamped."
     error "Error timestamping solve: {{reason}}"
     (HoverStrings)hover {
       full "Timestamping"
@@ -793,9 +793,11 @@ solve_summary {
   }
 
   save {
-    button "Save this solve locally"
-    success "This solve has been saved locally"
+    button "Save this solve"
+    success "This solve has been saved."
     error "Error saving solve: {{reason}}"
+    show_saved_solves "Show saved solves in file manager"
+    show_this_saved_solve "Show in file manager"
   }
 
   table {
@@ -811,9 +813,9 @@ solve_summary {
 
     new_solve_is_faster "Your new solve is faster!"
     new_solve_is_shorter "Your new solve is shorter!"
-    first_saved_solve "This is your first saved solve in the category!"
+    first_saved_solve "This would be your first saved solve in the category!"
     first_leaderboard_pb "This would be your first submitted solve in the category!"
-    first_wr "This would be the first solve in the category!"
+    first_wr "This would be the first solve anyone has submitted in the category!"
 
     click_to_open_in_browser "Click to open in browser"
     click_to_show_in_file_manager "Click to show in file manager"
