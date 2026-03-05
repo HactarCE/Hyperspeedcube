@@ -231,8 +231,6 @@ impl SolveSummaryModal {
 
                         md(ui, L.solve_summary.reopen_hint);
 
-                        ui.add_space(20.0);
-
                         self.show_special_puzzle_message(ui, app);
                     });
             });
@@ -678,6 +676,8 @@ impl SolveSummaryModal {
         if self.puzzle.meta.id.starts_with("ft_hypercube:")
             && self.puzzle.meta.id != "ft_hypercube:2"
         {
+            ui.add_space(20.0);
+
             ui.group(|ui| {
                 ui.set_width(ui.available_width());
                 md(ui, L.solve_summary.solved_4d_1);
@@ -694,6 +694,8 @@ impl SolveSummaryModal {
             });
 
             self.show_support_request(ui);
+
+            return;
         } else if self.puzzle.meta.id.starts_with("ft_5_cube:") {
             message = Some(L.solve_summary.solved_5d);
         } else if self.puzzle.meta.id.starts_with("ft_6_cube:") {
@@ -705,6 +707,8 @@ impl SolveSummaryModal {
         }
 
         if let Some(m) = message {
+            ui.add_space(20.0);
+
             ui.group(|ui| {
                 ui.set_width(ui.available_width());
                 md(ui, m);
