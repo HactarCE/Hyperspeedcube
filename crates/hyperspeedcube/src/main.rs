@@ -157,7 +157,7 @@ fn open_dir(dir: &std::path::Path) {
     if let Err(e) = std::fs::create_dir_all(dir) {
         log::error!("Error creating directory {dir:?}: {e}");
     }
-    if let Err(e) = opener::open(dir) {
+    if let Err(e) = open_with::open(dir.to_path_buf()) {
         log::error!("Error opening directory {dir:?}: {e}");
     }
 }

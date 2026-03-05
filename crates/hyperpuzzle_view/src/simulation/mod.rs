@@ -57,8 +57,10 @@ pub struct PuzzleSimulation {
     replay: Option<Vec<ReplayEvent>>,
     /// Whether the solve has been started.
     started: bool,
-    /// Whether the puzzle has been solved.
+    /// Whether the puzzle has been solved from a scramble.
     solved: bool,
+    /// Whether the simulation has been reloaded since the puzzle was solved.
+    has_been_reloaded_since_first_solved: bool,
     /// Total duration from previous sessions.
     old_duration: Option<i64>,
     /// Time that the puzzle was loaded.
@@ -103,6 +105,20 @@ pub struct PuzzleSimulation {
     /// Last loaded/saved log file.
     pub last_log_file: Option<PathBuf>,
 
+    /// Timestamp signature, if any.
+    pub tsa_signature_v1: Option<String>,
+    /// Whether the solve has been saved to the autonamed file after completion.
+    ///
+    /// This field is only intended for use by downstream users of the crate; it
+    /// is not modified or read by any code in this crate.
+    pub saved_to_autonamed_file: bool,
+    /// URL of the submission, if the solve has been uploaded to the
+    /// leaderboards.
+    ///
+    /// This field is only intended for use by downstream users of the crate; it
+    /// is not modified or read by any code in this crate.
+    pub leaderboard_url: Option<String>,
+
     /// Puzzle simulation ID, unique to the process. This is used to reset
     /// certain cosmetic settings (such as filters).
     pub sim_id: usize,
@@ -137,6 +153,7 @@ impl PuzzleSimulation {
             }]),
             started: false,
             solved: false,
+            has_been_reloaded_since_first_solved: false,
             old_duration: Some(0),
             load_time: Instant::now(),
             is_single_session: true,
@@ -157,6 +174,10 @@ impl PuzzleSimulation {
             cached_render_data,
 
             last_log_file: None,
+
+            tsa_signature_v1: None,
+            saved_to_autonamed_file: false,
+            leaderboard_url: None,
 
             sim_id: NEXT_SIM_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         }
@@ -213,9 +234,13 @@ impl PuzzleSimulation {
     pub fn has_unsaved_changes(&self) -> bool {
         self.has_unsaved_changes
     }
-    /// Mark the puzzle as having no unsaved changes.
+    /// Marks the puzzle as having no unsaved changes.
     pub fn clear_unsaved_changes(&mut self) {
         self.has_unsaved_changes = false;
+    }
+    /// Marks the puzzle as having unsaved changes.
+    pub fn mark_unsaved(&mut self) {
+        self.has_unsaved_changes = true;
     }
 
     /// Returns the scramble, or `None` if the puzzle has not been scrambled.
@@ -334,10 +359,10 @@ impl PuzzleSimulation {
                 duration: self.file_duration(),
             });
         }
-        self.replay_event(event);
+        self.replay_event(event, false);
     }
     /// Plays a replay event on the puzzle when deserializing.
-    fn replay_event(&mut self, event: ReplayEvent) {
+    fn replay_event(&mut self, event: ReplayEvent, is_replaying: bool) {
         let is_no_op = match event {
             ReplayEvent::Undo { .. } => !self.has_undo(),
             ReplayEvent::Redo { .. } => !self.has_redo(),
@@ -365,25 +390,28 @@ impl PuzzleSimulation {
         }
 
         match event {
-            ReplayEvent::Undo { .. } => self.undo(),
-            ReplayEvent::Redo { .. } => self.redo(),
+            ReplayEvent::Undo { .. } => self.undo(is_replaying),
+            ReplayEvent::Redo { .. } => self.redo(is_replaying),
             ReplayEvent::Scramble { time } => {
-                self.do_action(Action::Scramble { time });
+                self.do_action(Action::Scramble { time }, is_replaying);
             }
             ReplayEvent::Twists(twists) => {
-                self.do_action(Action::Twists {
-                    old_stm_counter: self.stm_counter.clone(),
-                    twists,
-                });
+                self.do_action(
+                    Action::Twists {
+                        old_stm_counter: self.stm_counter.clone(),
+                        twists,
+                    },
+                    is_replaying,
+                );
             }
             ReplayEvent::SetBlindfold { enabled, .. } => self.blindfolded = enabled, /* TODO: actually have an effect */
             ReplayEvent::InvalidateFilterless { .. } => self.invalidated_filterless = true,
             ReplayEvent::StartSolve { time, duration } => {
-                self.do_action(Action::StartSolve { time, duration });
+                self.do_action(Action::StartSolve { time, duration }, is_replaying);
                 self.stm_counter.reset();
             }
             ReplayEvent::EndSolve { time, duration } => {
-                self.do_action(Action::EndSolve { time, duration });
+                self.do_action(Action::EndSolve { time, duration }, is_replaying);
             }
             ReplayEvent::GizmoClick { .. }
             | ReplayEvent::DragTwist { .. }
@@ -408,18 +436,18 @@ impl PuzzleSimulation {
         !self.redo_stack.is_empty()
     }
 
-    fn undo(&mut self) {
+    fn undo(&mut self, is_replaying: bool) {
         // Keep undoing until we find an action that can be undone.
         while let Some(action) = self.undo_stack.pop() {
             match action.undo_behavior() {
                 UndoBehavior::Action => {
-                    if self.undo_action_internal(&action) {
+                    if self.undo_action_internal(&action, is_replaying) {
                         self.redo_stack.push(action);
                     }
                     break;
                 }
                 UndoBehavior::Marker => {
-                    if self.undo_action_internal(&action) {
+                    if self.undo_action_internal(&action, is_replaying) {
                         self.redo_stack.push(action);
                     }
                 }
@@ -430,10 +458,10 @@ impl PuzzleSimulation {
             }
         }
     }
-    fn redo(&mut self) {
+    fn redo(&mut self, is_replaying: bool) {
         // Keep redoing until we find an action that can be redone.
         while let Some(action) = self.redo_stack.pop() {
-            if self.do_action_internal(&action) {
+            if self.do_action_internal(&action, is_replaying) {
                 self.undo_stack.push(action);
                 break;
             }
@@ -443,7 +471,7 @@ impl PuzzleSimulation {
     /// Does an undoable action and saves it to the undo stack.
     ///
     /// Clears the redo stack if applicable.
-    fn do_action(&mut self, action: Action) {
+    fn do_action(&mut self, action: Action, is_replaying: bool) {
         if matches!(action, Action::Twists { .. }) && self.first_move_time.is_none() {
             self.first_move_time = Some(Instant::now());
         }
@@ -454,11 +482,11 @@ impl PuzzleSimulation {
             UndoBehavior::Marker | UndoBehavior::Boundary => (),
         }
         self.undo_stack.push(action.clone());
-        self.do_action_internal(&action);
+        self.do_action_internal(&action, is_replaying);
     }
     /// Does an undoable action. Returns whether the action should be saved to
     /// the undo stack.
-    fn do_action_internal(&mut self, action: &Action) -> bool {
+    fn do_action_internal(&mut self, action: &Action, is_replaying: bool) -> bool {
         self.has_unsaved_changes = true;
         match action {
             Action::Scramble { .. } => match &self.scramble {
@@ -492,7 +520,12 @@ impl PuzzleSimulation {
                 for &twist in twists {
                     any_effect |= self.do_twist(twist);
                 }
-                if any_effect && !self.solved && self.scramble.is_some() && self.is_solved() {
+                if any_effect
+                    && !is_replaying
+                    && !self.solved
+                    && self.scramble.is_some()
+                    && self.is_solved()
+                {
                     self.solve_complete_time = Some(Instant::now());
                     self.request_to_show_solve_summary = true;
                     self.do_event(ReplayEvent::EndSolve {
@@ -514,7 +547,7 @@ impl PuzzleSimulation {
     }
     /// Undoes an action. Returns whether the action should be saved to the redo
     /// stack.
-    fn undo_action_internal(&mut self, action: &Action) -> bool {
+    fn undo_action_internal(&mut self, action: &Action, is_replaying: bool) -> bool {
         self.has_unsaved_changes = true;
         let puz = self.latest_state.ty();
         match action {
@@ -523,14 +556,17 @@ impl PuzzleSimulation {
                 old_stm_counter,
                 twists,
             } => {
-                let ret = self.do_action_internal(&Action::Twists {
-                    old_stm_counter: StmCounter::new(), // ignored
-                    twists: twists
-                        .iter()
-                        .rev()
-                        .filter_map(|twist| twist.rev(puz).ok())
-                        .collect(),
-                });
+                let ret = self.do_action_internal(
+                    &Action::Twists {
+                        old_stm_counter: StmCounter::new(), // ignored
+                        twists: twists
+                            .iter()
+                            .rev()
+                            .filter_map(|twist| twist.rev(puz).ok())
+                            .collect(),
+                    },
+                    is_replaying,
+                );
                 self.stm_counter = old_stm_counter.clone();
                 ret
             }
@@ -947,7 +983,7 @@ impl PuzzleSimulation {
             duration: self.file_duration(),
             scramble: self.scramble.clone(),
             log,
-            tsa_signature_v1: None,
+            tsa_signature_v1: self.tsa_signature_v1.clone(),
         }
     }
     /// Loads a log file from a string.
@@ -959,28 +995,26 @@ impl PuzzleSimulation {
             duration,
             scramble,
             log,
-            tsa_signature_v1: _,
+            tsa_signature_v1,
         } = solve;
 
         log::trace!("Loading file ...");
 
         let mut ret = Self::new(puzzle);
 
+        ret.tsa_signature_v1 = tsa_signature_v1.clone();
+
         let is_replay = replay.unwrap_or(false);
-        if !is_replay {
-            ret.replay = None;
-        }
+        ret.replay = is_replay.then(Vec::new);
 
         for event in log {
             match event {
                 &LogEvent::Scramble { time } => {
                     log::trace!("Applying scramble {scramble:?}");
                     ret.reset();
-                    if !is_replay {
-                        ret.replay = None;
-                    }
+                    ret.replay = is_replay.then(Vec::new);
                     ret.scramble = scramble.clone();
-                    ret.replay_event(ReplayEvent::Scramble { time });
+                    ret.replay_event(ReplayEvent::Scramble { time }, true);
                 }
                 &LogEvent::Click {
                     time,
@@ -992,19 +1026,22 @@ impl PuzzleSimulation {
                     let Some(target) = puzzle.twists.names.id_from_name(target) else {
                         continue;
                     };
-                    ret.replay_event(ReplayEvent::GizmoClick {
-                        time,
-                        layers,
-                        target,
-                        reverse,
-                    });
+                    ret.replay_event(
+                        ReplayEvent::GizmoClick {
+                            time,
+                            layers,
+                            target,
+                            reverse,
+                        },
+                        true,
+                    );
                 }
                 &LogEvent::DragTwist { time, ref axis } => {
                     // TODO: handle errors
                     let Some(axis) = puzzle.axes().names.id_from_name(axis) else {
                         continue;
                     };
-                    ret.replay_event(ReplayEvent::DragTwist { time, axis });
+                    ret.replay_event(ReplayEvent::DragTwist { time, axis }, true);
                 }
                 LogEvent::Twists(twists_str) => {
                     for group in hyperpuzzle_log::notation::parse_grouped_twists(
@@ -1014,50 +1051,61 @@ impl PuzzleSimulation {
                         // TODO: handle errors
                         let group = group.into_iter().filter_map(Result::ok).collect();
                         log::trace!("Applying twist group {group:?} from {twists_str:?}");
-                        ret.replay_event(ReplayEvent::Twists(group));
+                        ret.replay_event(ReplayEvent::Twists(group), true);
                     }
                 }
-                &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }),
-                &LogEvent::Redo { time } => ret.replay_event(ReplayEvent::Redo { time }),
+                &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }, true),
+                &LogEvent::Redo { time } => ret.replay_event(ReplayEvent::Redo { time }, true),
                 &LogEvent::SetBlindfold { time, enabled } => {
-                    ret.replay_event(ReplayEvent::SetBlindfold { time, enabled });
+                    ret.replay_event(ReplayEvent::SetBlindfold { time, enabled }, true);
                 }
                 &LogEvent::InvalidateFilterless { time } => {
-                    ret.replay_event(ReplayEvent::InvalidateFilterless { time });
+                    ret.replay_event(ReplayEvent::InvalidateFilterless { time }, true);
                 }
                 LogEvent::Macro { time: _ } => log::error!("macros are unsupported"), /* TODO apply macro */
                 LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
-                    ret.replay_event(ReplayEvent::StartSolve {
-                        time: *time,
-                        duration: *duration,
-                    });
+                    ret.replay_event(
+                        ReplayEvent::StartSolve {
+                            time: *time,
+                            duration: *duration,
+                        },
+                        true,
+                    );
                 }
                 LogEvent::EndSolve { time, duration } => {
                     ret.solved = true;
-                    ret.replay_event(ReplayEvent::EndSolve {
-                        time: *time,
-                        duration: *duration,
-                    });
+                    ret.replay_event(
+                        ReplayEvent::EndSolve {
+                            time: *time,
+                            duration: *duration,
+                        },
+                        true,
+                    );
                 }
                 LogEvent::StartSession { time } => {
-                    ret.replay_event(ReplayEvent::StartSession { time: *time });
+                    ret.replay_event(ReplayEvent::StartSession { time: *time }, true);
                 }
                 LogEvent::EndSession { time } => {
-                    ret.replay_event(ReplayEvent::EndSession { time: *time });
+                    ret.replay_event(ReplayEvent::EndSession { time: *time }, true);
                 }
             }
         }
 
-        if is_replay {
-            ret.replay_event(ReplayEvent::StartSession {
+        ret.replay_event(
+            ReplayEvent::StartSession {
                 time: Some(Timestamp::now()),
-            });
-        }
+            },
+            true,
+        );
 
         ret.old_duration = *duration;
         ret.has_unsaved_changes = false;
         ret.is_single_session = false;
+        ret.request_to_show_solve_summary = false;
+        if ret.solved {
+            ret.has_been_reloaded_since_first_solved = true;
+        }
 
         ret.skip_twist_animations();
 
@@ -1077,6 +1125,11 @@ impl PuzzleSimulation {
     /// Returns whether the puzzle has _ever_ been solved.
     pub fn has_been_solved(&self) -> bool {
         self.solved
+    }
+    /// Returns whether the log file has been reloaded since the puzzle was
+    /// first solved.
+    pub fn has_been_reloaded_since_first_solved(&self) -> bool {
+        self.has_been_reloaded_since_first_solved
     }
     /// Requests to show the solve summary.
     pub fn request_to_show_solve_summary(&mut self) {
@@ -1106,5 +1159,90 @@ impl PuzzleSimulation {
     /// Returns whether the solve is valid for a no-filters solve.
     pub fn has_been_filterless(&self) -> bool {
         !self.invalidated_filterless
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXAMPLE_REPLAY_FILE: &'static str = r#"
+// Hyperspeedcube puzzle log
+version 2
+program name=Hyperspeedcube version="2.0.0-zeta.5"
+solve {
+    replay #true
+    puzzle id=ft_cube:2 version="1.0.1"
+    solved #true
+    duration 9359
+    scramble full version=1 time="2026-03-03T00:11:32.500Z" seed="2026-03-03T00:11:32.500Z_yKebWcuWfKqEog3YY/UtaAzDp4JKrIELvl6dMIKMzDY=" {
+        twists "2L2 {1-2}B2 2B {1-2}R 2B B' L2 2B 2R2 {1-2}U2 {1-2}R U2 R 2L2 F {1-2}L F2 B' F F F2 L R2 U2 R' 2L {1-2}R B' F {1-2}D' {1-2}D2 2L2 {1-2}R D2 {1-2}D' F' {1-2}U 2L' 2R2 {1-2}F' {1-2}R2 L R' 2B 2F 2L' 2B2 2F R2 {1-2}D2 2R L {1-2}R' 2D' B2 {1-2}R' 2B' {1-2}R F2 2D2 2B 2B2 2U2 U2 R 2U2 {1-2}L2 {1-2}R U' 2F2 {1-2}L2 R 2L {1-2}F {1-2}R' F' F {1-2}R' {1-2}F {1-2}R2 {1-2}B' U' F D2 2U D' L L 2L {1-2}F B' 2F' {1-2}B2 {1-2}R' R2 2F' {1-2}F' D L2 {1-2}F {1-2}R' {1-2}F' {1-2}R D L' {1-2}F B' L {1-2}F2 2D' F2 2F' L2 {1-2}D' 2L2 2R2 {1-2}R' 2U U2 2B' 2U2 R {1-2}F {1-2}L' B2 U2 {1-2}D' U2 L 2L2 B' 2F2 {1-2}U F' 2R2 2D 2R' {1-2}L2 {1-2}L {1-2}D {1-2}F' {1-2}R R F' 2L2 {1-2}B2 2F 2F2 R2 {1-2}U' {1-2}F' 2R' L2 {1-2}D2 2B2 2U' {1-2}B2 F' 2D' {1-2}D' 2U' B2 2L L' U2 R' 2B2 2L {1-2}R2 2F' 2F2 {1-2}L {1-2}L2 D2 D2 {1-2}R2 2U 2B2 {1-2}D' 2F2 F' 2D2 L' 2L 2L' 2R {1-2}D2 B' U2 {1-2}U2 {1-2}B' B 2R' 2D' D2 {1-2}U' L2 {1-2}L2 {1-2}B' {1-2}D2 {1-2}F2 {1-2}R' {1-2}L2 R2 2F' {1-2}D {1-2}B' 2D' F' {1-2}R {1-2}B' 2F' {1-2}L2 2F 2F D2 2B' {1-2}D R' {1-2}U' {1-2}F' 2R D' B {1-2}U {1-2}B2 {1-2}B2 2B D 2B' {1-2}B' {1-2}D 2U2 {1-2}B {1-2}U 2F' 2B2 {1-2}L' B' B2 {1-2}U2 2R {1-2}F2 2F2 {1-2}L2 2B {1-2}U2 {1-2}L2 F' {1-2}D' 2R' {1-2}L' {1-2}D L2 R2 {1-2}F {1-2}B' 2D' 2L2 2L2 B2 {1-2}R 2U' {1-2}F B 2F 2D L' {1-2}L 2D2 {1-2}D U2 2L' L' 2F' 2D' {1-2}D' 2R' {1-2}L 2R {1-2}F2 {1-2}U' 2R2 R {1-2}D' F2 2F' {1-2}L R' D2 {1-2}F' 2L' {1-2}B2 2D U2 R 2L' {1-2}B D2 L' D {1-2}R' 2R' R' {1-2}F' L' 2R2 2B' 2L2 2U' 2F2 2L' {1-2}F' R2 U' {1-2}D {1-2}D' B 2R D' 2U' 2F {1-2}D2 L2 {1-2}B2 L {1-2}D2 2U' L2 2R 2L U2 {1-2}D' 2D2 2U' {1-2}L {1-2}B 2F' 2B' {1-2}L 2L F2 U' {1-2}D {1-2}R' F' B' R 2R2 D2 {1-2}L2 {1-2}U2 2R 2B {1-2}F2 {1-2}D2 {1-2}D2 R' D' 2F2 B {1-2}U {1-2}D {1-2}D' D' U' 2D2 2U L2 {1-2}D2 2F2 {1-2}B' {1-2}B' R2 2D2 F2 F' {1-2}L 2B2 L 2U' L D2 L' {1-2}B' 2F F' 2F2 {1-2}U {1-2}F2 2L' F' U2 {1-2}F2 {1-2}B2 {1-2}R' 2F R {1-2}D' F2 D2 2L 2U2 L2 L2 2D' F2 2B B {1-2}F2 2B2 2U' {1-2}B2 U2 L' {1-2}B {1-2}R' {1-2}F2 {1-2}B' D' {1-2}D B' 2U {1-2}L L 2B2 F' {1-2}F2 U' {1-2}D2 U2 U' {1-2}F {1-2}U2 2F {1-2}L2 {1-2}L 2D 2L' {1-2}R2 2D L' {1-2}U' U2 {1-2}L2 {1-2}F 2U' 2L L {1-2}R D 2L {1-2}D L2 R2 2U' {1-2}L2 {1-2}D L 2D {1-2}F' F2 2R B' 2R {1-2}D' 2L 2R D 2L2 R' L' {1-2}L' B' 2R B B {1-2}F2 {1-2}D' B 2U' {1-2}F2 2R2 2B D2 2R F' {1-2}D2 2D' 2F2 R2 U2 2D {1-2}L2 {1-2}L L2 2D' {1-2}L2 {1-2}D {1-2}U2 {1-2}B2 D2 2L' {1-2}R' L' B2 2D B2 {1-2}L' U U {1-2}D' {1-2}F' {1-2}R D2 {1-2}L' 2F2 2D 2B {1-2}D' 2B F {1-2}F' R' 2F R2 {1-2}B {1-2}D' U L {1-2}F L' {1-2}U 2U' 2B' 2F' 2U D' 2R' 2L' L 2D L B' B2 2R2 B2 L' 2B 2F2 R' 2U' 2B B' B' {1-2}L' {1-2}B {1-2}U U2 U2 D' 2F L {1-2}F' D' 2R2 U {1-2}B2 B2 {1-2}U' 2B' 2L2 D U2 F2 2L2 2B {1-2}F {1-2}L' R' {1-2}B 2F2 2B' {1-2}R' D D 2R' 2L D B2 {1-2}D D2 2F' 2D2 D 2D' D2 R' 2R R' F R' 2R {1-2}F2 2R2 {1-2}L 2B' {1-2}F' 2F' F2 2F' 2D 2B 2R2 B {1-2}F2 {1-2}F' {1-2}F {1-2}R2 2L' D2 R 2R' 2U B' U2 {1-2}B U F {1-2}B2 2R' {1-2}F' 2B' 2L2 L' U' 2U2 L2 2R2 R 2B F {1-2}R' F {1-2}B' {1-2}R' {1-2}R2 B' U2 D D2 2B 2B2 2D' F F' {1-2}R' 2U' 2F2 2D F {1-2}L 2F' {1-2}R2 {1-2}D {1-2}F B B 2U {1-2}U' 2D2 {1-2}R2 2U 2B2 {1-2}R 2R2 D2 U' {1-2}U2 2R' U 2U F R' B' {1-2}R2 {1-2}D {1-2}U D 2D2 2D F B D2 {1-2}F2 {1-2}R' 2D D 2F2 2F2 {1-2}R' 2U' {1-2}L2 D' {1-2}F2 2R' {1-2}R' {1-2}U 2U L2 2F' U2 2D 2D2 {1-2}L {1-2}F {1-2}R {1-2}U 2U' 2F2 2L 2R {1-2}B {1-2}B' {1-2}B {1-2}B' {1-2}F F {1-2}U L2 2L2 D' {1-2}L' 2B2 2U' {1-2}D R2 U' {1-2}R {1-2}D 2L2 D2 {1-2}F F' F D2 2L2 D' {1-2}R' {1-2}U2 {1-2}R2 2B L' 2L U' {1-2}L F2 2R' B2 {1-2}U' 2U R2 {1-2}U2 B' D' F2 2D {1-2}F U' {1-2}R' 2U {1-2}L 2F2 U' F' {1-2}U' 2F' R2 {1-2}F2 B R' {1-2}B' D' L {1-2}F' {1-2}L R2 2D' 2L' D' 2F D {1-2}U' L2 2F' {1-2}D2 2F' 2F2 {1-2}U {1-2}U2 L2 2L2 2D2 2U' 2B' 2B' U 2F2 2F F2 2L' 2F {1-2}U' 2L' U U U2 {1-2}L2 F U B 2L' U 2D' R 2U2 {1-2}D 2U 2R' {1-2}B {1-2}F' F' R' {1-2}B 2D {1-2}L R2 R2 {1-2}R {1-2}F2 {1-2}U D' {1-2}L' R2 2B' {1-2}B' R {1-2}L' L 2D' B' 2D2 2F2 F2 D2 R2 U' {1-2}U 2U' {1-2}D' 2D2 {1-2}L' D D F' 2F 2L 2U' L2 2L2 {1-2}D' 2R2 L R2 {1-2}D2 2B' 2F2 U' {1-2}D2 {1-2}B {1-2}R' {1-2}D2 R2 F' D2 R' 2D2 R' 2U2 F2 B' 2B2 {1-2}U' 2D {1-2}F' L L2 {1-2}F2 R 2L' {1-2}R B2 B2 {1-2}L {1-2}U' 2F F 2F2 2F {1-2}L 2U2 {1-2}B' {1-2}D' F2 2D' F' 2F' 2L 2D2 D' {1-2}U' 2F {1-2}D2 D2 2L' {1-2}D R2 2L 2L 2R' 2D' 2B' {1-2}D2 2R {1-2}L B' {1-2}L 2B2 2F 2D2 {1-2}L 2D' {1-2}U' 2D 2F' F' 2D 2D' {1-2}D 2L' {1-2}F2 U2 {1-2}L 2U {1-2}U2 {1-2}U' {1-2}R2 2B2 {1-2}R 2R' D D 2B D2 {1-2}U2 {1-2}F' R2 {1-2}F' D2 B2 {1-2}L2 2D2 {1-2}D {1-2}R' {1-2}D 2L2 2U 2R' F2 U' 2R {1-2}B' U' {1-2}R' {1-2}R2 2R 2U' 2D' 2F' {1-2}F' {1-2}F2 B' {1-2}F' 2B 2L {1-2}F {1-2}R2 B 2R' 2R'"
+        drand_round_v1 round=26564442 signature=b2afc3059c9758ab7f605b8e7eb714b044c18140438be3e1d594db6770896b3d0de74a7fa9ea2a0138dacbb034159e2c
+    }
+    log {
+        scramble time="2026-03-03T00:11:32.500Z"
+        start-session time="2026-03-03T00:11:32.515Z"
+        click time="2026-03-03T00:11:36.433Z" layers=1 target=D reverse=#true
+        start-solve time="2026-03-03T00:11:36.433Z" duration=3917
+        twists D'
+        click time="2026-03-03T00:11:36.662Z" layers=1 target=R
+        twists R
+        click time="2026-03-03T00:11:36.877Z" layers=1 target=D
+        twists D
+        click time="2026-03-03T00:11:37.162Z" layers=1 target=R reverse=#true
+        twists R'
+        click time="2026-03-03T00:11:37.269Z" layers=1 target=R reverse=#true
+        twists R'
+        click time="2026-03-03T00:11:38.998Z" layers=1 target=L
+        twists L
+        click time="2026-03-03T00:11:39.115Z" layers=1 target=L
+        twists L
+        click time="2026-03-03T00:11:39.512Z" layers=1 target=D
+        twists D
+        click time="2026-03-03T00:11:39.775Z" layers=1 target=L
+        twists L
+        click time="2026-03-03T00:11:39.873Z" layers=1 target=L
+        twists L
+        click time="2026-03-03T00:11:40.158Z" layers=1 target=D
+        twists D
+        click time="2026-03-03T00:11:40.248Z" layers=1 target=D
+        twists D
+        click time="2026-03-03T00:11:40.470Z" layers=1 target=F
+        twists F
+        click time="2026-03-03T00:11:40.568Z" layers=1 target=F
+        twists F
+        click time="2026-03-03T00:11:40.775Z" layers=1 target=D
+        twists D
+        click time="2026-03-03T00:11:41.123Z" layers=1 target=F
+        twists F
+        click time="2026-03-03T00:11:41.234Z" layers=1 target=F
+        twists F
+        click time="2026-03-03T00:11:41.874Z" layers=1 target=D
+        twists D
+        end-solve time="2026-03-03T00:11:41.874Z" duration=9358
+        end-session time="2026-03-03T00:11:41.875Z"
+    }
+}
+    "#;
+
+    #[test]
+    fn test_puzzle_sim_replay_round_trip() {
+        hyperpuzzle::load_global_catalog();
+        let (log_file, _) = hyperpuzzle_log::LogFile::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
+        let original_solve = &log_file.solves[0];
+        let puzzle = hyperpuzzle::catalog()
+            .build_blocking(&original_solve.puzzle.id)
+            .unwrap();
+        let sim = PuzzleSimulation::deserialize(&puzzle, original_solve);
+        let mut reserialized_solve = sim.serialize(true);
+
+        // Remove the new start-session and end-session events
+        reserialized_solve.log.pop();
+        reserialized_solve.log.pop();
+
+        // The duration is allowed to change
+        reserialized_solve.duration = original_solve.duration;
+
+        pretty_assertions::assert_eq!(original_solve, &reserialized_solve);
     }
 }

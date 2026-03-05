@@ -192,6 +192,7 @@ leaderboards {
   }
 
   error_button "Error (click for details)"
+  error_message "Error signing into leaderboards"
 }
 
 status_bar {
@@ -220,10 +221,22 @@ status_bar {
       Speedsolves must be completed in a single session.
     """
   }
+  (HoverStrings)time {
+    full "Speedsolve time"
+    desc """
+      Speedsolve time is measured from the first move to when the puzzle is solved.
+
+      Speedsolves must be completed in a single session.
+    """
+  }
   scramble {
     seed "Scramble seed"
     time "Scramble generation time"
   }
+  cannot_view_solve_summary """
+    The solve summary cannot be shown because the log file has been reloaded.
+    You may still [submit to the leaderboards manually](https://lb.hypercubing.xyz/submit-solve).
+  """
 }
 
 statuses {
@@ -250,7 +263,7 @@ reset_to_value "Reset to {{value}}"
 no_active_puzzle "No active puzzle"
 
 cancel "Cancel"
-try_again "Try again"
+try_again "Retry"
 
 (HoverStrings)edit_as_plaintext {
   full "Edit as plaintext"
@@ -369,12 +382,6 @@ presets {
 }
 
 prefs {
-  (HoverStrings)record_time "Record time" {
-    desc """
-      Show speedsolve time after completing a qualifying speedsolve.
-      This is required for leaderboard verification of speedsolves.
-    """
-  }
   (HoverStrings)online_mode "Online mode" {
     desc """
       This setting allows leaderboard verification for speedsolves of certain puzzles without video recording.
@@ -788,6 +795,182 @@ puzzle_view {
   scrambling "Scrambling"
 }
 
+solve_summary {
+  title "You solved {{puzzle_name}}!"
+
+  timestamp {
+    button "Timestamp this solve"
+    waiting "Waiting for response from timestamp authority"
+    success "This solve has been timestamped"
+    error "Error timestamping solve: {{reason}}"
+    (HoverStrings)hover {
+      full "Timestamping"
+      desc """
+        Timestamping using a 3rd-party timestamp authority allows leaderboard
+        verification for speedsolves of certain puzzles without video recording.
+        Check the leaderboard rules for which puzzles are allowed.
+
+        Fewest-move solutions never require video evidence or online verification.
+
+        If you do not intend to submit to the leaderboards, you do not need to
+        timestamp solves.
+      """
+    }
+  }
+
+  save {
+    button "Save this solve locally"
+    success "This solve has been saved locally"
+    error "Error saving solve: {{reason}}"
+  }
+
+  table {
+    this_solve "This solve"
+    saved_pb "Saved PB"
+    leaderboard_pb "Leaderboard PB"
+    world_record "World record"
+
+    needs_sign_in "Sign into leaderboards to view"
+
+    new_solve_is_faster "Your new solve is faster!"
+    new_solve_is_shorter "Your new solve is shorter!"
+    first_saved_solve "This is your first saved solve in the category!"
+    first_leaderboard_pb "This would be your first submitted solve in the category!"
+    first_wr "This would be the first solve in the category!"
+
+    click_to_open_in_browser "Click to open in browser"
+    click_to_show_in_file_manager "Click to show in file manager"
+  }
+
+  leaderboards {
+    ineligible "This puzzle is not leaderboard-eligible"
+
+    computer_assisted_fmc "This is a computer-assisted fewest-moves solve"
+    will_upload_video "I want to add a video by editing the submission later"
+    notes "Notes (optional)"
+
+    needs_sign_in "You must sign into the leaderboards before submitting"
+
+    submit "Submit to leaderboards"
+    waiting "Submitting to leaderboards"
+    success "Submitted to leaderboards"
+    error "Error submitting solve: {{reason}}"
+  }
+
+  reopen_hint """
+    You can reopen this popup by clicking on "Solved from a full scramble"
+    at the bottom of the screen. It cannot be reopened after
+    restarting the program or reloading the log file.
+  """
+
+  // appears when solving 3^4, 4^4, etc. but not 2^4
+  solved_4d_1 """
+    Congratulations on solving a 4-dimensional Rubik's Cube!
+    You are now officially a Hypercuber.
+
+    Before anything else: save your log file!
+  """
+  solved_4d_2 """
+    You can also submit to the
+    [Hypercubing Leaderboards](https://lb.hypercubing.xyz/)
+    if you enjoy competition or want a
+    public record of which puzzles you've solved.
+    I encourage you to join
+    our [Discord server](https://hypercubing.xyz/discord/)
+    and [mailing list](https://groups.google.com/g/hypercubing)
+    to connect with other hypercubers.
+
+    You have learned so much by solving this puzzle. I'm proud of you.
+  """
+  solved_4d_history_title "A Brief History"
+  solved_4d_history """
+    To the best of our knowledge, [Andrey Astrelin](https://superliminal.com/andrey/)
+    became the first person to simulate and solve a 4-dimensional Rubik's cube
+    sometime around 1987, although the rest of the Hypercubing community would
+    remain unaware until 2010.
+
+    In 1988, Don Hatch and Melinda Green built the first version of
+    [Magic Cube 4D](https://superliminal.com/cube/) and Don Hatch solved it.
+    They also started a mailing list, which saw a slow trickle of
+    solutions starting in 2000. More than 400 people solved the
+    puzzle over the next 20 years, including myself in 2016.
+
+    In 2021, Rowan Fortier started a Discord server to supplement the mailing list.
+    Talking with folks there inspired me to extend an old keyboard-controlled
+    Rubik's cube simulator of mine to support 4 dimensions.
+    This program would eventually become Hyperspeedcube.
+    You can read more about its development on the
+    [Hypercubing Wiki](https://hypercubing.xyz/software/hyperspeedcube/),
+    which also includes some screenshots of early prototypes.
+  """
+  // appears when solving any nontrivial n^5
+  solved_5d """
+    Congratulations on solving a 5-dimensional Rubik's Cube!
+
+    > You have achieved ultimate super-nerd status.
+    >
+    > Take a few moments and space out on the ridiculousness
+    of what you have just accomplished, then send your log file
+    to roice@gravitation3d.com to get your name listed in the
+    [MagicCube5D Hall of Insanity](http://www.gravitation3d.com/magiccube5d/hallofinsanity.html).
+
+    ~ Roice Nelson
+  """
+  // appears when solving any nontrivial n^6
+  solved_6d """
+    Congratulations on solving a 6-dimensional Rubik's Cube!
+
+    This is truly absurd.
+
+    Send your log file to
+    MagicCube4D@superliminal.com to get your name listed in the
+    [MagicCube7D Hall of Fame](https://superliminal.com/andrey/mc7d/).
+
+    And of course, if you haven't already, I encourage you to join
+    our [Discord server](https://hypercubing.xyz/discord/)
+    and [mailing list](https://groups.google.com/g/hypercubing).
+  """
+  // appears when solving any nontrivial n^7
+  solved_7d """
+    Congratulations on solving a 7-dimensional Rubik's Cube!
+
+    > Imaginary mountains build themselves from our efforts to climb them,
+    and it's our repeated attempts to reach the summit
+    that turns those mountains into something real.
+
+    ~ Bennett Foddy
+
+    Send your log file to
+    MagicCube4D@superliminal.com to get your name listed in the
+    [MagicCube7D Hall of Fame](https://superliminal.com/andrey/mc7d/).
+
+    And of course, if you haven't already, I encourage you to join
+    our [Discord server](https://hypercubing.xyz/discord/)
+    and [mailing list](https://groups.google.com/g/hypercubing).
+  """
+  // appears when solving any nontrivial n^8
+  solved_8d """
+    Congratulations on solving an 8-dimensional Rubik's Cube!
+
+    At the time of writing, no one has ever solved this puzzle.
+    You are probably the first person ever to read this message,
+    and I honestly never thought anyone would do this.
+
+    Take your world record. You've earned it.
+  """
+
+  support_request """
+    I've dedicated thousands of hours over 5+ years to developing
+    Hyperspeedcube and published it free of charge under a permissive license
+    because I want everyone to have access to it. If you'd like to help me
+    in my quest to make Hyperspeedcube
+    the most powerful twisty puzzle simulator on the planet,
+    consider [supporting me on Ko-fi](https://ko-fi.com/ajfarkas/).
+
+    Thank you so much for using my software. It means the world to me. ♥
+  """
+}
+
 help {
   log_vs_replay """
     **Log files** contain the initial scramble and the moves done to solve the puzzle.
@@ -869,55 +1052,59 @@ help {
   """
 }
 
-created_by "Created by **Andrew Farkas (HactarCE)**"
-created_by_url "https://ajfarkas.dev/"
-dedicated_to "Dedicated to **Andrey Astrelin**"
-dedicated_to_url "https://superliminal.com/andrey/"
-licensed_under "Licensed under **{{license}}**"
-about """
-  ## Acknowledgements
+about {
+  licensed_under "Licensed under **{{license}}**"
+  created_by "Created by **Andrew Farkas (HactarCE)**"
+  created_by_url "https://ajfarkas.dev/"
+  dedicated_to "Dedicated to **Andrey Astrelin**"
+  dedicated_to_url "https://superliminal.com/andrey/"
+  kofi_request "Consider supporting development on Ko-Fi"
+  kofi_request_url "https://ko-fi.com/ajfarkas/"
+  acknowledgements """
+    ## Acknowledgements
 
-  **Edan Maor, Jasper Gray, Emanuele Battistin, Cuberstache, The Plague Censer,
-  Ieronutti Christian, Vincent Pistelli, Henry Duke Pickle, Rowan Fortier, Sam Boxdorfer,
-  DecimatedByATrain, Vex, Cuberstache, Dietl, Jack, and Carlo**  
-  _for supporting me on Ko-fi during development_
+    **Edan Maor, Jasper Gray, Emanuele Battistin, Cuberstache, The Plague Censer,
+    Ieronutti Christian, Vincent Pistelli, Henry Duke Pickle, Rowan Fortier, Sam Boxdorfer,
+    DecimatedByATrain, Vex, Cuberstache, Dietl, Jack, and Carlo**  
+    _for supporting me on Ko-fi during development_
 
-  **Luna Harran**  
-  _for her incessant whining that inspired this program, and for her extensive puzzle knowledge and geometric insight that made it possible_
+    **Luna Harran**  
+    _for her incessant whining that inspired this program, and for her extensive puzzle knowledge and geometric insight that made it possible_
 
-  **Milo Jacquet**  
-  _for his many contributions to the design of the puzzle definition API, and for the initial development of the leaderboard server_
+    **Milo Jacquet**  
+    _for his many contributions to the design of the puzzle definition API, and for the initial development of the leaderboard server_
 
-  **Andreas Thompson**  
-  _for designing the piece filters UI_
+    **Andreas Thompson**  
+    _for designing the piece filters UI_
 
-  **Alan Everett (thatcomputerguy0101), Raymond Zhao (rzhao271)**  
-  _for various bugfixes_
+    **Alan Everett (thatcomputerguy0101), Raymond Zhao (rzhao271)**  
+    _for various bugfixes_
 
-  **My friends**  
-  _for putting up with my rants about tangent points at infinity_
+    **My friends**  
+    _for putting up with my rants about tangent points at infinity_
 
-  **The Hypercubers Discord community**  
-  _for their endless patience and for keeping me company in voice chat for many years_
+    **The Hypercubers Discord community**  
+    _for their endless patience and for keeping me company in voice chat for many years_
 
-  ## Other twisty puzzle software
+    ## Other twisty puzzle software
 
-  Algorithms and inspiration taken from these programs:
+    Algorithms and inspiration taken from these programs:
 
-  - [Magic Puzzle Ultimate](https://superliminal.com/andrey/mpu/) by Andrey Astrelin
-  - [Magic Cube 4D](https://superliminal.com/cube/) by Melinda Green, Don Hatch, and others
-  - [pCubes](http://twistypuzzles.com/forum/viewtopic.php?f=1&t=27054) by Boris
-  - [Virtual Magic Polyhedra](https://github.com/Hypercubers/gelatinbrain) by gelatinbrain
-  - Many others listed on <https://hypercubing.xyz/software/>
+    - [Magic Puzzle Ultimate](https://superliminal.com/andrey/mpu/) by Andrey Astrelin
+    - [Magic Cube 4D](https://superliminal.com/cube/) by Melinda Green, Don Hatch, and others
+    - [pCubes](http://twistypuzzles.com/forum/viewtopic.php?f=1&t=27054) by Boris
+    - [Virtual Magic Polyhedra](https://github.com/Hypercubers/gelatinbrain) by gelatinbrain
+    - Many others listed on <https://hypercubing.xyz/software/>
 
-  ## Puzzle definition authors
+    ### Puzzle definition authors
 
-  {{author_list}}
+    {{author_list}}
 
-  ## Icon authors
+    ### Icon authors
 
-  - Material Design Icons by the [Pictogrammers](https://pictogrammers.com/)
-"""
+    - Material Design Icons by the [Pictogrammers](https://pictogrammers.com/)
+  """
+}
 
 _crash {
   _app_crashed "{{app}} crashed"

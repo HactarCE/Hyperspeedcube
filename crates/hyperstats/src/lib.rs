@@ -1,10 +1,12 @@
 //! Database of personal bests.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use eyre::Result;
 use hyperkdl::{NodeContentsSchema, Warning};
+use hyperpaths::NoPaths;
 use hyperpuzzle_core::Timestamp;
 use hyperpuzzle_core::verification::SolveVerification;
 use kdl::{KdlDocument, KdlDocumentFormat, KdlError};
@@ -126,13 +128,14 @@ impl StatsDb {
         }
     }
 
+    /// Returns the existing PBs for a puzzle.
+    pub fn pbs(&self, puzzle_canonical_id: &str) -> &PuzzlePBs {
+        self.0.get(puzzle_canonical_id).unwrap_or(&PuzzlePBs::NONE)
+    }
+
     /// Returns whether a solve breaks existing PBs.
-    pub fn check_new_pb(&mut self, verification: &SolveVerification) -> NewPbs {
-        let old_pbs = self
-            .0
-            .get(&verification.puzzle_canonical_id)
-            .cloned()
-            .unwrap_or_default();
+    pub fn check_new_pb(&self, verification: &SolveVerification) -> NewPbs {
+        let old_pbs = self.pbs(&verification.puzzle_canonical_id);
 
         NewPbs {
             first: verification
@@ -203,6 +206,16 @@ pub struct PuzzlePBs {
     pub blind: Option<SpeedPB>,
 }
 
+impl PuzzlePBs {
+    /// No solves.
+    pub const NONE: Self = Self {
+        first: None,
+        fmc: None,
+        speed: None,
+        blind: None,
+    };
+}
+
 /// First solve.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct FirstSolve {
@@ -222,6 +235,13 @@ pub struct FmcPB {
     pub stm: i64,
 }
 
+impl FmcPB {
+    /// Returns the absolute path to the log file.
+    pub fn abs_path(&self) -> Result<PathBuf, NoPaths> {
+        Ok(hyperpaths::solves_dir()?.join(&self.file))
+    }
+}
+
 /// Speed PB.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct SpeedPB {
@@ -231,4 +251,11 @@ pub struct SpeedPB {
     /// Duration in milliseconds.
     #[kdl(property("duration"))]
     pub duration: i64,
+}
+
+impl SpeedPB {
+    /// Returns the absolute path to the log file.
+    pub fn abs_path(&self) -> Result<PathBuf, NoPaths> {
+        Ok(hyperpaths::solves_dir()?.join(&self.file))
+    }
 }

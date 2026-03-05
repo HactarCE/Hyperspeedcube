@@ -21,7 +21,7 @@ pub use filter_checkbox::*;
 pub use hint::*;
 // pub use keybinds::*;
 pub use layer_mask::*;
-pub use leaderboards::show_leaderboards_ui;
+pub use leaderboards::LeaderboardsUi;
 pub use prefs::PrefsUi;
 pub use presets::*;
 pub use reset::*;

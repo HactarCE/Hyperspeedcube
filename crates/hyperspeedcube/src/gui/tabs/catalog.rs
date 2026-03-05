@@ -16,7 +16,7 @@ use crate::gui::components::{
     BIG_ICON_BUTTON_SIZE, IconButton, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
-use crate::gui::util::EguiTempValue;
+use crate::gui::util::{EguiTempValue, hyperlink_to};
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
@@ -676,21 +676,21 @@ impl egui::Widget for FuzzyQueryMatch<'_> {
 
             let inventors = self.object.tags.inventors();
             if !inventors.is_empty() {
-                md(ui, format!("**Inventors:** {}", comma_list(inventors)));
+                md(ui, format!("Inventors: {}", comma_list(inventors)));
             }
 
             let authors = self.object.tags.authors();
             if !authors.is_empty() {
-                md(ui, format!("**Authors:** {}", comma_list(authors)));
+                md(ui, format!("Authors: {}", comma_list(authors)));
             }
 
             let aliases = &self.object.aliases;
             if !aliases.is_empty() {
-                md(ui, format!("**Aliases:** {}", comma_list(aliases)));
+                md(ui, format!("Aliases: {}", comma_list(aliases)));
             }
 
             if let Some(url) = self.object.tags.wca_url() {
-                ui.hyperlink_to("WCA leaderboards", url);
+                hyperlink_to(ui, "WCA leaderboards", url);
             }
 
             ui.separator();

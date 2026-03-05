@@ -1,1 +1,3 @@
-pub mod solve_complete;
+pub mod solve_summary;
+
+pub use solve_summary::SolveSummaryModal;

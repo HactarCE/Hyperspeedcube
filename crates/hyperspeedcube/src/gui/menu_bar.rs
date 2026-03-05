@@ -6,13 +6,15 @@ use egui::containers::menu::{MenuButton, MenuConfig};
 use hyperprefs::ModifiedPreset;
 use hyperpuzzle::ScrambleType;
 use itertools::Itertools;
+use self_update::update::Release;
 
 use super::{AppUi, Tab};
 use crate::L;
-use crate::gui::components::{PrefsUi, PresetsUi, show_leaderboards_ui};
+use crate::gui::components::{PrefsUi, PresetsUi};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
+use crate::gui::util::hyperlink_to;
 use crate::leaderboards::LeaderboardsClientState;
 
 lazy_static! {
@@ -52,7 +54,7 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             }
 
             #[cfg(target_arch = "wasm32")]
-            ui.hyperlink_to(L.top_bar.desktop_link, env!("CARGO_PKG_HOMEPAGE"))
+            crate::gui::util::hyperlink_to(ui, L.top_bar.desktop_link, env!("CARGO_PKG_HOMEPAGE"))
                 .on_hover_text(L.top_bar.desktop_link_hover);
             #[cfg(not(target_arch = "wasm32"))]
             // Make rustc think that we've used these values.
@@ -62,8 +64,11 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
             ui.separator();
 
-            ui.toggle_value(&mut app_ui.is_ui_layout_window_visible, mdi!(VIEW_QUILT))
-                .on_hover_text(L.top_bar.ui_layout_presets);
+            ui.toggle_value(
+                &mut app_ui.is_ui_layout_window_visible,
+                mdi!(VIEW_DASHBOARD),
+            )
+            .on_hover_text(L.top_bar.ui_layout_presets);
 
             if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
                 app_ui.is_ui_layout_window_visible = false;
@@ -80,13 +85,16 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
                 ui.separator();
 
-                show_leaderboards_ui(ui, &app_ui.app.leaderboards);
+                ui.add(crate::gui::components::LeaderboardsUi(
+                    &app_ui.app.leaderboards,
+                ));
 
                 if app_ui.app.prefs.check_for_updates
                     && let Some(new_release) = &*NEWER_RELEASE
                 {
                     ui.separator();
-                    ui.hyperlink_to(
+                    hyperlink_to(
+                        ui,
                         format!("Update to v{}", new_release.version),
                         format!(
                             "https://github.com/{}/{}/releases",
@@ -264,7 +272,6 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             defaults: None,
             changed: &mut changed,
         };
-        prefs_ui.checkbox(&L.prefs.record_time, access!(.record_time));
         prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
         prefs_ui.checkbox(&L.prefs.check_for_updates, access!(.check_for_updates));
         egui::global_theme_preference_buttons(prefs_ui.ui);

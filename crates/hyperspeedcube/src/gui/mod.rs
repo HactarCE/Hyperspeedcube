@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
 
+use egui::NumExt;
 use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use hyperprefs::{ModifiedPreset, PresetRef};
@@ -32,6 +33,7 @@ use util::EguiTempFlag;
 
 use crate::L;
 pub use crate::app::App;
+use crate::gui::modals::SolveSummaryModal;
 use crate::gui::tabs::UtilityTab;
 use crate::gui::util::text_width;
 
@@ -42,6 +44,8 @@ pub struct AppUi {
     dock_state: egui_dock::DockState<Tab>,
     sidebar_style: hyperprefs::SidebarStyle,
     sidebar_utility: Option<UtilityTab>,
+
+    solve_summary_modal: Option<SolveSummaryModal>,
 }
 
 impl AppUi {
@@ -75,6 +79,8 @@ impl AppUi {
             dock_state: egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]),
             sidebar_style: hyperprefs::SidebarStyle::default(),
             sidebar_utility: None,
+
+            solve_summary_modal: None,
         };
 
         // Load last layout.
@@ -149,7 +155,7 @@ impl AppUi {
                 .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
                 .show(ctx, |ui| {
                     if let Some(sidebar_utility) = self.sidebar_utility {
-                        ui.heading(sidebar_utility.title());
+                        ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
                         ui.add_space(6.0);
                         sidebar_utility.ui(ui, &mut self.app);
                     }
@@ -227,7 +233,33 @@ impl AppUi {
                         .push_to_first_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
 
-                modals::solve_complete::show(ui, &mut self.app);
+                self.app.active_puzzle.with_view(|v| {
+                    if v.sim.lock().handle_solve_summary_request() {
+                        match SolveSummaryModal::new(&v.sim, &self.app) {
+                            Ok(m) => self.solve_summary_modal = Some(m),
+                            Err(e) => {
+                                rfd::MessageDialog::new()
+                                    .set_level(rfd::MessageLevel::Error)
+                                    .set_title("Failed to verify solution")
+                                    .set_description(e.to_string())
+                                    .show();
+                            }
+                        };
+                    }
+                });
+                if let Some(solve_summary_modal) = &mut self.solve_summary_modal {
+                    let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
+                        let target_size = egui::vec2(625.0, 750.0);
+                        ui.set_max_size(
+                            target_size
+                                .at_most(ui.ctx().content_rect().size() - egui::Vec2::splat(64.0)),
+                        );
+                        solve_summary_modal.show(ui, &mut self.app);
+                    });
+                    if r.should_close() && !r.response.clicked_elsewhere() {
+                        self.solve_summary_modal = None;
+                    }
+                }
             });
 
         // Animate puzzle views.

@@ -11,6 +11,7 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
 use hyperpuzzle::Timestamp;
+use hyperpuzzle::chrono::TimeDelta;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
@@ -1088,13 +1089,17 @@ fn show_status_bar_contents_for_sim(
                 L.status_bar.state.fully_scrambled
             };
             let r = ui.add(egui::Button::new(button_text).fill(egui::Color32::TRANSPARENT));
-            if sim.has_been_solved() {
+            if sim.has_been_fully_scrambled() && sim.has_been_solved() {
                 let r = r.on_hover_ui(|ui| {
-                    md(ui, L.click_to.view_solve_summary.with(L.inputs.click));
+                    if sim.has_been_reloaded_since_first_solved() {
+                        md(ui, L.status_bar.cannot_view_solve_summary);
+                    } else {
+                        md(ui, L.click_to.view_solve_summary.with(L.inputs.click));
+                    }
                     ui.separator();
                     show_scramble_info(ui);
                 });
-                if r.clicked() {
+                if r.clicked() && !sim.has_been_reloaded_since_first_solved() {
                     sim.request_to_show_solve_summary();
                 }
             } else {
@@ -1132,49 +1137,9 @@ fn timer_text_for_sim(ui: &egui::Ui, sim: &PuzzleSimulation) -> Option<egui::Wid
 }
 
 fn duration_to_widget_text(duration: Duration, exact: bool) -> egui::WidgetText {
-    let total_seconds = duration.as_secs();
-
-    let days = total_seconds / (60 * 60 * 24);
-    let hours = (total_seconds / (60 * 60)) % 24;
-    let minutes = (total_seconds / 60) % 60;
-    let seconds = total_seconds % 60;
-    let centiseconds = duration.subsec_millis() / 10;
-
-    let mut s = String::new();
-    let mut show_all_remaining_units = false;
-
-    show_all_remaining_units |= days > 0;
-    if show_all_remaining_units {
-        s += &format!("{days}d ");
-    }
-
-    if show_all_remaining_units && hours < 10 {
-        s += "0";
-    }
-    show_all_remaining_units |= hours > 0;
-    if show_all_remaining_units {
-        s += &format!("{hours}h ");
-    }
-
-    if show_all_remaining_units && minutes < 10 {
-        s += "0";
-    }
-    show_all_remaining_units |= minutes > 0;
-    if show_all_remaining_units {
-        s += &format!("{minutes}m ");
-    }
-
-    if show_all_remaining_units && seconds < 10 {
-        s += "0";
-    }
-    s += &format!("{seconds}");
-
-    if exact {
-        s += &format!(".{centiseconds:02}");
-    }
-    s += "s";
-
-    egui::WidgetText::from(s).monospace()
+    let centiseconds =
+        duration.as_secs().saturating_mul(100) + duration.subsec_millis() as u64 / 10;
+    egui::WidgetText::from(crate::util::centiseconds_to_string(centiseconds, exact)).monospace()
 }
 
 #[derive(Debug, Default)]

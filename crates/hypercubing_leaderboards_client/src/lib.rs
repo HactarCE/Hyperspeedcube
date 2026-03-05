@@ -272,11 +272,28 @@ impl Leaderboards {
         Ok(solve_submission_url.to_string())
     }
 
-    /// Returns PBs for a specific puzzle for the current user.
-    pub fn get_pbs(&self, request: &PersonalBestRequest) -> Result<PersonalBests, Error> {
+    /// Returns PBs for a specific puzzle for the current user or for all users.
+    pub fn get_best_solves(&self, request: &BestSolvesRequest) -> Result<BestSolves, Error> {
         Ok(self
             .req_get("/api/solver-pbs")
             .query_pairs(json_map_to_query_pairs(request)?)
+            .call()?
+            .into_body()
+            .read_json()?)
+    }
+    /// Returns world records for a specific puzzle for all users.
+    ///
+    /// `request.all_users` and `request.require_verified` are both overridden
+    /// to `true`.
+    pub fn get_world_records(
+        domain: &str,
+        request: &BestSolvesRequest,
+    ) -> Result<BestSolves, Error> {
+        let mut request = request.clone();
+        request.all_users = true;
+        request.require_verified = true;
+        Ok(get(domain, "/api/solver-pbs", None)
+            .query_pairs(json_map_to_query_pairs(&request)?)
             .call()?
             .into_body()
             .read_json()?)
@@ -340,20 +357,22 @@ pub struct AutoVerifySubmission {
     pub log_file_contents: String,
 }
 
-/// Parameters for requesting puzzle PBs.
+/// Parameters for requesting the best solves for a puzzle.
 ///
 /// `puzzle_id` and `hsc_puzzle_id` are mutually exclusive; one of them is
-/// required. All other fields are optional. `target_user` is assumed to be the
-/// current user.
+/// required. All other fields are optional.
 #[derive(Serialize, Debug, Default, Clone)]
-pub struct PersonalBestRequest {
+pub struct BestSolvesRequest {
     /// Leaderboards ID for the puzzle. If `None`, use `hsc_puzzle_id` instead.
     pub puzzle_id: Option<i32>,
     /// HSC2 ID for the puzzle. If `None`, use `puzzle_id` instead.
     pub hsc_puzzle_id: Option<String>,
 
-    /// User whose PBs to fetch. If `None`, use the currently logged-in user.
-    pub target_user: Option<i32>,
+    /// Whether to fetch world records among all users instead of PBs for the
+    /// current user.
+    ///
+    /// If this is `true`, then `require_verified` must also be `true`.
+    pub all_users: bool,
 
     /// Flags: average
     pub average: bool,
@@ -371,9 +390,9 @@ pub struct PersonalBestRequest {
     pub require_verified: bool,
 }
 
-/// Personal best solves in a category.
+/// Best solves in a category.
 #[derive(Deserialize, Debug, Default, Clone)]
-pub struct PersonalBests {
+pub struct BestSolves {
     /// Speed PB
     pub speed: Option<Solve>,
     /// FMC PB

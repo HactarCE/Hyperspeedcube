@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypercubing_leaderboards_client::{AuthFlow, Leaderboards};
+use hypercubing_leaderboards_client::{AuthFlow, BestSolvesRequest, Leaderboards};
 use parking_lot::Mutex;
 
 pub const LEADERBOARDS_DOMAIN: &str = if hyperpaths::IS_OFFICIAL_BUILD {

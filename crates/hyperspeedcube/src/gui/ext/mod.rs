@@ -45,8 +45,9 @@ fn show_hover_explanation_internal(ui: &mut egui::Ui, strong_text: &str, detaile
         egui::Layout::top_down(egui::Align::LEFT),
         |ui| {
             if !strong_text.is_empty() {
-                ui.strong(strong_text);
+                ui.heading(strong_text);
             }
+            ui.add_space(3.0);
             if !detailed_message.is_empty() {
                 md(ui, detailed_message);
             }

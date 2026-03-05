@@ -140,7 +140,7 @@ fn render_block_children<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode
         if is_first {
             is_first = false;
         } else {
-            ui.add_space(ui.spacing().item_spacing.y);
+            ui.add_space(3.0);
         }
         render_block(ui, child);
     }
@@ -151,7 +151,21 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
 
         comrak::nodes::NodeValue::FrontMatter(_) => (),
 
-        comrak::nodes::NodeValue::BlockQuote => not_implemented_label(ui, "BlockQuote"), /* not implemented */
+        comrak::nodes::NodeValue::BlockQuote => {
+            let r = ui.horizontal(|ui| {
+                ui.add_space(8.0);
+                ui.vertical(|ui| {
+                    render_block_children(ui, node);
+                });
+            });
+            let rect = r.response.rect;
+
+            ui.painter().rect_filled(
+                rect.with_max_x(rect.left() + 2.0),
+                0.0,
+                ui.visuals().text_color(),
+            );
+        }
 
         comrak::nodes::NodeValue::List(list) => {
             let id = ui.next_auto_id();
@@ -268,6 +282,7 @@ fn render_children_wrapped<'a>(
         .descendants()
         .any(|child| matches!(child.data.borrow().value, comrak::nodes::NodeValue::Link(_)))
     {
+        // TODO: render links in centered paragraphs correctly. maybe using atoms?
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
             for child in node.children() {
@@ -297,7 +312,7 @@ fn render_inline_with_ui<'a>(
 
             // We can't render a link as part of a larger job, so we do it here
             // while we have `ui` instead of `job`.
-            ui.hyperlink_to(job, &link_node.url)
+            ui.add(egui::Hyperlink::from_label_and_url(job, &link_node.url).open_in_new_tab(true))
                 .on_hover_text(&link_node.url);
         }
         _ => {

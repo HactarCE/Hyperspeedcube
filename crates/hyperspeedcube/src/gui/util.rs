@@ -283,6 +283,32 @@ pub fn set_menu_style(style: &mut egui::Style) {
     style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
 }
 
+/// [`egui::Ui::hyperlink()`] but the link opens in a new tab.
+///
+/// This is equivalent to the following:
+///
+/// ```ignore
+/// ui.add(egui::Hyperlink::new(url).open_in_new_tab(true))
+/// ```
+pub fn hyperlink(ui: &mut egui::Ui, url: impl ToString) -> egui::Response {
+    ui.add(egui::Hyperlink::new(url).open_in_new_tab(true))
+}
+
+/// [`egui::Ui::hyperlink()`] but the link opens in a new tab.
+///
+/// This is equivalent to the following:
+///
+/// ```ignore
+/// ui.add(egui::Hyperlink::from_label_and_url(text, url).open_in_new_tab(true))
+/// ```
+pub fn hyperlink_to(
+    ui: &mut egui::Ui,
+    text: impl Into<egui::WidgetText>,
+    url: impl ToString,
+) -> egui::Response {
+    ui.add(egui::Hyperlink::from_label_and_url(text, url).open_in_new_tab(true))
+}
+
 pub trait GuiRoundingExt {
     fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self;
     fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self;
@@ -347,6 +373,11 @@ impl GuiRoundingExtRect for egui::Rect {
     }
 }
 
+pub const MDI_SMALL_SIZE: egui::Vec2 = egui::Vec2::splat(12.0);
+pub const MDI_BIG_SIZE: egui::Vec2 = egui::Vec2::splat(24.0);
+
+/// Returns an [`egui::Image`] with a Material Design Icon at size
+/// [`MDI_SMALL_SIZE`].
 macro_rules! mdi {
     ($name:ident) => {{
         const PATH_DATA: &[u8] = ::material_design_icons::$name.as_bytes();
@@ -364,6 +395,14 @@ macro_rules! mdi {
         )
         .fit_to_original_size(0.5)
     }};
+}
+
+/// Returns an [`egui::Image`] with a Material Design Icon at size
+/// [`MDI_BIG_SIZE`].
+macro_rules! mdi_big {
+    ($name:ident) => {
+        mdi!($name).fit_to_original_size(1.0)
+    };
 }
 
 #[doc(hidden)]

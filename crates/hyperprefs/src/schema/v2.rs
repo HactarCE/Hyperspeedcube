@@ -12,7 +12,6 @@ pub use crate::{
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct Preferences {
-    pub record_time: bool,
     pub online_mode: bool,
     pub check_for_updates: bool,
 

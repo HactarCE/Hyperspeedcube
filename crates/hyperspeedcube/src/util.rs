@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use float_ord::FloatOrd;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
@@ -38,4 +40,48 @@ fn gen_adjective() -> String {
 }
 fn gen_noun() -> String {
     hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::rng()).unwrap_or(&"noun"))
+}
+
+pub fn centiseconds_to_string(centiseconds: u64, exact: bool) -> String {
+    let days = centiseconds / (100 * 60 * 60 * 24);
+    let hours = (centiseconds / (100 * 60 * 60)) % 24;
+    let minutes = (centiseconds / (100 * 60)) % 60;
+    let seconds = (centiseconds / 100) % 60;
+    let centiseconds = centiseconds % 100;
+
+    let mut s = String::new();
+    let mut show_all_remaining_units = false;
+
+    show_all_remaining_units |= days > 0;
+    if show_all_remaining_units {
+        s += &format!("{days}d ");
+    }
+
+    if show_all_remaining_units && hours < 10 {
+        s += "0";
+    }
+    show_all_remaining_units |= hours > 0;
+    if show_all_remaining_units {
+        s += &format!("{hours}h ");
+    }
+
+    if show_all_remaining_units && minutes < 10 {
+        s += "0";
+    }
+    show_all_remaining_units |= minutes > 0;
+    if show_all_remaining_units {
+        s += &format!("{minutes}m ");
+    }
+
+    if show_all_remaining_units && seconds < 10 {
+        s += "0";
+    }
+    s += &format!("{seconds}");
+
+    if exact {
+        s += &format!(".{centiseconds:02}");
+    }
+    s += "s";
+
+    s
 }

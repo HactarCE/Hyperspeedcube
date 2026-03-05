@@ -1,11 +1,10 @@
 #![allow(missing_docs)]
 
-use std::env;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::{env, fmt};
 
 use directories::ProjectDirs;
-use eyre::{OptionExt, Result};
 
 #[macro_use]
 extern crate lazy_static;
@@ -30,41 +29,49 @@ lazy_static! {
     static ref PATHS: Option<AppPaths> = app_paths();
 }
 
-fn get() -> Result<&'static AppPaths> {
-    PATHS.as_ref().ok_or_eyre("no paths")
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct NoPaths;
+
+impl fmt::Display for NoPaths {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "paths are not supported on this platform")
+    }
+}
+
+impl std::error::Error for NoPaths {}
+
+fn get() -> Result<&'static AppPaths, NoPaths> {
+    PATHS.as_ref().ok_or(NoPaths)
 }
 
 /// Returns the user preferences file.
-pub fn prefs_file() -> Result<&'static Path> {
+pub fn prefs_file() -> Result<&'static Path, NoPaths> {
     Ok(&get()?.prefs_file)
 }
 /// Returns the user statistics file.
-pub fn stats_file() -> Result<&'static Path> {
+pub fn stats_file() -> Result<&'static Path, NoPaths> {
     Ok(&get()?.stats_file)
 }
 /// Returns the directory containing autosaved solves.
-pub fn solves_dir() -> Result<&'static Path> {
+pub fn solves_dir() -> Result<&'static Path, NoPaths> {
     Ok(&get()?.solves_dir)
 }
-/// Returns the filename for an autosaved solve.
-pub fn solve_autosave_file(
-    puzzle_id: &str,
-    timestamp: &str,
-    stm: u64,
-) -> Result<(PathBuf, String)> {
+/// Returns the file name for an autosaved solve.
+pub fn solve_autosave_filename(timestamp: &str, stm: u64) -> String {
+    format!("{timestamp}_stm{stm}.hsc").replace(":", "_")
+}
+/// Returns the file path for an autosaved solve.
+pub fn solve_autosave_path(puzzle_id: &str, timestamp: &str, stm: u64) -> Result<PathBuf, NoPaths> {
     let puzzle_dirname = puzzle_id.replace(':', "~");
-    let filename = format!("{timestamp}_stm{stm}.hsc").replace(":", "_");
-    Ok((
-        solves_dir()?.join(&puzzle_dirname).join(&filename),
-        format!("{puzzle_dirname}/{filename}"),
-    ))
+    let filename = solve_autosave_filename(timestamp, stm);
+    Ok(solves_dir()?.join(&puzzle_dirname).join(&filename))
 }
 /// Returns the directory containing Hyperpuzzlescript files.
-pub fn hps_dir() -> Result<&'static Path> {
+pub fn hps_dir() -> Result<&'static Path, NoPaths> {
     Ok(&get()?.hps_dir)
 }
 /// Returns the directory in which to create crash reports.
-pub fn crash_report_dir() -> Result<&'static Path> {
+pub fn crash_report_dir() -> Result<&'static Path, NoPaths> {
     Ok(&get()?.crash_report_dir)
 }
 

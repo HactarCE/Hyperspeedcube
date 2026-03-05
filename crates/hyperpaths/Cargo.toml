@@ -17,7 +17,6 @@ workspace = true
 
 [dependencies]
 directories.workspace = true
-eyre.workspace = true
 lazy_static.workspace = true
 log.workspace = true
 time.workspace = true
