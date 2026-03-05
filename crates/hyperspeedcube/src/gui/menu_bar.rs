@@ -77,53 +77,49 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             super::layout::build_layout_presets_ui(ui, app_ui);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                if ui.available_width() < width_of_all_menu_buttons(ui) {
-                    ui.menu_button(L.menu.title, |ui| draw_menu_buttons(ui, app_ui));
-                } else {
-                    draw_menu_buttons(ui, app_ui);
-                }
-
-                ui.separator();
-
-                ui.add(crate::gui::components::LeaderboardsUi(
-                    &app_ui.app.leaderboards,
-                ));
-
-                if app_ui.app.prefs.check_for_updates
-                    && let Some(new_release) = &*NEWER_RELEASE
-                {
-                    ui.separator();
-                    hyperlink_to(
-                        ui,
-                        format!("Update to v{}", new_release.version),
-                        format!(
-                            "https://github.com/{}/{}/releases",
-                            crate::GITHUB_REPO_OWNER,
-                            crate::GITHUB_REPO_NAME,
-                        ),
-                    );
-                }
+                let max_rect = ui.max_rect();
+                let ui_builder = egui::UiBuilder::new().max_rect(max_rect);
+                let r = ui.scope_builder(ui_builder.clone().sizing_pass().invisible(), |ui| {
+                    left_menu_ui(ui, app_ui, false);
+                });
+                let compact = r.response.rect.width() > max_rect.width();
+                ui.scope_builder(ui_builder, |ui| left_menu_ui(ui, app_ui, compact));
             });
         });
     });
 }
 
-fn width_of_all_menu_buttons(ui: &mut egui::Ui) -> f32 {
-    [
-        L.menu.file.title,
-        L.menu.edit.title,
-        L.menu.scramble.title,
-        L.menu.settings.title,
-        L.menu.tools.title,
-        L.menu.puzzles.title,
-        L.menu.help.title,
-        #[cfg(debug_assertions)]
-        L.menu.debug.title,
-    ]
-    .iter()
-    .map(|text| menu_button_width(ui, text))
-    .sum()
+fn left_menu_ui(ui: &mut egui::Ui, app_ui: &mut AppUi, compact: bool) {
+    if compact {
+        ui.menu_button(mdi!(MENU).fit_to_original_size(0.75), |ui| {
+            draw_menu_buttons(ui, app_ui)
+        });
+    } else {
+        draw_menu_buttons(ui, app_ui);
+    }
+
+    ui.separator();
+
+    ui.add(crate::gui::components::LeaderboardsUi(
+        &app_ui.app.leaderboards,
+    ));
+
+    if app_ui.app.prefs.check_for_updates
+        && let Some(new_release) = &*NEWER_RELEASE
+    {
+        ui.separator();
+        hyperlink_to(
+            ui,
+            format!("Update to v{}", new_release.version),
+            format!(
+                "https://github.com/{}/{}/releases",
+                crate::GITHUB_REPO_OWNER,
+                crate::GITHUB_REPO_NAME,
+            ),
+        );
+    }
 }
+
 fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: UtilityTab) {
         let mut open = app_ui.is_docked_utility_open(tab);
@@ -347,12 +343,6 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     menu_button_that_stays_open(L.menu.debug.title, ui, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Debug);
     });
-}
-
-fn menu_button_width(ui: &egui::Ui, text: &str) -> f32 {
-    super::util::text_width(ui, text)
-        + ui.spacing().button_padding.x * 2.0
-        + ui.spacing().item_spacing.x
 }
 
 fn menu_button_that_stays_open<'a, R>(
