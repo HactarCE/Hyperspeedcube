@@ -377,12 +377,30 @@ pub const MDI_SMALL_SIZE: egui::Vec2 = egui::Vec2::splat(12.0);
 pub const MDI_BIG_SIZE: egui::Vec2 = egui::Vec2::splat(24.0);
 
 /// Returns an [`egui::Image`] with a Material Design Icon at size
+/// [`MDI_BIG_SIZE`].
+macro_rules! mdi_big {
+    ($name:ident) => {
+        mdi!($name).fit_to_original_size(1.0)
+    };
+}
+
+/// Returns an [`egui::Image`] with a Material Design Icon at size
 /// [`MDI_SMALL_SIZE`].
 macro_rules! mdi {
-    ($name:ident) => {{
-        const PATH_DATA: &[u8] = ::material_design_icons::$name.as_bytes();
-        ::egui::Image::from_bytes(
+    ($name:ident) => {
+        svg_icon_from_path!(
             concat!("MDI_", stringify!($name), ".svg"),
+            ::material_design_icons::$name,
+        )
+    };
+}
+
+/// Returns an [`egui::Image`] with an icon at half size
+macro_rules! svg_icon_from_path {
+    ($name:expr, $path_data:expr $(,)?) => {{
+        const PATH_DATA: &[u8] = $path_data.as_bytes();
+        ::egui::Image::from_bytes(
+            $name,
             &const {
                 $crate::gui::util::const_concat_3::<
                     { PATH_DATA.len() + $crate::gui::util::SVG_EXTRA_LEN },
@@ -397,14 +415,6 @@ macro_rules! mdi {
     }};
 }
 
-/// Returns an [`egui::Image`] with a Material Design Icon at size
-/// [`MDI_BIG_SIZE`].
-macro_rules! mdi_big {
-    ($name:ident) => {
-        mdi!($name).fit_to_original_size(1.0)
-    };
-}
-
 #[doc(hidden)]
 pub const SVG_PRE: &[u8] =
     br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d=""#;
@@ -412,6 +422,8 @@ pub const SVG_PRE: &[u8] =
 pub const SVG_POST: &[u8] = br#"" /></svg>"#;
 #[doc(hidden)]
 pub const SVG_EXTRA_LEN: usize = SVG_PRE.len() + SVG_POST.len();
+
+pub const MDI_STYLE_ICON_ROTATE_SQUARE: &str = "M 12 3 L 11 3.0605469 L 11 5.0800781 L 12 5 C 15.31 5 18 7.69 18 11 L 15 11 L 19 15 L 23 11 L 20 11 C 20 6.58 16.42 3 12 3 z M 5 9 C 3.9 9 3 9.9 3 11 L 3 18 C 3 19.11 3.9 20 5 20 L 12 20 C 13.11 20 14 19.11 14 18 L 14 11 C 14 9.8900001 13.11 9 12 9 L 5 9 z M 5 11 L 12 11 L 12 18 L 5 18 L 5 11 z";
 
 #[doc(hidden)]
 pub const fn const_copy_slice_from_to(src: &[u8], dst: &mut [u8], start: &mut usize) {

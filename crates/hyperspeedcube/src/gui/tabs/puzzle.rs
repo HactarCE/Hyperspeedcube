@@ -1033,7 +1033,14 @@ fn show_status_bar_contents_for_sim(
     if prefs.interaction.show_move_count_in_status_bar {
         show_separator_between(ui);
         let move_count_text = egui::WidgetText::from(sim.stm_count().to_string()).monospace();
-        let atoms = (mdi!(POUND), move_count_text);
+        let atoms = (
+            svg_icon_from_path!(
+                "rotate_square.svg",
+                crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE,
+            )
+            .fit_to_original_size(0.75),
+            move_count_text,
+        );
         ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
             .on_i18n_hover_explanation(&L.status_bar.move_count);
     }

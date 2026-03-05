@@ -229,6 +229,12 @@ status_bar {
       Speedsolves must be completed in a single session.
     """
   }
+  (HoverStrings)blindsolve_time {
+    full "Blindsolve time"
+    desc """
+      Blindsolve time is measured from when the puzzle is visible to when the blindfold is lifted.
+    """
+  }
   scramble {
     seed "Scramble seed"
     time "Scramble generation time"
@@ -829,6 +835,9 @@ solve_summary {
     saved_pb "Saved PB"
     leaderboard_pb "Leaderboard PB"
     world_record "World record"
+
+    move_count "Moves"
+    time "Time"
 
     needs_sign_in "Sign into leaderboards to view"
 

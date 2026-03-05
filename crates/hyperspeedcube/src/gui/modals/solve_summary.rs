@@ -457,6 +457,10 @@ impl SolveSummaryModal {
         .max_by(f32::total_cmp)
         .unwrap_or(0.0);
 
+        let header_width = |text: &egui::RichText| -> f32 {
+            MDI_BIG_SIZE.x * 0.75 + ui.spacing().item_spacing.x + text_width(ui, text.clone())
+        };
+
         let mut this_solve_speed = SolveMetric::new_speed(this_speed);
         let mut saved_pb_solve_speed = SolveMetric::new_speed(speed_pb.map(|pb| pb.duration / 10))
             .with_file_path(speed_pb.and_then(|pb| pb.abs_path().ok()))
@@ -467,14 +471,18 @@ impl SolveSummaryModal {
         let mut wr_solve_speed =
             SolveMetric::from_speed_lb_solve((|| self.leaderboard_wrs.as_ok()?.speed.as_ref())());
 
-        let speed_width = SolveMetric::max_width(
-            ui,
-            [
-                &this_solve_speed,
-                &saved_pb_solve_speed,
-                &leaderboard_pb_solve_speed,
-                &wr_solve_speed,
-            ],
+        let speed_header_text = egui::RichText::new(L.solve_summary.table.time).size(16.0);
+        let speed_width = f32::max(
+            header_width(&speed_header_text),
+            SolveMetric::max_width(
+                ui,
+                [
+                    &this_solve_speed,
+                    &saved_pb_solve_speed,
+                    &leaderboard_pb_solve_speed,
+                    &wr_solve_speed,
+                ],
+            ),
         );
 
         this_solve_speed.align_to_max_width(speed_width);
@@ -503,14 +511,19 @@ impl SolveSummaryModal {
             SolveMetric::from_fmc_lb_solve((|| self.leaderboard_wrs.as_ok()?.fmc.as_ref())())
         };
 
-        let move_count_width = SolveMetric::max_width(
-            ui,
-            [
-                &this_solve_move_count,
-                &saved_pb_solve_move_count,
-                &leaderboard_pb_solve_move_count,
-                &wr_solve_move_count,
-            ],
+        let move_count_header_text =
+            egui::RichText::new(L.solve_summary.table.move_count).size(16.0);
+        let move_count_width = f32::max(
+            header_width(&move_count_header_text),
+            SolveMetric::max_width(
+                ui,
+                [
+                    &this_solve_move_count,
+                    &saved_pb_solve_move_count,
+                    &leaderboard_pb_solve_move_count,
+                    &wr_solve_move_count,
+                ],
+            ),
         );
 
         this_solve_move_count.align_to_max_width(move_count_width);
@@ -554,16 +567,27 @@ impl SolveSummaryModal {
         let cell = |x, y| egui::Rect::from_x_y_ranges(col(x), row(y));
 
         // Draw header
+        let icon = svg_icon_from_path!(
+            "rotate_square.svg",
+            crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE,
+        )
+        .fit_to_original_size(0.75);
         ui.put(
-            egui::Align2::RIGHT_CENTER.align_size_within_rect(MDI_BIG_SIZE * 0.75, cell(1, 0)),
-            mdi!(POUND).fit_to_original_size(0.75),
+            cell(1, 0),
+            egui::AtomLayout::new((icon, move_count_header_text))
+                .align2(egui::Align2::RIGHT_CENTER),
         )
         .on_i18n_hover_explanation(&L.status_bar.move_count);
+        let icon = mdi!(TIMER).fit_to_original_size(0.75);
         ui.put(
-            egui::Align2::RIGHT_CENTER.align_size_within_rect(MDI_BIG_SIZE * 0.75, cell(2, 0)),
-            mdi!(TIMER).fit_to_original_size(0.75),
+            cell(2, 0),
+            egui::AtomLayout::new((icon, speed_header_text)).align2(egui::Align2::RIGHT_CENTER),
         )
-        .on_i18n_hover_explanation(&L.status_bar.time);
+        .on_i18n_hover_explanation(if is_blind {
+            &L.status_bar.blindsolve_time
+        } else {
+            &L.status_bar.time
+        });
 
         let mut y = 1;
 
