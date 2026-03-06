@@ -112,7 +112,9 @@ fn menu_button<'a>(
             )
             .ui(ui, |ui| {
                 // Don't justify text
-                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| add_contents);
+                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                    add_contents(ui);
+                });
             });
         if spinner {
             let spinner_rect = egui::Align2::LEFT_CENTER.align_size_within_rect(
