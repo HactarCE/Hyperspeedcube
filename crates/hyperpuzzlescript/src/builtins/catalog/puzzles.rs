@@ -212,7 +212,7 @@ pub fn define_in(
                                     spec,
                                     &cat2,
                                     &tx2,
-                                    Some(tags.clone()),
+                                    Some(tags),
                                     None,
                                 )
                                 .map(Arc::new)

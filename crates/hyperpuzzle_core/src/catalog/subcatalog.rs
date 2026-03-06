@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 
 /// List of all puzzles and puzzle generators in a catalog.
@@ -76,19 +78,28 @@ impl<T: CatalogObject> SubCatalog<T> {
     /// This is cached, so calling it repeatedly is cheap.
     pub fn generator_examples(&mut self) -> Arc<Vec<Arc<T::Spec>>> {
         Arc::clone(self.generator_examples.get_or_insert_with(|| {
-            Arc::new(
-                self.loaded_generators
-                    .values()
-                    .filter_map(|generator| T::get_generator_examples(generator))
-                    .flat_map(|examples| examples.values())
-                    .cloned()
-                    .collect(),
-            )
+            let example_specs = self
+                .loaded_generators
+                .values()
+                .filter_map(|generator| T::get_generator_examples(generator))
+                .flat_map(|examples| examples.values())
+                .cloned()
+                .collect_vec();
+            for example_spec in &*example_specs {
+                self.generated_specs.insert(
+                    example_spec.id().to_string(),
+                    Arc::new(Mutex::new(CacheEntry::Ok(Redirectable::Direct(
+                        Arc::clone(example_spec),
+                    )))),
+                );
+            }
+            Arc::new(example_specs)
         }))
     }
 
     fn clear_cache(&mut self) {
         self.generator_examples = None;
+        self.generated_specs.clear();
         self.all_specs = None;
         self.puzzle_list_entries = None;
     }
