@@ -61,12 +61,12 @@ pub mod drand;
 #[cfg(feature = "tsa")]
 pub mod tsa;
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Error {
     #[cfg(feature = "drand")]
     #[error("{0}")]

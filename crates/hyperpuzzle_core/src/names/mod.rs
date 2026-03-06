@@ -12,7 +12,7 @@ pub use name_spec_bi_map::{NameSpecBiMap, NameSpecBiMapBuilder};
 pub use string_bi_map::{StringBiMap, StringBiMapBuilder};
 
 /// Error indicating a bad name.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BadName {
     #[error("name {name:?} is already taken")]

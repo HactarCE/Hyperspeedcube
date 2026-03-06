@@ -73,7 +73,7 @@ impl Mul for Term {
 }
 
 /// Outer product of two terms. Returns `None` when exactly zero.
-#[allow(clippy::suspicious_arithmetic_impl)]
+#[expect(clippy::suspicious_arithmetic_impl)]
 impl BitXor for Term {
     type Output = Option<Term>;
 

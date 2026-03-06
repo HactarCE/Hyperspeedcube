@@ -84,7 +84,6 @@ impl<V> MotorNearestNeighborMap<V> {
 }
 
 impl ball_tree::Point for pga::Motor {
-    #[allow(clippy::unnecessary_cast)] // `Float` might not be `f64`
     fn distance(&self, other: &Self) -> f64 {
         assert_eq!(
             (self.ndim(), self.is_reflection()),

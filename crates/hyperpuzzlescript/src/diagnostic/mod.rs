@@ -13,7 +13,7 @@ pub use warning::Warning;
 
 /// [`Error`] or [`Warning`], without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Diagnostic {
     #[error("error: {0}")]
     Error(#[from] Error),

@@ -6,7 +6,7 @@ use wgpu::util::DeviceExt;
 use super::pipelines::Pipelines;
 
 /// WGPU graphics state.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct GraphicsState {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,

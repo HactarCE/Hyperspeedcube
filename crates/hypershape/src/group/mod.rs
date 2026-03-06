@@ -56,7 +56,7 @@ pub fn parse_dynkin_notation(
 }
 
 /// Error emitted by [`parse_dynkin_notation()`].
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum DynkinNotationError<'a> {
     #[error("group has ndim {ndim} but string {s:?} has length {len}")]

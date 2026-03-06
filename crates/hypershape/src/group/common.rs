@@ -111,7 +111,7 @@ pub type PerGenerator<T> = TiVec<GeneratorId, T>;
 pub type PerGroupElement<T> = TiVec<GroupElementId, T>;
 
 /// Error that can occur during group construction.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum GroupError {
     #[error("invalid group generator {0}")]

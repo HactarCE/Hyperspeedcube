@@ -94,7 +94,7 @@ fn strip_layer_mask_prefix(string: &str) -> Result<(Option<LayerMask>, &str), Tw
 }
 
 /// Error encountered while parsing a twist.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum TwistParseError<'a> {
     #[error("bad layer mask: {0:?}")]

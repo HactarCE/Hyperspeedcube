@@ -37,7 +37,7 @@ const Z_CLIP: f32 = 8.0;
 const Z_EPSILON: f32 = 0.01;
 
 /// Color ID for the background.
-#[allow(unused)]
+#[expect(unused)]
 const BACKGROUND_COLOR_ID: u32 = 0;
 /// Color ID for the internals.
 const INTERNALS_COLOR_ID: u32 = 1;

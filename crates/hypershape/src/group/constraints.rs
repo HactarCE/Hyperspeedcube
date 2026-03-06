@@ -203,7 +203,7 @@ mod tests {
         let PR = ref_points.push(g1.transform(&ref_points[BL]))?;
         let PL = ref_points.push(g0.transform(&ref_points[PR]))?;
         let PD = ref_points.push(g1.transform(&ref_points[PL]))?;
-        #[allow(unused)]
+        #[expect(unused)]
         let PB = ref_points.push(g2.transform(&ref_points[PD]))?;
 
         let mut solver =

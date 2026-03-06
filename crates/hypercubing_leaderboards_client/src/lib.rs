@@ -50,7 +50,7 @@ fn default_agent(timeout: Duration, domain: &str) -> Agent {
 
 /// Error type used for leaderboard requests.
 #[derive(thiserror::Error, Debug)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Error {
     #[error("{0}")]
     Ureq(#[from] Box<ureq::Error>),
@@ -332,7 +332,7 @@ const BASE64_URL_SAFE_ALPHABET: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /// Returns a crypto-safe random base-64 string of the specified length.
-#[allow(clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 pub fn random_b64_string(len: usize) -> String {
     let mut rng = rand::rng();
     (0..len)

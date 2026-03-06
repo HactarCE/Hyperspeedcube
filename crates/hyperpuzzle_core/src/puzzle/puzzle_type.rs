@@ -105,7 +105,6 @@ impl Puzzle {
     /// Constructs a new scrambled instance of the puzzle.
     ///
     /// Takes an optional `progress` argument that tracks progress.
-    #[allow(clippy::unwrap_used)] // these are infallible
     pub fn new_scrambled_with_progress(
         &self,
         params: ScrambleParams,
@@ -118,12 +117,13 @@ impl Puzzle {
         let ScrambleParams { ty, seed, .. } = &params;
 
         let mut sha256 = sha2::Sha256::new();
-        sha256.write_all(&seed.len().to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
-        sha256.write_all(seed.as_bytes()).unwrap();
+        sha256.write_all(&seed.len().to_le_bytes())?; // native endianness on x86 and Apple Silicon
+        sha256.write_all(seed.as_bytes())?;
         let digest = sha256.finalize();
 
-        let mut rng =
-            chacha20::ChaCha12Rng::from_seed(<[u8; 32]>::try_from(&digest[..32]).unwrap());
+        let mut rng = chacha20::ChaCha12Rng::from_seed(
+            <[u8; 32]>::try_from(&digest[..32]).expect("sha256 digest must be 32 bytes"),
+        );
 
         let scramble_length = match ty {
             ScrambleType::Full => self.full_scramble_length,

@@ -55,7 +55,7 @@ impl LayerRange {
     }
 
     /// Returns the number of layers in the range.
-    #[allow(clippy::len_without_is_empty)] // never empty
+    #[expect(clippy::len_without_is_empty)] // never empty
     pub fn len(self) -> usize {
         self.max.to_usize() - self.min.to_usize() + 1
     }

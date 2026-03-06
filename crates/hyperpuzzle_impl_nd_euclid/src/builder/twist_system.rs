@@ -443,7 +443,6 @@ impl TwistSystemBuilder {
 }
 
 /// Error indicating a bad twist.
-#[allow(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum BadTwist {
     #[error("twist transform cannot be identity")]

@@ -95,7 +95,7 @@ impl LayerMask {
     /// Returns the pointer, if this is a pointer.
     fn as_pointer(&self) -> Option<NonNull<BitVec>> {
         // accessing `self.pointer` when it's not valid is instant UB
-        #[allow(clippy::unnecessary_lazy_evaluations)]
+        #[expect(clippy::unnecessary_lazy_evaluations)]
         // SAFETY: `is_pointer()` returned `true`, so we can access
         //         `self.pointer`.
         self.is_pointer().then(|| unsafe { self.pointer })

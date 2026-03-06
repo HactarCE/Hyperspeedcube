@@ -63,7 +63,7 @@ pub enum UtilityTab {
     HpsLogs,
     DevTools,
 
-    #[allow(unused)]
+    #[allow(unused)] // only accessible with debug assertions enabled
     Debug,
 }
 impl UtilityTab {

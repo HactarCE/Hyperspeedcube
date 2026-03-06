@@ -11,7 +11,7 @@ use crate::Value;
 ///
 /// These predicates may overlap.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Type {
     #[default]
     Any,

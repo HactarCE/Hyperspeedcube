@@ -13,7 +13,7 @@ use super::{
 /// [Finite Coxeter group](https://w.wiki/7PLd).
 ///
 /// See also: [Coxeter-Dynkin diagram](https://w.wiki/7PLe)
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FiniteCoxeterGroup {
     A(u8),

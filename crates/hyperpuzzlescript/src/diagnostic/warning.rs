@@ -6,7 +6,7 @@ use crate::{Key, Span, Spanned};
 /// Warning message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
 #[non_exhaustive]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Warning {
     #[error("{0}")]
     User(EcoString),

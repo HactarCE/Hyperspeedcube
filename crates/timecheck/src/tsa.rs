@@ -47,12 +47,12 @@ use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 use tsp_http_client::TimeStampResponse;
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub type Result<T, E = TsaError> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum TsaError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),

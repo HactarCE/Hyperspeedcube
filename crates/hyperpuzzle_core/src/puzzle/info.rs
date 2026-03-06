@@ -209,11 +209,10 @@ pub struct TwistInfo {
 /// Piece type info.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
-    #[allow(clippy::doc_markdown)]
-    /// Name for the piece type. (e.g., "center/oblique_1_2/left")
+    /// Name for the piece type. (e.g., `center/oblique_1_2/left`)
     pub name: String,
-    /// User-friendly display name for the piece type. (e.g., "Oblique (1, 2)
-    /// (left)")
+    /// User-friendly display name for the piece type. (e.g., `Oblique (1, 2)
+    /// (left)`)
     ///
     /// This is also stored in the piece type hierarchy.
     pub display: String,
@@ -229,7 +228,7 @@ impl AsRef<str> for PieceTypeInfo {
 pub struct ColorInfo {}
 
 /// Color from the global color palette.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum PaletteColor {
     /// Unknown color.

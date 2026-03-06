@@ -122,7 +122,7 @@ impl ScrambleParams {
 
 #[cfg(feature = "timecheck")]
 #[derive(thiserror::Error, Serialize, Deserialize, Debug)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ScrambleVerificationError {
     #[error("offline scramble")]
     Offline,
@@ -211,12 +211,14 @@ pub struct ScrambledPuzzle {
 
 /// Error returned when scrambling a puzzle.
 #[derive(thiserror::Error, Debug)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[non_exhaustive]
 pub enum ScrambleError {
     #[cfg(feature = "timecheck")]
     #[error("{0}")]
     Drand(#[from] timecheck::drand::DrandError),
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
     #[error("canceled")]
     Canceled,
     #[error("unsupported version")]

@@ -247,7 +247,7 @@ macro_rules! impl_vector_ops {
         impl Div<Float> for $type_name {
             type Output = Vector;
 
-            #[allow(clippy::suspicious_arithmetic_impl)]
+            #[expect(clippy::suspicious_arithmetic_impl)]
             fn div(self, rhs: Float) -> Self::Output {
                 let mult = 1.0 / rhs;
                 self.iter().map(|x| x * mult).collect()

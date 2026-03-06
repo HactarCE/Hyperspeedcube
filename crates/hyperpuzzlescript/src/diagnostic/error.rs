@@ -13,7 +13,7 @@ use crate::{
 /// Error message, without traceback information.
 #[derive(thiserror::Error, Debug, Clone)]
 #[non_exhaustive]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum Error {
     #[error("syntax error")]
     SyntaxError {
@@ -483,7 +483,7 @@ impl Error {
 /// Reason for a variable being immutable.
 #[derive(thiserror::Error, Debug, Clone)]
 #[non_exhaustive]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ImmutReason {
     #[error("it is built into the language")]
     Builtin,

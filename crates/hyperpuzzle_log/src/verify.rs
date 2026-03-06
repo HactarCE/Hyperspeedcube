@@ -274,7 +274,7 @@ pub fn verify(
 }
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum SolveVerificationError {
     #[error("not solved")]
     NotSolved,

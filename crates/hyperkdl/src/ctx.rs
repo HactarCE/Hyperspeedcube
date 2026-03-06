@@ -122,7 +122,7 @@ impl fmt::Display for KeyPath<'_> {
 }
 
 /// Element of a semantic location in a KDL file.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum KeyPathElem<'a> {
     Argument(usize),
