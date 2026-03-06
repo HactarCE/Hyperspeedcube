@@ -78,10 +78,25 @@ menu {
     title "Puzzles"
     custom "Custom puzzles"
     (HoverStrings)show_hps_dir "Show HPS directory" {
-      full "TODO: Explain that you can put Hyperpuzzlescript files here, and where to find docs"
+      full "Show Hyperpuzzlescript directory"
+      desc """
+        HPS files are used to define many of the shapes, puzzles,
+        color systems, and other objects in Hyperspeedcube.
+
+        At startup and when reloading all puzzles, Hyperspeedcube scans for `.hps`
+        files in the HPS directory and runs them to define puzzles and other objects.
+
+        Documentation for Hyperpuzzlescript can be found at [dev.hypercubing.xyz](https://dev.hypercubing.xyz/).
+      """
     }
     (HoverStrings)extract_hps "Extra built-in HPS files…" {
-      full "TODO: Explain that you can use this to view how built-in puzzles are made, and even modify them"
+      full "Extract built-in Hyperpuzzlescript files"
+      desc """
+        Hyperspeedcube ships with many built-in HPS files.
+        You can study these to see how the built-in puzzles are made.
+
+        Documentation for Hyperpuzzlescript can be found at [dev.hypercubing.xyz](https://dev.hypercubing.xyz/).
+      """
     }
     show_experimental "Show experimental puzzles"
   }
@@ -960,7 +975,9 @@ help {
   """
   cant_save_replay "⚠ This solve was not loaded from a replay file so it cannot be saved as one."
   filter_styles """
-    # Filter styles
+    # Filter styles (global)
+
+    A filter style is a way of displaying a piece.
 
     Filter styles can be applied to pieces using the **piece filters** tool.
   """
@@ -979,6 +996,9 @@ help {
     - Colors within a color set are designed to contrast with each other and with other color sets of the same size
 
     Color values can be customized in the **global color palette** settings.
+
+    Each shape has its own set of color schemes.
+    Puzzles with the same shape have the same color schemes.
   """
   global_color_palette """
     # Global color palette
@@ -998,24 +1018,59 @@ help {
     The color scheme for any particular puzzle can be customized in the **color scheme** settings.
   """
   piece_filters """
-    # Piece filters
+    # Piece filters (per-view)
 
-    TODO: explain filters
+    Piece filters can be used to change the appearance of certain pieces.
 
-    - Piece filters are per-puzzle
-    - Filters auto-save when editing. click a preset to edit it
-    - Creating a preset uses current rules
-    - Ad-hoc = don't auto-save to a preset
+    A **filter view** is a list of **rules**. By default, rules earlier in the list
+    have higher priority, so each piece is displayed using the first rule that matches it.
+    This can be changed using the "reverse filter rules" checkbox in the **interaction** settings.
+    Each rule can be enabled or disabled using the checkbox beside it.
+
+    ## Filter rules
+
+    Pieces can be filtered based on sticker color and piece type.
+    Visually-indistinguishable pieces cannot be filtered separately from each other.
+
+    A rule can be specified using checkboxes or text. Checkboxes apply to sticker colors and piece types.
+
+    - A check mark next to a color indicates that a piece **must** have a sticker with that color.
+    - An X mark next to a piece type or color indicates that a piece **must not** be that type or have a sticker with that color.
+    - An empty checkbox indicates that a piece **may** be that type or have a sticker with that color.
+
+    Text rules use set operations to specify a set of pieces:
+
+    - `R` is the set of pieces with a sticker of color `R`.
+    - `'piece_type` is the set of pieces with type `piece_type`.
+    - `@nothing` is the empty set.
+    - `@everything` is the set of all pieces.
+    - `@only(U, R)` is the set of pieces with only `U` and `R` sticker colors.
+    - `@nocolor` is the set of pieces with no sticker colors.
+    - Space ` ` or ampersand `&` express set intersection.
+    - Exclamation point `!` or tilde `~` express set complement.
+    - Plus `+` or pipe `|` express set union.
+    - Parentheses `()` can be used for grouping.
   """
   piece_filter_presets """
     # Piece filter presets
 
-    TODO: explain filter presets
+    Ad-hoc filters are unsaved. To save the current filter view to a preset,
+    click **add filter preset with current settings**.
+
+    Filter presets automatically save when they are edited.
+
+    Each puzzle has its own set of filter presets.
   """
   piece_filter_sequences """
     # Piece filter sequences
 
-    TODO: explain filter sequences
+    Filter presets can be organized into **filter sequences** for speedsolving.
+
+    By clicking on the icon to beside the preset name, you can control whether a
+    filter preset includes the rules from previous filter preset in the sequence.
+    Rules included from a previous preset have lower priority than the new rules.
+
+    Each puzzle has its own set of filter preset sequences.
   """
   presets """
     # Presets
