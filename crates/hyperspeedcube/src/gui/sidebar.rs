@@ -1,15 +1,13 @@
 use std::collections::HashSet;
 
 use egui::AtomExt;
-use egui::emath::GuiRounding;
 use hyperprefs::SidebarStyle;
 
 use crate::L;
-use crate::gui::components::PrefsUi;
+use crate::gui::AppUi;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{GuiRoundingExt, MDI_BIG, text_width, text_width_ctx};
-use crate::gui::{App, AppUi, Tab};
+use crate::gui::util::{GuiRoundingExt, MDI_BIG, text_width_ctx};
 
 const FONT_SIZE: f32 = 15.0;
 const PADDING: f32 = 12.0;
@@ -71,7 +69,6 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
     if force_collapsed {
         show_labels_anim = 0.0;
     }
-    let show_labels_full = show_labels_anim == 1.0;
 
     if show_labels_anim == 0.0 && !show_sidebar {
         return;

@@ -107,7 +107,7 @@ pub fn autosize_font(ui: &egui::Ui, text: &str, available_width: f32) -> (egui::
     if w < available_width {
         (text.into(), false)
     } else {
-        let mut font_id = egui::TextStyle::Button.resolve(ui.style());
+        let font_id = egui::TextStyle::Button.resolve(ui.style());
         // Adjust font size to fit
         let font_size = (font_id.size) * available_width / w;
         // Floor font size to 0.5
@@ -319,7 +319,7 @@ impl GuiRoundingExt for f32 {
         use egui::emath::GUI_ROUNDING;
 
         let pixels_per_point = ctx.pixels_per_point();
-        let rounded_to_pixel = ((self * pixels_per_point).ceil() / pixels_per_point);
+        let rounded_to_pixel = (self * pixels_per_point).ceil() / pixels_per_point;
         (rounded_to_pixel / GUI_ROUNDING).ceil() * GUI_ROUNDING
     }
 
@@ -327,7 +327,7 @@ impl GuiRoundingExt for f32 {
         use egui::emath::GUI_ROUNDING;
 
         let pixels_per_point = ctx.pixels_per_point();
-        let rounded_to_pixel = ((self * pixels_per_point).ceil() / pixels_per_point);
+        let rounded_to_pixel = (self * pixels_per_point).ceil() / pixels_per_point;
         (rounded_to_pixel / GUI_ROUNDING).ceil() * GUI_ROUNDING
     }
 }

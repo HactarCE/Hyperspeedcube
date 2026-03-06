@@ -1,4 +1,3 @@
-use egui::AtomExt;
 use hyperpuzzle::TagValue;
 
 use crate::gui::util::MDI_MEDIUM_SIZE;

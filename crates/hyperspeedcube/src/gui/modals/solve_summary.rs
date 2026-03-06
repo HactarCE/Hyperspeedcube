@@ -3,12 +3,11 @@ use std::{
     sync::{Arc, mpsc},
 };
 
-use egui::{AtomExt, IntoAtoms, NumExt, Widget, include_image};
+use egui::{NumExt, include_image};
 use hypercubing_leaderboards_client::{
     AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards,
 };
-use hyperpaths::NoPaths;
-use hyperpuzzle::chrono::{DateTime, TimeDelta, Utc};
+use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::{Puzzle, chrono, verification::SolveVerification};
 use hyperpuzzle_log::{LogFile, Solve, verify::SolveVerificationError};
 use hyperpuzzle_view::PuzzleSimulation;
@@ -21,10 +20,7 @@ use crate::{
         App,
         ext::ResponseExt,
         markdown::md,
-        util::{
-            GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, hyperlink_to,
-            text_size, text_width,
-        },
+        util::{GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, text_width},
     },
     leaderboards::LeaderboardsClientState,
     util::centiseconds_to_string,
@@ -50,7 +46,6 @@ impl egui::Widget for &mut LeaderboardSubmitForm {
     }
 }
 
-pub struct SolveSummaryComparisonTable {}
 pub struct SolveSummaryModal {
     sim: Arc<Mutex<PuzzleSimulation>>,
     puzzle: Arc<Puzzle>,
@@ -93,9 +88,8 @@ impl SolveSummaryModal {
         let puzzle = Arc::clone(sim_guard.puzzle_type());
 
         let replay = sim_guard.serialize(true);
-        let digest: Arc<[u8]> = Arc::from(replay.digest_v1());
 
-        let mut verification = hyperpuzzle_log::verify::verify(
+        let verification = hyperpuzzle_log::verify::verify(
             &hyperpuzzle::catalog(),
             &replay,
             hyperpuzzle_log::verify::VerificationOptions::QUICK,
@@ -163,7 +157,7 @@ impl SolveSummaryModal {
 
             best_solves_request,
 
-            save_result: sim_guard.saved_to_autonamed_file.then(|| Ok(())),
+            save_result: sim_guard.saved_to_autonamed_file.then_some(Ok(())),
 
             is_leaderboard_eligible,
             leaderboard_submit_form: LeaderboardSubmitForm::default(),
@@ -268,7 +262,9 @@ impl SolveSummaryModal {
                             .add(egui::Hyperlink::new(l.show_this_saved_solve))
                             .clicked()
                     {
-                        open_with::show_in_folder(file_path.clone());
+                        if let Err(e) = open_with::show_in_folder(file_path.clone()) {
+                            crate::error_dialog(L.error_dialog.opening_folder, e);
+                        }
                     }
                 } else if ui.add(egui::Hyperlink::new(l.show_saved_solves)).clicked() {
                     crate::open_dir(&dir_path);
@@ -289,8 +285,6 @@ impl SolveSummaryModal {
             &mut self.leaderboard_submit_form,
         )
         .on_disabled_hover_text(L.solve_summary.leaderboards.needs_sign_in);
-
-        let mut error: Option<String> = None;
 
         let l = L.solve_summary.leaderboards;
         let icon_size = 18.0;
@@ -332,7 +326,7 @@ impl SolveSummaryModal {
                         });
                     }
                 }
-                RequestState::Waiting(receiver) => {
+                RequestState::Waiting(_) => {
                     ui.spinner();
                     ui.label(l.waiting);
                 }
@@ -343,7 +337,7 @@ impl SolveSummaryModal {
                 RequestState::Err(e) => {
                     let error_fg_color = ui.visuals().error_fg_color;
                     ui.add(mdi!(error_fg_color, ALERT_OUTLINE, icon_size));
-                    ui.colored_label(error_fg_color, l.error.with(&e));
+                    ui.colored_label(error_fg_color, l.error.with(e));
                     if ui.button(L.try_again).clicked() {
                         self.timestamp_signature = RequestState::Init;
                     }
@@ -393,7 +387,7 @@ impl SolveSummaryModal {
                     ui.add(
                         mdi!(ui, CLOCK_ALERT_OUTLINE, icon_size).tint(ui.visuals().error_fg_color),
                     );
-                    ui.colored_label(ui.visuals().error_fg_color, l.error.with(&e));
+                    ui.colored_label(ui.visuals().error_fg_color, l.error.with(e));
                     if ui.button(L.try_again).clicked() {
                         self.timestamp_signature = RequestState::Init;
                     }
@@ -417,7 +411,7 @@ impl SolveSummaryModal {
 
         let this_speed =
             Option::or(durations.speedsolve, durations.blindsolve).map(timedelta_to_centiseconds);
-        let this_move_count = Some(self.verification.solution_stm);
+        let this_move_count = Some(self.verification.solution_stm as i64);
 
         let speed_pb = if is_blind {
             self.old_pbs.blind.as_ref()
@@ -438,7 +432,7 @@ impl SolveSummaryModal {
 
         // Fetch leaderboard world records.
         if matches!(self.leaderboard_wrs, RequestState::Init) {
-            let mut request = self.best_solves_request.clone();
+            let request = self.best_solves_request.clone();
             self.leaderboard_wrs.request_async(move || {
                 Leaderboards::get_world_records(crate::leaderboards::LEADERBOARDS_DOMAIN, &request)
                     .map_err(|e| e.to_string())
@@ -471,9 +465,11 @@ impl SolveSummaryModal {
             .compare_to_new_solve(SolveMetricCategory::Saved, this_speed);
         // IIFE to mimic try_block
         let mut leaderboard_pb_solve_speed =
-            SolveMetric::from_speed_lb_solve((|| self.leaderboard_pbs.as_ok()?.speed.as_ref())());
+            SolveMetric::from_speed_lb_solve((|| self.leaderboard_pbs.as_ok()?.speed.as_ref())())
+                .compare_to_new_solve(SolveMetricCategory::LeaderboardPb, this_speed);
         let mut wr_solve_speed =
-            SolveMetric::from_speed_lb_solve((|| self.leaderboard_wrs.as_ok()?.speed.as_ref())());
+            SolveMetric::from_speed_lb_solve((|| self.leaderboard_wrs.as_ok()?.speed.as_ref())())
+                .compare_to_new_solve(SolveMetricCategory::WorldRecord, this_speed);
 
         let speed_header_text = egui::RichText::new(L.solve_summary.table.time).size(16.0);
         let speed_width = f32::max(
@@ -494,26 +490,24 @@ impl SolveSummaryModal {
         leaderboard_pb_solve_speed.align_to_max_width(speed_width);
         wr_solve_speed.align_to_max_width(speed_width);
 
-        let mut this_solve_move_count =
-            SolveMetric::new_move_count(this_move_count.map(|i| i as i64));
+        let mut this_solve_move_count = SolveMetric::new_move_count(this_move_count);
         let mut saved_pb_solve_move_count = SolveMetric::new_move_count(fmc_pb.map(|pb| pb.stm))
             .with_file_path(fmc_pb.and_then(|pb| pb.abs_path().ok()))
-            .compare_to_new_solve(
-                SolveMetricCategory::Saved,
-                this_move_count.map(|i| i as i64),
-            );
+            .compare_to_new_solve(SolveMetricCategory::Saved, this_move_count);
         // IIFE to mimic try_block
         let mut leaderboard_pb_solve_move_count = if self.leaderboard_submit_form.computer_assisted
         {
             SolveMetric::from_fmc_lb_solve((|| self.leaderboard_pbs.as_ok()?.fmcca.as_ref())())
         } else {
             SolveMetric::from_fmc_lb_solve((|| self.leaderboard_pbs.as_ok()?.fmc.as_ref())())
-        };
+        }
+        .compare_to_new_solve(SolveMetricCategory::LeaderboardPb, this_move_count);
         let mut wr_solve_move_count = if self.leaderboard_submit_form.computer_assisted {
             SolveMetric::from_fmc_lb_solve((|| self.leaderboard_wrs.as_ok()?.fmcca.as_ref())())
         } else {
             SolveMetric::from_fmc_lb_solve((|| self.leaderboard_wrs.as_ok()?.fmc.as_ref())())
-        };
+        }
+        .compare_to_new_solve(SolveMetricCategory::WorldRecord, this_move_count);
 
         let move_count_header_text =
             egui::RichText::new(L.solve_summary.table.move_count).size(16.0);
@@ -588,8 +582,6 @@ impl SolveSummaryModal {
         } else {
             &L.status_bar.time
         });
-
-        let mut y = 1;
 
         fn put_left(
             ui: &mut egui::Ui,
@@ -775,7 +767,9 @@ impl SolveSummaryModal {
         .map_err(|e| e.to_string())?;
 
         stats.record_new_pb(&self.verification, &self.file_name);
-        hyperstats::save(stats);
+        if let Err(e) = hyperstats::save(stats) {
+            crate::error_dialog(L.error_dialog.saving_file, e);
+        }
 
         Ok(())
     }
@@ -865,12 +859,11 @@ impl SolveMetric {
 
     fn rich_text(&self) -> Option<egui::RichText> {
         self.value.map(|n| {
-            let mut s = match self.kind {
+            let s = match self.kind {
                 SolveMetricKind::Time => centiseconds_to_string(n, true),
                 SolveMetricKind::MoveCount => n.to_string(),
             };
-
-            let mut rich_text = egui::RichText::new(s).monospace().size(Self::FONT_SIZE);
+            let rich_text = egui::RichText::new(s).monospace().size(Self::FONT_SIZE);
             if self.new_solve_is_better {
                 rich_text.strikethrough()
             } else {
@@ -909,8 +902,6 @@ impl egui::Widget for SolveMetric {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let l = L.solve_summary.table;
         ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
-            let max_rect = ui.max_rect();
-
             let width_to_allocate = self.alignment_width.unwrap_or_else(|| self.total_width(ui));
 
             ui.allocate_ui_with_layout(
@@ -932,7 +923,9 @@ impl egui::Widget for SolveMetric {
                                 .on_hover_text(l.click_to_show_in_file_manager);
                             if r.clicked() {
                                 if file_path.is_file() {
-                                    open_with::show_in_folder(file_path);
+                                    if let Err(e) = open_with::show_in_folder(file_path) {
+                                        crate::error_dialog(L.error_dialog.opening_folder, e);
+                                    }
                                 } else {
                                     rfd::MessageDialog::new()
                                         .set_level(rfd::MessageLevel::Error)
@@ -950,7 +943,7 @@ impl egui::Widget for SolveMetric {
                     if self.new_solve_is_better {
                         let icon =
                             mdi_big!(ui, ALERT_DECAGRAM).tint(egui::Color32::from_rgb(255, 255, 0));
-                        let icon_response = match text_response {
+                        match text_response {
                             Some(r) => {
                                 let icon_center = r.rect.left_center()
                                     - egui::vec2(

@@ -2,12 +2,11 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use egui::{AtomExt, IntoAtoms};
-use hypercubing_leaderboards_client::Leaderboards;
 use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::markdown::md;
-use crate::gui::util::{MDI_SMALL_SIZE, hyperlink_to, text_width};
+use crate::gui::util::{MDI_SMALL_SIZE, hyperlink_to};
 use crate::leaderboards::{LEADERBOARDS_DOMAIN, LeaderboardsClientState};
 
 pub struct LeaderboardsUi<'a>(pub &'a Arc<Mutex<LeaderboardsClientState>>);
@@ -42,7 +41,7 @@ impl egui::Widget for LeaderboardsUi<'_> {
                     wants_sign_out |= ui.button(L.cancel).clicked();
                 })
             }
-            LeaderboardsClientState::FetchingProfileInfo { token } => {
+            LeaderboardsClientState::FetchingProfileInfo { .. } => {
                 let menu_button_label = L.leaderboards.loading.fetching_profile_info;
                 menu_button(ui, "fetching_info", true, menu_button_label, |ui| {
                     wants_sign_out |= ui.button(L.cancel).clicked();
@@ -71,7 +70,7 @@ impl egui::Widget for LeaderboardsUi<'_> {
                     wants_sign_out |= ui.button(L.leaderboards.actions.sign_out).clicked();
                 })
             }
-            LeaderboardsClientState::Error { token, error } => {
+            LeaderboardsClientState::Error { error, .. } => {
                 let error_msg = error.to_string();
                 let menu_button_label = L.leaderboards.error_button;
                 menu_button(ui, "error", false, menu_button_label, |ui| {

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::VecDeque, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use hyperprefs::{ModifiedPreset, SidebarStyle};
 use itertools::Itertools;
@@ -153,7 +153,7 @@ impl UiLayout {
                 .iter_surfaces()
                 .enumerate()
                 .filter_map(|(i, surface)| match surface {
-                    egui_dock::Surface::Window(tree, window_state) => {
+                    egui_dock::Surface::Window(tree, _window_state) => {
                         let surf_index = egui_dock::SurfaceIndex(i);
                         let id = format!("window {surf_index:?}").into(); // must match egui_dock internals
                         let area_state = egui::AreaState::load(ctx, id);
@@ -238,6 +238,9 @@ impl UiLayoutNode {
                         })
                         .collect()
                 });
+                if *active_tab < tabs.len() {
+                    tree.set_active_tab(node_index, *active_tab);
+                }
             }
             Self::SplitV {
                 fraction,

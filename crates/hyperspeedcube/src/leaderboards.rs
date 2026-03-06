@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypercubing_leaderboards_client::{AuthFlow, BestSolvesRequest, Leaderboards};
+use hypercubing_leaderboards_client::{AuthFlow, Leaderboards};
 use parking_lot::Mutex;
 
 pub const LEADERBOARDS_DOMAIN: &str = if hyperpaths::IS_OFFICIAL_BUILD {
@@ -29,7 +29,7 @@ pub enum LeaderboardsClientState {
 
 impl LeaderboardsClientState {
     pub fn load() -> Arc<Mutex<Self>> {
-        let mut this = Arc::new(Mutex::new(Self::NotSignedIn));
+        let this = Arc::new(Mutex::new(Self::NotSignedIn));
         if let Some(token) = load_token_from_file() {
             this.lock().init_from_token(Arc::clone(&this), token);
         }

@@ -1,8 +1,6 @@
 use hyperdraw::NdEuclidCamera;
-use hypermath::pga::Motor;
 use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::PuzzleView;
 
 use crate::L;
 use crate::app::App;

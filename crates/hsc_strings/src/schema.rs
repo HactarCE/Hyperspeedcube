@@ -578,6 +578,7 @@ impl StructSchema {
         // Write global default value, if applicable.
         if self.has_global_default {
             writeln!(f, "{indent}impl {name} {{")?;
+            writeln!(f, "{indent}    #[allow(unused)]")?;
             writeln!(f, "{indent}    pub const DEFAULT: Self = Self {{")?;
             for (field_name, field) in &self.fields {
                 match &field.ty {

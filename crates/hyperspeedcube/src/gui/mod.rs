@@ -1,11 +1,8 @@
-use std::collections::HashSet;
-use std::sync::{Arc, mpsc};
-use std::time::Instant;
+use std::sync::Arc;
 
 use egui::NumExt;
 use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
-use hyperprefs::{ModifiedPreset, PresetRef};
 use markdown::md;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
@@ -35,7 +32,6 @@ use crate::L;
 pub use crate::app::App;
 use crate::gui::modals::SolveSummaryModal;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::text_width;
 
 pub struct AppUi {
     pub app: App,
@@ -100,7 +96,7 @@ impl AppUi {
 
         // Restore dock state.
         if let Some(new_serialized_dock_state) = &layout.dock_state
-            && let Ok(mut new_dock_state) = layout::deserialize_dock_state(
+            && let Ok(new_dock_state) = layout::deserialize_dock_state(
                 new_serialized_dock_state,
                 puzzle_views,
                 keep_extra_puzzle_views,
@@ -306,7 +302,7 @@ impl AppUi {
         // key_combo_popup::build(ctx, app);
 
         // Autosave if necessary.
-        self.app.maybe_autosave();
+        self.app.autosave();
 
         // Confirm discard before close.
         if ctx.input(|input| input.viewport().close_requested())

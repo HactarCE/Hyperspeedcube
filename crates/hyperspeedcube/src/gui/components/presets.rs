@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
-use egui::AtomExt;
-use hcegui::dnd::{Dnd, DndStyle, ReorderDnd};
+use hcegui::dnd::{DndStyle, ReorderDnd};
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
@@ -279,7 +278,7 @@ where
                         Err(Some(self.text.errors.cannot_delete_last.into()))
                     }
                 })
-                .show_with(ui, |ui| {
+                .show_with(|ui| {
                     let preset_name = preset_to_edit.get()?;
                     let builtin_value = self.presets.builtin_presets().get(&preset_name)?;
 
@@ -345,7 +344,7 @@ where
                 .confirm_button_validator(&|new_name| {
                     self.validate_preset_name(new_name, self.text.actions.add)
                 })
-                .show_with(ui, |ui| {
+                .show_with(|ui| {
                     let builtins = self.presets.builtin_presets();
                     if builtins.is_empty() {
                         return None;

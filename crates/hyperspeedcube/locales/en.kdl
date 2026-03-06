@@ -1097,6 +1097,12 @@ _crash {
   """
 }
 
+error_dialog {
+  saving_file "Error saving file"
+  loading_file "Error loading file"
+  opening_folder "Error opening folder"
+}
+
 eula """
   # Read this before using this software
 

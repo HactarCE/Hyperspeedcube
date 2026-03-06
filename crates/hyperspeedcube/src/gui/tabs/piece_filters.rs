@@ -348,7 +348,7 @@ fn show_filter_presets_list_ui_contents(
                     .confirm_button_validator(&validate_sequence_rename)
                     .delete_button_validator(&|_| Ok(Some(l.actions.delete.into())))
                     .at(ui, &r, egui::vec2(-17.0, 2.0))
-                    .show(ui)
+                    .show()
             });
             if let Some(r) = popup_response {
                 match r {
@@ -582,7 +582,7 @@ fn show_preset_name(
             .confirm_button_validator(&validate_preset_rename)
             .delete_button_validator(&|_| Ok(Some(l.actions.delete.into())))
             .at(ui, &r, egui::vec2(-3.0, 2.0))
-            .show(ui)
+            .show()
     });
     if let Some(r) = popup_response {
         match r {

@@ -19,7 +19,6 @@ mod locales;
 mod util;
 
 pub use gui::about_text;
-use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 /// Strings for the current locale.
 ///
@@ -183,6 +182,21 @@ fn init_deadlock_detection() {
             }
         }
     });
+}
+
+/// Displays an error dialog.
+///
+/// Use this only for unlikely errors where the user should be notified that an
+/// action failed, but the application can continue running.
+fn error_dialog(title: impl ToString, message: impl ToString) {
+    let mut dialog = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title(title.to_string());
+    let message = message.to_string();
+    if !message.is_empty() {
+        dialog = dialog.set_description(message.to_string());
+    }
+    dialog.show();
 }
 
 fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {

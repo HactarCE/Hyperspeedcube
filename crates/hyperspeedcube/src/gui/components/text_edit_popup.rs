@@ -179,21 +179,19 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     }
 
     /// Shows the text edit popup if it is open.
-    pub fn show(self, ui: &mut egui::Ui) -> Option<TextEditPopupResponse> {
-        self.show_with(ui, |_| None)
+    pub fn show(self) -> Option<TextEditPopupResponse> {
+        self.show_with(|_| None)
     }
 
     /// Shows the text edit popup if it is open, and calls `inner` to display
     /// extra UI below the text edit component.
     pub fn show_with<R>(
         self,
-        ui: &mut egui::Ui,
         inner: impl FnOnce(&mut egui::Ui) -> Option<TextEditPopupResponse<R>>,
     ) -> Option<TextEditPopupResponse<R>> {
         let mut response = None;
 
-        let popup_id = self.popup.get_id();
-        let popup_response = self.popup.show(|ui| {
+        self.popup.show(|ui| {
             ui.set_height(MDI_MEDIUM_BUTTON_SIZE.y);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if let Some(label) = self.label {

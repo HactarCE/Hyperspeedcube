@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hcegui::dnd::Dnd;
 use hyperprefs::Preferences;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::{NdEuclidViewState, PuzzleView};
+use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
 use crate::L;
@@ -72,12 +72,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
-    if let Some(nd_euclid) = view.nd_euclid() {
-        show_nd_euclid_hover_info(ui, view, nd_euclid);
-    }
-}
-
-fn show_nd_euclid_hover_info(ui: &mut egui::Ui, view: &PuzzleView, euclid: &NdEuclidViewState) {
     let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
         md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
@@ -240,8 +234,8 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
             };
 
             let text_edit = egui::TextEdit::singleline(name);
-            match &state.loaded_orbit {
-                Some(AnyOrbit::Axes(orbit)) => {
+            match loaded_orbit {
+                AnyOrbit::Axes(orbit) => {
                     if let Some(axis) = orbit.elements[*index] {
                         let r = ui.add(text_edit);
                         if r.hovered() || r.has_focus() {
@@ -253,12 +247,11 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
                         }
                     }
                 }
-                Some(AnyOrbit::Colors(orbit)) => {
+                AnyOrbit::Colors(orbit) => {
                     if let Some(color) = orbit.elements[*index] {
                         show_orbit_color(app, &puz, ui, text_edit, color);
                     }
                 }
-                None => (),
             }
         });
     }
@@ -317,7 +310,7 @@ fn puzzle_color_edit_button(
         return;
     };
 
-    let r = crate::gui::components::show_color_button_with_popup(
+    crate::gui::components::show_color_button_with_popup(
         ui,
         rgb,
         ui.spacing().interact_size,

@@ -58,7 +58,7 @@ pub fn solves_dir() -> Result<&'static Path, NoPaths> {
 }
 /// Returns the directory containing autosaved solves for a particular puzzle.
 pub fn solves_dir_for_puzzle(puzzle_id: &str) -> Result<PathBuf, NoPaths> {
-    Ok(solves_dir()?.join(&puzzle_id.replace(':', "~")))
+    Ok(solves_dir()?.join(puzzle_id.replace(':', "~")))
 }
 /// Returns the file name for an autosaved solve.
 pub fn solve_autosave_filename(timestamp: &str, stm: u64) -> String {
@@ -66,7 +66,7 @@ pub fn solve_autosave_filename(timestamp: &str, stm: u64) -> String {
 }
 /// Returns the file path for an autosaved solve.
 pub fn solve_autosave_path(puzzle_id: &str, timestamp: &str, stm: u64) -> Result<PathBuf, NoPaths> {
-    Ok(solves_dir_for_puzzle(puzzle_id)?.join(&solve_autosave_filename(timestamp, stm)))
+    Ok(solves_dir_for_puzzle(puzzle_id)?.join(solve_autosave_filename(timestamp, stm)))
 }
 /// Returns the directory containing Hyperpuzzlescript files.
 pub fn hps_dir() -> Result<&'static Path, NoPaths> {

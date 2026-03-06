@@ -1,21 +1,13 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-
-use egui::AtomExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
-use hyperprefs::ModifiedPreset;
 use hyperpuzzle::ScrambleType;
-use itertools::Itertools;
-use self_update::update::Release;
 
-use super::{AppUi, Tab};
+use super::AppUi;
 use crate::L;
-use crate::gui::components::{PrefsUi, PresetsUi};
+use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
 use crate::gui::util::{MDI_SMALL, hyperlink_to};
-use crate::leaderboards::LeaderboardsClientState;
 
 lazy_static! {
     static ref NEWER_RELEASE: Option<self_update::update::Release> = check_for_update()

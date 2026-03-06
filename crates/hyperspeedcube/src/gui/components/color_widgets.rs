@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse, ReorderDndMove};
+use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse};
 use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
 use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;
@@ -235,7 +235,7 @@ impl<'a> ColorsUi<'a> {
         let mut modification = None;
 
         if let Some((color_scheme, color_system)) = current_colors {
-            if let Some(mut dnd) = self.dnd.take() {
+            if let Some(dnd) = self.dnd.take() {
                 match dnd.finish(ui) {
                     DndResponse::DoneDragging(r) => modification = Some(r),
                     DndResponse::MidDrag(DndMove {
@@ -777,7 +777,7 @@ pub fn color_edit(
     if reopen.reset() {
         hex_edit_popup.keep_open(color.to_string());
     }
-    let popup_response = hex_edit_popup.if_open(|popup| {
+    let popup_response: Option<TextEditPopupResponse> = hex_edit_popup.if_open(|popup| {
         popup
             .over(ui, &r, egui::vec2(1.0, 2.0))
             .text_edit_align(egui::Align::Center)
@@ -788,8 +788,7 @@ pub fn color_edit(
                     .map(|_| None)
                     .map_err(|_| None)
             })
-            .show_with::<std::convert::Infallible>(ui, |ui| {
-                // TODO: custom color picker
+            .show_with(|ui| {
                 let mut egui_color = color.to_egui_color32();
                 let alpha = egui::color_picker::Alpha::Opaque;
                 ui.spacing_mut().slider_width = 220.0;
@@ -801,7 +800,6 @@ pub fn color_edit(
                 None
             })
     });
-    #[allow(clippy::collapsible_match)]
     if let Some(r) = popup_response.filter(|_| !reopen.get())
         && let TextEditPopupResponse::Confirm(new_hex_string) = r
         && let Ok(new_color) = new_hex_string.parse()

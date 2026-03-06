@@ -24,12 +24,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         let mut group_dnd = Dnd::new(ui.ctx(), "group_dnd");
         let mut keybind_dnd = Dnd::new(ui.ctx(), "keybind_dnd");
         for (group_index, group) in keybind_groups.iter().enumerate() {
-            group_dnd.reorderable_with_handle(ui, group_index, |ui, is_dragging| {
+            group_dnd.reorderable_with_handle(ui, group_index, |ui, _is_dragging| {
                 ui.vertical(|ui| {
                     ui.strong(&group.name);
-                    for (keybind_index, keybind) in group.keybinds.iter().enumerate() {
+                    for (keybind_index, _keybind) in group.keybinds.iter().enumerate() {
                         let index = (group_index, keybind_index);
-                        keybind_dnd.reorderable_with_handle(ui, index, |ui, is_dragging| {
+                        keybind_dnd.reorderable_with_handle(ui, index, |ui, _is_dragging| {
                             ui.label("hi");
                         });
                     }

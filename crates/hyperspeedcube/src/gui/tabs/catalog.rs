@@ -3,9 +3,7 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
-use egui::AtomExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
-use egui::emath::GuiRounding;
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 use regex::Regex;
@@ -211,8 +209,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 }
 
                                 Some(puzzle_generator) => {
-                                    let popup_id = generator_popup_data_stored.id.with(&obj.id);
-
                                     if r.clicked() {
                                         generator_popup_data =
                                             Some(PuzzleGeneratorPopupData::new(&puzzle_generator));
@@ -229,7 +225,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                             .show(|ui| {
                                                 show_puzzle_generator_ui(
                                                     ui,
-                                                    popup_id,
                                                     app,
                                                     &puzzle_generator,
                                                     popup_data,
@@ -269,7 +264,6 @@ impl PuzzleGeneratorPopupData {
 
 fn show_puzzle_generator_ui(
     ui: &mut egui::Ui,
-    popup_id: egui::Id,
     app: &mut App,
     puzzle_generator: &PuzzleSpecGenerator,
     popup_data: &mut PuzzleGeneratorPopupData,
@@ -459,7 +453,7 @@ impl<'a> Query<'a> {
         for segment in &query.segments {
             match segment {
                 QuerySegment::Whitespace(s) | QuerySegment::Word(s) => {
-                    append_to_job(&mut job, &segment.to_string(), basic_text_format.clone());
+                    append_to_job(&mut job, s, basic_text_format.clone());
                 }
                 QuerySegment::Tag {
                     prefix,

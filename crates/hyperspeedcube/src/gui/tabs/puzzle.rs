@@ -6,12 +6,11 @@ use std::time::Duration;
 
 use egui::Widget;
 use egui::mutex::RwLock;
-use eyre::{OptionExt, Result};
+use eyre::Result;
 use hyperdraw::*;
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, ColorScheme, Preferences};
+use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::Timestamp;
-use hyperpuzzle::chrono::TimeDelta;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
@@ -362,15 +361,12 @@ impl PuzzleWidget {
                     } => {
                         loading_header = Some(L.puzzle_view.loading_log);
                         match thread_handle.is_finished() {
-                            true => {
-                                match thread_handle.join() {
-                                    Ok(result) => match result {
-                                        Ok(sim) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
-                                        Err(e) => self.loading = None, // TODO: report error
-                                    },
-                                    Err(e) => self.loading = None, // TODO: report error
+                            true => match thread_handle.join() {
+                                Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                                Ok(Err(())) | Err(_) => {
+                                    crate::error_dialog(L.error_dialog.loading_file, "");
                                 }
-                            }
+                            },
                             false => {
                                 self.loading = Some(PuzzleWidgetLoading::LoadingFile {
                                     puzzle_id,
@@ -444,8 +440,6 @@ impl PuzzleWidget {
 
             // Undo/redo keybinds
             ui.input(|input| {
-                use egui::Key;
-
                 let mods = input.modifiers;
                 let cmd = !mods.alt && !mods.shift && mods.command;
                 let cmd_shift = !mods.alt && mods.shift && mods.command;
@@ -477,10 +471,9 @@ impl PuzzleWidget {
             })
             .unwrap_or(false);
 
-        // Compute NDC cursor position.
-        let mut ndc_cursor_pos: Option<egui::Vec2> =
+        // Compute NDC (normalized device coordinates) cursor position.
+        let ndc_cursor_pos: Option<egui::Vec2> =
             r.hover_pos().or(r.interact_pointer_pos()).map(|egui_pos| {
-                // Convert to normalized device coordinates (-1 to +1).
                 let mut ndc = (egui_pos - r.rect.center()) * 2.0 / r.rect.size();
                 ndc.y = -ndc.y;
                 ndc
@@ -696,7 +689,7 @@ impl PuzzleWidgetContents {
     fn is_placeholder(&self) -> bool {
         match self {
             PuzzleWidgetContents::None => false,
-            PuzzleWidgetContents::Ok(puzzle_view) => false,
+            PuzzleWidgetContents::Ok(_) => false,
             PuzzleWidgetContents::Err { is_placeholder, .. } => *is_placeholder,
         }
     }
@@ -852,7 +845,7 @@ fn show_nd_euclid_puzzle_view(
             .map_ref(|_piece, transform| transform.euclidean_rotation_matrix().at_ndim(ndim));
     }
 
-    let mut draw_params = DrawParams {
+    let draw_params = DrawParams {
         ndim,
         cam,
 

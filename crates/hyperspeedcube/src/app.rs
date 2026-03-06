@@ -134,12 +134,7 @@ impl App {
                 .with_sim(|sim| sim.last_log_file.clone())
                 .flatten();
             if let Some(path) = last_file_path.or_else(Self::prompt_file_save_path) {
-                // TODO: handle error
-                std::fs::write(path.clone(), contents);
-                self.active_puzzle.with_sim(|sim| {
-                    sim.last_log_file = Some(path);
-                    sim.clear_unsaved_changes();
-                });
+                self.save_file_to_path(contents, path);
             }
         }
     }
@@ -147,13 +142,17 @@ impl App {
         if let Some(contents) = self.serialize_puzzle_log(replay)
             && let Some(path) = Self::prompt_file_save_path()
         {
-            // TODO: handle error
-            std::fs::write(path.clone(), contents);
-            self.active_puzzle.with_sim(|sim| {
-                sim.last_log_file = Some(path);
-                sim.clear_unsaved_changes();
-            });
+            self.save_file_to_path(contents, path);
         }
+    }
+    fn save_file_to_path(&mut self, contents: String, path: PathBuf) {
+        if let Err(e) = std::fs::write(&path, contents) {
+            crate::error_dialog(L.error_dialog.saving_file, e);
+        }
+        self.active_puzzle.with_sim(|sim| {
+            sim.last_log_file = Some(path);
+            sim.clear_unsaved_changes();
+        });
     }
     pub(crate) fn serialize_puzzle_log(&mut self, replay: bool) -> Option<String> {
         let solve = self.active_puzzle.with_sim(|sim| sim.serialize(replay));
@@ -260,17 +259,10 @@ impl App {
     }
 
     /// Saves preferences if needed and a timeout has elapsed.
-    pub fn maybe_autosave(&mut self) {
+    pub fn autosave(&mut self) {
         let now = Instant::now();
         if self.prefs.needs_save && now - self.last_autosave > AUTO_SAVE_TIMEOUT {
             self.last_autosave = now;
-            self.prefs.save();
-        }
-    }
-
-    /// Saves preferences if needed.
-    pub fn autosave(&mut self) {
-        if self.prefs.needs_save {
             self.prefs.save();
         }
     }

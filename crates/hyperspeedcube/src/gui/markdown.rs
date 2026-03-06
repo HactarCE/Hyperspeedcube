@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 pub use comrak::escape_commonmark_inline as md_escape;

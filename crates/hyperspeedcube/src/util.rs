@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use float_ord::FloatOrd;
 use rand::RngExt;
 use rand::seq::IndexedRandom;

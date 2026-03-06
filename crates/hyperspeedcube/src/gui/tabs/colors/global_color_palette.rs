@@ -163,7 +163,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                         validate_single_color_name(prefs.current, new_name, L.colors.actions.rename)
                     })
                     .delete_button_validator(&|_| Ok(Some(L.colors.actions.delete.into())))
-                    .show(ui)
+                    .show()
             });
             if let Some(r) = popup_response {
                 match r {
