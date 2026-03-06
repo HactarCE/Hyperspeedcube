@@ -146,7 +146,7 @@ impl SolveSummaryModal {
             sim: Arc::clone(sim),
             puzzle,
 
-            replay: sim_guard.serialize(true),
+            replay,
             digest,
             verification,
             file_name,
