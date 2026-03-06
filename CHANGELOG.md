@@ -20,9 +20,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Hold <kbd>Shift</kbd> to recenter a piece instead of an axis
   - Hold <kbd>Alt</kbd> to recenter to the back/outside instead of front
   - <kbd>Ctrl</kbd>+right-click (Windows/Linux) or <kbd>Cmd</kbd>+right-click (macOS) to do the reverse rotation
+- Presets can now be renamed by double-clicking on them
+
+### Changed
+
+- Overhauled solve summary modal
+- Default presets no longer use the word "default"
+  - Default color scheme is now "Main"
+  - Default style is now "Basic"
+  - Default animation preset is now "Medium"
+  - Default view preset is now "Normal"
+  - Default UI layout is now "Basic"
+- Renamed tag `type/shape` to `type/solid`
+- Changed "move count" icon
 
 ### Fixed
 
+- Icons being white in light mode
+- Filter rule checkbox not working for filter presets
 - Crash when window starts too small
 
 ## [2.0.0-zeta.5] - 2026-02-27
