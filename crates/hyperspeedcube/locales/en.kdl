@@ -396,7 +396,8 @@ prefs {
       title "Twists"
       (HoverStrings)dynamic_twist_speed "Dynamic twist speed" {
         desc """
-          When enabled, the puzzle twists faster when many moves are queued up. When all queued moves are complete, the twist speed resets.
+          When enabled, the puzzle twists faster when many moves are queued up.
+          When all queued moves are complete, the twist speed resets.
         """
       }
       (HoverStrings)twist_duration "Twist duration"
@@ -427,7 +428,8 @@ prefs {
         (HoverStrings)critically_damped {
           label "Critically damped"
           desc """
-            Simulates a damped harmonic oscillator with a damping force such that the animation completes as quickly as possible without overshooting.
+            Simulates a damped harmonic oscillator with a damping force such that
+            the animation completes as quickly as possible without overshooting.
           """
         }
         (HoverStrings)critically_dried {
@@ -472,7 +474,8 @@ prefs {
       title "Dialogs"
       (HoverStrings)confirm_discard_only_when_scrambled "Confirm discard only when scrambled" {
         desc """
-          When enabled, a confirmation dialog before destructive actions (like resetting the puzzle)is only shown when the puzzle has been fully scrambled.
+          When enabled, a confirmation dialog before destructive actions
+          (like resetting the puzzle) is only shown when the puzzle has been fully scrambled.
         """
       }
     }
@@ -491,7 +494,8 @@ prefs {
       }
       (HoverStrings)smart_realign "Smart realign" {
         desc """
-          When enabled, the puzzle snaps to the nearest similar orientation, not the original. This adds a full-puzzle rotation to the undo history.
+          When enabled, the puzzle snaps to the nearest similar orientation, not the original.
+          This adds a full-puzzle rotation to the undo history.
         """
       }
     }
@@ -499,14 +503,20 @@ prefs {
       title "GUI"
       (HoverStrings)middle_click_delete "Middle click to delete" {
         desc """
-          When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always deletes elements.
+          When enabled, **middle-click** on some UI elements
+          (presets, custom colors, etc.) to delete them.
+          **Alt+click** always deletes elements.
         """
       }
       (HoverStrings)reverse_filter_rules "Reverse filter rules" {
         desc """
-          When **disabled**, piece filter rules are listed in order from **highest to lowest** priority, so **earlier rules override later ones**.
+          When **disabled**, piece filter rules are listed
+          in order from **highest to lowest** priority,
+          so **earlier rules override later ones**.
 
-          When **enabled**, piece filter rules are listed in order from **lowest to highest** priority, so **later rules override earlier ones**.
+          When **enabled**, piece filter rules are listed
+          in order from **lowest to highest** priority,
+          so **later rules override earlier ones**.
         """
       }
       (HoverStrings)swap_sidebar_mouse_buttons "Swap sidebar mouse buttons" {
@@ -580,7 +590,8 @@ prefs {
         (HoverStrings)faces "Intensity (faces)"
         (HoverStrings)outlines "Intensity (outlines)" {
           desc """
-            This is also enabled or disabled for each style in the style settings. For dark outline colors, it may have little or no effect.
+            This is also enabled or disabled for each style in the style settings.
+            For dark outline colors, it may have little or no effect.
           """
         }
       }
@@ -657,7 +668,9 @@ styles {
       (HoverStrings)face_color "Face color" {
         full "Internal faces color"
         desc """
-          For 3D puzzles, it's sometimes possible to view the internal faces of pieces, particularly mid-turn or using **piece explode**. You can configure whether internal faces are visible in **view settings**.
+          For 3D puzzles, it's sometimes possible to view the internal faces of pieces,
+          particularly mid-turn or using **piece explode**. You can configure whether
+          internal faces are visible in **view settings**.
         """
       }
     }
@@ -970,7 +983,8 @@ help {
     **Log files** contain the initial scramble and the moves done to solve the puzzle.
     A **log file** is sufficient to prove that you have solved the puzzle in a certain number of moves.
 
-    **Replay files** contain additional information about exactly how you executed moves, what moves were undone and redone, and when.
+    **Replay files** contain additional information about exactly how
+    moves were executed, what moves were undone and redone, and when.
     **Replay files** may be required for speedsolving verification.
   """
   cant_save_replay "⚠ This solve was not loaded from a replay file so it cannot be saved as one."
@@ -980,6 +994,8 @@ help {
     A filter style is a way of displaying a piece.
 
     Filter styles can be applied to pieces using the **piece filters** tool.
+
+    Outlines can be disabled globally in **view settings**.
   """
   color_assignments """
     # Color assignments
@@ -1011,7 +1027,8 @@ help {
 
     Some colors are organized into sets of colors that are similar but still contrast with each other.
 
-    For example, a puzzle with two different shades of red needs those shades to be distinguishable, so it uses the "red dyad" from the global color palette.
+    For example, a puzzle with two different shades of red needs those shades to be distinguishable,
+    so it uses the "red dyad" from the global color palette.
 
     ## Color schemes
 
@@ -1103,10 +1120,12 @@ about {
     _for supporting me on Ko-fi during development_
 
     **Luna Harran**  
-    _for her incessant whining that inspired this program, and for her extensive puzzle knowledge and geometric insight that made it possible_
+    _for her incessant whining that inspired this program, and for her extensive
+    puzzle knowledge and geometric insight that made it possible_
 
     **Milo Jacquet**  
-    _for his many contributions to the design of the puzzle definition API, and for the initial development of the leaderboard server_
+    _for his many contributions to the design of the puzzle definition API,
+    and for the initial development of the leaderboard server_
 
     **Andreas Thompson**  
     _for designing the piece filters UI_
@@ -1159,6 +1178,7 @@ error_dialog {
   extracting_hps_files "Error extracting built-in HPS files"
   running_in_a_zip {
     title "Launching from ZIP file"
+    // This description is plaintext, not markdown, so newlines are significant.
     desc """
       It looks like you're running Hyperspeedcube from within a ZIP file. Some functionality (e.g., saving preferences) might not work.
 
