@@ -70,10 +70,13 @@ pub fn reset_button<T: PartialEq>(
     reset_value: T,
     reset_value_str: Option<&str>,
 ) -> egui::Response {
-    let mut r = ui.add_enabled(
-        *value != reset_value,
-        IconButton::small(mdi!(ui, ARROW_U_LEFT_TOP)),
-    );
+    let is_enabled = *value != reset_value;
+    let color = if is_enabled {
+        ui.visuals().strong_text_color()
+    } else {
+        ui.visuals().text_color()
+    };
+    let mut r = ui.add_enabled(is_enabled, IconButton::small(mdi!(color, ARROW_U_LEFT_TOP)));
     let hover_text: Cow<'_, str> = match reset_value_str {
         None => L.reset.into(),
         Some(s) => L.reset_to_value.with(s).into(),
