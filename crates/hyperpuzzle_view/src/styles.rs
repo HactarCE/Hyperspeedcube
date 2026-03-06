@@ -159,10 +159,16 @@ impl PuzzleStyleStates {
     }
 
     /// Returns the style values for each set of pieces.
-    pub fn values(&self, prefs: &Preferences) -> Vec<(PieceStyleValues, PieceMask)> {
+    pub fn values(
+        &self,
+        prefs: &Preferences,
+        outline_scale: f32,
+    ) -> Vec<(PieceStyleValues, PieceMask)> {
         self.piece_sets
             .iter()
-            .map(|(style_state, piece_set)| (style_state.values(prefs), piece_set.clone()))
+            .map(|(style_state, piece_set)| {
+                (style_state.values(prefs, outline_scale), piece_set.clone())
+            })
             .collect()
     }
 }
@@ -191,7 +197,7 @@ impl PieceStyleState {
     }
 
     /// Returns how to draw a piece with this style state.
-    fn values(&self, prefs: &Preferences) -> PieceStyleValues {
+    fn values(&self, prefs: &Preferences, outline_scale: f32) -> PieceStyleValues {
         let styles = &prefs.styles;
 
         let basic = styles.basic;
@@ -260,11 +266,12 @@ impl PieceStyleState {
             }),
             outline_lighting: first_or_default(color_order.map(|s| s?.outline_lighting)),
 
-            outline_size: hypermath::util::lerp(
-                first_or_default(size_order.map(|s| s?.outline_size)),
-                styles.blocking_outline_size,
-                self.blocking_amount as f32 / 255.0,
-            ),
+            outline_size: outline_scale
+                * hypermath::util::lerp(
+                    first_or_default(size_order.map(|s| s?.outline_size)),
+                    styles.blocking_outline_size,
+                    self.blocking_amount as f32 / 255.0,
+                ),
         }
     }
 }

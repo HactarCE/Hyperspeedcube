@@ -19,6 +19,8 @@ pub struct ViewPreferences {
 
     /// Show internal pieces in 3D.
     pub show_internals: bool,
+    /// Outline scale, on top of piece styles.
+    pub outline_scale: f32,
     /// Gizmo scale, on top of facet shrink.
     pub gizmo_scale: f32,
     /// Facet shrink.
@@ -56,6 +58,7 @@ impl Default for ViewPreferences {
             show_behind_4d_camera: false,
 
             show_internals: false,
+            outline_scale: 1.0,
             gizmo_scale: 1.0,
             facet_shrink: 0.0,
             sticker_shrink: 0.0,

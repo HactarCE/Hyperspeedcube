@@ -509,7 +509,12 @@ impl PuzzleWidget {
         // Invalidate filterless solve if colors changed
         sim.lock().update_colors(&sticker_colors);
 
-        let piece_styles = view.styles.values(prefs);
+        let outline_scale = if let Some(nd_euclid) = view.nd_euclid() {
+            nd_euclid.camera.prefs().outline_scale
+        } else {
+            1.0
+        };
+        let piece_styles = view.styles.values(prefs, outline_scale);
         let show_puzzle_hover = view.show_puzzle_hover;
         let show_gizmo_hover = view.show_gizmo_hover;
         let temp_gizmo_highlight = view.temp_gizmo_highlight.take();

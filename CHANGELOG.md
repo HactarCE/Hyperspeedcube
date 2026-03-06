@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Hold <kbd>Alt</kbd> to recenter to the back/outside instead of front
   - <kbd>Ctrl</kbd>+right-click (Windows/Linux) or <kbd>Cmd</kbd>+right-click (macOS) to do the reverse rotation
 - Presets can now be renamed by double-clicking on them
+- Outline scale in view settings
 - Help hover docs for HPS dir and piece filters
 - Warning when launching from a ZIP file
 

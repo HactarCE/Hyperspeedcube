@@ -576,7 +576,17 @@ prefs {
       (HoverStrings)show_backfaces "Show backfaces"
       (HoverStrings)show_behind_4d_camera "Show behind 4D camera"
       (HoverStrings)show_internals "Show internals"
-      (HoverStrings)gizmo_scale "Gizmo scale"
+      (HoverStrings)outline_scale "Outline scale" {
+        desc """
+          Outline scale is a global multiplier on outline size.
+          Outline size be customized in **styles settings**.
+        """
+      }
+      (HoverStrings)gizmo_scale "Gizmo scale" {
+        desc """
+          Gizmos are also shrunk by the facet shrink factor.
+        """
+      }
       (HoverStrings)facet_shrink "Facet shrink"
       (HoverStrings)sticker_shrink "Sticker shrink"
       (HoverStrings)piece_explode "Piece explode"

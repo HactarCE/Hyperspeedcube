@@ -524,6 +524,9 @@ pub fn build_perspective_dim_view_section(
         }
         let showing_internals = prefs_ui.current.show_internals;
 
+        prefs_ui.num(&l.outline_scale, access!(.outline_scale), |dv| {
+            dv.fixed_decimals(2).range(0.0..=5.0_f32).speed(0.01)
+        });
         prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
             dv.fixed_decimals(2).range(0.1..=5.0_f32).speed(0.01)
         });
