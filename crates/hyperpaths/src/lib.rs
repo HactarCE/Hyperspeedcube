@@ -221,11 +221,20 @@ fn is_nonportable() -> bool {
         // because macOS doesn't allow storing files in the same directory as
         // the executable.
         true
-    } else if let Some(mut p) = portable_dir() {
-        // Otherwise, check whether the `nonportable` file exists in the same
-        // directory as the executable.
-        p.push("nonportable");
-        p.exists()
+    } else if cfg!(target_os = "windows")
+        && let Ok(exe_path) = std::env::current_exe()
+        && let exe_path_str = exe_path.to_string_lossy()
+        && exe_path_str.contains(r"\Program Files")
+    {
+        true
+    } else if cfg!(target_os = "linux")
+        && let Ok(exe_path) = std::env::current_exe()
+        && let exe_path_str = exe_path.to_string_lossy()
+        && (exe_path_str.starts_with("/bin/")
+            || exe_path_str.starts_with("/usr/")
+            || exe_path_str.contains("/.local/bin/"))
+    {
+        true
     } else {
         false
     }

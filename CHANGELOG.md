@@ -36,6 +36,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Default UI layout is now "Basic"
 - Renamed tag `type/shape` to `type/solid`
 - Changed "move count" icon
+- Changed nonportable detection
+  - macOS is always nonportable (no change)
+  - Windows is nonportable if the EXE path contains `\Program Files`
+  - Linux is nonportable if EXE path contains `/bin/`, `/usr/`, or `/.local/bin/`
 
 ### Fixed
 
