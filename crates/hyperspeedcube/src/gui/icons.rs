@@ -97,11 +97,11 @@ impl CatalogIcon {
     const TYPE_PUZZLE: Self = svg_catalog_icon!("type/puzzle", "Puzzle", Left, "#c089ff");
     const TYPE_GENERATED_PUZZLE: Self =
         svg_catalog_icon!("type/puzzle-cog", "Puzzle", Left, "#c089ff");
-    const TYPE_SHAPE: Self = svg_catalog_icon!("type/pentagon", "Shape", Left, "#cdc72a");
-    const TYPE_GENERATED_SHAPE: Self =
-        svg_catalog_icon!("type/pentagon-cog", "Generated shape", Left, "#cdc72a");
-    const TYPE_SHAPE_GENERATOR: Self =
-        svg_catalog_icon!("type/cog", "Shape generator", Left, "#eaa560");
+    const TYPE_SOLID: Self = svg_catalog_icon!("type/pentagon", "Solid", Left, "#cdc72a");
+    const TYPE_GENERATED_SOLID: Self =
+        svg_catalog_icon!("type/pentagon-cog", "Generated solid", Left, "#cdc72a");
+    const TYPE_SOLID_GENERATOR: Self =
+        svg_catalog_icon!("type/cog", "Solid generator", Left, "#eaa560");
     const TYPE_UNKNOWN: Self = svg_catalog_icon!("type/help", "Missing `type` tag", Left, Error);
 
     const EXPERIMENTAL: Self = svg_catalog_icon!("test-tube", "Experimental", Right, "#12c06f");
@@ -142,14 +142,14 @@ impl CatalogIcon {
         });
 
         // Type
-        let is_shape = tags.has_present("type/shape");
+        let is_solid = tags.has_present("type/solid");
         let is_puzzle = tags.has_present("type/puzzle");
         let is_generator = tags.has_present("type/generator");
         let is_generated = tags.has_present("generated");
-        ret.push(match (is_shape, is_puzzle) {
-            (true, _) if is_generator => Self::TYPE_SHAPE_GENERATOR,
-            (true, _) if is_generated => Self::TYPE_GENERATED_SHAPE,
-            (true, _) => Self::TYPE_SHAPE,
+        ret.push(match (is_solid, is_puzzle) {
+            (true, _) if is_generator => Self::TYPE_SOLID_GENERATOR,
+            (true, _) if is_generated => Self::TYPE_GENERATED_SOLID,
+            (true, _) => Self::TYPE_SOLID,
             (_, _) if is_generator => Self::TYPE_PUZZLE_GENERATOR,
             (_, true) if is_generated => Self::TYPE_GENERATED_PUZZLE,
             (_, true) => Self::TYPE_PUZZLE,

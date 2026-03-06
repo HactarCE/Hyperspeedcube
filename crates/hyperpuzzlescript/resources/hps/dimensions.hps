@@ -7,7 +7,7 @@ for d in 2..=7 {
         ndim = d,
         build = fn() {},
         tags = #{
-            type = "shape",
+            type = "solid",
             "shape/${d}d" = true,
         },
     )

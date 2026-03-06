@@ -5,7 +5,7 @@ __schema 1 // Bump this version when adding new required tags
 __heading "Type"
 
 type expected=1 inline=#true {
-  shape "Shape"
+  solid "Solid"
   puzzle "Puzzle"
   generator "Generator" auto=#true
 }

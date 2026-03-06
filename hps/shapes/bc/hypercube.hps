@@ -57,7 +57,7 @@ add_puzzle(
     },
     tags = #{
         schema = 1,
-        type = "shape",
+        type = "solid",
         stable = "2.0.0",
         shape = "4d/platonic/hypercube",
     },

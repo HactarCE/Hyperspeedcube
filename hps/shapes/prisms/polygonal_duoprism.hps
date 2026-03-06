@@ -91,7 +91,7 @@ add_puzzle_generator(
 
     tags = #{
         schema = 1,
-        type = "shape",
+        type = "solid",
         stable = "2.0.0",
         ndim = 4,
         shape = shape_tag,
