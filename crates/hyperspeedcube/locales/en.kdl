@@ -796,7 +796,10 @@ piece_filters {
 }
 
 puzzle_view {
-  select_a_puzzle "Select a puzzle from the puzzle list"
+  select_a_puzzle "Select a puzzle"
+  rubiks_3d "3D Rubik's Cube"
+  rubiks_4d "4D Rubik's Cube"
+  more_in_catalog "Many more are available in the catalog."
 
   initializing "Initializing"
   generating_spec "Generating specification"

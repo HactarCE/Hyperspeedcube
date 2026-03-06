@@ -63,16 +63,16 @@ fn show_puzzle_load_hint(
     show_centered_with_sizing_pass(ui, true, true, |ui| {
         ui.spacing_mut().button_padding *= 4.0;
         ui.spacing_mut().item_spacing *= 4.0;
-        ui.heading("Select a puzzle");
+        ui.heading(L.puzzle_view.select_a_puzzle);
         ui.horizontal(|ui| {
-            if ui.button("3D Rubik's Cube").clicked() {
+            if ui.button(L.puzzle_view.rubiks_3d).clicked() {
                 puzzle_widget.load_puzzle("ft_cube:3", prefs);
             }
-            if ui.button("4D Rubik's Cube").clicked() {
+            if ui.button(L.puzzle_view.rubiks_4d).clicked() {
                 puzzle_widget.load_puzzle("ft_hypercube:3", prefs);
             }
         });
-        ui.label("Many more are available in the catalog.");
+        ui.label(L.puzzle_view.more_in_catalog);
     })
     .response
 }
