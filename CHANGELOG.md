@@ -42,6 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Crash when window starts too small
 - Filter preset being unable to be dragged from a sequence into an empty preset list
 - "Extract built-in HPS files" not working
+- Color edit popup close behavior being janky
 
 ## [2.0.0-zeta.5] - 2026-02-27
 

@@ -182,7 +182,7 @@ impl SolveSummaryModal {
             let button_rect = egui::Rect::from_center_size(button_center, button_size);
             let button_rect = button_rect.round_to_pixels_ui_inward(ui.ctx());
 
-            if close_button(ui, button_rect).clicked() {
+            if crate::gui::util::close_button(ui, button_rect).clicked() {
                 ui.close();
             }
         });
@@ -992,36 +992,6 @@ enum SolveMetricCategory {
     Saved,
     LeaderboardPb,
     WorldRecord,
-}
-
-/// Paints the "Close" button of the window and processes clicks on it.
-///
-/// The close button is just an `X` symbol painted by a current stroke
-/// for foreground elements (such as a label text).
-///
-/// # Parameters
-/// - `ui`:
-/// - `rect`: The rectangular area to fit the button in
-///
-/// Returns the result of a click on a button if it was pressed
-fn close_button(ui: &mut egui::Ui, rect: egui::Rect) -> egui::Response {
-    // stolen shamelessly from `egui::containers::window`
-    let close_id = ui.auto_id_with("window_close_button");
-    let response = ui.interact(rect, close_id, egui::Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Close window")
-    });
-
-    ui.expand_to_include_rect(response.rect);
-
-    let visuals = ui.style().interact(&response);
-    let rect = rect.shrink(2.0).expand(visuals.expansion);
-    let stroke = visuals.fg_stroke;
-    ui.painter() // paints \
-        .line_segment([rect.left_top(), rect.right_bottom()], stroke);
-    ui.painter() // paints /
-        .line_segment([rect.right_top(), rect.left_bottom()], stroke);
-    response
 }
 
 /// Value computed on another thread.

@@ -1011,9 +1011,7 @@ fn show_color_edit_popup(
         let any_cursor_input_outside_puzzle =
             crate::gui::util::clicked_elsewhere(ui, &popup_response)
                 && crate::gui::util::clicked_elsewhere(ui, r);
-        let any_click_inside_puzzle = popup_response.clicked()
-            || popup_response.secondary_clicked()
-            || popup_response.middle_clicked();
+        let any_click_inside_puzzle = r.clicked() || r.secondary_clicked() || r.middle_clicked();
         let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
         if (clicked_elsewhere && !is_first_frame)
             || ui.input(|input| input.key_pressed(egui::Key::Escape))

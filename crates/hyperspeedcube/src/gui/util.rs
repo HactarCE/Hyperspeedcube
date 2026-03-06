@@ -309,6 +309,28 @@ pub fn hyperlink_to(
     ui.add(egui::Hyperlink::from_label_and_url(text, url).open_in_new_tab(true))
 }
 
+/// Paints a close button for a window and processes clicks on it.
+///
+/// This is stolen shamelessly from `egui::containers::window`.
+pub fn close_button(ui: &mut egui::Ui, rect: egui::Rect) -> egui::Response {
+    let close_id = ui.auto_id_with("window_close_button");
+    let response = ui.interact(rect, close_id, egui::Sense::click());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Close window")
+    });
+
+    ui.expand_to_include_rect(response.rect);
+
+    let visuals = ui.style().interact(&response);
+    let rect = rect.shrink(2.0).expand(visuals.expansion);
+    let stroke = visuals.fg_stroke;
+    ui.painter() // paints \
+        .line_segment([rect.left_top(), rect.right_bottom()], stroke);
+    ui.painter() // paints /
+        .line_segment([rect.right_top(), rect.left_bottom()], stroke);
+    response
+}
+
 pub trait GuiRoundingExt {
     fn floor_to_pixels_ui(self, ctx: &egui::Context) -> Self;
     fn ceil_to_pixels_ui(self, ctx: &egui::Context) -> Self;

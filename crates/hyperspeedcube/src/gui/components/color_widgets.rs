@@ -835,13 +835,22 @@ pub fn color_assignment_popup(
     let color_display_name = &puzzle.colors.display_names[id];
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
-    ui.horizontal(|ui| {
-        ui.heading(L.colors.puzzle_color_popup_title.with(color_display_name));
-        crate::gui::components::HelpHoverWidget::show_right_aligned(
-            ui,
-            &get_color_schemes_markdown(true),
-        );
-    });
+    egui::Sides::new().show(
+        ui,
+        |ui| {
+            ui.heading(L.colors.puzzle_color_popup_title.with(color_display_name));
+        },
+        |ui| {
+            let (button_rect, _) = ui.allocate_exact_size(
+                egui::Vec2::splat(ui.spacing().icon_width),
+                egui::Sense::empty(),
+            );
+            if crate::gui::util::close_button(ui, button_rect).clicked() {
+                ui.close();
+            }
+            crate::gui::components::HelpHoverWidget::show(ui, &get_color_schemes_markdown(true));
+        },
+    );
     ui.colored_label(ui.visuals().warn_fg_color, L.colors.warning_save_changes);
     ui.separator();
     let (changed, temp_colors) = egui::ScrollArea::vertical()
