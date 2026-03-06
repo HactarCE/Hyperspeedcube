@@ -110,7 +110,10 @@ fn menu_button<'a>(
                 egui::containers::menu::MenuConfig::new()
                     .style(egui::style::StyleModifier::default()),
             )
-            .ui(ui, add_contents);
+            .ui(ui, |ui| {
+                // Don't justify text
+                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| add_contents);
+            });
         if spinner {
             let spinner_rect = egui::Align2::LEFT_CENTER.align_size_within_rect(
                 MDI_SMALL_SIZE,
