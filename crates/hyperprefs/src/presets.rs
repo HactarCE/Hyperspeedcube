@@ -585,13 +585,21 @@ impl<T: PresetData> PresetsList<T> {
         }
     }
     fn find_nonconflicting_name(&self, desired_name: &str) -> String {
-        (1..)
-            .map(|i| match i {
-                ..=1 => desired_name.to_owned(),
-                2.. => format!("{desired_name} {i}"),
-            })
-            .find(|name| self.is_name_available(name))
-            .expect("no name available")
+        if let Some((left, right)) = desired_name.rsplit_once(' ')
+            && let Ok(n) = right.parse::<usize>()
+        {
+            (n..)
+                .map(|i| format!("{left} {i}"))
+                .find(|name| self.is_name_available(name))
+        } else {
+            (1..)
+                .map(|i| match i {
+                    ..=1 => desired_name.to_owned(),
+                    2.. => format!("{desired_name} {i}"),
+                })
+                .find(|name| self.is_name_available(name))
+        }
+        .expect("no name available")
     }
     pub fn make_nonconflicting_funny_name(
         &self,

@@ -48,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Twists with invalid layers still being applied and saved in log files
 - Crash on extremely large puzzles due to dispatching too many workgroups at once
 - Slow startup due to update check
+- Filter preset names having increasingly many `2`s at the end
 
 ## [2.0.0-zeta.5] - 2026-02-27
 
