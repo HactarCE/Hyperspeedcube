@@ -7,6 +7,7 @@ use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
+use crate::gui::util::menu_button_that_stays_open;
 use crate::gui::util::{MDI_SMALL, hyperlink_to};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
@@ -41,6 +42,8 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             }
 
             super::layout::build_layout_presets_ui(ui, app_ui);
+
+            super::quick_settings::build_quick_settings_ui(ui, &mut app_ui.app);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 let max_rect = ui.max_rect();
@@ -158,7 +161,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         }
     });
 
-    menu_button_that_stays_open(L.menu.edit.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.edit.title, |ui| {
         let undo_button = egui::Button::new(L.menu.edit.undo_twist);
         if ui.add_enabled(app_ui.app.has_undo(), undo_button).clicked() {
             app_ui.app.undo();
@@ -175,7 +178,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             app_ui.app.reset_puzzle();
         }
     });
-    menu_button_that_stays_open(L.menu.scramble.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.scramble.title, |ui| {
         let can_scramble = app_ui
             .app
             .active_puzzle
@@ -206,7 +209,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
         show_tab_toggle(ui, app_ui, UtilityTab::Scrambler);
     });
-    menu_button_that_stays_open(L.menu.settings.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.settings.title, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Colors);
         show_tab_toggle(ui, app_ui, UtilityTab::Styles);
         show_tab_toggle(ui, app_ui, UtilityTab::View);
@@ -230,7 +233,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
         app_ui.app.prefs.needs_save |= changed;
     });
-    menu_button_that_stays_open(L.menu.tools.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.tools.title, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::PieceFilters);
         show_tab_toggle(ui, app_ui, UtilityTab::Macros);
         show_tab_toggle(ui, app_ui, UtilityTab::MoveInput);
@@ -242,7 +245,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, UtilityTab::Scrambler);
         show_tab_toggle(ui, app_ui, UtilityTab::ImageGenerator);
     });
-    menu_button_that_stays_open(L.menu.puzzles.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.puzzles.title, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Catalog);
         show_tab_toggle(ui, app_ui, UtilityTab::PuzzleInfo);
         show_tab_toggle(ui, app_ui, UtilityTab::HpsLogs);
@@ -287,7 +290,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             }
         }
     });
-    menu_button_that_stays_open(L.menu.help.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.help.title, |ui| {
         ui.heading(L.menu.help.guides);
         let _ = ui.button("Welcome");
         show_tab_toggle(ui, app_ui, UtilityTab::About);
@@ -295,17 +298,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, UtilityTab::KeybindsReference);
     });
     #[cfg(debug_assertions)]
-    menu_button_that_stays_open(L.menu.debug.title, ui, |ui| {
+    menu_button_that_stays_open(ui, L.menu.debug.title, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Debug);
     });
-}
-
-fn menu_button_that_stays_open<'a, R>(
-    atoms: impl egui::IntoAtoms<'a>,
-    ui: &mut egui::Ui,
-    content: impl FnOnce(&mut egui::Ui) -> R,
-) -> (egui::Response, Option<egui::InnerResponse<R>>) {
-    MenuButton::new(atoms)
-        .config(MenuConfig::default().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
-        .ui(ui, content)
 }
