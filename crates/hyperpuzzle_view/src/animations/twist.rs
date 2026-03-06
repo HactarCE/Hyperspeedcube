@@ -4,10 +4,6 @@ use hyperprefs::AnimationPreferences;
 use hyperpuzzle::prelude::*;
 use web_time::Duration;
 
-/// If at least this much of a twist is animated in one frame, just skip the
-/// animation to reduce unnecessary flashing.
-const MIN_TWIST_DELTA: f32 = 1.0 / 3.0;
-
 /// Higher number means faster exponential increase in twist speed.
 const EXP_TWIST_FACTOR: f32 = 0.5;
 
@@ -30,7 +26,12 @@ impl TwistAnimationState {
         } else {
             // `twist_duration` is in seconds (per one twist); `base_speed` is
             // fraction of twist per frame.
-            let base_speed = delta.as_secs_f32() / animation_prefs.twist_duration;
+            let mut base_speed = delta.as_secs_f32() / animation_prefs.twist_duration;
+
+            // Cap base speed at 2/3 of the animation.
+            if animation_prefs.twist_duration > 0.0 && base_speed > 2.0 / 3.0 {
+                base_speed = 2.0 / 3.0;
+            }
 
             // Twist exponentially faster if there are/were more twists in the
             // queue.
@@ -42,7 +43,7 @@ impl TwistAnimationState {
             // Cap the twist delta at 1.0, and also handle the case where
             // something went wrong with the calculation (e.g., division by
             // zero).
-            if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
+            if !(0.0..1.0).contains(&twist_delta) {
                 twist_delta = 1.0; // Instantly complete the twist.
             }
 
