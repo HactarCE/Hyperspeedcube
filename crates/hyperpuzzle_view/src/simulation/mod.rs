@@ -106,7 +106,7 @@ pub struct PuzzleSimulation {
     pub last_log_file: Option<PathBuf>,
 
     /// Timestamp signature, if any.
-    pub tsa_signature_v1: Option<String>,
+    pub tsa_signature_v2: Option<String>,
     /// Whether the solve has been saved to the autonamed file after completion.
     ///
     /// This field is only intended for use by downstream users of the crate; it
@@ -175,7 +175,7 @@ impl PuzzleSimulation {
 
             last_log_file: None,
 
-            tsa_signature_v1: None,
+            tsa_signature_v2: None,
             saved_to_autonamed_file: false,
             leaderboard_url: None,
 
@@ -999,7 +999,8 @@ impl PuzzleSimulation {
             duration: self.file_duration(),
             scramble: self.scramble.clone(),
             log,
-            tsa_signature_v1: self.tsa_signature_v1.clone(),
+            tsa_signature_v1: None,
+            tsa_signature_v2: dbg!(self.tsa_signature_v2.clone()),
         }
     }
     /// Loads a log file from a string.
@@ -1011,14 +1012,13 @@ impl PuzzleSimulation {
             duration,
             scramble,
             log,
-            tsa_signature_v1,
+            tsa_signature_v1: _,
+            tsa_signature_v2,
         } = solve;
 
         log::trace!("Loading file ...");
 
         let mut ret = Self::new(puzzle);
-
-        ret.tsa_signature_v1 = tsa_signature_v1.clone();
 
         let is_replay = replay.unwrap_or(false);
         ret.replay = is_replay.then(Vec::new);
@@ -1122,6 +1122,7 @@ impl PuzzleSimulation {
         if ret.solved {
             ret.has_been_reloaded_since_first_solved = true;
         }
+        ret.tsa_signature_v2 = tsa_signature_v2.clone();
 
         ret.skip_twist_animations();
 

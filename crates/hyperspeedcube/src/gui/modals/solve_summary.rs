@@ -121,7 +121,7 @@ impl SolveSummaryModal {
             sim_guard.start_special_anim();
         }
 
-        let digest = Arc::from(replay.digest_v1());
+        let digest = Arc::from(replay.digest_v2());
 
         let is_leaderboard_eligible = puzzle.meta.tags.has_present("external/leaderboard");
 
@@ -349,17 +349,7 @@ impl SolveSummaryModal {
     }
 
     fn show_timestamp_button(&mut self, ui: &mut egui::Ui) {
-        self.timestamp_signature.try_recv();
-        if let RequestState::Ok(signature @ Some(_)) = &mut self.timestamp_signature {
-            let mut sim = self.sim.lock();
-            sim.tsa_signature_v1 = signature.take();
-            self.replay.tsa_signature_v1 = sim.tsa_signature_v1.clone();
-
-            // Mark as not yet saved
-            self.save_result = None;
-            sim.saved_to_autonamed_file = false;
-            sim.mark_unsaved();
-        }
+        self.try_recv_timestamp();
 
         let l = &L.solve_summary.timestamp;
         let icon_size = 18.0;
@@ -396,6 +386,20 @@ impl SolveSummaryModal {
                 }
             }
         });
+    }
+
+    fn try_recv_timestamp(&mut self) {
+        self.timestamp_signature.try_recv();
+        if let RequestState::Ok(signature @ Some(_)) = &mut self.timestamp_signature {
+            let mut sim = self.sim.lock();
+            sim.tsa_signature_v2 = signature.take();
+            self.replay.tsa_signature_v2 = sim.tsa_signature_v2.clone();
+
+            // Mark as not yet saved
+            self.save_result = None;
+            sim.saved_to_autonamed_file = false;
+            sim.mark_unsaved();
+        }
     }
 
     fn show_comparison_table(
@@ -1051,5 +1055,98 @@ fn timedelta_to_centiseconds(delta: TimeDelta) -> i64 {
         0
     } else {
         delta.num_milliseconds() / 10
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use super::*;
+
+    #[test]
+    fn test_timestamp_and_reload_solve() {
+        hyperpuzzle::load_global_catalog();
+
+        let mut prefs = Preferences::default();
+        prefs.online_mode = true;
+
+        let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
+        let mut sim = PuzzleSimulation::new(&puzzle);
+
+        // Scramble the puzzle
+        sim.scramble(hyperpuzzle::ScrambleType::Full, prefs.online_mode);
+        while sim.scramble_progress().is_some() {
+            sleep_ms(10);
+        }
+
+        sleep_ms(10);
+
+        // Solve the puzzle
+        let twists = hyperpuzzle_log::notation::parse_twists(
+            &puzzle.twists.names,
+            &sim.get_scramble().as_ref().unwrap().twists,
+        )
+        .map(Result::unwrap)
+        .collect_vec();
+        for twist in twists.into_iter().rev() {
+            sim.do_event(hyperpuzzle_view::ReplayEvent::Twists(
+                [twist.rev(&puzzle).unwrap()].into_iter().collect(),
+            ));
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        // Open solve summary modal
+        let sim = Arc::new(Mutex::new(sim));
+        let mut stats = StatsDb::default();
+        let mut summary = SolveSummaryModal::new(&sim, &mut stats, &prefs).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        // Timestamp solve
+        try_timestamp(
+            &mut summary.timestamp_signature,
+            Arc::clone(&summary.digest),
+        );
+        while !matches!(summary.timestamp_signature, RequestState::Ok(None)) {
+            summary.try_recv_timestamp();
+            sleep_ms(10);
+        }
+
+        // Save from modal when first opened
+        let saved_solve = summary.replay.clone();
+        verify_solve(&saved_solve);
+
+        // Save from modal when reopened
+        let mut summary = SolveSummaryModal::new(&sim, &mut stats, &prefs).unwrap();
+        let saved_solve = summary.replay.clone();
+        verify_solve(&saved_solve);
+
+        // Save from simulation
+        let saved_solve = sim.lock().serialize(true);
+        verify_solve(&saved_solve);
+
+        // Reload simulation and save again
+        let mut new_sim = PuzzleSimulation::deserialize(&puzzle, &saved_solve);
+        verify_solve(&new_sim.serialize(true));
+    }
+
+    #[track_caller]
+    fn verify_solve(saved_solve: &Solve) {
+        let verify_output = hyperpuzzle_log::verify::verify(
+            &hyperpuzzle::catalog(),
+            &saved_solve,
+            hyperpuzzle_log::verify::VerificationOptions::FULL,
+        )
+        .unwrap();
+        if !verify_output.errors.is_empty() {
+            eprintln!("{verify_output:?}");
+        }
+        assert!(verify_output.errors.is_empty());
+    }
+
+    fn sleep_ms(milliseconds: u64) {
+        std::thread::sleep(std::time::Duration::from_millis(milliseconds));
     }
 }

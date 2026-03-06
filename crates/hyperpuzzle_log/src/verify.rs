@@ -225,7 +225,15 @@ pub fn verify(
         };
 
         let completion = if options.verify_completion_timestamp {
-            let timestamp_result = if let Some(signature) = &solve.tsa_signature_v1 {
+            let timestamp_result = if let Some(signature) = &solve.tsa_signature_v2 {
+                timecheck::tsa::Signature::from_str(signature)
+                    .map_err(|e| timecheck::tsa::TsaError::Other(e.into()))
+                    .and_then(|sig| {
+                        let expected_digest = solve.digest_v2();
+                        TSA.verify(&expected_digest, &sig)?;
+                        sig.timestamp()
+                    })
+            } else if let Some(signature) = &solve.tsa_signature_v1 {
                 timecheck::tsa::Signature::from_str(signature)
                     .map_err(|e| timecheck::tsa::TsaError::Other(e.into()))
                     .and_then(|sig| {

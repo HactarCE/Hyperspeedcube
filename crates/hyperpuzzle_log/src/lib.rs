@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
 use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
+use itertools::Itertools;
 use kdl::*;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -167,6 +168,9 @@ pub struct Solve {
     /// Time Stamp Authority signature using [`Solve::digest_v1()`].
     #[kdl(child("tsa_signature_v1"), optional)]
     pub tsa_signature_v1: Option<String>,
+    /// Time Stamp Authority signature using [`Solve::digest_v2()`].
+    #[kdl(child("tsa_signature_v2"), optional)]
+    pub tsa_signature_v2: Option<String>,
 }
 
 impl Solve {
@@ -174,6 +178,27 @@ impl Solve {
     pub fn digest_v1(&self) -> Vec<u8> {
         let serialized_log =
             serde_json::to_string(&self.log).expect("error serializing log for time stamping");
+        sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
+    }
+    /// Returns a SHA-256 digest of the events of the solve, in JSON.
+    ///
+    /// Changes from v1:
+    ///
+    /// - Only includes log up to and including the "end solve" event. For
+    ///   typical speedsolves, this excludes the "end session" event at the end
+    ///   (whose timestamp may vary) and excludes any moves done after the solve
+    ///   is completed.
+    ///
+    /// This allows it the timestamp to be preserved even if the log file is
+    /// loaded and saved again.
+    pub fn digest_v2(&self) -> Vec<u8> {
+        let log_events = self
+            .log
+            .iter()
+            .take_while_inclusive(|ev| matches!(ev, LogEvent::EndSolve { .. }))
+            .collect_vec();
+        let serialized_log =
+            serde_json::to_string(&log_events).expect("error serializing log for time stamping");
         sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
     }
 }
@@ -519,6 +544,7 @@ mod tests {
                     },
                 ],
                 tsa_signature_v1: None,
+                tsa_signature_v2: None,
             }],
         };
         std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
