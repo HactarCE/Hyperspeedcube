@@ -82,6 +82,21 @@ impl StatsDb {
         Ok((Self(pbs_iter.collect()), warnings))
     }
 
+    /// Records a first solve, but no other stats.
+    pub fn record_first_solve(&mut self, verification: &SolveVerification) {
+        if let Some(time) = verification.timestamps.solve_completion {
+            let pbs = self
+                .0
+                .entry(verification.puzzle_canonical_id.clone())
+                .or_default();
+            if pbs.first.is_none() {
+                pbs.first = Some(FirstSolve {
+                    time: Timestamp(time),
+                });
+            }
+        }
+    }
+
     /// Records a solve and updates the PB database.
     pub fn record_new_pb(&mut self, verification: &SolveVerification, filename: &str) {
         let new_pbs @ NewPbs {

@@ -7,6 +7,7 @@ use egui::{NumExt, include_image};
 use hypercubing_leaderboards_client::{
     AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards,
 };
+use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::{Puzzle, chrono, verification::SolveVerification};
 use hyperpuzzle_log::{LogFile, Solve, verify::SolveVerificationError};
@@ -81,7 +82,8 @@ impl SolveSummaryModal {
     /// just solved.
     pub fn new(
         sim: &Arc<Mutex<PuzzleSimulation>>,
-        app: &App,
+        stats: &mut StatsDb,
+        prefs: &Preferences,
     ) -> Result<Self, SolveVerificationError> {
         let mut sim_guard = sim.lock();
 
@@ -112,10 +114,12 @@ impl SolveSummaryModal {
         )
         .map_err(|e| e.to_string());
 
-        let new_pbs = app.stats.check_new_pb(&verification);
-        let old_pbs = app.stats.pbs(&verification.puzzle_canonical_id).clone();
+        let new_pbs = stats.check_new_pb(&verification);
+        let old_pbs = stats.pbs(&verification.puzzle_canonical_id).clone();
 
         if new_pbs.first {
+            stats.record_first_solve(&verification);
+            hyperstats::save(&stats);
             sim_guard.start_special_anim();
         }
 
@@ -125,7 +129,7 @@ impl SolveSummaryModal {
 
         // Immediately timestamp if not yet timestamped
         let mut timestamp_signature = RequestState::Ok(None);
-        if app.prefs.online_mode && replay.tsa_signature_v1.is_none() {
+        if prefs.online_mode && replay.tsa_signature_v1.is_none() {
             try_timestamp(&mut timestamp_signature, Arc::clone(&digest));
         }
 

@@ -232,7 +232,7 @@ impl AppUi {
 
                 self.app.active_puzzle.with_view(|v| {
                     if v.sim.lock().handle_solve_summary_request() {
-                        match SolveSummaryModal::new(&v.sim, &self.app) {
+                        match SolveSummaryModal::new(&v.sim, &mut self.app.stats, &self.app.prefs) {
                             Ok(m) => self.solve_summary_modal = Some(m),
                             Err(e) => {
                                 rfd::MessageDialog::new()
