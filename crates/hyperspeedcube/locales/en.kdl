@@ -254,6 +254,8 @@ no_active_puzzle "No active puzzle"
 cancel "Cancel"
 try_again "Retry"
 
+update "Update to [{{version_name}}]({{version_url}})"
+
 (HoverStrings)edit_as_plaintext {
   full "Edit as plaintext"
   desc "View and edit settings as plaintext to share them with others."

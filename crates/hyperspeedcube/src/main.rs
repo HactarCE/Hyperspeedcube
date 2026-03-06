@@ -16,6 +16,7 @@ mod commands;
 mod gui;
 mod leaderboards;
 mod locales;
+mod update_check;
 mod util;
 
 pub use gui::about_text;

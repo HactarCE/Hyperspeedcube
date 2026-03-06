@@ -9,32 +9,6 @@ use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
 use crate::gui::util::{MDI_SMALL, hyperlink_to};
 
-lazy_static! {
-    static ref NEWER_RELEASE: Option<self_update::update::Release> = check_for_update()
-        .unwrap_or_else(|e| {
-            log::error!("Error checking for updates: {e}");
-            None
-        });
-}
-
-fn check_for_update() -> Result<Option<self_update::update::Release>, self_update::errors::Error> {
-    let release_list = self_update::backends::github::ReleaseList::configure()
-        .repo_owner(crate::GITHUB_REPO_OWNER)
-        .repo_name(crate::GITHUB_REPO_NAME)
-        .build()?
-        .fetch()?;
-    let current_version = self_update::cargo_crate_version!();
-    let mut latest_version = current_version.to_string();
-    let mut latest_release = None;
-    for r in release_list {
-        if self_update::version::bump_is_greater(&latest_version, &r.version).unwrap_or(false) {
-            latest_version = r.version.clone();
-            latest_release = Some(r);
-        }
-    }
-    Ok(latest_release)
-}
-
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     egui::MenuBar::new().ui(ui, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -95,18 +69,10 @@ fn left_menu_ui(ui: &mut egui::Ui, app_ui: &mut AppUi, compact: bool) {
     ));
 
     if app_ui.app.prefs.check_for_updates
-        && let Some(new_release) = &*NEWER_RELEASE
+        && let Some(new_release) = &*crate::update_check::NEWER_RELEASE.lock()
     {
         ui.separator();
-        hyperlink_to(
-            ui,
-            format!("Update to v{}", new_release.version),
-            format!(
-                "https://github.com/{}/{}/releases",
-                crate::GITHUB_REPO_OWNER,
-                crate::GITHUB_REPO_NAME,
-            ),
-        );
+        md(ui, L.update.with(&new_release.name, &new_release.html_url));
     }
 }
 
