@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
-use crate::{L, gui::components::IconButton};
+use crate::L;
+use crate::gui::components::IconButton;
 
 #[must_use]
 pub struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {

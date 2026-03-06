@@ -2,7 +2,8 @@ use std::time::Instant;
 
 use cgmath::EuclideanSpace;
 use eyre::{Result, bail};
-use hypermath::{pga::Motor, prelude::*};
+use hypermath::pga::Motor;
+use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.

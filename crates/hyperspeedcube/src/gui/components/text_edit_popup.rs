@@ -1,9 +1,7 @@
 use std::borrow::Cow;
 
-use crate::gui::{
-    components::IconButton,
-    util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE},
-};
+use crate::gui::components::IconButton;
+use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE};
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.

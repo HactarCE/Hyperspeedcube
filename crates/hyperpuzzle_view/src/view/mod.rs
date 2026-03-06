@@ -7,7 +7,8 @@ use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
 };
-use hyperpuzzle::{DEFAULT_COLOR_SCHEME_NAME, prelude::*};
+use hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME;
+use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
 
 mod nd_euclid;

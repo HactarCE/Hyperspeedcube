@@ -1,4 +1,5 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
+use std::sync::Arc;
 
 use eyre::Result;
 use parking_lot::Mutex;

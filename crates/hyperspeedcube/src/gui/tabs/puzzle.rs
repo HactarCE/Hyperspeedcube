@@ -20,12 +20,10 @@ use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::App;
-use crate::gui::components::IconButton;
-use crate::gui::components::color_assignment_popup;
+use crate::gui::components::{IconButton, color_assignment_popup};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
-use crate::gui::util::EguiTempValue;
-use crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE;
+use crate::gui::util::{EguiTempValue, MDI_STYLE_ICON_ROTATE_SQUARE};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -728,11 +726,12 @@ fn show_nd_euclid_puzzle_view(
     temp_gizmo_highlight: Option<Axis>,
     queued_arrows: &mut Vec<[Point; 2]>,
 ) -> PuzzleViewResponse {
-    let mut ret = PuzzleViewResponse::default();
-
-    ret.filter_mode = match nd_euclid.camera.prefs().downscale_interpolate {
-        true => wgpu::FilterMode::Linear,
-        false => wgpu::FilterMode::Nearest,
+    let mut ret = PuzzleViewResponse {
+        filter_mode: match nd_euclid.camera.prefs().downscale_interpolate {
+            true => wgpu::FilterMode::Linear,
+            false => wgpu::FilterMode::Nearest,
+        },
+        ..Default::default()
     };
 
     let puzzle = Arc::clone(sim.lock().puzzle_type());

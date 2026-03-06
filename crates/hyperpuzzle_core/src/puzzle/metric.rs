@@ -1,6 +1,5 @@
-use crate::{Axis, LayerMask};
-
 use super::{LayeredTwist, Puzzle};
+use crate::{Axis, LayerMask};
 
 // TODO: move this to hypuz_notation
 

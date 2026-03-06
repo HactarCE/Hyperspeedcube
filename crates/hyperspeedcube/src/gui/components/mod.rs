@@ -29,10 +29,8 @@ pub use tag_menu::*;
 pub use text_edit_popup::*;
 pub use yaml_editor::*;
 
-use crate::{
-    L,
-    gui::util::{MDI_MEDIUM, MDI_SMALL},
-};
+use crate::L;
+use crate::gui::util::{MDI_MEDIUM, MDI_SMALL};
 
 fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
     ui.colored_label(ui.visuals().error_fg_color, text)

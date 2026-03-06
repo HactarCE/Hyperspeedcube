@@ -1,7 +1,5 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, mpsc},
-};
+use std::path::PathBuf;
+use std::sync::{Arc, mpsc};
 
 use egui::{NumExt, include_image};
 use hypercubing_leaderboards_client::{
@@ -9,23 +7,23 @@ use hypercubing_leaderboards_client::{
 };
 use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
-use hyperpuzzle::{Puzzle, chrono, verification::SolveVerification};
-use hyperpuzzle_log::{LogFile, Solve, verify::SolveVerificationError};
+use hyperpuzzle::verification::SolveVerification;
+use hyperpuzzle::{Puzzle, chrono};
+use hyperpuzzle_log::verify::SolveVerificationError;
+use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use hyperstats::{NewPbs, PuzzlePBs, StatsDb};
 use parking_lot::Mutex;
 
-use crate::{
-    L,
-    gui::{
-        App,
-        ext::ResponseExt,
-        markdown::md,
-        util::{GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, text_width},
-    },
-    leaderboards::LeaderboardsClientState,
-    util::centiseconds_to_string,
+use crate::L;
+use crate::gui::App;
+use crate::gui::ext::ResponseExt;
+use crate::gui::markdown::md;
+use crate::gui::util::{
+    GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, text_width,
 };
+use crate::leaderboards::LeaderboardsClientState;
+use crate::util::centiseconds_to_string;
 
 #[derive(Debug, Default, Clone)]
 struct LeaderboardSubmitForm {
@@ -119,7 +117,7 @@ impl SolveSummaryModal {
 
         if new_pbs.first {
             stats.record_first_solve(&verification);
-            hyperstats::save(&stats);
+            hyperstats::save(stats);
             sim_guard.start_special_anim();
         }
 

@@ -99,7 +99,8 @@ pub fn text_width_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) ->
     text_size_ctx(ctx, text).x
 }
 
-/// Reduces the font size of `text` as much as necessary to make it fit the given width.
+/// Reduces the font size of `text` as much as necessary to make it fit the
+/// given width.
 ///
 /// Returns `true` if the text was shrunken.
 pub fn autosize_font(ui: &egui::Ui, text: &str, available_width: f32) -> (egui::RichText, bool) {

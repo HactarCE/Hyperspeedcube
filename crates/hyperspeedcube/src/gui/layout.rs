@@ -1,14 +1,15 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
+use std::sync::Arc;
 
 use hyperprefs::{ModifiedPreset, SidebarStyle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    L,
-    gui::{AppUi, PuzzleWidget, Tab, markdown::md, tabs::UtilityTab},
-};
+use crate::L;
+use crate::gui::markdown::md;
+use crate::gui::tabs::UtilityTab;
+use crate::gui::{AppUi, PuzzleWidget, Tab};
 
 const ROOT_NODE: egui_dock::NodeIndex = egui_dock::NodeIndex::root();
 

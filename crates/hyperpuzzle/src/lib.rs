@@ -25,11 +25,12 @@
 
 use std::sync::Arc;
 
+pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
+pub use hyperpuzzle_impl_nd_euclid as nd_euclid;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 pub use prelude::*;
-pub use {hyperpuzzle_core as core, hyperpuzzle_impl_nd_euclid as nd_euclid};
 
 /// Prelude of common imports.
 pub mod prelude {

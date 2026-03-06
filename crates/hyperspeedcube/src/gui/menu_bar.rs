@@ -7,8 +7,7 @@ use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::menu_button_that_stays_open;
-use crate::gui::util::{MDI_SMALL, hyperlink_to};
+use crate::gui::util::{MDI_SMALL, hyperlink_to, menu_button_that_stays_open};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     egui::MenuBar::new().ui(ui, |ui| {

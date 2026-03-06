@@ -32,7 +32,8 @@ pub use puzzle::PuzzleWidget;
 use serde::{Deserialize, Serialize};
 
 use super::App;
-use crate::{L, gui::util::IconTint};
+use crate::L;
+use crate::gui::util::IconTint;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum UtilityTab {
