@@ -283,7 +283,9 @@ fn show_puzzle_generator_ui(
         }
     }
 
-    if ui.button(L.catalog.generate_puzzle).clicked() {
+    if ui.button(L.catalog.generate_puzzle).clicked()
+        || ui.input(|input| input.key_pressed(egui::Key::Enter))
+    {
         ui.close();
         let puzzle_id = hyperpuzzle::generated_id(&puzzle_generator.meta.id, &popup_data.params);
         app.load_puzzle(&puzzle_id);
