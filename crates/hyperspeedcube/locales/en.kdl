@@ -484,7 +484,7 @@ prefs {
       title "GUI"
       (HoverStrings)middle_click_delete "Middle click to delete" {
         desc """
-          When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always works.
+          When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always deletes elements.
         """
       }
       (HoverStrings)reverse_filter_rules "Reverse filter rules" {
@@ -666,7 +666,7 @@ styles {
   }
   builtin {
     title "Built-in styles"
-    default "Default"
+    basic "Basic"
     gripped "Gripped"
     ungripped "Ungripped"
     hovered "Hovered"

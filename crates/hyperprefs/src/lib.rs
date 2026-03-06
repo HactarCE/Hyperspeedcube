@@ -48,7 +48,11 @@ pub use view::*;
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
-pub const DEFAULT_PRESET_NAME: &str = "Default";
+
+pub const DEFAULT_VIEW_PRESET_NAME: &str = "Normal";
+pub const DEFAULT_ANIMATION_PRESET_NAME: &str = "Medium";
+pub const DEFAULT_LAYOUT_PRESET_NAME: &str = "Basic";
+pub const DEFAULT_CUSTOM_STYLE_NAME: &str = "Hidden";
 
 lazy_static! {
     static ref DEFAULT_PREFS_RAW: schema::current::Preferences =
@@ -311,7 +315,7 @@ impl Preferences {
             .as_ref()
             .and_then(|p| self.filter_styles.get(&p.name()))
             .map(|preset| preset.value)
-            .unwrap_or(self.styles.default)
+            .unwrap_or(self.styles.basic)
     }
 }
 

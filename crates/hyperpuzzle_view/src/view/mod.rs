@@ -7,7 +7,7 @@ use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
 };
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{DEFAULT_COLOR_SCHEME_NAME, prelude::*};
 use parking_lot::Mutex;
 
 mod nd_euclid;
@@ -64,8 +64,6 @@ impl PuzzleView {
         sim: &Arc<Mutex<PuzzleSimulation>>,
         prefs: &mut Preferences,
     ) -> Self {
-        use hyperprefs::DEFAULT_PRESET_NAME;
-
         let simulation = sim.lock();
         let puzzle = simulation.puzzle_type();
 
@@ -73,7 +71,7 @@ impl PuzzleView {
             .color_schemes
             .get_mut(&puzzle.colors)
             .schemes
-            .load_last_loaded_or_default(DEFAULT_PRESET_NAME);
+            .load_last_loaded_or_default(DEFAULT_COLOR_SCHEME_NAME);
 
         Self {
             sim: Arc::clone(sim),

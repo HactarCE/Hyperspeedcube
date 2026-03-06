@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::{OptionExt, Result, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{DEFAULT_VANTAGE_GROUP_NAME, prelude::*};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use smallvec::SmallVec;
@@ -322,8 +322,8 @@ impl TwistSystemBuilder {
 
         let twist_axes = Arc::new(twists.map_ref(|_, twist_info| twist_info.axis));
 
-        let (default_vantage_group_name, default_vantage_group) =
-            ("Default".to_string(), Default::default());
+        let default_vantage_group_name = DEFAULT_VANTAGE_GROUP_NAME.to_string();
+        let default_vantage_group = VantageGroupBuilder::default();
         let vantage_groups: IndexMap<String, NdEuclidVantageGroup> = self
             .vantage_groups
             .iter()

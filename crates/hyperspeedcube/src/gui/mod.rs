@@ -65,7 +65,7 @@ impl AppUi {
         let layout = app
             .prefs
             .layout
-            .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME)
+            .load_last_loaded_or_default(hyperprefs::DEFAULT_LAYOUT_PRESET_NAME)
             .value;
 
         let mut ret = AppUi {

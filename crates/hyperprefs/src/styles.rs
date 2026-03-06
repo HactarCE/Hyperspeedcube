@@ -10,7 +10,7 @@ pub struct StylePreferences {
     pub blocking_outline_color: Rgb, // TODO: move to its own style, maybe?
     pub blocking_outline_size: f32,  // TODO: otherwise, add this to prefs UI
 
-    pub default: PieceStyle,
+    pub basic: PieceStyle,
     pub gripped: PieceStyle,
     pub ungripped: PieceStyle,
     pub hovered_piece: PieceStyle,

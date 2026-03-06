@@ -9,7 +9,7 @@ use crate::gui::util::EguiTempValue;
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
-    let default_outline_lighting = app.prefs.styles.default.outline_lighting.unwrap_or(false);
+    let default_outline_lighting = app.prefs.styles.basic.outline_lighting.unwrap_or(false);
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
@@ -64,7 +64,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut current = app
         .prefs
         .filter_styles
-        .load_last_loaded_or_default(hyperprefs::DEFAULT_PRESET_NAME);
+        .load_last_loaded_or_default(hyperprefs::DEFAULT_CUSTOM_STYLE_NAME);
 
     let help_contents = L.help.filter_styles;
     let presets_ui = crate::gui::components::PresetsUi {
@@ -99,12 +99,12 @@ fn show_builtin_style_selector<'a>(
     ui: &mut egui::Ui,
     style_prefs: &'a mut StylePreferences,
 ) -> (&'static str, PieceStyleEdit<'a>) {
-    let default_outline_lighting = style_prefs.default.outline_lighting.unwrap_or(false);
+    let default_outline_lighting = style_prefs.basic.outline_lighting.unwrap_or(false);
 
     #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumIter)]
     enum BuiltInStyle {
         #[default]
-        Default,
+        Basic,
         Gripped,
         Ungripped,
         Hovered,
@@ -115,7 +115,7 @@ fn show_builtin_style_selector<'a>(
         fn name(self) -> &'static str {
             let l = L.styles.builtin;
             match self {
-                BuiltInStyle::Default => l.default,
+                BuiltInStyle::Basic => l.basic,
                 BuiltInStyle::Gripped => l.gripped,
                 BuiltInStyle::Ungripped => l.ungripped,
                 BuiltInStyle::Hovered => l.hovered,
@@ -134,7 +134,7 @@ fn show_builtin_style_selector<'a>(
     });
     selected_style_tmp_val.set(Some(selected_style));
     let current = match selected_style {
-        BuiltInStyle::Default => &mut style_prefs.default,
+        BuiltInStyle::Basic => &mut style_prefs.basic,
         BuiltInStyle::Gripped => &mut style_prefs.gripped,
         BuiltInStyle::Ungripped => &mut style_prefs.ungripped,
         BuiltInStyle::Hovered => &mut style_prefs.hovered_piece,
@@ -142,7 +142,7 @@ fn show_builtin_style_selector<'a>(
         BuiltInStyle::Blindfolded => &mut style_prefs.blind,
     };
     let default = match selected_style {
-        BuiltInStyle::Default => &DEFAULT_PREFS.styles.default,
+        BuiltInStyle::Basic => &DEFAULT_PREFS.styles.basic,
         BuiltInStyle::Gripped => &DEFAULT_PREFS.styles.gripped,
         BuiltInStyle::Ungripped => &DEFAULT_PREFS.styles.ungripped,
         BuiltInStyle::Hovered => &DEFAULT_PREFS.styles.hovered_piece,
@@ -151,7 +151,7 @@ fn show_builtin_style_selector<'a>(
     };
     let mut piece_style_edit = PieceStyleEdit::new(current).reset_value(default);
     match selected_style {
-        BuiltInStyle::Default => piece_style_edit = piece_style_edit.no_fallthrough(),
+        BuiltInStyle::Basic => piece_style_edit = piece_style_edit.no_fallthrough(),
         BuiltInStyle::Blindfolded => piece_style_edit = piece_style_edit.blind(),
         _ => (),
     }

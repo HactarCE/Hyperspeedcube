@@ -21,7 +21,7 @@ pub struct ColorSystem {
 
     /// List of named color schemes.
     pub schemes: IndexMap<String, PerColor<PaletteColor>>,
-    /// Name of the default color scheme, which is typically `"Default"`.
+    /// Name of the default color scheme, which is typically `"Main"`.
     pub default_scheme: String,
 
     /// Orbits used to generate colors.

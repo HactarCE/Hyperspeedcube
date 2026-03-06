@@ -46,7 +46,7 @@ lazy_static! {
 const TWIST_DRAG_THRESHOLD: f32 = 5.0;
 
 /// Name of the default piece style.
-pub const DEFAULT_STYLE_NAME: &str = "Default";
+pub const DEFAULT_STYLE_NAME: &str = "Basic";
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eyre::Result<()> {

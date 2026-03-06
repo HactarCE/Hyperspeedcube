@@ -68,8 +68,10 @@ pub const PUZZLE_ENGINE_VERSION_STRING: &str =
 /// **Changing this will break scramble compatibility for most puzzles.**
 pub const FULL_SCRAMBLE_LENGTH: u32 = 1000;
 
+/// Name of the default vantage group, if no name is specified.
+pub const DEFAULT_VANTAGE_GROUP_NAME: &str = "Main";
 /// Name of the default color scheme, if no other is specified.
-pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
+pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Main";
 /// Name of the default gradient, to which unknown or conflicting colors are
 /// assigned.
 pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";

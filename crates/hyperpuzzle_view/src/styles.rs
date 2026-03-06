@@ -194,7 +194,7 @@ impl PieceStyleState {
     fn values(&self, prefs: &Preferences) -> PieceStyleValues {
         let styles = &prefs.styles;
 
-        let def = styles.default;
+        let basic = styles.basic;
         let base = prefs.base_style(&self.base);
         let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
@@ -232,7 +232,7 @@ impl PieceStyleState {
                     max(opacity_order.map(|s| s?.face_opacity)),
                 ])
                 .or(base.face_opacity)
-                .unwrap_or(def.face_opacity.unwrap_or_default()),
+                .unwrap_or(basic.face_opacity.unwrap_or_default()),
             ),
             face_color: first_or_default(
                 color_order.map(|s| s?.face_color.filter(|c| c.is_bld_safe(self.blind))),
@@ -244,7 +244,7 @@ impl PieceStyleState {
                     max(opacity_order.map(|s| s?.outline_opacity)),
                 ])
                 .or(base.outline_opacity)
-                .unwrap_or(def.outline_opacity.unwrap_or_default()),
+                .unwrap_or(basic.outline_opacity.unwrap_or_default()),
             ),
             outline_color: first_or_default(
                 color_order.map(|s| s?.outline_color.filter(|c| c.is_bld_safe(self.blind))),
