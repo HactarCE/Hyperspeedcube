@@ -911,7 +911,7 @@ impl NdEuclidPuzzleRenderer {
         compute_pass.set_pipeline(&pipeline.pipeline);
         compute_pass.set_bind_groups(&bind_groups);
 
-        dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
+        self.dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
         Ok(())
     }
 
@@ -1039,6 +1039,22 @@ impl NdEuclidPuzzleRenderer {
 
         render_pass.draw(0..4, 0..1);
         Ok(())
+    }
+
+    fn dispatch_work_groups(&self, compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
+        let limits = self.gfx.device.limits();
+        let max_workgroups = limits.max_compute_workgroups_per_dimension;
+
+        const WORKGROUP_SIZE: u32 = 64;
+
+        let mut num_workgroups = count.div_ceil(WORKGROUP_SIZE);
+        if num_workgroups > max_workgroups {
+            log::warn!(
+                "Cannot dispatch {num_workgroups} compute workgroups; limiting to {max_workgroups}"
+            );
+            num_workgroups = limits.max_compute_workgroups_per_dimension;
+        }
+        compute_pass.dispatch_workgroups(num_workgroups, 1, 1);
     }
 }
 
@@ -1344,11 +1360,6 @@ impl DynamicPuzzleBuffers {
             effects_texture: clone_texture!(id, self.effects_texture),
         }
     }
-}
-
-fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
-    const WORKGROUP_SIZE: u32 = 64;
-    compute_pass.dispatch_workgroups(count.div_ceil(WORKGROUP_SIZE), 1, 1);
 }
 
 #[derive(Debug, Clone, PartialEq)]
