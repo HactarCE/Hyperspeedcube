@@ -572,12 +572,15 @@ prefs {
         orp_ekauq "ORP EKAUQ"
       }
     }
-    geometry {
-      title "Geometry"
+    culling {
+      title "Culling"
       (HoverStrings)show_frontfaces "Show frontfaces"
       (HoverStrings)show_backfaces "Show backfaces"
       (HoverStrings)show_behind_4d_camera "Show behind 4D camera"
       (HoverStrings)show_internals "Show internals"
+    }
+    geometry {
+      title "Geometry"
       (HoverStrings)outline_scale "Outline scale" {
         desc """
           Outline scale is a global multiplier on outline size.

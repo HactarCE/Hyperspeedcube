@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - macOS is always nonportable (no change)
   - Windows is nonportable if the EXE path contains `\Program Files`
   - Linux is nonportable if EXE path contains `/bin/`, `/usr/`, or `/.local/bin/`
+- Moved some view settings from "Geometry" to a new section "Culling"
 
 ### Fixed
 

@@ -507,7 +507,7 @@ pub fn build_perspective_dim_view_section(
         });
     });
 
-    let l = &L.prefs.view.geometry;
+    let l = &L.prefs.view.culling;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.show_frontfaces, access!(.show_frontfaces));
         prefs_ui.checkbox(&l.show_backfaces, access!(.show_backfaces));
@@ -516,12 +516,15 @@ pub fn build_perspective_dim_view_section(
         } else {
             prefs_ui.current.show_behind_4d_camera = false;
         }
-
         if dim == PerspectiveDim::Dim3D {
             prefs_ui.checkbox(&l.show_internals, access!(.show_internals));
         } else {
             prefs_ui.current.show_internals = false;
         }
+    });
+
+    let l = &L.prefs.view.geometry;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
         let showing_internals = prefs_ui.current.show_internals;
 
         prefs_ui.num(&l.outline_scale, access!(.outline_scale), |dv| {
