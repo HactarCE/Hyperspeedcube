@@ -810,27 +810,55 @@ fn show_nd_euclid_puzzle_view(
     if layers == LayerMask::EMPTY {
         layers = LayerMask::default();
     }
-    if r.clicked() && modifiers.is_none() {
-        nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Neg);
-    }
-    if r.secondary_clicked() && modifiers.is_none() {
-        nd_euclid.do_click_twist(&mut sim.lock(), layers, Sign::Pos);
-    }
-    if (r.clicked() || r.secondary_clicked()) && modifiers.command || r.middle_clicked() {
-        let reverse = r.secondary_clicked();
-        let anti = modifiers.alt;
-        nd_euclid.do_click_recenter(&puzzle, show_puzzle_hover, show_gizmo_hover, reverse, anti);
+
+    enum Action {
+        None,
+        ClickTwist(Sign),
+        EditStickerColor,
+        Recenter { reverse: bool, anti: bool },
     }
 
-    // Ctrl + shift + right-click = edit sticker color
-    if r.secondary_clicked()
-        && modifiers.command
-        && modifiers.shift
-        && !modifiers.alt
-        && let Some(hov) = nd_euclid.puzzle_hover_state()
-        && let Some(sticker) = hov.sticker
-    {
-        ret.color_to_edit = Some(puzzle.stickers[sticker].color);
+    let action = if r.clicked() && modifiers.is_none() {
+        Action::ClickTwist(Sign::Pos)
+    } else if r.secondary_clicked() && modifiers.is_none() {
+        Action::ClickTwist(Sign::Neg)
+    } else if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
+        // Ctrl + shift + right-click = edit sticker color
+        Action::EditStickerColor
+    } else if (r.clicked() || r.secondary_clicked()) && modifiers.command || r.middle_clicked() {
+        // Ctrl + click = recenter
+        // Ctrl + right-click = reverse recenter
+        // Middle-click = recenter
+        // Hold alt to anti-recenter
+        Action::Recenter {
+            reverse: r.secondary_clicked(),
+            anti: modifiers.alt,
+        }
+    } else {
+        Action::None
+    };
+
+    match action {
+        Action::None => (),
+        Action::ClickTwist(sign) => {
+            nd_euclid.do_click_twist(&mut sim.lock(), layers, sign);
+        }
+        Action::EditStickerColor => {
+            if let Some(hov) = nd_euclid.puzzle_hover_state()
+                && let Some(sticker) = hov.sticker
+            {
+                ret.color_to_edit = Some(puzzle.stickers[sticker].color);
+            }
+        }
+        Action::Recenter { reverse, anti } => {
+            nd_euclid.do_click_recenter(
+                &puzzle,
+                show_puzzle_hover,
+                show_gizmo_hover,
+                reverse,
+                anti,
+            );
+        }
     }
 
     let cam = nd_euclid.transient_camera(sim);
