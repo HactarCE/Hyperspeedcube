@@ -24,7 +24,12 @@ impl DndReorderExt<PuzzleFilterPreferences> for ReorderDndMove<FilterPresetName>
     fn reorder_collection(self, collection: &mut PuzzleFilterPreferences) {
         let payload = self.payload;
         let (target, before_or_after) = self.target;
-        if payload == target || !collection.has_preset(&target) {
+        if payload == target {
+            return;
+        }
+        if let Some(target_seq) = &target.seq
+            && !collection.sequences.contains_key(target_seq)
+        {
             return;
         }
 

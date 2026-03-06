@@ -185,6 +185,15 @@ fn show_filter_presets_list_ui_contents(
             );
         });
     }
+    if filter_prefs.presets.is_empty() {
+        preset_dnd.reorder_drop_zone(
+            ui,
+            (
+                FilterPresetName::default(), // reordering will do nothing
+                hcegui::dnd::BeforeOrAfter::After,
+            ),
+        );
+    }
 
     if ui.button(l.actions.add).clicked() {
         let desired_name = match &current.base {
