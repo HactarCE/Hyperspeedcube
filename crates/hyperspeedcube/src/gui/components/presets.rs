@@ -5,10 +5,7 @@ use hcegui::dnd::{Dnd, DndStyle, ReorderDnd};
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
-use super::{
-    BIG_ICON_BUTTON_SIZE, HelpHoverWidget, PrefsUi, SMALL_ICON_BUTTON_SIZE, TextEditPopup,
-    TextEditPopupResponse, TextValidationResult,
-};
+use super::{HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, TextValidationResult};
 use crate::L;
 use crate::gui::components::{IconButton, PlaintextYamlEditor};
 use crate::gui::ext::{DndReorderExt, ResponseExt};
@@ -538,7 +535,7 @@ where
                             }
 
                             let r = ui
-                                .add(IconButton::big(mdi!(ui, FLOPPY)))
+                                .add(IconButton::medium(mdi!(ui, FLOPPY)))
                                 .on_hover_explanation(L.presets.save_changes, {
                                     let current = md_bold_user_text(self.preset_name);
                                     if overwrite {

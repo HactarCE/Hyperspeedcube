@@ -13,10 +13,10 @@ use regex::Regex;
 use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    BIG_ICON_BUTTON_SIZE, IconButton, escape_tag_value, format_tag_and_value, unescape_tag_value,
+    IconButton, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
-use crate::gui::util::{EguiTempValue, hyperlink_to};
+use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
@@ -33,7 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hyperpaths::hps_dir().is_ok() {
-                let r = ui.add(IconButton::big(mdi!(ui, REFRESH)));
+                let r = ui.add(IconButton::medium(mdi!(ui, REFRESH)));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
@@ -44,7 +44,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             let mut tag_action = None;
             ui.scope(|ui| {
-                ui.set_max_size(BIG_ICON_BUTTON_SIZE);
+                ui.set_max_size(MDI_MEDIUM_BUTTON_SIZE);
                 ui.with_layout(
                     egui::Layout::left_to_right(egui::Align::Center)
                         .with_cross_justify(true)

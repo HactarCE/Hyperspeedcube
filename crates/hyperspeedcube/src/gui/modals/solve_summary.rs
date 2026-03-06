@@ -606,20 +606,20 @@ impl SolveSummaryModal {
         }
 
         // New solve
-        let row_label = (mdi!(ui, NEW_BOX, 24), L.solve_summary.table.this_solve);
+        let row_label = (mdi_big!(ui, NEW_BOX), L.solve_summary.table.this_solve);
         put_left(ui, cell(0, 1), egui::AtomLayout::new(row_label));
         ui.put(cell(1, 1), this_solve_move_count);
         ui.put(cell(2, 1), this_solve_speed);
 
         // Saved personal best
-        let row_label = (mdi!(ui, HARDDISK, 24), L.solve_summary.table.saved_pb);
+        let row_label = (mdi_big!(ui, HARDDISK), L.solve_summary.table.saved_pb);
         put_left(ui, cell(0, 2), egui::AtomLayout::new(row_label));
         ui.put(cell(1, 2), saved_pb_solve_move_count);
         ui.put(cell(2, 2), saved_pb_solve_speed);
 
         if self.is_leaderboard_eligible {
             // Leaderboard personal best
-            let row_label = (mdi!(ui, MEDAL, 24), L.solve_summary.table.leaderboard_pb);
+            let row_label = (mdi_big!(ui, MEDAL), L.solve_summary.table.leaderboard_pb);
             put_left(ui, cell(0, 3), egui::AtomLayout::new(row_label));
             let merged_cell = || cell(1, 3).union(cell(2, 3));
             match &self.leaderboard_pbs {
@@ -652,7 +652,7 @@ impl SolveSummaryModal {
             }
 
             // Leaderboard world record
-            let row_label = (mdi!(ui, TROPHY, 24), L.solve_summary.table.world_record);
+            let row_label = (mdi_big!(ui, TROPHY), L.solve_summary.table.world_record);
             put_left(ui, cell(0, 4), egui::AtomLayout::new(row_label));
             let merged_cell = || cell(1, 4).union(cell(2, 4));
             match &self.leaderboard_wrs {
@@ -949,7 +949,7 @@ impl egui::Widget for SolveMetric {
                     // Draw icon
                     if self.new_solve_is_better {
                         let icon =
-                            mdi!(ui, ALERT_DECAGRAM, 24).tint(egui::Color32::from_rgb(255, 255, 0));
+                            mdi_big!(ui, ALERT_DECAGRAM).tint(egui::Color32::from_rgb(255, 255, 0));
                         let icon_response = match text_response {
                             Some(r) => {
                                 let icon_center = r.rect.left_center()

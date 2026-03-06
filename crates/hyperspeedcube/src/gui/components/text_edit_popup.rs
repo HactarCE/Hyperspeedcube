@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
-use super::BIG_ICON_BUTTON_SIZE;
-use crate::gui::{components::IconButton, util::EguiTempValue};
+use crate::gui::{
+    components::IconButton,
+    util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE},
+};
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.
@@ -192,7 +194,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
 
         let popup_id = self.popup.get_id();
         let popup_response = self.popup.show(|ui| {
-            ui.set_height(BIG_ICON_BUTTON_SIZE.y);
+            ui.set_height(MDI_MEDIUM_BUTTON_SIZE.y);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if let Some(label) = self.label {
                     ui.strong(label);
@@ -258,7 +260,7 @@ fn validated_button(
     accept_enter: bool,
 ) -> bool {
     ui.add_enabled_ui(validation_result.is_ok(), |ui| {
-        let mut r = ui.add(IconButton::big(icon));
+        let mut r = ui.add(IconButton::medium(icon));
         r = match &validation_result {
             Ok(Some(hover_text)) => r.on_hover_text(&**hover_text),
             Err(Some(hover_text)) => r.on_disabled_hover_text(&**hover_text),

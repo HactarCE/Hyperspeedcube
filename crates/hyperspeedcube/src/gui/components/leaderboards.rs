@@ -7,10 +7,8 @@ use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::markdown::md;
-use crate::gui::util::{hyperlink_to, text_width};
+use crate::gui::util::{MDI_SMALL_SIZE, hyperlink_to, text_width};
 use crate::leaderboards::{LEADERBOARDS_DOMAIN, LeaderboardsClientState};
-
-const SPINNER_SIZE: egui::Vec2 = egui::Vec2::splat(12.0);
 
 pub struct LeaderboardsUi<'a>(pub &'a Arc<Mutex<LeaderboardsClientState>>);
 
@@ -102,7 +100,8 @@ fn menu_button<'a>(
     ui.push_id(id_salt, |ui| {
         let atoms = match spinner {
             true => {
-                let spinner_atom = egui::Atom::custom(egui::Id::new("spinner_atom"), SPINNER_SIZE);
+                let spinner_atom =
+                    egui::Atom::custom(egui::Id::new("spinner_atom"), MDI_SMALL_SIZE);
                 (spinner_atom, label).into_atoms()
             }
             false => label.into_atoms(),
@@ -114,8 +113,10 @@ fn menu_button<'a>(
             )
             .ui(ui, add_contents);
         if spinner {
-            let spinner_rect = egui::Align2::LEFT_CENTER
-                .align_size_within_rect(SPINNER_SIZE, r.rect.shrink2(ui.spacing().button_padding));
+            let spinner_rect = egui::Align2::LEFT_CENTER.align_size_within_rect(
+                MDI_SMALL_SIZE,
+                r.rect.shrink2(ui.spacing().button_padding),
+            );
             ui.place(spinner_rect, egui::Spinner::new());
         }
         r

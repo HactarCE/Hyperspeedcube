@@ -14,7 +14,7 @@ use crate::gui::components::{PrefsUi, PresetsUi};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::hyperlink_to;
+use crate::gui::util::{MDI_SMALL, hyperlink_to};
 use crate::leaderboards::LeaderboardsClientState;
 
 lazy_static! {
@@ -122,7 +122,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: UtilityTab) {
         let mut open = app_ui.is_docked_utility_open(tab);
         if ui
-            .checkbox(&mut open, (tab.icon(&ui, 12.0), tab.menu_name()))
+            .checkbox(&mut open, (tab.icon(&ui, MDI_SMALL), tab.menu_name()))
             .clicked()
         {
             app_ui.toggle_docked_utility(tab);

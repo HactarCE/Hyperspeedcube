@@ -29,10 +29,10 @@ pub use tag_menu::*;
 pub use text_edit_popup::*;
 pub use yaml_editor::*;
 
-use crate::L;
-
-pub const BIG_ICON_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);
-pub const SMALL_ICON_BUTTON_SIZE: egui::Vec2 = egui::vec2(18.0, 18.0);
+use crate::{
+    L,
+    gui::util::{MDI_MEDIUM, MDI_SMALL},
+};
 
 fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
     ui.colored_label(ui.visuals().error_fg_color, text)
@@ -79,15 +79,15 @@ impl<'a> IconButton<'a> {
     }
 
     pub fn very_small(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, 12.0, 0.0)
+        Self::new(icon, MDI_SMALL, 0.0)
     }
 
     pub fn small(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, 12.0, 18.0)
+        Self::new(icon, MDI_SMALL, 18.0)
     }
 
-    pub fn big(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, 16.0, 22.0)
+    pub fn medium(icon: egui::Image<'a>) -> Self {
+        Self::new(icon, MDI_MEDIUM, 22.0)
     }
 
     pub fn selectable(mut self, selected: bool) -> Self {

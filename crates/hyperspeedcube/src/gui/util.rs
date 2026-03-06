@@ -373,9 +373,21 @@ impl GuiRoundingExtRect for egui::Rect {
     }
 }
 
-pub const MDI_SMALL_SIZE: egui::Vec2 = egui::Vec2::splat(12.0);
-pub const MDI_MEDIUM_SIZE: egui::Vec2 = egui::Vec2::splat(18.0);
-pub const MDI_BIG_SIZE: egui::Vec2 = egui::Vec2::splat(24.0);
+pub const MDI_SMALL: f32 = 12.0;
+pub const MDI_MEDIUM: f32 = 18.0;
+pub const MDI_BIG: f32 = 24.0;
+
+/// Small icon that fits inline with text (e.g., within a button).
+pub const MDI_SMALL_SIZE: egui::Vec2 = egui::Vec2::splat(MDI_SMALL);
+/// Medium icon that fits inline with interactable elements (e.g., alongside a
+/// button).
+pub const MDI_MEDIUM_SIZE: egui::Vec2 = egui::Vec2::splat(MDI_MEDIUM);
+/// Big icon.
+pub const MDI_BIG_SIZE: egui::Vec2 = egui::Vec2::splat(MDI_BIG);
+
+pub const MDI_SMALL_BUTTON_SIZE: egui::Vec2 = egui::Vec2::splat(16.0);
+/// Size of a button containing a medium-sized icon.
+pub const MDI_MEDIUM_BUTTON_SIZE: egui::Vec2 = egui::Vec2::splat(22.0);
 
 /// Returns an [`egui::Image`] with a Material Design Icon. By default, the icon
 /// is at size [`MDI_SMALL_SIZE`].
@@ -391,7 +403,13 @@ macro_rules! mdi {
         )
     };
     ($ui:expr, $name:ident $(,)?) => {
-        mdi!($ui, $name, 12)
+        mdi!($ui, $name, $crate::gui::util::MDI_SMALL)
+    };
+}
+
+macro_rules! mdi_big {
+    ($ui:expr, $name:ident $(,)?) => {
+        mdi!($ui, $name, $crate::gui::util::MDI_BIG)
     };
 }
 
