@@ -264,8 +264,13 @@ impl UiLayoutNode {
         }
     }
 
-    fn from_egui(tree: &egui_dock::Tree<Tab>, node_index: egui_dock::NodeIndex) -> Self {
-        match &tree[node_index] {
+    fn from_egui(tree: &egui_dock::Tree<Tab>, subtree_root: egui_dock::NodeIndex) -> Self {
+        let node = if tree.is_empty() {
+            &egui_dock::Node::Empty
+        } else {
+            &tree[subtree_root]
+        };
+        match node {
             egui_dock::Node::Empty => Self::Empty,
             egui_dock::Node::Leaf(leaf_node) => Self::Leaf {
                 tabs: leaf_node
@@ -280,13 +285,13 @@ impl UiLayoutNode {
             },
             egui_dock::Node::Vertical(split_node) => Self::SplitV {
                 fraction: split_node.fraction,
-                top: Box::new(Self::from_egui(tree, node_index.left())),
-                bottom: Box::new(Self::from_egui(tree, node_index.right())),
+                top: Box::new(Self::from_egui(tree, subtree_root.left())),
+                bottom: Box::new(Self::from_egui(tree, subtree_root.right())),
             },
             egui_dock::Node::Horizontal(split_node) => Self::SplitH {
                 fraction: split_node.fraction,
-                left: Box::new(Self::from_egui(tree, node_index.left())),
-                right: Box::new(Self::from_egui(tree, node_index.right())),
+                left: Box::new(Self::from_egui(tree, subtree_root.left())),
+                right: Box::new(Self::from_egui(tree, subtree_root.right())),
             },
         }
     }
@@ -295,12 +300,12 @@ impl UiLayoutNode {
 fn dock_state_to_md_string(dock_state: &egui_dock::DockState<Tab>) -> String {
     let mut ret = String::new();
     for (i, surface) in dock_state.iter_surfaces().enumerate() {
-        if egui_dock::SurfaceIndex(i).is_main() {
-            ret += "* main surface\n";
-        } else {
-            ret += "* floating window\n";
-        }
         if let Some(tree) = surface.node_tree() {
+            if egui_dock::SurfaceIndex(i).is_main() {
+                ret += "* main surface\n";
+            } else {
+                ret += "* floating window\n";
+            }
             write_md_subtree(&mut ret, 1, tree, ROOT_NODE);
         }
     }
@@ -313,7 +318,12 @@ fn write_md_subtree(
     tree: &egui_dock::Tree<Tab>,
     subtree_root: egui_dock::NodeIndex,
 ) {
-    match &tree[subtree_root] {
+    let node = if tree.is_empty() {
+        &egui_dock::Node::Empty
+    } else {
+        &tree[subtree_root]
+    };
+    match node {
         egui_dock::Node::Empty => write_md_bullet(ret, indent, L.prefs.layout.dock_tree.empty),
         egui_dock::Node::Leaf(leaf_node) => {
             write_md_bullet(ret, indent, L.prefs.layout.dock_tree.tab_group);
