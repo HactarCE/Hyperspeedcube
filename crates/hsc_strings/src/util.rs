@@ -17,7 +17,6 @@ pub fn read_kdl_file(path: impl AsRef<Path>) -> (SourceInfo, KdlDocument) {
                 warn_at(&diagnostic.to_string(), src.at(diagnostic.span.offset()));
             }
             std::process::exit(1);
-            // panic!("bad KDL file");
         }
     }
 }
