@@ -1156,6 +1156,7 @@ error_dialog {
   saving_file "Error saving file"
   loading_file "Error loading file"
   opening_folder "Error opening folder"
+  extracting_hps_files "Error extracting built-in HPS files"
 }
 
 eula """

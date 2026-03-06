@@ -104,6 +104,7 @@ static HPS_BUILTIN_DIR: include_dir::Dir<'_> = if BAKE_HPS_PATHS {
 
 /// Extracts the built-in Hyperpuzzlescript files to the specified path.
 pub fn extract_builtin_files(base_path: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(base_path)?;
     HPS_BUILTIN_DIR.extract(base_path)
 }
 
