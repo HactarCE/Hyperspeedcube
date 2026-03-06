@@ -68,6 +68,7 @@ struct DrawParams {
     pixel_size: f32,
     target_size: vec2<f32>,
     xy_scale: vec2<f32>,
+    tex_coords_to_uv: vec2<f32>,
 
     // Cursor state
     cursor_pos: vec2<f32>,
@@ -90,8 +91,8 @@ struct DrawParams {
     first_gizmo_vertex_index: i32,
 
     rainbow_offset: f32,
+
     _padding: i32,
-    _padding2: vec2<i32>,
 }
 
 struct EffectParams {
@@ -112,6 +113,7 @@ struct EffectParams {
 @group(0) @binding(103) var edge_ids_depth_texture: texture_depth_2d;
 @group(0) @binding(104) var blit_src_texture: texture_2d<f32>;
 @group(0) @binding(150) var blit_src_sampler: sampler;
+@group(0) @binding(151) var depth_sampler: sampler;
 
 // Static mesh data (per-vertex)
 @group(0) @binding(0) var<storage, read> vertex_positions: array<f32>;
@@ -844,7 +846,8 @@ struct PolygonPixel {
 fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonPixel {
     var out: PolygonPixel;
 
-    out.depth = textureLoad(polygons_depth_texture, tex_coords, 0);
+    // GLSL can't textureLoad() from depth textures so we have to use a sampler.
+    out.depth = textureSample(polygons_depth_texture, depth_sampler, vec2<f32>(tex_coords) * draw_params.tex_coords_to_uv);
     out.point = transform_screen_space_to_world_point(screen_space, out.depth);
 
     let tex_value: vec2<u32> = textureLoad(polygons_texture, tex_coords, 0).rg;
@@ -886,7 +889,8 @@ fn get_edge_pixel(ray: Ray, polygon: PolygonPixel, screen_space: vec2<f32>, tex_
         return out;
     }
 
-    let edge_depth: f32 = textureLoad(edge_ids_depth_texture, tex_coords, 0);
+    // GLSL can't textureLoad() from depth textures so we have to use a sampler.
+    var edge_depth: f32 = textureSample(edge_ids_depth_texture, depth_sampler, vec2<f32>(tex_coords) * draw_params.tex_coords_to_uv);
 
     let capsule_radius = outline_radii[edge_id];
     let edge_verts = edge_verts[edge_id];

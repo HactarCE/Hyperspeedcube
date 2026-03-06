@@ -134,6 +134,8 @@ pub struct GfxDrawParams {
     pub target_size: [f32; 2],
     /// 2D X & Y scale factors to apply after perspective transformation.
     pub xy_scale: [f32; 2],
+    /// `1.0 / (target_size - vec2(1.0, 1.0))`
+    pub tex_coords_to_uv: [f32; 2],
 
     /// Mouse cursor position in NDC (normalized device coordinates).
     pub cursor_pos: [f32; 2],
@@ -162,7 +164,6 @@ pub struct GfxDrawParams {
     pub rainbow_offset: f32,
 
     pub padding: i32,
-    pub padding2: [i32; 2],
 }
 
 /// Parameters for postprocessing rendering effects.

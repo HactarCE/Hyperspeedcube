@@ -56,6 +56,7 @@ mod bindings {
     pub const EDGE_IDS_DEPTH_TEXTURE:       BindingMetadata = texture(0, 103, D2, Depth);
     pub const BLIT_SRC_TEXTURE:             BindingMetadata = texture(0, 104, D2, Float { filterable: true });
     pub const BLIT_SRC_SAMPLER:             BindingMetadata = sampler(0, 150, Filtering);
+    pub const DEPTH_SAMPLER:                BindingMetadata = sampler(0, 151, Filtering);
 }
 
 const MIN_NDIM: u8 = 2;

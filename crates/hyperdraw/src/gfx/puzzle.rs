@@ -484,6 +484,8 @@ impl NdEuclidPuzzleRenderer {
             let w_factor_4d = draw_params.cam.w_factor_4d();
             let w_factor_3d = draw_params.cam.w_factor_3d();
 
+            let target_size: [f32; 2] = draw_params.cam.target_size_f32().into();
+
             let data = GfxDrawParams {
                 pre: GfxPrecomputedValues::new(w_factor_3d, near_plane_z, far_plane_z),
 
@@ -492,8 +494,9 @@ impl NdEuclidPuzzleRenderer {
                 outline_light_intensity: draw_params.cam.prefs().outline_light_intensity,
 
                 pixel_size: draw_params.cam.pixel_size()?,
-                target_size: draw_params.cam.target_size_f32().into(),
+                target_size,
                 xy_scale: draw_params.cam.xy_scale()?.into(),
+                tex_coords_to_uv: target_size.map(|x| (x - 1.0).recip()),
 
                 cursor_pos: draw_params.cursor_pos.map(|p| p.into()).unwrap_or([0.0; 2]),
 
@@ -515,7 +518,6 @@ impl NdEuclidPuzzleRenderer {
                 rainbow_offset: self.init_time.elapsed().subsec_nanos() as f32 / 1_000_000_000.0,
 
                 padding: 0,
-                padding2: [0; 2],
             };
             self.gfx
                 .queue
@@ -1001,6 +1003,8 @@ impl NdEuclidPuzzleRenderer {
             polygons_depth_texture: &self.buffers.polygons_depth_texture.view,
             edge_ids_texture: &self.buffers.edge_ids_texture.view,
             edge_ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
+
+            depth_sampler: &self.gfx.nearest_neighbor_sampler,
         });
 
         // We have to store sRGB values in a non-sRGB texture because egui wants
