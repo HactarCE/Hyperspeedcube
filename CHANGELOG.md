@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [Unreleased]
+
+- Fixed ZIP detection on Windows
+
 ## [2.0.0-zeta.9] - 2026-03-06
 
 ### Fixed

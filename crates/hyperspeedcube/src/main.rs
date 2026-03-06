@@ -68,7 +68,7 @@ fn main() -> eyre::Result<()> {
     if let Ok(exe_path) = std::env::current_exe()
         && let exe_path_str = exe_path.to_string_lossy()
         && exe_path_str.contains(r"\Appdata\Local\Temp\")
-        && exe_path_str.contains(r".zip\")
+        && exe_path_str.contains(r".zip")
     {
         if rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Warning)
