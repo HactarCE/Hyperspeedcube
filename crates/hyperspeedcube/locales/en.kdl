@@ -620,6 +620,8 @@ prefs {
   }
 }
 
+quick_settings "Quick settings"
+
 colors {
   color_schemes "Color schemes"
   global_palette "Global color palette"

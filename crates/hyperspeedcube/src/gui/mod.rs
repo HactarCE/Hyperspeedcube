@@ -21,6 +21,7 @@ mod layout;
 mod markdown;
 mod menu_bar;
 mod modals;
+mod quick_settings;
 mod sidebar;
 mod tabs;
 

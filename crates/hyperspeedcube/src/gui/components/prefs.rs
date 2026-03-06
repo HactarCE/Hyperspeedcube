@@ -494,6 +494,16 @@ pub fn build_perspective_dim_view_section(
     dim: PerspectiveDim,
     prefs_ui: &mut PrefsUi<'_, ViewPreferences>,
 ) {
+    build_perspective_dim_view_projection_section(dim, prefs_ui);
+    build_perspective_dim_view_culling_section(dim, prefs_ui);
+    build_view_geometry_section(prefs_ui);
+    build_view_lighting_section(prefs_ui);
+    build_view_performance_section(prefs_ui);
+}
+pub fn build_perspective_dim_view_projection_section(
+    dim: PerspectiveDim,
+    prefs_ui: &mut PrefsUi<'_, ViewPreferences>,
+) {
     let l = &L.prefs.view.projection;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         if dim == PerspectiveDim::Dim4D {
@@ -506,7 +516,11 @@ pub fn build_perspective_dim_view_section(
             dv.range(FOV_3D_RANGE).speed(0.5)
         });
     });
-
+}
+pub fn build_perspective_dim_view_culling_section(
+    dim: PerspectiveDim,
+    prefs_ui: &mut PrefsUi<'_, ViewPreferences>,
+) {
     let l = &L.prefs.view.culling;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.show_frontfaces, access!(.show_frontfaces));
@@ -522,7 +536,8 @@ pub fn build_perspective_dim_view_section(
             prefs_ui.current.show_internals = false;
         }
     });
-
+}
+pub fn build_view_geometry_section(prefs_ui: &mut PrefsUi<'_, ViewPreferences>) {
     let l = &L.prefs.view.geometry;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         let showing_internals = prefs_ui.current.show_internals;
@@ -556,7 +571,8 @@ pub fn build_perspective_dim_view_section(
             dv.fixed_decimals(2).range(0.0..=5.0_f32).speed(0.01)
         });
     });
-
+}
+pub fn build_view_lighting_section(prefs_ui: &mut PrefsUi<'_, ViewPreferences>) {
     let l = &L.prefs.view.lighting;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.angle(&l.pitch, access!(.light_pitch), |dv| dv.range(-90.0..=90.0));
@@ -564,7 +580,8 @@ pub fn build_perspective_dim_view_section(
         prefs_ui.percent(&l.intensity.faces, access!(.face_light_intensity));
         prefs_ui.percent(&l.intensity.outlines, access!(.outline_light_intensity));
     });
-
+}
+pub fn build_view_performance_section(prefs_ui: &mut PrefsUi<'_, ViewPreferences>) {
     let l = &L.prefs.view.performance;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.num(&l.downscale_factor, access!(.downscale_rate), |dv| {
@@ -572,8 +589,6 @@ pub fn build_perspective_dim_view_section(
         });
         prefs_ui.checkbox(&l.downscale_interpolation, access!(.downscale_interpolate));
     });
-
-    prefs_ui.ui.add_space(prefs_ui.ui.spacing().item_spacing.y);
 }
 
 fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> &'static str {

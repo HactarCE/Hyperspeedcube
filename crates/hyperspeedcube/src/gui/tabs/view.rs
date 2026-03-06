@@ -60,6 +60,7 @@ fn show_contents_for_perspective(
         .show(ui, Some(presets_set), |mut prefs_ui| {
             crate::gui::components::prefs::build_perspective_dim_view_section(dim, &mut prefs_ui);
             prefs_ui.ui.add_enabled_ui(!rot.is_ident(), |ui| {
+                ui.add_space(ui.spacing().item_spacing.y);
                 wants_to_reset_camera |= ui.button(L.prefs.view.reset).clicked();
             });
         });
