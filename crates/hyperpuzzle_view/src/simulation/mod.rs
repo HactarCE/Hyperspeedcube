@@ -471,7 +471,20 @@ impl PuzzleSimulation {
     /// Does an undoable action and saves it to the undo stack.
     ///
     /// Clears the redo stack if applicable.
-    fn do_action(&mut self, action: Action, is_replaying: bool) {
+    fn do_action(&mut self, mut action: Action, is_replaying: bool) {
+        if let Action::Twists { twists, .. } = &mut action {
+            let puz = self.puzzle_type();
+            twists.retain_mut(|twist| {
+                let axis = puz.twists.twists[twist.transform].axis;
+                let layer_count = puz.axis_layers[axis].len() as u8;
+                twist.layers &= LayerMask::all_layers(layer_count);
+                twist.layers != LayerMask::EMPTY
+            });
+            if twists.is_empty() {
+                return;
+            }
+        }
+
         if matches!(action, Action::Twists { .. }) && self.first_move_time.is_none() {
             self.first_move_time = Some(Instant::now());
         }
@@ -482,7 +495,10 @@ impl PuzzleSimulation {
             UndoBehavior::Marker | UndoBehavior::Boundary => (),
         }
         self.undo_stack.push(action.clone());
-        self.do_action_internal(&action, is_replaying);
+        let any_effect = self.do_action_internal(&action, is_replaying);
+        if !any_effect {
+            self.undo_stack.pop(); // Actually don't save the action
+        }
     }
     /// Does an undoable action. Returns whether the action should be saved to
     /// the undo stack.

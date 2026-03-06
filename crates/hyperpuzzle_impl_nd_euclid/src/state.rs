@@ -80,6 +80,13 @@ impl PuzzleState for NdEuclidPuzzleState {
         if !split_pieces.is_empty() {
             return Err(split_pieces);
         }
+        // Check for empty grip (no-op).
+        if grip
+            .iter()
+            .all(|(_piece, &which_side)| which_side == WhichSide::Outside)
+        {
+            return Err(vec![]);
+        }
 
         let mut cached_transforms = self.cached_transforms.lock();
         let mut cached_transform_by_motor = self.cached_transform_by_motor.lock();

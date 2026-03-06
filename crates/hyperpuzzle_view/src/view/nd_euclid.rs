@@ -339,13 +339,11 @@ impl NdEuclidViewState {
             let Ok(&target) = self.geom.gizmo_twists.get(hov.gizmo_face) else {
                 return;
             };
+            let Ok(twist_info) = puzzle.twists.twists.get(target) else {
+                return;
+            };
             let transform = match direction {
-                Sign::Neg => {
-                    let Ok(twist_info) = puzzle.twists.twists.get(target) else {
-                        return;
-                    };
-                    twist_info.reverse
-                }
+                Sign::Neg => twist_info.reverse,
                 Sign::Pos => target,
             };
             let twist = LayeredTwist { layers, transform };
