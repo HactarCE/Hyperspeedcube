@@ -17,6 +17,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: "rust-cache-hsc-windows"
             - uses: dtolnay/rust-toolchain@stable
             - name: Build Hyperspeedcube
               run: cargo build --release
@@ -32,6 +34,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: "rust-cache-hsc-linux"
             - uses: dtolnay/rust-toolchain@stable
             - name: Update apt
               run: sudo apt update
@@ -57,6 +61,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: Swatinem/rust-cache@v2
+              with:
+                  shared-key: "rust-cache-hsc-macos"
             - uses: dtolnay/rust-toolchain@stable
               with:
                   targets: x86_64-apple-darwin
