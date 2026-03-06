@@ -264,10 +264,7 @@ impl NdEuclidPuzzleRenderer {
 
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &self.buffers.composite_texture.view,
-            src_sampler: match draw_params.cam.prefs().downscale_interpolate {
-                true => &self.gfx.bilinear_sampler,
-                false => &self.gfx.nearest_neighbor_sampler,
-            },
+            src_sampler: &self.gfx.nearest_neighbor_sampler,
             effect_params: &self.buffers.effect_params,
         });
 
@@ -419,10 +416,7 @@ impl NdEuclidPuzzleRenderer {
 
             let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
                 src_texture: &self.buffers.composite_texture.view,
-                src_sampler: match draw_params.cam.prefs().downscale_interpolate {
-                    true => &self.gfx.bilinear_sampler,
-                    false => &self.gfx.nearest_neighbor_sampler,
-                },
+                src_sampler: &self.gfx.bilinear_sampler,
                 effect_params: &self.buffers.effect_params,
             });
 

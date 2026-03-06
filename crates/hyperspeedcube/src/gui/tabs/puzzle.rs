@@ -730,6 +730,11 @@ fn show_nd_euclid_puzzle_view(
 ) -> PuzzleViewResponse {
     let mut ret = PuzzleViewResponse::default();
 
+    ret.filter_mode = match nd_euclid.camera.prefs().downscale_interpolate {
+        true => wgpu::FilterMode::Linear,
+        false => wgpu::FilterMode::Nearest,
+    };
+
     let puzzle = Arc::clone(sim.lock().puzzle_type());
     let geom = Arc::clone(&nd_euclid.geom);
     let ndim = geom.ndim();
