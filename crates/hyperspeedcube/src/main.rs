@@ -172,7 +172,7 @@ fn init_deadlock_detection() {
                 continue;
             }
 
-            log::error!("{} deadlocks detected", deadlocks.len());
+            log::error!("{} deadlock(s) detected", deadlocks.len());
             for (i, threads) in deadlocks.iter().enumerate() {
                 log::error!("Deadlock #{}", i);
                 for t in threads {

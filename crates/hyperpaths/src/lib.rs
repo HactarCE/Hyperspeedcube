@@ -86,14 +86,14 @@ pub fn move_to_backup_file(original: &Path) {
     match std::fs::rename(original, &backup_path) {
         Ok(()) => {
             log::info!(
-                "backup of {} stored at {}",
+                "Backup of {} stored at {}",
                 original.display(),
                 backup_path.display(),
             );
         }
         Err(e) => {
             if original.is_file() {
-                log::error!("error backing up {}: {e}", original.display());
+                log::error!("Error backing up {}: {e}", original.display());
             }
         }
     }

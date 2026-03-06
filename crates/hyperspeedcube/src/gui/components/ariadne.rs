@@ -40,10 +40,10 @@ pub fn show_ariadne_error_in_egui(ui: &mut egui::Ui, ansi_str: &str) -> egui::Re
                 if let Some(color_index_str) = escape_code.strip_prefix("38;5;") {
                     match color_index_str.parse() {
                         Ok(color_index) => format.color = themed(term_color_256(color_index)),
-                        Err(e) => log::warn!("unknown color code {e:?}"),
+                        Err(e) => log::warn!("Unknown color code {e:?}"),
                     }
                 } else {
-                    log::warn!("unknown escape code {escape_code:?}");
+                    log::warn!("Unknown escape code {escape_code:?}");
                 }
             }
         }

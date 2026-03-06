@@ -132,7 +132,7 @@ impl PuzzleState for NdEuclidPuzzleState {
                     true
                 }
                 Err(_) => {
-                    log::error!("unknown color encountered during solved state detection");
+                    log::error!("Unknown color encountered during solved state detection");
                     false
                 }
             }
@@ -141,7 +141,7 @@ impl PuzzleState for NdEuclidPuzzleState {
 
     fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {
         let Ok(axis_layers) = self.puzzle_type.axis_layers.get(axis) else {
-            log::error!("bad axis ID");
+            log::error!("Bad axis ID");
             return self.puzzle_type.pieces.map_ref(|_, _| WhichSide::Split);
         };
 
@@ -165,7 +165,7 @@ impl PuzzleState for NdEuclidPuzzleState {
             let (piece_bottom, piece_top) = match self.piece_min_max_on_axis(piece, axis) {
                 Ok((min, max)) => (min, max),
                 Err(e) => {
-                    log::error!("{e}");
+                    log::error!("Error computing layer of piece: {e}");
                     return WhichSide::Split;
                 }
             };

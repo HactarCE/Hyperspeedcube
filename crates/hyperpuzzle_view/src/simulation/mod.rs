@@ -500,11 +500,11 @@ impl PuzzleSimulation {
                                 Ok(new_state) => self.latest_state = new_state,
                                 Err(e) => {
                                     log::error!(
-                                        "twist {twist:?} blocked in scramble due to pieces {e:?}"
+                                        "Twist {twist:?} blocked in scramble due to pieces {e:?}"
                                     );
                                 }
                             },
-                            Err(e) => log::error!("error parsing twist in scramble: {e}"),
+                            Err(e) => log::error!("Error parsing twist in scramble: {e}"),
                         }
                     }
                     self.skip_twist_animations();
@@ -1062,7 +1062,7 @@ impl PuzzleSimulation {
                 &LogEvent::InvalidateFilterless { time } => {
                     ret.replay_event(ReplayEvent::InvalidateFilterless { time }, true);
                 }
-                LogEvent::Macro { time: _ } => log::error!("macros are unsupported"), /* TODO apply macro */
+                LogEvent::Macro { time: _ } => log::error!("Macros are unsupported"), /* TODO apply macro */
                 LogEvent::StartSolve { time, duration } => {
                     ret.started = true;
                     ret.replay_event(

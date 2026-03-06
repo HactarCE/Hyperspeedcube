@@ -73,12 +73,12 @@ impl Modules {
         match hyperpaths::hps_dir() {
             Ok(hps_dir) => {
                 log::info!(
-                    "reading {LANGUAGE_NAME} files from path {}",
+                    "Reading {LANGUAGE_NAME} files from path {}",
                     hps_dir.to_string_lossy(),
                 );
                 self.add_from_directory(hps_dir);
             }
-            Err(e) => log::error!("error locating {LANGUAGE_NAME} directory: {e}"),
+            Err(e) => log::error!("Error locating {LANGUAGE_NAME} directory: {e}"),
         }
     }
 
@@ -94,7 +94,7 @@ impl Modules {
                         if path.extension().is_some_and(|ext| ext == FILE_EXTENSION) {
                             match file.contents_utf8() {
                                 Some(contents) => self.add_file(path, contents),
-                                None => log::error!("error loading built-in file {path:?}"),
+                                None => log::error!("Error loading built-in file {path:?}"),
                             }
                         }
                     }
@@ -116,11 +116,11 @@ impl Modules {
                         let relative_path = path.strip_prefix(directory).unwrap_or(path);
                         match std::fs::read_to_string(path) {
                             Ok(contents) => self.add_file(relative_path, contents),
-                            Err(e) => log::error!("error loading file {relative_path:?}: {e}"),
+                            Err(e) => log::error!("Error loading file {relative_path:?}: {e}"),
                         }
                     }
                 }
-                Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
+                Err(e) => log::warn!("Error reading filesystem entry: {e:?}"),
             }
         }
     }
@@ -148,7 +148,7 @@ impl Modules {
             indexmap::map::Entry::Occupied(mut e) if !e.get().contents.is_empty() => {
                 new_file_id = e.index() as FileId;
                 log::warn!(
-                    "files {:?} and {:?} have the same module path of {:?}",
+                    "Files {:?} and {:?} have the same module path of {:?}",
                     e.get().file_path,
                     module.file_path,
                     module_path_str,

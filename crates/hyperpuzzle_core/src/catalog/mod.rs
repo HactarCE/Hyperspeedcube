@@ -224,7 +224,7 @@ impl Catalog {
                 let this = self.clone();
                 std::thread::spawn(move || {
                     if let Err(e) = build_fn(this) {
-                        log::error!("error building {id:?}: {e}");
+                        log::error!("Error building {id:?}: {e}");
                     }
                 });
                 Arc::clone(e.insert(Arc::new(Mutex::new(CacheEntry::NotStarted))))
@@ -261,7 +261,7 @@ impl Catalog {
                         Some(generator) => {
                             drop(db_guard); // unlock mutex before running user code
                             let ctx = BuildCtx::new(&self.default_logger, progress);
-                            log::trace!("generating spec for {generator_id:?} {params:?}");
+                            log::trace!("Generating spec for {generator_id:?} {params:?}");
                             let params = params.into_iter().map(|s| s.to_owned()).collect();
                             T::generate_spec(ctx, &generator, params)
                         }
@@ -323,7 +323,7 @@ impl Catalog {
     ) -> Result<Arc<T>, String> {
         let type_str = unqualified_type_name::<T>();
 
-        log::trace!("requesting {type_str} {id:?}");
+        log::trace!("Requesting {type_str} {id:?}");
         if !redirect_sequence.is_empty() {
             log::trace!("(redirected from {redirect_sequence:?})");
         }
@@ -346,23 +346,23 @@ impl Catalog {
                 progress: Arc::clone(&progress),
                 notify: NotifyWhenDropped::new(),
             };
-            log::trace!("building {type_str} {id:?}");
+            log::trace!("Building {type_str} {id:?}");
             // Unlock the mutex before during expensive object generation.
             let cache_entry_value =
                 MutexGuard::unlocked(&mut cache_entry_guard, || build_fn(&id, &progress));
-            log::trace!("storing {type_str} {id:?}");
+            log::trace!("Storing {type_str} {id:?}");
             // Store the result.
             *cache_entry_guard = cache_entry_value;
         };
 
         // If another thread is building the object, then wait for that.
         if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
-            log::trace!("waiting for another thread to build {type_str} {id:?}");
+            log::trace!("Waiting for another thread to build {type_str} {id:?}");
             let waiter = notify.waiter();
             MutexGuard::unlocked(&mut cache_entry_guard, || {
                 waiter.wait();
             });
-            log::trace!("done waiting on {id:?}");
+            log::trace!("Done waiting on {id:?}");
         }
 
         match &*cache_entry_guard {

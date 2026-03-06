@@ -638,7 +638,7 @@ impl NdEuclidPuzzleRenderer {
             // If there's no pieces at all, then this is ok. But if there are
             // any pieces, then we need at least one piece style as a fallback.
             if !self.puzzle_pieces.is_empty() {
-                log::error!("no piece styles");
+                log::error!("No piece styles");
             }
             return Ok(vec![]);
         }

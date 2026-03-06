@@ -366,7 +366,7 @@ impl AppUi {
         self.close_sidebar_utility(tab);
         if let Some((s, n, t)) = self.find_docked_utility(tab) {
             let Some(leaf) = self.dock_state[s][n].get_leaf_mut() else {
-                log::error!("found tab at non-leaf");
+                log::error!("Error closing docked utility: found tab at non-leaf");
                 return;
             };
             let is_visible = leaf.active == t;

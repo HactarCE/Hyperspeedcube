@@ -130,7 +130,7 @@ impl Motor {
                     let Some(arbitrary_perpendicular_vector) =
                         (0..=1).find_map(|i| Vector::unit(i).rejected_from(&from))
                     else {
-                        log::error!("error computing arbitrary vector perpendicular to {from}");
+                        log::error!("Error computing arbitrary vector perpendicular to {from}");
                         return Self::ident(ndim);
                     };
                     Self::from_normalized_vector_product(from, arbitrary_perpendicular_vector)

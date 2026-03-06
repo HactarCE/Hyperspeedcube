@@ -875,7 +875,7 @@ fn show_nd_euclid_puzzle_view(
 
     match nd_euclid.renderer.draw_puzzle(&draw_params) {
         Ok(out) => ret.texture_view = Some(out.texture.create_view(&Default::default())),
-        Err(e) => log::error!("{e}"),
+        Err(e) => log::error!("Error drawing puzzle: {e}"),
     };
 
     if SHOW_DRAG_VECTOR {

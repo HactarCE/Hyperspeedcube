@@ -169,7 +169,7 @@ impl NdEuclidViewState {
                             sim.begin_nd_euclid_partial_twist(ndim, axis, layers);
                             self.drag_state = Some(DragState::Twist);
                         } else {
-                            log::trace!("canceling partial twist");
+                            log::trace!("Canceling partial twist");
                             self.drag_state = Some(DragState::Canceled);
                         }
                     }

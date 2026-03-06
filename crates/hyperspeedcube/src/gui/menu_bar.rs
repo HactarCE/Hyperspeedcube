@@ -12,7 +12,7 @@ use crate::gui::util::{MDI_SMALL, hyperlink_to};
 lazy_static! {
     static ref NEWER_RELEASE: Option<self_update::update::Release> = check_for_update()
         .unwrap_or_else(|e| {
-            log::error!("error checking for updates: {e}");
+            log::error!("Error checking for updates: {e}");
             None
         });
 }

@@ -177,7 +177,7 @@ impl App {
         match hyperpuzzle_log::LogFile::deserialize(s) {
             Ok((log_file, warnings)) => {
                 for warning in warnings {
-                    log::warn!("warning while loading log file: {warning}");
+                    log::warn!("Warning while loading log file: {warning}");
                 }
 
                 // TODO: load multiple solves at once
@@ -185,7 +185,7 @@ impl App {
                     self.load_solve(first_solve);
                 }
             }
-            Err(e) => log::error!("error loading log file: {e}"),
+            Err(e) => log::error!("Error loading log file: {e}"),
         }
     }
 

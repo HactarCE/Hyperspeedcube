@@ -130,7 +130,7 @@ impl TagSet {
             }
             let result = other.insert_named(k, v.clone());
             if let Err(e) = result {
-                log::error!("error when merging tags: {e}");
+                log::error!("Error when merging tags: {e}");
             }
         }
         *self = other;

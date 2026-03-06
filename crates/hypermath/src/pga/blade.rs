@@ -771,7 +771,7 @@ impl Blade {
                 Some(decomposition)
             }
         } else {
-            log::error!("cannot decompose 8D+ bivector");
+            log::error!("Cannot decompose 8D+ bivector");
             return None;
         };
 
@@ -984,7 +984,7 @@ impl BivectorDecomposition {
                             + biv2 * cos * sin * sin
                             + biv3 * sin * sin * sin;
                     } else {
-                        log::error!("cannot exponentiate 8D+ bivector");
+                        log::error!("Cannot exponentiate 8D+ bivector");
                         return None;
                     }
                 }

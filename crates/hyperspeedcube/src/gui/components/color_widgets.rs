@@ -310,7 +310,7 @@ impl<'a> ColorsUi<'a> {
             total: _,
         } = &mut new_assignment
         else {
-            log::error!("attempt to reorder color to something other than a gradient");
+            log::error!("Attempt to reorder color to something other than a gradient");
             return;
         };
 
@@ -319,7 +319,7 @@ impl<'a> ColorsUi<'a> {
         }
 
         let Ok(gradient) = gradient_name.parse::<PaletteGradient>() else {
-            log::error!("unknown gradient name {gradient_name:?}");
+            log::error!("Unknown gradient name {gradient_name:?}");
             return;
         };
 

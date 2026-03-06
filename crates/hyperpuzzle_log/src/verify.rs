@@ -84,11 +84,11 @@ pub fn verify(
         return Err(SolveVerificationError::NotFullyScrambled);
     }
 
-    log::info!("building puzzle {} for verification", solve.puzzle.id);
+    log::info!("Building puzzle {} for verification", solve.puzzle.id);
     let puzzle = match catalog.build_blocking::<Puzzle>(&solve.puzzle.id) {
         Ok(p) => p,
         Err(e) => {
-            log::error!("error building puzzle {}: {e}", solve.puzzle.id);
+            log::error!("Error building puzzle {}: {e}", solve.puzzle.id);
             return Err(SolveVerificationError::PuzzleBuildError(e));
         }
     };

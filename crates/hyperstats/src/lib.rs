@@ -32,13 +32,13 @@ pub fn load() -> StatsDb {
             Ok((stats, warnings)) if warnings.is_empty() => Some(stats),
             Ok((stats, warnings)) => {
                 for warning in warnings {
-                    log::warn!("warning loading stats: {warning}");
+                    log::warn!("Warning loading stats: {warning}");
                 }
                 hyperpaths::move_to_backup_file(path);
                 Some(stats)
             }
             Err(e) => {
-                log::error!("error loading stats: {e}");
+                log::error!("Error loading stats: {e}");
                 hyperpaths::move_to_backup_file(path);
                 None
             }

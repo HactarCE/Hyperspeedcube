@@ -131,7 +131,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
 
     for i in 0..prefs.current.custom_colors.len() {
         let Some((name, _)) = prefs.current.custom_colors.nth_user_preset(i) else {
-            log::error!("missing custom color {i}");
+            log::error!("Missing custom color {i}");
             continue;
         };
         let name = name.clone();
