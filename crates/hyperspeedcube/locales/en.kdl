@@ -1157,6 +1157,16 @@ error_dialog {
   loading_file "Error loading file"
   opening_folder "Error opening folder"
   extracting_hps_files "Error extracting built-in HPS files"
+  running_in_a_zip {
+    title "Launching from ZIP file"
+    desc """
+      It looks like you're running Hyperspeedcube from within a ZIP file. Some functionality (e.g., saving preferences) might not work.
+
+      It's recommended to move hyperspeedcube.exe out of the ZIP file before running it.
+
+      Do you want to launch Hyperspeedcube anyway?
+    """
+  }
 }
 
 eula """
