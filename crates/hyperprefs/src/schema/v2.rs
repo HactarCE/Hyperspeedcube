@@ -80,6 +80,7 @@ pub struct FilterPreset {
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct FilterRule {
+    pub enabled: bool,
     pub style: Option<String>,
     pub set: FilterPieceSet,
 }

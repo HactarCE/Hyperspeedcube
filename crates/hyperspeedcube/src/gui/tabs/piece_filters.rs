@@ -655,10 +655,7 @@ fn show_current_filter_preset_ui_contents(
         .auto_shrink(false)
         .id_salt("filter_preset_rules")
         .show(ui, |ui| {
-            let active_rules = &mut view.filters.active_rules;
             let current = &mut view.filters.current;
-
-            active_rules.resize(current.inner.rules.len(), true);
 
             let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("rule_dnd"));
             let is_any_dragging = dnd.is_dragging();
@@ -677,7 +674,7 @@ fn show_current_filter_preset_ui_contents(
                 let these_pieces = rule.set.eval(&puz);
 
                 let affected_piece_count = (remaining_pieces.clone() & &these_pieces).len();
-                if active_rules[i] {
+                if rule.enabled {
                     remaining_pieces &= !&these_pieces;
                 }
 
@@ -692,7 +689,7 @@ fn show_current_filter_preset_ui_contents(
                             // TODO: singlular vs. plural
                             let n = affected_piece_count.to_string();
                             let r = ui.checkbox(
-                                &mut active_rules[i],
+                                &mut rule.enabled,
                                 md_inline(ui, L.piece_filters.show_n_pieces_with_style.with(&n)),
                             );
                             changed |= r.changed();

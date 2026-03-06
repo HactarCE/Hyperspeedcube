@@ -153,7 +153,7 @@ impl PuzzleView {
         let fallback_style = self.filters.fallback_style().clone();
         self.styles.set_base_styles(&all_pieces, fallback_style);
 
-        let main_rules = self.filters.iter_active_rules();
+        let main_rules = self.filters.iter_enabled_rules();
         let fallback_rules = self
             .filters
             .combined_fallback_preset
@@ -167,7 +167,7 @@ impl PuzzleView {
             self.styles.set_base_styles(&pieces, rule.style.clone());
         }
 
-        for rule in self.filters.iter_active_rules().rev() {
+        for rule in self.filters.iter_enabled_rules().rev() {
             let pieces = rule.set.eval(&self.puzzle());
             self.styles.set_base_styles(&pieces, rule.style.clone());
         }
@@ -370,9 +370,6 @@ pub struct PuzzleFiltersState {
     /// Combination of all fallback rules to apply to pieces not specified by
     /// the current preset.
     pub combined_fallback_preset: Option<FilterPreset>,
-    /// For each rule: whether it is active. Inactive rules are ignored when
-    /// displaying the puzzle.
-    pub active_rules: Vec<bool>,
 
     /// Whether the piece filters have changed since the last frame.
     changed: bool,
@@ -384,7 +381,6 @@ impl PuzzleFiltersState {
             base: None,
             current: FilterSeqPreset::new_empty(),
             combined_fallback_preset: None,
-            active_rules: vec![],
             changed: true,
         }
     }
@@ -396,20 +392,13 @@ impl PuzzleFiltersState {
             base: None,
             current: FilterSeqPreset::new_with_single_rule(fallback_style),
             combined_fallback_preset: None,
-            active_rules: vec![],
             changed: true,
         }
     }
 
-    /// Iterates over active rules, skipping inactive ones.
-    pub fn iter_active_rules(&self) -> impl DoubleEndedIterator<Item = &FilterRule> {
-        self.current
-            .inner
-            .rules
-            .iter()
-            .enumerate()
-            .filter(|(i, _rule)| *self.active_rules.get(*i).unwrap_or(&true))
-            .map(|(_i, rule)| rule)
+    /// Iterates over enabled rules, skipping disabled ones.
+    pub fn iter_enabled_rules(&self) -> impl DoubleEndedIterator<Item = &FilterRule> {
+        self.current.inner.rules.iter().filter(|rule| rule.enabled)
     }
 
     /// Loads a filter preset, overwriting the current state completely.
@@ -428,7 +417,6 @@ impl PuzzleFiltersState {
                     base: Some(preset_ref),
                     current,
                     combined_fallback_preset: fallback,
-                    active_rules: vec![],
                     changed: true,
                 };
             }
@@ -437,7 +425,6 @@ impl PuzzleFiltersState {
                     base: None,
                     current: std::mem::take(&mut self.current),
                     combined_fallback_preset: None,
-                    active_rules: std::mem::take(&mut self.active_rules),
                     changed: true,
                 }
             }

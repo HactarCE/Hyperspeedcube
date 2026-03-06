@@ -344,6 +344,7 @@ impl FilterPreset {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FilterRule {
+    pub enabled: bool,
     pub style: Option<PresetRef>,
     pub set: FilterPieceSet,
 }
@@ -352,16 +353,26 @@ impl schema::PrefsConvert for FilterRule {
     type SerdeFormat = schema::current::FilterRule;
 
     fn to_serde(&self) -> Self::SerdeFormat {
-        let Self { style, set } = self;
+        let Self {
+            enabled,
+            style,
+            set,
+        } = self;
 
         schema::current::FilterRule {
+            enabled: *enabled,
             style: style.as_ref().map(|p| p.name()),
             set: set.to_serde(),
         }
     }
     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
-        let schema::current::FilterRule { style, set } = value;
+        let schema::current::FilterRule {
+            enabled,
+            style,
+            set,
+        } = value;
 
+        self.enabled = enabled;
         self.style = style.map(|s| ctx.new_ref(&s));
         self.set = FilterPieceSet::from_serde(&(), set);
     }
@@ -369,12 +380,14 @@ impl schema::PrefsConvert for FilterRule {
 impl FilterRule {
     pub fn new_checkboxes() -> Self {
         Self {
+            enabled: true,
             style: None,
             set: FilterPieceSet::Checkboxes(FilterCheckboxes::default()),
         }
     }
     pub fn new_expr() -> Self {
         Self {
+            enabled: true,
             style: None,
             set: FilterPieceSet::Expr("@everything".to_owned()),
         }
