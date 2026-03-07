@@ -8,6 +8,7 @@ mod reorderable;
 pub use reorderable::DndReorderExt;
 
 pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 300.0;
+pub const HELP_TOOLTIP_WIDTH: f32 = 600.0;
 
 pub trait ResponseExt {
     fn on_i18n_hover_explanation(self, strings: &HoverStrings) -> Self;
@@ -40,8 +41,9 @@ impl ResponseExt for egui::Response {
 }
 
 fn show_hover_explanation_internal(ui: &mut egui::Ui, strong_text: &str, detailed_message: &str) {
+    let w = EXPLANATION_TOOLTIP_WIDTH.at_most(ui.ctx().content_rect().width());
     ui.allocate_ui_with_layout(
-        egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
+        egui::vec2(w, 0.0),
         egui::Layout::top_down(egui::Align::LEFT),
         |ui| {
             if !strong_text.is_empty() {

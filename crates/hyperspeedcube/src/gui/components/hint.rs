@@ -1,3 +1,5 @@
+use egui::NumExt;
+
 use crate::gui::util::{MDI_MEDIUM, MDI_MEDIUM_BUTTON_SIZE, MDI_SMALL_BUTTON_SIZE};
 
 pub struct HelpHoverWidget;
@@ -22,8 +24,9 @@ impl HelpHoverWidget {
                 .gap(8.0) // prevent flashing
                 .kind(egui::PopupKind::Tooltip)
                 .show(|ui| {
-                    // TODO: refactor this constant
-                    ui.set_width(super::super::ext::EXPLANATION_TOOLTIP_WIDTH * 2.0);
+                    let w = super::super::ext::HELP_TOOLTIP_WIDTH
+                        .at_most(ui.ctx().content_rect().width());
+                    ui.set_width(w);
                     crate::gui::markdown::md(ui, markdown);
                 });
         }
