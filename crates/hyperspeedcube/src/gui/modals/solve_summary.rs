@@ -127,7 +127,7 @@ impl SolveSummaryModal {
 
         // Immediately timestamp if not yet timestamped
         let mut timestamp_signature = RequestState::Ok(None);
-        if prefs.online_mode && replay.tsa_signature_v1.is_none() {
+        if prefs.online_mode && replay.tsa_signature_v2.is_none() {
             try_timestamp(&mut timestamp_signature, Arc::clone(&digest));
         }
 
