@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - ZIP detection on Windows
 - Crash when opening UI layout presets UI with floating windows
 - Some utility panes not having scrollbars
+- Bugs where solves may be re-timestamped unnecessarily
 
 ## [2.0.0-zeta.9] - 2026-03-06
 
