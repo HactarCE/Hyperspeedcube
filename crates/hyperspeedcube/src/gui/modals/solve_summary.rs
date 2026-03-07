@@ -341,7 +341,7 @@ impl SolveSummaryModal {
                     ui.add(mdi!(error_fg_color, ALERT_OUTLINE, icon_size));
                     ui.colored_label(error_fg_color, l.error.with(e));
                     if ui.button(L.try_again).clicked() {
-                        self.timestamp_signature = RequestState::Init;
+                        self.leaderboard_submission = RequestState::Init;
                     }
                 }
             };
@@ -355,7 +355,6 @@ impl SolveSummaryModal {
         let icon_size = 18.0;
         ui.horizontal(|ui| {
             ui.set_min_height(f32::max(ui.spacing().interact_size.y, icon_size));
-            self.timestamp_signature.try_recv();
 
             match &mut self.timestamp_signature {
                 RequestState::Init => {
