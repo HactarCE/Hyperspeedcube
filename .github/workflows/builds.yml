@@ -15,8 +15,8 @@ jobs:
         name: Build Windows latest
         runs-on: windows-latest
         steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@v5
+            - run: rustup toolchain install stable --profile minimal
             - uses: Swatinem/rust-cache@v2
             - name: Build Hyperspeedcube
               run: cargo build --release
@@ -30,8 +30,8 @@ jobs:
         name: Build Linux latest
         runs-on: ubuntu-24.04
         steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: actions/checkout@v5
+            - run: rustup toolchain install stable --profile minimal
             - uses: Swatinem/rust-cache@v2
             - name: Update apt
               run: sudo apt update
@@ -55,10 +55,9 @@ jobs:
         name: Build macOS latest
         runs-on: macos-latest
         steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: x86_64-apple-darwin
+            - uses: actions/checkout@v5
+            - run: rustup toolchain install stable --profile minimal
+            - run: rustup target add x86_64-apple-darwin
             - uses: Swatinem/rust-cache@v2
             - name: Install cargo-bundle
               uses: baptiste0928/cargo-install@v3
