@@ -56,16 +56,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.separator();
 
-        match state.current_tab {
-            DevToolsTab::HoverInfo => app
-                .active_puzzle
-                .with_view(|view| show_hover_info(ui, view))
-                .unwrap_or_else(|| {
-                    ui.label("No active puzzle");
-                }),
-            DevToolsTab::HpsGenerator => show_hps_generator(ui, app, &mut state),
-            DevToolsTab::Linter => show_linter(ui, &mut state),
-        };
+        egui::ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+                match state.current_tab {
+                    DevToolsTab::HoverInfo => app
+                        .active_puzzle
+                        .with_view(|view| show_hover_info(ui, view))
+                        .unwrap_or_else(|| {
+                            ui.label("No active puzzle");
+                        }),
+                    DevToolsTab::HpsGenerator => show_hps_generator(ui, app, &mut state),
+                    DevToolsTab::Linter => show_linter(ui, &mut state),
+                };
+            })
     });
 
     egui_stored_state.set(Some(state));

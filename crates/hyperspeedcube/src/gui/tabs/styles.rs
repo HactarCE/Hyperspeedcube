@@ -7,6 +7,12 @@ use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    egui::ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| show_inner(ui, app));
+}
+
+fn show_inner(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     let default_outline_lighting = app.prefs.styles.basic.outline_lighting.unwrap_or(false);

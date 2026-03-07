@@ -24,7 +24,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette.to_serde());
-                HelpHoverWidget::show_right_aligned(ui, L.help.global_color_palette);
+                HelpHoverWidget::show(ui, L.help.global_color_palette);
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.strong(L.colors.global_palette);
                 });
