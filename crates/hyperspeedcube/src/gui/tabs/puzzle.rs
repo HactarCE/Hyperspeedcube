@@ -1116,7 +1116,7 @@ fn show_status_bar_contents_for_sim(
                 L.status_bar.state.fully_scrambled
             };
             let r = ui.add(egui::Button::new(button_text).fill(egui::Color32::TRANSPARENT));
-            if sim.has_been_fully_scrambled() && sim.has_been_solved() {
+            if sim.has_been_solved() {
                 let r = r.on_hover_ui(|ui| {
                     if sim.has_been_reloaded_since_first_solved() {
                         md(ui, L.status_bar.cannot_view_solve_summary);

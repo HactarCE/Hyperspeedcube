@@ -543,11 +543,13 @@ impl PuzzleSimulation {
                     && self.is_solved()
                 {
                     self.solve_complete_time = Some(Instant::now());
-                    self.request_to_show_solve_summary = true;
                     self.do_event(ReplayEvent::EndSolve {
                         time: Some(Timestamp::now()),
                         duration: self.file_duration(),
                     });
+                    if !self.has_been_reloaded_since_first_solved() {
+                        self.request_to_show_solve_summary();
+                    }
                 }
                 any_effect
             }
