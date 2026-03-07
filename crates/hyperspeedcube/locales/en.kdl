@@ -850,9 +850,9 @@ solve_summary {
 
   table {
     this_solve "This solve"
-    saved_pb "Saved PB"
-    leaderboard_pb "Leaderboard PB"
-    world_record "World record"
+    saved_pb "Saved PBs"
+    leaderboard_pb "Leaderboard PBs"
+    world_record "World records"
 
     move_count "Moves"
     time "Time"
