@@ -12,6 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [Unreleased]
+
+### Fixed
+
+- Error when solving a partial scramble
+
 ## [2.0.0-zeta.10] - 2026-03-06
 
 ### Fixed
