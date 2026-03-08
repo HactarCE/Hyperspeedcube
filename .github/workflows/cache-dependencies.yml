@@ -1,13 +1,13 @@
-name: Build
+# Cache dependencies on main branch to speed up releases
+name: Cache dependencies
 
 on:
     push:
-        tags: ["**"]
+        branches: ["main"]
     workflow_dispatch:
 
 env:
     CARGO_TERM_COLOR: always
-    HSC_OFFICIAL_BUILD: 1
 
 jobs:
     windows:
@@ -19,11 +19,6 @@ jobs:
             - uses: Swatinem/rust-cache@v2
             - name: Build Hyperspeedcube
               run: cargo build --release
-            - name: Upload release
-              uses: actions/upload-artifact@v4
-              with:
-                  name: hyperspeedcube_win64
-                  path: target/release/hyperspeedcube.exe
 
     linux:
         name: Build Linux latest
@@ -42,13 +37,6 @@ jobs:
               run: sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libxcb-xinput-dev
             - name: Build Hyperspeedcube
               run: cargo build --release
-            - name: Make tarball
-              run: tar -czf hyperspeedcube_linux.tar.gz -C target/release hyperspeedcube
-            - name: Upload release
-              uses: actions/upload-artifact@v4
-              with:
-                  name: hyperspeedcube_linux
-                  path: hyperspeedcube_linux.tar.gz
 
     macos:
         name: Build macOS latest
@@ -67,14 +55,3 @@ jobs:
               run: cargo build --release
             - name: Build Hyperspeedcube (x86_64)
               run: cargo build --release --target=x86_64-apple-darwin
-            - name: Merge universal binary
-              run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
-            - name: Make app
-              run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release --package hyperspeedcube
-            - name: Make tarball
-              run: tar -czf hyperspeedcube_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
-            - name: Upload app
-              uses: actions/upload-artifact@v4
-              with:
-                  name: hyperspeedcube_macos
-                  path: hyperspeedcube_macos.tar.gz
