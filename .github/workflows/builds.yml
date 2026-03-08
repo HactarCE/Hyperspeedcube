@@ -18,6 +18,8 @@ jobs:
             - uses: actions/checkout@v5
             - run: rustup toolchain install stable --profile minimal
             - uses: Swatinem/rust-cache@v2
+              with:
+                  prefix-key: "build-"
             - name: Build Hyperspeedcube
               run: cargo build --release
             - name: Upload release
@@ -33,6 +35,8 @@ jobs:
             - uses: actions/checkout@v5
             - run: rustup toolchain install stable --profile minimal
             - uses: Swatinem/rust-cache@v2
+              with:
+                  prefix-key: "build-"
             - name: Update apt
               run: sudo apt update
             - name: Install egui dependencies
@@ -59,6 +63,8 @@ jobs:
             - run: rustup toolchain install stable --profile minimal
             - run: rustup target add x86_64-apple-darwin
             - uses: Swatinem/rust-cache@v2
+              with:
+                  prefix-key: "build-"
             - name: Install cargo-bundle
               uses: baptiste0928/cargo-install@v3
               with:
