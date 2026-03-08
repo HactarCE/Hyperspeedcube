@@ -181,8 +181,13 @@ leaderboards {
 status_bar {
   filterless "This solve is eligible for the no-filters category."
   state {
-    solved_from_full_scramble "Solved from a full scramble"
     fully_scrambled "Fully scrambled"
+    solved_from_full_scramble "Solved from a full scramble"
+    scrambled_n_moves {
+      one "Scrambled with 1 move"
+      many "Scrambled with {{n}} moves"
+    }
+    solved_from_n_move_scramble "Solved from a {{n}}-move scramble"
   }
   (HoverStrings)move_count {
     full "Move count"

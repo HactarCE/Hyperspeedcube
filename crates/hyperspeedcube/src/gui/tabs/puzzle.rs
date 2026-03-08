@@ -1141,6 +1141,15 @@ fn show_status_bar_contents_for_sim(
                 r.show_tooltip_text(L.status_bar.filterless);
             }
         }
+    } else if let Some(ScrambleType::Partial(n)) = sim.get_scramble().as_ref().map(|s| s.ty) {
+        show_separator_between(ui);
+
+        let l = &L.status_bar.state;
+        match (sim.has_been_solved(), n) {
+            (false, 1) => ui.label(l.scrambled_n_moves.one),
+            (false, n) => ui.label(l.scrambled_n_moves.many.with(&n.to_string())),
+            (true, n) => ui.label(l.solved_from_n_move_scramble.with(&n.to_string())),
+        };
     }
 }
 
