@@ -8,16 +8,14 @@ use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::EguiTempFlag;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
-        .show(ui, |ui| {
-            app.active_puzzle.with_opt_view(|view| match view {
-                Some(view) => show_inner(ui, &view.puzzle()),
-                None => {
-                    ui.label(L.no_active_puzzle);
-                }
-            });
+    egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+        app.active_puzzle.with_opt_view(|view| match view {
+            Some(view) => show_inner(ui, &view.puzzle()),
+            None => {
+                ui.label(L.no_active_puzzle);
+            }
         });
+    });
 }
 
 fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {

@@ -7,8 +7,8 @@ use crate::app::App;
 use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
+    egui::ScrollArea::both()
+        .auto_shrink(false)
         .show(ui, |ui| show_inner(ui, app));
 }
 

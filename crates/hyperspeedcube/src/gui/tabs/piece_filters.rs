@@ -55,15 +55,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     tab_state.set(Some(tab));
 
     ui.group(|ui| {
-        egui::ScrollArea::horizontal()
+        egui::ScrollArea::both()
             .auto_shrink(false)
             .show(ui, |ui| match tab {
                 FiltersTab::AdHoc => {
                     app.active_puzzle.with_view(|view| view.filters.base = None);
-                    egui::ScrollArea::vertical()
-                        .id_salt("current_filter")
-                        .auto_shrink(false)
-                        .show(ui, |ui| show_current_filter_preset_ui(ui, app, false));
+                    show_current_filter_preset_ui(ui, app, false);
                 }
                 FiltersTab::PresetsList => {
                     ui.set_min_width(PRESET_LIST_MIN_WIDTH);

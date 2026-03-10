@@ -7,12 +7,10 @@ use crate::gui::util::hyperlink;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-        egui::ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.set_width(400.0);
-                show_contents(ui);
-            });
+        egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+            ui.set_width(400.0);
+            show_contents(ui);
+        });
     });
 }
 

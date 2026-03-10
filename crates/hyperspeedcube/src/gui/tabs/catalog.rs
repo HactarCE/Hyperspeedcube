@@ -149,7 +149,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.add_space(ui.spacing().item_spacing.y);
 
         egui::ScrollArea::vertical()
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .show(ui, |ui| {
                 let max_size = ui.max_rect().size().floor(); // needed to avoid "unaligned" visual warnings
                 let layout = egui::Layout::top_down_justified(egui::Align::LEFT);

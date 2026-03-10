@@ -6,7 +6,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
+        .auto_shrink(false)
         .show(ui, |ui| {
             ui.group(|ui| {
                 egui::ScrollArea::horizontal()

@@ -1,4 +1,4 @@
-use hyperprefs::{DEFAULT_PREFS, PieceStyle, StylePreferences};
+use hyperprefs::{DEFAULT_PREFS, PieceStyle, Preferences, StylePreferences};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::L;
@@ -7,77 +7,102 @@ use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
+    egui::ScrollArea::both()
+        .auto_shrink(false)
         .show(ui, |ui| show_inner(ui, app));
 }
 
 fn show_inner(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
-    let default_outline_lighting = app.prefs.styles.basic.outline_lighting.unwrap_or(false);
+    ui.set_min_width(crate::gui::components::PRESETS_UI_MIN_WIDTH);
 
     ui.group(|ui| {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.strong(L.styles.misc.title);
         });
         ui.separator();
-        let mut prefs_ui = crate::gui::components::PrefsUi {
-            ui,
-            current: &mut app.prefs.styles,
-            defaults: Some(&DEFAULT_PREFS.styles),
-            changed: &mut changed,
-        };
-        let l = L.styles.misc.background;
-        prefs_ui.collapsing(l.title, |mut prefs_ui| {
-            prefs_ui.color(&l.dark_mode, access!(.dark_background_color));
-            prefs_ui.color(&l.light_mode, access!(.light_background_color));
-        });
-        let l = L.styles.misc.internals;
-        prefs_ui.collapsing(l.title, |mut prefs_ui| {
-            prefs_ui.color(&l.face_color, access!(.internals_color));
-        });
-        let l = L.styles.misc.blocking_pieces;
-        prefs_ui.collapsing(l.title, |mut prefs_ui| {
-            prefs_ui.color(&l.outlines_color, access!(.blocking_outline_color));
-            prefs_ui.num(&l.outlines_size, access!(.blocking_outline_size), |dv| {
-                outline_size_drag_value(dv)
-            });
-        });
+        egui::ScrollArea::horizontal()
+            .id_salt("misc")
+            .auto_shrink([false, true])
+            .show(ui, |ui| show_misc(ui, &mut app.prefs, &mut changed));
     });
 
     ui.add_space(ui.spacing().item_spacing.x);
 
     ui.group(|ui| {
-        ui.strong(L.styles.builtin.title);
-        ui.add_space(ui.spacing().item_spacing.y);
-        let (name, piece_style_edit) = show_builtin_style_selector(ui, &mut app.prefs.styles);
-        ui.add_space(ui.spacing().item_spacing.y);
-        ui.separator();
-        ui.add_space(ui.spacing().item_spacing.y);
-        md(
-            ui,
-            L.presets
-                .filter_styles
-                .current
-                .with(&md_bold_user_text(name)),
-        );
-        changed |= ui.add(piece_style_edit).changed();
+        ui.horizontal_wrapped(|ui| {
+            ui.strong(L.styles.builtin.title);
+        });
+        show_builtin(ui, &mut app.prefs, &mut changed);
     });
 
     ui.add_space(ui.spacing().item_spacing.x);
 
-    let mut current = app
-        .prefs
+    show_custom(ui, &mut app.prefs, &mut changed);
+
+    app.prefs.needs_save |= changed;
+}
+
+fn show_misc(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
+    let mut prefs_ui = crate::gui::components::PrefsUi {
+        ui,
+        current: &mut prefs.styles,
+        defaults: Some(&DEFAULT_PREFS.styles),
+        changed,
+    };
+    let l = L.styles.misc.background;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.color(&l.dark_mode, access!(.dark_background_color));
+        prefs_ui.color(&l.light_mode, access!(.light_background_color));
+    });
+    let l = L.styles.misc.internals;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.color(&l.face_color, access!(.internals_color));
+    });
+    let l = L.styles.misc.blocking_pieces;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.color(&l.outlines_color, access!(.blocking_outline_color));
+        prefs_ui.num(&l.outlines_size, access!(.blocking_outline_size), |dv| {
+            outline_size_drag_value(dv)
+        });
+    });
+}
+
+fn show_builtin(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
+    ui.add_space(ui.spacing().item_spacing.y);
+    let (name, piece_style_edit) = show_builtin_style_selector(ui, &mut prefs.styles);
+    ui.add_space(ui.spacing().item_spacing.y);
+    ui.separator();
+    ui.add_space(ui.spacing().item_spacing.y);
+    egui::ScrollArea::horizontal()
+        .id_salt("builtin")
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            md(
+                ui,
+                L.presets
+                    .filter_styles
+                    .current
+                    .with(&md_bold_user_text(name)),
+            );
+            *changed |= ui.add(piece_style_edit).changed();
+        });
+}
+
+fn show_custom(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
+    let default_outline_lighting = prefs.styles.basic.outline_lighting.unwrap_or(false);
+
+    let mut current = prefs
         .filter_styles
         .load_last_loaded_or_default(hyperprefs::DEFAULT_CUSTOM_STYLE_NAME);
 
     let help_contents = L.help.filter_styles;
     let presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
-        presets: &mut app.prefs.filter_styles,
+        presets: &mut prefs.filter_styles,
         current: &mut current,
-        changed: &mut changed,
+        changed,
         text: &L.presets.filter_styles,
         autosave: true,
         vscroll: false,
@@ -92,13 +117,16 @@ fn show_inner(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(ui, None, |mut prefs_ui| {
         let (prefs, ui) = prefs_ui.split();
-        let r = ui.add(
-            PieceStyleEdit::new(prefs.current).default_outline_lighting(default_outline_lighting),
-        );
-        *prefs.changed |= r.changed();
+        egui::ScrollArea::both()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                let r = ui.add(
+                    PieceStyleEdit::new(prefs.current)
+                        .default_outline_lighting(default_outline_lighting),
+                );
+                *prefs.changed |= r.changed();
+            });
     });
-
-    app.prefs.needs_save |= changed;
 }
 
 fn show_builtin_style_selector<'a>(

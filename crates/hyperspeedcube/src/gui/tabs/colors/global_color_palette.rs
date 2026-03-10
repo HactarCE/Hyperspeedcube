@@ -31,7 +31,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.separator();
 
-        egui::ScrollArea::vertical()
+        egui::ScrollArea::both()
             .auto_shrink(false)
             .id_salt(ui.id().with(yaml.is_open(ui)))
             .show(ui, |ui| {
@@ -241,13 +241,11 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
         default_sets.sort_by_cached_key(|(_, v)| v.len()); // stable sort
     }
 
-    egui::ScrollArea::horizontal().show(ui, |ui| {
-        for (set_name, _set_values) in default_sets {
-            prefs
-                .with(ui)
-                .fixed_multi_color(set_name, access!(.builtin_color_sets[set_name]));
-        }
-    });
+    for (set_name, _set_values) in default_sets {
+        prefs
+            .with(ui)
+            .fixed_multi_color(set_name, access!(.builtin_color_sets[set_name]));
+    }
 }
 
 fn validate_single_color_name<'a>(

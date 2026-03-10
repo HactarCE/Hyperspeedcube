@@ -132,7 +132,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                     egui::ScrollArea::vertical()
-                        .auto_shrink([false; 2])
+                        .auto_shrink(false)
                         .show(ui, |ui| {
                             frame.show(ui, |ui| {
                                 for item in sidebar_items() {

@@ -12,6 +12,8 @@ use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
 
+pub const PRESETS_UI_MIN_WIDTH: f32 = 150.0;
+
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
 pub type NameValidationResult<'a> = Result<(), Cow<'a, str>>;
@@ -161,7 +163,7 @@ where
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
     {
-        ui.set_min_width(150.0);
+        ui.set_min_width(PRESETS_UI_MIN_WIDTH);
         ui.group(|ui| {
             self.show_wrapping_presets_selector(ui, presets_set);
             // TODO: reconsider spacing
