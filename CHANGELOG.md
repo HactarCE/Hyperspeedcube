@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Error when solving a partial scramble
+- Status bar vibrating on some display scalings, preventing puzzle interaction
+- Sidebars expanding ominously
 
 ## [2.0.0-zeta.10] - 2026-03-06
 

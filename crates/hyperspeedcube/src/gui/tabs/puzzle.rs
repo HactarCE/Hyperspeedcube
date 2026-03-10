@@ -40,6 +40,8 @@ const INSPECTION_ERROR_TIME: Duration = Duration::from_secs(60);
 /// Monotonically increasing ID for puzzle views, used to generate unique IDs.
 static PUZZLE_VIEW_ID: AtomicUsize = AtomicUsize::new(1);
 
+const STATUS_BAR_HEIGHT: f32 = 24.0;
+
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
     let changed;
     {
@@ -316,7 +318,9 @@ impl PuzzleWidget {
                     egui::ScrollArea::horizontal()
                         .auto_shrink([false, true])
                         .show(ui, |ui| {
-                            ui.horizontal(|ui| {
+                            let layout = egui::Layout::left_to_right(egui::Align::Center);
+                            ui.with_layout(layout, |ui| {
+                                ui.set_height(STATUS_BAR_HEIGHT);
                                 show_status_bar_contents_for_sim(ui, prefs, &mut sim.lock());
                             });
                         });

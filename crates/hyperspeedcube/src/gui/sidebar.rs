@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
 use egui::AtomExt;
+use egui::emath::GuiRounding;
+use hypermath::num::Float;
 use hyperprefs::SidebarStyle;
 
 use crate::L;
@@ -74,8 +76,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
         return;
     }
 
-    let sidebar_width =
-        (width_without_names + show_labels_anim * max_text_width).ceil_to_pixels_ui(ctx);
+    let sidebar_width = width_without_names + show_labels_anim * max_text_width;
 
     let docked_tabs: HashSet<UtilityTab> = app_ui
         .dock_state

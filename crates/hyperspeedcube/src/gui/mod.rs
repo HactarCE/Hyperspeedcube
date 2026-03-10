@@ -151,12 +151,12 @@ impl AppUi {
                 .max_width(ctx.available_rect().width() * 0.75)
                 .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
                 .show(ctx, |ui| {
+                    ui.set_width(ui.available_width().round()); // take all available space, but don't grow ominously
                     if let Some(sidebar_utility) = self.sidebar_utility {
                         ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
                         ui.add_space(6.0);
                         sidebar_utility.ui(ui, &mut self.app);
                     }
-                    ui.set_width(ui.available_rect_before_wrap().width());
                 });
         }
 
@@ -225,8 +225,9 @@ impl AppUi {
                     self.dock_state
                         .push_to_focused_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
-                if self.dock_state.iter_all_tabs().next().is_none() {
+                if self.dock_state.main_surface().is_empty() {
                     self.dock_state
+                        .main_surface_mut()
                         .push_to_first_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
 

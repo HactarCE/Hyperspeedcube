@@ -7,43 +7,49 @@ use crate::gui::util::hyperlink;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-        ui.set_width(400.0);
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            // We can't just use display `about_text()` directly because the
-            // Markdown renderer can't center things properly.
-
-            let l = &L.about;
-
-            let version = env!("CARGO_PKG_VERSION");
-            md(ui, format!("# {} v{}", crate::TITLE, version));
-
-            ui.add_space(ui.spacing().item_spacing.y * 2.0);
-
-            ui.label(env!("CARGO_PKG_DESCRIPTION"));
-            hyperlink(ui, env!("CARGO_PKG_REPOSITORY"));
-            let license = env!("CARGO_PKG_LICENSE").replace('-', " ");
-            md(ui, l.licensed_under.with(&license));
-
-            ui.add_space(ui.spacing().item_spacing.y * 2.0);
-
-            md(ui, l.created_by);
-            hyperlink(ui, l.created_by_url);
-
-            ui.add_space(ui.spacing().item_spacing.y * 2.0);
-
-            md(ui, l.dedicated_to);
-            hyperlink(ui, l.dedicated_to_url);
-
-            ui.add_space(ui.spacing().item_spacing.y * 2.0);
-
-            md(ui, l.kofi_request);
-            hyperlink(ui, l.kofi_request_url);
-
-            ui.add_space(ui.spacing().item_spacing.y * 8.0);
-
-            md(ui, l.acknowledgements.with(&markdown_puzzle_authors_list()));
-        });
+        egui::ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+                ui.set_width(400.0);
+                show_contents(ui);
+            });
     });
+}
+
+fn show_contents(ui: &mut egui::Ui) {
+    // We can't just use display `about_text()` directly because the
+    // Markdown renderer can't center things properly.
+
+    let l = &L.about;
+
+    let version = env!("CARGO_PKG_VERSION");
+    md(ui, format!("# {} v{}", crate::TITLE, version));
+
+    ui.add_space(ui.spacing().item_spacing.y * 2.0);
+
+    ui.label(env!("CARGO_PKG_DESCRIPTION"));
+    hyperlink(ui, env!("CARGO_PKG_REPOSITORY"));
+    let license = env!("CARGO_PKG_LICENSE").replace('-', " ");
+    md(ui, l.licensed_under.with(&license));
+
+    ui.add_space(ui.spacing().item_spacing.y * 2.0);
+
+    md(ui, l.created_by);
+    hyperlink(ui, l.created_by_url);
+
+    ui.add_space(ui.spacing().item_spacing.y * 2.0);
+
+    md(ui, l.dedicated_to);
+    hyperlink(ui, l.dedicated_to_url);
+
+    ui.add_space(ui.spacing().item_spacing.y * 2.0);
+
+    md(ui, l.kofi_request);
+    hyperlink(ui, l.kofi_request_url);
+
+    ui.add_space(ui.spacing().item_spacing.y * 8.0);
+
+    md(ui, l.acknowledgements.with(&markdown_puzzle_authors_list()));
 }
 
 /// Returns program info and credits in Markdown.
