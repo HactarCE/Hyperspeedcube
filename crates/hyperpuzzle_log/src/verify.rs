@@ -224,15 +224,20 @@ pub fn verify(
             [None; 2]
         };
 
+        #[expect(deprecated)] // old digest methods
         let completion = if options.verify_completion_timestamp {
-            let timestamp_result = if let Some(signature) = &solve.tsa_signature_v2 {
+            let timestamp_result = if let Some(signature) = &solve.tsa_signature_v3 {
                 timecheck::tsa::Signature::from_str(signature)
                     .map_err(|e| timecheck::tsa::TsaError::Other(e.into()))
                     .and_then(|sig| {
-                        let expected_digest = solve.digest_v2();
+                        let expected_digest = solve.digest_v3();
                         TSA.verify(&expected_digest, &sig)?;
                         sig.timestamp()
                     })
+            } else if solve.tsa_signature_v2.is_some() {
+                Err(timecheck::tsa::TsaError::Other(
+                    "tsa_signature_v2 is insecure and cannot be verified".into(),
+                ))
             } else if let Some(signature) = &solve.tsa_signature_v1 {
                 timecheck::tsa::Signature::from_str(signature)
                     .map_err(|e| timecheck::tsa::TsaError::Other(e.into()))

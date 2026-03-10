@@ -121,13 +121,13 @@ impl SolveSummaryModal {
             sim_guard.start_special_anim();
         }
 
-        let digest = Arc::from(replay.digest_v2());
+        let digest = Arc::from(replay.digest_v3());
 
         let is_leaderboard_eligible = puzzle.meta.tags.has_present("external/leaderboard");
 
         // Immediately timestamp if not yet timestamped
         let mut timestamp_signature = RequestState::Ok(None);
-        if prefs.online_mode && replay.tsa_signature_v2.is_none() {
+        if prefs.online_mode && replay.tsa_signature_v3.is_none() {
             try_timestamp(&mut timestamp_signature, Arc::clone(&digest));
         }
 
@@ -390,8 +390,8 @@ impl SolveSummaryModal {
         self.timestamp_signature.try_recv();
         if let RequestState::Ok(signature @ Some(_)) = &mut self.timestamp_signature {
             let mut sim = self.sim.lock();
-            sim.tsa_signature_v2 = signature.take();
-            self.replay.tsa_signature_v2 = sim.tsa_signature_v2.clone();
+            sim.tsa_signature_v3 = signature.take();
+            self.replay.tsa_signature_v3 = sim.tsa_signature_v3.clone();
 
             // Mark as not yet saved
             self.save_result = None;

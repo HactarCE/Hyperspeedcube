@@ -171,35 +171,50 @@ pub struct Solve {
     /// Time Stamp Authority signature using [`Solve::digest_v2()`].
     #[kdl(child("tsa_signature_v2"), optional)]
     pub tsa_signature_v2: Option<String>,
+    /// Time Stamp Authority signature using [`Solve::digest_v3()`].
+    #[kdl(child("tsa_signature_v3"), optional)]
+    pub tsa_signature_v3: Option<String>,
 }
 
 impl Solve {
     /// Returns a SHA-256 digest of the events of the solve, in JSON.
+    #[deprecated]
     pub fn digest_v1(&self) -> Vec<u8> {
         let serialized_log =
             serde_json::to_string(&self.log).expect("error serializing log for time stamping");
+        sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
+    }
+    /// Due to a bug, this always hashes only the scramble time. Do not use this
+    /// method.
+    #[deprecated]
+    pub fn digest_v2(&self) -> Vec<u8> {
+        let log_events = self.log.first().into_iter().collect_vec();
+        let serialized_log =
+            serde_json::to_string(&log_events).expect("error serializing log for time stamping");
         sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
     }
     /// Returns a SHA-256 digest of the events of the solve, in JSON.
     ///
     /// Changes from v1:
     ///
-    /// - Only includes log up to and including the "end solve" event. For
-    ///   typical speedsolves, this excludes the "end session" event at the end
-    ///   (whose timestamp may vary) and excludes any moves done after the solve
-    ///   is completed.
+    /// - If there is an `EndSolve` event, then all events after it are
+    ///   excluded. For typical speedsolves, this excludes the "end session"
+    ///   event at the end (whose timestamp may vary) and excludes any moves
+    ///   done after the solve is completed.
     ///
-    /// This allows it the timestamp to be preserved even if the log file is
-    /// loaded and saved again.
-    pub fn digest_v2(&self) -> Vec<u8> {
-        let log_events = self
-            .log
-            .iter()
-            .take_while_inclusive(|ev| matches!(ev, LogEvent::EndSolve { .. }))
-            .collect_vec();
+    /// This allows the digest to remain the same even if the log file is loaded
+    /// and saved again or moves are done after the end of the solve.
+    pub fn digest_v3(&self) -> Vec<u8> {
+        let log_events = self.digest_v3_events().collect_vec();
         let serialized_log =
             serde_json::to_string(&log_events).expect("error serializing log for time stamping");
         sha2::Sha256::digest(&serialized_log).as_slice().to_vec()
+    }
+
+    fn digest_v3_events(&self) -> impl Iterator<Item = &LogEvent> {
+        self.log
+            .iter()
+            .take_while_inclusive(|ev| !matches!(ev, LogEvent::EndSolve { .. }))
     }
 }
 
@@ -545,6 +560,7 @@ mod tests {
                 ],
                 tsa_signature_v1: None,
                 tsa_signature_v2: None,
+                tsa_signature_v3: None,
             }],
         };
         std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
@@ -553,5 +569,10 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
         let (deserialized, _warnings) = LogFile::deserialize(&serialized).unwrap();
         assert_eq!(log_file, deserialized);
+
+        assert_eq!(
+            log_file.solves[0].digest_v3_events().collect_vec(),
+            log_file.solves[0].log[0..3].iter().collect_vec(),
+        );
     }
 }

@@ -12,13 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
-## [2.0.0-zeta.11] - 2026-03-09
+## [2.0.0-zeta.12] - 2026-03-10
 
 ### Fixed
 
 - Error when solving a partial scramble
 - Status bar vibrating on some display scalings, preventing puzzle interaction
 - Sidebars expanding ominously
+- Insecure time stamping (since 2.0.0-zeta.9)
+- Failure to validate replay files where a move was done that had no effect (such as `4R` on a 3-layer puzzle)
 
 ## [2.0.0-zeta.10] - 2026-03-06
 
