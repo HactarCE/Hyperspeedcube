@@ -55,7 +55,7 @@ fn check_for_update() -> Result<Option<Release>> {
     let current_version = semver::Version::from_str(env!("CARGO_PKG_VERSION"))
         .expect("current version is invalid semver");
 
-    let allow_prereleases = !current_version.pre.is_empty();
+    let allow_prereleases = *crate::IS_PRERELEASE;
 
     Ok(releases
         .into_iter()

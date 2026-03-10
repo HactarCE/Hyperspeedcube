@@ -1,7 +1,5 @@
-#[cfg(debug_assertions)]
 use parking_lot::Mutex;
 
-#[cfg(debug_assertions)]
 lazy_static! {
     pub static ref FRAME_DEBUG_INFO: Mutex<String> = Mutex::new(String::new());
 }

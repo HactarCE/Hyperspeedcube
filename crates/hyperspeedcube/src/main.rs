@@ -39,6 +39,7 @@ lazy_static! {
     };
     static ref CLIPBOARD: Result<parking_lot::Mutex<arboard::Clipboard>, arboard::Error> =
         arboard::Clipboard::new().map(parking_lot::Mutex::new);
+    static ref IS_PRERELEASE: bool = env!("CARGO_PKG_VERSION").contains('-');
 }
 
 /// Number of points that the mouse must be dragged to twist the puzzle.
@@ -52,6 +53,7 @@ pub const DEFAULT_STYLE_NAME: &str = "Basic";
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eyre::Result<()> {
     use clap::Parser;
+    use itertools::Itertools;
 
     // Initialize logging.
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -64,7 +66,7 @@ fn main() -> eyre::Result<()> {
         return Ok(());
     }
 
-    #[cfg(target_os = "windows")]
+    // #[cfg(target_os = "windows")]
     if let Ok(exe_path) = std::env::current_exe()
         && let exe_path_str = exe_path.to_string_lossy()
         && exe_path_str.contains(r"\Appdata\Local\Temp\")

@@ -18,41 +18,43 @@ const ITEM_SPACING: egui::Vec2 = egui::vec2(12.0, 12.0);
 const ITEM_HEIGHT: f32 = MDI_BIG;
 const CHEVRON_SIZE: f32 = MDI_BIG;
 
-const SIDEBAR_ITEMS: &[SidebarItem] = &[
-    SidebarItem::Tab(UtilityTab::Catalog),
-    SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::PieceFilters),
-    // SidebarItem::Tab(UtilityTab::Macros),
-    // SidebarItem::Tab(UtilityTab::MoveInput),
-    SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::Colors),
-    SidebarItem::Tab(UtilityTab::Styles),
-    SidebarItem::Tab(UtilityTab::View),
-    SidebarItem::Tab(UtilityTab::Animation),
-    SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::Interaction),
-    // SidebarItem::Tab(UtilityTab::Keybinds),
-    // SidebarItem::Tab(UtilityTab::Mousebinds),
-    // SidebarItem::Separator,
-    // SidebarItem::Tab(UtilityTab::Timer),
-    // SidebarItem::Tab(UtilityTab::KeybindsReference),
-    SidebarItem::Separator,
-    // SidebarItem::Tab(UtilityTab::Timeline),
-    // SidebarItem::Tab(UtilityTab::Scrambler),
-    SidebarItem::Tab(UtilityTab::ImageGenerator),
-    SidebarItem::Separator,
-    SidebarItem::Tab(UtilityTab::PuzzleInfo),
-    SidebarItem::Tab(UtilityTab::HpsLogs),
-    SidebarItem::Tab(UtilityTab::DevTools),
-    SidebarItem::Separator,
-    #[cfg(debug_assertions)]
-    SidebarItem::Tab(UtilityTab::Debug),
-    SidebarItem::Tab(UtilityTab::About),
-];
+fn sidebar_items() -> impl Iterator<Item = SidebarItem> {
+    [
+        SidebarItem::Tab(UtilityTab::Catalog),
+        SidebarItem::Separator,
+        SidebarItem::Tab(UtilityTab::PieceFilters),
+        // SidebarItem::Tab(UtilityTab::Macros),
+        // SidebarItem::Tab(UtilityTab::MoveInput),
+        SidebarItem::Separator,
+        SidebarItem::Tab(UtilityTab::Colors),
+        SidebarItem::Tab(UtilityTab::Styles),
+        SidebarItem::Tab(UtilityTab::View),
+        SidebarItem::Tab(UtilityTab::Animation),
+        SidebarItem::Separator,
+        SidebarItem::Tab(UtilityTab::Interaction),
+        // SidebarItem::Tab(UtilityTab::Keybinds),
+        // SidebarItem::Tab(UtilityTab::Mousebinds),
+        // SidebarItem::Separator,
+        // SidebarItem::Tab(UtilityTab::Timer),
+        // SidebarItem::Tab(UtilityTab::KeybindsReference),
+        SidebarItem::Separator,
+        // SidebarItem::Tab(UtilityTab::Timeline),
+        // SidebarItem::Tab(UtilityTab::Scrambler),
+        SidebarItem::Tab(UtilityTab::ImageGenerator),
+        SidebarItem::Separator,
+        SidebarItem::Tab(UtilityTab::PuzzleInfo),
+        SidebarItem::Tab(UtilityTab::HpsLogs),
+        SidebarItem::Tab(UtilityTab::DevTools),
+        SidebarItem::Separator,
+        SidebarItem::Tab(UtilityTab::Debug),
+        SidebarItem::Tab(UtilityTab::About),
+    ]
+    .into_iter()
+    .filter(move |tab| *crate::IS_PRERELEASE || *tab != SidebarItem::Tab(UtilityTab::Debug))
+}
 
 pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
-    let max_text_width = SIDEBAR_ITEMS
-        .iter()
+    let max_text_width = sidebar_items()
         .map(|item| item.min_width(ctx))
         .max_by(f32::total_cmp)
         .unwrap_or(0.0)
@@ -133,7 +135,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
                             frame.show(ui, |ui| {
-                                for item in SIDEBAR_ITEMS {
+                                for item in sidebar_items() {
                                     item.show(
                                         ui,
                                         app_ui,
@@ -149,7 +151,7 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
         });
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum SidebarItem {
     Tab(UtilityTab),
     Separator,

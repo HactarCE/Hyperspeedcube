@@ -296,8 +296,9 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
         show_tab_toggle(ui, app_ui, UtilityTab::KeybindsReference);
     });
-    #[cfg(debug_assertions)]
-    menu_button_that_stays_open(ui, L.menu.debug.title, |ui| {
-        show_tab_toggle(ui, app_ui, UtilityTab::Debug);
-    });
+    if *crate::IS_PRERELEASE {
+        menu_button_that_stays_open(ui, L.menu.debug.title, |ui| {
+            show_tab_toggle(ui, app_ui, UtilityTab::Debug);
+        });
+    }
 }
