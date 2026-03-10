@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [Unreleased]
+
+### Changed
+
+- Scrambling/resetting puzzle no longer resets filters
+
+### Fixed
+
+- Even more minor UI jank
+
 ## [2.0.0-zeta.12] - 2026-03-10
 
 ### Changed

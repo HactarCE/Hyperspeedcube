@@ -205,9 +205,7 @@ impl PuzzleView {
         let new_sim_id = self.sim.lock().sim_id;
         if self.sim_id != new_sim_id {
             self.sim_id = new_sim_id;
-            // Reset filters
-            self.styles = PuzzleStyleStates::new(self.puzzle().pieces.len());
-            self.filters = PuzzleFiltersState::new(prefs.first_custom_style());
+            self.filters.changed = true; // necessary for `InvalidateFilterless`
         }
 
         if self.filters.changed {
