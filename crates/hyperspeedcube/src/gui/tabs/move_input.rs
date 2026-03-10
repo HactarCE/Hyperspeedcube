@@ -13,14 +13,18 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         };
 
         let puz = view.puzzle();
-        for transform in puz.twists.twists.iter_keys() {
-            if ui.button(&puz.twists.names[transform]).clicked() {
-                let layers = LayerMask::default();
-                let twist = LayeredTwist { layers, transform };
-                view.sim
-                    .lock()
-                    .do_event(ReplayEvent::Twists(smallvec![twist]));
-            }
-        }
+        egui::ScrollArea::vertical()
+            .auto_shrink(false)
+            .show(ui, |ui| {
+                for transform in puz.twists.twists.iter_keys() {
+                    if ui.button(&puz.twists.names[transform]).clicked() {
+                        let layers = LayerMask::default();
+                        let twist = LayeredTwist { layers, transform };
+                        view.sim
+                            .lock()
+                            .do_event(ReplayEvent::Twists(smallvec![twist]));
+                    }
+                }
+            });
     });
 }

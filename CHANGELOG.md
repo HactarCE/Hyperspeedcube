@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Sidebars expanding ominously
 - Insecure time stamping (since 2.0.0-zeta.9)
 - Failure to validate replay files where a move was done that had no effect (such as `4R` on a 3-layer puzzle)
+- Missing scroll bar in "Move input" pane
 
 ## [2.0.0-zeta.10] - 2026-03-06
 
