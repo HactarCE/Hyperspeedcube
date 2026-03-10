@@ -58,15 +58,15 @@ export fn new(n: Nat, t: Transform) -> Map {
     export sym = t.transform(cd([n]))
     export ndim
 
-    export diameter = if n.is_even() { 2 } else { 1 + 1 / cos(π/n) }
+    export vertex_height = if n.is_even() { 2 } else { 1 + 1 / cos(π/n) }
     export edge_length = 2 * tan(π/n)
     export edge_depth = sin(2 * π/n) * edge_length
-    export outradius = 1 / cos(π/n)
+    export circumradius = 1 / cos(π/n)
 
     export edge_pole = sym.ox.unit
     export edge_names = sym.names(point(edge_pole), generic_names(n, 1, 0))
 
-    export vertex_pole = sym.xo.unit * outradius
+    export vertex_pole = sym.xo.unit * circumradius
     export vertex_names = sym.names(point(vertex_pole), generic_names(n, 0, 1))
 
     export edge_opposite_pole = if n.is_odd() { -edge_pole }

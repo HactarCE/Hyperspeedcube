@@ -460,8 +460,8 @@ add_twist_system_generator(
                 // Gizmo pole distances
                 gizmo_base_a = shape.a.edge_length / 2
                 gizmo_base_b = shape.b.edge_length / 2
-                gizmo_edge_a = lerp(shape.a.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
-                gizmo_edge_b = lerp(shape.b.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
+                gizmo_edge_a = lerp(shape.a.circumradius, 1, FACET_GIZMO_EDGE_FACTOR)
+                gizmo_edge_b = lerp(shape.b.circumradius, 1, FACET_GIZMO_EDGE_FACTOR)
 
                 // Add axes and twists
                 with #sym = shape.sym {
