@@ -42,7 +42,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         egui::ScrollArea::horizontal()
-            .id_salt("tab_select")
+            .id_salt("filters_tab_select")
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);

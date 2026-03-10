@@ -170,6 +170,10 @@ impl UtilityTab {
             Self::Debug => debug::show(ui, app),
         }
     }
+
+    pub fn min_width(self) -> f32 {
+        250.0 // needed for dropdown + color button in styles menu
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

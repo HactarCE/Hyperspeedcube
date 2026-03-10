@@ -88,6 +88,10 @@ impl<'a> IconButton<'a> {
         Self::new(icon, MDI_MEDIUM, 22.0)
     }
 
+    pub fn min_size(&self) -> f32 {
+        self.min_button_size
+    }
+
     pub fn selectable(mut self, selected: bool) -> Self {
         self.selected = Some(selected);
         self

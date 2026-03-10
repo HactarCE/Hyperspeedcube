@@ -38,23 +38,28 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut state = egui_stored_state.get().unwrap_or_default();
 
     ui.group(|ui| {
+        egui::ScrollArea::horizontal()
+            .id_salt("dev_tools_tab_select")
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(
+                        &mut state.current_tab,
+                        DevToolsTab::HoverInfo,
+                        L.dev.hover_info,
+                    );
+                    ui.selectable_value(
+                        &mut state.current_tab,
+                        DevToolsTab::HpsGenerator,
+                        L.dev.hps_generator,
+                    );
+                    ui.selectable_value(&mut state.current_tab, DevToolsTab::Linter, L.dev.linter);
+                });
+            });
+    });
+
+    ui.group(|ui| {
         ui.take_available_space();
-
-        ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(
-                &mut state.current_tab,
-                DevToolsTab::HoverInfo,
-                L.dev.hover_info,
-            );
-            ui.selectable_value(
-                &mut state.current_tab,
-                DevToolsTab::HpsGenerator,
-                L.dev.hps_generator,
-            );
-            ui.selectable_value(&mut state.current_tab, DevToolsTab::Linter, L.dev.linter);
-        });
-
-        ui.separator();
 
         egui::ScrollArea::vertical()
             .auto_shrink([false; 2])

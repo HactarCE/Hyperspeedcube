@@ -16,11 +16,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let tab_state = EguiTempValue::<ColorsTab>::new(ui);
     let mut tab = tab_state.get().unwrap_or_default();
     ui.group(|ui| {
-        ui.set_width(ui.available_width());
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut tab, ColorsTab::Schemes, L.colors.color_schemes);
-            ui.selectable_value(&mut tab, ColorsTab::GlobalPalette, L.colors.global_palette);
-        });
+        egui::ScrollArea::horizontal()
+            .id_salt("colors_tab_select")
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut tab, ColorsTab::Schemes, L.colors.color_schemes);
+                    ui.selectable_value(
+                        &mut tab,
+                        ColorsTab::GlobalPalette,
+                        L.colors.global_palette,
+                    );
+                });
+            });
     });
     tab_state.set(Some(tab));
     ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);

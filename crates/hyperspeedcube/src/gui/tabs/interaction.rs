@@ -9,16 +9,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         .auto_shrink([false; 2])
         .show(ui, |ui| {
             ui.group(|ui| {
-                ui.set_width(ui.available_width());
+                egui::ScrollArea::horizontal()
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
 
-                let prefs_ui = crate::gui::components::PrefsUi {
-                    ui,
-                    current: &mut app.prefs.interaction,
-                    defaults: Some(&DEFAULT_PREFS.interaction),
-                    changed: &mut changed,
-                };
+                        let prefs_ui = crate::gui::components::PrefsUi {
+                            ui,
+                            current: &mut app.prefs.interaction,
+                            defaults: Some(&DEFAULT_PREFS.interaction),
+                            changed: &mut changed,
+                        };
 
-                crate::gui::components::prefs::build_interaction_section(prefs_ui);
+                        crate::gui::components::prefs::build_interaction_section(prefs_ui);
+                    });
             });
 
             app.prefs.needs_save |= changed;

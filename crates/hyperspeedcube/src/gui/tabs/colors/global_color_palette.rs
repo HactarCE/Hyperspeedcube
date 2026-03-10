@@ -18,8 +18,6 @@ use crate::gui::util::EguiTempValue;
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let yaml = PlaintextYamlEditor::new(ui);
 
-    ui.set_min_width(200.0);
-
     ui.group(|ui| {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

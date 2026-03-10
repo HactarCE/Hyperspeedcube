@@ -161,6 +161,7 @@ where
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
     {
+        ui.set_min_width(150.0);
         ui.group(|ui| {
             self.show_wrapping_presets_selector(ui, presets_set);
             // TODO: reconsider spacing
@@ -176,8 +177,6 @@ where
         ui: &mut egui::Ui,
         presets_set: Option<&str>,
     ) -> egui::Response {
-        ui.set_min_width(200.0);
-
         let can_delete = self.presets.len() > 1;
 
         let mut preset_to_activate = None;
@@ -195,12 +194,12 @@ where
         let r = ui.scope(|ui| {
             ui.set_width(ui.available_width());
 
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                HelpHoverWidget::show_in_top_right(ui, L.help.presets);
                 ui.strong(self.text.saved_presets);
                 if let Some(presets_set) = presets_set.filter(|s| !s.is_empty()) {
                     ui.label(format!("({presets_set})"));
                 }
-                HelpHoverWidget::show_right_aligned(ui, L.help.presets);
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
@@ -246,7 +245,9 @@ where
                 if dnd.is_dragging() {
                     ui.disable();
                 }
-                let mut r = ui.add(IconButton::small(mdi!(ui, PLUS)));
+                let button = IconButton::small(mdi!(ui, PLUS));
+                crate::gui::util::wrap_if_needed_for_width(ui, button.min_size());
+                let mut r = ui.add(button);
                 if !egui::Popup::is_any_open(ui.ctx()) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
@@ -462,9 +463,9 @@ where
             save_preset: &mut save_preset,
         });
         ui.add_space(ui.spacing().item_spacing.y);
-        egui::ScrollArea::new([true, self.vscroll])
+        egui::ScrollArea::both()
             .id_salt(self.id.with(yaml.is_open(ui)))
-            .auto_shrink(!self.vscroll)
+            .auto_shrink([false, true])
             .show(ui, |ui| match yaml.is_open(ui) {
                 true => {
                     if let Some(r) = yaml.show(ui)

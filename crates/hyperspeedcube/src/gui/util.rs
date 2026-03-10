@@ -133,8 +133,14 @@ pub fn force_horizontal_wrap(ui: &mut egui::Ui) {
 }
 
 pub fn wrap_if_needed_for_button(ui: &mut egui::Ui, label: &str) {
-    let w = text_width(ui, label) + ui.spacing().button_padding.x * 2.0;
-    if will_wrap_for_width(ui, w) {
+    wrap_if_needed_for_width(
+        ui,
+        text_width(ui, label) + ui.spacing().button_padding.x * 2.0,
+    );
+}
+
+pub fn wrap_if_needed_for_width(ui: &mut egui::Ui, width: f32) {
+    if will_wrap_for_width(ui, width) {
         force_horizontal_wrap(ui);
     }
 }

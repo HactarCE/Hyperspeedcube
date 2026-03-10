@@ -145,18 +145,19 @@ impl AppUi {
 
         sidebar::show(self, ctx);
 
-        if self.sidebar_style.is_shown() && self.sidebar_utility.is_some() {
+        if self.sidebar_style.is_shown()
+            && let Some(sidebar_utility) = self.sidebar_utility
+        {
             egui::SidePanel::left("sidebar_utility")
                 .default_width(400.0)
+                .min_width(sidebar_utility.min_width())
                 .max_width(ctx.available_rect().width() * 0.75)
                 .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
                 .show(ctx, |ui| {
                     ui.set_width(ui.available_width().round()); // take all available space, but don't grow ominously
-                    if let Some(sidebar_utility) = self.sidebar_utility {
-                        ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
-                        ui.add_space(6.0);
-                        sidebar_utility.ui(ui, &mut self.app);
-                    }
+                    ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
+                    ui.add_space(6.0);
+                    sidebar_utility.ui(ui, &mut self.app);
                 });
         }
 
