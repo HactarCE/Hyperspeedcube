@@ -828,8 +828,8 @@ solve_summary {
   timestamp {
     button "Timestamp this solve"
     waiting "Waiting for response from timestamp authority"
-    success "This solve has been timestamped."
-    error "Error timestamping solve: {{reason}}"
+    success "This solve has been timestamped"
+    error "Error timestamping solve"
     (HoverStrings)hover {
       full "Timestamping"
       desc """
@@ -847,8 +847,8 @@ solve_summary {
 
   save {
     button "Save this solve"
-    success "This solve has been saved."
-    error "Error saving solve: {{reason}}"
+    success "This solve has been saved"
+    error "Error saving solve"
     show_saved_solves "Show saved solves in file manager"
     show_this_saved_solve "Show in file manager"
   }
@@ -886,7 +886,7 @@ solve_summary {
     submit "Submit to leaderboards"
     waiting "Submitting to leaderboards"
     success "Submitted to leaderboards"
-    error "Error submitting solve: {{reason}}"
+    error "Error submitting solve"
   }
 
   reopen_hint """

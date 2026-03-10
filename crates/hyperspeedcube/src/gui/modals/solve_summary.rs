@@ -246,7 +246,7 @@ impl SolveSummaryModal {
                 Some(Err(e)) => {
                     let error_fg_color = ui.visuals().error_fg_color;
                     ui.add(mdi!(error_fg_color, CONTENT_SAVE_ALERT_OUTLINE, 18));
-                    ui.colored_label(error_fg_color, format!("Error saving solve: {e}"));
+                    ui.colored_label(error_fg_color, l.error).on_hover_text(&*e);
                     if ui.button(L.try_again).clicked() {
                         self.save_result = None;
                     }
@@ -339,7 +339,7 @@ impl SolveSummaryModal {
                 RequestState::Err(e) => {
                     let error_fg_color = ui.visuals().error_fg_color;
                     ui.add(mdi!(error_fg_color, ALERT_OUTLINE, icon_size));
-                    ui.colored_label(error_fg_color, l.error.with(e));
+                    ui.colored_label(error_fg_color, l.error).on_hover_text(&*e);
                     if ui.button(L.try_again).clicked() {
                         self.leaderboard_submission = RequestState::Init;
                     }
@@ -375,10 +375,9 @@ impl SolveSummaryModal {
                     ui.label(l.success);
                 }
                 RequestState::Err(e) => {
-                    ui.add(
-                        mdi!(ui, CLOCK_ALERT_OUTLINE, icon_size).tint(ui.visuals().error_fg_color),
-                    );
-                    ui.colored_label(ui.visuals().error_fg_color, l.error.with(e));
+                    let error_fg_color = ui.visuals().error_fg_color;
+                    ui.add(mdi!(ui, CLOCK_ALERT_OUTLINE, icon_size).tint(error_fg_color));
+                    ui.colored_label(error_fg_color, l.error).on_hover_text(&*e);
                     if ui.button(L.try_again).clicked() {
                         self.timestamp_signature = RequestState::Init;
                     }
