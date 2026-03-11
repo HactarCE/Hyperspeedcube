@@ -258,6 +258,7 @@ impl LayerMask {
         match self.as_mut_enum() {
             LayerMaskEnum::Bitmask(bits) => *self = Self::from_bits(bits ^ range_mask_usize(range)),
             LayerMaskEnum::BitVec(vec) => {
+                #[allow(unused)] // has side-effects!
                 !&mut vec[range.start().to_usize()..=range.end().to_usize()];
             }
         }

@@ -194,7 +194,8 @@ impl ConstraintSolver {
     }
 }
 
-/// [`ConjugateCoset`] with inverted left-hand side: `lhs_inv^-1 * subgroup * rhs`.
+/// [`ConjugateCoset`] with inverted left-hand side: `lhs_inv^-1 * subgroup *
+/// rhs`.
 ///
 /// Constraints are added to the coset until the subgroup contains only
 /// the identity, at which point `lhs_inv^-1 * rhs` satisfies all the
@@ -292,12 +293,13 @@ impl<'a> From<ConstrainedConjugateCoset<'a>> for ConjugateCoset<'a> {
 
 #[cfg(test)]
 mod tests {
-    use hypermath::{APPROX, ApproxHashMap, Point, Vector, pga::Motor, point};
-    use rand::{Rng, RngExt, SeedableRng, seq::IndexedRandom};
-
-    use crate::{GenSeq, GeneratorId, IsometryGroup, PerRefPoint, orbit_geometric};
+    use hypermath::pga::Motor;
+    use hypermath::{APPROX, ApproxHashMap, Point, Vector, point};
+    use rand::seq::IndexedRandom;
+    use rand::{Rng, RngExt, SeedableRng};
 
     use super::*;
+    use crate::{GenSeq, GeneratorId, IsometryGroup, PerRefPoint, orbit_geometric};
 
     #[test]
     fn test_group_element_constraint_solver() -> eyre::Result<()> {
