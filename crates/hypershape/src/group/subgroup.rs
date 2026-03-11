@@ -47,31 +47,19 @@ impl Subgroup {
     }
 
     /// Generates a subgroup from generators.
-    pub fn new(group: Arc<AbstractGroup>, generators: &[GroupElementId]) -> Self {
+    pub fn new(group: Arc<AbstractGroup>, generators: Vec<GroupElementId>) -> Self {
         let mut ret = Self::new_trivial(group);
-        ret.add_generators(generators);
-        ret
-    }
-
-    /// Adds generators to the subgroup and discovers new elements.
-    pub fn add_generators(&mut self, new_generators: &[GroupElementId]) {
-        self.generators.extend_from_slice(new_generators);
-        let old_elements = self.elements.clone();
-        for &new_generator in new_generators {
-            for old_elem in &old_elements {
-                let init = self.group.compose(old_elem, new_generator);
-                if !self.elements.contains(init) {
-                    self.elements.insert(init);
-                    super::orbit(init, &self.generators, |&e, &g| {
-                        let new_elem = self.group.compose(e, g);
-                        (!self.elements.contains(new_elem)).then(|| {
-                            self.elements.insert(new_elem);
-                            new_elem
-                        })
-                    });
-                }
+        ret.generators = generators;
+        crate::orbit(GroupElementId::IDENTITY, &ret.generators, |&e, &g| {
+            let new_elem = ret.group.compose(e, g);
+            if !ret.elements.contains(new_elem) {
+                ret.elements.insert(new_elem);
+                Some(new_elem)
+            } else {
+                None
             }
-        }
+        });
+        ret
     }
 
     /// Returns the group that this is a subgroup of.
@@ -87,6 +75,10 @@ impl Subgroup {
     /// Returns a generating set for the subgroup.
     pub fn generating_set(&self) -> &[GroupElementId] {
         &self.generators
+    }
+
+    pub fn element_subset(&self) -> &TiMask<GroupElementId> {
+        &self.elements
     }
 }
 

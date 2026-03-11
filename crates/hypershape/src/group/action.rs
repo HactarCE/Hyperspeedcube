@@ -57,15 +57,17 @@ impl GroupAction {
     /// of the group and _m_ is the number of fixed points).
     pub fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> Subgroup {
         let mut subgroup = Subgroup::new_trivial(Arc::clone(&self.group));
-        let mut unprocessed_elements = TiMask::new_full(self.element_count());
-        unprocessed_elements.remove(GroupElementId::IDENTITY);
-        while let Some(e) = unprocessed_elements.pop_first() {
-            let preserves_fixed_points = fixed_points
-                .iter()
-                .all(|&ref_point| self.act(e, ref_point) == ref_point);
-            if preserves_fixed_points {
-                subgroup.add_generators(&[e]);
-                continue;
+        let mut generators = vec![];
+        for e in self.group.elements().skip(1) {
+            if !subgroup.element_subset().contains(e) {
+                let preserves_fixed_points = fixed_points
+                    .iter()
+                    .all(|&ref_point| self.act(e, ref_point) == ref_point);
+                if preserves_fixed_points {
+                    generators.push(e);
+                    subgroup = Subgroup::new(Arc::clone(&self.group), generators.clone());
+                    continue;
+                }
             }
         }
         subgroup
@@ -81,20 +83,26 @@ impl GroupAction {
         let mut points_seen = TiMask::new_empty(self.reference_point_count);
         for init in self.ref_points() {
             if !points_seen.contains(init) {
-                points_seen.insert(init); // representative is self, deorbited is identity
+                points_seen.insert(init); // representative is self, deorbiter is identity
                 super::orbit(init, subgroup.generating_set(), |&point, &g| {
                     let new_point = self.act(g, point);
                     (!points_seen.contains(new_point)).then(|| {
                         points_seen.insert(new_point);
                         deorbiters[new_point] = RefPointDeorbiter {
                             orbit_representative: init,
-                            deorbiter: self.compose(self.inverse(g), deorbiters[point].deorbiter),
+                            deorbiter: self.compose(deorbiters[point].deorbiter, self.inverse(g)),
                         };
                         new_point
                     })
                 });
             }
         }
+
+        #[cfg(debug_assertions)]
+        for (point, &d) in &deorbiters {
+            assert_eq!(self.act(d.deorbiter, point), d.orbit_representative);
+        }
+
         SubgroupOrbits { deorbiters }
     }
 }
