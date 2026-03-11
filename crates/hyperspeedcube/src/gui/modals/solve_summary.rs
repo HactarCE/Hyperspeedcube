@@ -127,8 +127,12 @@ impl SolveSummaryModal {
 
         // Immediately timestamp if not yet timestamped
         let mut timestamp_signature = RequestState::Ok(None);
-        if prefs.online_mode && replay.tsa_signature_v3.is_none() {
-            try_timestamp(&mut timestamp_signature, Arc::clone(&digest));
+        if replay.tsa_signature_v3.is_none() {
+            if prefs.online_mode {
+                try_timestamp(&mut timestamp_signature, Arc::clone(&digest));
+            } else {
+                timestamp_signature = RequestState::Init;
+            }
         }
 
         let leaderboard_pbs = RequestState::Init;

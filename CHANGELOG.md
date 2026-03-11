@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Even more minor UI jank
+- Solves being reported as timestamped by default in offline mode
 
 ## [2.0.0-zeta.12] - 2026-03-10
 
