@@ -164,9 +164,12 @@ pub(super) struct EggTable<T> {
     /// Flattened 2D array, indexed by a pair of element ID and value index.
     contents: Vec<T>,
 }
-impl<T: Default + Clone> EggTable<T> {
+impl<T> EggTable<T> {
     /// Constructs a new EGG table containing only the identity.
-    pub fn new(generator_count: usize) -> Self {
+    pub fn new(generator_count: usize) -> Self
+    where
+        T: Default + Clone,
+    {
         EggTable {
             element_count: 1,
             generator_count,
@@ -174,11 +177,14 @@ impl<T: Default + Clone> EggTable<T> {
         }
     }
     /// Adds a new element to the table.
-    pub fn add_element(&mut self, value: T) -> GroupResult<GroupElementId> {
+    pub fn add_element(&mut self) -> GroupResult<GroupElementId>
+    where
+        T: Default + Clone,
+    {
         let new_element = GroupElementId::try_from_index(self.element_count)?;
         self.element_count += 1;
         self.contents
-            .extend(std::iter::repeat_n(value, self.generator_count));
+            .resize(self.element_count * self.generator_count, T::default());
         Ok(new_element)
     }
     /// Returns a value from the table.

@@ -218,8 +218,8 @@ impl GroupBuilder {
         let new_element = self.factorizations.push(factorization)?;
 
         // We don't yet know its successors.
-        self.successors.add_element(None)?;
-        self.predecessors.add_element(None)?;
+        self.successors.add_element()?;
+        self.predecessors.add_element()?;
 
         // The new element is a successor of the old one.
         self.set_successor(element, generator, new_element);

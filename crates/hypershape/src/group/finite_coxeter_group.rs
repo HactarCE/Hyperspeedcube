@@ -226,7 +226,7 @@ impl RelationTables {
 
     /// Makes the table aware of another element.
     fn add_element(&mut self) -> GroupResult<GroupElementId> {
-        self.0.add_element([vec![], vec![]])
+        self.0.add_element()
     }
     /// Adds a table row, indexed by both the left and right sides of its gap.
     fn add_row(&mut self, row: RelationTableRow) {
