@@ -428,7 +428,7 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_vector_add() {
+    fn test_vector_add() {
         let v1 = vector![1.0, 2.0, -10.0];
         let v2 = vector![-5.0];
         assert_eq!(&v1 + &v2, vector![-4.0, 2.0, -10.0]);
@@ -436,7 +436,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_vector_sub() {
+    fn test_vector_sub() {
         let v1 = vector![1.0, 2.0, -10.0];
         let v2 = vector![-5.0];
         assert_eq!(&v1 - &v2, vector![6.0, 2.0, -10.0]);
@@ -444,14 +444,14 @@ mod tests {
     }
 
     #[test]
-    pub fn test_vector_neg() {
+    fn test_vector_neg() {
         let v1 = vector![1.0, 2.0, -10.0];
         assert_eq!(-&v1, vector![-1.0, -2.0, 10.0]);
         assert_eq!(-v1, vector![-1.0, -2.0, 10.0]);
     }
 
     #[test]
-    pub fn test_dot_product() {
+    fn test_dot_product() {
         let v1 = vector![1.0, 2.0, -10.0];
         let v2 = vector![-5.0, 16.0];
         assert_eq!(v1.dot(v2), 27.0);
