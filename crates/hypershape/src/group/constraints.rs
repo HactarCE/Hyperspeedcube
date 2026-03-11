@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use hypuz_util::ti::TiVec;
-use smallvec::SmallVec;
+use itertools::Itertools;
+use smallvec::{SmallVec, smallvec};
 
-use super::{Coset, Group, GroupAction, GroupElementId, RefPoint, Subgroup, SubgroupOrbits};
+use super::{
+    ConjugateCoset, Group, GroupAction, GroupElementId, RefPoint, Subgroup, SubgroupOrbits,
+};
 
 /// Constraint on a group element based on how it acts on reference points.
 ///
@@ -29,7 +32,7 @@ impl From<[RefPoint; 2]> for Constraint {
 /// This is used to specify a group element in a way that depends only on the
 /// reference points (which can be assigned standard names), irrespective of the
 /// IDs assigned to specific group elements.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct ConstraintSet {
     /// List of constraints in arbitrary order.
     pub constraints: SmallVec<[Constraint; 4]>,
@@ -50,6 +53,13 @@ impl<const N: usize> From<[[RefPoint; 2]; N]> for ConstraintSet {
     fn from(value: [[RefPoint; 2]; N]) -> Self {
         Self::from(value.as_slice())
     }
+}
+
+impl ConstraintSet {
+    /// Empty constraint set.
+    pub const EMPTY: Self = Self {
+        constraints: SmallVec::new_const(),
+    };
 }
 
 hypuz_util::typed_index_struct! {
@@ -139,47 +149,158 @@ impl ConstraintSolver {
 
     /// Solves a set of constraints and returns the coset satisfying it, or
     /// `None` if the constraints are unsatisfiable.
-    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<Coset<'_>> {
-        let mut fixed_points = Vec::with_capacity(constraint_set.constraints.len());
-        let mut subgroup = SubgroupId::ORIGINAL_GROUP; // stabilizer of `fixed_points`
-        let mut lhs_inv = GroupElementId::IDENTITY;
-        let mut rhs = GroupElementId::IDENTITY;
-        for &pair in &constraint_set.constraints {
-            let a = self.action.act(rhs, pair.old);
-            let b = self.action.act(lhs_inv, pair.new);
-            let a_deorbiter = self.subgroup_orbits[subgroup].deorbiters[a];
-            let b_deorbiter = self.subgroup_orbits[subgroup].deorbiters[b];
-            if a_deorbiter.orbit_representative != b_deorbiter.orbit_representative {
-                return None;
+    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<ConjugateCoset<'_>> {
+        let coset = ConstrainedConjugateCoset::from_constraints(self, constraint_set)?;
+        coset.debug_assert_constraints(constraint_set);
+        Some(coset.into())
+    }
+
+    /// Selects a random group element deterministically given a deterministic
+    /// function for selecting a reference point from an **sorted** list.
+    pub fn select(
+        &mut self,
+        mut constraint_set: ConstraintSet,
+        mut select: impl FnMut(Vec<RefPoint>) -> Option<RefPoint>,
+    ) -> Option<(ConstraintSet, GroupElementId)> {
+        let mut coset = ConstrainedConjugateCoset::from_constraints(self, &constraint_set)?;
+
+        while coset.solver.subgroups[coset.subgroup].element_count() > 1 {
+            let rhs_inv = coset.solver.action.inverse(coset.rhs);
+            let lhs = coset.solver.action.inverse(coset.lhs_inv);
+            let canonical_largest_orbit =
+                &coset.solver.subgroup_orbits[coset.subgroup].canonical_largest_orbit;
+            assert!(canonical_largest_orbit.len() > 1);
+            let source_candidates = canonical_largest_orbit
+                .iter()
+                .map(|&p| coset.solver.action.act(rhs_inv, p))
+                .collect_vec();
+            let destination_candidates = canonical_largest_orbit
+                .iter()
+                .map(|&p| coset.solver.action.act(lhs, p))
+                .collect_vec();
+            let source = select(source_candidates)?;
+            let destination = select(destination_candidates)?;
+            let new_constraint = Constraint {
+                old: source,
+                new: destination,
+            };
+            constraint_set.constraints.push(new_constraint);
+            coset = coset.constrain(new_constraint)?;
+        }
+
+        coset.debug_assert_constraints(&constraint_set);
+
+        Some((constraint_set, coset.to_element()?))
+    }
+}
+
+/// [`ConjugateCoset`] with inverted left-hand side: `lhs_inv^-1 * subgroup * rhs`.
+///
+/// Constraints are added to the coset until the subgroup contains only
+/// the identity, at which point `lhs_inv^-1 * rhs` satisfies all the
+/// constraints.
+struct ConstrainedConjugateCoset<'a> {
+    solver: &'a mut ConstraintSolver,
+    fixed_points: SmallVec<[RefPoint; 8]>,
+    /// Subgroup that pointwise-stabilizes `fixed_points`.
+    subgroup: SubgroupId,
+    lhs_inv: GroupElementId,
+    rhs: GroupElementId,
+}
+
+impl<'a> ConstrainedConjugateCoset<'a> {
+    fn new(solver: &'a mut ConstraintSolver) -> Self {
+        Self {
+            solver,
+            fixed_points: smallvec![],
+            subgroup: SubgroupId::ORIGINAL_GROUP, // stabilizer of empty `fixed_points`
+            lhs_inv: GroupElementId::IDENTITY,
+            rhs: GroupElementId::IDENTITY,
+        }
+    }
+
+    fn from_constraints(
+        solver: &'a mut ConstraintSolver,
+        constraint_set: &ConstraintSet,
+    ) -> Option<Self> {
+        let mut ret = Self::new(solver);
+        for &constraint in &constraint_set.constraints {
+            ret = ret.constrain(constraint)?
+        }
+        Some(ret)
+    }
+
+    /// Constrains the coset so that it takes `old` to `new`.
+    ///
+    /// Returns `None` if there is no such coset.
+    fn constrain(mut self, constraint: Constraint) -> Option<ConstrainedConjugateCoset<'a>> {
+        let solver = &mut *self.solver;
+        let a = solver.action.act(self.rhs, constraint.old);
+        let b = solver.action.act(self.lhs_inv, constraint.new);
+        let a_deorbiter = solver.subgroup_orbits[self.subgroup].deorbiters[a];
+        let b_deorbiter = solver.subgroup_orbits[self.subgroup].deorbiters[b];
+        if a_deorbiter.orbit_representative != b_deorbiter.orbit_representative {
+            return None;
+        }
+        self.fixed_points.push(a_deorbiter.orbit_representative);
+        self.subgroup = solver.pointwise_stabilizer(&self.fixed_points);
+        self.rhs = solver.action.compose(a_deorbiter.deorbiter, self.rhs);
+        self.lhs_inv = solver.action.compose(b_deorbiter.deorbiter, self.lhs_inv);
+        Some(self)
+    }
+
+    /// When debug assertions are enabled, asserts that the conjugate coset
+    /// satisfies the given constraints.
+    ///
+    /// When debug assertions are disabled, this does nothing.
+    fn debug_assert_constraints(&self, constraint_set: &ConstraintSet) {
+        #[cfg(debug_assertions)]
+        {
+            let elem = self.arbitrary_element();
+            for &pair in &constraint_set.constraints {
+                debug_assert_eq!(self.solver.action.act(elem, pair.old), pair.new);
             }
-            fixed_points.push(a_deorbiter.orbit_representative);
-            subgroup = self.pointwise_stabilizer(&fixed_points);
-            rhs = self.action.compose(a_deorbiter.deorbiter, rhs);
-            lhs_inv = self.action.compose(b_deorbiter.deorbiter, lhs_inv);
         }
-        let lhs = self.action.inverse(lhs_inv);
+    }
 
-        let offset = self.action.compose(lhs, rhs);
+    /// Returns an arbitrary group element in the conjugate coset.
+    fn arbitrary_element(&self) -> GroupElementId {
+        self.solver
+            .action
+            .compose(self.solver.action.inverse(self.lhs_inv), self.rhs)
+    }
 
-        for &pair in &constraint_set.constraints {
-            debug_assert_eq!(self.action.act(offset, pair.old), pair.new);
-        }
-
-        Some(Coset {
-            subgroup: &self.subgroups[subgroup],
-            offset,
+    /// Returns the single group element in the conjugate coset, if it contains
+    /// only one element.
+    fn to_element(&self) -> Option<GroupElementId> {
+        self.solver.subgroups[self.subgroup].is_trivial().then(|| {
+            let lhs = self.solver.action.inverse(self.lhs_inv);
+            self.solver.action.compose(lhs, self.rhs)
         })
+    }
+}
+
+impl<'a> From<ConstrainedConjugateCoset<'a>> for ConjugateCoset<'a> {
+    fn from(value: ConstrainedConjugateCoset<'a>) -> Self {
+        Self {
+            lhs: value.solver.action.inverse(value.lhs_inv),
+            subgroup: &value.solver.subgroups[value.subgroup],
+            rhs: value.rhs,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hypermath::{Point, point};
+    use hypermath::{APPROX, ApproxHashMap, Point, Vector, pga::Motor, point};
+    use rand::{Rng, RngExt, SeedableRng, seq::IndexedRandom};
+
+    use crate::{GenSeq, GeneratorId, IsometryGroup, PerRefPoint, orbit_geometric};
 
     use super::*;
 
     #[test]
-    pub fn test_group_element_constraint_solver() -> eyre::Result<()> {
+    fn test_group_element_constraint_solver() -> eyre::Result<()> {
         #![allow(non_snake_case)]
 
         let group = crate::FiniteCoxeterGroup::H3.coxeter_group(None)?.group()?;
@@ -216,7 +337,7 @@ mod tests {
             ([].as_slice(), 120, 60),
             (&[[F, F]], 10, 5),
             (&[[R, L]], 10, 5),
-            (&[[BL, R], [DR, PL]], 10, 5),
+            (&[[BL, R], [DR, PL]], 10, 5), // opposites
             (&[[DR, U], [L, DL]], 2, 1),
             (&[[DR, U], [L, DL], [R, BL]], 1, 1),
             (&[[DR, R], [L, L], [R, BR]], 1, 1),
@@ -264,5 +385,132 @@ mod tests {
         assert_eq!(chiral_solver.subgroups.len(), 3); // 60, 5, 1
 
         Ok(())
+    }
+
+    #[test]
+    fn test_deterministic_random_group_element() -> eyre::Result<()> {
+        #![allow(non_snake_case)]
+
+        let coxeter_group = crate::FiniteCoxeterGroup::H4.coxeter_group(None)?;
+        let initial_point = Point(Vector::unit(coxeter_group.min_ndim() - 1));
+        let ref_points: PerRefPoint<Point> = orbit_geometric(
+            &coxeter_group
+                .generators()
+                .into_iter()
+                .enumerate()
+                .map(|(i, m)| (GenSeq::new([GeneratorId(i as u8)]), m))
+                .collect_vec(),
+            initial_point,
+        )
+        .into_iter()
+        .map(|(_, _, p)| p)
+        .collect();
+        assert_eq!(ref_points.len(), 120);
+
+        let original_group = coxeter_group.group()?;
+        let group_1 = shuffle_group_generators(
+            &original_group,
+            &mut rand::rngs::StdRng::seed_from_u64(0xABCD),
+        );
+        let group_2 = shuffle_group_generators(
+            &original_group,
+            &mut rand::rngs::StdRng::seed_from_u64(0xDCBA),
+        );
+
+        let mut select_rng_1 = rand::rngs::StdRng::seed_from_u64(123456789);
+        let mut select_rng_2 = rand::rngs::StdRng::seed_from_u64(123456789);
+
+        let count = 1_000;
+
+        let selected_1;
+        {
+            let action_1 = group_1.action_on_points(&ref_points).unwrap();
+            let mut solver_1 = ConstraintSolver::new(Arc::new(action_1));
+
+            selected_1 = (0..count)
+                .map(|_| {
+                    solver_1
+                        .select(ConstraintSet::EMPTY, |mut points| {
+                            points.sort(); // TODO: select_nth_unstable()
+                            points.choose(&mut select_rng_1).copied()
+                        })
+                        .expect("no point satisfying constraints")
+                })
+                .map(|(constraint_set, _elem)| constraint_set)
+                .collect_vec();
+        }
+
+        let selected_2;
+        {
+            let action_2 = group_2.action_on_points(&ref_points).unwrap();
+            let mut solver_2 = ConstraintSolver::new(Arc::new(action_2));
+
+            selected_2 = (0..count)
+                .map(|_| {
+                    solver_2
+                        .select(ConstraintSet::EMPTY, |mut points| {
+                            points.sort(); // TODO: select_nth_unstable()
+                            points.choose(&mut select_rng_2).copied()
+                        })
+                        .expect("no point satisfying constraints")
+                })
+                .map(|(constraint_set, _elem)| constraint_set)
+                .collect_vec();
+        }
+
+        assert_eq!(selected_1, selected_2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn product_replacement_word_len() -> eyre::Result<()> {
+        let group = crate::FiniteCoxeterGroup::H4.coxeter_group(None)?.group()?;
+
+        let generators = group.generators().map(|g| group[g].clone()).collect_vec();
+
+        let mut permute_rng_1 = rand::rngs::StdRng::seed_from_u64(987654321);
+
+        let mut generators = generators.clone();
+        generators.resize(generators.len() * 2, Motor::ident(0));
+        for i in 0..20 {
+            let mut unique_generators = ApproxHashMap::<Motor, ()>::new(APPROX);
+            for g in &generators {
+                unique_generators.insert(g.clone(), ());
+            }
+            unique_generators.remove(Motor::ident(0));
+            let group = IsometryGroup::from_generators(
+                &unique_generators
+                    .iter()
+                    .map(|(k, _)| k.clone())
+                    .collect_vec(),
+            )
+            .unwrap();
+            let avg_word_len = group
+                .elements()
+                .map(|e| group.group().factorization(e).len())
+                .sum::<usize>() as f32
+                / group.group().element_count() as f32;
+            println!("{i} {avg_word_len}");
+
+            let mut indices = (0..generators.len()).collect_vec();
+            let i = indices.swap_remove(permute_rng_1.random_range(0..generators.len()));
+            let j = *indices.choose(&mut permute_rng_1).unwrap();
+            generators[i] = generators[i].clone() * &generators[j];
+        }
+        Ok(())
+    }
+
+    fn shuffle_group_generators(group: &IsometryGroup, rng: &mut impl Rng) -> IsometryGroup {
+        let mut generators = group.generators().map(|g| group[g].clone()).collect_vec();
+        for _ in 0..20 {
+            let i = rng.random_range(0..generators.len());
+            let mut j = rng.random_range(0..generators.len() - 1);
+            if j >= i {
+                j += 1;
+            }
+            generators[i] = &generators[i] * &generators[j];
+        }
+        IsometryGroup::from_generators(&generators).unwrap()
     }
 }

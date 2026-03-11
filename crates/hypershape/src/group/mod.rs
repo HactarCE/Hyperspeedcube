@@ -18,7 +18,7 @@ pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
 pub use coxeter_group::*;
 pub use finite_coxeter_group::FiniteCoxeterGroup;
 pub use isometry_group::IsometryGroup;
-pub use subgroup::{Coset, Subgroup};
+pub use subgroup::{ConjugateCoset, Subgroup};
 
 /// Parses a single character of a vector in limited Dynkin notation, where `o`
 /// represents `0` and `x` represents `1`. Returns `None` for all other

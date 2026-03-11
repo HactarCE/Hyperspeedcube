@@ -28,3 +28,6 @@ rayon.workspace = true
 smallvec = { workspace = true, features = ["const_new"] }
 thiserror.workspace = true
 tinyset.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

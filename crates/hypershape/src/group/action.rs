@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex, TypedIndexIter};
 
@@ -56,26 +56,35 @@ impl GroupAction {
     /// In general, this algorithm may take O(_nm_) time (where _n_ is the order
     /// of the group and _m_ is the number of fixed points).
     pub fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> Subgroup {
+        if fixed_points.is_empty() {
+            return Subgroup::new_total(Arc::clone(&self.group)); // optimization
+        }
+
         let mut subgroup = Subgroup::new_trivial(Arc::clone(&self.group));
         let mut generators = vec![];
         for e in self.group.elements().skip(1) {
-            if !subgroup.element_subset().contains(e) {
+            if !subgroup.elements().contains(e) {
                 let preserves_fixed_points = fixed_points
                     .iter()
                     .all(|&ref_point| self.act(e, ref_point) == ref_point);
                 if preserves_fixed_points {
                     generators.push(e);
+                    // The final subgroup generation takes longer than all
+                    // smaller subgroups combined because each subgroup is at
+                    // least 2x larger than the one before it.
                     subgroup = Subgroup::new(Arc::clone(&self.group), generators.clone());
                     continue;
                 }
             }
         }
+
         subgroup
     }
 
     /// Returns the orbits of the reference points under a group action. See
     /// [`SubgroupOrbits`].
     pub(super) fn orbits(&self, subgroup: &Subgroup) -> SubgroupOrbits {
+        // Compute deorbiters.
         let mut deorbiters = PerRefPoint::from_iter(self.ref_points().map(|p| RefPointDeorbiter {
             orbit_representative: p,
             deorbiter: GroupElementId::IDENTITY,
@@ -103,7 +112,33 @@ impl GroupAction {
             assert_eq!(self.act(d.deorbiter, point), d.orbit_representative);
         }
 
-        SubgroupOrbits { deorbiters }
+        // Select canonical largest orbit.
+        // IIFE to mimic try_block
+        let canonical_largest_orbit = (|| {
+            let mut orbit_sizes: HashMap<RefPoint, usize> = HashMap::new();
+            for d in deorbiters.iter_values() {
+                *orbit_sizes.entry(d.orbit_representative).or_default() += 1;
+            }
+            let size_of_largest_orbit = *orbit_sizes.values().max()?;
+            if size_of_largest_orbit <= 1 {
+                return None;
+            }
+            let canonical_representative = deorbiters
+                .find(|_, d| orbit_sizes[&d.orbit_representative] == size_of_largest_orbit)?;
+            let noncanonical_representative =
+                deorbiters[canonical_representative].orbit_representative;
+            Some(
+                deorbiters
+                    .iter_filter(|_, d| d.orbit_representative == noncanonical_representative)
+                    .collect(),
+            )
+        })()
+        .unwrap_or(vec![]);
+
+        SubgroupOrbits {
+            deorbiters,
+            canonical_largest_orbit,
+        }
     }
 }
 
@@ -114,6 +149,8 @@ impl GroupAction {
 /// that _g p = q_. We call _g_ the **deorbiter** of _q_.
 pub(super) struct SubgroupOrbits {
     pub(super) deorbiters: PerRefPoint<RefPointDeorbiter>,
+    /// Reference points in the canonical largest orbit.
+    pub(super) canonical_largest_orbit: Vec<RefPoint>,
 }
 
 /// Orbit decomposition of a reference point.

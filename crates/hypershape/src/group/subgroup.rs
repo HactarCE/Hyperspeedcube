@@ -35,7 +35,7 @@ impl Subgroup {
     }
 
     /// Constructs the total subgroup of a group, which has the same generators
-    /// as the group and contains all the elements of the group.
+    /// as the group and contains all the elements of the original group.
     pub fn new_total(group: Arc<AbstractGroup>) -> Self {
         let generators = group.generators().map(|g| g.into()).collect();
         let elements = TiMask::new_full(group.element_count());
@@ -44,6 +44,11 @@ impl Subgroup {
             generators,
             elements,
         }
+    }
+
+    /// Returns the elements in the subgroup, as a subset of the original group.
+    pub fn elements(&self) -> &TiMask<GroupElementId> {
+        &self.elements
     }
 
     /// Generates a subgroup from generators.
@@ -76,20 +81,30 @@ impl Subgroup {
     pub fn generating_set(&self) -> &[GroupElementId] {
         &self.generators
     }
-
-    pub fn element_subset(&self) -> &TiMask<GroupElementId> {
-        &self.elements
-    }
 }
 
-/// Coset of a subgroup in a group.
+/// Sandwich of a subgroup by group elements: `lhs * subgroup * rhs`.
 ///
-/// This represents either a left coset or a right coset, depending on the order
-/// of composition between `offset` and an element of `subgroup`.
+/// This is _not_ a coset of the subgroup, but it can be written as any of the
+/// following:
+///
+/// - Left [coset] of a conjugated subgroup: `(lhs * rhs) * (rhs^1 * subgroup *
+///   rhs)`
+/// - Right [coset] of a conjugated subgroup: `(lhs * subgroup * lhs^1) * (lhs *
+///   rhs)`
+/// - Conjugate of a left [coset]: `rhs^1 * ((rhs * lhs) * subgroup) * rhs`
+/// - Conjugate of a right [coset]: `lhs * (subgroup * (rhs * lhs)) * lhs^1`
+///
+/// This is **not** the same thing as a [double coset].
+///
+/// [coset]: https://en.wikipedia.org/wiki/Coset
+/// [double coset]: https://en.wikipedia.org/wiki/Double_coset
 #[derive(Debug, Copy, Clone)]
-pub struct Coset<'a> {
-    /// Subgroup of the coset.
+pub struct ConjugateCoset<'a> {
+    /// Element to multiply on the left of the subgroup.
+    pub lhs: GroupElementId,
+    /// Subgroup.
     pub subgroup: &'a Subgroup,
-    /// Offset of the coset.
-    pub offset: GroupElementId,
+    /// Element to multiple on the right of the subgroup.
+    pub rhs: GroupElementId,
 }
