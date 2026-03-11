@@ -57,12 +57,10 @@ impl Subgroup {
         ret.generators = generators;
         crate::orbit(GroupElementId::IDENTITY, &ret.generators, |&e, &g| {
             let new_elem = ret.group.compose(e, g);
-            if !ret.elements.contains(new_elem) {
+            (!ret.elements.contains(new_elem)).then(|| {
                 ret.elements.insert(new_elem);
-                Some(new_elem)
-            } else {
-                None
-            }
+                new_elem
+            })
         });
         ret
     }

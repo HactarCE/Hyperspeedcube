@@ -225,7 +225,7 @@ impl<'a> ConstrainedConjugateCoset<'a> {
     ) -> Option<Self> {
         let mut ret = Self::new(solver);
         for &constraint in &constraint_set.constraints {
-            ret = ret.constrain(constraint)?
+            ret = ret.constrain(constraint)?;
         }
         Some(ret)
     }
@@ -465,7 +465,9 @@ mod tests {
 
     #[test]
     fn product_replacement_word_len() -> eyre::Result<()> {
-        let group = crate::FiniteCoxeterGroup::H4.coxeter_group(None)?.group()?;
+        let group = crate::FiniteCoxeterGroup::I(100)
+            .coxeter_group(None)?
+            .group()?;
 
         let generators = group.generators().map(|g| group[g].clone()).collect_vec();
 

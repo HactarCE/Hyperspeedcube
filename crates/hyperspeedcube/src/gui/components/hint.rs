@@ -39,7 +39,7 @@ fn make_widget<'a>(ui: &egui::Ui) -> egui::Button<'a> {
 
 fn show_tooltip_if_hovered(r: &egui::Response, markdown: &str) {
     if r.hovered() || r.has_focus() {
-        egui::Popup::from_response(&r)
+        egui::Popup::from_response(r)
             .gap(8.0) // prevent flashing
             .kind(egui::PopupKind::Tooltip)
             .show(|ui| {
