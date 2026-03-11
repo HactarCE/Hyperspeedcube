@@ -217,6 +217,8 @@ impl LayerMask {
     }
 
     /// Removes a layer range from the set.
+    ///
+    /// This does not shrink the bitmask or deallocate memory.
     pub fn remove_range(&mut self, range: LayerRange) {
         let Some(range) = range.clamp_to_layer_count(self.capacity().to_u16()) else {
             return;
@@ -227,6 +229,36 @@ impl LayerMask {
             }
             LayerMaskEnum::BitVec(vec) => {
                 vec[range.start().to_usize()..=range.end().to_usize()].fill(false);
+            }
+        }
+    }
+
+    /// Inverts a layer in the set.
+    ///
+    /// This does not shrink the bitmask or deallocate memory.
+    pub fn invert(&mut self, layer: Layer) {
+        let l = layer.to_usize();
+        self.set_min_capacity(layer);
+        match self.as_mut_enum() {
+            LayerMaskEnum::Bitmask(bits) => {
+                *self = Self::from_bits(bits ^ (1 << l));
+            }
+            LayerMaskEnum::BitVec(vec) => {
+                let new_bit = vec[l];
+                vec.set(l, !new_bit);
+            }
+        }
+    }
+
+    /// Inverts a layer range in the set.
+    ///
+    /// This does not shrink the bitmask or deallocate memory.
+    pub fn invert_range(&mut self, range: LayerRange) {
+        self.set_min_capacity(range.end());
+        match self.as_mut_enum() {
+            LayerMaskEnum::Bitmask(bits) => *self = Self::from_bits(bits ^ range_mask_usize(range)),
+            LayerMaskEnum::BitVec(vec) => {
+                !&mut vec[range.start().to_usize()..=range.end().to_usize()];
             }
         }
     }
@@ -788,6 +820,38 @@ mod tests {
             assert_eq!(intersection, (&l1 & &l2).iter().collect());
             assert_eq!(union, (&l1 | &l2).iter().collect());
             assert_eq!(symmetric_difference, (&l1 ^ &l2).iter().collect());
+        }
+
+        #[test]
+        fn proptest_layer_mask_invert_layer(mut mask: LayerMask, layer in small_layer()) {
+            let original_mask = mask.clone();
+            let has_layer_before = mask.contains(layer);
+            mask.invert(layer);
+            let has_layer_after = mask.contains(layer);
+            assert_ne!(has_layer_before, has_layer_after);
+            match has_layer_before {
+                true => mask.insert(layer),
+                false => mask.remove(layer),
+            };
+            assert_eq!(original_mask, mask);
+        }
+
+        #[test]
+        fn proptest_layer_mask_invert_layer_range(mut mask: LayerMask, layer_range in small_layer_range()) {
+            let original_mask = mask.clone();
+            let has_layer_before: Vec<bool> = layer_range.into_iter().map(|l| mask.contains(l)).collect();
+            mask.invert_range(layer_range);
+            let has_layer_after: Vec<bool> = layer_range.into_iter().map(|l| mask.contains(l)).collect();
+            for (&b1, &b2) in std::iter::zip(&has_layer_before, &has_layer_after) {
+                assert_ne!(b1, b2);
+            }
+            for (l, b) in std::iter::zip(layer_range, has_layer_before) {
+                match b {
+                    true => mask.insert(l),
+                    false => mask.remove(l),
+                };
+            }
+            assert_eq!(original_mask, mask);
         }
 
         #[test]

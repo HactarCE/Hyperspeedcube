@@ -63,6 +63,11 @@ impl Layer {
     pub const fn index(self) -> usize {
         self.0.get() as usize - 1
     }
+    /// Returns a layer from its zero-based index, or `None` if the index is out
+    /// of bounds.
+    pub fn from_index(index: usize) -> Option<Self> {
+        Self::new(index.checked_add(1)?.try_into().ok()?)
+    }
 
     /// Constructs a new layer.
     ///

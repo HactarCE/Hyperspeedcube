@@ -383,6 +383,19 @@ impl LayerPrefix {
         invert: false,
         contents: None,
     };
+
+    /// Converts the layer prefix to a bitmask of layers.
+    pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
+        let Self { invert, contents } = self;
+        let mut ret = contents
+            .as_ref()
+            .unwrap_or(&LayerPrefixContents::Single(Layer::SHALLOWEST))
+            .to_layer_mask(layers_info);
+        if *invert && let Some(all_layers) = LayerRange::all(layers_info.max_layer) {
+            ret.invert_range(all_layers);
+        }
+        ret
+    }
 }
 
 impl Not for LayerPrefix {
@@ -446,8 +459,14 @@ impl LayerPrefixContents {
     /// Converts the layer prefix to a bitmask of layers.
     pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         match self {
-            LayerPrefixContents::Single(l) => LayerMask::from_layer(*l),
-            LayerPrefixContents::Range(range) => LayerMask::from_range(*range),
+            LayerPrefixContents::Single(l) => l
+                .clamp_to_layer_count(layers_info.max_layer)
+                .map(LayerMask::from_layer)
+                .unwrap_or_default(),
+            LayerPrefixContents::Range(range) => range
+                .clamp_to_layer_count(layers_info.max_layer)
+                .map(LayerMask::from_range)
+                .unwrap_or_default(),
             LayerPrefixContents::Set(elements) => elements.to_layer_mask(layers_info),
         }
     }
