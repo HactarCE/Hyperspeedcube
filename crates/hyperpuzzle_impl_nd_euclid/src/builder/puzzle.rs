@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
+use hyperpuzzle_core::NewTwist;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
@@ -280,6 +281,26 @@ impl PuzzleBuilder {
             }
         }
 
+        let old_twist_to_new_twist = Box::new({
+            let twists = Arc::clone(&twists);
+            move |old_twist: LayeredTwist| NewTwist {
+                layers: old_twist.layers.to_hypuz_notation(),
+                transform: hypuz_notation::Transform::new(&twists.names[old_twist.transform], None),
+            }
+        });
+        let new_twist_to_old_twist = Box::new({
+            let twists = Arc::clone(&twists);
+            move |new_twist: NewTwist| {
+                if new_twist.transform.bracketed.is_some() {
+                    return None;
+                }
+                Some(LayeredTwist {
+                    layers: LayerMask::from_hypuz_notation(new_twist.layers),
+                    transform: twists.names.id_from_name(&new_twist.transform.family)?,
+                })
+            }
+        });
+
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: self.meta.clone(),
@@ -306,6 +327,9 @@ impl PuzzleBuilder {
             ui_data,
 
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
+
+            old_twist_to_new_twist,
+            new_twist_to_old_twist,
         }))
     }
 }

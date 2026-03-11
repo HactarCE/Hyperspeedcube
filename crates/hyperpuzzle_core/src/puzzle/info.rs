@@ -48,7 +48,10 @@ hypuz_util::typed_index_struct! {
     #[derive(Serialize, Deserialize)]
     pub struct Twist(pub u32);
 
-    /// ID of a **layer**, which is a region of the puzzle for each axis that may be twisted by a move on that axis.
+    /// ID of a **layer**, which is a region of the puzzle for each axis that
+    /// may be twisted by a move on that axis.
+    ///
+    /// Layer 0 is the shallowest layer.
     #[derive(Serialize, Deserialize)]
     pub struct Layer(pub u8);
 
@@ -60,6 +63,17 @@ hypuz_util::typed_index_struct! {
     /// angle from which to view and interact with the puzzle.
     #[derive(Serialize, Deserialize)]
     pub struct Vantage(pub u32);
+}
+
+impl Layer {
+    // TODO: remove `Layer`
+    pub fn to_hypuz_notation(self) -> hypuz_notation::Layer {
+        hypuz_notation::Layer::from_index(self.0 as usize).unwrap()
+    }
+
+    pub fn from_hypuz_notation(l: hypuz_notation::Layer) -> Self {
+        Self(l.index() as u8)
+    }
 }
 
 impl Surface {

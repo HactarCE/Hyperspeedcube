@@ -156,6 +156,17 @@ impl LayerMask {
     /// Mask containing no layers.
     pub const EMPTY: Self = LayerMask(0);
 
+    pub fn to_hypuz_notation(self) -> hypuz_notation::LayerMask {
+        self.iter().map(|l| l.to_hypuz_notation()).collect()
+    }
+    pub fn from_hypuz_notation(layer_mask: hypuz_notation::LayerMask) -> Self {
+        let mut ret = Self::EMPTY;
+        for l in &layer_mask {
+            ret |= LayerMask::from(Layer::from_hypuz_notation(l));
+        }
+        ret
+    }
+
     /// Returns a mask containing all layers.
     pub fn all_layers(total_layer_count: u8) -> Self {
         Self(Self::from(total_layer_count).0.wrapping_sub(1))

@@ -59,6 +59,54 @@ pub mod prelude {
 /// Unsigned integer type used for [`LayerMask`].
 pub type LayerMaskUint = u32;
 
+/// Twist that can be applied to a puzzle.
+///
+/// This contains essentially the same information as [`hypuz_notation::Move`],
+/// except that the layer mask is stored as a bitmask with no particularly
+/// notation style. Also, this does not support negative layer numbers.
+///
+/// # Performance
+///
+/// For most puzzles, this type has no heap allocations and so is very cheap to
+/// clone. In particular, to avoid heap allocations:
+///
+/// - On 32-bit platforms, the layer mask must only contain layers 31 or lower
+///   and the transform must fit within 8 UTF-8 bytes.
+/// - On 64-bit platforms, the layer mask must only contain layers 63 or lower
+///   and the transform must fit within 16 UTF-8 bytes.
+///
+/// In other words: don't worry about `clone()`ing twists.
+pub struct NewTwist {
+    /// Layer mask, stored as a bitmask of layers.
+    pub layers: hypuz_notation::LayerMask,
+    /// Transform, stored as a string using standard notation.
+    pub transform: hypuz_notation::Transform,
+}
+
+impl NewTwist {
+    /// Converts the twist to a [`hypuz_notation::Move`].
+    pub fn to_notation(&self) -> hypuz_notation::Move {
+        hypuz_notation::Move {
+            layers: hypuz_notation::LayerPrefix::from(&self.layers),
+            transform: self.transform.clone(),
+        }
+    }
+
+    /// Constructs a twist from a [`hypuz_notation::Move`].
+    ///
+    /// This conversion is lossy: the exact notation style of the layer mask is
+    /// lost.
+    pub fn from_notation(
+        mv: &hypuz_notation::Move,
+        layers_info: hypuz_notation::AxisLayersInfo,
+    ) -> Self {
+        Self {
+            layers: mv.layers.to_layer_mask(layers_info),
+            transform: mv.transform.clone(),
+        }
+    }
+}
+
 /// Version string such as `hyperpuzzle v1.2.3`.
 pub const PUZZLE_ENGINE_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION"));

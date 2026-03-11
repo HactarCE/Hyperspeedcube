@@ -3,13 +3,14 @@ use std::fmt;
 use std::io::Write;
 use std::sync::{Arc, Weak};
 
+use hypuz_notation::Move;
 use rand::seq::IndexedRandom;
 use rand::{RngExt, SeedableRng};
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, PuzzleListMetadata};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, NewTwist, PuzzleListMetadata};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -56,6 +57,9 @@ pub struct Puzzle {
 
     /// Constructor for a solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> BoxDynPuzzleState>,
+
+    pub old_twist_to_new_twist: Box<dyn Send + Sync + Fn(LayeredTwist) -> NewTwist>,
+    pub new_twist_to_old_twist: Box<dyn Send + Sync + Fn(NewTwist) -> Option<LayeredTwist>>,
 }
 
 impl fmt::Debug for Puzzle {
