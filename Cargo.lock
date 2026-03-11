@@ -2814,6 +2814,7 @@ dependencies = [
  "hyperpuzzlescript",
  "lazy_static",
  "parking_lot",
+ "pretty_assertions",
 ]
 
 [[package]]

@@ -207,11 +207,12 @@ impl Puzzle {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use rand::RngExt;
 
     use super::*;
 
     #[test]
-    fn test_stable_deterministic_scrambles() {
+    fn test_stable_deterministic_rng() {
         let mut rng = chacha20::ChaCha12Rng::from_seed((0..32).collect_array().unwrap());
         let a = rng.random::<[u64; 4]>();
         assert_eq!(
