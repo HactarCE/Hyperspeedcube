@@ -9,6 +9,8 @@ use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
+use rand::seq::IndexedRandom;
+use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 use tinyset::Set64;
 
@@ -150,15 +152,6 @@ impl PuzzleBuilder {
             piece_type_masks,
         } = shape_builder.build(warn_fn)?;
 
-        let mut scramble_twists = twists
-            .twists
-            .iter_filter(|_, twist_info| twist_info.include_in_scrambles)
-            .collect_vec();
-        scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
-            Ok(name) => &name.canonical,
-            Err(_) => "",
-        });
-
         let engine_data = twists
             .engine_data
             .downcast_ref::<NdEuclidTwistSystemEngineData>()
@@ -281,6 +274,35 @@ impl PuzzleBuilder {
             }
         }
 
+        let mut scramble_twists = twists
+            .twists
+            .iter_filter(|_, twist_info| {
+                twist_info.include_in_scrambles && !axis_layers[twist_info.axis].is_empty()
+            })
+            .collect_vec();
+        scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
+            Ok(name) => &name.canonical,
+            Err(_) => "",
+        });
+        let can_scramble = !scramble_twists.is_empty();
+
+        let random_move = Box::new({
+            let twists = Arc::clone(&twists);
+            let axis_layers = axis_layers.clone();
+            move |rng: &mut dyn Rng| {
+                let random_twist = *scramble_twists.choose(rng)?;
+
+                let axis = twists.twists[random_twist].axis;
+                let layer_count = axis_layers[axis].len() as crate::LayerMaskUint;
+                let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
+
+                Some(NewTwist {
+                    layers: random_layer_mask.to_hypuz_notation(),
+                    transform: hypuz_notation::Transform::new(&twists.names[random_twist], None),
+                })
+            }
+        });
+
         let old_twist_to_new_twist = Box::new({
             let twists = Arc::clone(&twists);
             move |old_twist: LayeredTwist| NewTwist {
@@ -317,7 +339,7 @@ impl PuzzleBuilder {
 
             colors,
 
-            scramble_twists,
+            can_scramble,
             full_scramble_length: self.full_scramble_length,
 
             axis_layers,
@@ -327,6 +349,8 @@ impl PuzzleBuilder {
             ui_data,
 
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
+
+            random_move,
 
             old_twist_to_new_twist,
             new_twist_to_old_twist,

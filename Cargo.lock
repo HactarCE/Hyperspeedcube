@@ -2869,6 +2869,7 @@ dependencies = [
  "lazy_static",
  "log",
  "parking_lot",
+ "rand 0.10.0",
  "regex",
  "smallvec",
  "thiserror 2.0.18",

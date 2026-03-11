@@ -3,9 +3,7 @@ use std::fmt;
 use std::io::Write;
 use std::sync::{Arc, Weak};
 
-use hypuz_notation::Move;
-use rand::seq::IndexedRandom;
-use rand::{RngExt, SeedableRng};
+use rand::{Rng, SeedableRng};
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
@@ -38,8 +36,8 @@ pub struct Puzzle {
     /// Color system.
     pub colors: Arc<ColorSystem>,
 
-    /// Set of twists used to scramble the puzzle, in a future-compatible order.
-    pub scramble_twists: Vec<Twist>,
+    /// Returns whether or not the puzzle can be scrambled.
+    pub can_scramble: bool,
     /// Number of moves for a full scramble.
     pub full_scramble_length: u32,
 
@@ -57,6 +55,11 @@ pub struct Puzzle {
 
     /// Constructor for a solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> BoxDynPuzzleState>,
+
+    /// Random move generator for scrambling. The output of this function must
+    /// depend only on the state of the RNG. It must return `None` if and only
+    /// if the puzzle has no twists.
+    pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<NewTwist>>,
 
     pub old_twist_to_new_twist: Box<dyn Send + Sync + Fn(LayeredTwist) -> NewTwist>,
     pub new_twist_to_old_twist: Box<dyn Send + Sync + Fn(NewTwist) -> Option<LayeredTwist>>,
@@ -138,22 +141,14 @@ impl Puzzle {
             progress.set_total(scramble_length);
         }
 
-        let random_twists = std::iter::from_fn(|| {
-            let random_twist = *self.scramble_twists.choose(&mut rng)?;
-
-            let axis = self.twists.twists[random_twist].axis;
-            let layer_count = self.axis_layers[axis].len().max(1) as crate::LayerMaskUint;
-            let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
-
-            Some(LayeredTwist {
-                layers: random_layer_mask,
-                transform: random_twist,
-            })
-        });
+        let random_twists = std::iter::from_fn(|| (self.random_move)(&mut rng)?.into());
 
         let mut twists_applied = vec![];
         let mut state = self.new_solved_state();
         for (i, twist) in random_twists.take(scramble_length as usize).enumerate() {
+            let Some(twist) = (self.new_twist_to_old_twist)(twist) else {
+                break;
+            };
             if let Ok(new_state) = state.do_twist_dyn(twist) {
                 twists_applied.push(twist);
                 state = new_state;
@@ -200,11 +195,6 @@ impl Puzzle {
             let sticker_info = &self.stickers[sticker];
             sticker_info.color == color
         })
-    }
-
-    /// Returns whether the puzzle can be scrambled.
-    pub fn can_scramble(&self) -> bool {
-        !self.scramble_twists.is_empty()
     }
 }
 
