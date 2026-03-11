@@ -463,6 +463,22 @@ mod tests {
         Ok(())
     }
 
+    /// By running the product replacement algorithm on the generators for a
+    /// group before generating the group, we can get much shorter words for the
+    /// elements on average. This makes multiplying group elements and
+    /// transforming points much faster.
+    ///
+    /// We can use the same number of generators, or add more generators. More
+    /// generators yields shorter words, but with diminishing returns. More
+    /// generators also requires more iterations of the product replacement
+    /// algorithm.
+    ///
+    /// Empirically, most 3D and 4D groups (I tested H3 and H4) only need ~10
+    /// iterations to converge when not adding more generators. I100 takes
+    /// *many* more iterations (somewhere between 50 and 100), especially when
+    /// adding more generators. It may be worth running a few hundred iterations
+    /// on all groups to play it safe, especially considering product
+    /// replacement is so cheap to compute.
     #[test]
     fn product_replacement_word_len() -> eyre::Result<()> {
         let group = crate::FiniteCoxeterGroup::I(100)
@@ -474,8 +490,8 @@ mod tests {
         let mut permute_rng_1 = rand::rngs::StdRng::seed_from_u64(987654321);
 
         let mut generators = generators.clone();
-        generators.resize(generators.len() * 2, Motor::ident(0));
-        for i in 0..20 {
+        generators.resize(generators.len() * 3, Motor::ident(0));
+        for i in 0..100 {
             let mut unique_generators = ApproxHashMap::<Motor, ()>::new(APPROX);
             for g in &generators {
                 unique_generators.insert(g.clone(), ());
@@ -485,6 +501,7 @@ mod tests {
                 &unique_generators
                     .iter()
                     .map(|(k, _)| k.clone())
+                    .filter(|g| !g.is_ident())
                     .collect_vec(),
             )
             .unwrap();
