@@ -865,7 +865,7 @@ fn show_nd_euclid_puzzle_view(
         }
         Action::Recenter { reverse, anti } => {
             nd_euclid.do_click_recenter(
-                &puzzle,
+                &sim.lock(),
                 show_puzzle_hover,
                 show_gizmo_hover,
                 reverse,

@@ -367,24 +367,28 @@ impl NdEuclidViewState {
     /// `reverse` and `anti`.
     pub fn do_click_recenter(
         &mut self,
-        puzzle: &Arc<Puzzle>,
+        sim: &PuzzleSimulation,
         piece: bool,
         gizmo: bool,
         reverse: bool,
         anti: bool,
     ) {
+        let puzzle = sim.puzzle_type();
         let target_vector = if gizmo
             && let Some(hov) = self.gizmo_hover_state
             && let Ok(&twist) = self.geom.gizmo_twists.get(hov.gizmo_face)
             && let Ok(twist_info) = puzzle.twists.twists.get(twist)
             && let Ok(axis_vector) = self.geom.axis_vectors.get(twist_info.axis)
         {
-            axis_vector
+            axis_vector.clone()
         } else if piece
             && let Some(hov) = &self.puzzle_hover_state
             && let Ok(centroid) = self.geom.piece_centroids.get(hov.piece)
         {
-            centroid.as_vector()
+            let piece_transform = &sim
+                .unwrap_render_data::<NdEuclidPuzzleStateRenderData>()
+                .piece_transforms[hov.piece];
+            piece_transform.transform(centroid).into_vector()
         } else {
             return;
         };
