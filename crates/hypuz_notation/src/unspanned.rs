@@ -80,11 +80,15 @@ pub enum Node {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::RepeatedNode { inner, multiplier } => write!(f, "{inner}{multiplier}"),
+            Node::RepeatedNode { inner, multiplier } => {
+                fmt::Display::fmt(inner, f)?;
+                write!(f, "{multiplier}")?;
+                Ok(())
+            }
             Node::Pause => write!(f, "."),
-            Node::Sq1Move(sq1_move) => write!(f, "{sq1_move}"),
+            Node::Sq1Move(sq1_move) => fmt::Display::fmt(sq1_move, f),
             Node::MegaminxScrambleMove(megaminx_scramble_move) => {
-                write!(f, "{megaminx_scramble_move}")
+                fmt::Display::fmt(megaminx_scramble_move, f)
             }
         }
     }
@@ -154,19 +158,25 @@ pub enum RepeatableNode {
 impl fmt::Display for RepeatableNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RepeatableNode::Move(mv) => write!(f, "{mv}"),
-            RepeatableNode::Rotation(rot) => write!(f, "{rot}"),
+            RepeatableNode::Move(mv) => fmt::Display::fmt(mv, f),
+            RepeatableNode::Rotation(rot) => fmt::Display::fmt(rot, f),
             RepeatableNode::Group { kind, contents } => {
                 if let Some(prefix) = kind.prefix() {
                     write!(f, "{prefix}")?;
                 }
-                write!(f, "({contents})")?;
+                write!(f, "(")?;
+                fmt::Display::fmt(contents, f)?;
+                write!(f, ")")?;
                 Ok(())
             }
             RepeatableNode::BinaryGroup { kind, contents } => {
                 let [a, b] = contents;
-                let sep = kind.separator();
-                write!(f, "[{a}{sep} {b}]")
+                write!(f, "[")?;
+                fmt::Display::fmt(a, f)?;
+                write!(f, "{} ", kind.separator())?;
+                fmt::Display::fmt(b, f)?;
+                write!(f, "]")?;
+                Ok(())
             }
         }
     }
@@ -205,7 +215,9 @@ pub struct Rotation {
 impl fmt::Display for Rotation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self { transform } = self;
-        write!(f, "@{transform}")
+        write!(f, "@")?;
+        fmt::Display::fmt(transform, f)?;
+        Ok(())
     }
 }
 
@@ -306,7 +318,9 @@ impl fmt::Display for Transform {
         let Self { family, bracketed } = self;
         write!(f, "{family}")?;
         if let Some(bracketed) = bracketed {
-            write!(f, "[{bracketed}]")?;
+            write!(f, "[")?;
+            fmt::Display::fmt(bracketed, f)?;
+            write!(f, "]")?;
         }
         Ok(())
     }

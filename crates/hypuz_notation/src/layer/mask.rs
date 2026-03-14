@@ -395,7 +395,7 @@ impl fmt::Debug for LayerMask {
 
 impl fmt::Display for LayerMask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", crate::LayerSet::from(self))
+        fmt::Display::fmt(&crate::LayerSet::from(self), f)
     }
 }
 

@@ -250,7 +250,7 @@ pub(crate) fn write_separated_list<T: fmt::Display>(
         } else {
             write!(f, "{separator}")?;
         }
-        write!(f, "{elem}")?;
+        fmt::Display::fmt(elem, f)?;
     }
     Ok(())
 }
