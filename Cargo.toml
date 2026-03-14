@@ -87,7 +87,7 @@ hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }
 
 # Data structures
-approx_collections = { version = "4.0.0" }
+approx_collections = { version = "4.1.0" }
 ball-tree = { version = "0.5.2" }
 bitflags = { version = "2.11.0" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
