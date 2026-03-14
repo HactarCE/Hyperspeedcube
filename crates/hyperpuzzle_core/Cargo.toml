@@ -26,13 +26,12 @@ chacha20.workspace = true
 chrono.workspace = true
 eyre.workspace = true
 hex.workspace = true
-numeric-sort.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 kdl.workspace = true
 lazy_static.workspace = true
 log.workspace = true
-nom.workspace = true
+numeric-sort.workspace = true
 parking_lot.workspace = true
 rand.workspace = true
 serde.workspace = true
@@ -52,6 +51,7 @@ oklab = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+proptest.workspace = true
 
 [features]
 timecheck = ["dep:base64", "dep:timecheck"]

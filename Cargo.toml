@@ -121,7 +121,6 @@ ariadne = { version = "0.6.0" }
 chumsky = { version = "0.12.0" }
 ident_case = { version = "1.0.1" }
 lean_string = { version = "0.5.1" }
-nom = { version = "8.0.0" }
 numeric-sort = { version = "0.1.5" }
 regex = { version = "1.12.2" }
 sublime_fuzzy = { version = "0.7.0" }

@@ -1,54 +1,47 @@
 //! Name specifications, used for puzzle elements such as axes, twists, and
 //! colors.
 //!
-//! TODO: revamp this; use only `_` for separators (`__` etc. for
-//! lower-precedence separator), and link to `SiGN` standards
-//!
-//! - Whitespace characters are never allowed
-//! - Characters other than whitespace or ASCII punctuation are always literal
-//! - `'` is always literal
-//! - `_`, `-`, and `.` are separators for permutable substrings
+//! - Only Latin and Greek letters are literal
+//! - `_` are separators for optionally-permutable strings.
 //! - `{ ... }` are used to denote permutable sets
-//! - `|` is used to separate high-level choices
+//! - `|` is used to separate top-level choices
 //! - All other ASCII punctuation is reserved for future use
-//!
-//! In particular, the following symbols have established use in twist notation:
-//!
-//! - `[ ... ]` for commutator and conjugate notation
-//! - `( ... )` for grouping twists
-//! - `{ ... }` for layer masks
-//! - `,` for separating elements in a commutator
-//! - `:` for separating elements in a conjugate
-//!
-//! The following symbols do not have a use: `!"#$%&*+-/;<=>?@\^~` and the
-//! literal backtick \`.
-//!
-//! - `+` and `-` may be used for jumbling notation.
-//! - `#` maybe used for physical 2x2x2x2 scrambling notation.
-//!
-//! TODO: add grammar and/or link to dev.hypercubing.xyz, and move the design
-//!       considerations to somewhere on dev.hypercubing.xyz
 
 use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
 use std::str::FromStr;
 
 use itertools::Itertools;
-use nom::Parser;
-use nom::branch::alt;
-use nom::bytes::complete::take_while_m_n;
-use nom::character::complete::{anychar, char};
-use nom::combinator::{all_consuming, complete, fail, value, verify};
-use nom::error::Error;
-use nom::multi::{many1, separated_list1};
-use nom::sequence::{delimited, separated_pair};
+use thiserror::Error;
 
 use super::BadName;
 
-/// Separator characters, in order from loosest-binding to tighest-binding.
-///
-/// `None` represents individual characters, which use no separator.
-const SEPARATORS: &[Option<char>] = &[Some('_'), Some('-'), Some('.'), None];
+/// String of 32 underscores.
+const SEPARATOR_STR: &str = "________________________________";
+
+#[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NameSpecError {
+    #[error("char {0:?} is not allowed")]
+    BadChar(char),
+    #[error("too many `{{`")]
+    TooManyLBrace,
+    #[error("too many `}}`")]
+    TooManyRBrace,
+    #[error("missing matching `{{`")]
+    MissingMatchingLBrace,
+    #[error("missing matching `}}`")]
+    MissingMatchingRBrace,
+    #[error("nested permutations must use different levels of separators")]
+    NestedPermutationAtSameSeparatorLevel,
+    #[error("cannot permute nonequivalent segments")]
+    CannotPermuteNonequivalentSegments,
+    #[error("empty segment")]
+    EmptySegment,
+    #[error("cannot permute zero elements")]
+    CannotPermuteZeroElements,
+    #[error("cannot permute one element")]
+    CannotPermuteOneElement,
+}
 
 /// Returns the preferred name for `name_spec`.
 pub fn preferred_name_from_name_spec(name_spec: &str) -> String {
@@ -207,23 +200,20 @@ impl NamePattern {
     }
 }
 
-/// Parses a name specification (such as `I{UFR}|Q`) into a list of
+/// Parses a name specification (such as `I_{U_{FR}}|Q`) into a list of
 /// [`NamePattern`]s, each with an associated canonicalized name.
 ///
 /// Returns `None` in the case of a parse error.
 fn parse_name_spec_into_patterns(name_spec: &str) -> Result<Vec<(NamePattern, String)>, BadName> {
     name_spec
         .split('|')
-        .map(|segment| {
-            let (_remaining_input, seq) = all_consuming(separated_element_sequence(SEPARATORS))
-                .parse_complete(segment)
-                .map_err(|_| BadName::InvalidName {
-                    name: segment.to_string(),
-                })?;
+        .map(|name_spec_choice| {
+            let tokens = lex_to_tokens(name_spec_choice)?;
+            let seq = parse_tokens(&tokens)?;
 
             let canonicalized = seq
                 .canonicalize(
-                    &segment
+                    &name_spec_choice
                         .chars()
                         .filter(|&c| c != '{' && c != '}')
                         .collect::<String>(),
@@ -236,98 +226,165 @@ fn parse_name_spec_into_patterns(name_spec: &str) -> Result<Vec<(NamePattern, St
         .try_collect()
 }
 
-/// Parser for a sequence of elements separated by a separator character.
-fn separated_element_sequence<'a>(
-    separators: &'a [Option<char>],
-) -> impl 'a + Parser<&'a str, Output = SeqNode, Error = Error<&'a str>> {
-    |s: &'a str| match separators.split_first() {
-        None => fail().parse(s),
-        Some((separator, remaining_separators)) => (|s: &'a str| match separator {
-            Some(c) => complete(separated_list1(
-                nom::character::char(*c),
-                separated_permutation(*c, remaining_separators),
-            ))
-            .parse(s),
-            None => many1(chars_permutation()).parse(s),
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+enum Token {
+    LBrace,
+    RBrace,
+    Separator(usize),
+    Literal(char),
+}
+
+#[cfg(test)]
+impl proptest::arbitrary::Arbitrary for Token {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use proptest::prelude::*;
+
+        prop_oneof![
+            Just(Token::LBrace),
+            Just(Token::RBrace),
+            (0..5_usize).prop_map(Token::Separator),
+            prop::char::range('A', 'Z').prop_map(Token::Literal),
+        ]
+        .boxed()
+    }
+
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+}
+
+fn lex_to_tokens(s: &str) -> Result<Vec<Token>, NameSpecError> {
+    let mut tokens = vec![];
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        tokens.push(match c {
+            '{' => Token::LBrace,
+            '}' => Token::RBrace,
+            '_' => {
+                let mut separator_power = 1;
+                while chars.peek() == Some(&'_') {
+                    chars.next();
+                    separator_power += 1;
+                }
+                Token::Separator(separator_power)
+            }
+            _ if hypuz_notation::charsets::is_family_char(c) => Token::Literal(c),
+            _ => return Err(NameSpecError::BadChar(c)),
+        });
+    }
+    Ok(tokens)
+}
+
+fn parse_tokens(tokens: &[Token]) -> Result<SeqNode, NameSpecError> {
+    if tokens.is_empty() {
+        return Err(NameSpecError::EmptySegment);
+    }
+    if !tokens
+        .iter()
+        .any(|t| matches!(t, Token::LBrace | Token::RBrace))
+    {
+        return Ok(SeqNode::Literal);
+    }
+
+    let separator_power = tokens
+        .iter()
+        .map(|&t| match t {
+            Token::Separator(n) => n,
+            _ => 0,
         })
-        .map(|permutable_components| {
-            if let Ok(PermutationNode { inner, count: 1 }) =
-                permutable_components.iter().exactly_one()
-            {
-                inner.clone()
-            } else {
-                SeqNode::Sequence {
-                    separator: *separator,
-                    permutations: permutable_components,
+        .max()
+        .unwrap_or(0);
+    let mut items = vec![];
+    let mut permutation_ranges = vec![];
+    let mut permutation_start = None;
+    // TODO: ew, collecting
+    let segments = if separator_power == 0 {
+        tokens
+            .iter()
+            .map(|t| std::array::from_ref(t).as_slice())
+            .collect_vec()
+    } else {
+        tokens
+            .split(|&t| t == Token::Separator(separator_power))
+            .collect_vec()
+    };
+    for mut segment in segments {
+        let mut net_depth = 0_i32;
+        for &t in segment {
+            net_depth += (t == Token::LBrace) as i32;
+            net_depth -= (t == Token::RBrace) as i32;
+        }
+        match net_depth {
+            1.. => {
+                if net_depth == 1
+                    && let Some((Token::LBrace, rest)) = segment.split_first()
+                {
+                    if permutation_start.is_some() {
+                        return Err(NameSpecError::NestedPermutationAtSameSeparatorLevel);
+                    }
+                    permutation_start = Some(items.len());
+                    segment = rest;
+                } else {
+                    return Err(NameSpecError::TooManyLBrace);
                 }
             }
-        })
-        .parse(s),
+            ..=-1 => {
+                if net_depth == -1
+                    && let Some((Token::RBrace, rest)) = segment.split_last()
+                {
+                    let Some(start) = permutation_start.take() else {
+                        return Err(NameSpecError::MissingMatchingLBrace);
+                    };
+                    let end = items.len() + (!rest.is_empty()) as usize;
+                    if start == end {
+                        return Err(NameSpecError::CannotPermuteZeroElements);
+                    } else if start + 1 == end {
+                        return Err(NameSpecError::CannotPermuteOneElement);
+                    }
+                    permutation_ranges.push(start..end);
+                    segment = rest;
+                } else {
+                    return Err(NameSpecError::TooManyRBrace);
+                }
+            }
+            0 if permutation_start.is_none() => {
+                permutation_ranges.push(items.len()..items.len() + 1)
+            }
+            0 => (),
+        }
+        if segment.is_empty() {
+            if separator_power > 0 {
+                return Err(NameSpecError::EmptySegment);
+            }
+        } else {
+            items.push(parse_tokens(segment)?);
+        }
     }
-}
+    if permutation_start.is_some() {
+        return Err(NameSpecError::MissingMatchingRBrace);
+    }
 
-/// Parser for a permutation of at least one element.
-fn separated_permutation(
-    separator: char,
-    remaining_separators: &[Option<char>],
-) -> impl '_ + Parser<&str, Output = PermutationNode, Error = Error<&str>> {
-    alt((
-        // Permutation of at least 2 elements. Example: `{Al.pha-Be.ta-Gam.ma}`
-        delimited(
-            char('{'),
-            separated_pair(
-                separated_element_sequence(remaining_separators),
-                char(separator),
-                separated_list1(
-                    char(separator),
-                    separated_element_sequence(remaining_separators),
-                ),
-            ),
-            char('}'),
-        )
-        .map_opt(|(first, mut rest)| {
-            rest.insert(0, first);
-            let count = rest.len();
-            rest.into_iter()
-                .map(SeqNode::simplify)
-                .all_equal_value()
-                .map(|inner| PermutationNode { inner, count })
-                .ok()
-        }),
-        // Single element. Example: `Al.pha-Be.ta-Gam.ma`
-        separated_element_sequence(remaining_separators)
-            .map(SeqNode::simplify)
-            .map(|inner| PermutationNode { inner, count: 1 }),
-    ))
-}
+    if items.is_empty() {
+        return Err(NameSpecError::EmptySegment);
+    }
 
-/// Parser for a permutation of at least one character.
-fn chars_permutation<'input>()
--> impl Parser<&'input str, Output = PermutationNode, Error = Error<&'input str>> {
-    alt((
-        // Permutation of at least 2 characters. Example: `{ABC}`
-        delimited(
-            char::<_, Error<&str>>('{'),
-            take_while_m_n(2, usize::MAX, is_literal_char).map(|s: &str| PermutationNode {
-                inner: SeqNode::Literal,
-                count: s.len(),
-            }),
-            char('}'),
-        ),
-        // Single character. Example: `A` (may be apostrophe)
-        value(
-            PermutationNode {
-                inner: SeqNode::Literal,
-                count: 1,
-            },
-            verify(anychar, |&c: &char| is_literal_char(c)),
-        ),
-    ))
-}
-
-/// Returns whether a character may be used in a string literal.
-fn is_literal_char(c: char) -> bool {
-    c == '\'' || (!c.is_ascii_punctuation() && !c.is_whitespace())
+    let mut permutations = vec![];
+    for range in permutation_ranges {
+        if range.is_empty() {
+            return Err(NameSpecError::EmptySegment);
+        }
+        if !items[range.clone()].iter().all_equal() {
+            return Err(NameSpecError::CannotPermuteNonequivalentSegments);
+        }
+        permutations.push(PermutationNode {
+            inner: items[range.start].clone(),
+            count: range.count(),
+        });
+    }
+    Ok(SeqNode::Sequence {
+        separator_power,
+        permutations,
+    })
 }
 
 /// AST node containing a literal or a sequence of permutations.
@@ -337,42 +394,15 @@ enum SeqNode {
     Literal,
     /// Sequence of literals and permutations.
     Sequence {
-        /// Separator between elements.
-        separator: Option<char>,
+        /// Number of `_` between elements. For a permutation of individual
+        /// characters, this is zero.
+        separator_power: usize,
         /// Sequences of literals and permutations.
         ///
         /// Permutation nodes are joined using `separator` and each permutation
         /// also uses `separator`.
         permutations: Vec<PermutationNode>,
     },
-}
-impl SeqNode {
-    /// Returns whether the sequence can be simplified to a literal string.
-    fn is_trivial(&self) -> bool {
-        match self {
-            SeqNode::Literal => true,
-            SeqNode::Sequence {
-                permutations: permutable_components,
-                ..
-            } => permutable_components.iter().all(|c| {
-                matches!(
-                    c,
-                    PermutationNode {
-                        inner: SeqNode::Literal,
-                        count: 1
-                    }
-                )
-            }),
-        }
-    }
-    /// Simplifies the sequence to a literal string if possible.
-    fn simplify(self) -> Self {
-        if self.is_trivial() {
-            SeqNode::Literal
-        } else {
-            self
-        }
-    }
 }
 
 /// AST node containing a permutation of N elements.
@@ -392,10 +422,10 @@ impl SeqNode {
             SeqNode::Literal => Some(s.into()),
 
             SeqNode::Sequence {
-                separator,
+                separator_power,
                 permutations,
             } => {
-                let elements = split_str_by_opt_char(s, *separator);
+                let elements = split_str_by_separator(s, *separator_power);
                 let expected_element_count = permutations.iter().map(|c| c.count).sum::<usize>();
                 if expected_element_count != elements.len() {
                     return None;
@@ -416,33 +446,38 @@ impl SeqNode {
                     i += component.count;
                 }
 
-                Some(join_with_sep(canonicalized_elements, *separator).into())
+                Some(
+                    canonicalized_elements
+                        .join(&separator_str(*separator_power))
+                        .into(),
+                )
             }
         }
     }
 }
 
-fn split_str_by_opt_char(s: &str, separator: Option<char>) -> Vec<&str> {
-    match separator {
-        Some(sep) => s.split(sep).collect(),
-        None => s
-            .char_indices()
+fn split_str_by_separator(s: &str, separator_power: usize) -> Vec<&str> {
+    if separator_power == 0 {
+        s.char_indices()
             .map(|(i, c)| &s[i..i + c.len_utf8()])
-            .collect(),
+            .collect()
+    } else {
+        s.split(&*separator_str(separator_power)).collect()
     }
 }
-fn join_with_sep<'a>(
-    strings: impl IntoIterator<Item = Cow<'a, str>>,
-    separator: Option<char>,
-) -> String {
-    match separator {
-        Some(sep) => strings.into_iter().join(&sep.to_string()),
-        None => strings.into_iter().join(""),
+
+fn separator_str(separator_power: usize) -> Cow<'static, str> {
+    if separator_power > SEPARATOR_STR.len() {
+        Cow::Owned(std::iter::repeat_n("_", separator_power).collect())
+    } else {
+        Cow::Borrowed(&SEPARATOR_STR[..separator_power])
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     #[track_caller]
@@ -450,41 +485,56 @@ mod tests {
         let name_specs = parse_name_spec_into_patterns(input).unwrap();
         assert_eq!(name_specs.len(), 1);
         let (_name_pattern, canonicalized) = &name_specs[0];
-        assert_eq!(canonicalized, expected_canonicalized);
+        assert_eq!(canonicalized, expected_canonicalized, "oh no");
     }
 
     #[test]
     fn test_name_parsing_and_canonicalization() {
         assert_test_case("meow", "meow");
         assert_test_case("{mmmeow}", "emmmow");
-        assert_test_case("{mm.me.ow}", "me.mm.ow");
-        assert_test_case("{mm.e.ow}", "e.mm.ow"); // mismatch length ok
-        assert_test_case("{mm-me-ow}", "me-mm-ow");
         assert_test_case("{mm_me_ow}", "me_mm_ow");
-        assert_test_case("z_e-b_r_a", "z_e-b_r_a");
+        assert_test_case("{mm_e_ow}", "e_mm_ow"); // mismatch length ok
+        assert_test_case("{mm__me__ow}", "me__mm__ow");
+        assert_test_case("{mm___me___ow}", "me___mm___ow");
+        assert_test_case("z__e_b__r__a", "z__e_b__r__a");
         assert_test_case("{z_e_b_r_a}", "a_b_e_r_z");
         assert_test_case("{z_e}_{b_r}_a", "e_z_b_r_a");
         assert_test_case("{{ze}_{br}}_a", "br_ez_a");
         assert_test_case(
-            "{{{twa}.{tri}}-{{ima}.{nhh}}-{{suc}.{ces}}_{{its}.{hrd}}-{{too}.{ver}}-{{sta}.{tem}}}",
-            "atw.irt-aim.hhn-ces.csu_dhr.ist-erv.oot-ast.emt",
+            "{{{twa}_{tri}}__{{ima}_{nhh}}__{{suc}_{ces}}___{{its}_{hrd}}__{{too}_{ver}}__{{sta}_{tem}}}",
+            "atw_irt__aim_hhn__ces_csu___dhr_ist__erv_oot__ast_emt",
         );
         assert_test_case(
-            "twa.tri-ima.nhh-suc.ces_its.hrd-too.ver-sta.tem",
-            "twa.tri-ima.nhh-suc.ces_its.hrd-too.ver-sta.tem",
+            "twa_tri__ima_nhh__suc_ces___its_hrd__too_ver__sta_tem",
+            "twa_tri__ima_nhh__suc_ces___its_hrd__too_ver__sta_tem",
         );
-        assert_test_case("{Al.pha-Be.ta-Gam.ma}", "Al.pha-Be.ta-Gam.ma");
+        assert_test_case("{Al_pha__Gamm_a__Be_ta}", "Al_pha__Be_ta__Gamm_a");
 
         // empty not allowed
         parse_name_spec_into_patterns("").unwrap_err();
+        parse_name_spec_into_patterns("{").unwrap_err();
+        parse_name_spec_into_patterns("}").unwrap_err();
         parse_name_spec_into_patterns("{}").unwrap_err();
+        parse_name_spec_into_patterns("}{").unwrap_err();
         parse_name_spec_into_patterns("{a}").unwrap_err();
-        parse_name_spec_into_patterns("{.}").unwrap_err();
-        parse_name_spec_into_patterns("{a.}").unwrap_err();
-        parse_name_spec_into_patterns("{.a.b}").unwrap_err();
+        parse_name_spec_into_patterns("{_}").unwrap_err();
+        parse_name_spec_into_patterns("{a_}").unwrap_err();
+        parse_name_spec_into_patterns("{_a_b}").unwrap_err();
         // mismatch structure not allowed
-        parse_name_spec_into_patterns("{{z_e}_{b_r}_a}").unwrap_err();
-        parse_name_spec_into_patterns("{{z.e}_{br}}_a").unwrap_err();
-        parse_name_spec_into_patterns("{{z.e}_{a.b.c}}_a").unwrap_err();
+        parse_name_spec_into_patterns("{{z__e}__{b__r}__a}").unwrap_err();
+        parse_name_spec_into_patterns("{{z_e}__{br}}__a").unwrap_err();
+        parse_name_spec_into_patterns("{{z_e}__{a_b_c}}__a").unwrap_err();
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_name_lexing(s: String) {
+            let _ = lex_to_tokens(&s); // don't panic!
+        }
+
+        #[test]
+        fn proptest_name_parsing(tokens: Vec<Token>) {
+            let _ = parse_tokens(Vec::as_slice(&tokens)); // don't panic!
+        }
     }
 }

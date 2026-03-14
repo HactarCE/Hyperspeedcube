@@ -17,8 +17,8 @@ pub use string_bi_map::{StringBiMap, StringBiMapBuilder};
 pub enum BadName {
     #[error("name {name:?} is already taken")]
     AlreadyTaken { name: String },
-    #[error("name {name:?} is invalid")]
-    InvalidName { name: String },
+    #[error("{0}")]
+    NameSpecError(#[from] name_spec::NameSpecError),
     #[error("name is empty")]
     Empty,
     #[error("internal error (this is a bug)")]
