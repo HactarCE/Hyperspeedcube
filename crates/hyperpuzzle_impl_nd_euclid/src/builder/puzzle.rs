@@ -313,7 +313,7 @@ impl PuzzleBuilder {
         let new_twist_to_old_twist = Box::new({
             let twists = Arc::clone(&twists);
             move |new_twist: NewTwist| {
-                if new_twist.transform.bracketed.is_some() {
+                if new_twist.transform.constraints.is_some() {
                     return None;
                 }
                 Some(LayeredTwist {

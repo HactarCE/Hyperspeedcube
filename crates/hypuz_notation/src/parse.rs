@@ -65,12 +65,14 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
         let rotation = just('@')
             .to_span()
             .then(family(0))
-            .then(bracketed_transform().or_not())
-            .map(|((at_sign, family), transform)| RepeatableNode::Rotation {
-                at_sign,
-                family,
-                transform,
-            })
+            .then(constraint_set().spanned().or_not())
+            .map(
+                |((at_sign, family), constraints)| RepeatableNode::Rotation {
+                    at_sign,
+                    family,
+                    constraints,
+                },
+            )
             .contextual()
             .configure(|_, ctx: &Features| ctx.generalized_rotations)
             .labelled("rotation");
@@ -78,11 +80,11 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
         let move_ = layer_prefix()
             .spanned()
             .then(family(1))
-            .then(bracketed_transform().or_not())
-            .map(|((layers, family), transform)| RepeatableNode::Move {
+            .then(constraint_set().spanned().or_not())
+            .map(|((layers, family), constraints)| RepeatableNode::Move {
                 layers,
                 family,
-                transform,
+                constraints,
             })
             .labelled("move");
 
@@ -141,14 +143,31 @@ fn sq1_move<'src>() -> impl NotationParser<'src, Sq1Move> {
     .configure(|_, ctx: &Features| ctx.sq1)
 }
 
-fn bracketed_transform<'src>() -> impl NotationParser<'src, Spanned<Span>> {
-    any()
-        .filter(|&c| crate::charsets::is_bracketed_transform_char(c))
-        .separated_by(just(' ').repeated())
-        .to_span()
-        .padded()
-        .delimited_by(just('['), just(']'))
+fn constraint_set<'src>() -> impl NotationParser<'src, ConstraintSet> {
+    constraint()
         .spanned()
+        .separated_by(just(',').padded())
+        .collect()
+        .padded()
+        .delimited_by(just('{'), just('}'))
+        .map(Vec::into_boxed_slice)
+        .map(|constraints| ConstraintSet { constraints })
+        .contextual()
+        .configure(|_, ctx: &Features| ctx.transform_constraints)
+}
+
+fn constraint<'src>() -> impl NotationParser<'src, Constraint> {
+    choice((
+        family(1)
+            .then_ignore(just("->").padded())
+            .then(family(1))
+            .map(|(a, b)| Constraint::FromTo([a, b])),
+        family(1)
+            .then_ignore(just("<>").padded())
+            .then(family(1))
+            .map(|(a, b)| Constraint::Swap([a, b])),
+        family(1).map(Constraint::Fix),
+    ))
 }
 
 fn family<'src>(min_len: usize) -> impl NotationParser<'src, Span> {
@@ -191,7 +210,7 @@ fn layer_prefix<'src>() -> impl NotationParser<'src, LayerPrefix> {
     let tilde = just('~')
         .to_span()
         .contextual()
-        .configure(|_, ctx: &Features| ctx.layers.inverting);
+        .configure(|_, ctx: &Features| ctx.layers.inverted_layers);
 
     let layer_prefix_contents = choice((
         signed_layer_range.map(LayerPrefixContents::Set),

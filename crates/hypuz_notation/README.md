@@ -1,3 +1,3 @@
 # hypuz_notation
 
-Hyper Puzzle Notation parser and serializer
+[Hyper Puzzle Notation](https://hypercubing.xyz/drafts/hyper-puzzle-notation/) parser and serializer

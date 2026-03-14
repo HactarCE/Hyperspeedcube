@@ -1,6 +1,5 @@
 //! Hyper Puzzle Notation parser and serializer.
 
-pub mod bracketed;
 pub mod charsets;
 pub mod common;
 pub mod error;
@@ -33,6 +32,11 @@ pub struct Features {
     /// Whether to allow rotations using generalized rotation (`@`) syntax.
     pub generalized_rotations: bool,
 
+    /// Whether to allow transform constraints.
+    ///
+    /// Example: `U{R->F, I->P}`
+    pub transform_constraints: bool,
+
     /// Whether to allow Megaminx scrambling notation.
     ///
     /// Example: `R++ D--`
@@ -55,6 +59,7 @@ impl Features {
     pub const MINIMAL: Self = Self {
         layers: LayerFeatures::SIMPLE,
         generalized_rotations: false,
+        transform_constraints: false,
         megaminx: false,
         sq1: false,
     };
@@ -64,6 +69,7 @@ impl Features {
     pub const WCA: Self = Self {
         layers: LayerFeatures::SIMPLE,
         generalized_rotations: false,
+        transform_constraints: false,
         megaminx: true,
         sq1: true,
     };
@@ -73,6 +79,7 @@ impl Features {
     pub const MAXIMAL: Self = Self {
         layers: LayerFeatures::HYPERCUBING,
         generalized_rotations: true,
+        transform_constraints: true,
         megaminx: true,
         sq1: true,
     };
@@ -83,7 +90,7 @@ impl Features {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerFeatures {
     /// Whether to allow inverting layer prefixes.
-    pub inverting: bool,
+    pub inverted_layers: bool,
 
     /// Whether to allow layer sets.
     ///
@@ -107,14 +114,14 @@ impl Default for LayerFeatures {
 impl LayerFeatures {
     /// Minimal feature set with no hypercubing-specific notation.
     pub const SIMPLE: Self = Self {
-        inverting: false,
+        inverted_layers: false,
         layer_sets: false,
         hsc1_layer_ranges: false,
     };
 
-    /// Maximumal feature set, including hypercubing notation.
+    /// Maximumal feature set, including all hypercubing notation.
     pub const HYPERCUBING: Self = Self {
-        inverting: true,
+        inverted_layers: true,
         layer_sets: true,
         hsc1_layer_ranges: true,
     };

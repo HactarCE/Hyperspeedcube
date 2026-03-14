@@ -84,41 +84,35 @@ impl Node {
 /// Notation element that can be repeated.
 #[derive(Debug, Clone)]
 pub enum RepeatableNode {
-    /// Move, such as `x` or `IR2` or `{1..-1}U[ R->F ]`
+    /// Move, such as `x` or `IR2` or `{1..-1}U{ R->F }`
     Move {
         /// Layer prefix.
         ///
         /// For an empty layer prefix, this has an empty span.
         ///
-        /// Example `{1..-1}` in the move `{1..-1}U[ R->F ]`
+        /// Example `{1..-1}` in the move `{1..-1}U{ R->F }`
         layers: Spanned<LayerPrefix>,
         /// Span of the move family, which must not be empty.
         ///
-        /// Example: `U` in the move `{1..-1}U[ R->F ]`
+        /// Example: `U` in the move `{1..-1}U{ R->F }`
         family: Span,
-        /// Span of the bracketed transform, if present.
+        /// Span of the constraints set, if present.
         ///
-        /// The outer span includes the brackets; the inner span is only the
-        /// contents of the brackets, not including surrounding whitespace.
-        ///
-        /// Example: `R->F` in the move `{1..-1}U[ R->F ]`
-        transform: Option<Spanned<Span>>,
+        /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}`
+        constraints: Option<Spanned<ConstraintSet>>,
     },
-    /// Rotation using `@`, such as `@U[ R->F ]`.
+    /// Rotation using `@`, such as `@U{ R->F }`.
     Rotation {
         /// Span of the `@` symbol.
         at_sign: Span,
         /// Span of the move family, which may be empty.
         ///
-        /// Example: `U` in the rotation `@U[ R->F ]`
+        /// Example: `U` in the rotation `@U{ R->F }`
         family: Span,
-        /// Span of the bracketed transform, if present.
+        /// Span of the constraints transform, if present.
         ///
-        /// The outer span includes the brackets; the inner span is only the
-        /// contents of the brackets, not including surrounding whitespace.
-        ///
-        /// Example: `R->F` in the rotation `@U[ R->F ]`
-        transform: Option<Spanned<Span>>,
+        /// Example: `{R->F, I->P}` in the rotation `@U{R->F, I->P}`.
+        constraints: Option<Spanned<ConstraintSet>>,
     },
     /// List of nodes surrounded by `()`.
     Group {
@@ -148,22 +142,22 @@ impl RepeatableNode {
             RepeatableNode::Move {
                 layers,
                 family,
-                transform,
+                constraints,
             } => unspanned::RepeatableNode::Move(unspanned::Move {
                 layers: layers.to_unspanned(),
                 transform: unspanned::Transform {
                     family: src(source, *family),
-                    bracketed: transform.map(|s| src(source, *s)),
+                    constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
                 },
             }),
             RepeatableNode::Rotation {
                 at_sign: _,
                 family,
-                transform,
+                constraints,
             } => unspanned::RepeatableNode::Rotation(unspanned::Rotation {
                 transform: unspanned::Transform {
                     family: src(source, *family),
-                    bracketed: transform.map(|s| src(source, *s)),
+                    constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
                 },
             }),
             RepeatableNode::Group { kind, contents } => unspanned::RepeatableNode::Group {
@@ -177,6 +171,55 @@ impl RepeatableNode {
                     contents: [a, b].map(|node_list| node_list.to_unspanned(source)),
                 }
             }
+        }
+    }
+}
+
+/// Constraint set, which may be used to specify a rotation or move.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ConstraintSet {
+    /// Constraints in the constraint set.
+    pub constraints: Box<[Spanned<Constraint>]>,
+}
+
+impl ConstraintSet {
+    /// Converts to [`unspanned::ConstraintSet`].
+    pub fn to_unspanned(&self, source: &str) -> unspanned::ConstraintSet {
+        unspanned::ConstraintSet {
+            constraints: self
+                .constraints
+                .iter()
+                .map(|c| c.to_unspanned(source))
+                .collect(),
+        }
+    }
+}
+
+/// Constraint, which may be used as part of a constraint set to specify a
+/// rotation or move.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Constraint {
+    /// Constraint that the transform must take one reference point to another.
+    FromTo([Span; 2]),
+    /// Constraint that the transform must swap two referecne points.
+    Swap([Span; 2]),
+    /// Constraint that the transform must keep a reference point fixed.
+    Fix(Span),
+}
+
+impl Constraint {
+    /// Converts to [`unspanned::Constraint`].
+    pub fn to_unspanned(&self, source: &str) -> unspanned::Constraint {
+        match self {
+            Constraint::FromTo([a, b]) => {
+                unspanned::Constraint::FromTo([src(source, *a), src(source, *b)])
+            }
+            Constraint::Swap([a, b]) => {
+                unspanned::Constraint::Swap([src(source, *a), src(source, *b)])
+            }
+            Constraint::Fix(a) => unspanned::Constraint::Fix(src(source, *a)),
         }
     }
 }

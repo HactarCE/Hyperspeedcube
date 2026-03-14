@@ -26,12 +26,6 @@ pub fn is_family_char(c: char) -> bool {
     is_latin_letter(c) || is_greek_letter(c) || c == '_'
 }
 
-/// Returns whether `c` is a character allowed in a bracketed transform,
-/// including ` `.
-pub fn is_bracketed_transform_char(c: char) -> bool {
-    is_family_char(c) || matches!(c, ' ' | '0'..='9' | '\'' | '<' | '>' | '|' | '-')
-}
-
 /// Returns whether `c` is a jumbling suffix character `h`, `j`, or `k`.
 pub fn is_jumbling_suffix(c: char) -> bool {
     matches!(c, 'h' | 'j' | 'k')
@@ -53,21 +47,6 @@ pub const FAMILY_CHAR_CLASS: &str = "[A-Za-zΓΔΘΛΞΠΣΦΨΩβδζθλξεη
 pub const FAMILY_CHARS: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzΓΔΘΛΞΠΣΦΨΩβδζθλξεηκμπτφψω";
 
-/// Regex character class (including the surrounding `[]`) matching all
-/// characters for which [`is_family_char()`] returns true, **except for ` `
-/// (space)**.
-pub const BRACKETED_TRANSFORM_CHAR_CLASS_NO_SPACE: &str =
-    r"[A-Za-zΓΔΘΛΞΠΣΦΨΩβδζθλξεηκμπτφψω0-9'<>|-]";
-
-/// Regex character class (including the surrounding `[]`) matching all
-/// characters for which [`is_family_char()`] returns true.
-pub const BRACKETED_TRANSFORM_CHAR_CLASS: &str = "[ A-Za-zΓΔΘΛΞΠΣΦΨΩβδζθλξεηκμπτφψω0-9'<>|-]";
-
-/// String containing all characters for which [`is_bracketed_transform_char()`]
-/// returns true.
-pub const BRACKETED_TRANSFORM_CHARS: &str =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzΓΔΘΛΞΠΣΦΨΩβδζθλξεηκμπτφψω 0123456789'-<>|";
-
 /// String containing all group prefix characters.
 pub const GROUP_PREFIX_CHARS: &str = "!#$%&?^`";
 
@@ -75,10 +54,4 @@ pub const GROUP_PREFIX_CHARS: &str = "!#$%&?^`";
 lazy_static::lazy_static! {
     pub(crate) static ref FAMILY_REGEX: &'static str = format!("{FAMILY_CHAR_CLASS}+").leak();
     pub(crate) static ref OPT_FAMILY_REGEX: &'static str = format!("{FAMILY_CHAR_CLASS}*").leak();
-    pub(crate) static ref TRANSFORM_REGEX: &'static str = format!(
-        "{BRACKETED_TRANSFORM_CHAR_CLASS_NO_SPACE}\
-         ({BRACKETED_TRANSFORM_CHAR_CLASS}*\
-          {BRACKETED_TRANSFORM_CHAR_CLASS_NO_SPACE})?"
-    )
-    .leak();
 }

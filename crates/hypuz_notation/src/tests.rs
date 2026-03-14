@@ -4,13 +4,18 @@ use proptest::prelude::*;
 use crate::*;
 
 #[test]
-fn test_bracketed_transform() {
-    let cfg = Features::default();
+fn test_constraint_set() {
+    let mut cfg = Features::default();
 
-    let expected = NodeList(vec![Move::new((), "R", Some("F -> U")).with_multiplier(1)]);
-    assert_eq!(expected, parse_notation("R[ F -> U ]", cfg).unwrap());
-    assert_eq!(expected, parse_notation("R[F -> U]", cfg).unwrap());
-    assert_eq!(expected.to_string(), "R[F -> U]");
+    let expected = NodeList(vec![
+        Move::new((), "R", Some([("F", "U")].into_iter().collect())).with_multiplier(1),
+    ]);
+    assert_eq!(expected, parse_notation("R{ F -> U }", cfg).unwrap());
+    assert_eq!(expected, parse_notation("R{F->U}", cfg).unwrap());
+    assert_eq!(expected.to_string(), "R{F->U}");
+
+    cfg.transform_constraints = false;
+    parse_notation("R{ F -> U }", cfg).unwrap_err();
 }
 
 #[test]
@@ -29,7 +34,7 @@ fn test_nested_notation() {
                     .with_multiplier(16),
                 Transform {
                     family: Str::default(),
-                    bracketed: None,
+                    constraints: None,
                 }
                 .into_rotation()
                 .with_multiplier(1),
@@ -40,8 +45,11 @@ fn test_nested_notation() {
                             RepeatableNode::Rotation(Rotation::new("yx", None)).with_multiplier(-1),
                         ]),
                         NodeList(vec![
-                            RepeatableNode::Rotation(Rotation::new("U", Some("1 j")))
-                                .with_multiplier(-1),
+                            RepeatableNode::Rotation(Rotation::new(
+                                "U",
+                                Some(vec![("a", "j").into(), ("q", "r").into()].into()),
+                            ))
+                            .with_multiplier(-1),
                             RepeatableNode::Move(Move::new(!LayerPrefix::default(), "IUR", None))
                                 .with_multiplier(16),
                         ]),
@@ -55,26 +63,26 @@ fn test_nested_notation() {
 
     assert_eq!(
         expected.to_string(),
-        "(~2aC16 @ [@yx', @U[1 j]' ~IUR16]42')",
+        "(~2aC16 @ [@yx', @U{a->j,q->r}' ~IUR16]42')",
     );
 
     // with normal spaces
     assert_eq!(
         expected,
-        parse_notation("(~2aC16 @ [@yx', @U[1 j]' ~IUR16]42')", cfg).unwrap()
+        parse_notation("(~2aC16 @ [@yx', @U{a->j, q->r}' ~IUR16]42')", cfg).unwrap()
     );
 
     // with minimal spaces
     assert_eq!(
         expected,
-        parse_notation("(~2aC16 @ [@yx',@U[1 j]' ~IUR16]42')", cfg,).unwrap()
+        parse_notation("(~2aC16 @ [@yx',@U{a->j,q->r}' ~IUR16]42')", cfg,).unwrap()
     );
 
     // with extra spaces
     assert_eq!(
         expected,
         parse_notation(
-            "  (  ~2aC16  @  [  @yx'  ,  @U[1 j]'  ~IUR16  ]42'  )  ",
+            "  (  ~2aC16  @  [  @yx'  ,  @U{  a  ->  j  ,  q  ->  r  }'  ~IUR16  ]42'  )  ",
             cfg,
         )
         .unwrap()
@@ -155,13 +163,9 @@ impl Arbitrary for Move {
 
         let layers = LayerPrefix::arbitrary();
         let family = FAMILY_REGEX.boxed(); // not sure why `.boxed()` is necessary
-        let opt_bracketed_transform =
-            prop_oneof![Just(None), "[A-Z]([A-Z ]*[A-Z])?".prop_map(Some)];
 
-        (layers, family, opt_bracketed_transform)
-            .prop_map(|(layers, family, bracketed_transform)| {
-                Move::new(layers, family, bracketed_transform)
-            })
+        (layers, family, Option::<ConstraintSet>::arbitrary())
+            .prop_map(|(layers, family, constraint_set)| Move::new(layers, family, constraint_set))
             .boxed()
     }
 
@@ -175,12 +179,40 @@ impl Arbitrary for Rotation {
         use crate::charsets::FAMILY_REGEX;
 
         let opt_family = prop_oneof![Just(String::new()), FAMILY_REGEX.boxed()];
-        let opt_bracketed_transform =
-            prop_oneof![Just(None), "[A-Z]([A-Z ]*[A-Z])?".prop_map(Some)];
 
-        (opt_family, opt_bracketed_transform)
-            .prop_map(|(family, bracketed_transform)| Rotation::new(family, bracketed_transform))
+        (opt_family, Option::<ConstraintSet>::arbitrary())
+            .prop_map(|(family, constraint_set)| Rotation::new(family, constraint_set))
             .boxed()
+    }
+
+    type Strategy = BoxedStrategy<Self>;
+}
+
+impl Arbitrary for ConstraintSet {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        prop::collection::vec(Constraint::arbitrary(), 0..=3)
+            .prop_map_into()
+            .boxed()
+    }
+
+    type Strategy = BoxedStrategy<Self>;
+}
+
+impl Arbitrary for Constraint {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use crate::charsets::FAMILY_REGEX;
+
+        let family = FAMILY_REGEX.prop_map_into();
+        prop_oneof![
+            (family.clone(), family.clone()).prop_map(|(a, b)| Constraint::FromTo([a, b])),
+            (family.clone(), family.clone()).prop_map(|(a, b)| Constraint::Swap([a, b])),
+            family.prop_map(Constraint::Fix)
+        ]
+        .boxed()
     }
 
     type Strategy = BoxedStrategy<Self>;

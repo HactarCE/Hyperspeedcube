@@ -134,9 +134,9 @@ impl Node {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RepeatableNode {
-    /// Move, such as `x` or `IR2` or `{1..-1}U[R->F]`
+    /// Move, such as `x` or `IR2` or `{1..-1}U{R->F}`
     Move(Move),
-    /// Rotation using `@`, such as `@U[R->F]`.
+    /// Rotation using `@`, such as `@U{R->F}`.
     Rotation(Rotation),
     /// List of nodes surrounded by `()`.
     Group {
@@ -229,9 +229,9 @@ impl From<Transform> for Rotation {
 
 impl Rotation {
     /// Constructs a rotation.
-    pub fn new<S: Into<Str>>(family: S, bracketed: Option<S>) -> Self {
+    pub fn new(family: impl Into<Str>, constraints: Option<ConstraintSet>) -> Self {
         Self {
-            transform: Transform::new(family, bracketed),
+            transform: Transform::new(family, constraints),
         }
     }
 
@@ -278,14 +278,14 @@ impl From<Transform> for Move {
 
 impl Move {
     /// Constructs a move.
-    pub fn new<S: Into<Str>>(
+    pub fn new(
         layers: impl Into<LayerPrefix>,
-        family: S,
-        bracketed: Option<S>,
+        family: impl Into<Str>,
+        constraints: Option<ConstraintSet>,
     ) -> Self {
         Self {
             layers: layers.into(),
-            transform: Transform::new(family, bracketed),
+            transform: Transform::new(family, constraints),
         }
     }
 
@@ -302,25 +302,25 @@ pub struct Transform {
     /// Move family, which may be empty for a rotation but must be nonempty for
     /// a transform.
     ///
-    /// Example: `U` in the move `{1..-1}U[ R -> F ]` or the rotation `@U[ R ->
-    /// F ]`
+    /// Example: `U` in the move `{1..-1}U{R->F, I->P}` or the rotation
+    /// `@U{R->F, I->P}`
     pub family: Str,
-    /// Bracketed transform, if present. Not including the brackets `[]` or
-    /// surrounding whitespace.
+    /// Constraint set, if present.
     ///
-    /// Example: `R -> F` in the move `{1..-1}U[ R -> F ]` or the rotation `@U[
-    /// R -> F ]`
-    pub bracketed: Option<Str>,
+    /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}` or the
+    /// rotation `@U{R->F, I->P}`.
+    pub constraints: Option<ConstraintSet>,
 }
 
 impl fmt::Display for Transform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { family, bracketed } = self;
+        let Self {
+            family,
+            constraints,
+        } = self;
         write!(f, "{family}")?;
-        if let Some(bracketed) = bracketed {
-            write!(f, "[")?;
-            fmt::Display::fmt(bracketed, f)?;
-            write!(f, "]")?;
+        if let Some(constraints) = constraints {
+            fmt::Display::fmt(constraints, f)?;
         }
         Ok(())
     }
@@ -328,10 +328,10 @@ impl fmt::Display for Transform {
 
 impl Transform {
     /// Constructs a transform.
-    pub fn new<S: Into<Str>>(family: S, bracketed: Option<S>) -> Self {
+    pub fn new(family: impl Into<Str>, constraints: Option<ConstraintSet>) -> Self {
         Self {
             family: family.into(),
-            bracketed: bracketed.map(|s| s.into()),
+            constraints,
         }
     }
 
@@ -344,6 +344,100 @@ impl Transform {
     /// Constructs a rotation with this transform.
     pub fn into_rotation(self) -> Rotation {
         Rotation { transform: self }
+    }
+}
+
+/// Constraint set, which may be used to specify a rotation or move.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ConstraintSet {
+    /// Constraints in the set, in arbitrary order.
+    pub constraints: Box<[Constraint]>,
+}
+
+impl fmt::Display for ConstraintSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{")?;
+        write_separated_list(f, &self.constraints, ",")?;
+        write!(f, "}}")?;
+        Ok(())
+    }
+}
+
+impl IntoIterator for ConstraintSet {
+    type Item = Constraint;
+
+    type IntoIter = std::vec::IntoIter<Constraint>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.constraints.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a ConstraintSet {
+    type Item = &'a Constraint;
+
+    type IntoIter = std::slice::Iter<'a, Constraint>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.constraints.iter()
+    }
+}
+
+impl<C: Into<Constraint>> FromIterator<C> for ConstraintSet {
+    fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
+        Self {
+            constraints: iter.into_iter().map(|c| c.into()).collect(),
+        }
+    }
+}
+
+impl From<Vec<Constraint>> for ConstraintSet {
+    fn from(constraints: Vec<Constraint>) -> Self {
+        Self {
+            constraints: constraints.into_boxed_slice(),
+        }
+    }
+}
+
+impl From<Box<[Constraint]>> for ConstraintSet {
+    fn from(constraints: Box<[Constraint]>) -> Self {
+        Self { constraints }
+    }
+}
+
+/// Constraint, which may be used as part of a constraint set to specify a
+/// rotation or move.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Constraint {
+    /// Constraint that the transform must take one reference point to another.
+    FromTo([Str; 2]),
+    /// Constraint that the transform must swap two referecne points.
+    Swap([Str; 2]),
+    /// Constraint that the transform must keep a reference point fixed.
+    Fix(Str),
+}
+
+impl fmt::Display for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Constraint::FromTo([a, b]) => {
+                let arrow = if f.alternate() { "→" } else { "->" };
+                write!(f, "{a}{arrow}{b}")
+            }
+            Constraint::Swap([a, b]) => {
+                let arrow = if f.alternate() { "↔" } else { "<>" };
+                write!(f, "{a}{arrow}{b}")
+            }
+            Constraint::Fix(a) => write!(f, "{a}"),
+        }
+    }
+}
+
+impl<A: Into<Str>, B: Into<Str>> From<(A, B)> for Constraint {
+    fn from((a, b): (A, B)) -> Self {
+        Self::FromTo([a.into(), b.into()])
     }
 }
 
