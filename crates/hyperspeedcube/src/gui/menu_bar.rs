@@ -2,12 +2,12 @@ use egui::containers::menu::{MenuButton, MenuConfig};
 use hyperpuzzle::ScrambleType;
 
 use super::AppUi;
-use crate::L;
 use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
 use crate::gui::util::{MDI_SMALL, hyperlink_to, menu_button_that_stays_open};
+use crate::{L, open_dir};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     egui::MenuBar::new().ui(ui, |ui| {
@@ -130,6 +130,13 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                 }
             });
         });
+
+        if let Ok(solves_dir) = hyperpaths::solves_dir() {
+            ui.separator();
+            if ui.button(L.menu.file.show_solves_dir).clicked() {
+                open_dir(solves_dir);
+            }
+        }
 
         if save_buttons_scope.response.contains_pointer() {
             egui::Tooltip::always_open(

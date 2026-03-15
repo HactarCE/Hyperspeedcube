@@ -54,6 +54,7 @@ menu {
     copy_hsc_log "Copy log (.hsc)"
     copy_hsc_replay "Copy replay (.hsc)"
     copy_log "Copy (.log)"
+    show_solves_dir "Show solves directory"
     exit "Exit"
   }
   edit {
