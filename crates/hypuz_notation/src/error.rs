@@ -2,10 +2,8 @@
 
 use std::num::ParseIntError;
 
-use thiserror::Error;
-
 /// Error produced when inverting a node list.
-#[derive(Error, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InvertError {
     /// NISS node cannot be inverted
     #[error("NISS node cannot be inverted")]
@@ -18,7 +16,7 @@ pub enum InvertError {
 }
 
 /// Error produced when parsing a layer number.
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ParseLayerError {
     /// Integer parse error
     #[error("{0}")]

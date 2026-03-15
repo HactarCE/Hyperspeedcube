@@ -12,14 +12,13 @@ use std::collections::{HashMap, hash_map};
 use std::str::FromStr;
 
 use itertools::Itertools;
-use thiserror::Error;
 
 use super::BadName;
 
 /// String of 32 underscores.
 const SEPARATOR_STR: &str = "________________________________";
 
-#[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NameSpecError {
     #[error("char {0:?} is not allowed")]
     BadChar(char),
