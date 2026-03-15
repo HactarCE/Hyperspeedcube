@@ -2,8 +2,7 @@ use std::fmt;
 use std::num::{NonZeroI16, NonZeroU16};
 use std::str::FromStr;
 
-use super::SignedLayer;
-use crate::error::ParseLayerError;
+use super::{ParseLayerError, SignedLayer};
 
 /// 1-indexed unsigned layer number.
 ///

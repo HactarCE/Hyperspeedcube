@@ -2,7 +2,10 @@ use super::{Layer, LayerRange, SignedLayer};
 
 /// Number of layers on an axis and a boolean flag to indicate whether negative
 /// layer numbers are allowed.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+///
+/// By default, the max layer is [`Layer::MAX`] and negative layer numbers are not
+/// allowed.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct AxisLayersInfo {
@@ -16,7 +19,19 @@ pub struct AxisLayersInfo {
     pub allow_negatives: bool,
 }
 
+impl Default for AxisLayersInfo {
+    fn default() -> Self {
+        Self::UNLIMITED
+    }
+}
+
 impl AxisLayersInfo {
+    /// Maximum layer count ([`Layer::MAX`]) and no negative layers.
+    pub const UNLIMITED: Self = Self {
+        max_layer: Layer::MAX.to_u16(),
+        allow_negatives: false,
+    };
+
     /// Resolves a layer, given the number of layers on the axis. See the
     /// [`SignedLayer`] documentation for how this mapping works.
     ///
@@ -67,7 +82,7 @@ impl AxisLayersInfo {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum UnclampedLayer {
+pub enum UnclampedLayer {
     BeyondShallowest,
     Concrete(Layer),
     BeyondDeepest,

@@ -3,6 +3,8 @@
 //! Use these when you want to map notation elements to the original input
 //! string, such as for highlighting moves as they are performed.
 
+use std::ops::{Deref, DerefMut};
+
 use chumsky::Parser;
 
 pub use crate::common::*;
@@ -23,6 +25,26 @@ pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<Parse
 /// List of notation elements.
 #[derive(Debug, Default, Clone)]
 pub struct NodeList(pub Vec<Spanned<Node>>);
+
+impl Deref for NodeList {
+    type Target = Vec<Spanned<Node>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NodeList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl FromIterator<Spanned<Node>> for NodeList {
+    fn from_iter<T: IntoIterator<Item = Spanned<Node>>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
 
 impl NodeList {
     /// Converts to [`unspanned::NodeList`].
@@ -47,7 +69,7 @@ impl NodeList {
 #[derive(Debug, Clone)]
 pub enum Node {
     /// Notation element that can be repeated.
-    RepeatedNode {
+    Repeatable {
         /// The notation element that is repeated.
         inner: Spanned<RepeatableNode>,
         /// Multiplier.
@@ -68,9 +90,46 @@ impl Node {
     /// Converts to [`unspanned::Node`].
     pub fn to_unspanned(&self, source: &str) -> unspanned::Node {
         match self {
-            Node::RepeatedNode { inner, multiplier } => unspanned::Node::RepeatedNode {
-                inner: inner.to_unspanned(source),
-                multiplier: **multiplier,
+            Node::Repeatable { inner, multiplier } => match &**inner {
+                RepeatableNode::Group { kind, contents } => {
+                    unspanned::Node::Group(unspanned::Group {
+                        kind: **kind,
+                        contents: contents.to_unspanned(source),
+                        multiplier: **multiplier,
+                    })
+                }
+                RepeatableNode::BinaryGroup { kind, contents } => {
+                    let [lhs, rhs] = &contents;
+                    unspanned::Node::BinaryGroup(unspanned::BinaryGroup {
+                        kind: **kind,
+                        lhs: lhs.to_unspanned(source),
+                        rhs: rhs.to_unspanned(source),
+                        multiplier: **multiplier,
+                    })
+                }
+                RepeatableNode::Rotation {
+                    at_sign: _,
+                    family,
+                    constraints,
+                } => unspanned::Node::Rotation(unspanned::Rotation {
+                    transform: unspanned::Transform {
+                        family: src(source, *family),
+                        constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
+                    },
+                    multiplier: **multiplier,
+                }),
+                RepeatableNode::Move {
+                    layers,
+                    family,
+                    constraints,
+                } => unspanned::Node::Move(unspanned::Move {
+                    layers: layers.to_unspanned(),
+                    transform: unspanned::Transform {
+                        family: src(source, *family),
+                        constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
+                    },
+                    multiplier: **multiplier,
+                }),
             },
             Node::Pause => unspanned::Node::Pause,
             Node::Sq1Move(sq1_move) => unspanned::Node::Sq1Move(*sq1_move),
@@ -84,36 +143,6 @@ impl Node {
 /// Notation element that can be repeated.
 #[derive(Debug, Clone)]
 pub enum RepeatableNode {
-    /// Move, such as `x` or `IR2` or `{1..-1}U{ R->F }`
-    Move {
-        /// Layer prefix.
-        ///
-        /// For an empty layer prefix, this has an empty span.
-        ///
-        /// Example `{1..-1}` in the move `{1..-1}U{ R->F }`
-        layers: Spanned<LayerPrefix>,
-        /// Span of the move family, which must not be empty.
-        ///
-        /// Example: `U` in the move `{1..-1}U{ R->F }`
-        family: Span,
-        /// Span of the constraints set, if present.
-        ///
-        /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}`
-        constraints: Option<Spanned<ConstraintSet>>,
-    },
-    /// Rotation using `@`, such as `@U{ R->F }`.
-    Rotation {
-        /// Span of the `@` symbol.
-        at_sign: Span,
-        /// Span of the move family, which may be empty.
-        ///
-        /// Example: `U` in the rotation `@U{ R->F }`
-        family: Span,
-        /// Span of the constraints transform, if present.
-        ///
-        /// Example: `{R->F, I->P}` in the rotation `@U{R->F, I->P}`.
-        constraints: Option<Spanned<ConstraintSet>>,
-    },
     /// List of nodes surrounded by `()`.
     Group {
         /// Kind of group.
@@ -134,45 +163,36 @@ pub enum RepeatableNode {
         /// Nodes inside each half of the group.
         contents: [NodeList; 2],
     },
-}
-impl RepeatableNode {
-    /// Converts to [`unspanned::RepeatableNode`].
-    pub fn to_unspanned(&self, source: &str) -> unspanned::RepeatableNode {
-        match self {
-            RepeatableNode::Move {
-                layers,
-                family,
-                constraints,
-            } => unspanned::RepeatableNode::Move(unspanned::Move {
-                layers: layers.to_unspanned(),
-                transform: unspanned::Transform {
-                    family: src(source, *family),
-                    constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
-                },
-            }),
-            RepeatableNode::Rotation {
-                at_sign: _,
-                family,
-                constraints,
-            } => unspanned::RepeatableNode::Rotation(unspanned::Rotation {
-                transform: unspanned::Transform {
-                    family: src(source, *family),
-                    constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
-                },
-            }),
-            RepeatableNode::Group { kind, contents } => unspanned::RepeatableNode::Group {
-                kind: **kind,
-                contents: contents.to_unspanned(source),
-            },
-            RepeatableNode::BinaryGroup { kind, contents } => {
-                let [a, b] = &contents;
-                unspanned::RepeatableNode::BinaryGroup {
-                    kind: **kind,
-                    contents: [a, b].map(|node_list| node_list.to_unspanned(source)),
-                }
-            }
-        }
-    }
+    /// Rotation using `@`, such as `@U{ R->F }`.
+    Rotation {
+        /// Span of the `@` symbol.
+        at_sign: Span,
+        /// Span of the move family, which may be empty.
+        ///
+        /// Example: `U` in the rotation `@U{ R->F }`
+        family: Span,
+        /// Span of the constraints transform, if present.
+        ///
+        /// Example: `{R->F, I->P}` in the rotation `@U{R->F, I->P}`.
+        constraints: Option<Spanned<ConstraintSet>>,
+    },
+    /// Move, such as `x` or `IR2` or `{1..-1}U{ R->F }`
+    Move {
+        /// Layer prefix.
+        ///
+        /// For an empty layer prefix, this has an empty span.
+        ///
+        /// Example `{1..-1}` in the move `{1..-1}U{ R->F }`
+        layers: Spanned<LayerPrefix>,
+        /// Span of the move family, which must not be empty.
+        ///
+        /// Example: `U` in the move `{1..-1}U{ R->F }`
+        family: Span,
+        /// Span of the constraints set, if present.
+        ///
+        /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}`
+        constraints: Option<Spanned<ConstraintSet>>,
+    },
 }
 
 /// Constraint set, which may be used to specify a rotation or move.

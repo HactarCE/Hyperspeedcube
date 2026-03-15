@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use eyre::{OptionExt, Result, ensure, eyre};
+use eyre::{OptionExt, Result, ensure};
 use hypermath::prelude::*;
-use hyperpuzzle_core::NewTwist;
+use hyperpuzzle_core::Move;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
@@ -253,32 +253,16 @@ impl PuzzleBuilder {
                 let layer_count = axis_layers[axis].len() as crate::LayerMaskUint;
                 let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
 
-                Some(NewTwist {
-                    layers: random_layer_mask.to_hypuz_notation(),
+                Some(Move {
+                    layers: random_layer_mask.to_hypuz_notation().into(),
                     transform: hypuz_notation::Transform::new(&twists.names[random_twist], None),
+                    multiplier: hypuz_notation::Multiplier(1),
                 })
             }
         });
 
-        let old_twist_to_new_twist = Box::new({
-            let twists = Arc::clone(&twists);
-            move |old_twist: LayeredTwist| NewTwist {
-                layers: old_twist.layers.to_hypuz_notation(),
-                transform: hypuz_notation::Transform::new(&twists.names[old_twist.transform], None),
-            }
-        });
-        let new_twist_to_old_twist = Box::new({
-            let twists = Arc::clone(&twists);
-            move |new_twist: NewTwist| {
-                if new_twist.transform.constraints.is_some() {
-                    return None;
-                }
-                Some(LayeredTwist {
-                    layers: LayerMask::from_hypuz_notation(new_twist.layers),
-                    transform: twists.names.id_from_name(&new_twist.transform.family)?,
-                })
-            }
-        });
+        let old_twist_to_new_twist = Box::new(move |_old_twist: LayeredTwist| unimplemented!());
+        let new_twist_to_old_twist = Box::new(move |_new_twist: Move| unimplemented!());
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),

@@ -8,7 +8,7 @@ use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, NewTwist, PuzzleListMetadata};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, Move, PuzzleListMetadata};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -57,10 +57,10 @@ pub struct Puzzle {
     /// Random move generator for scrambling. The output of this function must
     /// depend only on the state of the RNG. It must return `None` if and only
     /// if the puzzle has no twists.
-    pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<NewTwist>>,
+    pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<Move>>,
 
-    pub old_twist_to_new_twist: Box<dyn Send + Sync + Fn(LayeredTwist) -> NewTwist>,
-    pub new_twist_to_old_twist: Box<dyn Send + Sync + Fn(NewTwist) -> Option<LayeredTwist>>,
+    pub old_twist_to_new_twist: Box<dyn Send + Sync + Fn(LayeredTwist) -> Move>,
+    pub new_twist_to_old_twist: Box<dyn Send + Sync + Fn(Move) -> Option<LayeredTwist>>,
 }
 
 impl fmt::Debug for Puzzle {

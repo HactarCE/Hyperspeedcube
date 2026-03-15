@@ -51,9 +51,9 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
             )
             .then(node_list.clone())
             .delimited_by(just('['), just(']'))
-            .map(|((a, kind), b)| RepeatableNode::BinaryGroup {
+            .map(|((lhs, kind), rhs)| RepeatableNode::BinaryGroup {
                 kind,
-                contents: [a, b],
+                contents: [lhs, rhs],
             })
             .labelled("commutator notation group");
 
@@ -99,7 +99,7 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
         ))
         .spanned()
         .then(multiplier().spanned())
-        .map(|(inner, multiplier)| Node::RepeatedNode { inner, multiplier });
+        .map(|(inner, multiplier)| Node::Repeatable { inner, multiplier });
 
         let node = choice((
             just('.').to(Node::Pause),

@@ -2,14 +2,14 @@
 
 pub mod charsets;
 pub mod common;
-pub mod error;
 pub mod family;
+pub mod invert;
 pub mod layer;
 mod parse;
 pub mod spanned;
 pub mod unspanned;
 
-pub use error::InvertError;
+pub use invert::*;
 pub use layer::*;
 pub use parse::ParseError;
 pub use unspanned::*;

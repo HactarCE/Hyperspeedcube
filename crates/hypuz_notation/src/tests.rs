@@ -8,7 +8,7 @@ fn test_constraint_set() {
     let mut cfg = Features::default();
 
     let expected = NodeList(vec![
-        Move::new((), "R", Some([("F", "U")].into_iter().collect())).with_multiplier(1),
+        Move::new((), "R", Some([("F", "U")].into_iter().collect()), 1).into(),
     ]);
     assert_eq!(expected, parse_notation("R{ F -> U }", cfg).unwrap());
     assert_eq!(expected, parse_notation("R{F->U}", cfg).unwrap());
@@ -23,42 +23,35 @@ fn test_nested_notation() {
     let cfg = Features::default();
 
     let expected = NodeList(vec![
-        RepeatableNode::Group {
-            kind: GroupKind::Simple,
-            contents: NodeList(vec![
-                Transform::new("aC", None)
-                    .into_move(LayerPrefix {
-                        invert: true,
-                        contents: Some(LayerPrefixContents::Single(Layer::new(2).unwrap())),
-                    })
-                    .with_multiplier(16),
-                Transform {
-                    family: Str::default(),
-                    constraints: None,
-                }
-                .into_rotation()
-                .with_multiplier(1),
-                RepeatableNode::BinaryGroup {
-                    kind: BinaryGroupKind::Commutator,
-                    contents: [
-                        NodeList(vec![
-                            RepeatableNode::Rotation(Rotation::new("yx", None)).with_multiplier(-1),
-                        ]),
-                        NodeList(vec![
-                            RepeatableNode::Rotation(Rotation::new(
-                                "U",
-                                Some(vec![("a", "j").into(), ("q", "r").into()].into()),
-                            ))
-                            .with_multiplier(-1),
-                            RepeatableNode::Move(Move::new(!LayerPrefix::default(), "IUR", None))
-                                .with_multiplier(16),
-                        ]),
-                    ],
-                }
-                .with_multiplier(-42),
-            ]),
-        }
-        .with_multiplier(1),
+        Group::new_simple(NodeList(vec![
+            Move::new(
+                LayerPrefix {
+                    invert: true,
+                    contents: Some(LayerPrefixContents::Single(Layer::new(2).unwrap())),
+                },
+                "aC",
+                None,
+                16,
+            )
+            .into(),
+            Rotation::new("", None, 1).into(),
+            BinaryGroup {
+                kind: BinaryGroupKind::Commutator,
+                lhs: NodeList(vec![Rotation::new("yx", None, -1).into()]),
+                rhs: NodeList(vec![
+                    Rotation::new(
+                        "U",
+                        Some(vec![("a", "j").into(), ("q", "r").into()].into()),
+                        -1,
+                    )
+                    .into(),
+                    Move::new(!LayerPrefix::default(), "IUR", None, 16).into(),
+                ]),
+                multiplier: Multiplier(-42),
+            }
+            .into(),
+        ]))
+        .into(),
     ]);
 
     assert_eq!(
@@ -118,13 +111,9 @@ impl Arbitrary for Node {
     type Parameters = ();
 
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
-        let leaf_repeatable_node = prop_oneof![
-            Move::arbitrary().prop_map(RepeatableNode::from),
-            Rotation::arbitrary().prop_map(RepeatableNode::from),
-        ];
         let leaf_node = prop_oneof![
-            (leaf_repeatable_node, Multiplier::arbitrary())
-                .prop_map(|(rep_node, mult)| rep_node.with_multiplier(mult)),
+            Move::arbitrary().prop_map_into(),
+            Rotation::arbitrary().prop_map_into(),
             Just(Node::Pause),
             Sq1Move::arbitrary().prop_map_into(),
             MegaminxScrambleMove::arbitrary().prop_map_into(),
@@ -137,16 +126,36 @@ impl Arbitrary for Node {
                 4,  // 4 items per collection
                 |inner| {
                     let node_list = prop::collection::vec(inner.clone(), 0..10).prop_map(NodeList);
-                    let branch_repeatable_node = prop_oneof![
-                        (GroupKind::arbitrary(), node_list.clone())
-                            .prop_map(|(kind, contents)| RepeatableNode::Group { kind, contents }),
-                        (BinaryGroupKind::arbitrary(), [node_list.clone(), node_list]).prop_map(
-                            |(kind, contents)| RepeatableNode::BinaryGroup { kind, contents }
-                        ),
-                    ];
-                    let branch_node = (branch_repeatable_node, Multiplier::arbitrary())
-                        .prop_map(|(rep_node, mult)| rep_node.with_multiplier(mult));
-                    branch_node
+                    prop_oneof![
+                        (
+                            GroupKind::arbitrary(),
+                            node_list.clone(),
+                            Multiplier::arbitrary()
+                        )
+                            .prop_map(|(kind, contents, multiplier)| {
+                                Group {
+                                    kind,
+                                    contents,
+                                    multiplier,
+                                }
+                                .into()
+                            }),
+                        (
+                            BinaryGroupKind::arbitrary(),
+                            node_list.clone(),
+                            node_list,
+                            Multiplier::arbitrary()
+                        )
+                            .prop_map(|(kind, lhs, rhs, multiplier)| {
+                                BinaryGroup {
+                                    kind,
+                                    lhs,
+                                    rhs,
+                                    multiplier,
+                                }
+                                .into()
+                            }),
+                    ]
                 },
             )
             .boxed()
@@ -161,11 +170,17 @@ impl Arbitrary for Move {
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
         use crate::charsets::FAMILY_REGEX;
 
-        let layers = LayerPrefix::arbitrary();
-        let family = FAMILY_REGEX.boxed(); // not sure why `.boxed()` is necessary
-
-        (layers, family, Option::<ConstraintSet>::arbitrary())
-            .prop_map(|(layers, family, constraint_set)| Move::new(layers, family, constraint_set))
+        (
+            LayerPrefix::arbitrary(),
+            FAMILY_REGEX.boxed(), // not sure why `.boxed()` is necessary
+            Option::<ConstraintSet>::arbitrary(),
+            Multiplier::arbitrary(),
+        )
+            .prop_map(|(layers, family, constraints, multiplier)| Move {
+                layers,
+                transform: Transform::new(family, constraints),
+                multiplier,
+            })
             .boxed()
     }
 
@@ -178,10 +193,15 @@ impl Arbitrary for Rotation {
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
         use crate::charsets::FAMILY_REGEX;
 
-        let opt_family = prop_oneof![Just(String::new()), FAMILY_REGEX.boxed()];
-
-        (opt_family, Option::<ConstraintSet>::arbitrary())
-            .prop_map(|(family, constraint_set)| Rotation::new(family, constraint_set))
+        (
+            prop_oneof![Just(String::new()), FAMILY_REGEX.boxed()],
+            Option::<ConstraintSet>::arbitrary(),
+            Multiplier::arbitrary(),
+        )
+            .prop_map(|(family, constraints, multiplier)| Rotation {
+                transform: Transform::new(family, constraints),
+                multiplier,
+            })
             .boxed()
     }
 

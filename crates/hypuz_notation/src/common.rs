@@ -5,7 +5,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::InvertError;
+pub use crate::invert::{Invert, InvertError};
 pub use crate::layer::{Layer, LayerMask, LayerRange, SignedLayer};
 
 /// Kind of group.

@@ -29,6 +29,17 @@ pub use range::LayerRange;
 pub use signed::SignedLayer;
 pub use unsigned::Layer;
 
+/// Error produced when parsing a layer number.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum ParseLayerError {
+    /// Integer parse error
+    #[error("{0}")]
+    ParseInt(#[from] std::num::ParseIntError),
+    /// Layer number out of range
+    #[error("layer number out of range")]
+    OutOfRange,
+}
+
 macro_rules! impl_into_and_cmp {
     ($layer_type:ty, $int_type:ty) => {
         impl From<$layer_type> for $int_type {

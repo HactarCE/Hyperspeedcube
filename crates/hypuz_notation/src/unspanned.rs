@@ -8,7 +8,7 @@ use std::fmt;
 use std::ops::{Deref, DerefMut, Not};
 
 pub use crate::common::*;
-use crate::{AxisLayersInfo, Features, InvertError, ParseError, Str};
+use crate::{AxisLayersInfo, Features, ParseError, Str};
 
 /// Parses a string containing puzzle notation into a list of [`Node`]s.
 pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<ParseError<'_>>> {
@@ -41,20 +41,26 @@ impl DerefMut for NodeList {
     }
 }
 
+impl FromIterator<Node> for NodeList {
+    fn from_iter<T: IntoIterator<Item = Node>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl Invert for NodeList {
+    fn inv(self) -> Result<Self, InvertError> {
+        self.0.into_iter().rev().map(|n| n.inv()).collect()
+    }
+
+    fn inv_deep(self) -> Result<Self, InvertError> {
+        self.0.into_iter().rev().map(|n| n.inv_deep()).collect()
+    }
+}
+
 impl NodeList {
     /// Constructs a new empty node list.
     pub fn new() -> Self {
         Self(Vec::new())
-    }
-
-    /// Returns a list with all nodes inverted, in reverse order.
-    pub fn inv(&self) -> Result<Self, InvertError> {
-        self.0
-            .iter()
-            .rev()
-            .map(|n| n.inv())
-            .collect::<Result<_, _>>()
-            .map(Self)
     }
 }
 
@@ -62,13 +68,15 @@ impl NodeList {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Node {
-    /// Notation element that can be repeated.
-    RepeatedNode {
-        /// The notation element that is repeated.
-        inner: RepeatableNode,
-        /// Multiplier, which defaults to `1`.
-        multiplier: Multiplier,
-    },
+    /// List of nodes surrounded by `()` with an optional multiplier.
+    Group(Group),
+    /// Two lists of nodes surrounded by `[]` with a symbol between them and an
+    /// optional multiplier. This is used for conjugate & commutator notation.
+    BinaryGroup(BinaryGroup),
+    /// Rotation using `@`, such as `@U{R->F}`.
+    Rotation(Rotation),
+    /// Move, such as `x` or `IR2` or `{1..-1}U{R->F}`
+    Move(Move),
     /// Pause, written using `.`.
     Pause,
     /// Square-1 move.
@@ -80,11 +88,10 @@ pub enum Node {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::RepeatedNode { inner, multiplier } => {
-                fmt::Display::fmt(inner, f)?;
-                write!(f, "{multiplier}")?;
-                Ok(())
-            }
+            Node::Group(g) => fmt::Display::fmt(g, f),
+            Node::BinaryGroup(g) => fmt::Display::fmt(g, f),
+            Node::Rotation(rot) => fmt::Display::fmt(rot, f),
+            Node::Move(mv) => fmt::Display::fmt(mv, f),
             Node::Pause => write!(f, "."),
             Node::Sq1Move(sq1_move) => fmt::Display::fmt(sq1_move, f),
             Node::MegaminxScrambleMove(megaminx_scramble_move) => {
@@ -94,9 +101,27 @@ impl fmt::Display for Node {
     }
 }
 
-impl From<RepeatableNode> for Node {
-    fn from(value: RepeatableNode) -> Self {
-        value.with_multiplier(1)
+impl From<Group> for Node {
+    fn from(value: Group) -> Self {
+        Self::Group(value)
+    }
+}
+
+impl From<BinaryGroup> for Node {
+    fn from(value: BinaryGroup) -> Self {
+        Self::BinaryGroup(value)
+    }
+}
+
+impl From<Rotation> for Node {
+    fn from(value: Rotation) -> Self {
+        Self::Rotation(value)
+    }
+}
+
+impl From<Move> for Node {
+    fn from(value: Move) -> Self {
+        Self::Move(value)
     }
 }
 
@@ -112,15 +137,13 @@ impl From<MegaminxScrambleMove> for Node {
     }
 }
 
-impl Node {
-    /// Returns the inverse node.
-    ///
-    /// Returns an error if there are any NISS nodes.
-    pub fn inv(&self) -> Result<Self, InvertError> {
+impl Invert for Node {
+    fn inv(self) -> Result<Self, InvertError> {
         match self {
-            Node::RepeatedNode { inner, multiplier } => {
-                Ok(inner.clone().with_multiplier(multiplier.inv()?))
-            }
+            Node::Move(mv) => Ok(Node::Move(mv.inv()?)),
+            Node::Rotation(rotation) => Ok(Node::Rotation(rotation.inv()?)),
+            Node::Group(g) => Ok(Node::Group(g.inv()?)),
+            Node::BinaryGroup(g) => Ok(Node::BinaryGroup(g.inv()?)),
             Node::Pause => Ok(Node::Pause),
             Node::Sq1Move(sq1_move) => Ok(Node::Sq1Move(sq1_move.inv()?)),
             Node::MegaminxScrambleMove(megaminx_scramble_move) => {
@@ -128,95 +151,167 @@ impl Node {
             }
         }
     }
+
+    fn inv_deep(self) -> Result<Self, InvertError> {
+        match self {
+            Node::Group(g) => Ok(Node::Group(g.inv_deep()?)),
+            Node::BinaryGroup(g) => Ok(Node::BinaryGroup(g.inv_deep()?)),
+            _ => self.inv(),
+        }
+    }
 }
 
-/// Notation element that can be repeated.
+/// List of nodes surrounded by `()` with an optional multiplier.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Group {
+    /// Kind of group, which is notated by an optional prefix symbol.
+    pub kind: GroupKind,
+    /// Nodes inside the group.
+    pub contents: NodeList,
+    /// Multiplier applying to the whole group.
+    pub multiplier: Multiplier,
+}
+
+impl fmt::Display for Group {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            kind,
+            contents,
+            multiplier,
+        } = self;
+        if let Some(prefix) = kind.prefix() {
+            write!(f, "{prefix}")?;
+        }
+        write!(f, "(")?;
+        fmt::Display::fmt(contents, f)?;
+        write!(f, ")")?;
+        fmt::Display::fmt(multiplier, f)?;
+        Ok(())
+    }
+}
+
+impl Invert for Group {
+    fn inv(mut self) -> Result<Self, InvertError> {
+        self.multiplier = self.multiplier.inv()?;
+        Ok(self)
+    }
+
+    fn inv_deep(mut self) -> Result<Self, InvertError> {
+        if self.kind == GroupKind::Niss {
+            Err(InvertError::NissNodeCannotBeInverted)
+        } else {
+            self.contents = self.contents.inv_deep()?;
+            Ok(self)
+        }
+    }
+}
+
+impl Group {
+    /// Constructs a new simple group with a multiplier of 1.
+    pub fn new_simple(contents: impl Into<NodeList>) -> Self {
+        Self {
+            kind: GroupKind::Simple,
+            contents: contents.into(),
+            multiplier: Multiplier(1),
+        }
+    }
+}
+
+/// Two lists of nodes surrounded by `[]` with a symbol between them and an
+/// optional multiplier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum RepeatableNode {
-    /// Move, such as `x` or `IR2` or `{1..-1}U{R->F}`
-    Move(Move),
-    /// Rotation using `@`, such as `@U{R->F}`.
-    Rotation(Rotation),
-    /// List of nodes surrounded by `()`.
-    Group {
-        /// Kind of group.
-        kind: GroupKind,
-        /// Nodes inside the group.
-        contents: NodeList,
-    },
-    /// Two lists of nodes surrounded by `[]` with a symbol between them. This
-    /// is used for conjugate & commutator notation.
-    BinaryGroup {
-        /// Kind of group.
-        kind: BinaryGroupKind,
-        /// Nodes inside each half of the group.
-        contents: [NodeList; 2],
-    },
+pub struct BinaryGroup {
+    /// Kind of group, which is notated by the separator symbol.
+    pub kind: BinaryGroupKind,
+    /// Nodes to the left of the separator symbol.
+    pub lhs: NodeList,
+    /// Nodes to the right of the separator symbol.
+    pub rhs: NodeList,
+    /// Multiplier applying to the whole group.
+    pub multiplier: Multiplier,
 }
 
-impl fmt::Display for RepeatableNode {
+impl fmt::Display for BinaryGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RepeatableNode::Move(mv) => fmt::Display::fmt(mv, f),
-            RepeatableNode::Rotation(rot) => fmt::Display::fmt(rot, f),
-            RepeatableNode::Group { kind, contents } => {
-                if let Some(prefix) = kind.prefix() {
-                    write!(f, "{prefix}")?;
-                }
-                write!(f, "(")?;
-                fmt::Display::fmt(contents, f)?;
-                write!(f, ")")?;
-                Ok(())
-            }
-            RepeatableNode::BinaryGroup { kind, contents } => {
-                let [a, b] = contents;
-                write!(f, "[")?;
-                fmt::Display::fmt(a, f)?;
-                write!(f, "{} ", kind.separator())?;
-                fmt::Display::fmt(b, f)?;
-                write!(f, "]")?;
-                Ok(())
-            }
+        let Self {
+            kind,
+            lhs,
+            rhs,
+            multiplier,
+        } = self;
+        write!(f, "[")?;
+        fmt::Display::fmt(lhs, f)?;
+        write!(f, "{} ", kind.separator())?;
+        fmt::Display::fmt(rhs, f)?;
+        write!(f, "]")?;
+        fmt::Display::fmt(multiplier, f)?;
+        Ok(())
+    }
+}
+
+impl Invert for BinaryGroup {
+    fn inv(mut self) -> Result<Self, InvertError> {
+        self.multiplier = self.multiplier.inv()?;
+        Ok(self)
+    }
+
+    fn inv_deep(self) -> Result<Self, InvertError> {
+        let [lhs, rhs] = match self.kind {
+            BinaryGroupKind::Commutator => [self.rhs, self.lhs],
+            BinaryGroupKind::Conjugate => [self.lhs, self.rhs.inv_deep()?],
+        };
+        Ok(Self {
+            kind: self.kind,
+            lhs,
+            rhs,
+            multiplier: self.multiplier,
+        })
+    }
+}
+
+impl BinaryGroup {
+    /// Constructs a new commutator group with a multiplier of 1.
+    pub fn new_commutator(lhs: impl Into<NodeList>, rhs: impl Into<NodeList>) -> Self {
+        Self {
+            kind: BinaryGroupKind::Commutator,
+            lhs: lhs.into(),
+            rhs: rhs.into(),
+            multiplier: Multiplier(1),
+        }
+    }
+
+    /// Constructs a new conjugate group with a multiplier of 1.
+    pub fn new_conjugate(lhs: impl Into<NodeList>, rhs: impl Into<NodeList>) -> Self {
+        Self {
+            kind: BinaryGroupKind::Conjugate,
+            lhs: lhs.into(),
+            rhs: rhs.into(),
+            multiplier: Multiplier(1),
         }
     }
 }
 
-impl From<Move> for RepeatableNode {
-    fn from(value: Move) -> Self {
-        Self::Move(value)
-    }
-}
-
-impl From<Rotation> for RepeatableNode {
-    fn from(value: Rotation) -> Self {
-        Self::Rotation(value)
-    }
-}
-
-impl RepeatableNode {
-    /// Returns a `Node` that contains this node followed by a multiplier.
-    pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
-        Node::RepeatedNode {
-            inner: self,
-            multiplier: multiplier.into(),
-        }
-    }
-}
-
-/// Rotation containing a transform.
+/// Rotation containing a transform and an optional multiplier.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rotation {
     /// Optional move family and optional bracketed transform.
     pub transform: Transform,
+    /// Multiplier.
+    pub multiplier: Multiplier,
 }
 
 impl fmt::Display for Rotation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { transform } = self;
+        let Self {
+            transform,
+            multiplier,
+        } = self;
         write!(f, "@")?;
         fmt::Display::fmt(transform, f)?;
+        fmt::Display::fmt(multiplier, f)?;
         Ok(())
     }
 }
@@ -227,21 +322,28 @@ impl From<Transform> for Rotation {
     }
 }
 
-impl Rotation {
-    /// Constructs a rotation.
-    pub fn new(family: impl Into<Str>, constraints: Option<ConstraintSet>) -> Self {
-        Self {
-            transform: Transform::new(family, constraints),
-        }
-    }
-
-    /// Returns a `Node` that contains this rotation followed by a multiplier.
-    pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
-        RepeatableNode::from(self).with_multiplier(multiplier)
+impl Invert for Rotation {
+    fn inv(mut self) -> Result<Self, InvertError> {
+        self.multiplier = self.multiplier.inv()?;
+        Ok(self)
     }
 }
 
-/// Move containing a layer prefix and a transform.
+impl Rotation {
+    /// Constructs a rotation.
+    pub fn new(
+        family: impl Into<Str>,
+        constraints: Option<ConstraintSet>,
+        multiplier: impl Into<Multiplier>,
+    ) -> Self {
+        Self {
+            transform: Transform::new(family, constraints),
+            multiplier: multiplier.into(),
+        }
+    }
+}
+
+/// Move containing a layer prefix, a transform, and an optional multiplier.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Move {
@@ -254,25 +356,40 @@ pub struct Move {
     ///
     /// If the family is empty, then it displays as a single underscore `_`.
     pub transform: Transform,
+    /// Multiplier.
+    pub multiplier: Multiplier,
 }
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { layers, transform } = self;
-        write!(f, "{layers}")?;
+        let Self {
+            layers,
+            transform,
+            multiplier,
+        } = self;
+        fmt::Display::fmt(layers, f)?;
         if transform.family.is_empty() {
             // If family name is empty, add an underscore so that at
             // least it parses back correctly.
             write!(f, "_")?;
+        } else {
+            fmt::Display::fmt(transform, f)?;
         }
-        write!(f, "{transform}")?;
+        fmt::Display::fmt(multiplier, f)?;
         Ok(())
     }
 }
 
 impl From<Transform> for Move {
     fn from(value: Transform) -> Self {
-        value.into_move(LayerPrefix::default())
+        value.into_move(LayerPrefix::default(), 1)
+    }
+}
+
+impl Invert for Move {
+    fn inv(mut self) -> Result<Self, InvertError> {
+        self.multiplier = self.multiplier.inv()?;
+        Ok(self)
     }
 }
 
@@ -282,16 +399,13 @@ impl Move {
         layers: impl Into<LayerPrefix>,
         family: impl Into<Str>,
         constraints: Option<ConstraintSet>,
+        multiplier: impl Into<Multiplier>,
     ) -> Self {
         Self {
             layers: layers.into(),
             transform: Transform::new(family, constraints),
+            multiplier: multiplier.into(),
         }
-    }
-
-    /// Returns a `Node` that contains this move followed by a multiplier.
-    pub fn with_multiplier(self, multiplier: impl Into<Multiplier>) -> Node {
-        RepeatableNode::from(self).with_multiplier(multiplier)
     }
 }
 
@@ -336,14 +450,25 @@ impl Transform {
     }
 
     /// Constructs a move with this transform.
-    pub fn into_move(self, layers: LayerPrefix) -> Move {
+    pub fn into_move(
+        self,
+        layers: impl Into<LayerPrefix>,
+        multiplier: impl Into<Multiplier>,
+    ) -> Move {
         let transform = self;
-        Move { layers, transform }
+        Move {
+            layers: layers.into(),
+            transform,
+            multiplier: multiplier.into(),
+        }
     }
 
     /// Constructs a rotation with this transform.
     pub fn into_rotation(self) -> Rotation {
-        Rotation { transform: self }
+        Rotation {
+            transform: self,
+            multiplier: Multiplier(1),
+        }
     }
 }
 

@@ -3,8 +3,7 @@ use std::num::NonZeroI16;
 use std::ops::Neg;
 use std::str::FromStr;
 
-use super::Layer;
-use crate::error::ParseLayerError;
+use super::{Layer, ParseLayerError};
 
 /// 1-indexed signed layer number.
 ///
