@@ -262,9 +262,6 @@ impl PuzzleBuilder {
             }
         });
 
-        let old_twist_to_new_twist = Box::new(move |_old_twist: LayeredTwist| unimplemented!());
-        let new_twist_to_old_twist = Box::new(move |_new_twist: Move| unimplemented!());
-
         let axis_layers_info = axis_layers.map_ref(|_, depths| AxisLayersInfo {
             max_layer: depths.len() as u16,
             allow_negatives: false, // TODO: configurable negative layers
@@ -298,9 +295,6 @@ impl PuzzleBuilder {
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
 
             random_move,
-
-            old_twist_to_new_twist,
-            new_twist_to_old_twist,
         }))
     }
 }

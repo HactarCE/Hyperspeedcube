@@ -63,9 +63,6 @@ pub struct Puzzle {
     /// depend only on the state of the RNG. It must return `None` if and only
     /// if the puzzle has no twists.
     pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<Move>>,
-
-    pub old_twist_to_new_twist: Box<dyn Send + Sync + Fn(LayeredTwist) -> Move>,
-    pub new_twist_to_old_twist: Box<dyn Send + Sync + Fn(Move) -> Option<LayeredTwist>>,
 }
 
 impl fmt::Debug for Puzzle {

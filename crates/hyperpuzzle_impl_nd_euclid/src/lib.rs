@@ -95,8 +95,6 @@ lazy_static! {
             ui_data,
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
             random_move: Box::new(move |_rng| None),
-            old_twist_to_new_twist: Box::new(move |_old_twist| unimplemented!()),
-            new_twist_to_old_twist: Box::new(move |_new_twist| None),
         })
     };
 }
