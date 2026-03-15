@@ -40,7 +40,9 @@ pub struct NdEuclidPuzzleGeometry {
     pub twist_transforms: Arc<PerTwist<pga::Motor>>,
 
     /// Twist for each face of a twist gizmo.
-    pub gizmo_twists: PerGizmoFace<Twist>,
+    ///
+    /// TODO: change this from `Move` to `(Axis, Transform, Multiplier)`
+    pub gizmo_twists: PerGizmoFace<Move>,
 }
 
 impl NdEuclidPuzzleGeometry {

@@ -318,7 +318,7 @@ impl Motor {
     pub fn powi(&self, other: i64) -> Motor {
         // By repeated squaring
         if other == 0 {
-            Self::ident(0)
+            Self::ident(self.ndim)
         } else if other < 0 {
             self.reverse().powi(-other)
         } else {

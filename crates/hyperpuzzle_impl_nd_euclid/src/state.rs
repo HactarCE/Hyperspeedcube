@@ -8,6 +8,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
+use hypuz_notation::LayerMask;
 
 type PerCachedTransform<T> = TiVec<CachedTransform, T>;
 hyperpuzzle_core::typed_index_struct! {
@@ -68,10 +69,19 @@ impl PuzzleState for NdEuclidPuzzleState {
         self.clone().into()
     }
 
-    fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
-        let twist_info = &self.puzzle_type.twists.twists[twist.transform];
-        let twist_transform = &self.geom.twist_transforms[twist.transform];
-        let grip = self.compute_grip(twist_info.axis, twist.layers);
+    fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>> {
+        let Some(twist_id) = self
+            .puzzle_type
+            .twists
+            .names
+            .id_from_name(&twist.transform.family)
+        else {
+            return Err(vec![]); // twist is invalid
+        };
+        let twist_info = &self.puzzle_type.twists.twists[twist_id];
+        let twist_transform = &self.geom.twist_transforms[twist_id].powi(twist.multiplier.into());
+        let axis_info = self.puzzle_type.axis_layers_info[twist_info.axis];
+        let grip = self.compute_grip(twist_info.axis, twist.layers.to_layer_mask(axis_info));
 
         // Check for split pieces, which prevent the turn.
         let split_pieces = grip
@@ -116,7 +126,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         })
     }
 
-    fn do_twist_dyn(&self, twist: LayeredTwist) -> Result<BoxDynPuzzleState, Vec<Piece>> {
+    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, Vec<Piece>> {
         self.do_twist(twist).map(BoxDynPuzzleState::new)
     }
 
@@ -154,6 +164,7 @@ impl PuzzleState for NdEuclidPuzzleState {
 
         let grip_layers = layers
             .iter()
+            .map(Layer::from_hypuz_notation)
             .filter_map(|layer| Some((layer, axis_layers.0.get(layer).ok()?)))
             .collect_vec();
 
@@ -251,17 +262,22 @@ impl PuzzleState for NdEuclidPuzzleState {
         .into()
     }
 
-    fn partial_twist_render_data(
-        &self,
-        twist: LayeredTwist,
-        t: f32,
-    ) -> BoxDynPuzzleStateRenderData {
-        let axis = self.puzzle_type.twists.twists[twist.transform].axis;
-        let grip = self.compute_gripped_pieces(axis, twist.layers);
+    fn partial_twist_render_data(&self, twist: Move, t: f32) -> BoxDynPuzzleStateRenderData {
+        let Some(twist_id) = self
+            .puzzle_type
+            .twists
+            .names
+            .id_from_name(&twist.transform.family)
+        else {
+            return self.render_data(); // twist is invalid
+        };
+        let axis = self.puzzle_type.twists.twists[twist_id].axis;
+        let axis_info = self.puzzle_type.axis_layers_info[axis];
+        let grip = self.compute_gripped_pieces(axis, twist.layers.to_layer_mask(axis_info));
         let anim = NdEuclidPuzzleAnimation {
             pieces: grip,
             initial_transform: pga::Motor::ident(self.geom.ndim()),
-            final_transform: self.geom.twist_transforms[twist.transform].clone(),
+            final_transform: self.geom.twist_transforms[twist_id].powi(twist.multiplier.into()),
         };
         self.animated_render_data(&anim.into(), t)
     }

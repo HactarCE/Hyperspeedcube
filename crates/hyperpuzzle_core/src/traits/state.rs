@@ -3,9 +3,10 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::WhichSide;
+use hypuz_notation::LayerMask;
 
 use super::*;
-use crate::{Axis, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle};
+use crate::{Axis, Move, PerPiece, Piece, PieceMask, Puzzle};
 
 /// Instance of a puzzle with a particular state.
 ///
@@ -24,13 +25,13 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
 
     /// Applies a twist and returns the new puzzle state or an error containing
     /// the set of pieces that prevented the twist.
-    fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>>
+    fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>>
     where
         Self: Sized;
 
     /// Applies a twist and returns the new puzzle state or an error containing
     /// the set of pieces that prevented the twist.
-    fn do_twist_dyn(&self, twist: LayeredTwist) -> Result<BoxDynPuzzleState, Vec<Piece>>;
+    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, Vec<Piece>>;
 
     /// Returns whether the puzzle is in a solved state.
     fn is_solved(&self) -> bool;
@@ -77,8 +78,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     /// respect to `t`.
     //
     // TODO: is this even used anywhere?
-    fn partial_twist_render_data(&self, twist: LayeredTwist, t: f32)
-    -> BoxDynPuzzleStateRenderData;
+    fn partial_twist_render_data(&self, twist: Move, t: f32) -> BoxDynPuzzleStateRenderData;
 
     /// Returns data to render the state of the puzzle during an animation.
     ///

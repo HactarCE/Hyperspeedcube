@@ -62,6 +62,13 @@ impl TwistSystem {
     pub fn len(&self) -> usize {
         self.twists.len()
     }
+
+    /// Returns the axis of a twist from its family name.
+    ///
+    /// For example, on 3^4, the twist family `IUR` is on axis `I`.
+    pub fn axis_from_move_family(&self, family: &str) -> Option<Axis> {
+        Some(self.twists[self.names.id_from_name(family)?].axis)
+    }
 }
 
 /// Vantage set.

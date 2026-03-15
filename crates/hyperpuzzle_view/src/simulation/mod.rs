@@ -4,14 +4,15 @@ use std::sync::{Arc, mpsc};
 
 use float_ord::FloatOrd;
 use hyperdraw::GfxEffectParams;
-use hypermath::pga::{Axes, Motor};
+use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::{LogEvent, Scramble};
+use hypuz_notation::Invert;
+use itertools::Itertools;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
-use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
 mod nd_euclid;
@@ -325,10 +326,9 @@ impl PuzzleSimulation {
         } = scrambled;
 
         self.reset();
-        let ty = self.puzzle_type();
         let scramble = Scramble::new(
             params,
-            hyperpuzzle_log::notation::format_twists(&ty.twists.names, twists),
+            twists.into_iter().map(|mv| mv.to_string()).join(" "),
         );
         self.scramble = Some(scramble.clone());
         self.scramble_error = None;
@@ -474,11 +474,14 @@ impl PuzzleSimulation {
     fn do_action(&mut self, mut action: Action, is_replaying: bool) {
         if let Action::Twists { twists, .. } = &mut action {
             let puz = self.puzzle_type();
-            twists.retain_mut(|twist| {
-                let axis = puz.twists.twists[twist.transform].axis;
-                let layer_count = puz.axis_layers[axis].len() as u8;
-                twist.layers &= LayerMask::all_layers(layer_count);
-                twist.layers != LayerMask::EMPTY
+            // TODO: don't filter here; filter as we apply moves
+            twists.retain(|twist| {
+                puz.twists
+                    .axis_from_move_family(&twist.transform.family)
+                    .is_some_and(|axis| {
+                        let layers_info = puz.axis_layers_info[axis];
+                        !twist.layers.to_layer_mask(layers_info).is_empty()
+                    })
             });
             if twists.is_empty() {
                 if let Some(replay) = &mut self.replay {
@@ -513,20 +516,32 @@ impl PuzzleSimulation {
         match action {
             Action::Scramble { .. } => match &self.scramble {
                 Some(scramble) => {
-                    let ty = Arc::clone(self.puzzle_type());
-                    for twist in
-                        hyperpuzzle_log::notation::parse_twists(&ty.twists.names, &scramble.twists)
-                    {
-                        match twist {
-                            Ok(twist) => match self.latest_state.do_twist_dyn(twist) {
+                    let scramble_twists = match hypuz_notation::parse_notation(
+                        &scramble.twists,
+                        hypuz_notation::Features::MAXIMAL,
+                    ) {
+                        Ok(node_list) => node_list,
+                        Err(errors) => {
+                            for e in errors {
+                                log::error!("Error parsing scramble twists: {e}");
+                            }
+
+                            return false;
+                        }
+                    };
+                    for node in scramble_twists.0 {
+                        match node.into_move() {
+                            Some(mv) => match self.latest_state.do_twist_dyn(&mv) {
                                 Ok(new_state) => self.latest_state = new_state,
                                 Err(e) => {
                                     log::error!(
-                                        "Twist {twist:?} blocked in scramble due to pieces {e:?}"
+                                        "Twist {mv:?} blocked in scramble due to pieces {e:?}",
                                     );
                                 }
                             },
-                            Err(e) => log::error!("Error parsing twist in scramble: {e}"),
+                            None => {
+                                log::error!("Unsupported notation element in scramble")
+                            }
                         }
                     }
                     self.skip_twist_animations();
@@ -539,7 +554,7 @@ impl PuzzleSimulation {
                 twists,
             } => {
                 let mut any_effect = false;
-                for &twist in twists {
+                for twist in twists {
                     any_effect |= self.do_twist(twist);
                 }
                 if any_effect
@@ -573,7 +588,6 @@ impl PuzzleSimulation {
     /// stack.
     fn undo_action_internal(&mut self, action: &Action, is_replaying: bool) -> bool {
         self.has_unsaved_changes = true;
-        let puz = self.latest_state.ty();
         match action {
             Action::Scramble { .. } => false, // shouldn't be possible
             Action::Twists {
@@ -586,7 +600,7 @@ impl PuzzleSimulation {
                         twists: twists
                             .iter()
                             .rev()
-                            .filter_map(|twist| twist.rev(puz).ok())
+                            .filter_map(|twist| twist.clone().inv().ok())
                             .collect(),
                     },
                     is_replaying,
@@ -609,67 +623,79 @@ impl PuzzleSimulation {
     ///
     /// This does **not** affect the undo stack. Use [`Self::do_event()`]
     /// instead if that's desired.
-    fn do_twist(&mut self, twist: LayeredTwist) -> bool {
-        let puzzle = Arc::clone(self.puzzle_type());
-        let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {
-            return false;
-        };
-        let axis = twist_info.axis;
-        let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
+    fn do_twist(&mut self, twist: &Move) -> bool {
+        todo!("animate move");
 
-        let mut nd_euclid_initial_transform = None;
-        if let Some(nd_euclid) = &mut self.nd_euclid
-            && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
-        {
-            if partial.grip == grip {
-                nd_euclid_initial_transform = Some(partial.transform);
-            } else {
-                self.cancel_popped_partial_twist(partial);
-                // That call doesn't modify the puzzle state, so `grip` can
-                // stay the same.
-            }
-        }
+        let puzzle = Arc::clone(self.puzzle_type());
+        // let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {
+        //     return false;
+        // };
+        // let axis = twist_info.axis;
+        // let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
+
+        // let mut nd_euclid_initial_transform = None;
+        // if let Some(nd_euclid) = &mut self.nd_euclid
+        //     && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
+        // {
+        //     if partial.grip == grip {
+        //         nd_euclid_initial_transform = Some(partial.transform);
+        //     } else {
+        //         self.cancel_popped_partial_twist(partial);
+        //         // That call doesn't modify the puzzle state, so `grip` can
+        //         // stay the same.
+        //     }
+        // }
 
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
+                let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family)
+                else {
+                    return false;
+                };
+                let layers_info = puzzle.axis_layers_info[axis];
+
                 let state = std::mem::replace(&mut self.latest_state, new_state);
 
-                let axis = puzzle.twists.twists[twist.transform].axis;
-                self.stm_counter.count_twist(axis, twist.layers);
+                self.stm_counter.count_twist(
+                    axis,
+                    LayerMask::from_hypuz_notation(twist.layers.to_layer_mask(layers_info)),
+                );
 
                 self.blocking_anim.clear();
 
-                if let Some(nd_euclid) = &self.nd_euclid {
-                    let geom = &nd_euclid.geom;
-                    self.twist_anim.push(AnimationFromState {
-                        state,
-                        anim: NdEuclidPuzzleAnimation {
-                            pieces: grip,
-                            initial_transform: nd_euclid_initial_transform
-                                .unwrap_or_else(|| Motor::ident(geom.ndim())),
-                            final_transform: geom.twist_transforms[twist.transform].clone(),
-                        }
-                        .into(),
-                    });
-                }
+                todo!("animate twist");
+                // if let Some(nd_euclid) = &self.nd_euclid {
+                //     let geom = &nd_euclid.geom;
+                //     self.twist_anim.push(AnimationFromState {
+                //         state,
+                //         anim: NdEuclidPuzzleAnimation {
+                //             pieces: grip,
+                //             initial_transform: nd_euclid_initial_transform
+                //                 .unwrap_or_else(|| Motor::ident(geom.ndim())),
+                //             final_transform: geom.twist_transforms[twist.transform].clone(),
+                //         }
+                //         .into(),
+                //     });
+                // }
 
                 true
             }
             Err(blocking_pieces) => {
                 self.blocking_anim.set(blocking_pieces);
 
-                if let Some(initial_transform) = nd_euclid_initial_transform {
-                    let ndim = initial_transform.ndim();
-                    self.twist_anim.push(AnimationFromState {
-                        state: self.latest_state.clone_dyn(),
-                        anim: NdEuclidPuzzleAnimation {
-                            pieces: grip,
-                            initial_transform,
-                            final_transform: Motor::ident(ndim),
-                        }
-                        .into(),
-                    });
-                }
+                todo!("animate blocking pieces");
+                // if let Some(initial_transform) = nd_euclid_initial_transform {
+                //     let ndim = initial_transform.ndim();
+                //     self.twist_anim.push(AnimationFromState {
+                //         state: self.latest_state.clone_dyn(),
+                //         anim: NdEuclidPuzzleAnimation {
+                //             pieces: grip,
+                //             initial_transform,
+                //             final_transform: Motor::ident(ndim),
+                //         }
+                //         .into(),
+                //     });
+                // }
 
                 false
             }
@@ -743,7 +769,9 @@ impl PuzzleSimulation {
             return;
         };
 
-        let grip = self.latest_state.compute_gripped_pieces(axis, layers);
+        let grip = self
+            .latest_state
+            .compute_gripped_pieces(axis, layers.to_hypuz_notation());
         nd_euclid.partial_twist_drag_state = Some(PartialTwistDragState {
             axis,
             layers,
@@ -825,21 +853,22 @@ impl PuzzleSimulation {
                     FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
                 });
             if let Some((twist, twist_transform)) = closest_twist {
-                let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
-                let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
-                if dot_with_twist > dot_with_identity {
-                    let twist = LayeredTwist {
-                        layers: partial.layers,
-                        transform: twist,
-                    };
-                    let axis = partial.axis;
-                    let time = Some(Timestamp::now());
-                    self.do_event(ReplayEvent::DragTwist { time, axis });
-                    self.do_event(ReplayEvent::Twists(smallvec![twist]));
-                } else {
-                    // The identity twist is closer.
-                    self.cancel_partial_twist();
-                }
+                todo!("handle drag twist by delegating to backend");
+                // let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
+                // let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
+                // if dot_with_twist > dot_with_identity {
+                //     let twist = LayeredTwist {
+                //         layers: partial.layers,
+                //         transform: twist,
+                //     };
+                //     let axis = partial.axis;
+                //     let time = Some(Timestamp::now());
+                //     self.do_event(ReplayEvent::DragTwist { time, axis });
+                //     self.do_event(ReplayEvent::Twists(smallvec![twist]));
+                // } else {
+                //     // The identity twist is closer.
+                //     self.cancel_partial_twist();
+                // }
             } else {
                 // There are no possible twists. Why did we even let the user
                 // drag the mouse in the first place? Questions such as these
@@ -910,12 +939,12 @@ impl PuzzleSimulation {
                     &ReplayEvent::GizmoClick {
                         time,
                         layers,
-                        target,
+                        ref target,
                         reverse,
                     } => LogEvent::Click {
                         time,
                         layers,
-                        target: puz.twists.names[target].to_string(),
+                        target: target.to_string(),
                         reverse,
                     },
                     &ReplayEvent::DragTwist { time, axis } => LogEvent::DragTwist {
@@ -923,10 +952,7 @@ impl PuzzleSimulation {
                         axis: puz.axes().names[axis].to_string(),
                     },
                     ReplayEvent::Twists(twists) => {
-                        let mut s = hyperpuzzle_log::notation::format_twists(
-                            &puz.twists.names,
-                            twists.iter().copied(),
-                        );
+                        let mut s = twists.iter().map(|mv| mv.to_string()).join(" ");
                         if twists.len() > 1 {
                             s.insert(0, '(');
                             s.push(')');
@@ -963,10 +989,7 @@ impl PuzzleSimulation {
                         if twists.is_empty() {
                             continue;
                         }
-                        let mut s = hyperpuzzle_log::notation::format_twists(
-                            &puz.twists.names,
-                            twists.iter().copied(),
-                        );
+                        let mut s = twists.iter().map(|mv| mv.to_string()).join(" ");
                         if twists.len() > 1 {
                             s.insert(0, '(');
                             s.push(')');
@@ -1049,7 +1072,12 @@ impl PuzzleSimulation {
                     reverse,
                 } => {
                     // TODO: handle errors
-                    let Some(target) = puzzle.twists.names.id_from_name(target) else {
+                    let Ok(hypuz_notation::Node::Move(target)) =
+                        hypuz_notation::parse_notation_node(
+                            target,
+                            hypuz_notation::Features::MAXIMAL,
+                        )
+                    else {
                         continue;
                     };
                     ret.replay_event(
@@ -1070,14 +1098,30 @@ impl PuzzleSimulation {
                     ret.replay_event(ReplayEvent::DragTwist { time, axis }, true);
                 }
                 LogEvent::Twists(twists_str) => {
-                    for group in hyperpuzzle_log::notation::parse_grouped_twists(
-                        &puzzle.twists.names,
+                    match hypuz_notation::parse_notation(
                         twists_str,
+                        hypuz_notation::Features::MAXIMAL,
                     ) {
-                        // TODO: handle errors
-                        let group = group.into_iter().filter_map(Result::ok).collect();
-                        log::trace!("Applying twist group {group:?} from {twists_str:?}");
-                        ret.replay_event(ReplayEvent::Twists(group), true);
+                        Ok(node_list) => {
+                            let group = node_list
+                                .0
+                                .into_iter()
+                                .filter_map(|node| {
+                                    node.into_move().or_else(|| {
+                                        log::error!("Unsupported twist notation");
+                                        None
+                                    })
+                                })
+                                .collect();
+                            log::trace!("Applying twist group {group:?} from {twists_str:?}");
+                            ret.replay_event(ReplayEvent::Twists(group), true);
+                        }
+                        Err(errors) => {
+                            log::error!(
+                                "Error parsing twist group {twists_str:?}: {}",
+                                errors.iter().join(", "),
+                            );
+                        }
                     }
                 }
                 &LogEvent::Undo { time } => ret.replay_event(ReplayEvent::Undo { time }, true),
@@ -1294,9 +1338,12 @@ solve {
         assert_eq!(replay[4], ReplayEvent::Twists(parse_twists(&puzzle, "U'")));
     }
 
-    fn parse_twists(puzzle: &Puzzle, s: &str) -> smallvec::SmallVec<[LayeredTwist; 4]> {
-        hyperpuzzle_log::notation::parse_twists(&puzzle.twists.names, s)
-            .map(|t| t.unwrap())
+    fn parse_twists(puzzle: &Puzzle, s: &str) -> smallvec::SmallVec<[Move; 1]> {
+        hypuz_notation::parse_notation(s, hypuz_notation::Features::MAXIMAL)
+            .unwrap()
+            .0
+            .into_iter()
+            .map(|node| node.into_move().expect("unsupported notation"))
             .collect()
     }
 }

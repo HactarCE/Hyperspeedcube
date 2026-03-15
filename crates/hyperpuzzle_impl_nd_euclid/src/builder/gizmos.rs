@@ -18,7 +18,7 @@ pub(super) fn build_twist_gizmos(
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<PerGizmoFace<Twist>> {
+) -> Result<PerGizmoFace<Move>> {
     let NdEuclidTwistSystemEngineData {
         axis_vectors,
         twist_transforms,
@@ -63,7 +63,12 @@ pub(super) fn build_twist_gizmos(
         let resulting_gizmo_faces =
             build_3d_gizmo(space, mesh, twists, engine_data, &gizmo_poles, warn_fn)?;
         for (_gizmo_face, twist) in resulting_gizmo_faces {
-            gizmo_face_twists.push(twist)?;
+            let mv = Move {
+                layers: hypuz_notation::LayerPrefix::default(),
+                transform: hypuz_notation::Transform::new(&twists.names[twist], None),
+                multiplier: hypuz_notation::Multiplier(1),
+            };
+            gizmo_face_twists.push(mv)?;
         }
     } else if space.ndim() == 4 {
         for (axis, axis_gizmo_poles) in gizmo_poles {
@@ -77,7 +82,12 @@ pub(super) fn build_twist_gizmos(
                 warn_fn,
             )?;
             for (_gizmo_face, twist) in resulting_gizmo_faces {
-                gizmo_face_twists.push(twist)?;
+                let mv = Move {
+                    layers: hypuz_notation::LayerPrefix::default(),
+                    transform: hypuz_notation::Transform::new(&twists.names[twist], None),
+                    multiplier: hypuz_notation::Multiplier(1),
+                };
+                gizmo_face_twists.push(mv)?;
             }
         }
     }

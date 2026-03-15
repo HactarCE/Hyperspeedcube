@@ -21,13 +21,12 @@ hyperkdl_derive.workspace = true
 hyperpuzzle_core = { workspace = true, features = [
     "timecheck",
 ] } # TODO: extract types
+hypuz_notation.workspace = true
 
 hex.workspace = true
 itertools.workspace = true
 kdl.workspace = true
-lazy_static.workspace = true
 log.workspace = true
-regex.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true

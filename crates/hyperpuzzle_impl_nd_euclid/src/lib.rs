@@ -89,6 +89,7 @@ lazy_static! {
             colors: Arc::new(ColorSystem::new_empty()),
             can_scramble: false,
             full_scramble_length: 0,
+            axis_layers_info: PerAxis::new(),
             axis_layers: PerAxis::new(),
             twists,
             ui_data,

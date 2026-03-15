@@ -25,7 +25,8 @@ pub use puzzle_type::Puzzle;
 #[cfg(feature = "timecheck")]
 pub use scramble::ScrambleVerificationError;
 pub use scramble::{
-    ScrambleError, ScrambleParams, ScrambleProgress, ScrambleType, ScrambledPuzzle,
+    CURRENT_SCRAMBLE_VERSION, ScrambleError, ScrambleParams, ScrambleProgress, ScrambleType,
+    ScrambledPuzzle,
 };
 pub use twist::LayeredTwist;
 pub use twists::{AxisDirectionMap, TwistSystem, VantageSet, VantageTransformInfo};

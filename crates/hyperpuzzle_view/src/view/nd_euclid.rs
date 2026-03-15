@@ -166,7 +166,11 @@ impl NdEuclidViewState {
                                 .map(|(axis, layers, _)| (axis, layers))
                         })();
                         if let Some((axis, layers)) = best_grip {
-                            sim.begin_nd_euclid_partial_twist(ndim, axis, layers);
+                            sim.begin_nd_euclid_partial_twist(
+                                ndim,
+                                axis,
+                                LayerMask::from_hypuz_notation(layers),
+                            );
                             self.drag_state = Some(DragState::Twist);
                         } else {
                             log::trace!("Canceling partial twist");
@@ -333,28 +337,18 @@ impl NdEuclidViewState {
 
     /// Applies a twist to the puzzle based on the current mouse position.
     pub fn do_click_twist(&self, sim: &mut PuzzleSimulation, layers: LayerMask, direction: Sign) {
-        let puzzle = sim.puzzle_type();
-
         if let Some(hov) = &self.gizmo_hover_state {
-            let Ok(&target) = self.geom.gizmo_twists.get(hov.gizmo_face) else {
+            let Ok(target) = self.geom.gizmo_twists.get(hov.gizmo_face) else {
                 return;
             };
-            let Ok(twist_info) = puzzle.twists.twists.get(target) else {
-                return;
-            };
-            let transform = match direction {
-                Sign::Neg => twist_info.reverse,
-                Sign::Pos => target,
-            };
-            let twist = LayeredTwist { layers, transform };
 
             sim.do_event(ReplayEvent::GizmoClick {
                 time: Some(hyperpuzzle::Timestamp::now()),
                 layers,
-                target,
+                target: target.clone(),
                 reverse: direction == Sign::Neg,
             });
-            sim.do_event(ReplayEvent::Twists(smallvec![twist]));
+            sim.do_event(ReplayEvent::Twists(smallvec![target.clone()]));
         }
     }
 
@@ -376,9 +370,9 @@ impl NdEuclidViewState {
         let puzzle = sim.puzzle_type();
         let target_vector = if gizmo
             && let Some(hov) = self.gizmo_hover_state
-            && let Ok(&twist) = self.geom.gizmo_twists.get(hov.gizmo_face)
-            && let Ok(twist_info) = puzzle.twists.twists.get(twist)
-            && let Ok(axis_vector) = self.geom.axis_vectors.get(twist_info.axis)
+            && let Ok(mv) = self.geom.gizmo_twists.get(hov.gizmo_face)
+            && let Some(axis) = puzzle.twists.axis_from_move_family(&mv.transform.family)
+            && let Ok(axis_vector) = self.geom.axis_vectors.get(axis)
         {
             axis_vector.clone()
         } else if piece

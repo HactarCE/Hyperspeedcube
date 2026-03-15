@@ -1,9 +1,6 @@
 //! Structures and serialization/deserialization for puzzle twist notation and
 //! log files.
 
-#[macro_use]
-extern crate lazy_static;
-
 use std::str::FromStr;
 
 use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
@@ -13,7 +10,6 @@ use kdl::*;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 
-pub mod notation;
 pub mod verify;
 
 /// Log file version. This **MUST** be incremented whenever breaking changes are

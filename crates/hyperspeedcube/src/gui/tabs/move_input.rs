@@ -1,4 +1,4 @@
-use hyperpuzzle::{LayerMask, LayeredTwist};
+use hyperpuzzle::{LayerMask, LayeredTwist, Move};
 use hyperpuzzle_view::ReplayEvent;
 use smallvec::smallvec;
 
@@ -16,8 +16,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
             for transform in puz.twists.twists.iter_keys() {
                 if ui.button(&puz.twists.names[transform]).clicked() {
-                    let layers = LayerMask::default();
-                    let twist = LayeredTwist { layers, transform };
+                    let twist = Move::new((), &puz.twists.names[transform], None, 1);
                     view.sim
                         .lock()
                         .do_event(ReplayEvent::Twists(smallvec![twist]));

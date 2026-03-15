@@ -29,7 +29,7 @@ pub enum ReplayEvent {
         /// Layers affected by the twist.
         layers: LayerMask,
         /// Gizmo target clicked on, which corresponds to a twist.
-        target: Twist,
+        target: Move,
         /// Whether the twist should be executed in reverse.
         reverse: bool,
     },
@@ -42,7 +42,7 @@ pub enum ReplayEvent {
         axis: Axis,
     },
     /// Twist applied to the puzzle state.
-    Twists(SmallVec<[LayeredTwist; 4]>),
+    Twists(SmallVec<[Move; 1]>),
     /// Sets the blindfolded state.
     SetBlindfold {
         /// Event timestamp.

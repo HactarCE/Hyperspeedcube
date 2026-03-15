@@ -1062,7 +1062,9 @@ fn timedelta_to_centiseconds(delta: TimeDelta) -> i64 {
 
 #[cfg(test)]
 mod tests {
+    use hyperpuzzle::notation::Invert;
     use itertools::Itertools;
+    use smallvec::smallvec;
 
     use super::*;
 
@@ -1085,16 +1087,17 @@ mod tests {
         sleep_ms(10);
 
         // Solve the puzzle
-        let twists = hyperpuzzle_log::notation::parse_twists(
-            &puzzle.twists.names,
+        let twists = hyperpuzzle::notation::parse_notation(
             &sim.get_scramble().as_ref().unwrap().twists,
+            hyperpuzzle::notation::Features::MAXIMAL,
         )
-        .map(Result::unwrap)
-        .collect_vec();
-        for twist in twists.into_iter().rev() {
-            sim.do_event(hyperpuzzle_view::ReplayEvent::Twists(
-                [twist.rev(&puzzle).unwrap()].into_iter().collect(),
-            ));
+        .unwrap()
+        .inv_deep()
+        .unwrap();
+        for twist in twists.0 {
+            sim.do_event(hyperpuzzle_view::ReplayEvent::Twists(smallvec![
+                twist.into_move().unwrap()
+            ]));
         }
 
         std::thread::sleep(std::time::Duration::from_millis(10));

@@ -5,9 +5,9 @@ use hyperpuzzle_core::verification::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use smallvec::smallvec;
 
 use super::*;
-use crate::notation::TwistParseError;
 
 const TSA: timecheck::tsa::Tsa = timecheck::tsa::Tsa::FREETSA;
 
@@ -93,10 +93,24 @@ pub fn verify(
         }
     };
 
-    let scramble_twists: Vec<LayeredTwist>;
+    let scramble_twists: Vec<Move>;
     if options.verify_scramble {
+        if scramble.version != hyperpuzzle_core::CURRENT_SCRAMBLE_VERSION {
+            return Err(SolveVerificationError::UnsupportedScrambleVersion {
+                scramble_version: scramble.version,
+                recommended_software: match scramble.version {
+                    1 => "HSC v2.0.0-zeta.12",
+                    _ => "a later version of HSC",
+                },
+            });
+        }
         scramble_twists =
-            notation::parse_twists(&puzzle.twists.names, &scramble.twists).try_collect()?;
+            hypuz_notation::parse_notation(&scramble.twists, hypuz_notation::Features::MAXIMAL)
+                .map_err(|e| SolveVerificationError::NotationParseError(e[0].to_string()))?
+                .0
+                .into_iter()
+                .map(node_to_move)
+                .try_collect()?;
         let expected_scrambled_puzzle = puzzle.new_scrambled(scramble_params.clone()); // TODO: this may be very slow
         if expected_scrambled_puzzle.twists != scramble_twists {
             return Err(SolveVerificationError::ScrambleSeedMismatch);
@@ -122,8 +136,8 @@ pub fn verify(
         inspection_start = None;
     }
 
-    let mut undo_stack: Vec<SmallVec<[LayeredTwist; 1]>> = vec![];
-    let mut redo_stack: Vec<SmallVec<[LayeredTwist; 1]>> = vec![];
+    let mut undo_stack: Vec<SmallVec<[Move; 1]>> = vec![];
+    let mut redo_stack: Vec<SmallVec<[Move; 1]>> = vec![];
     let mut blindfold_don = None;
     let mut solve_start = None;
     let mut solve_completion = None;
@@ -137,9 +151,21 @@ pub fn verify(
             LogEvent::Click { .. } | LogEvent::DragTwist { .. } => (), // ignore interaction events
             LogEvent::Twists(twists_str) => {
                 bld_fsm.do_twist();
-                for twist_group in notation::parse_grouped_twists(&puzzle.twists.names, twists_str)
+                for node in
+                    hypuz_notation::parse_notation(twists_str, hypuz_notation::Features::MAXIMAL)
+                        .map_err(|e| SolveVerificationError::NotationParseError(e[0].to_string()))?
+                        .0
                 {
-                    undo_stack.push(twist_group.into_iter().try_collect()?);
+                    let twist_group = match node {
+                        hypuz_notation::Node::Group(group) => group
+                            .contents
+                            .0
+                            .into_iter()
+                            .map(node_to_move)
+                            .try_collect()?,
+                        other => smallvec![node_to_move(other)?],
+                    };
+                    undo_stack.push(twist_group);
                     redo_stack.clear();
                 }
             }
@@ -182,13 +208,13 @@ pub fn verify(
     if options.verify_solution {
         let mut puzzle_state = puzzle.new_solved_state();
         for twist in scramble_twists {
-            if let Ok(new_state) = puzzle_state.do_twist_dyn(twist) {
+            if let Ok(new_state) = puzzle_state.do_twist_dyn(&twist) {
                 puzzle_state = new_state;
             }
         }
         twists_done = vec![];
         for twist in twist_groups.into_iter().flatten() {
-            if let Ok(new_state) = puzzle_state.do_twist_dyn(twist) {
+            if let Ok(new_state) = puzzle_state.do_twist_dyn(&twist) {
                 puzzle_state = new_state;
                 twists_done.push(twist);
             }
@@ -286,6 +312,11 @@ pub fn verify(
     })
 }
 
+fn node_to_move(node: hypuz_notation::Node) -> Result<Move, SolveVerificationError> {
+    node.into_move()
+        .ok_or(SolveVerificationError::UnsupportedNotation)
+}
+
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 #[expect(missing_docs)]
 pub enum SolveVerificationError {
@@ -305,20 +336,23 @@ pub enum SolveVerificationError {
     DoubleScramble,
     #[error("puzzle build error: {0}")]
     PuzzleBuildError(String),
-    #[error("puzzle build error: {0}")]
-    TwistParseError(String),
+    #[error("notation parse error: {0}")]
+    NotationParseError(String),
+    #[error(
+        "scramble version {scramble_version} is not supported; use {recommended_software} to verify this solve."
+    )]
+    UnsupportedScrambleVersion {
+        scramble_version: u32,
+        recommended_software: &'static str,
+    },
+    #[error("unsupported notation")]
+    UnsupportedNotation,
     #[error("undo stack underflow")]
     UndoError,
     #[error("redo stack underflow")]
     RedoError,
     #[error("no completion time")]
     NoCompletionTime,
-}
-
-impl<'a> From<TwistParseError<'a>> for SolveVerificationError {
-    fn from(value: TwistParseError<'a>) -> Self {
-        Self::TwistParseError(value.to_string())
-    }
 }
 
 /// Finite state machine for validating blindsolves.

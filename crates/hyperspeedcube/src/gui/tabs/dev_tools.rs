@@ -123,25 +123,22 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
             .downcast_ref::<NdEuclidPuzzleUiData>()
             .expect("expected NdEuclidPuzzleGeometry")
             .geom();
-        let twist = geom.gizmo_twists[hov.gizmo_face];
+        let twist = &geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
         ui.strong(format!("Twist {twist}"));
-        if let Ok(name) = puz.twists.names.get(twist) {
-            name_spec_info_lines(ui, "Twist", name);
-        }
-        let twist_info = &puz.twists.twists[twist];
-        let rev = twist_info.reverse;
-        info_line(ui, "Reverse twist", &rev.to_string());
-        info_line(ui, "Reverse twist name", &puz.twists.names[rev]);
 
         ui.label("");
-        ui.strong(format!("Axis {}", twist_info.axis));
-        if let Ok(name) = puz.axes().names.get(twist_info.axis) {
-            name_spec_info_lines(ui, "Axis", name);
+        if let Some(axis) = puz.twists.axis_from_move_family(&twist.transform.family) {
+            ui.strong(format!("Axis {}", axis));
+            if let Ok(name) = puz.axes().names.get(axis) {
+                name_spec_info_lines(ui, "Axis", name);
+            }
+            let axis_layers = &puz.axis_layers[axis];
+            info_line(ui, "Layer count", &axis_layers.len().to_string());
+        } else {
+            ui.colored_label(ui.visuals().error_fg_color, "Twist has no axis");
         }
-        let axis_layers = &puz.axis_layers[twist_info.axis];
-        info_line(ui, "Layer count", &axis_layers.len().to_string());
     }
 }
 

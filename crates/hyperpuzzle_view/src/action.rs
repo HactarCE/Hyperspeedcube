@@ -17,7 +17,7 @@ pub enum Action {
         /// Move counter before the twist sequence.
         old_stm_counter: StmCounter,
         /// Twist sequence.
-        twists: SmallVec<[LayeredTwist; 4]>,
+        twists: SmallVec<[Move; 1]>,
     },
     /// Start of solve. Cannot be undone.
     StartSolve {

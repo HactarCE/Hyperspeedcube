@@ -22,6 +22,16 @@ pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<Parse
     r.into_result()
 }
 
+/// Parses a string containing a single [`Node`] of puzzle notation with
+/// attached span information.
+pub fn parse_notation_node(
+    s: &str,
+    features: Features,
+) -> Result<Spanned<Node>, Vec<ParseError<'_>>> {
+    let r = crate::parse::node_with_features(features).parse(s);
+    r.into_result()
+}
+
 /// List of notation elements.
 #[derive(Debug, Default, Clone)]
 pub struct NodeList(pub Vec<Spanned<Node>>);
@@ -107,29 +117,12 @@ impl Node {
                         multiplier: **multiplier,
                     })
                 }
-                RepeatableNode::Rotation {
-                    at_sign: _,
-                    family,
-                    constraints,
-                } => unspanned::Node::Rotation(unspanned::Rotation {
-                    transform: unspanned::Transform {
-                        family: src(source, *family),
-                        constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
-                    },
-                    multiplier: **multiplier,
-                }),
-                RepeatableNode::Move {
-                    layers,
-                    family,
-                    constraints,
-                } => unspanned::Node::Move(unspanned::Move {
-                    layers: layers.to_unspanned(),
-                    transform: unspanned::Transform {
-                        family: src(source, *family),
-                        constraints: constraints.as_ref().map(|c| c.to_unspanned(source)),
-                    },
-                    multiplier: **multiplier,
-                }),
+                RepeatableNode::Rotation(rotation) => {
+                    unspanned::Node::Rotation(rotation.to_unspanned(**multiplier, source))
+                }
+                RepeatableNode::Move(mv) => {
+                    unspanned::Node::Move(mv.to_unspanned(**multiplier, source))
+                }
             },
             Node::Pause => unspanned::Node::Pause,
             Node::Sq1Move(sq1_move) => unspanned::Node::Sq1Move(*sq1_move),
@@ -164,35 +157,70 @@ pub enum RepeatableNode {
         contents: [NodeList; 2],
     },
     /// Rotation using `@`, such as `@U{ R->F }`.
-    Rotation {
-        /// Span of the `@` symbol.
-        at_sign: Span,
-        /// Span of the move family, which may be empty.
-        ///
-        /// Example: `U` in the rotation `@U{ R->F }`
-        family: Span,
-        /// Span of the constraints transform, if present.
-        ///
-        /// Example: `{R->F, I->P}` in the rotation `@U{R->F, I->P}`.
-        constraints: Option<Spanned<ConstraintSet>>,
-    },
+    Rotation(Rotation),
     /// Move, such as `x` or `IR2` or `{1..-1}U{ R->F }`
-    Move {
-        /// Layer prefix.
-        ///
-        /// For an empty layer prefix, this has an empty span.
-        ///
-        /// Example `{1..-1}` in the move `{1..-1}U{ R->F }`
-        layers: Spanned<LayerPrefix>,
-        /// Span of the move family, which must not be empty.
-        ///
-        /// Example: `U` in the move `{1..-1}U{ R->F }`
-        family: Span,
-        /// Span of the constraints set, if present.
-        ///
-        /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}`
-        constraints: Option<Spanned<ConstraintSet>>,
-    },
+    Move(Move),
+}
+
+/// Rotation using `@`, such as `@U{ R->F }`.
+#[derive(Debug, Clone)]
+pub struct Rotation {
+    /// Span of the `@` symbol.
+    pub at_sign: Span,
+    /// Span of the move family, which may be empty.
+    ///
+    /// Example: `U` in the rotation `@U{ R->F }`
+    pub family: Span,
+    /// Span of the constraints transform, if present.
+    ///
+    /// Example: `{R->F, I->P}` in the rotation `@U{R->F, I->P}`.
+    pub constraints: Option<Spanned<ConstraintSet>>,
+}
+
+impl Rotation {
+    /// Converts to [`unspanned::Rotation`].
+    pub fn to_unspanned(&self, multiplier: Multiplier, source: &str) -> unspanned::Rotation {
+        unspanned::Rotation {
+            transform: unspanned::Transform {
+                family: src(source, self.family),
+                constraints: self.constraints.as_ref().map(|c| c.to_unspanned(source)),
+            },
+            multiplier,
+        }
+    }
+}
+
+/// Move, such as `x` or `IR2` or `{1..-1}U{ R->F }`
+#[derive(Debug, Clone)]
+pub struct Move {
+    /// Layer prefix.
+    ///
+    /// For an empty layer prefix, this has an empty span.
+    ///
+    /// Example `{1..-1}` in the move `{1..-1}U{ R->F }`
+    pub layers: Spanned<LayerPrefix>,
+    /// Span of the move family, which must not be empty.
+    ///
+    /// Example: `U` in the move `{1..-1}U{ R->F }`
+    pub family: Span,
+    /// Span of the constraints set, if present.
+    ///
+    /// Example: `{R->F, I->P}` in the move `{1..-1}U{R->F, I->P}`
+    pub constraints: Option<Spanned<ConstraintSet>>,
+}
+
+impl Move {
+    /// Converts to [`unspanned::Move`].
+    pub fn to_unspanned(&self, multiplier: Multiplier, source: &str) -> unspanned::Move {
+        unspanned::Move {
+            layers: self.layers.to_unspanned(),
+            transform: unspanned::Transform {
+                family: src(source, self.family),
+                constraints: self.constraints.as_ref().map(|c| c.to_unspanned(source)),
+            },
+            multiplier,
+        }
+    }
 }
 
 /// Constraint set, which may be used to specify a rotation or move.

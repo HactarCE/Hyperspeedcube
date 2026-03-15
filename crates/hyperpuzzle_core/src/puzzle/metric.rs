@@ -1,15 +1,16 @@
-use super::{LayeredTwist, Puzzle};
-use crate::{Axis, LayerMask};
+use super::Puzzle;
+use crate::{Axis, LayerMask, Move};
 
 // TODO: move this to hypuz_notation
 
 /// Counts a sequence of twists using Slice Turn Metric.
-pub fn count_stm(puzzle: &Puzzle, twists: impl IntoIterator<Item = LayeredTwist>) -> u64 {
+pub fn count_stm(puzzle: &Puzzle, twists: impl IntoIterator<Item = Move>) -> u64 {
     let mut counter = StmCounter::new();
     for twist in twists {
-        let twist_info = &puzzle.twists.twists[twist.transform];
-        let axis = twist_info.axis;
-        counter.count_twist(axis, twist.layers);
+        if let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family) {
+            let layer_mask = twist.layers.to_layer_mask(puzzle.axis_layers_info[axis]);
+            counter.count_twist(axis, LayerMask::from_hypuz_notation(layer_mask));
+        }
     }
     counter.count
 }

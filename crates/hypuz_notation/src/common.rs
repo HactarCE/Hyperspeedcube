@@ -210,6 +210,18 @@ impl From<i32> for Multiplier {
     }
 }
 
+impl From<Multiplier> for i32 {
+    fn from(value: Multiplier) -> Self {
+        value.0
+    }
+}
+
+impl From<Multiplier> for i64 {
+    fn from(value: Multiplier) -> Self {
+        value.0.into()
+    }
+}
+
 impl FromStr for Multiplier {
     type Err = ();
 

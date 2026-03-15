@@ -15,6 +15,11 @@ pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<Parse
     Ok(crate::spanned::parse_notation(s, features)?.to_unspanned(s))
 }
 
+/// Parses a string containing a single [`Node`] of puzzle notation.
+pub fn parse_notation_node(s: &str, features: Features) -> Result<Node, Vec<ParseError<'_>>> {
+    Ok(crate::spanned::parse_notation_node(s, features)?.to_unspanned(s))
+}
+
 /// List of notation elements.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -157,6 +162,26 @@ impl Invert for Node {
             Node::Group(g) => Ok(Node::Group(g.inv_deep()?)),
             Node::BinaryGroup(g) => Ok(Node::BinaryGroup(g.inv_deep()?)),
             _ => self.inv(),
+        }
+    }
+}
+
+impl Node {
+    /// Returns the contained [`Move`] if this is a [`Node::Move`], or returns
+    /// `None` otherwise.
+    pub fn into_move(self) -> Option<Move> {
+        match self {
+            Node::Move(mv) => Some(mv),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the contained [`Move`] if this is a
+    /// [`Node::Move`], or returns `None` otherwise.
+    pub fn as_move(&self) -> Option<&Move> {
+        match self {
+            Node::Move(mv) => Some(mv),
+            _ => None,
         }
     }
 }

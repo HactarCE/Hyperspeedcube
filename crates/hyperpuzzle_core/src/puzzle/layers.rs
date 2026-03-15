@@ -1,3 +1,5 @@
+// TODO: remove this whole file. use hypuz_notation instead.
+
 use std::fmt;
 use std::hash::Hash;
 use std::ops::*;

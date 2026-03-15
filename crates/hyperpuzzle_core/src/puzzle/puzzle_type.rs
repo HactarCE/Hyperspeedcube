@@ -3,6 +3,7 @@ use std::fmt;
 use std::io::Write;
 use std::sync::{Arc, Weak};
 
+use hypuz_notation::AxisLayersInfo;
 use rand::{Rng, SeedableRng};
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
@@ -41,6 +42,10 @@ pub struct Puzzle {
     /// Number of moves for a full scramble.
     pub full_scramble_length: u32,
 
+    /// Layer info for each axis.
+    ///
+    /// TODO: consider renaming this to `axis_layers`
+    pub axis_layers_info: PerAxis<AxisLayersInfo>,
     /// Layers for each axis.
     ///
     /// TODO: rename this and make it backend-specific.
@@ -144,10 +149,7 @@ impl Puzzle {
         let mut twists_applied = vec![];
         let mut state = self.new_solved_state();
         for (i, twist) in random_twists.take(scramble_length as usize).enumerate() {
-            let Some(twist) = (self.new_twist_to_old_twist)(twist) else {
-                break;
-            };
-            if let Ok(new_state) = state.do_twist_dyn(twist) {
+            if let Ok(new_state) = state.do_twist_dyn(&twist) {
                 twists_applied.push(twist);
                 state = new_state;
             }

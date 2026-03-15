@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hypuz_notation::{LayerMask, LayerRange};
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
 use itertools::Itertools;
 use serde::de::Error;
@@ -10,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tinyset::Set64;
 
-use super::LayerMask;
 use crate::Rgb;
 
 hypuz_util::typed_index_struct! {
@@ -168,9 +168,10 @@ impl AxisLayerDepths {
     }
 
     /// Returns whether a layer range is contiguous on the puzzle.
-    pub fn is_range_contiguous(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+    pub fn is_range_contiguous(&self, range: LayerRange) -> bool {
         range
-            .map(Layer)
+            .into_iter()
+            .map(Layer::from_hypuz_notation)
             .tuple_windows()
             .all(|(higher, lower)| APPROX.eq(self.0[higher].bottom, self.0[lower].top))
     }
@@ -178,15 +179,15 @@ impl AxisLayerDepths {
     /// Returns the smallest contiguous layer range that contains two floats, or
     /// `None` if there is none.
     pub fn contiguous_range(&self, lo: Float, hi: Float) -> Option<LayerMask> {
-        let bottom_layer = self.0.find(|_, l| APPROX.lt_eq(l.bottom, lo))?.0;
-        let top_layer = self.0.rfind(|_, l| APPROX.gt_eq(l.top, hi))?.0;
+        let bottom_layer = self.0.find(|_, l| APPROX.lt_eq(l.bottom, lo))?;
+        let top_layer = self.0.rfind(|_, l| APPROX.gt_eq(l.top, hi))?;
 
-        // Ensure layers are contiguous
-        if !self.is_range_contiguous(top_layer..=bottom_layer) {
-            return None;
-        }
+        let bottom_layer = bottom_layer.to_hypuz_notation();
+        let top_layer = top_layer.to_hypuz_notation();
 
-        Some(LayerMask::from(top_layer..=bottom_layer))
+        Some(LayerRange::new(top_layer, bottom_layer))
+            .filter(|&range| self.is_range_contiguous(range))
+            .map(LayerMask::from_range)
     }
 }
 

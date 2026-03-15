@@ -7,6 +7,7 @@ use hyperpuzzle_core::Move;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
+use hypuz_notation::AxisLayersInfo;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::seq::IndexedRandom;
@@ -264,6 +265,11 @@ impl PuzzleBuilder {
         let old_twist_to_new_twist = Box::new(move |_old_twist: LayeredTwist| unimplemented!());
         let new_twist_to_old_twist = Box::new(move |_new_twist: Move| unimplemented!());
 
+        let axis_layers_info = axis_layers.map_ref(|_, depths| AxisLayersInfo {
+            max_layer: depths.len() as u16,
+            allow_negatives: false, // TODO: configurable negative layers
+        });
+
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: self.meta.clone(),
@@ -283,6 +289,7 @@ impl PuzzleBuilder {
             can_scramble,
             full_scramble_length: self.full_scramble_length,
 
+            axis_layers_info,
             axis_layers,
             twists,
 

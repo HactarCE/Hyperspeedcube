@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "timecheck")]
 use timecheck::drand::DrandRound;
 
-use super::LayeredTwist;
-use crate::{BoxDynPuzzleState, Timestamp};
+use crate::{BoxDynPuzzleState, Move, Timestamp};
 
-pub const CURRENT_SCRAMBLE_VERSION: u32 = 1;
+/// Current version number of the scramble generation algorithm.
+pub const CURRENT_SCRAMBLE_VERSION: u32 = 2;
 
 /// Parameters to deterministically generate a twist sequence to scramble a
 /// puzzle.
@@ -204,7 +204,7 @@ pub struct ScrambledPuzzle {
     /// Parameters used to generate the scramble.
     pub params: ScrambleParams,
     /// Scramble twists applied.
-    pub twists: Vec<LayeredTwist>,
+    pub twists: Vec<Move>,
     /// State of the puzzle after scrambling.
     pub state: BoxDynPuzzleState,
 }

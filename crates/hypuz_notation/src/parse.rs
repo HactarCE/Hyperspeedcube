@@ -3,7 +3,7 @@ use std::str::FromStr;
 use chumsky::prelude::*;
 
 use crate::spanned::*;
-use crate::{Features, GroupKind, LayerFeatures, Span};
+use crate::{Features, LayerFeatures, Span};
 
 /// Error produced while parsing puzzle notation.
 ///
@@ -28,6 +28,12 @@ pub(crate) fn node_list_with_features<'src>(
     node_list().with_ctx(features)
 }
 
+pub(crate) fn node_with_features<'src>(
+    features: Features,
+) -> impl NotationParser<'src, Spanned<Node>> {
+    node().with_ctx(features)
+}
+
 pub(crate) fn layer_prefix_with_features<'src>(
     features: LayerFeatures,
 ) -> impl NotationParser<'src, LayerPrefix> {
@@ -39,7 +45,21 @@ pub(crate) fn layer_prefix_with_features<'src>(
 }
 
 fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
-    recursive(|node_list| {
+    node()
+        .separated_by(text::whitespace().at_least(1))
+        .collect()
+        .padded()
+        .map(NodeList)
+}
+
+fn node<'src>() -> impl NotationParser<'src, Spanned<Node>> {
+    recursive(|node| {
+        let node_list = node
+            .separated_by(text::whitespace().at_least(1))
+            .collect()
+            .padded()
+            .map(NodeList);
+
         let commutator_or_conjugate = node_list
             .clone()
             .then(
@@ -66,13 +86,12 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
             .to_span()
             .then(family(0))
             .then(constraint_set().spanned().or_not())
-            .map(
-                |((at_sign, family), constraints)| RepeatableNode::Rotation {
-                    at_sign,
-                    family,
-                    constraints,
-                },
-            )
+            .map(|((at_sign, family), constraints)| Rotation {
+                at_sign,
+                family,
+                constraints,
+            })
+            .map(RepeatableNode::Rotation)
             .contextual()
             .configure(|_, ctx: &Features| ctx.generalized_rotations)
             .labelled("rotation");
@@ -81,11 +100,12 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
             .spanned()
             .then(family(1))
             .then(constraint_set().spanned().or_not())
-            .map(|((layers, family), constraints)| RepeatableNode::Move {
+            .map(|((layers, family), constraints)| Move {
                 layers,
                 family,
                 constraints,
             })
+            .map(RepeatableNode::Move)
             .labelled("move");
 
         let repeatable_node = choice((
@@ -101,18 +121,13 @@ fn node_list<'src>() -> impl NotationParser<'src, NodeList> {
         .then(multiplier().spanned())
         .map(|(inner, multiplier)| Node::Repeatable { inner, multiplier });
 
-        let node = choice((
+        choice((
             just('.').to(Node::Pause),
             megaminx_scramble_move().map(Node::MegaminxScrambleMove),
             repeatable_node,
             sq1_move().map(Node::Sq1Move),
-        ));
-
-        node.spanned()
-            .separated_by(text::whitespace().at_least(1))
-            .collect()
-            .padded()
-            .map(NodeList)
+        ))
+        .spanned()
     })
 }
 
