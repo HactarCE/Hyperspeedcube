@@ -120,9 +120,11 @@ impl Puzzle {
         params: ScrambleParams,
         progress: Option<Arc<ScrambleProgress>>,
     ) -> Result<ScrambledPuzzle, ScrambleError> {
-        if params.version != 1 {
+        if params.version != 2 {
             return Err(ScrambleError::UnsupportedVersion);
         }
+
+        todo!("update scramble algorithm");
 
         let ScrambleParams { ty, seed, .. } = &params;
 

@@ -823,8 +823,8 @@ mod tests {
         let b3 = list.get("b").unwrap().new_ref();
         let c3 = list.get("c").unwrap().new_ref();
         list.move_index(
-            list.get_index_of("b").unwrap(),     // from `b`
-            list.get_index_of("a").unwrap() - 1, // to before `a`
+            list.get_index_of("b").unwrap(), // from `b`
+            list.get_index_of("a").unwrap(), // to before `a`
         );
         assert_eq!(a1, "a");
         assert_eq!(a2, "a");

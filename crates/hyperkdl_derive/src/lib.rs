@@ -54,7 +54,9 @@
 //! # Example
 //!
 //! ```
-//! #[derive(hyperkdl::Doc)]
+//! use hyperkdl::DocSchema;
+//!
+//! #[derive(Debug, PartialEq, hyperkdl_derive::Doc)]
 //! struct RootStruct {
 //!     #[kdl(child("thing"))]
 //!     some_thing: i64,
@@ -62,9 +64,9 @@
 //!     some_struct: MyStruct,
 //! }
 //!
-//! #[derive(hyperkdl::Node, hyperkdl::NodeContents)]
-//! #[kdl(name = "my-struct")] // only used for `Node`; ignored for `NodeContents`
+//! #[derive(Debug, PartialEq, hyperkdl_derive::NodeContents)]
 //! struct MyStruct {
+//!     #[kdl(argument)]
 //!     some_argument: String,
 //!     #[kdl(property("property-key"))]
 //!     some_property: i64,
@@ -74,8 +76,7 @@
 //!     other_children: Vec<MyEnum>,
 //! }
 //!
-//! #[derive(hyperkdl::Node)]
-//! #[kdl(name = "uv-struct")]
+//! #[derive(Debug, PartialEq, hyperkdl_derive::NodeContents)]
 //! struct UvStruct {
 //!     #[kdl(property("u"))]
 //!     u: i64,
@@ -83,21 +84,28 @@
 //!     v: i64,
 //! }
 //!
-//! #[derive(hyperkdl::Node)]
+//! #[derive(Debug, PartialEq, hyperkdl_derive::Node, hyperkdl_derive::NodeContents)]
+//! #[kdl(name = "named-struct")] // only used for `Node`; ignored for `NodeContents`
+//! struct NamedStruct(#[kdl(argument)] i64);
+//!
+//! #[derive(Debug, PartialEq, hyperkdl_derive::Node)]
 //! enum MyEnum {
 //!     #[kdl(name = "variant-a")]
 //!     A,
 //!     #[kdl(name = "variant-b")]
-//!     B(i64, i64)
+//!     B(#[kdl(argument)] i64, #[kdl(argument)] i64),
 //!     #[kdl(name = "variant-c")]
 //!     C {
+//!         #[kdl(argument)]
 //!         field1: i64,
 //!         #[kdl(property("field2"))]
 //!         field2: String,
 //!         #[kdl(child("field3"))]
 //!         field3: String,
-//!         #[kdl(child)]
+//!         #[kdl(child("field4"))]
 //!         field4: UvStruct,
+//!         #[kdl(children)]
+//!         remaining_children: Vec<NamedStruct>,
 //!     },
 //! }
 //!
@@ -108,43 +116,52 @@
 //!         some_property: 42,
 //!         some_child: 16,
 //!         other_children: vec![
-//!             A,
-//!             C {
+//!             MyEnum::A,
+//!             MyEnum::C {
 //!                 field1: 12,
 //!                 field2: "another string".to_string(),
-//!                 field3: "this field is a child",
+//!                 field3: "this field is a child".to_string(),
 //!                 field4: UvStruct {
 //!                     u: 1920,
 //!                     v: 1080,
 //!                 },
+//!                 remaining_children: vec![
+//!                     NamedStruct(10),
+//!                     NamedStruct(20),
+//!                 ],
 //!             },
-//!             B(2, 16),
-//!             B(-3, -6),
+//!             MyEnum::B(2, 16),
+//!             MyEnum::B(-3, -6),
 //!         ]
 //!     }
 //! };
 //!
-//! let deserialized = MyStruct::from_kdl(
-//!     &kdl::Document::from_str(
+//! let mut warnings = vec![];
+//! let deserialized = RootStruct::from_kdl_doc(
+//!     &kdl::KdlDocument::parse(
 //!         r#"
 //!             thing 0
 //!             some-struct "a string here" property-key=42 {
-//!                 a
-//!                 c 12 field2="another string" {
-//!                     wrapper-struct u=1920 v=1080
+//!                 variant-a
+//!                 variant-c 12 field2="another string" {
+//!                     named-struct 10
+//!                     field4 u=1920 v=1080
 //!                     field3 "this field is a child"
+//!                     named-struct 20
 //!                 }
-//!                 b 2 16
+//!                 variant-b 2 16
 //!                 child-key 16
-//!                 b -3 -6
+//!                 variant-b -3 -6
 //!             }
 //!         "#,
 //!     )
 //!     .unwrap(),
+//!     hyperkdl::DeserCtx::new(&mut warnings)
 //! )
 //! .unwrap();
 //!
 //! assert_eq!(expected, deserialized);
+//! assert!(warnings.is_empty());
 //! ```
 //!
 //! # Possible future features

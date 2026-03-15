@@ -208,6 +208,14 @@ pub struct ScrambledPuzzle {
     /// State of the puzzle after scrambling.
     pub state: BoxDynPuzzleState,
 }
+impl std::fmt::Debug for ScrambledPuzzle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScrambledPuzzle")
+            .field("params", &self.params)
+            .field("twists", &self.twists)
+            .finish()
+    }
+}
 
 /// Error returned when scrambling a puzzle.
 #[derive(thiserror::Error, Debug)]

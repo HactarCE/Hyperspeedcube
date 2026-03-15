@@ -5,12 +5,14 @@
 //! # Example
 //!
 //! ```rust
+//! # use std::sync::Arc;
+//! # use hyperpuzzle::Puzzle;
 //! hyperpuzzle::load_global_catalog();
 //!
-//! let puzzle = hyperpuzzle::catalog().build_puzzle_blocking("ft_cube:3").unwrap();
+//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:3").unwrap();
 //! assert_eq!("3x3x3", puzzle.meta.name);
 //!
-//! let puzzle = hyperpuzzle::catalog().build_puzzle_blocking("ft_cube:2").unwrap();
+//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
 //! assert_eq!("2x2x2", puzzle.meta.name);
 //! ```
 //!

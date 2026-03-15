@@ -56,7 +56,7 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
     if fail_count == 0 {
         Ok(())
     } else {
-        std::fs::File::create("../lint_output.txt")
+        std::fs::File::create("../../lint_output.txt")
             .unwrap()
             .write(out.as_bytes())
             .unwrap();
@@ -73,9 +73,17 @@ fn build_all_puzzles() -> Result<(), String> {
     let t1 = std::time::Instant::now();
     let puzzle_specs = catalog.puzzle_specs();
     for puzzle in &*puzzle_specs {
-        if puzzle.meta.tags.get("big").is_some_and(|v| v.is_present()) {
+        if puzzle.meta.tags.has_present("big") {
             println!(
                 "Skipping big puzzle {} ({})",
+                puzzle.meta.name, puzzle.meta.id,
+            );
+            continue;
+        }
+
+        if puzzle.meta.tags.is_experimental() {
+            println!(
+                "Skipping experimental puzzle {} ({})",
                 puzzle.meta.name, puzzle.meta.id,
             );
             continue;

@@ -34,7 +34,7 @@ impl Matrix {
     /// ```
     /// # use hypermath::prelude::*;
     /// assert_eq!(
-    ///     Matrix::from_elems(vec![1.0, 2.0, 3.0, 4.0]),
+    ///     Matrix::from_elems(Box::new([1.0, 2.0, 3.0, 4.0])),
     ///     hypermath::row_matrix![
     ///         [1.0, 3.0],
     ///         [2.0, 4.0],
