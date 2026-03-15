@@ -45,10 +45,6 @@ pub struct Puzzle {
     ///
     /// TODO: rename this and make it backend-specific.
     pub axis_layers: PerAxis<AxisLayerDepths>,
-    /// For each axis, its opposite axis if there is one.
-    ///
-    /// This is important for Slice Turn Metric calculations.
-    pub axis_opposites: PerAxis<Option<Axis>>,
     /// Twist system.
     pub twists: Arc<TwistSystem>,
 

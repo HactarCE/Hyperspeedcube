@@ -90,7 +90,6 @@ lazy_static! {
             can_scramble: false,
             full_scramble_length: 0,
             axis_layers: PerAxis::new(),
-            axis_opposites: PerAxis::new(),
             twists,
             ui_data,
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),

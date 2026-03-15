@@ -231,49 +231,6 @@ impl PuzzleBuilder {
         axis_layers.resize(twists.axes.len())?;
         let axis_layers = axis_layers.try_map_ref(|_, layers| layers.build())?;
 
-        // Assign opposite axes.
-        let mut axis_opposites: PerAxis<Option<Axis>> = PerAxis::new_with_len(twists.axes.len());
-        for axis in Axis::iter(twists.axes.len()) {
-            if axis_opposites[axis].is_some() {
-                continue; // already visited it
-            }
-
-            if let Some(opposite_axis) = twists_builder.axes.vector_to_id(-&axis_vectors[axis]) {
-                let self_layers = &axis_layers[axis].0;
-                let opposite_layers = &axis_layers[opposite_axis].0;
-
-                // Do the layers overlap?
-                let overlap = Option::zip(self_layers.last(), opposite_layers.last())
-                    .is_some_and(|(l1, l2)| l1.bottom < -l2.bottom);
-
-                if overlap {
-                    // Are the layers exactly the same, just reversed?
-                    let is_same_but_reversed = self_layers.len() == opposite_layers.len()
-                        && std::iter::zip(
-                            self_layers.iter_values().rev(),
-                            opposite_layers.iter_values(),
-                        )
-                        .all(|(l1, l2)| {
-                            APPROX.eq(l1.top, -l2.bottom) && APPROX.eq(l1.bottom, -l2.top)
-                        });
-
-                    if is_same_but_reversed {
-                        axis_opposites[axis] = Some(opposite_axis);
-                        axis_opposites[opposite_axis] = Some(axis);
-                    } else {
-                        let name1 = &twists.axes.names[axis];
-                        let name2 = &twists.axes.names[opposite_axis];
-                        let layers1 = &axis_layers[axis];
-                        let layers2 = &axis_layers[opposite_axis];
-                        warn_fn(eyre!(
-                            "axes {name1} and {name2} are opposite and overlapping, \
-                             but the layers do not match ({layers1} vs. {layers2})"
-                        ));
-                    }
-                }
-            }
-        }
-
         let mut scramble_twists = twists
             .twists
             .iter_filter(|_, twist_info| {
@@ -343,7 +300,6 @@ impl PuzzleBuilder {
             full_scramble_length: self.full_scramble_length,
 
             axis_layers,
-            axis_opposites,
             twists,
 
             ui_data,
