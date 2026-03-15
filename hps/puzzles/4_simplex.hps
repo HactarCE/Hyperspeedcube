@@ -3,7 +3,7 @@ use * from euclid
 GIZMO_EDGE_FACTOR = 0.8
 
 COMMON_METADATA = #{
-    version = "1.0.0",
+    version = "2.0.0",
     colors = "4_simplex",
     twists = "ft_4_simplex",
     engine = "euclid",

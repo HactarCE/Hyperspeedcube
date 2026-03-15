@@ -1300,7 +1300,7 @@ solve {
     #[test]
     fn test_puzzle_sim_replay_round_trip() {
         hyperpuzzle::load_global_catalog();
-        let (log_file, _) = hyperpuzzle_log::LogFile::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
+        let (log_file, _) = hyperpuzzle_log::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
         let original_solve = &log_file.solves[0];
         let puzzle = hyperpuzzle::catalog()
             .build_blocking(&original_solve.puzzle.id)

@@ -17,29 +17,29 @@ export fn new(t: Transform) -> Map {
 
     export facet_pole = sym.ooox.unit
     export facet_names = sym.names(point(facet_pole), #{
-        O = [],
-        D = [3, "O"],
-        F = [2, "D"],
-        BR = [1, "F"],
-        BL = [0, "BR"],
+        E = [],
+        D = [3, "E"],
+        C = [2, "D"],
+        B = [1, "C"],
+        A = [0, "B"],
     })
 
     export vertex_pole = sym.xooo.unit * 4
     export vertex_names = sym.names(point(vertex_pole), #{
-        R = [],
-        L = [0, "R"],
-        B = [1, "L"],
-        U = [2, "B"],
-        I = [3, "U"],
+        βA = [],
+        βB = [0, "βA"],
+        βC = [1, "βB"],
+        βD = [2, "βC"],
+        βE = [3, "βD"],
     })
 }
 
 export facet_colors_list = [
-    #{name = "O",  display = "O",  default = "Purple"},
-    #{name = "D",  display = "D",  default = "Yellow"},
-    #{name = "F",  display = "F",  default = "Green"},
-    #{name = "BR", display = "BR", default = "Blue"},
-    #{name = "BL", display = "BL", default = "Red"},
+    #{name = "A", display = "A", default = "Red"},
+    #{name = "B", display = "B", default = "Blue"},
+    #{name = "C", display = "C", default = "Green"},
+    #{name = "D", display = "D", default = "Yellow"},
+    #{name = "E", display = "E", default = "Purple"},
 ]
 add_color_system(
     id = facet_colors,

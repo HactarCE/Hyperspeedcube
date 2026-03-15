@@ -17,26 +17,26 @@ export fn new(t: Transform) -> Map {
 
     export facet_pole = sym.oox.unit
     export facet_names = sym.names(point(facet_pole), #{
-        F = [],
-        U = [2, "F"],
-        R = [1, "U"],
-        L = [0, "R"],
+        D  = [],
+        F  = [2, "D"],
+        BR = [1, "F"],
+        BL = [0, "BR"],
     })
 
     export vertex_pole = sym.xoo.unit
     export vertex_names = sym.names(point(vertex_pole), #{
-        l = [],
-        r = [0, "l"],
-        u = [1, "r"],
-        f = [2, "u"],
+        R = [],
+        L = [0, "R"],
+        B = [1, "L"],
+        U = [2, "B"],
     })
 }
 
 export facet_colors_list = [
-    #{name = "R", display = "Right", default = "Red"},
-    #{name = "F", display = "Front", default = "Green"},
-    #{name = "U", display = "Up",    default = "Yellow"},
-    #{name = "L", display = "Left",  default = "Blue"},
+    #{name = "BL", display = "Back-left",  default = "Red"},
+    #{name = "BR", display = "Back-right", default = "Blue"},
+    #{name = "F",  display = "Front",      default = "Green"},
+    #{name = "D",  display = "Down",       default = "Yellow"},
 ]
 add_color_system(
     id = facet_colors,

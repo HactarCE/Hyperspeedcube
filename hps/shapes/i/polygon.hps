@@ -38,9 +38,9 @@ export fn adjective(n: Nat) -> Str { ADJECTIVES[n] ?? "${n}-gonal" }
 export ndim = 2
 
 fn generic_names(n: Nat, m2: Nat, m1: Nat) {
-    names = #{"${@util.names.nth_uppercase(0)}" = []}
+    names = #{"${nth_uppercase(0)}" = []}
     for i in 1..n {
-        names["${@util.names.nth_uppercase(i)}"] = [m2, m1, "${@util.names.nth_uppercase(i-1)}"]
+        names["${nth_uppercase(i)}"] = [m2, m1, "${nth_uppercase(i-1)}"]
     }
     return names
 }
@@ -67,10 +67,9 @@ export fn new(n: Nat, t: Transform) -> Map {
     export edge_names = sym.names(point(edge_pole), generic_names(n, 1, 0))
 
     export vertex_pole = sym.xo.unit * circumradius
-    export vertex_names = sym.names(point(vertex_pole), generic_names(n, 0, 1))
 
     export edge_opposite_pole = if n.is_odd() { -edge_pole }
-    export edge_opposite_names = if n.is_odd() { edge_names }
+    export edge_opposite_names = if n.is_odd() { "β${edge_names}" }
 
     export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
         if n == 3 {

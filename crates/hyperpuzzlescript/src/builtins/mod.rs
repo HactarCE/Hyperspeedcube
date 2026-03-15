@@ -1,11 +1,11 @@
 //! Built-in functions and constants.
 
 pub mod assertions;
-pub mod bases;
 pub mod catalog;
 pub mod collections;
 pub mod euclid;
 pub mod math;
+pub mod names;
 pub mod operators;
 pub mod output;
 pub mod strings;
@@ -22,7 +22,7 @@ const INCLUDE_DEBUG_FNS: bool = true;
 /// Defines all base functionality that isn't related to the puzzle catalog.
 pub fn define_base_in(builtins: &mut Builtins<'_>) -> Result<()> {
     assertions::define_in(builtins)?;
-    bases::define_in(builtins)?;
+    names::define_in(builtins)?;
     collections::define_in(builtins)?;
     euclid::define_in(builtins)?;
     math::define_in(builtins)?;

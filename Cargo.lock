@@ -2929,6 +2929,7 @@ dependencies = [
  "hypermath",
  "hyperpaths",
  "hyperpuzzle_core",
+ "hypuz_notation",
  "include_dir",
  "indexmap",
  "itertools 0.14.0",

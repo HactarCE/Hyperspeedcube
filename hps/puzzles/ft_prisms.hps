@@ -43,7 +43,7 @@ export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_
 // FT Polygonal Prism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_prism",
-    version = "1.0.1",
+    version = "2.0.0",
     name = "FT Polygonal Prism (Shallow)",
     params = [
         param_polygon_size("Polygon size"),
@@ -67,8 +67,8 @@ add_puzzle_generator(
 
                 with #sym = sym {
                     // Carve shape
-                    carve(plane(line.endpoint * h), line.names("U", "D"))
-                    carve(plane(polygon.edge_pole), "F${polygon.edge_names}")
+                    carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
+                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
 
                     // Slice layers
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
@@ -109,7 +109,7 @@ add_puzzle_generator(
 // FT Triminx Prism generator
 add_puzzle_generator(
     id = "ft_triminx_prism",
-    version = "1.0.1",
+    version = "2.0.0",
     name = "FT Triminx Prism",
     params = [
         param_polygon_width("Width"),
@@ -132,8 +132,8 @@ add_puzzle_generator(
 
                 with #sym = sym {
                     // Carve shape
-                    carve(plane(line.endpoint * h), line.names("U", "D"))
-                    carve(plane(polygon.edge_pole), "F${polygon.edge_names}")
+                    carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
+                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
 
                     // Slice layers
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
@@ -190,11 +190,8 @@ add_twist_system_generator(
                     opposite_side_axis = null
                     if n == 3 {
                         opposite_side_axis = add_axis(
-                            -shape.side_pole,
-                            #sym.names(
-                                point(shape.side_pole),
-                                #{VA = [], VB = [0, 1, "VA"], VC = [0, 1, "VB"]}, // TODO: bikeshed names
-                            ),
+                            shape.opposite_side_pole,
+                            shape.opposite_side_names,
                         )
                         add_twist(opposite_side_axis, #sym.thru([0, 2]), gizmo_pole_distance = 1)
                     }
@@ -215,7 +212,7 @@ add_twist_system_generator(
                         [shape.base_pole, shape.base_names],
                         [shape.side_pole, shape.side_names],
                     ],
-                    init = ["FA", "U"],
+                    init = ["aA", "bA"],
                 )
 
                 // Add side-centered vantage set
@@ -234,10 +231,10 @@ add_twist_system_generator(
                     },
                     axes = #{
                         F = F,
-                        R = #twists.U.transform(F),
-                        L = #twists.U.rev().transform(F),
+                        R = #twists.bA.transform(F),
+                        L = #twists.bA.rev().transform(F),
                         U = U,
-                        D = #twists.FA.transform(U),
+                        D = #twists.aA.transform(U),
                     },
                 )
             },
@@ -266,7 +263,7 @@ fn build_ft_polygonal_duoprism(shape: Map, a_depths: List[Num], b_depths: List[N
 // FT Polygonal Duoprism (Shallow) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism",
-    version = "1.0.1",
+    version = "2.0.0",
     name = "FT Polygonal Duoprism (Shallow)",
     params = @shapes/prisms/polygonal_duoprism.params ++ [
         param_polygon_width("Layers A"),
@@ -341,7 +338,7 @@ add_puzzle_generator(
 // FT Polygonal Duoprism (Shallow, Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx",
-    version = "1.0.1",
+    version = "2.0.0",
     name = "FT Polygonal Duoprism (Shallow, Triminx)",
     params = [
         @shapes/prisms/polygonal_duoprism.params[0],
@@ -395,7 +392,7 @@ add_puzzle_generator(
 // FT Polygonal Duoprism (Triminx) generator
 add_puzzle_generator(
     id = "ft_polygonal_duoprism_3_minx_3_minx",
-    version = "1.0.1",
+    version = "2.0.0",
     name = "FT Polygonal Duoprism (Triminx)",
     params = [
         param_polygon_width("Layers A"),
@@ -509,15 +506,15 @@ add_twist_system_generator(
                         [shape.a_facet_pole, shape.a_facet_names],
                         [shape.b_facet_pole, shape.b_facet_names],
                     ],
-                    init = ["εA", "εB", "ηA"],
+                    init = ["aA", "aB", "bA"],
                 )
 
                 // Add facet-centered XZ/YW vantage set
-                use εA, εB, ηA, ηB from #axes
+                use aA, aB, bA, bB from #axes
                 xy = shape.sym.thru([1, 0])
-                εZ = xy.rev().transform(εA)
+                aZ = xy.rev().transform(aA)
                 zw = shape.sym.thru([3, 2])
-                ηZ = zw.rev().transform(ηA)
+                bZ = zw.rev().transform(bA)
 
                 add_vantage_set(
                     name = "Facet-centered XZ/YW",
@@ -525,8 +522,8 @@ add_twist_system_generator(
                     view_offset = ident(), // TODO
                     transforms = #{ xy = xy, zw = zw }, // TODO: more
                     axes = #{
-                        L = εZ, F = εA, R = εB,
-                        D = ηZ, I = ηA, U = ηB,
+                        L = aZ, F = aA, R = aB,
+                        D = bZ, I = bA, U = bB,
                     },
                 )
             },

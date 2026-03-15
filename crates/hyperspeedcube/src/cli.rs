@@ -163,8 +163,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 .read_to_string(&mut buffer)
                 .context("error reading log file")?;
             log::trace!("Deserializing log file ...");
-            let (log_file, _warnings) = hyperpuzzle_log::LogFile::deserialize(&buffer)
-                .context("error deserializing log file")?;
+            let (log_file, _warnings) =
+                hyperpuzzle_log::deserialize(&buffer).context("error deserializing log file")?;
 
             let catalog = hyperpuzzle::catalog();
 

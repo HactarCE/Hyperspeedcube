@@ -31,26 +31,24 @@ export fn new(n: Nat, t: Transform) -> Map {
     export h = product.polygon.edge_length / 2
 
     export base_pole = line.endpoint * h
-    export base_names = line.names("U", "D")
+    export base_names = "b${line.endpoint_names}"
 
     export side_pole = polygon.edge_pole
-    export side_names = "F${polygon.edge_names}"
+    export side_names = "a${polygon.edge_names}"
+
+    export opposite_side_pole = polygon.opposite_edge_pole
+    export opposite_side_names = "a${polygon.opposite_edge_names}"
 }
 
 export fn facet_colors_list(n: Nat) -> List[Map] {
-    (
-        [
-            #{name = "U", display = "Up",   default = "Mono Dyad [1]" },
-            #{name = "D", display = "Down", default = "Mono Dyad [2]" },
-        ]
-        ++
-        (0..n).map(fn(i) {
-            #{
-                name = "F${@util.names.nth_uppercase(i)}",
-                default = "Rainbow [${i}/${n}]",
-            }
-        })
-    )
+    [
+        #{name = "bA", default = "Mono Dyad [1]" },
+        #{name = "bB", default = "Mono Dyad [2]" },
+        *(0..n).map(fn(i) { #{
+            name = "a${nth_uppercase(i)}",
+            default = "Rainbow [${i}/${n}]",
+        } }),
+    ]
 }
 
 add_color_system_generator(
@@ -62,7 +60,7 @@ add_color_system_generator(
 
 add_puzzle_generator(
     id = "polygonal_prism",
-    version = "1.0.0",
+    version = "2.0.0",
     name = "Polygonal Prism",
     params = [@shapes/i/polygon.param_size("Polygon size")],
     engine = "euclid",
@@ -74,8 +72,8 @@ add_puzzle_generator(
             build = fn() {
                 use sym, polygon, line, h from new(n)
                 with #sym = sym {
-                    carve(plane(line.endpoint * h), line.names("U", "D"))
-                    carve(plane(polygon.edge_pole), "F${polygon.edge_names}")
+                    carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
+                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
                 }
             },
         }

@@ -14,10 +14,8 @@ export fn new(t: Transform) -> Map {
     export sym = t.transform(cd([]))
 
     export endpoint = sym.x.unit
-    export fn names(U: Str, D: Str) -> OrbitNames {
-        sym.names(point(endpoint), #{
-            "${U}" = [],
-            "${D}" = [0],
-        })
+    export endpoint_names = #{
+        "A" = [],
+        "B" = [0],
     }
 }

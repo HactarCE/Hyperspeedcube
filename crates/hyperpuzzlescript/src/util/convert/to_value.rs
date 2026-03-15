@@ -59,6 +59,7 @@ impl_to_value_data!(Arc<FnValue>, f => ValueData::Fn(f));
 impl_to_value_data!(f64, n => ValueData::Num(n));
 impl_to_value_data!(i64, n => ValueData::Num(n as f64));
 impl_to_value_data!(u64, n => ValueData::Num(n as f64));
+impl_to_value_data!(u32, n => ValueData::Num(n as f64));
 impl_to_value_data!(u8, n => ValueData::Num(n as f64));
 impl_to_value_data!(usize, n => ValueData::Num(n as f64));
 

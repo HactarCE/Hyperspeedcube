@@ -1,6 +1,5 @@
 use hyperpuzzle_core::chrono::TimeDelta;
 use hyperpuzzle_core::verification::*;
-use hyperpuzzle_log::LogFile;
 use hyperpuzzle_log::verify::{SolveVerificationError, VerificationOptions, verify};
 use pretty_assertions::assert_eq;
 
@@ -13,7 +12,7 @@ fn test_online_solve_verification() {
     let catalog = load_new_catalog();
 
     let (log_file, warnings) =
-        LogFile::deserialize(include_str!("2026-03-11T04_05_29.603Z_stm25.hsc")).unwrap();
+        hyperpuzzle_log::deserialize(include_str!("2026-03-11T04_05_29.603Z_stm25.hsc")).unwrap();
     assert!(warnings.is_empty());
 
     let expected_verification = SolveVerification {
@@ -57,7 +56,7 @@ fn test_offline_solve_verification() {
     let catalog = load_new_catalog();
 
     let (mut log_file, warnings) =
-        LogFile::deserialize(include_str!("2026-03-11T04_06_10.518Z_stm19.hsc")).unwrap();
+        hyperpuzzle_log::deserialize(include_str!("2026-03-11T04_06_10.518Z_stm19.hsc")).unwrap();
     assert!(warnings.is_empty());
 
     let expected_verification = SolveVerification {

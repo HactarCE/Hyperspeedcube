@@ -174,7 +174,7 @@ impl App {
     }
     pub(crate) fn paste_from_string(&mut self, s: &str) {
         // TODO: handle error
-        match hyperpuzzle_log::LogFile::deserialize(s) {
+        match hyperpuzzle_log::deserialize(s) {
             Ok((log_file, warnings)) => {
                 for warning in warnings {
                     log::warn!("Warning while loading log file: {warning}");
