@@ -31,12 +31,12 @@ impl AxisLayersBuilder {
     }
 
     /// Validates and finalizes the layer system for an axis.
-    pub fn build(&self) -> Result<AxisLayersInfo> {
+    pub fn build(&self) -> Result<AxisLayerDepths> {
         // Check that the layer planes are monotonic.
         self.ensure_monotonic()?;
 
-        Ok(AxisLayersInfo(self.0.map_ref(
-            |_, &AxisLayerBuilder { top, bottom }| LayerInfo { top, bottom },
+        Ok(AxisLayerDepths(self.0.map_ref(
+            |_, &AxisLayerBuilder { top, bottom }| LayerDepths { top, bottom },
         )))
     }
 }

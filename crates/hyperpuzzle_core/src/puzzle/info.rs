@@ -145,8 +145,8 @@ pub struct StickerInfo {
 
 /// Layers of an axis.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct AxisLayersInfo(pub PerLayer<LayerInfo>);
-impl fmt::Display for AxisLayersInfo {
+pub struct AxisLayerDepths(pub PerLayer<LayerDepths>);
+impl fmt::Display for AxisLayerDepths {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let top_bottom_pairs = self
             .0
@@ -156,7 +156,7 @@ impl fmt::Display for AxisLayersInfo {
         write!(f, "{top_bottom_pairs:?}")
     }
 }
-impl AxisLayersInfo {
+impl AxisLayerDepths {
     /// Returns whether the layer list is empty.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -190,9 +190,9 @@ impl AxisLayersInfo {
     }
 }
 
-/// Layer info.
+/// Layer top & bottom depths.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerInfo {
+pub struct LayerDepths {
     /// Position along the axis vector from the origin that bounds the top of
     /// the layer. **This may be infinite.**
     pub top: Float,
@@ -200,7 +200,7 @@ pub struct LayerInfo {
     /// the layer. **This may be infinite.**
     pub bottom: Float,
 }
-impl TransformByMotor for LayerInfo {
+impl TransformByMotor for LayerDepths {
     fn transform_by(&self, _m: &Motor) -> Self {
         Self {
             top: self.top,

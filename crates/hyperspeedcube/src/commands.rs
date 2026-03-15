@@ -309,7 +309,7 @@ impl LayerMaskDesc {
         *self == Self::default()
     }
 
-    pub(crate) fn to_layer_mask(&self, axis_layers: &AxisLayersInfo) -> LayerMask {
+    pub(crate) fn to_layer_mask(&self, axis_layers: &AxisLayerDepths) -> LayerMask {
         let mut ret = LayerMask(0);
 
         let layer_count = axis_layers.len() as u8;

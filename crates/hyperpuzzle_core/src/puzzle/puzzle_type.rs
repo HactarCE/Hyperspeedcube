@@ -42,7 +42,9 @@ pub struct Puzzle {
     pub full_scramble_length: u32,
 
     /// Layers for each axis.
-    pub axis_layers: PerAxis<AxisLayersInfo>,
+    ///
+    /// TODO: rename this and make it backend-specific.
+    pub axis_layers: PerAxis<AxisLayerDepths>,
     /// For each axis, its opposite axis if there is one.
     ///
     /// This is important for Slice Turn Metric calculations.
