@@ -23,7 +23,6 @@ pub trait TypedIndex:
     + std::hash::Hash
     + PartialOrd
     + Ord
-    + tinyset::Fits64
     + Send
     + Sync
 {

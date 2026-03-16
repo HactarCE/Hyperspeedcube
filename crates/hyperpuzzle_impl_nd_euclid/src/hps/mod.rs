@@ -254,7 +254,7 @@ fn fmt_puzzle_element(
                 write!(f, "{array_name}.{k}")
             }
         }
-        None => write!(f, "{array_name}[{}]", id.to_u64()),
+        None => write!(f, "{array_name}[{}]", id.to_index()),
     }
 }
 

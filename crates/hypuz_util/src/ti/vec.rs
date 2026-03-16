@@ -47,13 +47,13 @@ impl<I: TypedIndex, E> Index<I> for TiVec<I, E> {
     type Output = E;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.values[index.to_u64() as usize]
+        &self.values[index.to_index()]
     }
 }
 
 impl<I: TypedIndex, E> IndexMut<I> for TiVec<I, E> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.values[index.to_u64() as usize]
+        &mut self.values[index.to_index()]
     }
 }
 
@@ -100,7 +100,7 @@ impl<I: TypedIndex, E> TiVec<I, E> {
     where
         E: Default,
     {
-        while index.to_u64() >= self.len() as u64 {
+        while index.to_index() >= self.len() {
             self.push(E::default()).expect("impossible overflow!");
         }
     }
