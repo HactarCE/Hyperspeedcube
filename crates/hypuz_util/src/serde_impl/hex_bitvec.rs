@@ -44,10 +44,7 @@ pub fn bitvec_to_b16_string(bits: &BitVec) -> String {
 pub fn b16_string_to_bitvec(string: &str) -> Option<BitVec> {
     let (bit_count_str, contents) = string.split_once(':')?;
     let bit_count: usize = bit_count_str.parse().ok()?;
-    if !contents
-        .chars()
-        .all(|c| matches!(c, '0'..='9' | 'a'..='f' | 'A'..='F'))
-    {
+    if !contents.chars().all(|c| c.is_ascii_hexdigit()) {
         return None;
     }
     Some(

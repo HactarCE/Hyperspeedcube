@@ -59,7 +59,7 @@ fn migrate_twists_in_solve(solve: &mut Solve, migrate_fn: MigrationFn) {
         match event {
             LogEvent::Click { target, .. } => *target = migrate_fn(target),
             LogEvent::Twists(twists_string) => {
-                migrate_twists_in_notation_string(twists_string, migrate_fn)
+                migrate_twists_in_notation_string(twists_string, migrate_fn);
             }
             _ => (),
         }
@@ -87,13 +87,13 @@ fn migrate_twists_in_notation_node(
     for node in &mut **node_list {
         match node {
             hypuz_notation::Node::Move(mv) => {
-                mv.transform.family = migrate_fn(&mv.transform.family).into()
+                mv.transform.family = migrate_fn(&mv.transform.family).into();
             }
             hypuz_notation::Node::Rotation(rot) => {
-                rot.transform.family = migrate_fn(&rot.transform.family).into()
+                rot.transform.family = migrate_fn(&rot.transform.family).into();
             }
             hypuz_notation::Node::Group(group) => {
-                migrate_twists_in_notation_node(&mut group.contents, migrate_fn)
+                migrate_twists_in_notation_node(&mut group.contents, migrate_fn);
             }
             hypuz_notation::Node::BinaryGroup(group) => {
                 migrate_twists_in_notation_node(&mut group.lhs, migrate_fn);
@@ -114,9 +114,9 @@ fn migrate_prism(s: &str) -> String {
     } else if let Some(rest) = s.strip_prefix('V') {
         format!("aβ{rest}")
     } else if s == "U" {
-        format!("bA")
+        "bA".to_string()
     } else if s == "D" {
-        format!("bB")
+        "bB".to_string()
     } else {
         s.to_string()
     }

@@ -112,8 +112,8 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
 
     if let Some(hov) = view.hovered_gizmo().filter(|_| view.show_gizmo_hover) {
         ui.strong(format!("Gizmo {}", hov.gizmo_face));
-        info_line(ui, "Backface?", &hov.backface);
-        info_line(ui, "Z", &format!("{:.3}", hov.z));
+        info_line(ui, "Backface?", hov.backface);
+        info_line(ui, "Z", format!("{:.3}", hov.z));
         let geom = puz
             .ui_data
             .downcast_ref::<NdEuclidPuzzleUiData>()
@@ -126,13 +126,13 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
 
         ui.label("");
         if let Some(axis) = puz.twists.axis_from_move_family(&twist.transform.family) {
-            ui.strong(format!("Axis {}", axis));
+            ui.strong(format!("Axis {axis}"));
             if let Ok(name) = puz.axes().names.get(axis) {
                 name_spec_info_lines(ui, "Axis", name);
             }
             let layers_info = &puz.axis_layers[axis];
-            info_line(ui, "Max layer", &layers_info.max_layer);
-            info_line(ui, "Allow negatives?", &layers_info.allow_negatives);
+            info_line(ui, "Max layer", layers_info.max_layer);
+            info_line(ui, "Allow negatives?", layers_info.allow_negatives);
         } else {
             ui.colored_label(ui.visuals().error_fg_color, "Twist has no axis");
         }

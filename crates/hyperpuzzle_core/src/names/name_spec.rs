@@ -347,7 +347,7 @@ fn parse_tokens(tokens: &[Token]) -> Result<SeqNode, NameSpecError> {
                 }
             }
             0 if permutation_start.is_none() => {
-                permutation_ranges.push(items.len()..items.len() + 1)
+                permutation_ranges.push(items.len()..items.len() + 1);
             }
             0 => (),
         }

@@ -150,6 +150,7 @@ impl<'de> serde::Deserialize<'de> for Layer {
 #[cfg(feature = "typed_index")]
 impl hypuz_util::ti::Fits64 for Layer {
     unsafe fn from_u64(x: u64) -> Self {
+        // SAFETY: `x` is always produced by `to_u64()`, which never returns zero
         Layer(unsafe { NonZeroI16::new_unchecked(x as i16) })
     }
 

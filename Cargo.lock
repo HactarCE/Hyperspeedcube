@@ -3021,7 +3021,6 @@ dependencies = [
  "wasm-logger",
  "web-sys",
  "wgpu",
- "winit",
  "winres",
 ]
 

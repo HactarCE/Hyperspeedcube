@@ -46,7 +46,9 @@ pub union LayerMask {
     pointer: NonNull<BitVec>,
 }
 
+// SAFETY: `BitVec` is safe to send across threads
 unsafe impl Send for LayerMask {}
+// SAFETY: `BitVec` is safe to share across threads
 unsafe impl Sync for LayerMask {}
 
 enum LayerMaskEnum<Ptr> {

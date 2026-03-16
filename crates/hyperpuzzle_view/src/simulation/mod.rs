@@ -541,7 +541,7 @@ impl PuzzleSimulation {
                                 }
                             },
                             None => {
-                                log::error!("Unsupported notation element in scramble")
+                                log::error!("Unsupported notation element in scramble");
                             }
                         }
                     }
