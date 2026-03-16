@@ -3,7 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{notation::LayerPrefix, prelude::*};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de};
 
@@ -86,8 +86,8 @@ pub enum PuzzleCommand {
     Grip {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         axis: Option<String>,
-        #[serde(default, skip_serializing_if = "LayerMaskDesc::is_default")]
-        layers: LayerMaskDesc,
+        #[serde(default, skip_serializing_if = "is_layer_prefix_default")]
+        layers: LayerPrefix,
     },
     Twist {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -95,7 +95,7 @@ pub enum PuzzleCommand {
         #[serde(default)]
         direction: String,
         #[serde(default)]
-        layers: LayerMaskDesc,
+        layers: LayerPrefix,
     },
     Recenter {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -129,9 +129,9 @@ impl PuzzleCommand {
                 // IIFE to mimic try_block
                 (|| {
                     let axis_id = ty.axes().names.id_from_name(axis.as_ref()?)?;
-                    let layer_mask = layers.to_layer_mask(&ty.axis_layers[axis_id]);
+                    let layer_mask = layers.to_layer_mask(ty.axis_layers_info[axis_id]);
                     let axis_name = &ty.axes().names[axis_id];
-                    if layer_mask == LayerMask(0) {
+                    if layer_mask.is_empty() {
                         Some(axis_name.to_owned())
                     } else {
                         Some(layer_mask.to_string() + axis_name)
@@ -171,7 +171,7 @@ impl PuzzleCommand {
         }
     }
 
-    pub fn layers_mut(&mut self) -> Option<&mut LayerMaskDesc> {
+    pub fn layers_mut(&mut self) -> Option<&mut LayerPrefix> {
         match self {
             Self::Grip { layers, .. } | Self::Twist { layers, .. } => Some(layers),
             _ => None,
@@ -259,139 +259,6 @@ pub enum FilterMode {
     Toggle,
 }
 
-/// Description of a layer mask that adjusts to the size of a puzzle.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct LayerMaskDesc {
-    segments: Vec<LayerMaskDescSegment>,
-}
-impl fmt::Display for LayerMaskDesc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.segments.iter().map(|seg| seg.to_string()).join(","),
-        )
-    }
-}
-impl FromStr for LayerMaskDesc {
-    type Err = std::convert::Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            segments: s
-                .split(',')
-                .map(|segment_str| segment_str.parse())
-                .filter(|&segment| segment != Ok(LayerMaskDescSegment::default()))
-                .collect::<Result<_, _>>()?,
-        })
-    }
-}
-impl Serialize for LayerMaskDesc {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.to_string().serialize(serializer)
-    }
-}
-impl<'de> Deserialize<'de> for LayerMaskDesc {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(de::Error::custom)
-    }
-}
-impl LayerMaskDesc {
-    pub(crate) fn is_default(&self) -> bool {
-        *self == Self::default()
-    }
-
-    pub(crate) fn to_layer_mask(&self, axis_layers: &AxisLayerDepths) -> LayerMask {
-        let mut ret = LayerMask(0);
-
-        let layer_count = axis_layers.len() as u8;
-
-        fn layer_idx(i: i8, layer_count: u8) -> u8 {
-            if i > 0 {
-                i as u8 - 1
-            } else {
-                layer_count.saturating_sub(i.saturating_neg() as u8)
-            }
-        }
-
-        for segment in &self.segments {
-            let start = layer_idx(segment.start, layer_count);
-            let end = layer_idx(segment.end, layer_count);
-            let segment_mask = LayerMask::from(start..=end);
-            if segment.subtract {
-                ret &= !segment_mask;
-            } else {
-                ret |= segment_mask;
-            }
-        }
-
-        ret & LayerMask::all_layers(layer_count)
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct LayerMaskDescSegment {
-    subtract: bool,
-    start: i8,
-    end: i8,
-}
-impl fmt::Display for LayerMaskDescSegment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.subtract {
-            write!(f, "!")?;
-        }
-        write!(f, "{}", self.start)?;
-        if self.start != self.end {
-            write!(f, "..{}", self.end)?;
-        }
-        Ok(())
-    }
-}
-impl FromStr for LayerMaskDescSegment {
-    type Err = std::convert::Infallible;
-
-    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
-        let subtract = match s.strip_prefix('!') {
-            Some(rest) => {
-                s = rest;
-                true
-            }
-            None => false,
-        };
-
-        fn parse_i8(s: &str) -> i8 {
-            use std::num::IntErrorKind::*;
-
-            match s.trim().parse() {
-                Ok(n) => n,
-                Err(e) => match e.kind() {
-                    PosOverflow => i8::MAX,
-                    NegOverflow => i8::MIN,
-                    _ => 0,
-                },
-            }
-        }
-
-        let (start, end) = match s.split_once("..") {
-            Some((start_str, end_str)) => (parse_i8(start_str), parse_i8(end_str)),
-            None => {
-                let n = parse_i8(s);
-                (n, n)
-            }
-        };
-
-        Ok(Self {
-            subtract,
-            start,
-            end,
-        })
-    }
+fn is_layer_prefix_default(layer_prefix: &LayerPrefix) -> bool {
+    *layer_prefix == LayerPrefix::default()
 }

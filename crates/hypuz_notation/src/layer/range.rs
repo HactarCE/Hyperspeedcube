@@ -43,7 +43,7 @@ impl LayerRange {
     }
 
     /// Constructs a layer range containing all layers on an axis with the given
-    /// number of layers, which is equal to the maximum possible axis. Returns
+    /// number of layers, which is equal to the maximum possible layer. Returns
     /// `None` if there are zero layers.
     pub fn all(max_layer: u16) -> Option<Self> {
         Some(Self::new(Layer::SHALLOWEST, Layer::new(max_layer)?))

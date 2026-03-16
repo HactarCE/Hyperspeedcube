@@ -65,7 +65,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 
         fn region(ctx: EvalCtx, puzzle: HpsPuzzle, axis: HpsAxis) -> HpsRegion {
             let layer_count = puzzle.lock().axis_layers(axis.id).0.len();
-            let layer_mask = LayerMask::all_layers(layer_count as u8);
+            let layer_mask = LayerMask::all(layer_count as u16);
             puzzle.layer_regions(ctx, axis.id, layer_mask)?
         }
         fn region(

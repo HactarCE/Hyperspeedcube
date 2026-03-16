@@ -43,13 +43,13 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     /// Returns each piece's location with respect to a grip (axis + layer
     /// mask). A piece may be inside the grip, outside the grip, or blocking the
     /// grip. [`WhichSide::Flush`] is not used.
-    fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide>;
+    fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide>;
 
     /// Returns the set of pieces on the inside of a grip (axis + layer mask).
     /// This considers blocking pieces to be outside the grip; use
     /// [`PuzzleState::compute_grip()`] to see which pieces are blocking a
     /// twist.
-    fn compute_gripped_pieces(&self, axis: Axis, layers: LayerMask) -> PieceMask {
+    fn compute_gripped_pieces(&self, axis: Axis, layers: &LayerMask) -> PieceMask {
         PieceMask::from_iter(
             self.ty().pieces.len(),
             self.compute_grip(axis, layers)
@@ -78,7 +78,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     /// respect to `t`.
     //
     // TODO: is this even used anywhere?
-    fn partial_twist_render_data(&self, twist: Move, t: f32) -> BoxDynPuzzleStateRenderData;
+    fn partial_twist_render_data(&self, twist: &Move, t: f32) -> BoxDynPuzzleStateRenderData;
 
     /// Returns data to render the state of the puzzle during an animation.
     ///

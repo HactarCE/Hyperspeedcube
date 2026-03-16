@@ -656,10 +656,8 @@ impl PuzzleSimulation {
 
                 let state = std::mem::replace(&mut self.latest_state, new_state);
 
-                self.stm_counter.count_twist(
-                    axis,
-                    LayerMask::from_hypuz_notation(twist.layers.to_layer_mask(layers_info)),
-                );
+                self.stm_counter
+                    .count_twist(axis, twist.layers.to_layer_mask(layers_info));
 
                 self.blocking_anim.clear();
 
@@ -769,9 +767,7 @@ impl PuzzleSimulation {
             return;
         };
 
-        let grip = self
-            .latest_state
-            .compute_gripped_pieces(axis, layers.to_hypuz_notation());
+        let grip = self.latest_state.compute_gripped_pieces(axis, &layers);
         nd_euclid.partial_twist_drag_state = Some(PartialTwistDragState {
             axis,
             layers,
@@ -938,12 +934,12 @@ impl PuzzleSimulation {
                     &ReplayEvent::Scramble { time } => LogEvent::Scramble { time },
                     &ReplayEvent::GizmoClick {
                         time,
-                        layers,
+                        ref layers,
                         ref target,
                         reverse,
                     } => LogEvent::Click {
                         time,
-                        layers,
+                        layers: layers.clone(),
                         target: target.to_string(),
                         reverse,
                     },
@@ -1067,7 +1063,7 @@ impl PuzzleSimulation {
                 }
                 &LogEvent::Click {
                     time,
-                    layers,
+                    ref layers,
                     ref target,
                     reverse,
                 } => {
@@ -1083,7 +1079,7 @@ impl PuzzleSimulation {
                     ret.replay_event(
                         ReplayEvent::GizmoClick {
                             time,
-                            layers,
+                            layers: layers.clone(),
                             target,
                             reverse,
                         },

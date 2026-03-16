@@ -46,6 +46,9 @@ pub union LayerMask {
     pointer: NonNull<BitVec>,
 }
 
+unsafe impl Send for LayerMask {}
+unsafe impl Sync for LayerMask {}
+
 enum LayerMaskEnum<Ptr> {
     /// Inline bitmask, with the lowest bit equal to zero.
     Bitmask(usize),
@@ -172,6 +175,16 @@ impl LayerMask {
         let mut ret = Self::new();
         ret.insert_range(range);
         ret
+    }
+
+    /// Constructs a set containing all layers on an axis with the given number
+    /// of layers, which is equal to the maximum possible layer. Returns an
+    /// empty set if there are no layers.
+    pub fn all(max_layer: u16) -> Self {
+        match LayerRange::all(max_layer) {
+            Some(range) => Self::from_range(range),
+            None => Self::EMPTY,
+        }
     }
 
     /// Adds a layer to the set.
@@ -363,6 +376,26 @@ impl LayerMask {
     /// Iterates in order over layers in the set.
     pub fn iter(&self) -> LayerSetIter<'_> {
         LayerSetIter(self.as_bitslice_from_1().iter_ones())
+    }
+
+    /// Serializes a layer set to a hexadecimal string.
+    pub fn to_hex_string(&self) -> String {
+        use hypuz_util::serde_impl::hex_bitvec;
+
+        match self.as_ref_enum() {
+            LayerMaskEnum::Bitmask(bits) => {
+                hex_bitvec::bitvec_to_b16_string(&BitVec::from_element(bits))
+            }
+            LayerMaskEnum::BitVec(vec) => hex_bitvec::bitvec_to_b16_string(vec),
+        }
+    }
+
+    /// Deserializes a layer set from a hexedecimal string.
+    pub fn from_hex_str(s: &str) -> Option<Self> {
+        let bitvec = hypuz_util::serde_impl::hex_bitvec::b16_string_to_bitvec(s)?;
+        let mut ret = Self::from_bitvec(Box::new(bitvec));
+        ret.shrink_to_fit();
+        Some(ret)
     }
 }
 

@@ -166,11 +166,7 @@ impl NdEuclidViewState {
                                 .map(|(axis, layers, _)| (axis, layers))
                         })();
                         if let Some((axis, layers)) = best_grip {
-                            sim.begin_nd_euclid_partial_twist(
-                                ndim,
-                                axis,
-                                LayerMask::from_hypuz_notation(layers),
-                            );
+                            sim.begin_nd_euclid_partial_twist(ndim, axis, layers);
                             self.drag_state = Some(DragState::Twist);
                         } else {
                             log::trace!("Canceling partial twist");

@@ -18,8 +18,9 @@ fn src(source: &str, span: Span) -> Str {
 /// Parses a string containing puzzle notation into a list of [`Node`]s with
 /// attached span information.
 pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<ParseError<'_>>> {
-    let r = crate::parse::node_list_with_features(features).parse(s);
-    r.into_result()
+    crate::parse::node_list_with_features(features)
+        .parse(s)
+        .into_result()
 }
 
 /// Parses a string containing a single [`Node`] of puzzle notation with
@@ -28,8 +29,19 @@ pub fn parse_notation_node(
     s: &str,
     features: Features,
 ) -> Result<Spanned<Node>, Vec<ParseError<'_>>> {
-    let r = crate::parse::node_with_features(features).parse(s);
-    r.into_result()
+    crate::parse::node_with_features(features)
+        .parse(s)
+        .into_result()
+}
+
+/// Parses a string containing a [`LayerPrefix`] with attached span information.
+pub fn parse_layer_prefix(
+    s: &str,
+    features: LayerFeatures,
+) -> Result<LayerPrefix, Vec<ParseError<'_>>> {
+    crate::parse::layer_prefix_with_features(features)
+        .parse(s)
+        .into_result()
 }
 
 /// List of notation elements.
@@ -225,7 +237,6 @@ impl Move {
 
 /// Constraint set, which may be used to specify a rotation or move.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ConstraintSet {
     /// Constraints in the constraint set.
     pub constraints: Box<[Spanned<Constraint>]>,
@@ -247,7 +258,6 @@ impl ConstraintSet {
 /// Constraint, which may be used as part of a constraint set to specify a
 /// rotation or move.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Constraint {
     /// Constraint that the transform must take one reference point to another.
     FromTo([Span; 2]),

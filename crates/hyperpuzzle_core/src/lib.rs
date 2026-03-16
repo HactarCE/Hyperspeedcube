@@ -41,7 +41,6 @@ pub use crate::timestamp::Timestamp;
 
 /// Prelude of common imports.
 pub mod prelude {
-    pub use crate::LayerMaskUint;
     pub use crate::catalog::{
         Catalog, ColorSystemCatalog, ColorSystemGenerator, GeneratorParam, GeneratorParamError,
         GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
@@ -53,17 +52,13 @@ pub mod prelude {
         StringBiMap, StringBiMapBuilder,
     };
     pub use crate::notation::Move;
+    pub use crate::notation::{Layer, LayerMask};
     pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
     pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};
     pub use crate::ti::*;
     pub use crate::traits::*;
     pub use crate::version::Version;
 }
-
-/// Unsigned integer type used for [`LayerMask`].
-///
-/// TODO: remove this
-pub type LayerMaskUint = u32;
 
 /// Version string such as `hyperpuzzle v1.2.3`.
 pub const PUZZLE_ENGINE_VERSION_STRING: &str =

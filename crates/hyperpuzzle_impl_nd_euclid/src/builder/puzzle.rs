@@ -7,11 +7,11 @@ use hyperpuzzle_core::Move;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
-use hypuz_notation::AxisLayersInfo;
+use hypuz_notation::{AxisLayersInfo, LayerRange};
 use itertools::Itertools;
 use parking_lot::Mutex;
+use rand::Rng;
 use rand::seq::IndexedRandom;
-use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 use tinyset::Set64;
 
@@ -244,27 +244,39 @@ impl PuzzleBuilder {
         });
         let can_scramble = !scramble_twists.is_empty();
 
+        let axis_layers_info = axis_layers.map_ref(|_, depths| AxisLayersInfo {
+            max_layer: depths.len() as u16,
+            allow_negatives: false, // TODO: configurable negative layers
+        });
+
         let random_move = Box::new({
             let twists = Arc::clone(&twists);
-            let axis_layers = axis_layers.clone();
+            let axis_layers_info = axis_layers_info.clone();
             move |rng: &mut dyn Rng| {
                 let random_twist = *scramble_twists.choose(rng)?;
 
                 let axis = twists.twists[random_twist].axis;
-                let layer_count = axis_layers[axis].len() as crate::LayerMaskUint;
-                let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
+                let layer_count = axis_layers_info[axis].max_layer;
+                let random_layer_mask = if layer_count == 0 {
+                    log::error!("Selected scramble twist axis has no layers");
+                    None // shouldn't be possible
+                } else {
+                    let mut random_bits = std::iter::from_fn(|| Some(rng.next_u32()))
+                        .flat_map(|bits: u32| (0..u32::BITS).map(move |i| bits & (1 << i) != 0));
+                    std::iter::from_fn(|| {
+                        LayerRange::all(layer_count)
+                            .filter(|_| random_bits.next().expect("end of random bits"))
+                            .map(LayerMask::from_iter)
+                    })
+                    .find(|mask| !mask.is_empty())
+                };
 
                 Some(Move {
-                    layers: random_layer_mask.to_hypuz_notation().into(),
+                    layers: random_layer_mask.unwrap_or_default().into(), // should always be `Some`
                     transform: hypuz_notation::Transform::new(&twists.names[random_twist], None),
                     multiplier: hypuz_notation::Multiplier(1),
                 })
             }
-        });
-
-        let axis_layers_info = axis_layers.map_ref(|_, depths| AxisLayersInfo {
-            max_layer: depths.len() as u16,
-            allow_negatives: false, // TODO: configurable negative layers
         });
 
         Ok(Arc::new_cyclic(|this| Puzzle {

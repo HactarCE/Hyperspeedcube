@@ -816,8 +816,10 @@ fn show_nd_euclid_puzzle_view(
     .into_iter()
     .enumerate()
     {
-        if ui.input(|input| input.key_down(k)) {
-            layers |= LayerMask::from(i as u8);
+        if ui.input(|input| input.key_down(k))
+            && let Some(layer) = Layer::from_index(i)
+        {
+            layers |= LayerMask::from_layer(layer);
         }
     }
     if layers == LayerMask::EMPTY {

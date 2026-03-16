@@ -1,4 +1,4 @@
-use hyperpuzzle::{LayerMask, LayeredTwist, Move};
+use hyperpuzzle::{LayerMask, Move};
 use hyperpuzzle_view::ReplayEvent;
 use smallvec::smallvec;
 

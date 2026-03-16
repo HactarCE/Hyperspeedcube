@@ -8,7 +8,7 @@ use std::fmt;
 use std::ops::{Deref, DerefMut, Not};
 
 pub use crate::common::*;
-use crate::{AxisLayersInfo, Features, ParseError, Str};
+use crate::{AxisLayersInfo, Features, LayerFeatures, ParseError, Str};
 
 /// Parses a string containing puzzle notation into a list of [`Node`]s.
 pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<ParseError<'_>>> {
@@ -18,6 +18,14 @@ pub fn parse_notation(s: &str, features: Features) -> Result<NodeList, Vec<Parse
 /// Parses a string containing a single [`Node`] of puzzle notation.
 pub fn parse_notation_node(s: &str, features: Features) -> Result<Node, Vec<ParseError<'_>>> {
     Ok(crate::spanned::parse_notation_node(s, features)?.to_unspanned(s))
+}
+
+/// Parses a string containing a [`LayerPrefix`].
+pub fn parse_layer_prefix(
+    s: &str,
+    features: LayerFeatures,
+) -> Result<LayerPrefix, Vec<ParseError<'_>>> {
+    Ok(crate::spanned::parse_layer_prefix(s, features)?.to_unspanned())
 }
 
 /// List of notation elements.

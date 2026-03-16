@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use hyperkdl::ValueSchemaProxy;
 use hyperpuzzle_core::{LayerMask, ScrambleType, Timestamp};
+use hypuz_notation::Layer;
 use kdl::*;
 
 /// KDL serialization proxy type for some types defined in `hyperpuzzle_core`.
@@ -9,10 +10,21 @@ pub struct KdlProxy;
 
 impl ValueSchemaProxy<LayerMask> for KdlProxy {
     fn proxy_from_kdl_value(value: &KdlValue) -> Option<LayerMask> {
-        Some(LayerMask(u32::try_from(value.as_integer()?).ok()?))
+        if let Some(bits) = value.as_integer() {
+            // for compatibility with schema v2
+            Some(LayerMask::from_iter(
+                (0..u32::BITS as usize)
+                    .filter(|&i| bits & (1 << i) != 0)
+                    .filter_map(Layer::from_index),
+            ))
+        } else if let Some(s) = value.as_string() {
+            LayerMask::from_hex_str(s)
+        } else {
+            None
+        }
     }
     fn proxy_to_kdl_value(value: &LayerMask) -> KdlValue {
-        KdlValue::Integer(i128::from(value.0))
+        KdlValue::String(value.to_hex_string())
     }
 }
 

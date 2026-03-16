@@ -1,11 +1,12 @@
-use crate::commands::LayerMaskDesc;
+use hyperpuzzle::notation::{LayerFeatures, LayerPrefix};
+
 use crate::gui::ext::*;
 
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 
 pub struct LayerMaskEdit<'a> {
     pub id: egui::Id,
-    pub layers: &'a mut LayerMaskDesc,
+    pub layers: &'a mut LayerPrefix,
 }
 impl egui::Widget for LayerMaskEdit<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
@@ -28,11 +29,11 @@ impl egui::Widget for LayerMaskEdit<'_> {
 
                 if r.changed() {
                     // Try to parse the new layer mask string.
-                    *self.layers = text
-                        .trim_start_matches('{')
-                        .trim_end_matches('}')
-                        .parse()
-                        .unwrap_or_default();
+                    *self.layers = hyperpuzzle::notation::parse_layer_prefix(
+                        &text,
+                        LayerFeatures::HYPERCUBING,
+                    )
+                    .unwrap_or_default();
                     changed = true;
                 } else if !r.has_focus() {
                     text = default_string;

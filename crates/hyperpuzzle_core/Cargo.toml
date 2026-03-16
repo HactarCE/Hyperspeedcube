@@ -19,7 +19,7 @@ workspace = true
 hypermath.workspace = true
 hypershape.workspace = true
 hyperspeedcube_cli_types.workspace = true
-hypuz_notation.workspace = true
+hypuz_notation = { workspace = true, features = ["typed_index"] }
 hypuz_util.workspace = true
 
 chacha20.workspace = true

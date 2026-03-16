@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hypuz_notation::{LayerMask, LayerRange};
+use hypuz_notation::{Layer, LayerMask, LayerRange};
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
 use itertools::Itertools;
 use serde::de::Error;
@@ -48,13 +48,6 @@ hypuz_util::typed_index_struct! {
     #[derive(Serialize, Deserialize)]
     pub struct Twist(pub u32);
 
-    /// ID of a **layer**, which is a region of the puzzle for each axis that
-    /// may be twisted by a move on that axis.
-    ///
-    /// Layer 0 is the shallowest layer.
-    #[derive(Serialize, Deserialize)]
-    pub struct Layer(pub u8);
-
     /// ID of a **piece type**, a subset of the **pieces** of the puzzle.
     #[derive(Serialize, Deserialize)]
     pub struct PieceType(pub u16);
@@ -63,17 +56,6 @@ hypuz_util::typed_index_struct! {
     /// angle from which to view and interact with the puzzle.
     #[derive(Serialize, Deserialize)]
     pub struct Vantage(pub u32);
-}
-
-impl Layer {
-    // TODO: remove `Layer`
-    pub fn to_hypuz_notation(self) -> hypuz_notation::Layer {
-        hypuz_notation::Layer::from_index(self.0 as usize).unwrap()
-    }
-
-    pub fn from_hypuz_notation(l: hypuz_notation::Layer) -> Self {
-        Self(l.index() as u8)
-    }
 }
 
 impl Surface {
@@ -171,7 +153,6 @@ impl AxisLayerDepths {
     pub fn is_range_contiguous(&self, range: LayerRange) -> bool {
         range
             .into_iter()
-            .map(Layer::from_hypuz_notation)
             .tuple_windows()
             .all(|(higher, lower)| APPROX.eq(self.0[higher].bottom, self.0[lower].top))
     }
@@ -181,10 +162,6 @@ impl AxisLayerDepths {
     pub fn contiguous_range(&self, lo: Float, hi: Float) -> Option<LayerMask> {
         let bottom_layer = self.0.find(|_, l| APPROX.lt_eq(l.bottom, lo))?;
         let top_layer = self.0.rfind(|_, l| APPROX.gt_eq(l.top, hi))?;
-
-        let bottom_layer = bottom_layer.to_hypuz_notation();
-        let top_layer = top_layer.to_hypuz_notation();
-
         Some(LayerRange::new(top_layer, bottom_layer))
             .filter(|&range| self.is_range_contiguous(range))
             .map(LayerMask::from_range)

@@ -9,7 +9,7 @@ pub fn count_stm(puzzle: &Puzzle, twists: impl IntoIterator<Item = Move>) -> u64
     for twist in twists {
         if let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family) {
             let layer_mask = twist.layers.to_layer_mask(puzzle.axis_layers_info[axis]);
-            counter.count_twist(axis, LayerMask::from_hypuz_notation(layer_mask));
+            counter.count_twist(axis, layer_mask);
         }
     }
     counter.count
@@ -40,9 +40,10 @@ impl StmCounter {
 
     /// Counts a twist.
     pub fn count_twist(&mut self, axis: Axis, layer_mask: LayerMask) {
-        if self.last_move != Some((axis, layer_mask)) {
+        let new_move = Some((axis, layer_mask));
+        if self.last_move != new_move {
             self.count += 1;
-            self.last_move = Some((axis, layer_mask));
+            self.last_move = new_move;
         }
     }
 
