@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hypuz_notation::{Layer, LayerMask, LayerRange};
+use hypuz_notation::{Layer, LayerMask, LayerRange, Multiplier};
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
 use itertools::Itertools;
 use serde::de::Error;
@@ -192,10 +192,8 @@ impl TransformByMotor for LayerDepths {
 pub struct TwistInfo {
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
-    /// Reverse twist, which undoes this one.
-    pub reverse: Twist,
-    /// Whether to include this twist in scrambles.
-    pub include_in_scrambles: bool,
+    /// Maximum possible multiplier for use in scrambles.
+    pub scramble_max_multiplier: Option<Multiplier>,
 }
 
 /// Piece type info.

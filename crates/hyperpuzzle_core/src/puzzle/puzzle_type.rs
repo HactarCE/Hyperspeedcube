@@ -121,8 +121,6 @@ impl Puzzle {
             return Err(ScrambleError::UnsupportedVersion);
         }
 
-        todo!("update scramble algorithm");
-
         let ScrambleParams { ty, seed, .. } = &params;
 
         let mut sha256 = sha2::Sha256::new();

@@ -2865,7 +2865,6 @@ dependencies = [
  "hyperpuzzle_core",
  "hyperpuzzlescript",
  "hypershape",
- "hypuz_notation",
  "indexmap",
  "itertools 0.14.0",
  "lazy_static",

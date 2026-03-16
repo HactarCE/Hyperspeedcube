@@ -33,7 +33,7 @@ pub use vantage_group::{
 const PUZZLE_PREFIX: &str = "puzzle:";
 
 /// Maximum period of a twist.
-const MAX_TWIST_REPEAT: usize = 50;
+const MAX_TWIST_REPEAT: usize = 1000;
 
 /// Prelude of common imports.
 pub mod prelude {

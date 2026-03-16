@@ -51,8 +51,9 @@ pub mod prelude {
         AutoNames, BadName, NameSpec, NameSpecBiMap, NameSpecBiMapBuilder, NameSpecMap,
         StringBiMap, StringBiMapBuilder,
     };
-    pub use crate::notation::Move;
-    pub use crate::notation::{Layer, LayerMask};
+    pub use crate::notation::{
+        self, AxisLayersInfo, Layer, LayerMask, LayerPrefix, LayerRange, Move, Multiplier,
+    };
     pub use crate::puzzle::*; // TODO: narrow this down (remove standalone functions)
     pub use crate::tags::{TagData, TagDisplay, TagMenuNode, TagSet, TagType, TagValue};
     pub use crate::ti::*;

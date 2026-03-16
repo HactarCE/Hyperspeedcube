@@ -7,11 +7,10 @@ use hyperpuzzle_core::Move;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use hypershape::prelude::*;
-use hypuz_notation::{AxisLayersInfo, LayerRange};
 use itertools::Itertools;
 use parking_lot::Mutex;
-use rand::Rng;
 use rand::seq::IndexedRandom;
+use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 use tinyset::Set64;
 
@@ -235,7 +234,8 @@ impl PuzzleBuilder {
         let mut scramble_twists = twists
             .twists
             .iter_filter(|_, twist_info| {
-                twist_info.include_in_scrambles && !axis_layers[twist_info.axis].is_empty()
+                twist_info.scramble_max_multiplier.is_some()
+                    && !axis_layers[twist_info.axis].is_empty()
             })
             .collect_vec();
         scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
@@ -254,27 +254,32 @@ impl PuzzleBuilder {
             let axis_layers_info = axis_layers_info.clone();
             move |rng: &mut dyn Rng| {
                 let random_twist = *scramble_twists.choose(rng)?;
+                let twist_info = &twists.twists[random_twist];
 
-                let axis = twists.twists[random_twist].axis;
-                let layer_count = axis_layers_info[axis].max_layer;
+                let layer_count = axis_layers_info[twist_info.axis].max_layer;
                 let random_layer_mask = if layer_count == 0 {
                     log::error!("Selected scramble twist axis has no layers");
                     None // shouldn't be possible
                 } else {
                     let mut random_bits = std::iter::from_fn(|| Some(rng.next_u32()))
                         .flat_map(|bits: u32| (0..u32::BITS).map(move |i| bits & (1 << i) != 0));
-                    std::iter::from_fn(|| {
-                        LayerRange::all(layer_count)
-                            .filter(|_| random_bits.next().expect("end of random bits"))
-                            .map(LayerMask::from_iter)
-                    })
-                    .find(|mask| !mask.is_empty())
+                    std::iter::from_fn(|| LayerRange::all(layer_count))
+                        .map(|all_layers| {
+                            all_layers
+                                .into_iter()
+                                .filter(|_| random_bits.next().expect("end of random bits"))
+                                .collect()
+                        })
+                        .find(|mask: &LayerMask| !mask.is_empty())
                 };
+
+                let max_multiplier = twist_info.scramble_max_multiplier.unwrap_or_default();
+                let random_multiplier = rng.random_range(1..=max_multiplier.0);
 
                 Some(Move {
                     layers: random_layer_mask.unwrap_or_default().into(), // should always be `Some`
-                    transform: hypuz_notation::Transform::new(&twists.names[random_twist], None),
-                    multiplier: hypuz_notation::Multiplier(1),
+                    transform: notation::Transform::new(&twists.names[random_twist], None),
+                    multiplier: Multiplier(random_multiplier),
                 })
             }
         });

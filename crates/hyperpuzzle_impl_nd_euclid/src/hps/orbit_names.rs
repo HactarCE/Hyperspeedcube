@@ -39,8 +39,7 @@ impl FromValue for Names {
 
 #[derive(Default, Clone)]
 pub struct HpsOrbitNames {
-    offset: Option<Motor>,
-    components: Vec<Spanned<HpsOrbitNamesComponent>>,
+    components: Vec<(Option<Motor>, Spanned<HpsOrbitNamesComponent>)>,
 }
 impl_simple_custom_type!(HpsOrbitNames = "euclid.OrbitNames");
 impl fmt::Debug for HpsOrbitNames {
@@ -61,8 +60,17 @@ impl TryEq for HpsOrbitNames {
 impl From<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
     fn from(value: Spanned<HpsOrbitNamesComponent>) -> Self {
         Self {
-            offset: None,
-            components: vec![value],
+            components: vec![(None, value)],
+        }
+    }
+}
+impl FromIterator<Spanned<HpsOrbitNamesComponent>> for HpsOrbitNames {
+    fn from_iter<T: IntoIterator<Item = Spanned<HpsOrbitNamesComponent>>>(iter: T) -> Self {
+        Self {
+            components: iter
+                .into_iter()
+                .map(|component| (None, component))
+                .collect(),
         }
     }
 }
@@ -77,11 +85,13 @@ impl From<&str> for HpsOrbitNames {
 impl HpsOrbitNames {
     // Take ownership instead of implementing the trait, which takes a
     // reference.
-    pub fn transform_by(mut self, m: Motor) -> Self {
-        self.offset = Some(match self.offset {
-            Some(m2) => m * m2,
-            None => m,
-        });
+    pub fn transform_by(mut self, m: &Motor) -> Self {
+        for (offset, _) in &mut self.components {
+            *offset = Some(match &offset {
+                Some(m2) => m.clone() * m2,
+                None => m.clone(),
+            });
+        }
         self
     }
 }
@@ -104,7 +114,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             "++",
             |_, (a, a_span): Str, b: HpsOrbitNames| -> HpsOrbitNames {
                 let mut ret = b;
-                ret.components.insert(0, (a.into(), a_span));
+                ret.components.insert(0, (None, (a.into(), a_span)));
                 ret
             }
         ),
@@ -112,7 +122,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             "++",
             |_, a: HpsOrbitNames, (b, b_span): Str| -> HpsOrbitNames {
                 let mut ret = a;
-                ret.components.push((b.into(), b_span));
+                ret.components.push((None, (b.into(), b_span)));
                 ret
             }
         ),
@@ -149,10 +159,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsOrbitNames {
-    pub const EMPTY: Self = Self {
-        offset: None,
-        components: vec![],
-    };
+    pub const EMPTY: Self = Self { components: vec![] };
 
     pub fn to_strings(
         &self,
@@ -161,10 +168,10 @@ impl HpsOrbitNames {
         span: Span,
     ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
         let mut strings = vec![String::new(); transforms.len()];
-        for &(ref component, component_span) in &self.components {
+        for &(ref offset, (ref component, component_span)) in &self.components {
             let strings_and_transforms = std::iter::zip(
                 &mut strings,
-                transforms.iter().map(|t| match &self.offset {
+                transforms.iter().map(|t| match offset {
                     Some(t2) => Cow::Owned(t * t2),
                     None => Cow::Borrowed(t),
                 }),

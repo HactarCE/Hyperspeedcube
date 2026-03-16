@@ -64,9 +64,9 @@ pub(super) fn build_twist_gizmos(
             build_3d_gizmo(space, mesh, twists, engine_data, &gizmo_poles, warn_fn)?;
         for (_gizmo_face, twist) in resulting_gizmo_faces {
             let mv = Move {
-                layers: hypuz_notation::LayerPrefix::default(),
-                transform: hypuz_notation::Transform::new(&twists.names[twist], None),
-                multiplier: hypuz_notation::Multiplier(1),
+                layers: LayerPrefix::default(),
+                transform: notation::Transform::new(&twists.names[twist], None),
+                multiplier: Multiplier(1),
             };
             gizmo_face_twists.push(mv)?;
         }
@@ -83,9 +83,9 @@ pub(super) fn build_twist_gizmos(
             )?;
             for (_gizmo_face, twist) in resulting_gizmo_faces {
                 let mv = Move {
-                    layers: hypuz_notation::LayerPrefix::default(),
-                    transform: hypuz_notation::Transform::new(&twists.names[twist], None),
-                    multiplier: hypuz_notation::Multiplier(1),
+                    layers: LayerPrefix::default(),
+                    transform: notation::Transform::new(&twists.names[twist], None),
+                    multiplier: Multiplier(1),
                 };
                 gizmo_face_twists.push(mv)?;
             }

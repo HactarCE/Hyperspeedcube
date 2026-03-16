@@ -73,16 +73,21 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsTwist) -> HpsTwist {
             let span = ctx.caller_span;
             let twists = object.twists.lock();
+            // TODO: handle mirrors (inverse twist)
             let id = transform_twist(span, &twists, &transform, (object.id, object_span))?;
             drop(twists);
             let twists = object.twists;
-            HpsTwist { id, twists }
+            HpsTwist {
+                id,
+                multiplier: object.multiplier,
+                twists,
+            }
         }
         fn transform(transform: Motor, object: HpsRegion) -> HpsRegion {
             transform.transform(&object)
         }
         fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
-            object.0.transform_by(transform)
+            object.0.transform_by(&transform)
         }
         fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {
             transform.transform(&object)
@@ -138,7 +143,11 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
                         &key.transform,
                     )?)?;
                     let twists = object.twists.clone();
-                    Some(HpsTwist { id, twists })
+                    Some(HpsTwist {
+                        id,
+                        multiplier: object.multiplier,
+                        twists,
+                    })
                 })
                 .map(|opt| (opt, ctx.caller_span))
                 .collect()

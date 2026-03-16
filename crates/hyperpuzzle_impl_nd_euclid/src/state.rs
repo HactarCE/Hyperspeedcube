@@ -8,7 +8,6 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
-use hypuz_notation::LayerMask;
 
 type PerCachedTransform<T> = TiVec<CachedTransform, T>;
 hyperpuzzle_core::typed_index_struct! {

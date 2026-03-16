@@ -329,11 +329,29 @@ impl HpsTwistSystem {
         Ok(self.twist_from_name(index.as_ref::<str>()?)?.into())
     }
     fn twist_from_name(&self, name: &str) -> Result<Option<HpsTwist>> {
+        let Ok(Some(notation::Move {
+            layers: LayerPrefix::DEFAULT,
+            transform:
+                notation::Transform {
+                    family,
+                    constraints: None,
+                },
+            multiplier,
+        })) = notation::parse_notation_node(name, notation::Features::MAXIMAL)
+            .map(|node| node.into_move())
+        else {
+            return Ok(None);
+        };
+
         let twists = self.lock();
-        match twists.names.id_from_string(name) {
+        match twists.names.id_from_string(&family) {
             Some(id) => {
                 let twists = self.clone();
-                Ok(Some(HpsTwist { id, twists }))
+                Ok(Some(HpsTwist {
+                    id,
+                    multiplier,
+                    twists,
+                }))
             }
             None => Ok(None),
         }
@@ -352,173 +370,40 @@ impl HpsTwistSystem {
 
         unpack_kwargs!(
             kwargs,
-            multipliers: Option<bool>,
-            inverse: Option<bool>,
-            do_naming: bool = true,
-            prefix: Option<Names>,
             name: Option<Names>,
-            suffix: Option<Names>,
-            inv_name: Option<Names>,
-            inv_suffix: Option<Names>,
-            name_fn: Option<Arc<FnValue>>,
             gizmo_pole_distance: Option<Num>,
         );
 
-        if !do_naming {
-            for (value_is_some, kwarg_name) in [
-                (prefix.is_some(), "prefix"),
-                (name.is_some(), "name"),
-                (suffix.is_some(), "suffix"),
-                (inv_name.is_some(), "inv_name"),
-                (inv_suffix.is_some(), "inv_suffix"),
-                (name_fn.is_some(), "name_fn"),
-            ] {
-                if value_is_some {
-                    ctx.warn(format!(
-                        "`{kwarg_name}` and `do_naming=false` are mutually exclusive"
-                    ));
-                }
-            }
-        }
-
-        let prefix = prefix.map(|Names(n)| n);
-        let name = name.map(|Names(n)| n);
-        let suffix = suffix.map(|Names(n)| n);
-        let inv_name = inv_name.map(|Names(n)| n);
-        let inv_suffix = inv_suffix.map(|Names(n)| n);
+        let name = name.map(|Names(n)| n).unwrap_or_default();
 
         let gizmo_pole_distance = gizmo_pole_distance.map(|x| x as f32);
 
-        let axis_id = axis.id;
-        let prefix = prefix.or_else(|| Some((HpsOrbitNamesComponent::Axis(axis), span).into()));
-        let axis = axis_id;
-
-        let inverse = inverse.unwrap_or(ndim == 3);
-        let multipliers = multipliers.unwrap_or(ndim == 3);
-
-        let suffix = suffix.unwrap_or_default();
-        let inv_suffix = inv_suffix.unwrap_or_else(|| match &inv_name {
-            Some(_) => suffix.clone(),
-            None => HpsOrbitNames::from("'"),
-        });
-
-        if name_fn.is_some() && (name.is_some() || inv_name.is_some()) {
-            return Err(
-                "when `name_fn` is specified, `name` and `inv_name` must not be specified".at(span),
-            );
-        }
-
-        let prefix = prefix.unwrap_or_default();
-        let name = name.unwrap_or_default();
-        let inv_name = inv_name.unwrap_or_else(|| name.clone());
+        let prefix = HpsOrbitNames::from((HpsOrbitNamesComponent::Axis(axis.clone()), span));
 
         if gizmo_pole_distance.is_some() && ndim != 3 && ndim != 4 {
             return Err("twist gizmo is only supported in 3D and 4D".at(span));
         }
 
-        let base_transform = transform;
-
-        let get_name = |ctx: &mut EvalCtx<'_>, i: i32| {
-            if let Some(name_fn) = &name_fn {
-                let args = vec![ValueData::Num(i as Num).at(span)];
-                name_fn
-                    .call(span, ctx, args, Map::new())?
-                    .to()
-                    .map(|Names(n)| n)
-            } else if do_naming {
-                match i {
-                    1 => Ok(prefix.clone() + name.clone() + suffix.clone()),
-                    -1 => Ok(prefix.clone() + inv_name.clone() + inv_suffix.clone()),
-                    2.. => {
-                        let mult = HpsOrbitNames::from(i.to_string().as_str());
-                        Ok(prefix.clone() + name.clone() + mult.clone() + suffix.clone())
-                    }
-                    ..=-2 => {
-                        let mult = HpsOrbitNames::from((-i).to_string().as_str());
-                        Ok(prefix.clone() + inv_name.clone() + mult.clone() + inv_suffix.clone())
-                    }
-                    0 => Err("bad twist multiplier".at(span)),
-                }
-            } else {
-                Ok(HpsOrbitNames::default())
-            }
+        let Some(order) = std::iter::successors(Some(transform.clone()), |t| Some(t * &transform))
+            .take(crate::MAX_TWIST_REPEAT)
+            .position(|t| t.is_ident())
+            .map(|i| (i + 1) as i32)
+        else {
+            return Err(format!(
+                "twist transform takes too long to repeat! exceeded maximum of {}",
+                crate::MAX_TWIST_REPEAT,
+            )
+            .at(span));
         };
 
-        let transform = base_transform.clone();
         let builder = TwistBuilder {
-            axis,
+            axis: axis.id,
             transform,
             gizmo_pole_distance,
-            include_in_scrambles: true,
+            scramble_max_multiplier: Some(Multiplier(order - 1)),
         };
-        let twist_name = get_name(ctx, 1)?;
-        let first_twist_id = self.add_symmetric(ctx, builder, twist_name)?;
-        if inverse {
-            let transform = base_transform.reverse();
-            let is_equivalent_to_reverse = base_transform.is_self_reverse();
-            let twist_name = get_name(ctx, -1)?;
-            let builder = TwistBuilder {
-                axis,
-                transform,
-                gizmo_pole_distance: gizmo_pole_distance.filter(|_| ndim > 3),
-                include_in_scrambles: !is_equivalent_to_reverse,
-            };
-            self.add_symmetric(ctx, builder, twist_name)?;
-        }
 
-        let mut previous_transform = base_transform.clone();
-        for i in 2.. {
-            if !multipliers {
-                break;
-            }
-
-            // Check whether we've exceeded the max repeat count.
-            if i > crate::MAX_TWIST_REPEAT as i32 {
-                return Err(format!(
-                    "twist transform takes too long to repeat! exceeded maximum of {}",
-                    crate::MAX_TWIST_REPEAT,
-                )
-                .at(span));
-            }
-
-            let transform = &previous_transform * &base_transform;
-
-            // Check whether we've reached the inverse.
-            if inverse {
-                if previous_transform.is_self_reverse()
-                    || transform.is_equivalent_to(&previous_transform.reverse())
-                {
-                    break;
-                }
-            } else if transform.is_ident() {
-                break;
-            }
-            previous_transform = transform.clone();
-
-            let builder = TwistBuilder {
-                axis,
-                transform,
-                gizmo_pole_distance: None, // no gizmo for multiples
-                include_in_scrambles: true,
-            };
-            let names = get_name(ctx, i)?;
-            self.add_symmetric(ctx, builder, names)?;
-
-            if inverse {
-                let transform = previous_transform.reverse();
-                let is_equivalent_to_reverse = previous_transform.is_self_reverse();
-                let builder = TwistBuilder {
-                    axis,
-                    transform,
-                    gizmo_pole_distance: None, // no gizmo for multiples
-                    include_in_scrambles: !is_equivalent_to_reverse,
-                };
-                let names = get_name(ctx, -i)?;
-                self.add_symmetric(ctx, builder, names)?;
-            }
-        }
-
-        Ok(first_twist_id)
+        self.add_symmetric(ctx, builder, prefix + name)
     }
 
     // Adds a set of symmetric twists.
@@ -572,6 +457,7 @@ impl HpsTwistSystem {
 
         Ok(first_twist.flatten().map(|id| HpsTwist {
             id,
+            multiplier: Multiplier(1),
             twists: self.clone(),
         }))
     }

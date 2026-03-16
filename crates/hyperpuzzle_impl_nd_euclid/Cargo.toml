@@ -19,7 +19,6 @@ workspace = true
 hypermath.workspace = true
 hyperpuzzle_core.workspace = true
 hyperpuzzlescript.workspace = true
-hypuz_notation.workspace = true
 
 disjoint.workspace = true
 eyre.workspace = true

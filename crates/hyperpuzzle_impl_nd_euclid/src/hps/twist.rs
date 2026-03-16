@@ -1,7 +1,7 @@
 use std::fmt;
 
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{IndexOutOfRange, NameSpec, Twist};
+use hyperpuzzle_core::{IndexOutOfRange, Multiplier, NameSpec, Twist};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, FnValue, Map, Result, Span, Spanned, Value, ValueData, hps_fns,
     impl_simple_custom_type,
@@ -14,6 +14,7 @@ use crate::builder::TwistSystemBuilder;
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsTwist {
     pub id: Twist,
+    pub multiplier: Multiplier,
     pub twists: HpsTwistSystem,
 }
 impl_simple_custom_type!(HpsTwist = "euclid.Twist", field_get = Self::impl_field_get);
@@ -61,12 +62,12 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsTwist>()?;
 
     builtins.set_fns(hps_fns![
-        fn rev(ctx: EvalCtx, twist: HpsTwist) -> Option<HpsTwist> {
-            let rev_id = twist.twists.lock().inverse(twist.id).at(ctx.caller_span)?;
-            rev_id.map(|id| HpsTwist {
-                id,
-                twists: twist.twists.clone(),
-            })
+        fn rev(ctx: EvalCtx, twist: HpsTwist) -> HpsTwist {
+            HpsTwist {
+                id: twist.id,
+                multiplier: twist.multiplier.inv().at(ctx.caller_span)?,
+                twists: twist.twists,
+            }
         }
 
         fn transform(ctx: EvalCtx, (twist, twist_span): HpsTwist, object: Value) -> Value {
