@@ -14,8 +14,8 @@ export fn new(t: Transform) -> Map {
     export sym = t.transform(cd([]))
 
     export endpoint = sym.x.unit
-    export endpoint_names = #{
+    export endpoint_names = sym.names(point(endpoint), #{
         "A" = [],
         "B" = [0],
-    }
+    })
 }
