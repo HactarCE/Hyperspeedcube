@@ -2,7 +2,6 @@ use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 
 use crate::L;
 use crate::gui::components::{PrefsUi, PresetsUi};
-use crate::gui::util::menu_button_that_stays_open;
 use crate::gui::{App, AppUi};
 
 pub fn build_quick_settings_ui(ui: &mut egui::Ui, app: &mut App) {

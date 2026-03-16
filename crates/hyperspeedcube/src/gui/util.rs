@@ -343,12 +343,17 @@ pub fn menu_button_that_stays_open<'a, R>(
     atoms: impl egui::IntoAtoms<'a>,
     content: impl FnOnce(&mut egui::Ui) -> R,
 ) -> (egui::Response, Option<egui::InnerResponse<R>>) {
-    egui::containers::menu::MenuButton::new(atoms)
-        .config(
-            egui::containers::menu::MenuConfig::default()
-                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
-        )
-        .ui(ui, content)
+    let config = egui::containers::menu::MenuConfig::default()
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+    if egui::containers::menu::is_in_menu(ui) {
+        egui::containers::menu::SubMenuButton::new(atoms)
+            .config(config)
+            .ui(ui, content)
+    } else {
+        egui::containers::menu::MenuButton::new(atoms)
+            .config(config)
+            .ui(ui, content)
+    }
 }
 
 pub trait GuiRoundingExt {

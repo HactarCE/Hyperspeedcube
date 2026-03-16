@@ -1,4 +1,4 @@
-use egui::containers::menu::{MenuButton, MenuConfig};
+use egui::containers::menu::{MenuButton, MenuConfig, SubMenuButton};
 use hyperpuzzle::ScrambleType;
 
 use super::AppUi;
@@ -58,10 +58,15 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 }
 
 fn left_menu_ui(ui: &mut egui::Ui, app_ui: &mut AppUi, compact: bool) {
+    // Use different IDs so that the menus don't get their widths mixed up
     if compact {
-        ui.menu_button(mdi!(ui, MENU, 18), |ui| draw_menu_buttons(ui, app_ui));
+        ui.push_id("compact_menu", |ui| {
+            ui.menu_button(mdi!(ui, MENU, 18), |ui| draw_menu_buttons(ui, app_ui));
+        });
     } else {
-        draw_menu_buttons(ui, app_ui);
+        ui.push_id("expanded_menu", |ui| {
+            draw_menu_buttons(ui, app_ui);
+        });
     }
 
     ui.separator();
@@ -235,7 +240,8 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         };
         prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
         prefs_ui.checkbox(&L.prefs.check_for_updates, access!(.check_for_updates));
-        egui::global_theme_preference_buttons(prefs_ui.ui);
+        ui.separator();
+        egui::global_theme_preference_buttons(ui);
 
         app_ui.app.prefs.needs_save |= changed;
     });
