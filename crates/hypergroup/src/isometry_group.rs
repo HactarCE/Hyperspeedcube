@@ -225,6 +225,8 @@ impl fmt::Display for PartialGroupAction {
     }
 }
 
+impl std::error::Error for PartialGroupAction {}
+
 /// One-time computation task for a worker thread.
 #[derive(Debug, Default)]
 struct Task<T> {

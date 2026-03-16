@@ -16,14 +16,15 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hypergroup.workspace = true
 hypermath.workspace = true
 hyperpuzzle_core.workspace = true
 hyperpuzzlescript.workspace = true
+hypershape.workspace = true
 
 disjoint.workspace = true
 eyre.workspace = true
 float-ord.workspace = true
-hypershape.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true

@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use hypershape::AbbrGenSeq;
+use hypergroup::AbbrGenSeq;
 use itertools::Itertools;
 
 use super::*;

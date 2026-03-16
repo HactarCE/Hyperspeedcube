@@ -2734,6 +2734,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hypergroup"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "float-ord",
+ "hypermath",
+ "hypuz_util",
+ "itertools 0.14.0",
+ "lazy_static",
+ "num_cpus",
+ "parking_lot",
+ "proptest",
+ "rand 0.10.0",
+ "rayon",
+ "smallvec",
+ "thiserror 2.0.18",
+ "tinyset",
+]
+
+[[package]]
 name = "hyperkdl"
 version = "0.1.0"
 dependencies = [
@@ -2830,6 +2850,7 @@ dependencies = [
  "ecolor",
  "eyre",
  "hex",
+ "hypergroup",
  "hypermath",
  "hypershape",
  "hyperspeedcube_cli_types",
@@ -2861,6 +2882,7 @@ dependencies = [
  "disjoint",
  "eyre",
  "float-ord",
+ "hypergroup",
  "hypermath",
  "hyperpuzzle_core",
  "hyperpuzzlescript",
@@ -2951,8 +2973,10 @@ dependencies = [
  "hypermath",
  "hypuz_util",
  "itertools 0.14.0",
+ "lazy_static",
  "num_cpus",
  "parking_lot",
+ "proptest",
  "rand 0.10.0",
  "rayon",
  "smallvec",

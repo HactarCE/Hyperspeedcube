@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::Add;
 use std::sync::Arc;
 
+use hypergroup::{GenSeq, GeneratorId};
 use hypermath::pga::Motor;
 use hypermath::{APPROX, ApproxHashMap, Point};
 use hyperpuzzle_core::NameSpecMap;
@@ -10,7 +11,6 @@ use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Span, Spanned, Str,
     TryEq, Type, TypeOf, Value, ValueData, hps_fns, impl_simple_custom_type, impl_ty,
 };
-use hypershape::{GenSeq, GeneratorId};
 use itertools::Itertools;
 use parking_lot::Mutex;
 

@@ -9,7 +9,7 @@ hypuz_util::typed_index_struct! {
     /// Reference point acted on by a group.
     ///
     /// See [`GroupAction`].
-    pub struct RefPoint(u16);
+    pub struct RefPoint(pub(super) u16);
 }
 
 /// List containing a value per reference point.
@@ -45,6 +45,7 @@ impl GroupAction {
     /// Applies the action of a group element to a reference point.
     pub fn act(&self, element: GroupElementId, point: RefPoint) -> RefPoint {
         self.factorization(element)
+            .into_iter()
             .rfold(point, |p, g| self.action_table[g][p])
     }
 
@@ -55,7 +56,7 @@ impl GroupAction {
     ///
     /// In general, this algorithm may take O(_nm_) time (where _n_ is the order
     /// of the group and _m_ is the number of fixed points).
-    pub fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> Subgroup {
+    pub(super) fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> Subgroup {
         if fixed_points.is_empty() {
             return Subgroup::new_total(Arc::clone(&self.group)); // optimization
         }

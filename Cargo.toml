@@ -3,6 +3,7 @@ members = [
     "crates/hsc_strings",
     "crates/hypercubing_leaderboards_client",
     "crates/hyperdraw",
+    "crates/hypergroup",
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
     "crates/hypermath",
@@ -68,6 +69,7 @@ opt-level = 1
 hsc_strings = { path = "crates/hsc_strings" }
 hypercubing_leaderboards_client = { path = "crates/hypercubing_leaderboards_client" }
 hyperdraw = { path = "crates/hyperdraw" }
+hypergroup = { path = "crates/hypergroup" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
 hypermath = { path = "crates/hypermath" }

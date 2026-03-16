@@ -1,11 +1,11 @@
 use std::fmt;
 use std::sync::Arc;
 
+use hypergroup::AbbrGenSeq;
 use hypermath::Vector;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::Orbit;
 use hyperpuzzlescript::*;
-use hypershape::AbbrGenSeq;
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 

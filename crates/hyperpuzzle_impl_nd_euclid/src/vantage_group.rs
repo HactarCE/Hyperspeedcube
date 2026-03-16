@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use eyre::Result;
+use hypergroup::{Group, GroupElementId, IsometryGroup};
 use hypermath::{APPROX, Vector, pga};
 use hyperpuzzle_core::prelude::*;
-use hypershape::{Group, GroupElementId, IsometryGroup};
 use itertools::Itertools;
 use smallvec::SmallVec;
 

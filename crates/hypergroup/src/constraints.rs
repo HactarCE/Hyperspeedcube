@@ -55,6 +55,14 @@ impl<const N: usize> From<[[RefPoint; 2]; N]> for ConstraintSet {
     }
 }
 
+impl FromIterator<Constraint> for ConstraintSet {
+    fn from_iter<T: IntoIterator<Item = Constraint>>(iter: T) -> Self {
+        Self {
+            constraints: iter.into_iter().collect(),
+        }
+    }
+}
+
 impl ConstraintSet {
     /// Empty constraint set.
     pub const EMPTY: Self = Self {
@@ -149,7 +157,7 @@ impl ConstraintSolver {
 
     /// Solves a set of constraints and returns the coset satisfying it, or
     /// `None` if the constraints are unsatisfiable.
-    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<ConjugateCoset<'_>> {
+    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<ConjugateCoset<&Subgroup>> {
         let coset = ConstrainedConjugateCoset::from_constraints(self, constraint_set)?;
         coset.debug_assert_constraints(constraint_set);
         Some(coset.into())
@@ -281,7 +289,7 @@ impl<'a> ConstrainedConjugateCoset<'a> {
     }
 }
 
-impl<'a> From<ConstrainedConjugateCoset<'a>> for ConjugateCoset<'a> {
+impl<'a> From<ConstrainedConjugateCoset<'a>> for ConjugateCoset<&'a Subgroup> {
     fn from(value: ConstrainedConjugateCoset<'a>) -> Self {
         Self {
             lhs: value.solver.action.inverse(value.lhs_inv),
@@ -301,8 +309,9 @@ mod tests {
     use super::*;
     use crate::{GenSeq, GeneratorId, IsometryGroup, PerRefPoint, orbit_geometric};
 
+    /// Tests the constraint solver on Coxeter group H3 (dodecahedral symmetry)
     #[test]
-    fn test_group_element_constraint_solver() -> eyre::Result<()> {
+    fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
         #![allow(non_snake_case)]
 
         let group = crate::FiniteCoxeterGroup::H3.coxeter_group(None)?.group()?;
@@ -313,7 +322,7 @@ mod tests {
         let g0 = &group[GeneratorId(0)];
         let g1 = &group[GeneratorId(1)];
         let g2 = &group[GeneratorId(2)];
-        let mut ref_points = TiVec::<RefPoint, Point>::new();
+        let mut ref_points = PerRefPoint::<Point>::new();
 
         let F = ref_points.push(point![0.0, 0.0, 1.0])?;
         let U = ref_points.push(g2.transform(&ref_points[F]))?;
@@ -329,8 +338,7 @@ mod tests {
         #[expect(unused)]
         let PB = ref_points.push(g2.transform(&ref_points[PD]))?;
 
-        let mut solver =
-            ConstraintSolver::new(Arc::new(group.action_on_points(&ref_points).unwrap()));
+        let mut solver = ConstraintSolver::new(Arc::new(group.action_on_points(&ref_points)?));
         let mut chiral_solver = ConstraintSolver::new(Arc::new(
             chiral_group.action_on_points(&ref_points).unwrap(),
         ));
@@ -385,6 +393,64 @@ mod tests {
 
         assert_eq!(solver.subgroups.len(), 5); // 120, 10, 5, 2, 1
         assert_eq!(chiral_solver.subgroups.len(), 3); // 60, 5, 1
+
+        Ok(())
+    }
+
+    /// Tests the constraint solver on Coxeter group A4 (4-simplex symmetry)
+    #[test]
+    fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
+        #![allow(non_snake_case)]
+
+        let group = crate::FiniteCoxeterGroup::A(4)
+            .coxeter_group(None)?
+            .group()?;
+        let chiral_group = crate::FiniteCoxeterGroup::A(4)
+            .coxeter_group(None)?
+            .chiral_group()?;
+
+        let gen0 = GeneratorId(0);
+        let gen1 = GeneratorId(1);
+        let gen2 = GeneratorId(2);
+        let gen3 = GeneratorId(3);
+
+        let mut ref_points = PerRefPoint::<Point>::new();
+        let E = ref_points.push(point![0.0, 0.0, 0.0, 1.0])?;
+        let D = ref_points.push(group[gen3].transform(&ref_points[E]))?;
+        let C = ref_points.push(group[gen2].transform(&ref_points[D]))?;
+        let B = ref_points.push(group[gen1].transform(&ref_points[C]))?;
+        let A = ref_points.push(group[gen0].transform(&ref_points[B]))?;
+
+        let mut solver = ConstraintSolver::new(Arc::new(group.action_on_points(&ref_points)?));
+        let mut chiral_solver = ConstraintSolver::new(Arc::new(
+            chiral_group.action_on_points(&ref_points).unwrap(),
+        ));
+
+        for (constraint_set, expected_order, expected_chiral_order) in [
+            ([].as_slice(), 120, 60),
+            (&[[A, C], [B, D], [D, E]], 2, 1),
+            (&[[A, C], [B, D], [D, E], [C, B]], 1, 1),
+            (&[[A, C], [B, D], [D, E], [C, B], [E, A]], 1, 1),
+        ] {
+            println!("Computing {constraint_set:?} ...");
+
+            let t = std::time::Instant::now();
+
+            let coset = solver.solve(&constraint_set.into()).unwrap();
+            assert_eq!(coset.subgroup.element_count(), expected_order);
+
+            let chiral_coset = chiral_solver.solve(&constraint_set.into()).unwrap();
+            assert_eq!(chiral_coset.subgroup.element_count(), expected_chiral_order);
+
+            println!(
+                "Computed {} constraints in {:?}",
+                constraint_set.len(),
+                t.elapsed(),
+            );
+        }
+
+        assert_eq!(solver.subgroups.len(), 5); // 120, 24, 6, 2, 1
+        assert_eq!(chiral_solver.subgroups.len(), 4); // 60, 12, 3, 1
 
         Ok(())
     }

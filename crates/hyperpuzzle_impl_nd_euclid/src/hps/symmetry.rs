@@ -3,14 +3,14 @@
 use std::fmt;
 use std::sync::Arc;
 
+use hypergroup::{
+    AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
+};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzlescript::{
     Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Str, ValueData, hps_fns,
     impl_simple_custom_type,
-};
-use hypershape::{
-    AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
 };
 use itertools::Itertools;
 
@@ -268,7 +268,7 @@ impl HpsSymmetry {
         string: &str,
         string_span: Span,
     ) -> Result<Vector> {
-        let v = hypershape::group::parse_dynkin_notation(self.generators.len() as u8, string)
+        let v = hypergroup::parse_dynkin_notation(self.generators.len() as u8, string)
             .at(string_span)?;
         self.coxeter_vector(self_span, v, string_span)
     }
@@ -316,7 +316,7 @@ impl HpsSymmetry {
         &self,
         object: T,
     ) -> Vec<(AbbrGenSeq, Motor, T)> {
-        hypershape::orbit_geometric(
+        hypergroup::orbit_geometric(
             &self
                 .generators
                 .iter()

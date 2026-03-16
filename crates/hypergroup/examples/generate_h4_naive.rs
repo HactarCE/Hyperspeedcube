@@ -4,7 +4,7 @@
 
 #![allow(unused_crate_dependencies)]
 
-use hypershape::group::{CoxeterGroup, Group};
+use hypergroup::{CoxeterGroup, Group};
 
 fn main() {
     let before = std::time::Instant::now();

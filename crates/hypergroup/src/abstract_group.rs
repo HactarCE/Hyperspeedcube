@@ -5,16 +5,12 @@ use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
 use super::{
-    EggTable, GeneratorId, GroupElementId, GroupError, GroupResult, PerGenerator, PerGroupElement,
+    EggTable, Factorization, GeneratorId, GroupElementId, GroupError, GroupResult, PerGenerator,
+    PerGroupElement,
 };
 
 /// Group structure.
 pub trait Group {
-    /// Iterator over group elements used by [`Group::factorization()`].
-    type Factorization<'a>: 'a + Iterator<Item = GeneratorId>
-    where
-        Self: 'a;
-
     /// Returns the number of elements in the group.
     fn element_count(&self) -> usize;
 
@@ -27,7 +23,7 @@ pub trait Group {
 
     /// Returns the shortest factorization of `element` into generators. Ties
     /// are broken by lexicographical ordering.
-    fn factorization(&self, element: GroupElementId) -> Self::Factorization<'_>;
+    fn factorization(&self, element: GroupElementId) -> Factorization<'_>;
     /// Returns the inverse of `element`.
     fn inverse(&self, element: GroupElementId) -> GroupElementId;
     /// Returns the composition of `element` and `generator`.
@@ -46,11 +42,6 @@ pub trait Group {
 }
 
 impl<G: AsRef<AbstractGroup>> Group for G {
-    type Factorization<'a>
-        = std::iter::Copied<std::slice::Iter<'a, GeneratorId>>
-    where
-        Self: 'a;
-
     /// Returns an iterator over the generators used to generate the group.
     fn generators(&self) -> &PerGenerator<GroupElementId> {
         &self.as_ref().generators
@@ -62,8 +53,8 @@ impl<G: AsRef<AbstractGroup>> Group for G {
 
     /// Returns the shortest factorization of `element` into generators. Ties
     /// are broken by lexicographical ordering.
-    fn factorization(&self, element: GroupElementId) -> Self::Factorization<'_> {
-        self.as_ref().factorizations[element].iter().copied()
+    fn factorization(&self, element: GroupElementId) -> Factorization<'_> {
+        self.as_ref().factorizations[element].as_slice().into()
     }
     /// Returns the inverse of `element`.
     fn inverse(&self, element: GroupElementId) -> GroupElementId {

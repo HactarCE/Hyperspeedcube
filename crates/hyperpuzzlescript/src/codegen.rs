@@ -1,6 +1,6 @@
 //! Utility functions for generating HPS code.
 
-use hyperpuzzle_core::hypershape::GeneratorId;
+use hyperpuzzle_core::group::GeneratorId;
 use hyperpuzzle_core::{AnyOrbit, Orbit, PuzzleElement};
 
 /// Returns an HPS expression containing a string literal with the contents of

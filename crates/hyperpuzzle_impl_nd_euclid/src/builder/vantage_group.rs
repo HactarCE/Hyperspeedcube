@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail};
+use hypergroup::{Group, IsometryGroup};
 use hypermath::{APPROX, ApproxHashMap, Vector};
 use hyperpuzzle_core::{
     Axis, BoxDynVantageGroup, NameSpecBiMap, NameSpecBiMapBuilder, PerTwist, PerVantage, Twist,
 };
-use hypershape::{Group, IsometryGroup};
 use itertools::Itertools;
 use smallvec::SmallVec;
 

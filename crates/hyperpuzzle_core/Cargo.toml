@@ -16,6 +16,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hypergroup.workspace = true
 hypermath.workspace = true
 hypershape.workspace = true
 hyperspeedcube_cli_types.workspace = true

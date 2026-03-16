@@ -98,11 +98,11 @@ impl Subgroup {
 /// [coset]: https://en.wikipedia.org/wiki/Coset
 /// [double coset]: https://en.wikipedia.org/wiki/Double_coset
 #[derive(Debug, Copy, Clone)]
-pub struct ConjugateCoset<'a> {
+pub struct ConjugateCoset<S> {
     /// Element to multiply on the left of the subgroup.
     pub lhs: GroupElementId,
     /// Subgroup.
-    pub subgroup: &'a Subgroup,
+    pub subgroup: S,
     /// Element to multiple on the right of the subgroup.
     pub rhs: GroupElementId,
 }

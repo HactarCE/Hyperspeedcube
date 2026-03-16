@@ -20,6 +20,8 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
+/// Re-export of `hypergroup`
+pub use hypergroup as group;
 /// Re-export of `hypershape`.
 pub use hypershape;
 /// Re-export of `hyperspeedcube_cli_types`.

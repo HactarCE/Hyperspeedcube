@@ -19,6 +19,8 @@ pub struct NdEuclidPuzzleGeometry {
     ///
     /// This point is not guaranteed to actually be in the center of the piece.
     /// The algorithm that generates it may be change in future versions.
+    ///
+    /// This is used for recentering the camera.
     pub piece_centroids: PerPiece<Point>,
 
     /// Face hyperplanes.

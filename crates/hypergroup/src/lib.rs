@@ -6,8 +6,13 @@ mod action;
 mod common;
 mod constraints;
 mod coxeter_group;
+mod factorization;
 mod finite_coxeter_group;
 mod isometry_group;
+mod product_action;
+mod product_constraints;
+mod product_group;
+mod product_subgroup;
 mod subgroup;
 
 pub use abstract_group::{AbstractGroup, Group, GroupBuilder};
@@ -16,8 +21,14 @@ pub use action::{GroupAction, PerRefPoint, RefPoint};
 pub use common::*;
 pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
 pub use coxeter_group::*;
+pub use factorization::{Factorization, FactorizationIntoIter};
 pub use finite_coxeter_group::FiniteCoxeterGroup;
 pub use isometry_group::IsometryGroup;
+pub use product_action::ProductGroupAction;
+pub use product_constraints::ProductConstraintSolver;
+pub use product_group::ProductGroup;
+use product_group::{FactorGroup, PerFactorGroup};
+pub use product_subgroup::ProductSubgroup;
 pub use subgroup::{ConjugateCoset, Subgroup};
 
 /// Parses a single character of a vector in limited Dynkin notation, where `o`

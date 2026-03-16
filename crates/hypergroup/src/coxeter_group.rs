@@ -389,6 +389,11 @@ impl From<Mirror> for Matrix {
     }
 }
 impl Mirror {
+    /// Constructs a mirror from its normal vector.
+    pub fn from_normal(normal: Vector) -> Mirror {
+        Self(normal)
+    }
+
     /// Returns the normal vector of the mirror.
     pub fn normal(&self) -> &Vector {
         &self.0
