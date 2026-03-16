@@ -79,10 +79,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
-    let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
-        md(ui, format!("{label} = {}", md_bold_user_text(text)))
-    };
-
     let name_spec_info_lines = |ui: &mut egui::Ui, label: &str, name: &NameSpec| {
         info_line(ui, &format!("{label} name"), &name.canonical);
         info_line(ui, &format!("{label} name spec"), &name.spec);
@@ -94,7 +90,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
     if let Some(piece) = view.hovered_piece() {
         ui.strong(format!("Piece {piece}"));
         let piece_info = &puz.pieces[piece];
-        info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
+        info_line(ui, "Sticker count", piece_info.stickers.len());
         ui.label("");
         ui.strong(format!("Piece type {}", piece_info.piece_type));
         let piece_type_info = &puz.piece_types[piece_info.piece_type];
@@ -116,7 +112,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
 
     if let Some(hov) = view.hovered_gizmo().filter(|_| view.show_gizmo_hover) {
         ui.strong(format!("Gizmo {}", hov.gizmo_face));
-        info_line(ui, "Backface?", &hov.backface.to_string());
+        info_line(ui, "Backface?", &hov.backface);
         info_line(ui, "Z", &format!("{:.3}", hov.z));
         let geom = puz
             .ui_data
@@ -134,12 +130,18 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
             if let Ok(name) = puz.axes().names.get(axis) {
                 name_spec_info_lines(ui, "Axis", name);
             }
-            let axis_layers = &puz.axis_layers[axis];
-            info_line(ui, "Layer count", &axis_layers.len().to_string());
+            let layers_info = &puz.axis_layers[axis];
+            info_line(ui, "Max layer", &layers_info.max_layer);
+            info_line(ui, "Allow negatives?", &layers_info.allow_negatives);
         } else {
             ui.colored_label(ui.visuals().error_fg_color, "Twist has no axis");
         }
     }
+}
+
+fn info_line(ui: &mut egui::Ui, label: &str, value: impl ToString) -> egui::Response {
+    let value_str = value.to_string();
+    md(ui, format!("{label} = {}", md_bold_user_text(&value_str)))
 }
 
 fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {

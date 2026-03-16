@@ -129,7 +129,7 @@ impl PuzzleCommand {
                 // IIFE to mimic try_block
                 (|| {
                     let axis_id = ty.axes().names.id_from_name(axis.as_ref()?)?;
-                    let layer_mask = layers.to_layer_mask(ty.axis_layers_info[axis_id]);
+                    let layer_mask = layers.to_layer_mask(ty.axis_layers[axis_id]);
                     let axis_name = &ty.axes().names[axis_id];
                     if layer_mask.is_empty() {
                         Some(axis_name.to_owned())

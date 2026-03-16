@@ -43,13 +43,7 @@ pub struct Puzzle {
     pub full_scramble_length: u32,
 
     /// Layer info for each axis.
-    ///
-    /// TODO: consider renaming this to `axis_layers`
-    pub axis_layers_info: PerAxis<AxisLayersInfo>,
-    /// Layers for each axis.
-    ///
-    /// TODO: rename this and make it backend-specific.
-    pub axis_layers: PerAxis<AxisLayerDepths>,
+    pub axis_layers: PerAxis<AxisLayersInfo>,
     /// Twist system.
     pub twists: Arc<TwistSystem>,
 

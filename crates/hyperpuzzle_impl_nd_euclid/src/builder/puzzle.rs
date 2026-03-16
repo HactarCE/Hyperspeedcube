@@ -209,6 +209,16 @@ impl PuzzleBuilder {
             })
         });
 
+        // Build layers.
+        let mut axis_layers = self.axis_layers.clone();
+        axis_layers.resize(twists.axes.len())?;
+        let axis_layer_depths = axis_layers.try_map_ref(|_, layers| layers.build())?;
+
+        let axis_layers = axis_layer_depths.map_ref(|_, depths| AxisLayersInfo {
+            max_layer: depths.len() as u16,
+            allow_negatives: false, // TODO: configurable negative layers
+        });
+
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates,
             piece_vertex_sets,
@@ -220,22 +230,18 @@ impl PuzzleBuilder {
             mesh,
 
             axis_vectors: Arc::clone(axis_vectors),
+            axis_layer_depths,
             twist_transforms: Arc::clone(twist_transforms),
 
             gizmo_twists,
         });
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
 
-        // Build layers.
-        let mut axis_layers = self.axis_layers.clone();
-        axis_layers.resize(twists.axes.len())?;
-        let axis_layers = axis_layers.try_map_ref(|_, layers| layers.build())?;
-
         let mut scramble_twists = twists
             .twists
             .iter_filter(|_, twist_info| {
                 twist_info.scramble_max_multiplier.is_some()
-                    && !axis_layers[twist_info.axis].is_empty()
+                    && axis_layers[twist_info.axis].max_layer != 0
             })
             .collect_vec();
         scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
@@ -244,14 +250,9 @@ impl PuzzleBuilder {
         });
         let can_scramble = !scramble_twists.is_empty();
 
-        let axis_layers_info = axis_layers.map_ref(|_, depths| AxisLayersInfo {
-            max_layer: depths.len() as u16,
-            allow_negatives: false, // TODO: configurable negative layers
-        });
-
         let random_move = Box::new({
             let twists = Arc::clone(&twists);
-            let axis_layers_info = axis_layers_info.clone();
+            let axis_layers_info = axis_layers.clone();
             move |rng: &mut dyn Rng| {
                 let random_twist = *scramble_twists.choose(rng)?;
                 let twist_info = &twists.twists[random_twist];
@@ -303,7 +304,6 @@ impl PuzzleBuilder {
             can_scramble,
             full_scramble_length: self.full_scramble_length,
 
-            axis_layers_info,
             axis_layers,
             twists,
 

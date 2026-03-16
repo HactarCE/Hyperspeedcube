@@ -3,6 +3,8 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 
+use crate::{LayerDepths, PuzzleLayerDepths};
+
 /// Layers of a twist axis, in order from top to bottom.
 #[derive(Debug, Clone, Default)]
 pub struct AxisLayersBuilder(pub PerLayer<AxisLayerBuilder>);
@@ -31,11 +33,11 @@ impl AxisLayersBuilder {
     }
 
     /// Validates and finalizes the layer system for an axis.
-    pub fn build(&self) -> Result<AxisLayerDepths> {
+    pub fn build(&self) -> Result<PuzzleLayerDepths> {
         // Check that the layer planes are monotonic.
         self.ensure_monotonic()?;
 
-        Ok(AxisLayerDepths(self.0.map_ref(
+        Ok(PuzzleLayerDepths(self.0.map_ref(
             |_, &AxisLayerBuilder { top, bottom }| LayerDepths { top, bottom },
         )))
     }

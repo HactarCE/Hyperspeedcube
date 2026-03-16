@@ -479,7 +479,7 @@ impl PuzzleSimulation {
                 puz.twists
                     .axis_from_move_family(&twist.transform.family)
                     .is_some_and(|axis| {
-                        let layers_info = puz.axis_layers_info[axis];
+                        let layers_info = puz.axis_layers[axis];
                         !twist.layers.to_layer_mask(layers_info).is_empty()
                     })
             });
@@ -652,7 +652,7 @@ impl PuzzleSimulation {
                 else {
                     return false;
                 };
-                let layers_info = puzzle.axis_layers_info[axis];
+                let layers_info = puzzle.axis_layers[axis];
 
                 let state = std::mem::replace(&mut self.latest_state, new_state);
 

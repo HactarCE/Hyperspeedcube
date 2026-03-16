@@ -15,6 +15,7 @@ pub mod builder;
 mod engine;
 mod geom;
 pub mod hps;
+mod layers;
 mod state;
 mod twist_key;
 mod vantage_group;
@@ -22,6 +23,7 @@ mod vantage_group;
 pub use anim::NdEuclidPuzzleAnimation;
 pub use engine::{NdEuclidTwistSystemEngineData, NdEuclidVantageSetEngineData};
 pub use geom::NdEuclidPuzzleGeometry;
+pub use layers::{LayerDepths, PuzzleLayerDepths};
 pub use state::NdEuclidPuzzleState;
 pub use twist_key::TwistKey;
 pub use vantage_group::{
@@ -89,7 +91,6 @@ lazy_static! {
             colors: Arc::new(ColorSystem::new_empty()),
             can_scramble: false,
             full_scramble_length: 0,
-            axis_layers_info: PerAxis::new(),
             axis_layers: PerAxis::new(),
             twists,
             ui_data,

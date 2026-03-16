@@ -79,8 +79,8 @@ impl PuzzleState for NdEuclidPuzzleState {
         };
         let twist_info = &self.puzzle_type.twists.twists[twist_id];
         let twist_transform = &self.geom.twist_transforms[twist_id].powi(twist.multiplier.into());
-        let axis_info = self.puzzle_type.axis_layers_info[twist_info.axis];
-        let grip = self.compute_grip(twist_info.axis, &twist.layers.to_layer_mask(axis_info));
+        let layers_info = self.puzzle_type.axis_layers[twist_info.axis];
+        let grip = self.compute_grip(twist_info.axis, &twist.layers.to_layer_mask(layers_info));
 
         // Check for split pieces, which prevent the turn.
         let split_pieces = grip
@@ -156,7 +156,7 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide> {
-        let Ok(axis_layers) = self.puzzle_type.axis_layers.get(axis) else {
+        let Ok(axis_layers) = self.geom.axis_layer_depths.get(axis) else {
             log::error!("Bad axis ID");
             return self.puzzle_type.pieces.map_ref(|_, _| WhichSide::Split);
         };
@@ -208,13 +208,13 @@ impl PuzzleState for NdEuclidPuzzleState {
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let (piece_bottom, piece_top) = self.piece_min_max_on_axis(piece, axis).ok()?;
-        let axis_layers = self.puzzle_type.axis_layers.get(axis).ok()?;
+        let axis_layers = self.geom.axis_layer_depths.get(axis).ok()?;
         axis_layers.contiguous_range(piece_bottom, piece_top)
     }
 
     fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let ty = self.ty();
-        let axis_layers = self.puzzle_type.axis_layers.get(axis).ok()?;
+        let axis_layers = self.geom.axis_layer_depths.get(axis).ok()?;
 
         let mut floats = axis_layers
             .0
@@ -270,8 +270,8 @@ impl PuzzleState for NdEuclidPuzzleState {
             return self.render_data(); // twist is invalid
         };
         let axis = self.puzzle_type.twists.twists[twist_id].axis;
-        let axis_info = self.puzzle_type.axis_layers_info[axis];
-        let grip = self.compute_gripped_pieces(axis, &twist.layers.to_layer_mask(axis_info));
+        let layers_info = self.puzzle_type.axis_layers[axis];
+        let grip = self.compute_gripped_pieces(axis, &twist.layers.to_layer_mask(layers_info));
         let anim = NdEuclidPuzzleAnimation {
             pieces: grip,
             initial_transform: pga::Motor::ident(self.geom.ndim()),

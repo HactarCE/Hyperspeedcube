@@ -3,6 +3,8 @@ use std::sync::Arc;
 use hypermath::{Float, Hyperplane, Point, Vector, VectorRef, pga};
 use hyperpuzzle_core::prelude::*;
 
+use crate::PuzzleLayerDepths;
+
 /// Geometry for an N-dimensional Euclidean puzzle.
 #[derive(Debug)]
 pub struct NdEuclidPuzzleGeometry {
@@ -36,6 +38,8 @@ pub struct NdEuclidPuzzleGeometry {
     ///
     /// This vector is **not** necessarily unit.
     pub axis_vectors: Arc<PerAxis<Vector>>,
+    /// Top and bottom depths for each layer on each axis.
+    pub axis_layer_depths: PerAxis<PuzzleLayerDepths>,
     /// Transforation to apply to pieces for each twist.
     pub twist_transforms: Arc<PerTwist<pga::Motor>>,
 
@@ -58,6 +62,7 @@ impl NdEuclidPuzzleGeometry {
 
             mesh: Mesh::new_empty(3),
             axis_vectors: Arc::new(PerAxis::new()),
+            axis_layer_depths: PerAxis::new(),
             twist_transforms: Arc::new(PerTwist::new()),
             gizmo_twists: PerGizmoFace::new(),
         }
