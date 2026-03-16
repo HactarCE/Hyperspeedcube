@@ -13,6 +13,7 @@ use hyperpuzzle_log::{LogEvent, Scramble};
 use hypuz_notation::Invert;
 use itertools::Itertools;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
+use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
 mod nd_euclid;
@@ -624,27 +625,26 @@ impl PuzzleSimulation {
     /// This does **not** affect the undo stack. Use [`Self::do_event()`]
     /// instead if that's desired.
     fn do_twist(&mut self, twist: &Move) -> bool {
-        todo!("animate move");
-
         let puzzle = Arc::clone(self.puzzle_type());
-        // let Ok(twist_info) = puzzle.twists.twists.get(twist.transform) else {
-        //     return false;
-        // };
-        // let axis = twist_info.axis;
-        // let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
+        let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family) else {
+            return false;
+        };
+        let layers_info = puzzle.axis_layers[axis];
+        let layer_mask = twist.layers.to_layer_mask(layers_info);
+        let grip = self.latest_state.compute_gripped_pieces(axis, &layer_mask);
 
-        // let mut nd_euclid_initial_transform = None;
-        // if let Some(nd_euclid) = &mut self.nd_euclid
-        //     && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
-        // {
-        //     if partial.grip == grip {
-        //         nd_euclid_initial_transform = Some(partial.transform);
-        //     } else {
-        //         self.cancel_popped_partial_twist(partial);
-        //         // That call doesn't modify the puzzle state, so `grip` can
-        //         // stay the same.
-        //     }
-        // }
+        let mut nd_euclid_initial_transform = None;
+        if let Some(nd_euclid) = &mut self.nd_euclid
+            && let Some(partial) = nd_euclid.partial_twist_drag_state.take()
+        {
+            if partial.grip == grip {
+                nd_euclid_initial_transform = Some(partial.transform);
+            } else {
+                self.cancel_popped_partial_twist(partial);
+                // That call doesn't modify the puzzle state, so `grip` can
+                // stay the same.
+            }
+        }
 
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
@@ -661,39 +661,41 @@ impl PuzzleSimulation {
 
                 self.blocking_anim.clear();
 
-                todo!("animate twist");
-                // if let Some(nd_euclid) = &self.nd_euclid {
-                //     let geom = &nd_euclid.geom;
-                //     self.twist_anim.push(AnimationFromState {
-                //         state,
-                //         anim: NdEuclidPuzzleAnimation {
-                //             pieces: grip,
-                //             initial_transform: nd_euclid_initial_transform
-                //                 .unwrap_or_else(|| Motor::ident(geom.ndim())),
-                //             final_transform: geom.twist_transforms[twist.transform].clone(),
-                //         }
-                //         .into(),
-                //     });
-                // }
+                if let Some(nd_euclid) = &self.nd_euclid
+                    && let Some(twist_id) =
+                        puzzle.twists.names.id_from_name(&twist.transform.family)
+                {
+                    let geom = &nd_euclid.geom;
+                    self.twist_anim.push(AnimationFromState {
+                        state,
+                        anim: NdEuclidPuzzleAnimation {
+                            pieces: grip,
+                            initial_transform: nd_euclid_initial_transform
+                                .unwrap_or_else(|| Motor::ident(geom.ndim())),
+                            final_transform: geom.twist_transforms[twist_id]
+                                .powi(twist.multiplier.into()),
+                        }
+                        .into(),
+                    });
+                }
 
                 true
             }
             Err(blocking_pieces) => {
                 self.blocking_anim.set(blocking_pieces);
 
-                todo!("animate blocking pieces");
-                // if let Some(initial_transform) = nd_euclid_initial_transform {
-                //     let ndim = initial_transform.ndim();
-                //     self.twist_anim.push(AnimationFromState {
-                //         state: self.latest_state.clone_dyn(),
-                //         anim: NdEuclidPuzzleAnimation {
-                //             pieces: grip,
-                //             initial_transform,
-                //             final_transform: Motor::ident(ndim),
-                //         }
-                //         .into(),
-                //     });
-                // }
+                if let Some(initial_transform) = nd_euclid_initial_transform {
+                    let ndim = initial_transform.ndim();
+                    self.twist_anim.push(AnimationFromState {
+                        state: self.latest_state.clone_dyn(),
+                        anim: NdEuclidPuzzleAnimation {
+                            pieces: grip,
+                            initial_transform,
+                            final_transform: Motor::ident(ndim),
+                        }
+                        .into(),
+                    });
+                }
 
                 false
             }
@@ -845,26 +847,40 @@ impl PuzzleSimulation {
                 .twist_transforms
                 .iter()
                 .filter(|&(twist, _)| puzzle.twists.twists[twist].axis == partial.axis)
-                .max_by_key(|&(_, twist_transform)| {
+                .flat_map(|(twist, twist_transform)| {
+                    let max_multiplier = puzzle.twists.twists[twist].scramble_max_multiplier;
+                    std::iter::successors(Some(twist_transform.clone()), move |t| {
+                        Some(t * twist_transform)
+                    })
+                    .take(max_multiplier.unwrap_or(Multiplier(1)).0 as usize)
+                    .enumerate()
+                    .map(move |(i, twist_transform)| {
+                        let notation_transform =
+                            notation::Transform::new(&puzzle.twists.names[twist], None);
+                        let mv = Move {
+                            layers: LayerPrefix::DEFAULT,
+                            transform: notation_transform,
+                            multiplier: Multiplier((i + 1) as _),
+                        };
+                        (mv, twist_transform)
+                    })
+                })
+                .max_by_key(|(_, twist_transform)| {
                     FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
                 });
-            if let Some((twist, twist_transform)) = closest_twist {
-                todo!("handle drag twist by delegating to backend");
-                // let dot_with_twist = Motor::dot(&partial.transform, twist_transform).abs();
-                // let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
-                // if dot_with_twist > dot_with_identity {
-                //     let twist = LayeredTwist {
-                //         layers: partial.layers,
-                //         transform: twist,
-                //     };
-                //     let axis = partial.axis;
-                //     let time = Some(Timestamp::now());
-                //     self.do_event(ReplayEvent::DragTwist { time, axis });
-                //     self.do_event(ReplayEvent::Twists(smallvec![twist]));
-                // } else {
-                //     // The identity twist is closer.
-                //     self.cancel_partial_twist();
-                // }
+            if let Some((mut mv, twist_transform)) = closest_twist {
+                let dot_with_twist = Motor::dot(&partial.transform, &twist_transform).abs();
+                let dot_with_identity = partial.transform.get(hypermath::pga::Axes::SCALAR).abs();
+                if dot_with_twist > dot_with_identity {
+                    mv.layers = LayerPrefix::from(&partial.layers);
+                    let axis = partial.axis;
+                    let time = Some(Timestamp::now());
+                    self.do_event(ReplayEvent::DragTwist { time, axis });
+                    self.do_event(ReplayEvent::Twists(smallvec![mv]));
+                } else {
+                    // The identity twist is closer.
+                    self.cancel_partial_twist();
+                }
             } else {
                 // There are no possible twists. Why did we even let the user
                 // drag the mouse in the first place? Questions such as these

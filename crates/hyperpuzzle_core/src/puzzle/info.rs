@@ -1,11 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hypermath::pga::Motor;
-use hypermath::prelude::*;
-use hypuz_notation::{Layer, LayerMask, LayerRange, Multiplier};
+use hypuz_notation::{Layer, Multiplier};
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
-use itertools::Itertools;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
