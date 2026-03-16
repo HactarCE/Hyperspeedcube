@@ -30,8 +30,8 @@ pub struct GroupAction {
     pub(super) action_table: PerGenerator<PerRefPoint<RefPoint>>,
 }
 
-impl Group for GroupAction {
-    fn group(&self) -> &AbstractGroup {
+impl AsRef<AbstractGroup> for GroupAction {
+    fn as_ref(&self) -> &AbstractGroup {
         &self.group
     }
 }
@@ -45,8 +45,7 @@ impl GroupAction {
     /// Applies the action of a group element to a reference point.
     pub fn act(&self, element: GroupElementId, point: RefPoint) -> RefPoint {
         self.factorization(element)
-            .iter()
-            .rfold(point, |p, &g| self.action_table[g][p])
+            .rfold(point, |p, g| self.action_table[g][p])
     }
 
     /// Returns the pointwise stabilizer of the given points.

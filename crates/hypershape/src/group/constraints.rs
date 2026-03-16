@@ -310,9 +310,9 @@ mod tests {
             .coxeter_group(None)?
             .chiral_group()?;
 
-        let g0 = &group[crate::GeneratorId(0)];
-        let g1 = &group[crate::GeneratorId(1)];
-        let g2 = &group[crate::GeneratorId(2)];
+        let g0 = &group[GeneratorId(0)];
+        let g1 = &group[GeneratorId(1)];
+        let g2 = &group[GeneratorId(2)];
         let mut ref_points = TiVec::<RefPoint, Point>::new();
 
         let F = ref_points.push(point![0.0, 0.0, 1.0])?;
@@ -397,7 +397,7 @@ mod tests {
         let initial_point = Point(Vector::unit(coxeter_group.min_ndim() - 1));
         let ref_points: PerRefPoint<Point> = orbit_geometric(
             &coxeter_group
-                .generators()
+                .generator_motors()
                 .into_iter()
                 .enumerate()
                 .map(|(i, m)| (GenSeq::new([GeneratorId(i as u8)]), m))
@@ -487,7 +487,11 @@ mod tests {
             .coxeter_group(None)?
             .group()?;
 
-        let generators = group.generators().map(|g| group[g].clone()).collect_vec();
+        let generators = group
+            .generators()
+            .iter_values()
+            .map(|&e| group[e].clone())
+            .collect_vec();
 
         let mut permute_rng_1 = rand::rngs::StdRng::seed_from_u64(987654321);
 
@@ -509,9 +513,9 @@ mod tests {
             .unwrap();
             let avg_word_len = group
                 .elements()
-                .map(|e| group.group().factorization(e).len())
+                .map(|e| group.factorization(e).len())
                 .sum::<usize>() as f32
-                / group.group().element_count() as f32;
+                / group.element_count() as f32;
             println!("{i} {avg_word_len}");
 
             let mut indices = (0..generators.len()).collect_vec();
@@ -523,7 +527,11 @@ mod tests {
     }
 
     fn shuffle_group_generators(group: &IsometryGroup, rng: &mut impl Rng) -> IsometryGroup {
-        let mut generators = group.generators().map(|g| group[g].clone()).collect_vec();
+        let mut generators = group
+            .generators()
+            .iter_values()
+            .map(|&e| group[e].clone())
+            .collect_vec();
         for _ in 0..20 {
             let i = rng.random_range(0..generators.len());
             let mut j = rng.random_range(0..generators.len() - 1);

@@ -283,6 +283,7 @@ impl<I: TypedIndex, E> IntoIterator for TiVec<I, E> {
 }
 
 /// Owning iterator over key-value pairs in a [`TiVec`].
+#[derive(Debug, Clone)]
 pub struct IntoIter<I, E> {
     indexes: TypedIndexIter<I>,
     values: std::vec::IntoIter<E>,

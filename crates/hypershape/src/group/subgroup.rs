@@ -37,7 +37,7 @@ impl Subgroup {
     /// Constructs the total subgroup of a group, which has the same generators
     /// as the group and contains all the elements of the original group.
     pub fn new_total(group: Arc<AbstractGroup>) -> Self {
-        let generators = group.generators().map(|g| g.into()).collect();
+        let generators = group.generators().iter_values().copied().collect();
         let elements = TiMask::new_full(group.element_count());
         Self {
             group,

@@ -91,14 +91,11 @@ pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.
+    ///
+    /// These have no correlation with group element IDs.
     pub struct GeneratorId(pub u8);
     /// ID of a group element.
-    pub struct GroupElementId(pub u16);
-}
-impl From<GeneratorId> for GroupElementId {
-    fn from(value: GeneratorId) -> Self {
-        GroupElementId(value.0 as u16 + 1)
-    }
+    pub struct GroupElementId(pub u32);
 }
 impl GroupElementId {
     /// Identity element in any group.
@@ -237,7 +234,10 @@ impl EggTable<GroupElementId> {
     /// for a group.
     ///
     /// Invalid groups may pass these checks.
-    pub fn sanity_check_successors(&self) -> GroupResult<()> {
+    pub fn sanity_check_successors(
+        &self,
+        generators: &PerGenerator<GroupElementId>,
+    ) -> GroupResult<()> {
         let mut counts: PerGroupElement<usize> = (0..self.element_count).map(|_| 0).collect();
 
         for ((elem, generator), &successor) in self.iter() {
@@ -249,7 +249,7 @@ impl EggTable<GroupElementId> {
             // Only the identity has each generator as its own corresponding
             // successor.
             let is_identity = elem == GroupElementId::IDENTITY;
-            ok &= is_identity == (successor == GroupElementId::from(generator));
+            ok &= is_identity == (successor == generators[generator]);
 
             if !ok {
                 return Err(GroupError::BadGroupStructure);

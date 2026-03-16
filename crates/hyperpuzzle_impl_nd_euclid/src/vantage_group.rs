@@ -43,8 +43,8 @@ pub struct NdEuclidVantageGroup {
 
 impl NdEuclidVantageGroup {
     /// Returns the group element corresponding to a vantage.
-    pub fn vantage_to_group_element(&self, vantage: Vantage) -> Option<GroupElementId> {
-        Some(GroupElementId(u16::try_from(vantage.0).ok()?))
+    pub fn vantage_to_group_element(&self, vantage: Vantage) -> GroupElementId {
+        GroupElementId(vantage.0)
     }
     /// Returns the vantage corresponding to a group element.
     pub fn group_element_to_vantage(&self, element: GroupElementId) -> Vantage {
@@ -60,8 +60,8 @@ impl NdEuclidVantageGroup {
         self.group_element_to_vantage(element.0)
     }
     /// Returns the motor corresponding to a vantage.
-    pub fn vantage_motor(&self, vantage: Vantage) -> Option<&pga::Motor> {
-        Some(&self.symmetry[self.vantage_to_group_element(vantage)?])
+    pub fn vantage_motor(&self, vantage: Vantage) -> &pga::Motor {
+        &self.symmetry[self.vantage_to_group_element(vantage)]
     }
     /// Returns the motor corresponding to a vantage group element.
     pub fn group_element_motor(&self, element: NdEuclidVantageGroupElement) -> &pga::Motor {
@@ -100,7 +100,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
         elem: NdEuclidVantageGroupElement,
         vantage: Vantage,
     ) -> Option<Vantage> {
-        let vantage_elem = self.vantage_to_group_element(vantage)?;
+        let vantage_elem = self.vantage_to_group_element(vantage);
         let new_elem = self.symmetry.compose(elem.0, vantage_elem);
         Some(self.group_element_to_vantage(new_elem))
     }
@@ -114,7 +114,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
                 .axis_vectors
                 .get(axis.absolute_axis)
                 .ok()?;
-            let new_axis_vector = self.vantage_motor(vantage)?.transform(axis_vector);
+            let new_axis_vector = self.vantage_motor(vantage).transform(axis_vector);
             self.twist_system_engine_data
                 .axis_from_vector
                 .get(new_axis_vector)
@@ -141,7 +141,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
                 .twist_transforms
                 .get(twist.absolute_twist)
                 .ok()?;
-            let new_twist_transform = self.vantage_motor(vantage)?.transform(twist_transform);
+            let new_twist_transform = self.vantage_motor(vantage).transform(twist_transform);
 
             self.twist_system_engine_data
                 .twist_from_transform
@@ -174,7 +174,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
     ) -> Option<NdEuclidVantageGroupElement> {
         Some(NdEuclidVantageGroupElement(self.vantage_to_group_element(
             self.vantage_from_name_concrete(name)?,
-        )?))
+        )))
     }
 
     fn vantage_from_name_concrete(&self, name: &str) -> Option<Vantage> {

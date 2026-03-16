@@ -200,7 +200,6 @@ impl fmt::Display for RelationTables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "RelationTables {{")?;
         for ((element, generator), [left, right]) in self.0.iter() {
-            let generator = GroupElementId::from(generator);
             writeln!(f, "    ({element} * {generator}): {{")?;
             writeln!(f, "        left: [")?;
             for row in left {

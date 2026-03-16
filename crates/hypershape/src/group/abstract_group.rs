@@ -10,22 +10,16 @@ use super::{
 
 /// Group structure.
 pub trait Group {
-    /// Returns the underlying abstract group.
-    fn group(&self) -> &AbstractGroup;
+    /// Iterator over group elements used by [`Group::factorization()`].
+    type Factorization<'a>: 'a + Iterator<Item = GeneratorId>
+    where
+        Self: 'a;
 
-    /// Returns the number of generators used to generate the group.
-    fn generator_count(&self) -> usize {
-        self.group().generator_count
-    }
     /// Returns the number of elements in the group.
-    fn element_count(&self) -> usize {
-        self.group().element_count
-    }
+    fn element_count(&self) -> usize;
 
     /// Returns an iterator over the generators used to generate the group.
-    fn generators(&self) -> TypedIndexIter<GeneratorId> {
-        GeneratorId::iter(self.generator_count())
-    }
+    fn generators(&self) -> &PerGenerator<GroupElementId>;
     /// Returns an iterator over the elements of the group.
     fn elements(&self) -> TypedIndexIter<GroupElementId> {
         GroupElementId::iter(self.element_count())
@@ -33,44 +27,67 @@ pub trait Group {
 
     /// Returns the shortest factorization of `element` into generators. Ties
     /// are broken by lexicographical ordering.
-    fn factorization(&self, element: GroupElementId) -> &[GeneratorId] {
-        &self.group().factorizations[element]
-    }
+    fn factorization(&self, element: GroupElementId) -> Self::Factorization<'_>;
     /// Returns the inverse of `element`.
-    fn inverse(&self, element: GroupElementId) -> GroupElementId {
-        self.group().inverses[element]
-    }
+    fn inverse(&self, element: GroupElementId) -> GroupElementId;
     /// Returns the composition of `element` and `generator`.
-    fn successor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
-        *self.group().successors.get(element, generator)
-    }
+    fn successor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId;
     /// Returns the composition of `element` and the inverse of `generator`.
-    fn predecessor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
-        *self.group().predecessors.get(element, generator)
-    }
+    fn predecessor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId;
 
     /// Composes two elements of the group.
     fn compose(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
         let mut ret = a;
-        for &generator in self.factorization(b) {
+        for generator in self.factorization(b) {
             ret = self.successor(ret, generator);
         }
         ret
     }
 }
 
+impl<G: AsRef<AbstractGroup>> Group for G {
+    type Factorization<'a>
+        = std::iter::Copied<std::slice::Iter<'a, GeneratorId>>
+    where
+        Self: 'a;
+
+    /// Returns an iterator over the generators used to generate the group.
+    fn generators(&self) -> &PerGenerator<GroupElementId> {
+        &self.as_ref().generators
+    }
+    /// Returns the number of elements in the group.
+    fn element_count(&self) -> usize {
+        self.as_ref().element_count
+    }
+
+    /// Returns the shortest factorization of `element` into generators. Ties
+    /// are broken by lexicographical ordering.
+    fn factorization(&self, element: GroupElementId) -> Self::Factorization<'_> {
+        self.as_ref().factorizations[element].iter().copied()
+    }
+    /// Returns the inverse of `element`.
+    fn inverse(&self, element: GroupElementId) -> GroupElementId {
+        self.as_ref().inverses[element]
+    }
+    /// Returns the composition of `element` and `generator`.
+    fn successor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
+        *self.as_ref().successors.get(element, generator)
+    }
+    /// Returns the composition of `element` and the inverse of `generator`.
+    fn predecessor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
+        *self.as_ref().predecessors.get(element, generator)
+    }
+}
+
 /// Finite group.
 ///
-/// `ElementId(0)` is the identity. `ElementId(n)` where _1 ≤ n ≤ N_ are the
-/// generators (where _N_ is the number of generators).
+/// `ElementId(0)` is the identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AbstractGroup {
-    /// Number of generators used to initially generate the group. If there are
-    /// `N` generators, then the generators are always elements `1..=N`.
-    generator_count: usize,
     /// Number of elements in the group.
     element_count: usize,
-
+    /// Generators used to initially generate the group.
+    generators: PerGenerator<GroupElementId>,
     /// Shortest generator sequence that produces each element.
     factorizations: PerGroupElement<SmallVec<[GeneratorId; 16]>>,
     /// Inverse of each element.
@@ -87,8 +104,8 @@ impl Default for AbstractGroup {
     }
 }
 
-impl Group for AbstractGroup {
-    fn group(&self) -> &AbstractGroup {
+impl AsRef<AbstractGroup> for AbstractGroup {
+    fn as_ref(&self) -> &AbstractGroup {
         self
     }
 }
@@ -98,8 +115,8 @@ impl AbstractGroup {
     /// element.
     pub fn new_trivial() -> Self {
         AbstractGroup {
-            generator_count: 0,
             element_count: 1,
+            generators: PerGenerator::new(),
             factorizations: std::iter::once(smallvec![]).collect(),
 
             inverses: std::iter::once(GroupElementId(0)).collect(),
@@ -114,9 +131,6 @@ impl AbstractGroup {
 pub struct GroupBuilder {
     generator_count: usize,
     element_count: usize,
-
-    generator_inverses: PerGenerator<Option<GroupElementId>>,
-
     factorizations: PerGroupElement<SmallVec<[GeneratorId; 16]>>,
     successors: EggTable<Option<GroupElementId>>,
     predecessors: EggTable<Option<GroupElementId>>,
@@ -135,13 +149,9 @@ impl fmt::Display for GroupBuilder {
             .join(", ")
         }
 
-        let generator_inverses_string =
-            opt_elem_iter_to_string(self.generator_inverses.iter_values().copied());
-        writeln!(f, "    generator_inverses: [{generator_inverses_string}]")?;
-
         writeln!(f, "    factorizations: [")?;
         for (elem, gen_seq) in &self.factorizations {
-            let factorization_string = gen_seq.iter().copied().map(GroupElementId::from).join(", ");
+            let factorization_string = gen_seq.iter().copied().join(", ");
             writeln!(f, "        {elem}: [{factorization_string}],")?;
         }
         writeln!(f, "    ]")?;
@@ -181,9 +191,6 @@ impl GroupBuilder {
         Ok(GroupBuilder {
             generator_count,
             element_count: 1,
-
-            generator_inverses: (0..generator_count).map(|_| None).collect(),
-
             factorizations,
             successors: table.clone(),
             predecessors: table,
@@ -240,19 +247,9 @@ impl GroupBuilder {
         *self.successors.get_mut(element, generator) = Some(result);
         *self.predecessors.get_mut(result, generator) = Some(element);
 
-        if result == GroupElementId::IDENTITY {
-            // `element * generator = 1`, so we found the inverse of `generator`.
-            self.generator_inverses[generator] = Some(element);
-        }
-
         is_new
     }
 
-    /// Returns the number of generators in the group. This cannot be changed
-    /// after constructing the [`GroupBuilder`].
-    pub fn generator_count(&self) -> usize {
-        self.generator_count
-    }
     /// Returns the number of known elements in the group. This can only
     /// increase as more elements are discovered.
     pub fn element_count(&self) -> usize {
@@ -285,7 +282,12 @@ impl GroupBuilder {
     pub fn build(self) -> GroupResult<AbstractGroup> {
         let successors = self.successors.try_unwrap()?;
         let predecessors = self.predecessors.try_unwrap()?;
-        successors.sanity_check_successors()?;
+
+        let generators = GeneratorId::iter(self.generator_count)
+            .map(|g| *successors.get(GroupElementId::IDENTITY, g))
+            .collect();
+
+        successors.sanity_check_successors(&generators)?;
 
         let inverses = self
             .factorizations
@@ -309,9 +311,8 @@ impl GroupBuilder {
         }
 
         Ok(AbstractGroup {
-            generator_count: self.generator_count,
             element_count: self.element_count,
-
+            generators,
             factorizations: self.factorizations,
             inverses,
             successors,

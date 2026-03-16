@@ -28,8 +28,8 @@ impl Default for IsometryGroup {
     }
 }
 
-impl Group for IsometryGroup {
-    fn group(&self) -> &AbstractGroup {
+impl AsRef<AbstractGroup> for IsometryGroup {
+    fn as_ref(&self) -> &AbstractGroup {
         &self.group
     }
 }
@@ -46,7 +46,7 @@ impl Index<GeneratorId> for IsometryGroup {
     type Output = pga::Motor;
 
     fn index(&self, index: GeneratorId) -> &Self::Output {
-        &self.elements[index.into()]
+        &self.elements[self.generators()[index]]
     }
 }
 
@@ -190,16 +190,13 @@ impl IsometryGroup {
         Ok(GroupAction {
             group: Arc::clone(&self.group),
             reference_point_count: points.len(),
-            action_table: self
-                .generators()
-                .map(|g| {
-                    points.try_map_ref(|i, p| {
-                        Ok(*geom_to_ref_point
-                            .get(self[g].transform(p))
-                            .ok_or_else(|| PartialGroupAction::new(g, i))?)
-                    })
+            action_table: self.generators().try_map_ref(|g, &e| {
+                points.try_map_ref(|i, p| {
+                    Ok(*geom_to_ref_point
+                        .get(self[e].transform(p))
+                        .ok_or_else(|| PartialGroupAction::new(g, i))?)
                 })
-                .try_collect()?,
+            })?,
         })
     }
 }

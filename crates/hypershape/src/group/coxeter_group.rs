@@ -306,12 +306,12 @@ impl CoxeterGroup {
     }
 
     /// Returns the list of mirrors as generators.
-    pub fn generators(&self) -> Vec<pga::Motor> {
+    pub fn generator_motors(&self) -> Vec<pga::Motor> {
         self.mirrors.iter().map(Mirror::motor).collect()
     }
     /// Returns a generating set for the chiral subgroup.
-    pub fn chiral_generators(&self) -> Vec<pga::Motor> {
-        let mut reflections = self.generators().into_iter();
+    pub fn chiral_generator_motors(&self) -> Vec<pga::Motor> {
+        let mut reflections = self.generator_motors().into_iter();
         let Some(first) = reflections.next() else {
             return vec![];
         };
@@ -320,12 +320,12 @@ impl CoxeterGroup {
 
     /// Constructs the full Coxeter group from its description.
     pub fn group(&self) -> GroupResult<IsometryGroup> {
-        IsometryGroup::from_generators(&self.generators())
+        IsometryGroup::from_generators(&self.generator_motors())
     }
     /// Constructs the chiral subgroup of the full Coxeter group from its
     /// description.
     pub fn chiral_group(&self) -> GroupResult<IsometryGroup> {
-        IsometryGroup::from_generators(&self.chiral_generators())
+        IsometryGroup::from_generators(&self.chiral_generator_motors())
     }
 
     /// Returns the orbit of an object under the symmetry.
@@ -335,7 +335,7 @@ impl CoxeterGroup {
         chiral: bool,
     ) -> Vec<(AbbrGenSeq, pga::Motor, T)> {
         let generators = self
-            .generators()
+            .generator_motors()
             .into_iter()
             .enumerate()
             .map(|(i, g)| (GeneratorId(i as u8), g));
