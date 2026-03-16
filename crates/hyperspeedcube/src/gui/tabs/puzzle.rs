@@ -823,7 +823,7 @@ fn show_nd_euclid_puzzle_view(
         }
     }
     if layers == LayerMask::EMPTY {
-        layers = LayerMask::default();
+        layers.insert(Layer::SHALLOWEST);
     }
 
     enum Action {

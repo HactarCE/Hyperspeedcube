@@ -1335,22 +1335,22 @@ solve {
         hyperpuzzle::load_global_catalog();
         let puzzle = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
         let mut sim = PuzzleSimulation::new(&puzzle);
-        sim.do_event(ReplayEvent::Twists(parse_twists(&puzzle, "U")));
-        sim.do_event(ReplayEvent::Twists(parse_twists(&puzzle, "3R")));
-        sim.do_event(ReplayEvent::Twists(parse_twists(&puzzle, "D")));
+        sim.do_event(ReplayEvent::Twists(parse_twists("U")));
+        sim.do_event(ReplayEvent::Twists(parse_twists("3R")));
+        sim.do_event(ReplayEvent::Twists(parse_twists("D")));
         sim.do_event(ReplayEvent::Undo { time: None });
-        sim.do_event(ReplayEvent::Twists(parse_twists(&puzzle, "U'")));
+        sim.do_event(ReplayEvent::Twists(parse_twists("U'")));
         assert!(sim.is_solved());
         let replay = sim.replay.as_ref().unwrap();
         assert!(matches!(replay[0], ReplayEvent::StartSession { .. }));
-        assert_eq!(replay[1], ReplayEvent::Twists(parse_twists(&puzzle, "U")));
+        assert_eq!(replay[1], ReplayEvent::Twists(parse_twists("U")));
         // 3R not saved
-        assert_eq!(replay[2], ReplayEvent::Twists(parse_twists(&puzzle, "D")));
+        assert_eq!(replay[2], ReplayEvent::Twists(parse_twists("D")));
         assert!(matches!(replay[3], ReplayEvent::Undo { .. }));
-        assert_eq!(replay[4], ReplayEvent::Twists(parse_twists(&puzzle, "U'")));
+        assert_eq!(replay[4], ReplayEvent::Twists(parse_twists("U'")));
     }
 
-    fn parse_twists(puzzle: &Puzzle, s: &str) -> smallvec::SmallVec<[Move; 1]> {
+    fn parse_twists(s: &str) -> smallvec::SmallVec<[Move; 1]> {
         hypuz_notation::parse_notation(s, hypuz_notation::Features::MAXIMAL)
             .unwrap()
             .0

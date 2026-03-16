@@ -339,13 +339,14 @@ impl NdEuclidViewState {
                 return;
             };
 
-            let twist = match direction {
+            let mut twist = match direction {
                 Sign::Pos => target.clone(),
                 Sign::Neg => {
                     let Ok(t) = target.clone().inv() else { return };
                     t
                 }
             };
+            twist.layers = LayerPrefix::from(&layers);
 
             sim.do_event(ReplayEvent::GizmoClick {
                 time: Some(hyperpuzzle::Timestamp::now()),

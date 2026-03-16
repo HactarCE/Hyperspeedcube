@@ -651,6 +651,9 @@ impl LayerPrefix {
     };
 
     /// Converts the layer prefix to a bitmask of layers.
+    ///
+    /// Layers beyond `layers_info.max_layers` are truncated. The returned layer
+    /// mask may be empty.
     pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         let Self { invert, contents } = self;
         let mut ret = contents
@@ -725,9 +728,8 @@ impl LayerPrefixContents {
     /// Converts the layer prefix to a bitmask of layers.
     pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         match self {
-            LayerPrefixContents::Single(l) => l
-                .clamp_to_layer_count(layers_info.max_layer)
-                .map(LayerMask::from_layer)
+            LayerPrefixContents::Single(l) => (l.to_u16() <= layers_info.max_layer)
+                .then(|| LayerMask::from_layer(*l))
                 .unwrap_or_default(),
             LayerPrefixContents::Range(range) => range
                 .clamp_to_layer_count(layers_info.max_layer)
