@@ -4,9 +4,7 @@ use hypuz_util::ti::{TypedIndex, TypedIndexIter};
 use smallvec::{SmallVec, smallvec};
 
 use super::EggTable;
-use crate::{
-    AbstractGroupActionLut, GeneratorId, GroupElementId, GroupResult, PerGenerator, PerGroupElement,
-};
+use crate::{GeneratorId, GroupElementId, GroupResult, PerGenerator, PerGroupElement};
 
 /// Lookup tables for an [abstract] [finite group].
 ///

@@ -194,17 +194,17 @@ impl Group {
     }
 
     /// Flattens the group using [`Group::flatten()`] and constructs a group
-    /// action from a function that composes a generator with a reference point.
-    /// The number of reference points must be known ahead of time..
+    /// action from a function that composes a generator with a point. The
+    /// number of points must be known ahead of time.
     ///
     /// When possible, prefer constructing the direct product of group actions
     /// instead of the group action of a direct product to avoid flattening
     /// large groups.
-    pub fn action(
+    pub fn action<P: TypedIndex>(
         &self,
-        ref_point_count: usize,
-        act: impl FnMut(GeneratorId, RefPoint) -> RefPoint,
-    ) -> GroupResult<GroupAction> {
+        point_count: usize,
+        act: impl FnMut(GeneratorId, P) -> P,
+    ) -> GroupResult<GroupAction<P>> {
         let combined_factor_group = self
             .flatten()?
             .direct_product_decomposition()
@@ -213,7 +213,7 @@ impl Group {
             .unwrap_or_default();
         GroupAction::from_factors([Arc::new(AbstractGroupActionLut::from_fn(
             combined_factor_group,
-            ref_point_count,
+            point_count,
             act,
         ))])
     }

@@ -4,12 +4,12 @@ use hypermath::{
     APPROX, ApproxHashMap, MotorNearestNeighborMap, Point, Vector,
     approx_collections::hash_map::Entry, pga::Motor,
 };
-use hypuz_util::ti::TypedIndexIter;
+use hypuz_util::ti::{TiVec, TypedIndex, TypedIndexIter};
 use itertools::Itertools;
 
 use crate::{
     AbstractGroupLut, GeneratorId, Group, GroupAction, GroupElementId, GroupError, GroupResult,
-    PerFactorGroup, PerGenerator, PerGroupElement, PerRefPoint,
+    PerFactorGroup, PerGenerator, PerGroupElement,
 };
 
 /// Isometry group.
@@ -148,20 +148,23 @@ impl IsometryGroup {
     }
 
     /// Flattens the group using [`IsometryGroup::flatten()`] and constructs a
-    /// group action from a set of initial reference points that are then
-    /// orbited to produce the complete set.
+    /// group action from a set of initial points that are then orbited to
+    /// produce the complete set.
     ///
     /// When possible, prefer constructing the direct product of group actions
     /// instead of the group action of a direct product to avoid flattening
     /// large groups.
     ///
     /// TODO: revamp this method
-    pub fn action_on_initial_points(&self, points: &[Point]) -> GroupResult<GroupAction> {
+    pub fn action_on_initial_points<P: TypedIndex>(
+        &self,
+        points: &[Point],
+    ) -> GroupResult<GroupAction<P>> {
         // TODO: be smart. return a direct product group action
 
         let generators = self.generators().map_ref(|g, _| self.generator_motor(g));
 
-        let mut ref_point_to_point = PerRefPoint::<Point>::new();
+        let mut ref_point_to_point = TiVec::<P, Point>::new();
         let mut point_to_ref_point = ApproxHashMap::new(APPROX);
         for initial_point in points {
             let init = ref_point_to_point.push(initial_point.clone())?;
@@ -184,7 +187,7 @@ impl IsometryGroup {
         self.group.action(ref_point_to_point.len(), |g, p| {
             *point_to_ref_point
                 .get(generators[g].transform(&ref_point_to_point[p]))
-                .expect("missing reference points found")
+                .expect("missing point")
         })
     }
 
@@ -196,10 +199,10 @@ impl IsometryGroup {
     /// large groups.
     ///
     /// TODO: revamp this method
-    pub fn action_on_points(
+    pub fn action_on_points<P: TypedIndex>(
         &self,
-        ref_point_to_point: &PerRefPoint<Point>,
-    ) -> GroupResult<GroupAction> {
+        ref_point_to_point: &TiVec<P, Point>,
+    ) -> GroupResult<GroupAction<P>> {
         let generators = self.generators().map_ref(|g, _| self.generator_motor(g));
 
         let point_to_ref_point = ApproxHashMap::from_iter(
@@ -210,7 +213,7 @@ impl IsometryGroup {
         self.group.action(ref_point_to_point.len(), |g, p| {
             *point_to_ref_point
                 .get(generators[g].transform(&ref_point_to_point[p]))
-                .expect("missing reference points found")
+                .expect("missing point")
         })
     }
 

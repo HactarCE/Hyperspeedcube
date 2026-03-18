@@ -4,41 +4,40 @@ use hypuz_util::ti::{TypedIndex, TypedIndexIter};
 
 use super::*;
 
-/// Group action of a product group acting on a the disjoint union of reference
-/// points.
+/// Group action of a product group acting on a the disjoint union of points.
 ///
 /// This type is reference-counted and thus cheap to clone.
 #[derive(Clone)]
-pub struct GroupAction {
+pub struct GroupAction<P> {
     /// Product group that acts on the points.
     group: Group,
-    inner: Arc<GroupActionInner>,
+    inner: Arc<GroupActionInner<P>>,
 }
 
-struct GroupActionInner {
-    /// Number of reference points that the product group acts on.
-    ref_point_count: usize,
+struct GroupActionInner<P> {
+    /// Number of points that the product group acts on.
+    point_count: usize,
     /// Factor group actions.
-    factors: PerFactorGroup<Arc<AbstractGroupActionLut>>,
-    /// For each factor group: how much to add to its [`RefPoint`]s to get the
-    /// corresponding [`RefPoint`]s in the product group.
-    ref_point_offsets: PerFactorGroup<u16>,
+    factors: PerFactorGroup<Arc<AbstractGroupActionLut<P>>>,
+    /// For each factor group: how much to add to its point indexes to get the
+    /// corresponding point indexes in the product group.
+    point_index_offsets: PerFactorGroup<usize>,
 }
 
-impl fmt::Debug for GroupAction {
+impl<P> fmt::Debug for GroupAction<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("GroupAction")
-            .field("ref_point_count", &self.inner.ref_point_count)
+            .field("point_count", &self.inner.point_count)
             .field("group", &self.group)
             .finish_non_exhaustive()
     }
 }
 
-impl GroupAction {
+impl<P: TypedIndex> GroupAction<P> {
     pub(crate) fn from_factors(
-        factors: impl IntoIterator<Item = Arc<AbstractGroupActionLut>>,
+        factors: impl IntoIterator<Item = Arc<AbstractGroupActionLut<P>>>,
     ) -> GroupResult<Self> {
-        let factors: PerFactorGroup<Arc<AbstractGroupActionLut>> = factors.into_iter().collect();
+        let factors: PerFactorGroup<Arc<AbstractGroupActionLut<P>>> = factors.into_iter().collect();
 
         let group = Group::from_factors(
             factors
@@ -46,16 +45,16 @@ impl GroupAction {
                 .map(|action| Arc::clone(action.group())),
         )?;
 
-        let ref_point_count = factors
+        let point_count = factors
             .iter_values()
-            .map(|action| action.ref_points().len())
+            .map(|action| action.points().len())
             .sum();
 
-        let ref_point_offsets: PerFactorGroup<u16> = factors
+        let point_index_offsets: PerFactorGroup<usize> = factors
             .iter_values()
             .scan(0, |offset, action| {
                 let this_offset = *offset;
-                *offset += action.ref_point_count() as u16;
+                *offset += action.point_count();
                 Some(this_offset)
             })
             .collect();
@@ -63,9 +62,9 @@ impl GroupAction {
         Ok(Self {
             group,
             inner: Arc::new(GroupActionInner {
-                ref_point_count,
+                point_count,
                 factors,
-                ref_point_offsets,
+                point_index_offsets,
             }),
         })
     }
@@ -85,42 +84,45 @@ impl GroupAction {
         &self.group
     }
 
-    pub fn factors(&self) -> &PerFactorGroup<Arc<AbstractGroupActionLut>> {
+    pub fn factors(&self) -> &PerFactorGroup<Arc<AbstractGroupActionLut<P>>> {
         &self.inner.factors
     }
 
-    pub fn ref_points(&self) -> TypedIndexIter<RefPoint> {
-        RefPoint::iter(self.inner.ref_point_count)
+    pub fn points(&self) -> TypedIndexIter<P> {
+        P::iter(self.inner.point_count)
     }
 
-    pub(crate) fn ref_point_to_factor(&self, point: RefPoint) -> (FactorGroup, RefPoint) {
+    pub(crate) fn point_to_factor(&self, point: P) -> (FactorGroup, P) {
         let (factor, &offset) = self
             .inner
-            .ref_point_offsets
+            .point_index_offsets
             .iter()
-            .rfind(|&(_, &offset)| offset <= point.0)
-            .expect("reference point index out of range");
-        (factor, RefPoint(point.0 - offset))
+            .rfind(|&(_, &offset)| offset <= point.to_index())
+            .expect("point index out of range");
+        (
+            factor,
+            P::try_from_index(point.to_index() - offset).expect("error offsetting point index"),
+        )
     }
 
-    pub(crate) fn try_ref_point_to_factor(
-        &self,
-        factor: FactorGroup,
-        point: RefPoint,
-    ) -> Option<RefPoint> {
-        let i = point.0.checked_sub(self.inner.ref_point_offsets[factor])?;
-        ((i as usize) < self.factors()[factor].ref_point_count()).then_some(RefPoint(i))
+    pub(crate) fn try_point_to_factor(&self, factor: FactorGroup, point: P) -> Option<P> {
+        let i = point
+            .to_index()
+            .checked_sub(self.inner.point_index_offsets[factor])?;
+        ((i as usize) < self.factors()[factor].point_count()).then_some(P::try_from_index(i).ok()?)
     }
 
-    pub fn ref_point_from_factor(&self, factor: FactorGroup, point: RefPoint) -> RefPoint {
-        RefPoint(point.0 + self.inner.ref_point_offsets[factor])
+    pub fn point_from_factor(&self, factor: FactorGroup, point: P) -> P {
+        P::try_from_index(point.to_index() + self.inner.point_index_offsets[factor])
+            .expect("error offsetting point index")
     }
 
-    pub fn act(&self, element: GroupElementId, point: RefPoint) -> RefPoint {
-        let (factor, old_point_in_factor) = self.ref_point_to_factor(point);
+    pub fn act(&self, element: GroupElementId, point: P) -> P {
+        let (factor, old_point_in_factor) = self.point_to_factor(point);
         let element_in_factor = self.group.project_element_to_factor(factor, element);
         let new_point_in_factor =
             self.factors()[factor].act(element_in_factor, old_point_in_factor);
-        RefPoint(new_point_in_factor.0 + self.inner.ref_point_offsets[factor])
+        P::try_from_index(new_point_in_factor.to_index() + self.inner.point_index_offsets[factor])
+            .expect("error offsetting point index")
     }
 }

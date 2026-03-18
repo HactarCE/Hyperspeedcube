@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hypuz_util::ti::TiVec;
+use hypuz_util::ti::{TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
 use super::SubgroupOrbits;
 use crate::{
     AbstractGroupActionLut, AbstractGroupLut, AbstractSubgroup, ConjugateCoset, Constraint,
-    ConstraintSet, GroupAction, GroupElementId, PerFactorGroup, ProductSubgroup, RefPoint,
+    ConstraintSet, GroupAction, GroupElementId, PerFactorGroup, ProductSubgroup,
 };
 
 hypuz_util::typed_index_struct! {
@@ -39,13 +39,13 @@ pub(crate) struct FactorGroupConjugateCoset {
 ///
 /// Intermediate results are cached, so solvers should be reused whenever
 /// possible.
-pub struct ConstraintSolver {
-    action: Arc<GroupAction>,
-    solvers: PerFactorGroup<FactorGroupConstraintSolver>,
+pub struct ConstraintSolver<P> {
+    action: Arc<GroupAction<P>>,
+    solvers: PerFactorGroup<FactorGroupConstraintSolver<P>>,
 }
 
-impl ConstraintSolver {
-    pub fn new(action: Arc<GroupAction>) -> Self {
+impl<P: TypedIndex> ConstraintSolver<P> {
+    pub fn new(action: Arc<GroupAction<P>>) -> Self {
         let solvers = action
             .factors()
             .map_ref(|_, factor| FactorGroupConstraintSolver::new(Arc::clone(factor)));
@@ -55,13 +55,13 @@ impl ConstraintSolver {
 
     fn split_constraint_set(
         &self,
-        constraint_set: &ConstraintSet,
-    ) -> Option<PerFactorGroup<ConstraintSet>> {
+        constraint_set: &ConstraintSet<P>,
+    ) -> Option<PerFactorGroup<ConstraintSet<P>>> {
         let mut constraint_set_for_each_factor = self.solvers.map_ref(|_, _| ConstraintSet::EMPTY);
 
         for Constraint { old, new } in constraint_set {
-            let (factor, old) = self.action.ref_point_to_factor(old);
-            let new = self.action.try_ref_point_to_factor(factor, new)?;
+            let (factor, old) = self.action.point_to_factor(old);
+            let new = self.action.try_point_to_factor(factor, new)?;
             constraint_set_for_each_factor[factor]
                 .constraints
                 .push(Constraint { old, new });
@@ -72,22 +72,22 @@ impl ConstraintSolver {
 
     fn merge_constraint_sets(
         &self,
-        constraint_sets: PerFactorGroup<ConstraintSet>,
-    ) -> ConstraintSet {
+        constraint_sets: PerFactorGroup<ConstraintSet<P>>,
+    ) -> ConstraintSet<P> {
         constraint_sets
             .into_iter()
             .flat_map(|(factor, constraint_set)| {
                 constraint_set
                     .into_iter()
                     .map(move |Constraint { old, new }| Constraint {
-                        old: self.action.ref_point_from_factor(factor, old),
-                        new: self.action.ref_point_from_factor(factor, new),
+                        old: self.action.point_from_factor(factor, old),
+                        new: self.action.point_from_factor(factor, new),
                     })
             })
             .collect()
     }
 
-    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<ConjugateCoset> {
+    pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<ConjugateCoset> {
         let constraint_set_for_each_factor = self.split_constraint_set(constraint_set)?;
 
         let conjugate_cosets = self
@@ -116,9 +116,9 @@ impl ConstraintSolver {
 
     pub fn select(
         &mut self,
-        constraint_set: &ConstraintSet,
-        mut select: impl FnMut(Vec<RefPoint>) -> Option<RefPoint>,
-    ) -> Option<(ConstraintSet, GroupElementId)> {
+        constraint_set: &ConstraintSet<P>,
+        mut select: impl FnMut(Vec<P>) -> Option<P>,
+    ) -> Option<(ConstraintSet<P>, GroupElementId)> {
         let constraint_set_for_each_factor = self.split_constraint_set(&constraint_set)?;
 
         let outputs = std::iter::zip(&mut self.solvers, constraint_set_for_each_factor)
@@ -161,17 +161,17 @@ impl ConstraintSolver {
 
 /// Solver for determining group elements/cosets that satisfy
 /// [`ConstraintSet`]s.
-pub(crate) struct FactorGroupConstraintSolver {
-    action: Arc<AbstractGroupActionLut>,
+pub(crate) struct FactorGroupConstraintSolver<P> {
+    action: Arc<AbstractGroupActionLut<P>>,
 
-    subgroup_orbits: PerSubgroup<SubgroupOrbits>,
-    subgroups_by_fixed_points: HashMap<Box<[RefPoint]>, SubgroupId>,
+    subgroup_orbits: PerSubgroup<SubgroupOrbits<P>>,
+    subgroups_by_fixed_points: HashMap<Box<[P]>, SubgroupId>,
     subgroups_by_generating_set: HashMap<Box<[GroupElementId]>, SubgroupId>,
 }
 
-impl FactorGroupConstraintSolver {
+impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
     /// Constructs a new constraint solver for a group action.
-    pub fn new(action: Arc<AbstractGroupActionLut>) -> Self {
+    pub fn new(action: Arc<AbstractGroupActionLut<P>>) -> Self {
         let stabilizer_of_nothing = SubgroupOrbits::new_total(&action);
         let subgroups = PerSubgroup::from_iter([stabilizer_of_nothing]);
         let subgroups_by_fixed_points =
@@ -199,7 +199,7 @@ impl FactorGroupConstraintSolver {
     /// results when possible.
     ///
     /// See [`AbstractGroupActionLut::pointwise_stabilizer_generating_set()`].
-    fn cached_pointwise_stabilizer(&mut self, fixed_points: &[RefPoint]) -> SubgroupId {
+    fn cached_pointwise_stabilizer(&mut self, fixed_points: &[P]) -> SubgroupId {
         // Fastest: cached by fixed points
         get_or_insert_entry_with(&mut self.subgroups_by_fixed_points, fixed_points, || {
             // Next fastest: cached by subgroup generators
@@ -219,8 +219,8 @@ impl FactorGroupConstraintSolver {
     /// `None` if the constraints are unsatisfiable.
     fn solve_coset_impl(
         &mut self,
-        constraint_set: &ConstraintSet,
-    ) -> Option<ConstrainedConjugateCoset> {
+        constraint_set: &ConstraintSet<P>,
+    ) -> Option<ConstrainedConjugateCoset<P>> {
         constraint_set
             .iter()
             .try_fold(ConstrainedConjugateCoset::new(), |coset, constraint| {
@@ -233,9 +233,9 @@ impl FactorGroupConstraintSolver {
     /// Returns `None` if there is no such coset.
     fn constrain_coset(
         &mut self,
-        mut coset: ConstrainedConjugateCoset,
-        constraint: Constraint,
-    ) -> Option<ConstrainedConjugateCoset> {
+        mut coset: ConstrainedConjugateCoset<P>,
+        constraint: Constraint<P>,
+    ) -> Option<ConstrainedConjugateCoset<P>> {
         let a = self.action.act(coset.rhs, constraint.old);
         let b = self.action.act(coset.lhs_inv, constraint.new);
         let orbits = &self.subgroup_orbits[coset.subgroup];
@@ -255,8 +255,8 @@ impl FactorGroupConstraintSolver {
     /// When debug assertions are disabled, this does nothing.
     fn debug_assert_constraints(
         &self,
-        coset: &ConstrainedConjugateCoset,
-        expected_constraint_set: &ConstraintSet,
+        coset: &ConstrainedConjugateCoset<P>,
+        expected_constraint_set: &ConstraintSet<P>,
     ) {
         #[cfg(debug_assertions)]
         {
@@ -271,7 +271,10 @@ impl FactorGroupConstraintSolver {
 
     /// Solves a set of constraints and returns the coset satisfying it, or
     /// `None` if the constraints are unsatisfiable.
-    pub fn solve(&mut self, constraint_set: &ConstraintSet) -> Option<FactorGroupConjugateCoset> {
+    pub fn solve(
+        &mut self,
+        constraint_set: &ConstraintSet<P>,
+    ) -> Option<FactorGroupConjugateCoset> {
         let coset = self.solve_coset_impl(constraint_set)?;
         self.debug_assert_constraints(&coset, constraint_set);
         Some(FactorGroupConjugateCoset {
@@ -282,12 +285,12 @@ impl FactorGroupConstraintSolver {
     }
 
     /// Selects a random group element deterministically given a deterministic
-    /// function for selecting a reference point from an **sorted** list.
+    /// function for selecting a point from an **sorted** list.
     pub fn select(
         &mut self,
-        mut constraint_set: ConstraintSet,
-        mut select: impl FnMut(Vec<RefPoint>) -> Option<RefPoint>,
-    ) -> Option<(ConstraintSet, GroupElementId)> {
+        mut constraint_set: ConstraintSet<P>,
+        mut select: impl FnMut(Vec<P>) -> Option<P>,
+    ) -> Option<(ConstraintSet<P>, GroupElementId)> {
         let mut coset = self.solve_coset_impl(&constraint_set)?;
 
         while !self.subgroup_orbits[coset.subgroup].subgroup.is_trivial() {
@@ -329,15 +332,15 @@ impl FactorGroupConstraintSolver {
 /// Constraints are added to the coset until the subgroup contains only
 /// the identity, at which point `lhs_inv^-1 * rhs` satisfies all the
 /// constraints.
-struct ConstrainedConjugateCoset {
-    fixed_points: SmallVec<[RefPoint; 8]>,
+struct ConstrainedConjugateCoset<P> {
+    fixed_points: SmallVec<[P; 8]>,
     lhs_inv: GroupElementId,
     rhs: GroupElementId,
     /// Subgroup that pointwise-stabilizes `fixed_points`.
     subgroup: SubgroupId,
 }
 
-impl ConstrainedConjugateCoset {
+impl<P> ConstrainedConjugateCoset<P> {
     fn new() -> Self {
         Self {
             fixed_points: smallvec![],

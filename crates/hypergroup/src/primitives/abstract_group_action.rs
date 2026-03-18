@@ -2,49 +2,46 @@ use std::sync::Arc;
 
 use hypuz_util::ti::{TypedIndex, TypedIndexIter};
 
-use crate::{AbstractSubgroup, GeneratorId, GroupElementId, RefPoint};
+use crate::{AbstractSubgroup, GeneratorId, GroupElementId};
 
 use super::AbstractGroupLut;
 
 /// Lookup table for an [action] of an abstract finite group (represented using
-/// [`AbstractGroupLut`]) on a set of "reference points" (represented using
-/// [`RefPoint`]).
+/// [`AbstractGroupLut`]) on a set of points (represented using the generic
+/// parameter `P`, which must be implement [`TypedIndex`]).
 ///
 /// The action does **not** need to be [faithful].
 ///
 /// [action]: https://en.wikipedia.org/wiki/Group_action
 /// [faithful]: https://mathworld.wolfram.com/FaithfulGroupAction.html
-pub(crate) struct AbstractGroupActionLut {
-    /// Group that acts on the reference points.
+pub(crate) struct AbstractGroupActionLut<P> {
+    /// Group that acts on the points.
     pub(super) group: Arc<AbstractGroupLut>,
 
-    /// Number of reference points.
-    pub(super) ref_point_count: usize,
+    /// Number of points.
+    pub(super) point_count: usize,
 
-    /// Table containing the result of applying each generator to each reference
-    /// point.
-    pub(super) action_table: Vec<RefPoint>,
+    /// Table containing the result of applying each generator to each point.
+    pub(super) action_table: Vec<P>,
 }
 
-impl AbstractGroupActionLut {
+impl<P: TypedIndex> AbstractGroupActionLut<P> {
     /// Constructs a new group action lookup table from a function that composes
-    /// a generator with a reference point. The number of reference points must
-    /// be known ahead of time.
+    /// a generator with a point. The number of points must be known ahead of
+    /// time.
     pub fn from_fn(
         group: Arc<AbstractGroupLut>,
-        ref_point_count: usize,
-        mut act: impl FnMut(GeneratorId, RefPoint) -> RefPoint,
+        point_count: usize,
+        mut act: impl FnMut(GeneratorId, P) -> P,
     ) -> Self {
-        let action_table = itertools::iproduct!(
-            RefPoint::iter(ref_point_count),
-            group.generators().iter_keys()
-        )
-        .map(|(p, g)| act(g, p))
-        .collect();
+        let action_table =
+            itertools::iproduct!(P::iter(point_count), group.generators().iter_keys())
+                .map(|(p, g)| act(g, p))
+                .collect();
 
         Self {
             group,
-            ref_point_count,
+            point_count,
             action_table,
         }
     }
@@ -54,23 +51,24 @@ impl AbstractGroupActionLut {
         &self.group
     }
 
-    /// Returns the number of reference points acted on by the group.
-    pub fn ref_point_count(&self) -> usize {
-        self.ref_point_count
+    /// Returns the number of points acted on by the group.
+    pub fn point_count(&self) -> usize {
+        self.point_count
     }
-    /// Returns an iterator over all the reference points the group acts on.
-    pub fn ref_points(&self) -> TypedIndexIter<RefPoint> {
-        RefPoint::iter(self.ref_point_count)
+    /// Returns an iterator over all the points the group acts on.
+    pub fn points(&self) -> TypedIndexIter<P> {
+        P::iter(self.point_count)
     }
 
-    /// Applies the action of a generator to a reference point.
-    fn successor(&self, generator: GeneratorId, point: RefPoint) -> RefPoint {
-        let index = point.0 as usize * self.group.generators().len() + generator.0 as usize;
+    /// Applies the action of a generator to a point.
+    fn successor(&self, generator: GeneratorId, point: P) -> P {
+        let index =
+            point.to_index() as usize * self.group.generators().len() + generator.0 as usize;
         self.action_table[index]
     }
 
-    /// Applies the action of a group element to a reference point.
-    pub fn act(&self, element: GroupElementId, point: RefPoint) -> RefPoint {
+    /// Applies the action of a group element to a point.
+    pub fn act(&self, element: GroupElementId, point: P) -> P {
         self.group
             .factorization(element)
             .into_iter()
@@ -93,7 +91,7 @@ impl AbstractGroupActionLut {
     ///     https://en.wikipedia.org/wiki/Generating_set_of_a_group
     /// [pointwise stabilizer subgroup]:
     ///     https://en.wikipedia.org/wiki/Group_action#Fixed_points_and_stabilizer_subgroups
-    pub fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> AbstractSubgroup {
+    pub fn pointwise_stabilizer(&self, fixed_points: &[P]) -> AbstractSubgroup {
         let mut generators = vec![];
         let mut subgroup = AbstractSubgroup::new_trivial(Arc::clone(&self.group));
 

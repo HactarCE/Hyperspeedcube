@@ -20,7 +20,7 @@ use primitives::{
 
 pub use action::GroupAction;
 pub use common::*;
-pub use constraints::{Constraint, ConstraintSet};
+pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
 pub use coset::ConjugateCoset;
 pub use coxeter::{
     Coxeter, CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation,
@@ -42,10 +42,6 @@ hypuz_util::typed_index_struct! {
     ///
     /// [identity element]: https://en.wikipedia.org/wiki/Identity_element
     pub struct GroupElementId(pub u32);
-    /// ID of a reference point acted on by a group.
-    ///
-    /// See [`crate::GroupAction`].
-    pub struct RefPoint(pub u16);
 
     /// Factor group that makes up a [`crate::Group`].
     pub(crate) struct FactorGroup(u8);
@@ -60,8 +56,6 @@ impl GroupElementId {
 pub type PerGenerator<T> = hypuz_util::ti::TiVec<GeneratorId, T>;
 /// List containing a value per group element.
 pub type PerGroupElement<T> = hypuz_util::ti::TiVec<GroupElementId, T>;
-/// List containing a value per reference point.
-pub type PerRefPoint<T> = hypuz_util::ti::TiVec<RefPoint, T>;
 
 /// List containing a value per factor group.
 pub(crate) type PerFactorGroup<T> = hypuz_util::ti::TiVec<FactorGroup, T>;

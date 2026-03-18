@@ -19,17 +19,12 @@ workspace = true
 hypermath.workspace = true
 hypuz_util.workspace = true
 
-eyre.workspace = true
-float-ord.workspace = true
 itertools.workspace = true
-num_cpus.workspace = true
-parking_lot.workspace = true
-rayon.workspace = true
 smallvec = { workspace = true, features = ["const_new"] }
 thiserror.workspace = true
-tinyset.workspace = true
 
 [dev-dependencies]
+eyre.workspace = true
 lazy_static.workspace = true
 proptest.workspace = true
 rand.workspace = true

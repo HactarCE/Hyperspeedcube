@@ -2738,19 +2738,14 @@ name = "hypergroup"
 version = "0.1.0"
 dependencies = [
  "eyre",
- "float-ord",
  "hypermath",
  "hypuz_util",
  "itertools 0.14.0",
  "lazy_static",
- "num_cpus",
- "parking_lot",
  "proptest",
  "rand 0.10.0",
- "rayon",
  "smallvec",
  "thiserror 2.0.18",
- "tinyset",
 ]
 
 [[package]]
