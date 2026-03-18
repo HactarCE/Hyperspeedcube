@@ -15,11 +15,11 @@ use crate::{
 ///
 /// TODO: consider merging with `Coxeter`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CoxeterMatrix {
+pub struct CoxeterMatrixOld {
     entries: Vec<Vec<u16>>,
 }
 
-impl fmt::Display for CoxeterMatrix {
+impl fmt::Display for CoxeterMatrixOld {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(indices) = self.linear_indices() {
             write!(f, "{indices:?}")
@@ -29,7 +29,7 @@ impl fmt::Display for CoxeterMatrix {
     }
 }
 
-impl CoxeterMatrix {
+impl CoxeterMatrixOld {
     /// Constructs a Coxeter group from a linear Schläfli symbol.
     pub fn new_linear(indices: &[u16]) -> GroupResult<Self> {
         let ndim = check_ndim(indices.len() + 1)?;
@@ -242,7 +242,10 @@ mod tests {
 
     #[test]
     fn test_cube_group() {
-        let g = CoxeterMatrix::new_linear(&[4, 3]).unwrap().group().unwrap();
+        let g = CoxeterMatrixOld::new_linear(&[4, 3])
+            .unwrap()
+            .group()
+            .unwrap();
 
         assert_eq!(48, g.element_count());
     }

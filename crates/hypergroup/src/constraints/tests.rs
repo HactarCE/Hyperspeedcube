@@ -6,8 +6,8 @@ use rand::{Rng, RngExt, SeedableRng};
 
 use super::*;
 use crate::{
-    Coset, Coxeter, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup, PerGenerator,
-    orbit_geometric,
+    Coset, CoxeterMatrix, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup,
+    PerGenerator, orbit_geometric,
 };
 
 hypuz_util::typed_index_struct! {
@@ -21,8 +21,8 @@ type PerTestPoint<T> = TiVec<TestPoint, T>;
 fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
     #![allow(non_snake_case)]
 
-    let group = crate::Coxeter::H3.isometry_group()?;
-    let chiral_group = crate::Coxeter::H3.chiral_isometry_group()?;
+    let group = CoxeterMatrix::H3().isometry_group()?;
+    let chiral_group = CoxeterMatrix::H3().chiral_isometry_group()?;
 
     let g0 = &group[GeneratorId(0)];
     let g1 = &group[GeneratorId(1)];
@@ -109,8 +109,8 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
 fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
     #![allow(non_snake_case)]
 
-    let group = crate::Coxeter::A(4).isometry_group()?;
-    let chiral_group = crate::Coxeter::A(4).chiral_isometry_group()?;
+    let group = CoxeterMatrix::A(4)?.isometry_group()?;
+    let chiral_group = CoxeterMatrix::A(4)?.chiral_isometry_group()?;
     assert_eq!(120, group.element_count());
     assert_eq!(60, chiral_group.element_count());
 
@@ -167,7 +167,7 @@ fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
 fn test_deterministic_random_group_element() -> eyre::Result<()> {
     #![allow(non_snake_case)]
 
-    let original_group = crate::Coxeter::H4.isometry_group()?;
+    let original_group = CoxeterMatrix::H4().isometry_group()?;
     let initial_point = Point(Vector::unit(original_group.ndim() - 1));
     let test_points: PerTestPoint<Point> = orbit_geometric(
         &original_group
@@ -247,9 +247,9 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
 fn test_product_constraint_solver() -> eyre::Result<()> {
     #![allow(non_snake_case)]
 
-    let ga = Coxeter::B(3).isometry_group()?; // cube (3D)
-    let gb = Coxeter::I(6).isometry_group()?; // 6-gon (2D)
-    let gc = Coxeter::A(4).isometry_group()?; // 4-simplex (4D)
+    let ga = CoxeterMatrix::B(3)?.isometry_group()?; // cube (3D)
+    let gb = CoxeterMatrix::I(6)?.isometry_group()?; // 6-gon (2D)
+    let gc = CoxeterMatrix::A(4)?.isometry_group()?; // 4-simplex (4D)
 
     let gen0 = GeneratorId(0);
     let gen1 = GeneratorId(1);

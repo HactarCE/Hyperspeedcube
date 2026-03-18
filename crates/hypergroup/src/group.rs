@@ -412,9 +412,9 @@ mod tests {
 
     lazy_static::lazy_static! {
         static ref BIG_PRODUCT_GROUP: Group = {
-            let g1 = Coxeter::B(3).group().unwrap(); // cube (3D)
-            let g2 = Coxeter::I(10).group().unwrap(); // 10-gon (2D)
-            let g3 = Coxeter::A(5).group().unwrap(); // 5-simplex (5D)
+            let g1 = CoxeterMatrix::B(3).unwrap().group().unwrap(); // cube (3D)
+            let g2 = CoxeterMatrix::I(10).unwrap().group().unwrap(); // 10-gon (2D)
+            let g3 = CoxeterMatrix::A(5).unwrap().group().unwrap(); // 5-simplex (5D)
             Group::product(&[g1, g2, g3]).unwrap()
         };
     }

@@ -39,14 +39,14 @@ pub fn construct_group(
     name: impl Into<Cow<'static, str>>,
     coxeter_matrix: &CoxeterMatrix,
 ) -> GroupResult<AbstractGroupLut> {
-    let n = coxeter_matrix.mirror_count() as usize;
+    let n = coxeter_matrix.generator_count() as usize;
     let mut g = AbstractGroupLutBuilder::new(name, n)?;
 
     let mut relation_table_headers = vec![];
     // Set up a relation table for each possible pair of generators.
     for (j, b) in GeneratorId::iter(n).enumerate() {
         for (i, a) in GeneratorId::iter(j).enumerate() {
-            let ab_order = coxeter_matrix.entries()[i][j];
+            let ab_order = coxeter_matrix[[i as u8, j as u8]];
             relation_table_headers.push(RelationTableHeader { a, b, ab_order });
         }
     }

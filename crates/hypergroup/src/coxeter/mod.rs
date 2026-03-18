@@ -1,9 +1,7 @@
 mod coxeter_group;
-mod coxeter_matrix;
 mod todd_coxeter;
 
-pub use coxeter_group::Coxeter;
-pub use coxeter_matrix::CoxeterMatrix;
+pub use coxeter_group::CoxeterMatrix;
 
 /// Parses a single character of a vector in limited Dynkin notation, where `o`
 /// represents `0` and `x` represents `1`. Returns `None` for all other

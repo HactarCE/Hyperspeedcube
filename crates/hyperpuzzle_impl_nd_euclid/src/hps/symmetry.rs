@@ -4,7 +4,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypergroup::{
-    AbbrGenSeq, Coxeter, CoxeterMatrix, GenSeq, GeneratorId, GroupError, GroupResult, IsometryGroup,
+    AbbrGenSeq, Coxeter, CoxeterMatrixOld, GenSeq, GeneratorId, GroupError, GroupResult,
+    IsometryGroup,
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
@@ -22,7 +23,7 @@ pub struct HpsSymmetry {
     /// Generators of the group.
     generators: Arc<Vec<Motor>>,
     /// Coxeter matrix, if this is one.
-    coxeter_group: Option<Arc<CoxeterMatrix>>,
+    coxeter_group: Option<Arc<CoxeterMatrixOld>>,
     /// Offset by which the whole Coxeter group is transformed.
     coxeter_offset: Motor,
 }
@@ -114,10 +115,10 @@ where
         .collect()
 }
 
-impl TryFrom<CoxeterMatrix> for HpsSymmetry {
+impl TryFrom<CoxeterMatrixOld> for HpsSymmetry {
     type Error = GroupError;
 
-    fn try_from(value: CoxeterMatrix) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: CoxeterMatrixOld) -> std::result::Result<Self, Self::Error> {
         Self::from_coxeter(value)
     }
 }
@@ -189,7 +190,7 @@ impl HpsSymmetry {
     }
 
     /// Constructs a symmetry object from a Coxeter group.
-    pub fn from_coxeter(coxeter: CoxeterMatrix) -> GroupResult<Self> {
+    pub fn from_coxeter(coxeter: CoxeterMatrixOld) -> GroupResult<Self> {
         let generators = coxeter.spherical_mirror_generators()?;
         Ok(Self {
             generators: Arc::new(generators.into_vec()),
@@ -239,7 +240,7 @@ impl HpsSymmetry {
 
     /// Constructs a symmetry object from a Schalfli symbol such as `[4, 3]`.
     pub fn from_schlafli(indices: &[u16], span: Span) -> Result<Self> {
-        CoxeterMatrix::new_linear(indices)
+        CoxeterMatrixOld::new_linear(indices)
             .at(span)?
             .try_into()
             .at(span)
@@ -247,7 +248,7 @@ impl HpsSymmetry {
 
     /// Returns the underlying Coxeter group, or returns an error if the group
     /// was not constructed as a Coxeter group.
-    pub fn as_coxeter(&self, span: Span) -> Result<&CoxeterMatrix> {
+    pub fn as_coxeter(&self, span: Span) -> Result<&CoxeterMatrixOld> {
         self.coxeter_group
             .as_deref()
             .ok_or("expected Coxeter group")

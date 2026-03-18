@@ -23,7 +23,7 @@ use super::*;
 /// replacement is so cheap to compute.
 #[test]
 fn product_replacement_word_len() -> eyre::Result<()> {
-    let group = Coxeter::I(100).group()?;
+    let group = CoxeterMatrix::I(100)?.group()?;
 
     let generators = group.generators().to_vec();
 
