@@ -11,7 +11,6 @@ mod gen_seq;
 mod geometry;
 mod group;
 mod primitives;
-mod subgroup;
 
 use geometry::FactorGroupIsometries;
 use primitives::{
@@ -21,7 +20,7 @@ use primitives::{
 pub use action::GroupAction;
 pub use common::*;
 pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
-pub use coset::ConjugateCoset;
+pub use coset::Coset;
 pub use coxeter::{
     Coxeter, CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation,
 };
@@ -29,7 +28,6 @@ pub use errors::{GroupError, GroupResult};
 pub use gen_seq::*;
 pub use geometry::IsometryGroup;
 pub use group::Group;
-pub use subgroup::ProductSubgroup;
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.

@@ -29,8 +29,9 @@ pub(crate) fn orbit<E, G>(
 /// elements in the orbit, including `init`.
 ///
 /// `apply_generator` is called on every pair of an element and a generator,
-/// along with the index of element. It must return `Some(e * g)` if `e * g` has
-/// not yet been seen, or `None` if `e * g` has already been seen.
+/// along with the index of the element in discovery order (where `init` has
+/// index 0). It must return `Some(e * g)` if `e * g` has not yet been seen, or
+/// `None` if `e * g` has already been seen.
 pub(crate) fn orbit_collect<E, G>(
     init: E,
     generators: &[G],

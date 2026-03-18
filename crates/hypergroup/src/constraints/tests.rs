@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use hypermath::{Point, Vector, point};
 use hypuz_util::ti::TiVec;
 use itertools::Itertools;
@@ -8,7 +6,8 @@ use rand::{Rng, RngExt, SeedableRng};
 
 use super::*;
 use crate::{
-    Coxeter, GenSeq, GeneratorId, GroupAction, IsometryGroup, PerGenerator, orbit_geometric,
+    Coset, Coxeter, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup, PerGenerator,
+    orbit_geometric,
 };
 
 hypuz_util::typed_index_struct! {
@@ -44,9 +43,10 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
     #[expect(unused)]
     let PB = test_points.push(g2.transform(&test_points[PD]))?;
 
-    let mut solver = ConstraintSolver::new(Arc::new(group.action_on_points(&test_points)?));
-    let mut chiral_solver =
-        ConstraintSolver::new(Arc::new(chiral_group.action_on_points(&test_points)?));
+    let action = group.action_on_points(&test_points)?;
+    let mut solver = ConstraintSolver::new(action.clone());
+    let chiral_action = chiral_group.action_on_points(&test_points)?;
+    let mut chiral_solver = ConstraintSolver::new(chiral_action.clone());
 
     for (constraint_set, expected_order, expected_chiral_order) in [
         ([].as_slice(), 120, 60),
@@ -59,18 +59,21 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
         (&[[DR, U], [L, DL], [PR, BR]], 2, 1),
     ] {
         println!("Computing {constraint_set:?} ...");
+        let constraint_set = ConstraintSet::from(constraint_set);
 
         let t = std::time::Instant::now();
 
-        let coset = solver.solve(&constraint_set.into()).unwrap();
-        assert_eq!(coset.subgroup.element_count(), expected_order);
+        let coset = solver.solve(&constraint_set).unwrap();
+        assert_eq!(coset.element_count(), expected_order);
+        assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
-        let chiral_coset = chiral_solver.solve(&constraint_set.into()).unwrap();
-        assert_eq!(chiral_coset.subgroup.element_count(), expected_chiral_order);
+        let chiral_coset = chiral_solver.solve(&constraint_set).unwrap();
+        assert_eq!(chiral_coset.element_count(), expected_chiral_order);
+        assert_coset_satisfies_constraints(&chiral_action, &chiral_coset, &constraint_set);
 
         println!(
             "Computed {} constraints in {:?}",
-            constraint_set.len(),
+            constraint_set.constraints.len(),
             t.elapsed(),
         );
     }
@@ -86,7 +89,6 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
         solver
             .solve(&[[U, U], [L, R], [F, F]].into())
             .unwrap()
-            .subgroup
             .element_count(),
         1,
     );
@@ -124,10 +126,10 @@ fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
     let B = test_points.push(group[gen1].transform(&test_points[C]))?;
     let A = test_points.push(group[gen0].transform(&test_points[B]))?;
 
-    let mut solver = ConstraintSolver::new(Arc::new(group.action_on_points(&test_points)?));
-    let mut chiral_solver = ConstraintSolver::new(Arc::new(
-        chiral_group.action_on_points(&test_points).unwrap(),
-    ));
+    let action = group.action_on_points(&test_points)?;
+    let mut solver = ConstraintSolver::new(action.clone());
+    let chiral_action = chiral_group.action_on_points(&test_points)?;
+    let mut chiral_solver = ConstraintSolver::new(chiral_action.clone());
 
     for (constraint_set, expected_order, expected_chiral_order) in [
         ([].as_slice(), 120, 60),
@@ -136,18 +138,21 @@ fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
         (&[[A, C], [B, D], [D, E], [C, B], [E, A]], 1, 1),
     ] {
         println!("Computing {constraint_set:?} ...");
+        let constraint_set = constraint_set.into();
 
         let t = std::time::Instant::now();
 
-        let coset = solver.solve(&constraint_set.into()).unwrap();
-        assert_eq!(coset.subgroup.element_count(), expected_order);
+        let coset = solver.solve(&constraint_set).unwrap();
+        assert_eq!(coset.element_count(), expected_order);
+        assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
-        let chiral_coset = chiral_solver.solve(&constraint_set.into()).unwrap();
-        assert_eq!(chiral_coset.subgroup.element_count(), expected_chiral_order);
+        let chiral_coset = chiral_solver.solve(&constraint_set).unwrap();
+        assert_eq!(chiral_coset.element_count(), expected_chiral_order);
+        assert_coset_satisfies_constraints(&chiral_action, &chiral_coset, &constraint_set);
 
         println!(
             "Computed {} constraints in {:?}",
-            constraint_set.len(),
+            constraint_set.constraints.len(),
             t.elapsed(),
         );
     }
@@ -193,8 +198,8 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
 
     let selected_1;
     {
-        let action_1 = group_1.action_on_points(&test_points).unwrap();
-        let mut solver_1 = ConstraintSolver::new(Arc::new(action_1));
+        let action_1 = group_1.action_on_points(&test_points)?;
+        let mut solver_1 = ConstraintSolver::new(action_1.clone());
 
         selected_1 = (0..count)
             .map(|_| {
@@ -205,14 +210,17 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
                     })
                     .expect("no point satisfying constraints")
             })
-            .map(|(constraint_set, _elem)| constraint_set)
+            .map(|(constraint_set, elem)| {
+                assert_elem_satisfies_constraints(&action_1, elem, &constraint_set);
+                constraint_set
+            })
             .collect_vec();
     }
 
     let selected_2;
     {
-        let action_2 = group_2.action_on_points(&test_points).unwrap();
-        let mut solver_2 = ConstraintSolver::new(Arc::new(action_2));
+        let action_2 = group_2.action_on_points(&test_points)?;
+        let mut solver_2 = ConstraintSolver::new(action_2.clone());
 
         selected_2 = (0..count)
             .map(|_| {
@@ -223,7 +231,10 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
                     })
                     .expect("no point satisfying constraints")
             })
-            .map(|(constraint_set, _elem)| constraint_set)
+            .map(|(constraint_set, elem)| {
+                assert_elem_satisfies_constraints(&action_2, elem, &constraint_set);
+                constraint_set
+            })
             .collect_vec();
     }
 
@@ -279,37 +290,33 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
         p.0 += test_points_a.len() as u16 + test_points_b.len() as u16;
     }
 
-    let action = Arc::new(GroupAction::product(&[
+    let action = GroupAction::product(&[
         ga.action_on_points(&test_points_a)?,
         gb.action_on_points(&test_points_b)?,
         gc.action_on_points(&test_points_c)?,
-    ])?);
-    let mut solver = ConstraintSolver::new(action);
+    ])?;
+    let mut solver = ConstraintSolver::new(action.clone());
 
-    let coset = solver.solve(&ConstraintSet::from([])).unwrap();
-    assert_eq!(coset.subgroup.element_count(), 48 * 12 * 120);
+    let constraint_set = ConstraintSet::from([]);
+    let coset = solver.solve(&constraint_set).unwrap();
+    assert_eq!(coset.element_count(), 48 * 12 * 120);
+    assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
-    let coset = solver.solve(&ConstraintSet::from([[bA, bA]])).unwrap();
-    assert_eq!(coset.subgroup.element_count(), 48 * 2 * 120);
+    let constraint_set = ConstraintSet::from([[bA, bA]]);
+    let coset = solver.solve(&constraint_set).unwrap();
+    assert_eq!(coset.element_count(), 48 * 2 * 120);
+    assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
-    let coset = solver
-        .solve(&ConstraintSet::from([
-            [aF, aR],
-            [bC, bF],
-            [cA, cC],
-            [cB, cD],
-            [cD, cE],
-        ]))
-        .unwrap();
-    assert_eq!(coset.subgroup.element_count(), 8 * 2 * 2);
+    let constraint_set = ConstraintSet::from([[aF, aR], [bC, bF], [cA, cC], [cB, cD], [cD, cE]]);
+    let coset = solver.solve(&constraint_set).unwrap();
+    assert_eq!(coset.element_count(), 8 * 2 * 2);
+    assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
-    assert!(
-        solver
-            .solve(&ConstraintSet::from([[aF, aR], [aF, aF]]))
-            .is_none(),
-    );
+    let constraint_set = ConstraintSet::from([[aF, aR], [aF, aF]]);
+    assert!(solver.solve(&constraint_set).is_none());
 
-    assert!(solver.solve(&ConstraintSet::from([[bA, cA]])).is_none(),);
+    let constraint_set = ConstraintSet::from([[bA, cA]]);
+    assert!(solver.solve(&constraint_set).is_none());
 
     Ok(())
 }
@@ -329,4 +336,41 @@ fn shuffle_group_generators(group: &IsometryGroup, rng: &mut impl Rng) -> Isomet
         generators[i] = &generators[i] * &generators[j];
     }
     IsometryGroup::from_generators("", PerGenerator::from(generators)).unwrap()
+}
+
+#[track_caller]
+fn assert_coset_satisfies_constraints<P: TypedIndex>(
+    action: &GroupAction<P>,
+    coset: &Coset,
+    constraint_set: &ConstraintSet<P>,
+) {
+    let mut coset_elements = coset.elements();
+    assert_eq!(
+        coset.element_count(),
+        coset_elements.len(),
+        "coset lied about element count"
+    );
+
+    coset_elements.sort();
+    coset_elements.dedup();
+    assert_eq!(
+        coset.element_count(),
+        coset_elements.len(),
+        "coset contained duplicate elements"
+    );
+
+    for elem in coset.elements() {
+        assert_elem_satisfies_constraints(action, elem, constraint_set);
+    }
+}
+
+#[track_caller]
+fn assert_elem_satisfies_constraints<P: TypedIndex>(
+    action: &GroupAction<P>,
+    elem: GroupElementId,
+    constraint_set: &ConstraintSet<P>,
+) {
+    for Constraint { old, new } in constraint_set {
+        assert_eq!(new, action.act(elem, old), "coset violated constraint");
+    }
 }

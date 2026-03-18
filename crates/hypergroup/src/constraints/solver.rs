@@ -7,8 +7,8 @@ use smallvec::{SmallVec, smallvec};
 
 use super::SubgroupOrbits;
 use crate::{
-    AbstractGroupActionLut, AbstractGroupLut, AbstractSubgroup, ConjugateCoset, Constraint,
-    ConstraintSet, GroupAction, GroupElementId, PerFactorGroup, ProductSubgroup,
+    AbstractGroupActionLut, AbstractGroupLut, AbstractSubgroup, Constraint, ConstraintSet, Coset,
+    GroupAction, GroupElementId, PerFactorGroup,
 };
 
 hypuz_util::typed_index_struct! {
@@ -30,7 +30,7 @@ pub(crate) struct FactorGroupConjugateCoset {
     pub lhs: GroupElementId,
     /// Subgroup.
     pub subgroup: Arc<AbstractSubgroup>,
-    /// Element to multiple on the right of the subgroup.
+    /// Element to multiply on the right of the subgroup.
     pub rhs: GroupElementId,
 }
 
@@ -40,12 +40,12 @@ pub(crate) struct FactorGroupConjugateCoset {
 /// Intermediate results are cached, so solvers should be reused whenever
 /// possible.
 pub struct ConstraintSolver<P> {
-    action: Arc<GroupAction<P>>,
+    action: GroupAction<P>,
     solvers: PerFactorGroup<FactorGroupConstraintSolver<P>>,
 }
 
 impl<P: TypedIndex> ConstraintSolver<P> {
-    pub fn new(action: Arc<GroupAction<P>>) -> Self {
+    pub fn new(action: GroupAction<P>) -> Self {
         let solvers = action
             .factors()
             .map_ref(|_, factor| FactorGroupConstraintSolver::new(Arc::clone(factor)));
@@ -87,7 +87,9 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .collect()
     }
 
-    pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<ConjugateCoset> {
+    pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<Coset> {
+        let group = self.action.group();
+
         let constraint_set_for_each_factor = self.split_constraint_set(constraint_set)?;
 
         let conjugate_cosets = self
@@ -100,18 +102,42 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .action
             .group()
             .element_from_factors(conjugate_cosets.iter_values().map(|cc| cc.lhs));
-        let subgroup = Arc::new(ProductSubgroup::from_factors(
-            self.action.group().clone(),
-            conjugate_cosets
-                .iter_values()
-                .map(|cc| Arc::clone(&cc.subgroup)),
-        ));
+
         let rhs = self
             .action
             .group()
             .element_from_factors(conjugate_cosets.iter_values().map(|cc| cc.rhs));
 
-        Some(ConjugateCoset { lhs, subgroup, rhs })
+        #[cfg(debug_assertions)]
+        for Constraint { old, new } in constraint_set {
+            debug_assert_eq!(
+                new,
+                self.action.act(group.compose(lhs, rhs), old),
+                "coset does not satisfy constraints",
+            );
+        }
+
+        // This shouldn't overflow because it must be no larger than
+        // `overgroup.element_count`.
+        let subgroup_element_count = conjugate_cosets
+            .iter_values()
+            .map(|cc| cc.subgroup.element_count())
+            .product();
+
+        let subgroup_generators = conjugate_cosets.iter().flat_map(|(factor, cc)| {
+            cc.subgroup
+                .generators()
+                .iter()
+                .map(move |&g| group.element_from_factor(factor, g))
+        });
+
+        Some(Coset::from_conjugate_coset(
+            group.clone(),
+            subgroup_element_count,
+            lhs,
+            subgroup_generators,
+            rhs,
+        ))
     }
 
     pub fn select(

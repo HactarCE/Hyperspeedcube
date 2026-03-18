@@ -281,6 +281,26 @@ impl Group {
         GroupElementId((element.0 / group_stride) % group.element_count() as u32)
     }
 
+    /// Given an element in a factor group, returns the corresponding element in
+    /// the product group.
+    ///
+    /// This is an optimized equivalent to the following code:
+    ///
+    /// ```ignore
+    /// let mut factor_elements = self
+    ///     .direct_product_decomposition()
+    ///     .map_ref(|_, _| GroupElementId::IDENTITY);
+    /// factor_elements[factor] = element;
+    /// return group.element_from_factors(factor_elements.into_values())
+    /// ```
+    pub(crate) fn element_from_factor(
+        &self,
+        factor: FactorGroup,
+        element: GroupElementId,
+    ) -> GroupElementId {
+        GroupElementId(self.strides()[factor] * element.0)
+    }
+
     /// Decomposes `element` into a factor element for each factor group,
     /// modifies the factor element corresponding to `factor`, and then composes
     /// the element back together.
