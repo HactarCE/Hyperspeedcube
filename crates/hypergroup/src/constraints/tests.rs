@@ -1,7 +1,6 @@
 use hypermath::{Point, Vector, point};
 use hypuz_util::ti::TiVec;
 use itertools::Itertools;
-use rand::seq::IndexedRandom;
 use rand::{Rng, RngExt, SeedableRng};
 
 use super::*;
@@ -204,10 +203,7 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
         selected_1 = (0..count)
             .map(|_| {
                 solver_1
-                    .select(&ConstraintSet::EMPTY, |mut points| {
-                        points.sort(); // TODO: select_nth_unstable()
-                        points.choose(&mut select_rng_1).copied()
-                    })
+                    .select(&ConstraintSet::EMPTY, |n| select_rng_1.random_range(0..n))
                     .expect("no point satisfying constraints")
             })
             .map(|(constraint_set, elem)| {
@@ -225,10 +221,7 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
         selected_2 = (0..count)
             .map(|_| {
                 solver_2
-                    .select(&ConstraintSet::EMPTY, |mut points| {
-                        points.sort(); // TODO: select_nth_unstable()
-                        points.choose(&mut select_rng_2).copied()
-                    })
+                    .select(&ConstraintSet::EMPTY, |n| select_rng_2.random_range(0..n))
                     .expect("no point satisfying constraints")
             })
             .map(|(constraint_set, elem)| {

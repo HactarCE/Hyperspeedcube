@@ -80,14 +80,16 @@ impl<P: TypedIndex> GroupAction<P> {
         )
     }
 
+    /// Returns the abstract group.
     pub fn group(&self) -> &Group {
         &self.group
     }
 
-    pub fn factors(&self) -> &PerFactorGroup<Arc<AbstractGroupActionLut<P>>> {
+    pub(crate) fn factors(&self) -> &PerFactorGroup<Arc<AbstractGroupActionLut<P>>> {
         &self.inner.factors
     }
 
+    /// Returns an iterator over the points acted on by the group.
     pub fn points(&self) -> TypedIndexIter<P> {
         P::iter(self.inner.point_count)
     }
@@ -112,11 +114,12 @@ impl<P: TypedIndex> GroupAction<P> {
         ((i as usize) < self.factors()[factor].point_count()).then_some(P::try_from_index(i).ok()?)
     }
 
-    pub fn point_from_factor(&self, factor: FactorGroup, point: P) -> P {
+    pub(crate) fn point_from_factor(&self, factor: FactorGroup, point: P) -> P {
         P::try_from_index(point.to_index() + self.inner.point_index_offsets[factor])
             .expect("error offsetting point index")
     }
 
+    /// Applies an action to a point.
     pub fn act(&self, element: GroupElementId, point: P) -> P {
         let (factor, old_point_in_factor) = self.point_to_factor(point);
         let element_in_factor = self.group.project_element_to_factor(factor, element);

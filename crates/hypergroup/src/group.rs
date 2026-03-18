@@ -218,6 +218,7 @@ impl Group {
         ))])
     }
 
+    /// Returns a label for the group for debugging.
     pub fn label(&self) -> String {
         self.inner
             .factors

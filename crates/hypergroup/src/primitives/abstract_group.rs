@@ -23,8 +23,6 @@ pub(crate) struct AbstractGroupLut {
     pub(super) inverses: PerGroupElement<GroupElementId>,
     /// Result of multiplying each element by each generator.
     pub(super) successors: EggTable<GroupElementId>,
-    /// Result of multiplying each element by the inverse of each generator.
-    pub(super) predecessors: EggTable<GroupElementId>,
 }
 
 impl Default for AbstractGroupLut {
@@ -55,7 +53,6 @@ impl AbstractGroupLut {
 
             inverses: std::iter::once(GroupElementId(0)).collect(),
             successors: EggTable::new(0),
-            predecessors: EggTable::new(0),
         }
     }
 

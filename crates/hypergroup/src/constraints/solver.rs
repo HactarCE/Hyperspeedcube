@@ -45,6 +45,7 @@ pub struct ConstraintSolver<P> {
 }
 
 impl<P: TypedIndex> ConstraintSolver<P> {
+    /// Constructs a new constraint solver.
     pub fn new(action: GroupAction<P>) -> Self {
         let solvers = action
             .factors()
@@ -87,6 +88,8 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .collect()
     }
 
+    /// Returns the coset satisfying a set of constraints, or `None` if there is
+    /// no such coset.
     pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<Coset> {
         let group = self.action.group();
 
@@ -140,16 +143,21 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         ))
     }
 
+    /// Selects an random element deterministically and uniformly from the group
+    /// that satisfies a set of constraints.
+    ///
+    /// `random_index` must return a deterministic random integer in the range
+    /// `0..n`. The range will never be empty.
     pub fn select(
         &mut self,
         constraint_set: &ConstraintSet<P>,
-        mut select: impl FnMut(Vec<P>) -> Option<P>,
+        mut random_index: impl FnMut(usize) -> usize,
     ) -> Option<(ConstraintSet<P>, GroupElementId)> {
         let constraint_set_for_each_factor = self.split_constraint_set(&constraint_set)?;
 
         let outputs = std::iter::zip(&mut self.solvers, constraint_set_for_each_factor)
             .map(|((_, solver), (_, constraint_set_for_factor))| {
-                solver.select(constraint_set_for_factor, &mut select)
+                solver.select(constraint_set_for_factor, &mut random_index)
             })
             .collect::<Option<PerFactorGroup<_>>>()?;
 
@@ -310,12 +318,14 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
         })
     }
 
-    /// Selects a random group element deterministically given a deterministic
-    /// function for selecting a point from an **sorted** list.
+    /// Selects a random element deterministically and uniformly from the group.
+    ///
+    /// `random_index` must return a deterministic random integer in the range
+    /// `0..n`. The range will never be empty.
     pub fn select(
         &mut self,
         mut constraint_set: ConstraintSet<P>,
-        mut select: impl FnMut(Vec<P>) -> Option<P>,
+        mut random_index: impl FnMut(usize) -> usize,
     ) -> Option<(ConstraintSet<P>, GroupElementId)> {
         let mut coset = self.solve_coset_impl(&constraint_set)?;
 
@@ -325,16 +335,19 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             let canonical_largest_orbit =
                 &self.subgroup_orbits[coset.subgroup].canonical_largest_orbit;
             assert!(canonical_largest_orbit.len() > 1);
+
             let source_candidates = canonical_largest_orbit
                 .iter()
-                .map(|&p| self.action.act(rhs_inv, p))
-                .collect_vec();
-            let destination_candidates = canonical_largest_orbit
+                .map(|&p| self.action.act(rhs_inv, p));
+            let source = source_candidates.min()?;
+
+            let mut destination_candidates = canonical_largest_orbit
                 .iter()
                 .map(|&p| self.action.act(lhs, p))
                 .collect_vec();
-            let source = select(source_candidates)?;
-            let destination = select(destination_candidates)?;
+            let random_index = random_index(destination_candidates.len());
+            let (_, &mut destination, _) = destination_candidates.select_nth_unstable(random_index);
+
             let new_constraint = Constraint {
                 old: source,
                 new: destination,

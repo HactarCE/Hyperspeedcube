@@ -93,12 +93,6 @@ impl AbstractSubgroup {
         self.element_count
     }
 
-    /// Returns a mask indicating the subset of elements in the subgroup from
-    /// the overgroup.
-    pub fn elements(&self) -> &TiMask<GroupElementId> {
-        &self.element_subset
-    }
-
     /// Returns whether `element` is in the subgroup.
     pub fn contains(&self, element: GroupElementId) -> bool {
         self.element_subset.contains(element)

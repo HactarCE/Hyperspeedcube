@@ -38,19 +38,6 @@ impl AbstractGroupLutBuilder {
         })
     }
 
-    /// Returns the composition of `element * generator`, adding a new element
-    /// to the group (by calling [`GroupBuilder::add_successor()`]) if it is
-    /// unknown.
-    pub fn get_or_add_successor(
-        &mut self,
-        element: GroupElementId,
-        generator: GeneratorId,
-    ) -> GroupResult<GroupElementId> {
-        match self.successor(element, generator) {
-            Some(existing_element) => Ok(existing_element),
-            None => self.add_successor(element, generator),
-        }
-    }
     /// Adds a new element and sets the composition of `element * generator` to
     /// that new element using [`GroupBuilder::set_successor()`]. Also sets the
     /// predecessor of the new element.
@@ -159,7 +146,6 @@ impl AbstractGroupLutBuilder {
             factorizations: self.factorizations,
             inverses,
             successors,
-            predecessors,
         })
     }
 }
