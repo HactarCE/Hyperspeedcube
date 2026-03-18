@@ -7,15 +7,15 @@ use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
 
 use super::{
-    AbstractGroup, GeneratorId, Group, GroupAction, GroupBuilder, GroupElementId, GroupError,
+    AbstractGroupLut, AbstractGroupLutBuilder, GeneratorId, GroupElementId, GroupError,
     GroupResult, PerGenerator, PerGroupElement, PerRefPoint, RefPoint,
 };
 
 /// Discrete subgroup of the [isometry group](https://w.wiki/7QFZ) of a space.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IsometryGroup {
     /// Underlying group structure.
-    group: Arc<AbstractGroup>,
+    group: Arc<AbstractGroupLut>,
     /// Elements of the group, indexed by ID.
     elements: PerGroupElement<pga::Motor>,
     /// Nearest neighbors data structure.
@@ -28,8 +28,8 @@ impl Default for IsometryGroup {
     }
 }
 
-impl AsRef<AbstractGroup> for IsometryGroup {
-    fn as_ref(&self) -> &AbstractGroup {
+impl AsRef<AbstractGroupLut> for IsometryGroup {
+    fn as_ref(&self) -> &AbstractGroupLut {
         &self.group
     }
 }
@@ -55,7 +55,7 @@ impl IsometryGroup {
     pub fn from_generators(generators: &[pga::Motor]) -> GroupResult<Self> {
         let generator_count = generators.len();
 
-        let mut g = GroupBuilder::new(generator_count)?;
+        let mut g = AbstractGroupLutBuilder::new(generator_count)?;
 
         let ndim = generators.iter().map(|g| g.ndim()).max().unwrap_or(2);
 
@@ -184,10 +184,10 @@ impl IsometryGroup {
     pub fn action_on_points(
         &self,
         points: &PerRefPoint<Point>,
-    ) -> Result<GroupAction, PartialGroupAction> {
+    ) -> Result<OldGroupAction, PartialGroupAction> {
         let geom_to_ref_point =
             ApproxHashMap::from_iter(APPROX, points.iter().map(|(i, p)| (p.clone(), i)));
-        Ok(GroupAction {
+        Ok(OldGroupAction {
             group: Arc::clone(&self.group),
             reference_point_count: points.len(),
             action_table: self.generators().try_map_ref(|g, &e| {

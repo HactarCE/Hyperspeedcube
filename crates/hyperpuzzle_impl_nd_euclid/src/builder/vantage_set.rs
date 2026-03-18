@@ -302,7 +302,7 @@ fn try_element_from_motor(
 fn try_motor_from_element<'a>(
     group: &'a NdEuclidVantageGroup,
     element: &BoxDynVantageGroupElement,
-) -> Result<&'a pga::Motor> {
+) -> Result<pga::Motor> {
     Ok(group.group_element_motor(
         *element
             .downcast_ref()

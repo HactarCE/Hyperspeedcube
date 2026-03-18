@@ -1,77 +1,70 @@
 //! Data structures and algorithms for finite groups, specifically Coxeter
 //! groups.
 
-mod abstract_group;
 mod action;
 mod common;
 mod constraints;
-mod coxeter_group;
-mod factorization;
-mod finite_coxeter_group;
-mod isometry_group;
-mod product_action;
-mod product_constraints;
-mod product_group;
-mod product_subgroup;
+mod coset;
+mod coxeter;
+mod errors;
+mod gen_seq;
+mod geometry;
+mod group;
+mod primitives;
 mod subgroup;
 
-pub use abstract_group::{AbstractGroup, Group, GroupBuilder};
-use action::SubgroupOrbits;
-pub use action::{GroupAction, PerRefPoint, RefPoint};
+use geometry::FactorGroupIsometries;
+use primitives::{
+    AbstractGroupActionLut, AbstractGroupLut, AbstractGroupLutBuilder, AbstractSubgroup, EggTable,
+};
+
+pub use action::GroupAction;
 pub use common::*;
-pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
-pub use coxeter_group::*;
-pub use factorization::{Factorization, FactorizationIntoIter};
-pub use finite_coxeter_group::FiniteCoxeterGroup;
-pub use isometry_group::IsometryGroup;
-pub use product_action::ProductGroupAction;
-pub use product_constraints::ProductConstraintSolver;
-pub use product_group::ProductGroup;
-use product_group::{FactorGroup, PerFactorGroup};
-pub use product_subgroup::ProductSubgroup;
-pub use subgroup::{ConjugateCoset, Subgroup};
+pub use constraints::{Constraint, ConstraintSet};
+pub use coset::ConjugateCoset;
+pub use coxeter::{
+    Coxeter, CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation,
+};
+pub use errors::{GroupError, GroupResult};
+pub use gen_seq::*;
+pub use geometry::IsometryGroup;
+pub use group::Group;
+pub use subgroup::ProductSubgroup;
 
-/// Parses a single character of a vector in limited Dynkin notation, where `o`
-/// represents `0` and `x` represents `1`. Returns `None` for all other
-/// characters.
-///
-/// Source: <https://bendwavy.org/klitzing/explain/dynkin-notation.htm>
-pub fn dynkin_char(c: char) -> Option<hypermath::Float> {
-    match c {
-        'o' => Some(0.0),
-        'x' => Some(1.0),
-        // Other characters exist, but we don't have a use for them yet.
-        // 'q' => Some(std::f64::consts::SQRT_2),
-        // 'f' => Some((5.0_f64.sqrt() + 1.0) * 0.5), // phi
-        // 'u' => Some(2.0),
-        _ => None,
-    }
+hypuz_util::typed_index_struct! {
+    /// ID of a group generator.
+    ///
+    /// These have no correlation with group element IDs.
+    pub struct GeneratorId(pub u8);
+    /// ID of a group element.
+    ///
+    /// `GroupElementId(0)` is always the [identity element].
+    ///
+    /// [identity element]: https://en.wikipedia.org/wiki/Identity_element
+    pub struct GroupElementId(pub u32);
+    /// ID of a reference point acted on by a group.
+    ///
+    /// See [`crate::GroupAction`].
+    pub struct RefPoint(pub u16);
+
+    /// Factor group that makes up a [`crate::Group`].
+    pub(crate) struct FactorGroup(u8);
 }
 
-/// Parses a vector in Dynkin notation. For example, `oox` represents `[0, 0,
-/// 1]`.
-pub fn parse_dynkin_notation(
-    ndim: u8,
-    s: &str,
-) -> Result<hypermath::Vector, DynkinNotationError<'_>> {
-    if s.len() != ndim as usize {
-        return Err(DynkinNotationError::BadLength {
-            ndim,
-            len: s.len(),
-            s,
-        });
-    }
-    s.chars()
-        .map(|c| dynkin_char(c).ok_or(DynkinNotationError::BadChar(c)))
-        .collect()
+impl GroupElementId {
+    /// Identity element in any group.
+    pub const IDENTITY: GroupElementId = GroupElementId(0);
 }
 
-/// Error emitted by [`parse_dynkin_notation()`].
-#[expect(missing_docs)]
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum DynkinNotationError<'a> {
-    #[error("group has ndim {ndim} but string {s:?} has length {len}")]
-    BadLength { ndim: u8, len: usize, s: &'a str },
-    #[error("invalid character {0:?} for coxeter vector. supported characters: [o, x, q, f, u]")]
-    BadChar(char),
-}
+/// List containing a value per group generator.
+pub type PerGenerator<T> = hypuz_util::ti::TiVec<GeneratorId, T>;
+/// List containing a value per group element.
+pub type PerGroupElement<T> = hypuz_util::ti::TiVec<GroupElementId, T>;
+/// List containing a value per reference point.
+pub type PerRefPoint<T> = hypuz_util::ti::TiVec<RefPoint, T>;
+
+/// List containing a value per factor group.
+pub(crate) type PerFactorGroup<T> = hypuz_util::ti::TiVec<FactorGroup, T>;
+
+#[cfg(test)]
+mod tests;

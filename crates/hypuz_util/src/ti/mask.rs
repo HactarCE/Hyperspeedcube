@@ -126,6 +126,10 @@ impl<I: TypedIndex> TiMask<I> {
     pub fn remove(&mut self, element: I) {
         self.bits.set(element.to_index(), false);
     }
+    /// Removes all elements from the set.
+    pub fn clear(&mut self) {
+        self.bits.fill(false);
+    }
 
     /// Removes the first element from the set and returns it, if any. The first
     /// element is always the minimum element in the set.

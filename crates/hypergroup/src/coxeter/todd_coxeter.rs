@@ -1,190 +1,103 @@
-//! Data structures and algorithms for finite groups, specifically Coxeter
-//! groups.
+//! Implementation of the [Todd-Coxeter algorithm][algorithm].
+//!
+//! [algorithm]: https://en.wikipedia.org/wiki/Todd%E2%80%93Coxeter_algorithm
+//!
+//! This is a special-cased implementation of the Todd-Coxeter algorithm that
+//! simply enumerates the elements of the group rather than enumerating cosets.
+//!
+//! # Implementation
+//!
+//! I first understood this algorithm by reading ["Building 4D Polytopes" by
+//! Mikael Hvidtfeldt Christensen][building 4d polytopes]. (Search for the word "demo" in that
+//! page.)
+//!
+//! [building 4d polytopes]: https://syntopia.github.io/Polytopia/polytopes.html
+//!
+//! Even after implementing this algorithm, I don't really know what they mean
+//! by the "subgroup table," but the leftmost one in that demo is the coset
+//! table (which we'll call the "successor table") and the others we'll call
+//! "relation tables."
+//!
+//! We don't actually need to keep track of the whole relation tables -- just
+//! the elements to the left and right of the gap in each row. Also, we don't
+//! care which table the row comes from; just its header and contents.
+//!
+//! See [`RelationTables`] for more info about how that's structured and why.
 
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
-use hypermath::prelude::*;
 use hypuz_util::ti::TypedIndex;
 
-use super::{
-    AbstractGroup, CoxeterGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult,
+use crate::{
+    AbstractGroupLut, AbstractGroupLutBuilder, CoxeterMatrix, EggTable, GeneratorId,
+    GroupElementId, GroupResult,
 };
 
-/// [Finite Coxeter group](https://w.wiki/7PLd).
-///
-/// See also: [Coxeter-Dynkin diagram](https://w.wiki/7PLe)
-#[expect(missing_docs)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum FiniteCoxeterGroup {
-    A(u8),
-    B(u8),
-    D(u8),
-    E6,
-    E7,
-    E8,
-    F4,
-    G2,
-    H2,
-    H3,
-    H4,
-    I(u8), // Unless someone wants 256-agons, `u8` is enough.
-}
-impl FiniteCoxeterGroup {
-    /// Returns the minimum number of generators for the group.
-    pub fn generator_count(self) -> u8 {
-        match self {
-            FiniteCoxeterGroup::A(n) => n,
-            FiniteCoxeterGroup::B(n) => n,
-            FiniteCoxeterGroup::D(n) => n,
-            FiniteCoxeterGroup::E6 => 6,
-            FiniteCoxeterGroup::E7 => 7,
-            FiniteCoxeterGroup::E8 => 8,
-            FiniteCoxeterGroup::F4 => 4,
-            FiniteCoxeterGroup::G2 => 2,
-            FiniteCoxeterGroup::H2 => 2,
-            FiniteCoxeterGroup::H3 => 3,
-            FiniteCoxeterGroup::H4 => 4,
-            FiniteCoxeterGroup::I(_) => 2,
+// TODO: support relations using techniques from https://github.com/Sonicpineapple/Discrete/blob/master/src/todd_coxeter.rs
+
+pub fn construct_group(
+    name: impl Into<Cow<'static, str>>,
+    coxeter_matrix: &CoxeterMatrix,
+) -> GroupResult<AbstractGroupLut> {
+    let n = coxeter_matrix.mirror_count() as usize;
+    let mut g = AbstractGroupLutBuilder::new(name, n)?;
+
+    let mut relation_table_headers = vec![];
+    // Set up a relation table for each possible pair of generators.
+    for (j, b) in GeneratorId::iter(n).enumerate() {
+        for (i, a) in GeneratorId::iter(j).enumerate() {
+            let ab_order = coxeter_matrix.entries()[i][j];
+            relation_table_headers.push(RelationTableHeader { a, b, ab_order });
         }
     }
-    /// Returns an element of the group's [Coxeter matrix](https://w.wiki/7SNw).
-    pub fn coxeter_matrix_element(self, mut i: u8, mut j: u8) -> u8 {
-        // Ensure i<j
-        if j < i {
-            std::mem::swap(&mut i, &mut j);
-        }
+    // Add a row with the identity for each possible pair of generators.
+    let mut relation_tables = RelationTables::new(n);
+    for h in &relation_table_headers {
+        relation_tables.add_row(h.new_row(GroupElementId::IDENTITY));
+    }
 
-        let n = self.generator_count();
-        if j >= n {
-            panic!("index out of range");
-        }
+    let mut element_id = 0;
 
-        // The diagonals of the matrix are always 1
-        if i == j {
-            return 1;
-        }
+    while element_id < g.element_count() {
+        let element = GroupElementId::try_from_index(element_id)?;
 
-        match self {
-            // Linear diagrams
-            FiniteCoxeterGroup::A(_) if j == 1 => 3, // (i, j) = (0, 1)
-            FiniteCoxeterGroup::B(_) if j == 1 => 4, // (i, j) = (0, 1)
-            FiniteCoxeterGroup::H2 | FiniteCoxeterGroup::H3 | FiniteCoxeterGroup::H4 if j == 1 => 5, /* (i, j) = (0, 1) */
-
-            // Branched diagrams
-            FiniteCoxeterGroup::D(_) if i == 0 && j == 2 => 3,
-            FiniteCoxeterGroup::E6 | FiniteCoxeterGroup::E7 | FiniteCoxeterGroup::E8
-                if i == 0 && j == 3 =>
-            {
-                3
+        for generator in GeneratorId::iter(n) {
+            // If we already know the result of `element * generator` then
+            // skip this iteration.
+            if g.successor(element, generator).is_some() {
+                continue;
             }
 
-            // F4 (unique)
-            FiniteCoxeterGroup::F4 if j == 1 => 3, // (i, j) = (0, 1)
-            FiniteCoxeterGroup::F4 if i == 1 && j == 2 => 4,
+            // We've discovered a new element!
+            let new_element = g.add_successor(element, generator)?;
+            g.set_successor(new_element, generator, element); // Generators are self-inverse.
 
-            // 2D diagrams
-            FiniteCoxeterGroup::G2 => 6,
-            FiniteCoxeterGroup::I(n) => n,
-
-            _ if i > 0 && i + 1 == j => 3,
-            _ => 2, // no edge
-        }
-    }
-    /// Returns the group's [Coxeter matrix](https://w.wiki/7SNw).
-    pub fn coxeter_matrix(self) -> Matrix {
-        Matrix::from_fn(self.generator_count(), |i, j| {
-            self.coxeter_matrix_element(i, j) as f64
-        })
-    }
-    /// Returns the corresponding [`CoxeterGroup`]
-    pub fn coxeter_group(self, basis: Option<Vec<Vector>>) -> GroupResult<CoxeterGroup> {
-        CoxeterGroup::from_matrix_index_fn(
-            self.generator_count(),
-            |i, j| self.coxeter_matrix_element(i, j) as _,
-            basis,
-        )
-    }
-
-    /// Constructs the full group structure using an _O(n)_ algorithm, where _n_
-    /// is order of the group.
-    pub fn group(self) -> GroupResult<AbstractGroup> {
-        // I first understood this algorithm using the interactive demo on this
-        // page: https://syntopia.github.io/Polytopia/polytopes.html (search for
-        // the word "demo")
-        //
-        // Even after implementing this algorithm, I don't really know what they
-        // mean by the "subgroup table," but the leftmost one in that demo is
-        // the coset table (which we'll call the "successor table") and the
-        // others we'll call "relation tables."
-        //
-        // We don't actually need to keep track of the whole relation tables --
-        // just the elements to the left and right of the gap in each row. Also,
-        // we don't care which table the row comes from; just its header and
-        // contents.
-        //
-        // See [`RelationTables`] for more info about how that's structured and
-        // why.
-
-        let n = self.generator_count() as usize;
-        let mut g = GroupBuilder::new(n)?;
-
-        let mut relation_table_headers = vec![];
-        // Set up a relation table for each possible pair of generators.
-        for (j, b) in GeneratorId::iter(n).enumerate() {
-            for (i, a) in GeneratorId::iter(j).enumerate() {
-                let ab_order = self.coxeter_matrix_element(i as u8, j as u8);
-                relation_table_headers.push(RelationTableHeader { a, b, ab_order });
-            }
-        }
-        // Add a row with the identity for each possible pair of generators.
-        let mut relation_tables = RelationTables::new(n);
-        for h in &relation_table_headers {
-            relation_tables.add_row(h.new_row(GroupElementId::IDENTITY));
-        }
-
-        let mut element_id = 0;
-
-        while element_id < g.element_count() {
-            let element = GroupElementId::try_from_index(element_id)?;
-
-            for generator in GeneratorId::iter(n) {
-                // If we already know the result of `element * generator` then
-                // skip this iteration.
-                if g.successor(element, generator).is_some() {
-                    continue;
-                }
-
-                // We've discovered a new element!
-                let new_element = g.add_successor(element, generator)?;
-                g.set_successor(new_element, generator, element); // Generators are self-inverse.
-
-                // Add a row to the relation tables for each possible pair of
-                // generators.
-                relation_tables.add_element()?;
-                for h in &relation_table_headers {
-                    relation_tables.add_row(h.new_row(new_element));
-                }
-
-                let mut facts = vec![SuccessorRelation {
-                    element,
-                    generator,
-                    result: new_element,
-                }];
-                // Continue updating tables until there are no more new facts.
-                while let Some(fact) = facts.pop() {
-                    let new_facts = relation_tables.update_with_fact(fact, &mut g);
-                    facts.extend(new_facts);
-                }
+            // Add a row to the relation tables for each possible pair of
+            // generators.
+            relation_tables.add_element()?;
+            for h in &relation_table_headers {
+                relation_tables.add_row(h.new_row(new_element));
             }
 
-            element_id += 1;
+            let mut facts = vec![SuccessorRelation {
+                element,
+                generator,
+                result: new_element,
+            }];
+            // Continue updating tables until there are no more new facts.
+            while let Some(fact) = facts.pop() {
+                let new_facts = relation_tables.update_with_fact(fact, &mut g);
+                facts.extend(new_facts);
+            }
         }
 
-        g.build()
+        element_id += 1;
     }
+
+    g.build()
 }
 
-/// See the comment at the start of [`CoxeterGroup::group()`] for an explanation
+/// See the comment at the start of [`FiniteCoxeterGroup::group()`] for an explanation
 /// of the role this structure takes in the Todd-Coxeter algorithm.
 ///
 /// The most important thing about each row is the element+generator composition
@@ -246,7 +159,7 @@ impl RelationTables {
     fn update_with_fact(
         &mut self,
         fact: SuccessorRelation,
-        g: &mut GroupBuilder,
+        g: &mut AbstractGroupLutBuilder,
     ) -> Vec<SuccessorRelation> {
         let mut new_successor_relations = vec![];
 
@@ -289,7 +202,7 @@ impl RelationTables {
 struct RelationTableHeader {
     a: GeneratorId,
     b: GeneratorId,
-    ab_order: u8,
+    ab_order: u16,
 }
 
 impl fmt::Display for RelationTableHeader {
@@ -323,9 +236,9 @@ struct RelationTableRow {
     generator_pair: [GeneratorId; 2],
 
     /// Column of the element on the left side of the gap.
-    left_index: u8,
+    left_index: u16,
     /// Column of the element on the right side of the gap.
-    right_index: u8,
+    right_index: u16,
     /// Element on the left side of the gap.
     left_element: GroupElementId,
     /// Element on the right side of the gap.
@@ -344,7 +257,7 @@ impl fmt::Display for RelationTableRow {
 
 impl RelationTableRow {
     /// Returns the generator for a given column in the table.
-    fn generator(self, index: u8) -> GeneratorId {
+    fn generator(self, index: u16) -> GeneratorId {
         self.generator_pair[index as usize & 1]
     }
     /// Returns the generator for the column at the left side of the gap.
@@ -359,7 +272,7 @@ impl RelationTableRow {
     /// Fills in as much of the row as possible. This method returns `Ok` if the
     /// row has been completely filled and thus can be discarded; it returns
     /// `Err` if the row is incomplete, and therefore must be kept.
-    fn fill(mut self, g: &GroupBuilder) -> Result<SuccessorRelation, Self> {
+    fn fill(mut self, g: &AbstractGroupLutBuilder) -> Result<SuccessorRelation, Self> {
         while self.left_index < self.right_index {
             if let Some(pred) = g.predecessor(self.right_element, self.right_generator()) {
                 self.right_index -= 1;
@@ -409,40 +322,5 @@ impl SuccessorRelation {
     fn inverse(mut self) -> Self {
         std::mem::swap(&mut self.element, &mut self.result);
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::super::Group;
-    use super::*;
-
-    #[test]
-    fn test_todd_coxeter_algorithm() {
-        #[track_caller]
-        fn assert_group_order(g: FiniteCoxeterGroup, expected_order: usize) {
-            assert_eq!(g.group().unwrap().element_count(), expected_order);
-        }
-
-        assert_group_order(FiniteCoxeterGroup::A(1), 2);
-        assert_group_order(FiniteCoxeterGroup::A(2), 6);
-        assert_group_order(FiniteCoxeterGroup::A(3), 24);
-        assert_group_order(FiniteCoxeterGroup::A(4), 120);
-        assert_group_order(FiniteCoxeterGroup::A(5), 720);
-
-        assert_group_order(FiniteCoxeterGroup::B(2), 8);
-        assert_group_order(FiniteCoxeterGroup::B(3), 48);
-        assert_group_order(FiniteCoxeterGroup::B(4), 384);
-        // assert_group_order(CoxeterGroup::B(5), 3840); // 5D hypercube
-
-        assert_group_order(FiniteCoxeterGroup::D(4), 192);
-        assert_group_order(FiniteCoxeterGroup::D(5), 1920);
-
-        assert_group_order(FiniteCoxeterGroup::F4, 1152);
-
-        assert_group_order(FiniteCoxeterGroup::G2, 12);
-
-        assert_group_order(FiniteCoxeterGroup::H2, 10);
-        assert_group_order(FiniteCoxeterGroup::H3, 120);
     }
 }

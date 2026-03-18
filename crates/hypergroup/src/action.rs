@@ -1,168 +1,126 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
-use hypuz_util::ti::{TiMask, TiVec, TypedIndex, TypedIndexIter};
+use hypuz_util::ti::{TypedIndex, TypedIndexIter};
 
-use super::{AbstractGroup, Group, GroupElementId, PerGenerator, Subgroup};
+use super::*;
 
-hypuz_util::typed_index_struct! {
-    /// Reference point acted on by a group.
-    ///
-    /// See [`GroupAction`].
-    pub struct RefPoint(pub(super) u16);
-}
-
-/// List containing a value per reference point.
-pub type PerRefPoint<T> = TiVec<RefPoint, T>;
-
-/// Group with an associated [action] on a set of [`Point`]s ("reference
-/// points"), each assigned a [`RefPoint`] ID.
+/// Group action of a product group acting on a the disjoint union of reference
+/// points.
 ///
-/// [action]: https://en.wikipedia.org/wiki/Group_action
+/// This type is reference-counted and thus cheap to clone.
+#[derive(Clone)]
 pub struct GroupAction {
-    pub(super) group: Arc<AbstractGroup>,
-
-    /// Number of reference points.
-    pub(super) reference_point_count: usize,
-
-    /// Table containing the result of applying each generator to each reference
-    /// point.
-    pub(super) action_table: PerGenerator<PerRefPoint<RefPoint>>,
+    /// Product group that acts on the points.
+    group: Group,
+    inner: Arc<GroupActionInner>,
 }
 
-impl AsRef<AbstractGroup> for GroupAction {
-    fn as_ref(&self) -> &AbstractGroup {
-        &self.group
+struct GroupActionInner {
+    /// Number of reference points that the product group acts on.
+    ref_point_count: usize,
+    /// Factor group actions.
+    factors: PerFactorGroup<Arc<AbstractGroupActionLut>>,
+    /// For each factor group: how much to add to its [`RefPoint`]s to get the
+    /// corresponding [`RefPoint`]s in the product group.
+    ref_point_offsets: PerFactorGroup<u16>,
+}
+
+impl fmt::Debug for GroupAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GroupAction")
+            .field("ref_point_count", &self.inner.ref_point_count)
+            .field("group", &self.group)
+            .finish_non_exhaustive()
     }
 }
 
 impl GroupAction {
-    /// Returns an iterator over the reference points.
+    pub(crate) fn from_factors(
+        factors: impl IntoIterator<Item = Arc<AbstractGroupActionLut>>,
+    ) -> GroupResult<Self> {
+        let factors: PerFactorGroup<Arc<AbstractGroupActionLut>> = factors.into_iter().collect();
+
+        let group = Group::from_factors(
+            factors
+                .iter_values()
+                .map(|action| Arc::clone(action.group())),
+        )?;
+
+        let ref_point_count = factors
+            .iter_values()
+            .map(|action| action.ref_points().len())
+            .sum();
+
+        let ref_point_offsets: PerFactorGroup<u16> = factors
+            .iter_values()
+            .scan(0, |offset, action| {
+                let this_offset = *offset;
+                *offset += action.ref_point_count() as u16;
+                Some(this_offset)
+            })
+            .collect();
+
+        Ok(Self {
+            group,
+            inner: Arc::new(GroupActionInner {
+                ref_point_count,
+                factors,
+                ref_point_offsets,
+            }),
+        })
+    }
+
+    /// Constructs a group action from a [direct product].
+    ///
+    /// [direct product]: https://en.wikipedia.org/wiki/Direct_product_of_groups
+    pub fn product<'a>(factors: impl IntoIterator<Item = &'a Self>) -> GroupResult<Self> {
+        Self::from_factors(
+            factors
+                .into_iter()
+                .flat_map(|factor| factor.inner.factors.iter_values().cloned()),
+        )
+    }
+
+    pub fn group(&self) -> &Group {
+        &self.group
+    }
+
+    pub fn factors(&self) -> &PerFactorGroup<Arc<AbstractGroupActionLut>> {
+        &self.inner.factors
+    }
+
     pub fn ref_points(&self) -> TypedIndexIter<RefPoint> {
-        RefPoint::iter(self.reference_point_count)
+        RefPoint::iter(self.inner.ref_point_count)
     }
 
-    /// Applies the action of a group element to a reference point.
+    pub(crate) fn ref_point_to_factor(&self, point: RefPoint) -> (FactorGroup, RefPoint) {
+        let (factor, &offset) = self
+            .inner
+            .ref_point_offsets
+            .iter()
+            .rfind(|&(_, &offset)| offset <= point.0)
+            .expect("reference point index out of range");
+        (factor, RefPoint(point.0 - offset))
+    }
+
+    pub(crate) fn try_ref_point_to_factor(
+        &self,
+        factor: FactorGroup,
+        point: RefPoint,
+    ) -> Option<RefPoint> {
+        let i = point.0.checked_sub(self.inner.ref_point_offsets[factor])?;
+        ((i as usize) < self.factors()[factor].ref_point_count()).then_some(RefPoint(i))
+    }
+
+    pub fn ref_point_from_factor(&self, factor: FactorGroup, point: RefPoint) -> RefPoint {
+        RefPoint(point.0 + self.inner.ref_point_offsets[factor])
+    }
+
     pub fn act(&self, element: GroupElementId, point: RefPoint) -> RefPoint {
-        self.factorization(element)
-            .into_iter()
-            .rfold(point, |p, g| self.action_table[g][p])
+        let (factor, old_point_in_factor) = self.ref_point_to_factor(point);
+        let element_in_factor = self.group.project_element_to_factor(factor, element);
+        let new_point_in_factor =
+            self.factors()[factor].act(element_in_factor, old_point_in_factor);
+        RefPoint(new_point_in_factor.0 + self.inner.ref_point_offsets[factor])
     }
-
-    /// Returns the pointwise stabilizer of the given points.
-    ///
-    /// The pointwise stabilizer is the subgroup containing all elements that
-    /// keep every point in `fixed_points` fixed.
-    ///
-    /// In general, this algorithm may take O(_nm_) time (where _n_ is the order
-    /// of the group and _m_ is the number of fixed points).
-    pub(super) fn pointwise_stabilizer(&self, fixed_points: &[RefPoint]) -> Subgroup {
-        if fixed_points.is_empty() {
-            return Subgroup::new_total(Arc::clone(&self.group)); // optimization
-        }
-
-        let mut subgroup = Subgroup::new_trivial(Arc::clone(&self.group));
-        let mut generators = vec![];
-        for e in self.group.elements().skip(1) {
-            if !subgroup.elements().contains(e) {
-                let preserves_fixed_points = fixed_points
-                    .iter()
-                    .all(|&ref_point| self.act(e, ref_point) == ref_point);
-                if preserves_fixed_points {
-                    generators.push(e);
-                    // The final subgroup generation takes longer than all
-                    // smaller subgroups combined because each subgroup is at
-                    // least 2x larger than the one before it.
-                    subgroup = Subgroup::new(Arc::clone(&self.group), generators.clone());
-                    continue;
-                }
-            }
-        }
-
-        subgroup
-    }
-
-    /// Returns the orbits of the reference points under a group action. See
-    /// [`SubgroupOrbits`].
-    pub(super) fn orbits(&self, subgroup: &Subgroup) -> SubgroupOrbits {
-        // Compute deorbiters.
-        let mut deorbiters = PerRefPoint::from_iter(self.ref_points().map(|p| RefPointDeorbiter {
-            orbit_representative: p,
-            deorbiter: GroupElementId::IDENTITY,
-        }));
-        let mut points_seen = TiMask::new_empty(self.reference_point_count);
-        for init in self.ref_points() {
-            if !points_seen.contains(init) {
-                points_seen.insert(init); // representative is self, deorbiter is identity
-                super::orbit(init, subgroup.generating_set(), |&point, &g| {
-                    let new_point = self.act(g, point);
-                    (!points_seen.contains(new_point)).then(|| {
-                        points_seen.insert(new_point);
-                        deorbiters[new_point] = RefPointDeorbiter {
-                            orbit_representative: init,
-                            deorbiter: self.compose(deorbiters[point].deorbiter, self.inverse(g)),
-                        };
-                        new_point
-                    })
-                });
-            }
-        }
-
-        #[cfg(debug_assertions)]
-        for (point, &d) in &deorbiters {
-            assert_eq!(self.act(d.deorbiter, point), d.orbit_representative);
-        }
-
-        // Select canonical largest orbit.
-        // IIFE to mimic try_block
-        let canonical_largest_orbit = (|| {
-            let mut orbit_sizes: HashMap<RefPoint, usize> = HashMap::new();
-            for d in deorbiters.iter_values() {
-                *orbit_sizes.entry(d.orbit_representative).or_default() += 1;
-            }
-            let size_of_largest_orbit = *orbit_sizes.values().max()?;
-            if size_of_largest_orbit <= 1 {
-                return None;
-            }
-            let canonical_representative = deorbiters
-                .find(|_, d| orbit_sizes[&d.orbit_representative] == size_of_largest_orbit)?;
-            let noncanonical_representative =
-                deorbiters[canonical_representative].orbit_representative;
-            Some(
-                deorbiters
-                    .iter_filter(|_, d| d.orbit_representative == noncanonical_representative)
-                    .collect(),
-            )
-        })()
-        .unwrap_or(vec![]);
-
-        SubgroupOrbits {
-            deorbiters,
-            canonical_largest_orbit,
-        }
-    }
-}
-
-/// Orbits of reference points in a subgroup.
-///
-/// Each orbit of points is assigned a representative point _p_, and each point
-/// _q_ in the orbit of _p_ is assigned a element _g_ from the subgroup such
-/// that _g p = q_. We call _g_ the **deorbiter** of _q_.
-pub(super) struct SubgroupOrbits {
-    pub(super) deorbiters: PerRefPoint<RefPointDeorbiter>,
-    /// Reference points in the canonical largest orbit.
-    pub(super) canonical_largest_orbit: Vec<RefPoint>,
-}
-
-/// Orbit decomposition of a reference point.
-///
-/// `deorbiter * this_reference_point = orbit_representative`
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) struct RefPointDeorbiter {
-    /// Representative reference point for the entire orbit.
-    ///
-    /// This serves as a unique identifier for the orbit.
-    pub(super) orbit_representative: RefPoint,
-    /// Transform from this reference point to `orbit_representative`.
-    pub(super) deorbiter: GroupElementId,
 }

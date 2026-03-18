@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use hypergroup::{Group, GroupElementId, IsometryGroup};
+use hypergroup::{GroupElementId, IsometryGroup};
 use hypermath::{APPROX, Vector, pga};
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
@@ -60,12 +60,12 @@ impl NdEuclidVantageGroup {
         self.group_element_to_vantage(element.0)
     }
     /// Returns the motor corresponding to a vantage.
-    pub fn vantage_motor(&self, vantage: Vantage) -> &pga::Motor {
-        &self.symmetry[self.vantage_to_group_element(vantage)]
+    pub fn vantage_motor(&self, vantage: Vantage) -> pga::Motor {
+        self.symmetry.motor(self.vantage_to_group_element(vantage))
     }
     /// Returns the motor corresponding to a vantage group element.
-    pub fn group_element_motor(&self, element: NdEuclidVantageGroupElement) -> &pga::Motor {
-        &self.symmetry[element.0]
+    pub fn group_element_motor(&self, element: NdEuclidVantageGroupElement) -> pga::Motor {
+        self.symmetry.motor(element.0)
     }
 }
 
@@ -196,7 +196,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             .filter(|&elem| {
                 reference_vector_mapping
                     .iter()
-                    .all(|&(r1, r2)| APPROX.eq(&self.symmetry[elem].transform(r1), r2))
+                    .all(|&(r1, r2)| APPROX.eq(&self.symmetry.motor(elem).transform(r1), r2))
             })
             .map(|elem| self.group_element_to_vantage(elem))
             .exactly_one()

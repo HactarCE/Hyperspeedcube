@@ -26,18 +26,21 @@ impl<V> fmt::Debug for MotorNearestNeighborMap<V> {
 }
 impl<V> Default for MotorNearestNeighborMap<V> {
     fn default() -> Self {
-        Self::new(&[], vec![])
+        Self::new(&[], [])
     }
 }
 impl<V> MotorNearestNeighborMap<V> {
     /// Constructs a new nearest-neighbors map from a fixed set of motors.
-    pub fn new(motors: &[pga::Motor], values: Vec<V>) -> Self {
-        let ndim = motors.iter().map(|motor| motor.ndim()).max().unwrap_or(2);
+    ///
+    /// If `motors` and `values` are different lengths, then the longer one is
+    /// truncated to the length of the shorter one.
+    pub fn new(keys: &[pga::Motor], values: impl IntoIterator<Item = V>) -> Self {
+        let ndim = keys.iter().map(|motor| motor.ndim()).max().unwrap_or(2);
         let mut reflections = vec![];
         let mut reflection_values = vec![];
         let mut nonreflections = vec![];
         let mut nonreflection_values = vec![];
-        for (motor, value) in std::iter::zip(motors, values) {
+        for (motor, value) in std::iter::zip(keys, values) {
             let m = motor.to_ndim_at_least(ndim);
             if m.is_reflection() {
                 reflections.push(m);
@@ -48,7 +51,7 @@ impl<V> MotorNearestNeighborMap<V> {
             }
         }
         MotorNearestNeighborMap {
-            len: motors.len(),
+            len: keys.len(),
             ndim,
             reflections: BallTree::new(reflections, reflection_values),
             nonreflections: BallTree::new(nonreflections, nonreflection_values),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail};
-use hypergroup::{Group, IsometryGroup};
+use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector};
 use hyperpuzzle_core::{
     Axis, BoxDynVantageGroup, NameSpecBiMap, NameSpecBiMapBuilder, PerTwist, PerVantage, Twist,
@@ -56,13 +56,17 @@ impl VantageGroupBuilder {
         let vantage_names: PerVantage<_> = self
             .symmetry
             .elements()
-            .filter(|&e| !self.symmetry[e].is_reflection())
+            .filter(|&e| !self.symmetry.motor(e).is_reflection())
             .map(|e| {
                 self.preferred_reference_vectors
                     .iter()
                     .map(|&ref_vec| {
                         let transformed_ref_vec = *reference_vectors_by_vector
-                            .get(self.symmetry[e].transform(&self.reference_vectors[ref_vec]))
+                            .get(
+                                self.symmetry
+                                    .motor(e)
+                                    .transform(&self.reference_vectors[ref_vec]),
+                            )
                             .ok_or_eyre("reference frame is not valid in some vantages")?;
                         Ok((ref_vec, transformed_ref_vec))
                     })

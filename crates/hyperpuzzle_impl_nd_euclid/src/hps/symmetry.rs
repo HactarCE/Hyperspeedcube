@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypergroup::{
-    AbbrGenSeq, CoxeterGroup, FiniteCoxeterGroup, GenSeq, GeneratorId, GroupResult, IsometryGroup,
+    AbbrGenSeq, Coxeter, CoxeterMatrix, GenSeq, GeneratorId, GroupError, GroupResult, IsometryGroup,
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
@@ -21,8 +21,10 @@ use itertools::Itertools;
 pub struct HpsSymmetry {
     /// Generators of the group.
     generators: Arc<Vec<Motor>>,
-    /// Coxeter group, if this is one.
-    coxeter_group: Option<Arc<CoxeterGroup>>,
+    /// Coxeter matrix, if this is one.
+    coxeter_group: Option<Arc<CoxeterMatrix>>,
+    /// Offset by which the whole Coxeter group is transformed.
+    coxeter_offset: Motor,
 }
 impl_simple_custom_type!(
     HpsSymmetry = "euclid.Symmetry",
@@ -39,9 +41,9 @@ impl fmt::Display for HpsSymmetry {
             Some(coxeter) => {
                 write!(
                     f,
-                    "<{}D coxeter group {:?}>",
-                    coxeter.min_ndim(),
-                    coxeter.coxeter_matrix(),
+                    "<coxeter group {:?} with {} generators>",
+                    coxeter,
+                    coxeter.mirror_count(),
                 )
             }
             None => {
@@ -64,7 +66,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn cd((name, name_span): Str) -> HpsSymmetry {
             HpsSymmetry::from_cd_str(&name, name_span)?
         }
-        fn cd((indices, indices_span): Vec<usize>) -> HpsSymmetry {
+        fn cd((indices, indices_span): Vec<u16>) -> HpsSymmetry {
             HpsSymmetry::from_schlafli(&indices, indices_span)?
         }
         fn symmetry(generators: Vec<Motor>) -> HpsSymmetry {
@@ -112,9 +114,11 @@ where
         .collect()
 }
 
-impl From<CoxeterGroup> for HpsSymmetry {
-    fn from(coxeter: CoxeterGroup) -> Self {
-        Self::from_coxeter(coxeter)
+impl TryFrom<CoxeterMatrix> for HpsSymmetry {
+    type Error = GroupError;
+
+    fn try_from(value: CoxeterMatrix) -> std::result::Result<Self, Self::Error> {
+        Self::from_coxeter(value)
     }
 }
 
@@ -136,13 +140,12 @@ impl Ndim for HpsSymmetry {
 
 impl TransformByMotor for HpsSymmetry {
     fn transform_by(&self, m: &Motor) -> Self {
-        Self {
-            generators: Arc::new(self.generators.iter().map(|g| m.transform(g)).collect()),
-            coxeter_group: self
-                .coxeter_group
-                .as_ref()
-                .map(|cox| Arc::new(m.transform(&**cox))),
+        let mut ret = self.clone();
+        for g in Arc::make_mut(&mut ret.generators) {
+            *g = m.transform(g);
         }
+        ret.coxeter_offset = m * &ret.coxeter_offset;
+        ret
     }
 }
 
@@ -162,9 +165,11 @@ impl HpsSymmetry {
             "is_chiral" => Some(self.is_chiral().into()),
             "mirror_vectors" => Some(
                 self.as_coxeter(field_span)?
-                    .mirrors()
+                    .spherical_mirrors()
+                    .at(field_span)?
+                    .vectors
                     .iter()
-                    .map(|m| ValueData::Vec(m.normal().clone()).at(field_span))
+                    .map(|m| ValueData::Vec(self.coxeter_offset.transform(m)).at(field_span))
                     .collect_vec()
                     .into(),
             ),
@@ -184,11 +189,13 @@ impl HpsSymmetry {
     }
 
     /// Constructs a symmetry object from a Coxeter group.
-    pub fn from_coxeter(coxeter: CoxeterGroup) -> Self {
-        Self {
-            generators: Arc::new(coxeter.generator_motors()),
+    pub fn from_coxeter(coxeter: CoxeterMatrix) -> GroupResult<Self> {
+        let generators = coxeter.spherical_mirror_generators()?;
+        Ok(Self {
+            generators: Arc::new(generators.into_vec()),
             coxeter_group: Some(Arc::new(coxeter)),
-        }
+            coxeter_offset: pga::Motor::ident(0),
+        })
     }
 
     /// Constructs a symmetry object from a list of generators.
@@ -196,47 +203,51 @@ impl HpsSymmetry {
         Self {
             generators: Arc::new(generators.into_iter().collect()),
             coxeter_group: None,
+            coxeter_offset: pga::Motor::ident(0),
         }
     }
 
     /// Constructs a symmetry object from a Coxeter string such as `"bc3"`.
     pub fn from_cd_str(s: &str, span: Span) -> Result<Self> {
-        fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
+        fn split_alpha_number(s: &str) -> Option<(&str, u16, Option<u8>)> {
             let (num_index, _) = s.match_indices(char::is_numeric).next()?;
-            let num = s[num_index..].parse().ok()?;
-            Some((&s[0..num_index], num))
+            let num_u16: u16 = s[num_index..].parse().ok()?;
+            let num_u8: Option<u8> = num_u16.try_into().ok();
+            Some((&s[0..num_index], num_u16, num_u8))
         }
 
         let coxeter = match s.to_ascii_lowercase().as_str() {
-            "e6" => FiniteCoxeterGroup::E6,
-            "e7" => FiniteCoxeterGroup::E7,
-            "e8" => FiniteCoxeterGroup::E8,
-            "f4" => FiniteCoxeterGroup::F4,
-            "g2" => FiniteCoxeterGroup::G2,
-            "h2" => FiniteCoxeterGroup::H2,
-            "h3" => FiniteCoxeterGroup::H3,
-            "h4" => FiniteCoxeterGroup::H4,
+            "e6" => Coxeter::E6,
+            "e7" => Coxeter::E7,
+            "e8" => Coxeter::E8,
+            "f4" => Coxeter::F4,
+            "g2" => Coxeter::G2,
+            "h2" => Coxeter::H2,
+            "h3" => Coxeter::H3,
+            "h4" => Coxeter::H4,
             s => match split_alpha_number(s) {
-                Some(("a", n)) => FiniteCoxeterGroup::A(n),
-                Some(("b" | "c" | "bc", n)) => FiniteCoxeterGroup::B(n),
-                Some(("d", n)) => FiniteCoxeterGroup::D(n),
-                Some(("i", n)) => FiniteCoxeterGroup::I(n),
+                Some(("a", _, Some(n))) => Coxeter::A(n as u8),
+                Some(("b" | "c" | "bc", _, Some(n))) => Coxeter::B(n as u8),
+                Some(("d", _, Some(n))) => Coxeter::D(n as u8),
+                Some(("i", n, _)) => Coxeter::I(n),
                 _ => return Err("unknown coxeter group string".at(span)),
             },
         }
-        .coxeter_group(None)
-        .at(span)?;
-        Ok(coxeter.into())
+        .matrix();
+        coxeter.try_into().at(span)
     }
 
     /// Constructs a symmetry object from a Schalfli symbol such as `[4, 3]`.
-    pub fn from_schlafli(indices: &[usize], span: Span) -> Result<Self> {
-        Ok(CoxeterGroup::new_linear(indices, None).at(span)?.into())
+    pub fn from_schlafli(indices: &[u16], span: Span) -> Result<Self> {
+        CoxeterMatrix::new_linear(indices)
+            .at(span)?
+            .try_into()
+            .at(span)
     }
 
     /// Returns the underlying Coxeter group, or returns an error if the group
     /// was not constructed as a Coxeter group.
-    pub fn as_coxeter(&self, span: Span) -> Result<&CoxeterGroup> {
+    pub fn as_coxeter(&self, span: Span) -> Result<&CoxeterMatrix> {
         self.coxeter_group
             .as_deref()
             .ok_or("expected Coxeter group")
@@ -279,8 +290,13 @@ impl HpsSymmetry {
         v: impl VectorRef,
         v_span: Span,
     ) -> Result<Vector> {
-        let mirror_basis = self.as_coxeter(self_span)?.mirror_basis();
+        let mut mirror_basis = self
+            .as_coxeter(self_span)?
+            .spherical_mirrors()
+            .at(self_span)?
+            .basis;
 
+        // TODO: truncate to approx nonzero
         let v_ndim = v.ndim();
         let basis_ndim = mirror_basis.ndim();
         if v_ndim > basis_ndim {
@@ -289,6 +305,16 @@ impl HpsSymmetry {
                     .at(v_span),
             );
         }
+
+        // Transform by offset.
+        // TODO: this *should* just be a matrix multiplication
+        let ndim = std::cmp::max(mirror_basis.ndim(), self.coxeter_offset.ndim());
+        mirror_basis = Matrix::from_cols(
+            mirror_basis
+                .at_ndim(ndim)
+                .cols()
+                .map(|col| self.coxeter_offset.transform_vector(col)),
+        );
 
         Ok(mirror_basis * v)
     }
@@ -329,7 +355,7 @@ impl HpsSymmetry {
 
     /// Returns the isometry group of the symmetry.
     pub fn isometry_group(&self) -> GroupResult<IsometryGroup> {
-        IsometryGroup::from_generators(&self.generators)
+        IsometryGroup::from_generators("", self.generators.iter().cloned().collect())
     }
 
     /// Returns a list of generators of the group.

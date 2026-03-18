@@ -170,20 +170,24 @@ impl<I: TypedIndex, E> TiVec<I, E> {
         I::iter(self.len())
     }
     /// Returns an iterator over the values in the collection.
-    pub fn iter_values(&self) -> impl DoubleEndedIterator<Item = &E> {
+    pub fn iter_values(&self) -> std::slice::Iter<'_, E> {
         self.values.iter()
     }
-    /// Returns a mutating iterator over the values in the collections.
-    pub fn iter_values_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut E> {
+    /// Returns a mutating iterator over the values in the collection.
+    pub fn iter_values_mut(&mut self) -> std::slice::IterMut<'_, E> {
         self.values.iter_mut()
     }
+    /// Converts the collection into an owning iterator over its values.
+    pub fn into_values(self) -> std::vec::IntoIter<E> {
+        self.values.into_iter()
+    }
     /// Returns an iterator over the index-value pairs in the collection.
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (I, &E)> {
+    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = (I, &E)> + ExactSizeIterator {
         self.iter_keys().zip(&self.values)
     }
     /// Returns a mutating iterator over the index-value pairs in the
     /// collection.
-    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (I, &mut E)> {
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (I, &mut E)> + ExactSizeIterator {
         self.iter_keys().zip(&mut self.values)
     }
 
@@ -233,6 +237,14 @@ impl<I: TypedIndex, E> TiVec<I, E> {
             .map(|(i, e)| f(i, e))
             .collect::<Result<Vec<_>, _>>()?
             .into())
+    }
+
+    /// Converts the collection to a [`Vec`].
+    ///
+    /// Because [`TiVec<I, E>`] is a newtype wrapper around `Vec<E>`, this is a
+    /// no-op.
+    pub fn into_vec(self) -> Vec<E> {
+        self.values
     }
 }
 
