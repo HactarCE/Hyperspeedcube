@@ -113,6 +113,9 @@ pub fn load_catalog(catalog: &Catalog) {
             eval_request(&mut rt);
         }
     });
+
+    hyperpuzzle_impl_symmetric::add_puzzles_to_catalog(catalog)
+        .expect("error adding puzzles to catalog");
 }
 
 #[cfg(test)]

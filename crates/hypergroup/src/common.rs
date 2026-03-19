@@ -52,9 +52,30 @@ pub(crate) fn orbit_collect<E, G>(
     ret
 }
 
+/// Returns the orbit of an object under the symmetry.
+pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
+    generators: &[pga::Motor],
+    mut object: T,
+) -> Vec<T> {
+    let mut seen = ApproxHashMap::new(APPROX);
+    seen.entry_with_mut_key(&mut object).or_insert(());
+
+    orbit_collect(object, generators, |_, unprocessed_object, generator| {
+        let mut new_object = generator.transform(unprocessed_object);
+        if let approx_collections::hash_map::Entry::Vacant(e) =
+            seen.entry_with_mut_key(&mut new_object)
+        {
+            e.insert(());
+            Some(new_object)
+        } else {
+            None
+        }
+    })
+}
+
 /// Returns the orbit of an object under the symmetry. Each generator is
 /// specified along with its generator sequence.
-pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
+pub fn orbit_geometric_with_gen_seq<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     generators: &[(GenSeq, pga::Motor)],
     mut object: T,
 ) -> Vec<(AbbrGenSeq, pga::Motor, T)> {

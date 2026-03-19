@@ -332,7 +332,7 @@ impl HpsSymmetry {
         &self,
         object: T,
     ) -> Vec<(AbbrGenSeq, Motor, T)> {
-        hypergroup::orbit_geometric(
+        hypergroup::orbit_geometric_with_gen_seq(
             &self
                 .generators
                 .iter()

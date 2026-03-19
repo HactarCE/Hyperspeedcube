@@ -6,7 +6,7 @@ use rand::{Rng, RngExt, SeedableRng};
 use super::*;
 use crate::{
     Coset, CoxeterMatrix, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup,
-    PerGenerator, orbit_geometric,
+    PerGenerator, orbit_geometric_with_gen_seq,
 };
 
 hypuz_util::typed_index_struct! {
@@ -168,7 +168,7 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
 
     let original_group = CoxeterMatrix::H4().isometry_group()?;
     let initial_point = Point(Vector::unit(original_group.ndim() - 1));
-    let test_points: PerTestPoint<Point> = orbit_geometric(
+    let test_points: PerTestPoint<Point> = orbit_geometric_with_gen_seq(
         &original_group
             .generator_motors()
             .into_iter()

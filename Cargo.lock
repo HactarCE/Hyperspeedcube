@@ -2827,6 +2827,7 @@ dependencies = [
  "eyre",
  "hyperpuzzle_core",
  "hyperpuzzle_impl_nd_euclid",
+ "hyperpuzzle_impl_symmetric",
  "hyperpuzzle_log",
  "hyperpuzzlescript",
  "lazy_static",
@@ -2892,6 +2893,21 @@ dependencies = [
  "smallvec",
  "thiserror 2.0.18",
  "tinyset",
+]
+
+[[package]]
+name = "hyperpuzzle_impl_symmetric"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "hypergroup",
+ "hypermath",
+ "hyperpuzzle_core",
+ "hyperpuzzle_impl_nd_euclid",
+ "hypershape",
+ "hypuz_util",
+ "itertools 0.14.0",
+ "log",
 ]
 
 [[package]]

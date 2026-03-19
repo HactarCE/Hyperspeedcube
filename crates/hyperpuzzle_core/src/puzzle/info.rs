@@ -108,6 +108,8 @@ pub type PieceTypeMask = TiMask<PieceType>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
     /// Unordered list of stickers on the piece.
+    ///
+    /// TODO: consider `TiSet` instead
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
     pub piece_type: PieceType,

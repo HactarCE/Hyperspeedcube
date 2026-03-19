@@ -147,6 +147,16 @@ impl<V: VectorRef> Iterator for VectorIter<V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|i| self.vector.get(i))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+}
+impl<V: VectorRef> ExactSizeIterator for VectorIter<V> {}
+impl<V: VectorRef> DoubleEndedIterator for VectorIter<V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.range.next_back().map(|i| self.vector.get(i))
+    }
 }
 
 impl Ndim for Vector {

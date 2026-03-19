@@ -182,13 +182,19 @@ impl<I: TypedIndex, E> TiVec<I, E> {
         self.values.into_iter()
     }
     /// Returns an iterator over the index-value pairs in the collection.
-    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = (I, &E)> + ExactSizeIterator {
-        self.iter_keys().zip(&self.values)
+    pub fn iter(&self) -> Iter<'_, I, E> {
+        Iter {
+            indexes: self.iter_keys(),
+            values: self.values.iter(),
+        }
     }
     /// Returns a mutating iterator over the index-value pairs in the
     /// collection.
-    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (I, &mut E)> + ExactSizeIterator {
-        self.iter_keys().zip(&mut self.values)
+    pub fn iter_mut(&mut self) -> IterMut<'_, I, E> {
+        IterMut {
+            indexes: self.iter_keys(),
+            values: self.values.iter_mut(),
+        }
     }
 
     /// Returns an iterator over keys for which a predicate returns `true`.
@@ -307,6 +313,18 @@ impl<I: TypedIndex, E> Iterator for IntoIter<I, E> {
     fn next(&mut self) -> Option<Self::Item> {
         Some((self.indexes.next()?, self.values.next()?))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indexes.size_hint()
+    }
+}
+
+impl<I: TypedIndex, E> ExactSizeIterator for IntoIter<I, E> {}
+
+impl<I: TypedIndex, E> DoubleEndedIterator for IntoIter<I, E> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        Some((self.indexes.next_back()?, self.values.next_back()?))
+    }
 }
 
 impl<'a, I: TypedIndex, E> IntoIterator for &'a TiVec<I, E> {
@@ -321,7 +339,9 @@ impl<'a, I: TypedIndex, E> IntoIterator for &'a TiVec<I, E> {
         }
     }
 }
+
 /// Borrowing iterator over key-value pairs in a [`TiVec`].
+#[derive(Debug, Clone)]
 pub struct Iter<'a, I, E> {
     indexes: TypedIndexIter<I>,
     values: std::slice::Iter<'a, E>,
@@ -332,6 +352,18 @@ impl<'a, I: TypedIndex, E> Iterator for Iter<'a, I, E> {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some((self.indexes.next()?, self.values.next()?))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indexes.size_hint()
+    }
+}
+
+impl<I: TypedIndex, E> ExactSizeIterator for Iter<'_, I, E> {}
+
+impl<I: TypedIndex, E> DoubleEndedIterator for Iter<'_, I, E> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        Some((self.indexes.next_back()?, self.values.next_back()?))
     }
 }
 
@@ -347,7 +379,9 @@ impl<'a, I: TypedIndex, E> IntoIterator for &'a mut TiVec<I, E> {
         }
     }
 }
+
 /// Mutably borrowing iterator over key-value pairs in a [`TiVec`].
+#[derive(Debug)]
 pub struct IterMut<'a, I, E> {
     indexes: TypedIndexIter<I>,
     values: std::slice::IterMut<'a, E>,
@@ -358,5 +392,17 @@ impl<'a, I: TypedIndex, E> Iterator for IterMut<'a, I, E> {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some((self.indexes.next()?, self.values.next()?))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indexes.size_hint()
+    }
+}
+
+impl<I: TypedIndex, E> ExactSizeIterator for IterMut<'_, I, E> {}
+
+impl<I: TypedIndex, E> DoubleEndedIterator for IterMut<'_, I, E> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        Some((self.indexes.next_back()?, self.values.next_back()?))
     }
 }

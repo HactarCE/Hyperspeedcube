@@ -23,7 +23,7 @@ pub struct NdEuclidPuzzleGeometry {
     /// This is used for recentering the camera.
     pub piece_centroids: PerPiece<Point>,
 
-    /// Face hyperplanes.
+    /// Facet hyperplanes.
     pub planes: Vec<Hyperplane>,
     /// Hyperplane for each sticker, as an index into `hyperplanes`.
     ///

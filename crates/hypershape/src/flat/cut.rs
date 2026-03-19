@@ -93,12 +93,13 @@ impl Cut {
     #[expect(clippy::too_many_lines)] // it's a complicated algorithm!
     pub fn cut(&mut self, element: impl ToElementId) -> Result<ElementCutOutput> {
         let cut = &mut *self;
-        let space = cut.space.arc();
-        let element = element.to_element_id(&space);
+        let element = element.to_element_id(&cut.space);
 
         if let Some(&result) = cut.output_cache.get(&element) {
             return Ok(result);
         }
+
+        let space = cut.space.arc();
 
         let div = &cut.params.divider;
 
