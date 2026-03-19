@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map};
 use std::sync::{Arc, Weak};
 
 use eyre::{Result, bail, ensure};
@@ -18,7 +18,8 @@ use hypershape::{ElementId, Space};
 
 mod geometry;
 
-use geometry::{PieceGeometry, PolytopeGeometry, StickerGeometry, SurfaceGeometry};
+use geometry::{PieceFacetGeometry, PieceGeometry, PolytopeGeometry, StickerData, SurfaceGeometry};
+use itertools::Itertools;
 
 // pub fn product_abstract_puzzles(puz1: AbstractPuzzle, puz2: AbstractPuzzle) -> AbstractPuzzle {}
 
@@ -128,28 +129,39 @@ pub(crate) fn make_partial_symmetric_puzzle(
     }
 
     let mut piece_geometries = PerPiece::new();
-    let mut sticker_geometries = PerSticker::new();
-    let mut piece_sticker_sets = PerPiece::new();
     let mut sticker_pieces = PerSticker::new();
+    let mut sticker_surfaces = PerSticker::new();
 
     for (piece, piece_data) in pieces {
         let piece_polytope = space.get(piece_data.polytope);
-        piece_geometries.push(PieceGeometry {
-            polytope: PolytopeGeometry::from_polytope_element(piece_polytope)?,
-            centroid: piece_polytope.centroid()?.center(),
-        })?;
+        let mut facet_id_to_sticker = HashMap::new();
         let mut sticker_set = StickerSet::new();
         for sticker_data in piece_data.stickers {
             let sticker_id = sticker_pieces.push(piece)?;
+            sticker_surfaces.push(sticker_data.surface)?;
+            facet_id_to_sticker.insert(sticker_data.polytope, sticker_id);
             sticker_set.insert(sticker_id);
-
-            let sticker_polytope = space.get(sticker_data.polytope);
-            sticker_geometries.push(StickerGeometry {
-                polytope: PolytopeGeometry::from_polytope_element(sticker_polytope)?,
-                surface: sticker_data.surface,
-            })?;
         }
-        piece_sticker_sets.push(sticker_set)?;
+
+        let facets = piece_polytope
+            .boundary()
+            .map(|b| (b, facet_id_to_sticker.get(&b.id()).copied()))
+            .filter(|(_, sticker)| ndim <= 3 || sticker.is_some()) // remove internals in 4D+
+            .map(|(b, sticker)| {
+                eyre::Ok(PieceFacetGeometry {
+                    polytope: PolytopeGeometry::from_polytope_element(b)?,
+                    sticker_data: sticker.map(|sticker| StickerData {
+                        surface: sticker_surfaces[sticker],
+                    }),
+                })
+            })
+            .try_collect()?;
+
+        piece_geometries.push(PieceGeometry {
+            polytope: PolytopeGeometry::from_polytope_element(piece_polytope)?,
+            centroid: piece_polytope.centroid()?.center(),
+            facets,
+        })?;
     }
 
     Ok(PartialSymmetricPuzzle {
@@ -165,10 +177,8 @@ pub(crate) fn make_partial_symmetric_puzzle(
         sticker_color_names: NameBiMap::new(),
 
         piece_geometries,
-        sticker_geometries,
         surface_geometries,
-        piece_sticker_sets,
-        sticker_pieces,
+
         isometry_group: symmetry.clone(),
     })
 }
@@ -254,11 +264,7 @@ struct PartialSymmetricPuzzle {
     sticker_color_names: NameBiMap<Color>,
 
     piece_geometries: PerPiece<PieceGeometry>,
-    sticker_geometries: PerSticker<StickerGeometry>,
     surface_geometries: PerSurface<SurfaceGeometry>,
-
-    piece_sticker_sets: PerPiece<StickerSet>,
-    sticker_pieces: PerSticker<Piece>,
 
     isometry_group: IsometryGroup,
 }
@@ -284,9 +290,6 @@ impl PartialSymmetricPuzzle {
     pub fn piece_count(&self) -> usize {
         self.piece_geometries.len()
     }
-    pub fn sticker_count(&self) -> usize {
-        self.sticker_geometries.len()
-    }
     pub fn surface_count(&self) -> usize {
         self.surface_geometries.len()
     }
@@ -301,25 +304,9 @@ impl PartialSymmetricPuzzle {
             a.piece_geometries.iter_values(),
             b.piece_geometries.iter_values(),
         )
-        .map(|(a_piece, b_piece)| PieceGeometry::direct_product(a_piece, b_piece))
-        .collect();
-
-        let sticker_geometries: PerSticker<_> = std::iter::chain(
-            itertools::iproduct!(
-                a.sticker_geometries.iter_values(),
-                b.piece_geometries.iter_values(),
-            )
-            .map(|(a_sticker, b_piece)| {
-                StickerGeometry::direct_product_sticker_piece(a_sticker, b_piece)
-            }),
-            itertools::iproduct!(
-                a.piece_geometries.iter_values(),
-                b.sticker_geometries.iter_values(),
-            )
-            .map(|(a_piece, b_sticker)| {
-                StickerGeometry::direct_product_piece_sticker(a_piece, b_sticker, a.surface_count())
-            }),
-        )
+        .map(|(a_piece, b_piece)| {
+            PieceGeometry::direct_product(a_piece, b_piece, a.surface_count())
+        })
         .collect();
 
         // Assume that the centroid of each entire puzzle is the origin.
@@ -332,48 +319,6 @@ impl PartialSymmetricPuzzle {
                 .map(|b_surface| b_surface.lift_by_ndim(a.ndim, 0)),
         )
         .collect();
-
-        let lift_a_sticker = |a_sticker: Sticker, b_piece: Piece| {
-            Sticker(a_sticker.0 * b.piece_count() as u32 + b_piece.0)
-        };
-        let lift_b_sticker = |a_piece: Piece, b_sticker: Sticker| {
-            Sticker(
-                a.sticker_count() as u32 * b.piece_count() as u32
-                    + a_piece.0 * b.sticker_count() as u32
-                    + b_sticker.0,
-            )
-        };
-
-        let piece_sticker_sets = itertools::iproduct!(&a.piece_sticker_sets, &b.piece_sticker_sets)
-            .map(|((a_piece, a_sticker_set), (b_piece, b_sticker_set))| {
-                std::iter::chain(
-                    a_sticker_set
-                        .iter()
-                        .map(|a_sticker| lift_a_sticker(a_sticker, b_piece)),
-                    b_sticker_set
-                        .iter()
-                        .map(|b_sticker| lift_b_sticker(a_piece, b_sticker)),
-                )
-                .collect()
-            })
-            .collect();
-
-        let product_pieces = |pa: Piece, pb: Piece| Piece(pa.0 * b.piece_count() as u32 + pb.0);
-
-        let sticker_pieces: PerSticker<_> = std::iter::chain(
-            itertools::iproduct!(
-                a.sticker_pieces.iter_values().copied(),
-                b.piece_geometries.iter_keys(),
-            ),
-            itertools::iproduct!(
-                a.piece_geometries.iter_keys(),
-                b.sticker_pieces.iter_values().copied(),
-            ),
-        )
-        .map(|(a_piece, b_piece)| product_pieces(a_piece, b_piece))
-        .collect();
-
-        assert_eq!(sticker_geometries.len(), sticker_pieces.len());
 
         Ok(PartialSymmetricPuzzle {
             ndim,
@@ -394,11 +339,7 @@ impl PartialSymmetricPuzzle {
             sticker_color_names: NameBiMap::concat(&a.sticker_color_names, &b.sticker_color_names),
 
             piece_geometries,
-            sticker_geometries,
             surface_geometries,
-
-            piece_sticker_sets,
-            sticker_pieces,
 
             isometry_group: IsometryGroup::product([&a.isometry_group, &b.isometry_group])?,
         })
@@ -413,51 +354,165 @@ impl PartialSymmetricPuzzle {
         for (_surface, surface_geometry) in &self.surface_geometries {
             mesh.add_puzzle_surface(&surface_geometry.centroid, &surface_geometry.normal)?;
         }
+        let dummy_surface = mesh.add_puzzle_surface(&Point::ORIGIN, Vector::EMPTY)?; // dummy surface for internals and 2D puzzles
 
-        for (_, piece_geometry) in &self.piece_geometries {
-            // TODO: piece internals
-            mesh.add_piece(&piece_geometry.centroid, 0..0, 0..0, 0..0)?;
-        }
+        for (piece, piece_geometry) in &self.piece_geometries {
+            let piece_internals_polygons_start = mesh.polygon_count;
+            let piece_internals_triangles_start = mesh.triangle_count() as u32;
+            let piece_internals_edges_start = mesh.edge_count() as u32;
 
-        for (sticker, sticker_geometry) in &self.sticker_geometries {
-            // TODO: stickers should have multiple polygons!
-            let polygons_start = mesh.polygon_count;
-            let polygon_id = mesh.next_polygon_id()?;
-            let polygons_end = mesh.polygon_count;
+            let mut piece_internals_polygons_end = piece_internals_polygons_start;
+            let mut piece_internals_triangles_end = piece_internals_triangles_start;
+            let mut piece_internals_edges_end = piece_internals_edges_start;
 
-            let vertices_start = mesh.vertex_count();
-            for vertex in &sticker_geometry.polytope.verts {
-                mesh.add_puzzle_vertex(MeshVertexData {
-                    position: &Point::from(vertex),
-                    u_tangent: &Vector::unit(0),             // TODO
-                    v_tangent: &Vector::unit(1),             // TODO
-                    sticker_shrink_vector: &Vector::zero(0), // TODO
-                    piece_id: self.sticker_pieces[sticker],
-                    surface_id: sticker_geometry.surface,
-                    polygon_id,
-                })?;
+            let mut facet_geometries = piece_geometry
+                .facets
+                .iter()
+                .map(|f| (&f.polytope, &f.sticker_data))
+                .collect_vec();
+
+            // Generate internals in 2D
+            if ndim == 2 {
+                facet_geometries.push((&piece_geometry.polytope, &None));
             }
-            let vertices_end = mesh.vertex_count();
 
-            let edges_start = mesh.edge_count() as u32;
-            for &edge in &sticker_geometry.polytope.edges {
-                mesh.edges.push(edge.map(|v| vertices_start as u32 + v.0));
+            // Iterate over internals, then stickers
+            facet_geometries.sort_unstable_by_key(|(_, sticker_data)| sticker_data.is_some());
+
+            for (facet_geometry, sticker_data) in facet_geometries {
+                let polygons_start = mesh.polygon_count;
+                let triangles_start = mesh.triangle_count() as u32;
+                let edges_start = mesh.edge_count() as u32;
+
+                let surface_id_in_mesh = match sticker_data {
+                    Some(sticker_data) => sticker_data.surface,
+                    None => dummy_surface, // internal
+                };
+
+                // Add polygons and triangles.
+                let dummy_polygon = mesh.next_polygon_id()?; // for edges with no polygon
+                let mut vertex_map = HashMap::new();
+                let mut i = 0;
+                for &polygon_size in &facet_geometry.polygon_sizes {
+                    let polygon_id_in_mesh = mesh.next_polygon_id()?;
+
+                    let j = i + polygon_size as usize;
+                    let polygon = &facet_geometry.polygon_verts[i..j];
+
+                    // Calculate tangent vectors.
+                    ensure!(polygon.len() >= 3, "mesh polygon is too small");
+                    let [a, b, c] = [0, 1, 2].map(|n| facet_geometry.verts.get(polygon[n]));
+                    // IIFE to mimic try_block
+                    let (mut u_tangent, mut v_tangent) = (|| {
+                        let u = (b - &a).normalize()?;
+                        let v = (c - &a).rejected_from(&u)?.normalize()?;
+                        Some((u, v))
+                    })()
+                    .unwrap_or_default(); // give up and return zero
+
+                    // Fix polygon orientation in 2D and 3D.
+                    if ndim == 2 || ndim == 3 {
+                        let polyhedron_center = if ndim == 2 {
+                            &point![0.0, 0.0, -1.0]
+                        } else {
+                            &piece_geometry.centroid
+                        };
+                        if u_tangent
+                            .cross_product_3d(&v_tangent)
+                            .dot(a - polyhedron_center)
+                            .is_sign_negative()
+                        {
+                            std::mem::swap(&mut u_tangent, &mut v_tangent);
+                        }
+                    }
+
+                    let polygon_start = mesh.vertex_count() as u32;
+                    for &vertex_id in polygon {
+                        let vertex_id_in_mesh = mesh.add_puzzle_vertex(MeshVertexData {
+                            position: &facet_geometry.verts.get(vertex_id),
+                            u_tangent: &u_tangent,
+                            v_tangent: &v_tangent,
+                            sticker_shrink_vector: &Vector::zero(0), // TODO
+                            piece_id: piece,
+                            surface_id: surface_id_in_mesh,
+                            polygon_id: polygon_id_in_mesh,
+                        })?;
+                        vertex_map.entry(vertex_id).or_insert(vertex_id_in_mesh);
+                    }
+
+                    for k in 2..polygon_size as u32 {
+                        mesh.triangles
+                            .push([0, k - 1, k].map(|q| polygon_start + q));
+                    }
+
+                    i = j;
+                }
+
+                // Add edges.
+                let mut get_or_add_vertex_for_edge = |mesh: &mut Mesh, v| {
+                    eyre::Ok(match vertex_map.entry(v) {
+                        hash_map::Entry::Occupied(entry) => *entry.get(),
+                        hash_map::Entry::Vacant(entry) => {
+                            *entry.insert(mesh.add_puzzle_vertex(MeshVertexData {
+                                position: &facet_geometry.verts.get(v),
+                                u_tangent: &Vector::EMPTY,
+                                v_tangent: &Vector::EMPTY,
+                                sticker_shrink_vector: &Vector::zero(0), // TODO
+                                piece_id: piece,
+                                surface_id: surface_id_in_mesh,
+                                polygon_id: dummy_polygon,
+                            })?)
+                        }
+                    })
+                };
+                for &[v1, v2] in &facet_geometry.edges {
+                    let v1 = get_or_add_vertex_for_edge(&mut mesh, v1)?;
+                    let v2 = get_or_add_vertex_for_edge(&mut mesh, v2)?;
+                    mesh.edges.push([v1, v2]);
+                }
+
+                let polygons_end = mesh.polygon_count;
+                let triangles_end = mesh.triangle_count() as u32;
+                let edges_end = mesh.edge_count() as u32;
+
+                if sticker_data.is_some() {
+                    mesh.add_sticker(
+                        polygons_start..polygons_end,
+                        triangles_start..triangles_end,
+                        edges_start..edges_end,
+                    )?;
+                } else {
+                    // internals are sorted before stickers
+                    piece_internals_polygons_end = polygons_end;
+                    piece_internals_triangles_end = triangles_end;
+                    piece_internals_edges_end = edges_end;
+                }
             }
-            let edges_end = mesh.edge_count() as u32;
 
-            let triangles_start = mesh.triangle_count() as u32;
-            for &tri in &sticker_geometry.polytope.tris {
-                mesh.triangles
-                    .push(tri.map(|v| vertices_start as u32 + v.0));
-            }
-            let triangles_end = mesh.triangle_count() as u32;
-
-            mesh.add_sticker(
-                polygons_start..polygons_end,
-                triangles_start..triangles_end,
-                edges_start..edges_end,
+            mesh.add_piece(
+                &piece_geometry.centroid,
+                piece_internals_polygons_start..piece_internals_polygons_end,
+                piece_internals_triangles_start..piece_internals_triangles_end,
+                piece_internals_edges_start..piece_internals_edges_end,
             )?;
         }
+
+        let mut stickers = PerSticker::new();
+        let pieces = self.piece_geometries.try_map_ref(|piece, piece_geometry| {
+            let stickers = piece_geometry
+                .facets
+                .iter()
+                .filter_map(|f| f.sticker_data.as_ref())
+                .map(|sticker_data| {
+                    let color = Color(sticker_data.surface.0); // TODO: color should not be based on surface
+                    stickers.push(StickerInfo { piece, color })
+                })
+                .try_collect()?;
+            eyre::Ok(PieceInfo {
+                stickers,
+                piece_type: PieceType(0),
+            })
+        })?;
 
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates: vec![],
@@ -466,8 +521,8 @@ impl PartialSymmetricPuzzle {
                 .piece_geometries
                 .map_ref(|_, piece_geometries| piece_geometries.centroid.clone()),
 
-            planes: vec![],
-            sticker_planes: PerSticker::new_with_len(self.sticker_count()),
+            planes: vec![Hyperplane::new(vector![1.0], 0.0).unwrap()],
+            sticker_planes: stickers.map_ref(|_, _| 0),
 
             mesh,
 
@@ -478,18 +533,6 @@ impl PartialSymmetricPuzzle {
             gizmo_twists: PerGizmoFace::new(),
         });
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
-
-        let pieces = self.piece_sticker_sets.map_ref(|_, sticker_set| PieceInfo {
-            stickers: sticker_set.iter().collect(),
-            piece_type: PieceType(0),
-        });
-
-        let stickers = self.sticker_pieces.map_ref(|sticker, &piece| {
-            StickerInfo {
-                piece,
-                color: Color(self.sticker_geometries[sticker].surface.0), // TODO: color should not depend on surface
-            }
-        });
 
         // TODO: proper color system
         let mut colors = ColorSystemBuilder::new_ad_hoc("unknown_product_puzzle");
@@ -645,16 +688,16 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
             // IIFE to mimic try_block
             (|| -> Result<_> {
                 Ok(PartialSymmetricPuzzle::direct_product(
-                    &shallow_line()?,
-                    &shallow_polygon(5)?,
+                    // &shallow_polygon(5)?,
+                    // &shallow_line()?,
                     // // &half_cut_line()?,
                     // &half_cut_line()?,
                     // &shallow_polygon(6)?,
                     //
                     // &shallow_polygon(3)?,
                     // &PartialSymmetricPuzzle::direct_product(
-                    //     &shallow_polygon(5)?,
-                    //     &shallow_polygon(6)?,
+                    &shallow_polygon(5)?,
+                    &shallow_polygon(6)?,
                     // )?,
                     //
                     // &rubiks_cube()?,

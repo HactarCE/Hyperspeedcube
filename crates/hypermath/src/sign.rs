@@ -113,10 +113,20 @@ macro_rules! impl_mulassign_sign {
     };
 }
 
-impl_mul_sign!(impl Mul<Sign> for Sign);
 impl_mulassign_sign!(impl MulAssign<Sign> for Sign);
 
 impl_mul_sign!(impl Mul<Sign> for f32);
 impl_mulassign_sign!(impl MulAssign<Sign> for f32);
 impl_mul_sign!(impl Mul<Sign> for f64);
 impl_mulassign_sign!(impl MulAssign<Sign> for f64);
+
+impl<T: Neg<Output = T>> Mul<T> for Sign {
+    type Output = T;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        match self {
+            Sign::Pos => rhs,
+            Sign::Neg => -rhs,
+        }
+    }
+}

@@ -422,6 +422,12 @@ impl FromIterator<Float> for Vector {
     }
 }
 
+impl From<&[Float]> for Vector {
+    fn from(value: &[Float]) -> Self {
+        Vector::from_iter(value.iter().copied())
+    }
+}
+
 impl<V: VectorRef> Sum<V> for Vector {
     fn sum<I: Iterator<Item = V>>(iter: I) -> Self {
         let mut ret = Self::EMPTY;

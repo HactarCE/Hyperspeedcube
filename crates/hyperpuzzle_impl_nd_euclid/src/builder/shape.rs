@@ -612,7 +612,7 @@ impl ShapeBuilder {
         for (expected_id, surface_data) in surfaces {
             let surface_id =
                 mesh.add_puzzle_surface(&surface_data.centroid.center(), surface_data.normal)?;
-            ensure!(surface_id == expected_id.0 as u32);
+            ensure!(surface_id == expected_id);
         }
 
         let piece_type_hierarchy =
@@ -779,7 +779,7 @@ fn build_shape_polygons(
             mesh.triangles.push(new_vertex_ids);
         }
 
-        for edge @ [a, b] in polygon.edge_endpoints()? {
+        for edge @ [a, b] in polygon.edges_in_order()? {
             // We should have seen all these vertices before because they show
             // up in triangles, but check just in case so we don't panic.
             if !(vertex_id_map.contains_key(&a.id()) && vertex_id_map.contains_key(&b.id())) {

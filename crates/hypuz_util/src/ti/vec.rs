@@ -341,10 +341,19 @@ impl<'a, I: TypedIndex, E> IntoIterator for &'a TiVec<I, E> {
 }
 
 /// Borrowing iterator over key-value pairs in a [`TiVec`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Iter<'a, I, E> {
     indexes: TypedIndexIter<I>,
     values: std::slice::Iter<'a, E>,
+}
+
+impl<'a, I: Clone, E> Clone for Iter<'a, I, E> {
+    fn clone(&self) -> Self {
+        Self {
+            indexes: self.indexes.clone(),
+            values: self.values.clone(),
+        }
+    }
 }
 
 impl<'a, I: TypedIndex, E> Iterator for Iter<'a, I, E> {

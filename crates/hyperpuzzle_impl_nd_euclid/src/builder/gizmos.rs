@@ -310,7 +310,7 @@ fn build_gizmo(
         let triangles_start = mesh.triangle_count() as u32;
         let edges_start = mesh.edge_count() as u32;
 
-        for edge in face_polygon.edge_endpoints()? {
+        for edge in face_polygon.edges_in_order()? {
             mesh.edges
                 .push(edge.map(|v| vertex_map[&(v.id(), surface)]));
         }

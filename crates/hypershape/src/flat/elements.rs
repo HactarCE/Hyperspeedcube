@@ -268,8 +268,12 @@ impl<'a> Face<'a> {
             .boundary()
             .map(|e| e.map_id(|e| EdgeId(e.0)))
     }
+    /// Returns the vertices of the face, in cyclic order.
+    pub fn vertices_in_order(self) -> Result<impl Iterator<Item = Vertex<'a>>> {
+        Ok(self.edges_in_order()?.map(|[v1, _v2]| v1))
+    }
     /// Returns the endpoints of each edge in the face, in cyclic order.
-    pub fn edge_endpoints(self) -> Result<impl Iterator<Item = [Vertex<'a>; 2]>> {
+    pub fn edges_in_order(self) -> Result<impl Iterator<Item = [Vertex<'a>; 2]>> {
         let mut adjacency_map = HashMap::<VertexId, SmallVec<[VertexId; 2]>>::new();
 
         for edge in self.edges() {
@@ -396,7 +400,7 @@ mod tests {
     fn test_face_edge_endpoints() -> Result<()> {
         let space = Space::new(2);
         let square = space.add_primordial_cube(3.0)?.as_element().as_face()?;
-        let edge_endpoints = square.edge_endpoints()?.collect_vec();
+        let edge_endpoints = square.edges_in_order()?.collect_vec();
         println!("{edge_endpoints:?}");
         assert_eq!(edge_endpoints.len(), 4);
         Ok(())

@@ -256,8 +256,12 @@ impl Mesh {
     /// Adds a puzzle surface to the mesh and returns the new surface ID.
     ///
     /// This cannot be called after `add_gizmo_surface()`.
-    pub fn add_puzzle_surface(&mut self, centroid: &Point, normal: impl VectorRef) -> Result<u32> {
-        let surface_id = self.surface_count() as u32;
+    pub fn add_puzzle_surface(
+        &mut self,
+        centroid: &Point,
+        normal: impl VectorRef,
+    ) -> Result<Surface> {
+        let surface_id = self.surface_count() as u16;
         let ndim = self.ndim;
         self.puzzle_surface_count += 1;
         if self.gizmo_surface_count > 0 {
@@ -266,7 +270,7 @@ impl Mesh {
         self.surface_centroids
             .extend(iter_f32(ndim, centroid.as_vector()));
         self.surface_normals.extend(iter_f32(ndim, &normal));
-        Ok(surface_id)
+        Ok(Surface(surface_id))
     }
 
     /// Adds a gizmo surface to the mesh and returns the new surface ID.
@@ -322,6 +326,8 @@ pub struct MeshVertexData<'a> {
     pub piece_id: Piece,
     /// ID of the surface that the vertex is part of. This is used for facet
     /// shrink.
+    ///
+    /// This is ignored when rendering internals.
     pub surface_id: Surface,
     /// ID of the polygon that the vertex is part of. This is used for
     /// determining color and lighting.
