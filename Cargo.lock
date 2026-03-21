@@ -2908,6 +2908,7 @@ dependencies = [
  "hypuz_util",
  "itertools 0.14.0",
  "log",
+ "smallvec",
 ]
 
 [[package]]

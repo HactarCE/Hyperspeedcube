@@ -651,10 +651,6 @@ impl NdEuclidPuzzleRenderer {
         let mut outline_color_ids_data = vec![0; self.model.edge_count];
         let mut outline_radii_data = vec![0.0; self.model.edge_count];
 
-        fn u32_range_to_usize(r: &Range<u32>) -> Range<usize> {
-            r.start as usize..r.end as usize
-        }
-
         for (piece, stickers) in &self.puzzle_pieces {
             let style = draw_params.piece_styles[piece_style_indices[piece]].0;
 
@@ -663,6 +659,7 @@ impl NdEuclidPuzzleRenderer {
             let outline_color_mode = style.outline_color;
 
             for &sticker in stickers {
+                let sticker_range = self.model.sticker_ranges[sticker];
                 let sticker_color =
                     FACES_BASE_COLOR_ID + self.puzzle_sticker_colors[sticker].0 as u32;
 
@@ -672,8 +669,7 @@ impl NdEuclidPuzzleRenderer {
                     StyleColorMode::FixedColor { color } => color_ids[&color],
                     StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
                 };
-                let polygon_range = &self.model.sticker_polygon_ranges[sticker];
-                polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
+                polygon_color_ids_data[sticker_range.polygon_range()].fill(face_color_id);
 
                 // Write sticker outline colors.
                 let mut outline_color_id = match outline_color_mode {
@@ -685,12 +681,13 @@ impl NdEuclidPuzzleRenderer {
                     // Disable lighting by setting highest bit
                     outline_color_id |= 0x8000_0000;
                 }
-                let edge_range = u32_range_to_usize(&self.model.sticker_edge_ranges[sticker]);
-                outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
+                outline_color_ids_data[sticker_range.edge_range()].fill(outline_color_id);
                 // Write sticker outline radii.
-                outline_radii_data[edge_range]
+                outline_radii_data[sticker_range.edge_range()]
                     .fill(style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR);
             }
+
+            let internals_range = self.model.piece_internals_ranges[piece];
 
             // Write internals face colors.
             let face_color_id = match face_color_mode {
@@ -698,8 +695,7 @@ impl NdEuclidPuzzleRenderer {
                 StyleColorMode::FixedColor { color } => color_ids[&color],
                 StyleColorMode::Rainbow => RAINBOW_COLOR_ID,
             };
-            let polygon_range = &self.model.piece_internals_polygon_ranges[piece];
-            polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
+            polygon_color_ids_data[internals_range.polygon_range()].fill(face_color_id);
 
             // Write internals outline colors.
             let mut outline_color_id = match outline_color_mode {
@@ -711,10 +707,9 @@ impl NdEuclidPuzzleRenderer {
                 // Disable lighting by setting highest bit
                 outline_color_id |= 0x8000_0000;
             }
-            let edge_range = u32_range_to_usize(&self.model.piece_internals_edge_ranges[piece]);
-            outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
+            outline_color_ids_data[internals_range.edge_range()].fill(outline_color_id);
             // Write internals outline radii.
-            outline_radii_data[edge_range].fill(
+            outline_radii_data[internals_range.edge_range()].fill(
                 style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR * OUTLINE_RADIUS_INTERNALS_SCALE,
             );
         }
@@ -827,19 +822,13 @@ impl NdEuclidPuzzleRenderer {
         };
 
         if include_internals {
-            let index_range = match geometry_type {
-                GeometryType::Faces => &self.model.piece_internals_triangle_ranges[piece],
-                GeometryType::Edges => &self.model.piece_internals_edge_ranges[piece],
-            };
-            self.write_geometry(geometry_type, src, dst, index_range, dst_offset);
+            let index_range = geometry_type.get(self.model.piece_internals_ranges[piece]);
+            self.write_geometry(geometry_type, src, dst, &index_range, dst_offset);
         }
 
         for &sticker in &self.puzzle_pieces[piece] {
-            let index_range = match geometry_type {
-                GeometryType::Faces => &self.model.sticker_triangle_ranges[sticker],
-                GeometryType::Edges => &self.model.sticker_edge_ranges[sticker],
-            };
-            self.write_geometry(geometry_type, src, dst, index_range, dst_offset);
+            let index_range = geometry_type.get(self.model.sticker_ranges[sticker]);
+            self.write_geometry(geometry_type, src, dst, &index_range, dst_offset);
         }
     }
     fn write_geometry(
@@ -1088,8 +1077,6 @@ struct_with_constructor! {
                 polygon_count: usize = mesh.polygon_count,
                 edge_count: usize = mesh.edge_count(),
                 triangle_count: usize = mesh.triangle_count(),
-                sticker_polygon_ranges: PerSticker<Range<usize>> = mesh.sticker_polygon_ranges.clone(),
-                piece_internals_polygon_ranges: PerPiece<Range<usize>> = mesh.piece_internals_polygon_ranges.clone(),
                 first_gizmo_vertex_index: usize = mesh.puzzle_vertex_count,
 
                 /*
@@ -1126,11 +1113,8 @@ struct_with_constructor! {
                 /// Sequential edge IDs.
                 edge_ids:               wgpu::Buffer = buffer!(edge_ids,                   COPY_SRC),
 
-                sticker_triangle_ranges: PerSticker<Range<u32>> = mesh.sticker_triangle_ranges.clone(),
-                piece_internals_triangle_ranges: PerPiece<Range<u32>> = mesh.piece_internals_triangle_ranges.clone(),
-
-                sticker_edge_ranges: PerSticker<Range<u32>> = mesh.sticker_edge_ranges.clone(),
-                piece_internals_edge_ranges: PerPiece<Range<u32>> = mesh.piece_internals_edge_ranges.clone(),
+                sticker_ranges: PerSticker<MeshRange> = mesh.sticker_ranges.clone(),
+                piece_internals_ranges: PerPiece<MeshRange> = mesh.piece_internals_ranges.clone(),
             }
         }
     }
@@ -1371,6 +1355,15 @@ struct GeometryBucket {
 enum GeometryType {
     Faces,
     Edges,
+}
+
+impl GeometryType {
+    pub fn get(self, range: MeshRange) -> Range<u32> {
+        match self {
+            GeometryType::Faces => range.start.triangle_count..range.end.triangle_count,
+            GeometryType::Edges => range.start.edge_count..range.end.edge_count,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

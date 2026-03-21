@@ -1,202 +1,101 @@
-use std::{
-    collections::HashMap,
-    fmt,
-    marker::PhantomData,
-    ops::{Index, Range},
-};
+use std::collections::{HashMap, hash_map};
+use std::fmt;
+use std::ops::{Index, Range};
 
-use eyre::Result;
+use eyre::{Result, ensure};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 
-use crate::direct_product_points;
-
 hypuz_util::typed_index_struct! {
-    /// Vertex ID.
+    /// Vertex ID within a `PolytopeGeometry`.
     pub struct Vertex(pub u32);
 }
 
-#[derive(Debug)]
-pub struct PieceGeometry {
-    pub polytope: PolytopeGeometry,
-    pub centroid: Point,
-    pub facets: Vec<PieceFacetGeometry>,
-}
-
-impl PieceGeometry {
-    pub fn direct_product(a: &Self, b: &Self, a_surfaces: usize) -> Self {
-        let ndim = a.polytope.ndim() + b.polytope.ndim();
-
-        Self {
-            polytope: PolytopeGeometry::direct_product(&a.polytope, &b.polytope),
-            centroid: direct_product_points(
-                a.polytope.ndim(),
-                b.polytope.ndim(),
-                &a.centroid,
-                &b.centroid,
-            ),
-            facets: std::iter::chain(
-                a.facets
-                    .iter()
-                    .filter(|f| ndim <= 3 || f.sticker_data.is_some()) // remove internals in 4D+
-                    .map(|a_facet| PieceFacetGeometry {
-                        polytope: PolytopeGeometry::direct_product(&a_facet.polytope, &b.polytope),
-                        sticker_data: a_facet.sticker_data.as_ref().map(|sticker_data| {
-                            StickerData {
-                                surface: sticker_data.surface,
-                            }
-                        }),
-                    }),
-                b.facets
-                    .iter()
-                    .filter(|f| ndim <= 3 || f.sticker_data.is_some())
-                    .map(|b_facet| PieceFacetGeometry {
-                        polytope: PolytopeGeometry::direct_product(&a.polytope, &b_facet.polytope),
-                        sticker_data: b_facet.sticker_data.as_ref().map(|sticker_data| {
-                            StickerData {
-                                surface: Surface(a_surfaces as u16 + sticker_data.surface.0),
-                            }
-                        }),
-                    }),
-            )
-            .collect(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct PieceFacetGeometry {
-    pub polytope: PolytopeGeometry,
-    pub sticker_data: Option<StickerData>,
-}
-
-#[derive(Debug)]
-pub struct StickerData {
-    pub surface: Surface,
-}
-
-#[derive(Debug)]
-pub struct SurfaceGeometry {
-    pub ndim: u8,
-    pub centroid: Point,
-    pub normal: Vector,
-}
-
-impl SurfaceGeometry {
-    pub fn lift_by_ndim(&self, ndim_below: u8, ndim_above: u8) -> Self {
-        let below = std::iter::repeat_n(0.0, ndim_below as usize);
-        let above = std::iter::repeat_n(0.0, ndim_above as usize);
-        Self {
-            ndim: ndim_below + self.ndim + ndim_above,
-            centroid: itertools::chain!(
-                below.clone(),
-                self.centroid.as_vector().iter_ndim(self.ndim),
-                above.clone()
-            )
-            .collect(),
-            normal: itertools::chain!(
-                below.clone(),
-                self.normal.iter_ndim(self.ndim),
-                above.clone()
-            )
-            .collect(),
-        }
-    }
-}
-
-pub struct PointPer<I> {
+/// List of unique vertices, indexed [`Vertex`].
+pub struct VertexList {
+    /// Number of dimensions.
     ndim: u8,
+    /// Number of points.
+    ///
+    /// This is tracked separately from `values` so that it works correctly in
+    /// the zero-dimensional case.
+    len: usize,
+    /// Flattened list of coordinates for each vertex.
     values: Vec<Float>,
-    _marker: PhantomData<I>,
 }
 
-impl<I> fmt::Debug for PointPer<I> {
+impl fmt::Debug for VertexList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list()
-            .entries(self.values.chunks_exact(self.ndim as usize))
-            .finish()
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<I: TypedIndex> Index<I> for PointPer<I> {
+impl Index<Vertex> for VertexList {
     type Output = [Float];
 
-    fn index(&self, index: I) -> &Self::Output {
+    fn index(&self, index: Vertex) -> &Self::Output {
         &self.values[self.index_range(index)]
     }
 }
 
-impl<'a, I: TypedIndex> IntoIterator for &'a PointPer<I> {
-    type Item = &'a [Float];
-
-    type IntoIter = std::slice::ChunksExact<'a, Float>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.values.chunks_exact(self.ndim as usize)
-    }
-}
-
-impl<I: TypedIndex> PointPer<I> {
+impl VertexList {
     pub fn new(ndim: u8) -> Self {
         Self {
             ndim,
+            len: 0,
             values: vec![],
-            _marker: PhantomData,
         }
-    }
-
-    pub fn from_iter(
-        ndim: u8,
-        vectors: impl IntoIterator<Item = Vector>,
-    ) -> Result<Self, IndexOverflow> {
-        let mut ret = Self::new(ndim);
-        for p in vectors {
-            ret.push(p)?;
-        }
-        Ok(ret)
     }
 
     fn direct_product(a: &Self, b: &Self) -> Self {
         Self {
             ndim: a.ndim + b.ndim,
-            values: itertools::iproduct!(a, b)
+            len: a.len * b.len,
+            values: itertools::iproduct!(a.iter(), b.iter())
                 .flat_map(|(va, vb)| std::iter::chain(va, vb).copied())
                 .collect(),
-            _marker: PhantomData,
         }
     }
 
-    pub fn get(&self, i: I) -> Point {
+    pub fn get(&self, i: Vertex) -> Point {
         Point::from(&self[i])
     }
 
-    fn index_range(&self, v: I) -> Range<usize> {
+    fn index_range(&self, v: Vertex) -> Range<usize> {
         let i = v.to_index();
         let ndim = self.ndim as usize;
         i * ndim..(i + 1) * ndim
     }
 
     pub fn len(&self) -> usize {
-        self.values.len() / self.ndim as usize
+        self.len
     }
 
-    pub fn push(&mut self, point: impl VectorRef) -> Result<I, IndexOverflow> {
-        let len = self.len();
+    pub fn push(&mut self, point: impl VectorRef) -> Result<Vertex, IndexOverflow> {
+        let len = self.len;
+        self.len += 1;
         self.values.extend(point.iter_ndim(self.ndim));
-        I::try_from_index(len)
+        Vertex::try_from_index(len)
     }
 
-    pub fn keys(&self) -> TypedIndexIter<I> {
-        I::iter(self.len())
+    pub fn keys(&self) -> TypedIndexIter<Vertex> {
+        Vertex::iter(self.len)
+    }
+
+    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = &[Float]> + ExactSizeIterator {
+        self.keys().map(|i| &self[i])
     }
 }
 
 /// Vertices, edges, and triangles of a polytope.
+///
+/// Higher-dimension elements are not stored because they are never actually
+/// displayed.
 #[derive(Debug)]
 pub struct PolytopeGeometry {
     /// Vertex coordinates.
-    pub verts: PointPer<Vertex>,
+    pub verts: VertexList,
     /// Edges, defined in terms of `verts`.
     pub edges: Vec<[Vertex; 2]>,
     /// Concatenated polygons, defined in terms of `verts`.
@@ -204,19 +103,41 @@ pub struct PolytopeGeometry {
     /// To reconstruct the original polygons, split them using
     /// `polygon_vertex_counts`.
     ///
-    /// The vertices within each polygon are in order (whether that order is
-    /// counterclockwise or clockwise is undefined).
+    /// The vertices within each polygon are in order. (It is undefined whether
+    /// that order is counterclockwise or clockwise.)
     pub polygon_verts: Vec<Vertex>,
     /// Number of vertices in `polygon_verts` for each polygon. This can be used
     /// to split `polygon_verts` into a range of vertices for each polygon.
     pub polygon_sizes: Vec<usize>,
+    /// Centroid and Lebasgue measure of the polytope.
+    pub centroid: Centroid,
 }
 
 impl PolytopeGeometry {
-    pub fn ndim(&self) -> u8 {
+    /// Geometry for a single point in a zero-dimensional space.
+    pub const POINT: Self = Self {
+        verts: VertexList {
+            ndim: 0,
+            len: 1,
+            values: vec![],
+        },
+        edges: vec![],
+        polygon_verts: vec![],
+        polygon_sizes: vec![],
+        centroid: Centroid::ZERO,
+    };
+
+    /// Retunrs the number of dimensions of the space containing the polytope.
+    ///
+    /// This may be larger than the number of dimensions of the polytope itself.
+    /// In fact, this type has no knowldege of the number of dimensions of the
+    /// polytope itself.
+    pub fn space_ndim(&self) -> u8 {
         self.verts.ndim
     }
 
+    /// Returns the direct product of two polytopes `a` and `b`, which exists in
+    /// a space of dimension `a.space_ndim() + b.space_ndim()`.
     pub fn direct_product(a: &Self, b: &Self) -> Self {
         let product_verts = |va: Vertex, vb: Vertex| Vertex(va.0 * b.verts.len() as u32 + vb.0);
         let product_edges = |[va1, va2]: [Vertex; 2], [vb1, vb2]: [Vertex; 2]| {
@@ -228,10 +149,10 @@ impl PolytopeGeometry {
             ]
         };
 
-        let verts = PointPer::direct_product(&a.verts, &b.verts);
+        let verts = VertexList::direct_product(&a.verts, &b.verts);
 
-        let edges = if a.ndim() == 1
-            && b.ndim() == 1
+        let edges = if a.space_ndim() == 1
+            && b.space_ndim() == 1
             && let &[ea] = a.edges.as_slice()
             && let &[eb] = b.edges.as_slice()
         {
@@ -278,22 +199,30 @@ impl PolytopeGeometry {
         )
         .collect();
 
+        let centroid = Centroid::new(
+            &std::iter::chain(
+                a.centroid.center().as_vector().iter_ndim(a.space_ndim()),
+                b.centroid.center().as_vector().iter_ndim(b.space_ndim()),
+            )
+            .collect(),
+            a.centroid.weight() + b.centroid.weight(),
+        );
+
         Self {
             verts,
             edges,
             polygon_verts,
             polygon_sizes,
+            centroid,
         }
     }
 
-    /// Constructs geometry for a polytope element.
-    ///
-    /// The centroid is used to orient elements in 2D and 3D.
+    /// Constructs a `PolytopeGeometry` from a `hypershape` polytope element.
     pub fn from_polytope_element(polytope: hypershape::Element<'_>) -> Result<Self> {
         let ndim = polytope.space().ndim();
 
         let mut vertex_map = HashMap::new();
-        let mut verts = PointPer::new(polytope.space().ndim());
+        let mut verts = VertexList::new(polytope.space().ndim());
         for v in polytope.vertex_set() {
             vertex_map.insert(v.id(), verts.push(v.pos().into_vector())?);
         }
@@ -324,11 +253,113 @@ impl PolytopeGeometry {
             }
         }
 
+        let centroid = polytope.centroid()?;
+
         Ok(Self {
             verts,
             edges,
             polygon_verts,
             polygon_sizes,
+            centroid,
         })
+    }
+
+    /// Adds a polytope to a mesh.
+    ///
+    /// `interior_point` is used for orienting triangles in 2D and 3D. When
+    /// generating the mesh for a piece or sticker, `interior_point` must be a
+    /// point somewhere on the interior of the **piece** (not sticker). For
+    /// generating a 2D polytope in a 2D space, it must be a point with a
+    /// negative Z coordinate.
+    pub fn add_to_mesh(
+        &self,
+        mesh: &mut Mesh,
+        surface_id: Surface,
+        piece_id: Piece,
+        interior_point: &Point,
+    ) -> Result<MeshRange> {
+        let ndim = self.space_ndim();
+
+        let start = mesh.counts();
+
+        // Add polygons and triangles.
+        let dummy_polygon = mesh.next_polygon_id()?; // for edges with no polygon
+        let mut vertex_map = HashMap::new();
+        let mut i = 0;
+        for &polygon_size in &self.polygon_sizes {
+            let polygon_id_in_mesh = mesh.next_polygon_id()?;
+
+            let j = i + polygon_size as usize;
+            let polygon = &self.polygon_verts[i..j];
+
+            // Calculate tangent vectors.
+            ensure!(polygon.len() >= 3, "mesh polygon is too small");
+            let [a, b, c] = [0, 1, 2].map(|n| self.verts.get(polygon[n]));
+            // IIFE to mimic try_block
+            let (mut u_tangent, mut v_tangent) = (|| {
+                let u = (b - &a).normalize()?;
+                let v = (c - &a).rejected_from(&u)?.normalize()?;
+                Some((u, v))
+            })()
+            .unwrap_or_default(); // give up and return zero
+
+            // Fix polygon orientation in 2D and 3D.
+            if ndim == 2 || ndim == 3 {
+                if u_tangent
+                    .cross_product_3d(&v_tangent)
+                    .dot(a - interior_point)
+                    .is_sign_negative()
+                {
+                    std::mem::swap(&mut u_tangent, &mut v_tangent);
+                }
+            }
+
+            let polygon_start = mesh.vertex_count() as u32;
+            for &vertex_id in polygon {
+                let vertex_id_in_mesh = mesh.add_puzzle_vertex(MeshVertexData {
+                    position: &self.verts.get(vertex_id),
+                    u_tangent: &u_tangent,
+                    v_tangent: &v_tangent,
+                    sticker_shrink_vector: &Vector::zero(0), // TODO
+                    piece_id,
+                    surface_id,
+                    polygon_id: polygon_id_in_mesh,
+                })?;
+                vertex_map.entry(vertex_id).or_insert(vertex_id_in_mesh);
+            }
+
+            for k in 2..polygon_size as u32 {
+                mesh.triangles
+                    .push([0, k - 1, k].map(|q| polygon_start + q));
+            }
+
+            i = j;
+        }
+
+        // Add edges.
+        let mut get_or_add_vertex_for_edge = |mesh: &mut Mesh, v| {
+            eyre::Ok(match vertex_map.entry(v) {
+                hash_map::Entry::Occupied(entry) => *entry.get(),
+                hash_map::Entry::Vacant(entry) => {
+                    *entry.insert(mesh.add_puzzle_vertex(MeshVertexData {
+                        position: &self.verts.get(v),
+                        u_tangent: &Vector::EMPTY,
+                        v_tangent: &Vector::EMPTY,
+                        sticker_shrink_vector: &Vector::zero(0), // TODO
+                        piece_id,
+                        surface_id,
+                        polygon_id: dummy_polygon,
+                    })?)
+                }
+            })
+        };
+        for &[v1, v2] in &self.edges {
+            let v1 = get_or_add_vertex_for_edge(mesh, v1)?;
+            let v2 = get_or_add_vertex_for_edge(mesh, v2)?;
+            mesh.edges.push([v1, v2]);
+        }
+
+        let end = mesh.counts();
+        Ok(MeshRange::new(start, end))
     }
 }

@@ -307,8 +307,7 @@ fn build_gizmo(
 
         let face_polygon = space.get(face_polygon).as_face()?;
 
-        let triangles_start = mesh.triangle_count() as u32;
-        let edges_start = mesh.edge_count() as u32;
+        let start = mesh.counts();
 
         for edge in face_polygon.edges_in_order()? {
             mesh.edges
@@ -318,10 +317,9 @@ fn build_gizmo(
             mesh.triangles.push(tri.map(|v| vertex_map[&(v, surface)]));
         }
 
-        let triangles_end = mesh.triangle_count() as u32;
-        let edges_end = mesh.edge_count() as u32;
-        let new_gizmo_face =
-            mesh.add_gizmo_face(triangles_start..triangles_end, edges_start..edges_end)?;
+        let end = mesh.counts();
+
+        let new_gizmo_face = mesh.add_gizmo_face(start..end)?;
         resulting_gizmo_faces.push((new_gizmo_face, twist));
     }
 

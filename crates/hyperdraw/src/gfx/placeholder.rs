@@ -73,18 +73,12 @@ pub fn placeholder_mesh(ndim: u8) -> Result<Mesh> {
         surface_centroids: vec![0.0; 9], // 3 surfaces
         surface_normals: vec![0.0; 9],
 
-        sticker_polygon_ranges: PerSticker::new(), // will be modified
-        piece_internals_polygon_ranges: PerPiece::from_iter([0..0]),
+        triangles: vec![], // will be modified
+        edges: vec![],     // will be modified
 
-        triangles: vec![],                          // will be modified
-        sticker_triangle_ranges: PerSticker::new(), // will be modified
-        piece_internals_triangle_ranges: PerPiece::from_iter([0..0]),
-        gizmo_triangle_ranges: PerGizmoFace::new(),
-
-        edges: vec![],                          // will be modified
-        sticker_edge_ranges: PerSticker::new(), // will be modified
-        piece_internals_edge_ranges: PerPiece::from_iter([0..0]),
-        gizmo_edge_ranges: PerGizmoFace::new(),
+        sticker_ranges: PerSticker::new(), // will be modified
+        piece_internals_ranges: PerPiece::from_iter([MeshRange::EMPTY]),
+        gizmo_ranges: PerGizmoFace::new(),
     };
 
     add_sticker(&mut mesh, add_base_shape)?;
@@ -95,18 +89,10 @@ pub fn placeholder_mesh(ndim: u8) -> Result<Mesh> {
 }
 
 fn add_sticker(mesh: &mut Mesh, f: fn(&mut Mesh) -> Result<()>) -> Result<()> {
-    let polygons_start = mesh.polygon_count;
-    let tri_start = mesh.triangle_count() as u32;
-    let edges_start = mesh.edge_count() as u32;
+    let start = mesh.counts();
     f(mesh)?;
-    let polygons_end = mesh.polygon_count;
-    let tri_end = mesh.triangle_count() as u32;
-    let edges_end = mesh.edge_count() as u32;
-    mesh.add_sticker(
-        polygons_start..polygons_end,
-        tri_start..tri_end,
-        edges_start..edges_end,
-    )
+    let end = mesh.counts();
+    mesh.add_sticker(start..end)
 }
 
 fn add_base_shape(mesh: &mut Mesh) -> Result<()> {

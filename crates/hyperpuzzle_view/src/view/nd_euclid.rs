@@ -1,4 +1,3 @@
-use std::ops::Range;
 use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
@@ -284,31 +283,33 @@ impl NdEuclidViewState {
 
         let interactable_pieces = styles.interactable_pieces(prefs);
 
-        let sticker_tri_ranges = self
+        let sticker_ranges = self
             .geom
             .mesh
-            .sticker_triangle_ranges
+            .sticker_ranges
             .iter()
-            .map(|(sticker, tri_range)| (puzzle.stickers[sticker].piece, Some(sticker), tri_range));
+            .map(|(sticker, mesh_range)| {
+                (puzzle.stickers[sticker].piece, Some(sticker), mesh_range)
+            });
 
         let empty_internals_list = PerPiece::new();
-        let internals_tri_ranges = if self.camera.prefs().show_internals {
-            &self.geom.mesh.piece_internals_triangle_ranges
+        let internals_ranges = if self.camera.prefs().show_internals {
+            &self.geom.mesh.piece_internals_ranges
         } else {
             &empty_internals_list
         }
         .iter()
         .map(|(piece, tri_range)| (piece, None, tri_range));
 
-        itertools::chain(sticker_tri_ranges, internals_tri_ranges)
-            .filter(|(piece, _sticker, _tri_range)| interactable_pieces.contains(*piece))
-            .flat_map(|(piece, sticker, tri_range)| {
+        itertools::chain(sticker_ranges, internals_ranges)
+            .filter(|(piece, _sticker, _mesh_range)| interactable_pieces.contains(*piece))
+            .flat_map(|(piece, sticker, &mesh_range)| {
                 self.puzzle_triangle_hovers(
                     &sim,
                     cursor_pos,
                     piece,
                     sticker,
-                    tri_range,
+                    mesh_range,
                     vertex_3d_positions,
                 )
             })
@@ -323,11 +324,12 @@ impl NdEuclidViewState {
     ) -> Option<GizmoHoverState> {
         let cursor_pos = self.cursor_pos?;
 
-        let gizmo_tri_ranges = self.geom.mesh.gizmo_triangle_ranges.iter();
-
-        gizmo_tri_ranges
-            .flat_map(|(gizmo, tri_range)| {
-                self.gizmo_triangle_hover(cursor_pos, gizmo, tri_range, vertex_3d_positions)
+        self.geom
+            .mesh
+            .gizmo_ranges
+            .iter()
+            .filter_map(|(gizmo, &mesh_range)| {
+                self.gizmo_triangle_hover(cursor_pos, gizmo, mesh_range, vertex_3d_positions)
             })
             .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
     }
@@ -431,8 +433,8 @@ impl NdEuclidViewState {
         Some([a, b])
     }
 
-    /// Returns the triangles on the puzzle that contain the screen-space point
-    /// `cursor_pos`.
+    /// Returns the triangles on the puzzle within `mesh_range` that contain the
+    /// screen-space point `cursor_pos`.
     ///
     /// # Panics
     ///
@@ -443,14 +445,14 @@ impl NdEuclidViewState {
         cursor_pos: cgmath::Point2<f32>,
         piece: Piece,
         sticker: Option<Sticker>,
-        tri_range: &'a Range<u32>,
+        mesh_range: MeshRange,
         puzzle_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
     ) -> impl 'a + Iterator<Item = NdEuclidPuzzleHoverState> {
         let mesh = &self.geom.mesh;
         let piece_transform = &puzzle_state
             .unwrap_render_data::<NdEuclidPuzzleStateRenderData>()
             .piece_transforms[piece];
-        mesh.triangles[tri_range.start as usize..tri_range.end as usize]
+        mesh.triangles[mesh_range.triangle_range()]
             .iter()
             .filter_map(move |&vertex_ids| {
                 let tri_verts @ [a, b, c] =
@@ -495,11 +497,11 @@ impl NdEuclidViewState {
         &self,
         cursor_pos: cgmath::Point2<f32>,
         gizmo_face: GizmoFace,
-        tri_range: &Range<u32>,
+        mesh_range: MeshRange,
         gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     ) -> Option<GizmoHoverState> {
         let mesh = &self.geom.mesh;
-        mesh.triangles[tri_range.start as usize..tri_range.end as usize]
+        mesh.triangles[mesh_range.triangle_range()]
             .iter()
             .find_map(move |&vertex_ids| {
                 let tri_verts @ [a, b, c] =

@@ -1,4 +1,9 @@
-use std::{borrow::Cow, fmt, ops::Index, sync::Arc};
+use std::{
+    borrow::Cow,
+    fmt,
+    ops::Index,
+    sync::{Arc, LazyLock},
+};
 
 use hypermath::{
     APPROX, ApproxHashMap, MotorNearestNeighborMap, Point, Vector,
@@ -40,6 +45,15 @@ impl Index<GeneratorId> for IsometryGroup {
 }
 
 impl IsometryGroup {
+    /// Returns the trivial isometry group.
+    pub fn trivial() -> Self {
+        static TRIVIAL_GROUP: LazyLock<IsometryGroup> = LazyLock::new(|| {
+            IsometryGroup::from_factors([]).expect("error constructing trivial isometry group")
+        });
+
+        TRIVIAL_GROUP.clone()
+    }
+
     /// Constructs a group from factors.
     pub(crate) fn from_factors(
         factor_groups: impl IntoIterator<Item = (Arc<AbstractGroupLut>, Arc<FactorGroupIsometries>)>,

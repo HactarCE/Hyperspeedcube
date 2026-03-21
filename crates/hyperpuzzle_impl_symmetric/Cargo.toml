@@ -27,4 +27,4 @@ eyre.workspace = true
 hypershape.workspace = true
 itertools.workspace = true
 log.workspace = true
-# rand.workspace = true
+smallvec.workspace = true

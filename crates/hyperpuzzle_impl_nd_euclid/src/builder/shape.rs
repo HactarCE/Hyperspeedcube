@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
-use std::ops::Range;
 use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
@@ -565,48 +564,30 @@ impl ShapeBuilder {
 
                 surfaces[surface_id].centroid += sticker_centroid;
 
-                let (polygon_index_range, triangles_index_range, edges_index_range) =
-                    build_shape_polygons(
-                        space,
-                        &mut mesh,
-                        &sticker_shrink_vectors,
-                        space.get(sticker.facet),
-                        &piece_centroid,
-                        piece_id,
-                        surface_id,
-                    )?;
+                let mesh_range = build_shape_polygons(
+                    space,
+                    &mut mesh,
+                    &sticker_shrink_vectors,
+                    space.get(sticker.facet),
+                    &piece_centroid,
+                    piece_id,
+                    surface_id,
+                )?;
 
                 if sticker.color == Color::INTERNAL {
                     if piece_internals_indices_start.is_none() {
-                        piece_internals_indices_start = Some((
-                            polygon_index_range.start,
-                            triangles_index_range.start,
-                            edges_index_range.start,
-                        ));
+                        piece_internals_indices_start = Some(mesh_range.start);
                     }
                 } else {
-                    mesh.add_sticker(
-                        polygon_index_range,
-                        triangles_index_range,
-                        edges_index_range,
-                    )?;
+                    mesh.add_sticker(mesh_range)?;
                 }
             }
 
-            let mut piece_internals_polygon_range = 0..0;
-            let mut piece_internals_triangle_range = 0..0;
-            let mut piece_internals_edge_range = 0..0;
-            if let Some((polygon_start, tri_start, edge_start)) = piece_internals_indices_start {
-                piece_internals_polygon_range = polygon_start..mesh.polygon_count;
-                piece_internals_triangle_range = tri_start..mesh.triangle_count() as u32;
-                piece_internals_edge_range = edge_start..mesh.edge_count() as u32;
+            let mut piece_internals_range = MeshRange::EMPTY;
+            if let Some(internals_start) = piece_internals_indices_start {
+                piece_internals_range = MeshRange::new(internals_start, mesh.counts());
             }
-            mesh.add_piece(
-                &piece_centroid,
-                piece_internals_polygon_range,
-                piece_internals_triangle_range,
-                piece_internals_edge_range,
-            )?;
+            mesh.add_piece(&piece_centroid, piece_internals_range)?;
         }
 
         for (expected_id, surface_data) in surfaces {
@@ -710,10 +691,8 @@ fn build_shape_polygons(
     piece_centroid: &Point,
     piece_id: Piece,
     surface_id: Surface,
-) -> Result<(Range<usize>, Range<u32>, Range<u32>)> {
-    let polygons_start = mesh.polygon_count;
-    let triangles_start = mesh.triangle_count() as u32;
-    let edges_start = mesh.edge_count() as u32;
+) -> Result<MeshRange> {
+    let start = mesh.counts();
 
     for polygon in sticker_shape.as_element().face_set() {
         let polygon_id = mesh.next_polygon_id()?;
@@ -789,14 +768,8 @@ fn build_shape_polygons(
         }
     }
 
-    let polygons_end = mesh.polygon_count;
-    let triangles_end = mesh.triangle_count() as u32;
-    let edges_end = mesh.edge_count() as u32;
-    Ok((
-        polygons_start..polygons_end,
-        triangles_start..triangles_end,
-        edges_start..edges_end,
-    ))
+    let end = mesh.counts();
+    Ok(MeshRange::new(start, end))
 }
 
 /// Computes the sticker shrink vectors for a piece.

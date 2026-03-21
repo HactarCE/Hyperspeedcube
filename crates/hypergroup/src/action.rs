@@ -34,6 +34,18 @@ impl<P> fmt::Debug for GroupAction<P> {
 }
 
 impl<P: TypedIndex> GroupAction<P> {
+    /// Constructs the trivial group action.
+    pub fn trivial() -> Self {
+        Self {
+            group: Group::trivial(),
+            inner: Arc::new(GroupActionInner {
+                point_count: 0,
+                factors: PerFactorGroup::new(),
+                point_index_offsets: PerFactorGroup::new(),
+            }),
+        }
+    }
+
     pub(crate) fn from_factors(
         factors: impl IntoIterator<Item = Arc<AbstractGroupActionLut<P>>>,
     ) -> GroupResult<Self> {

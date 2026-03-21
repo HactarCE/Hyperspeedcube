@@ -54,29 +54,17 @@ pub struct Mesh {
     /// Normal vector for each surface, used to cull 4D backfaces.
     pub surface_normals: Vec<f32>,
 
-    /// For each sticker, the range of polygon IDs it spans.
-    pub sticker_polygon_ranges: PerSticker<Range<usize>>,
-    /// For each piece, the range of polygon IDs its internals spans.
-    pub piece_internals_polygon_ranges: PerPiece<Range<usize>>,
-
     /// Vertex indices for triangles.
     pub triangles: Vec<[u32; 3]>,
-    /// For each sticker, the range in `triangles` containing its triangles.
-    pub sticker_triangle_ranges: PerSticker<Range<u32>>,
-    /// For each piece, the range in `triangles` containing its internals'
-    /// triangles.
-    pub piece_internals_triangle_ranges: PerPiece<Range<u32>>,
-    /// For each twist gizmo, the range in `triangles` contains its triangles.
-    pub gizmo_triangle_ranges: PerGizmoFace<Range<u32>>,
-
     /// Vertex indices for edges.
     pub edges: Vec<[u32; 2]>,
-    /// For each sticker, the range in `edges` containing its edges.
-    pub sticker_edge_ranges: PerSticker<Range<u32>>,
-    /// For each piece, the range in `edges` containing its internals' edges.
-    pub piece_internals_edge_ranges: PerPiece<Range<u32>>,
-    /// For each twist gizmo, the range in `edges` containing its edges.
-    pub gizmo_edge_ranges: PerGizmoFace<Range<u32>>,
+
+    /// For each sticker, the portion of the mesh corresponding to it.
+    pub sticker_ranges: PerSticker<MeshRange>,
+    /// For each piece, the portion of the mesh corresponding to its internals.
+    pub piece_internals_ranges: PerPiece<MeshRange>,
+    /// For each twist gizmo, the portion of the mesh corresponding to it.
+    pub gizmo_ranges: PerGizmoFace<MeshRange>,
 }
 
 impl Default for Mesh {
@@ -114,17 +102,11 @@ impl Mesh {
             surface_normals: vec![],
 
             triangles: vec![],
-            sticker_triangle_ranges: PerSticker::new(),
-            piece_internals_triangle_ranges: PerPiece::new(),
-            gizmo_triangle_ranges: PerGizmoFace::new(),
-
             edges: vec![],
-            sticker_edge_ranges: PerSticker::new(),
-            piece_internals_edge_ranges: PerPiece::new(),
 
-            sticker_polygon_ranges: PerSticker::new(),
-            piece_internals_polygon_ranges: PerPiece::new(),
-            gizmo_edge_ranges: PerGizmoFace::new(),
+            sticker_ranges: PerSticker::new(),
+            piece_internals_ranges: PerPiece::new(),
+            gizmo_ranges: PerGizmoFace::new(),
         }
     }
 
@@ -154,6 +136,16 @@ impl Mesh {
     /// Returns the number of edges in the mesh.
     pub fn edge_count(&self) -> usize {
         self.edges.len()
+    }
+
+    /// Returns the number of polygons, triangles, and edges in the mesh.
+    pub fn counts(&self) -> MeshCounts {
+        MeshCounts {
+            vertex_count: self.vertex_count() as u32,
+            edge_count: self.edge_count() as u32,
+            triangle_count: self.triangle_count() as u32,
+            polygon_count: self.polygon_count as u32,
+        }
     }
 
     /// Adds a vertex to the mesh and returns the vertex ID.
@@ -205,16 +197,9 @@ impl Mesh {
     }
 
     /// Adds a sticker to the mesh.
-    pub fn add_sticker(
-        &mut self,
-        polygon_range: Range<usize>,
-        triangle_range: Range<u32>,
-        edge_range: Range<u32>,
-    ) -> Result<()> {
+    pub fn add_sticker(&mut self, range: impl Into<MeshRange>) -> Result<()> {
         self.sticker_count += 1;
-        self.sticker_polygon_ranges.push(polygon_range)?;
-        self.sticker_triangle_ranges.push(triangle_range)?;
-        self.sticker_edge_ranges.push(edge_range)?;
+        self.sticker_ranges.push(range.into())?;
 
         Ok(())
     }
@@ -222,34 +207,22 @@ impl Mesh {
     pub fn add_piece(
         &mut self,
         centroid: &Point,
-        internals_polygon_range: Range<usize>,
-        internals_triangle_range: Range<u32>,
-        internals_edge_range: Range<u32>,
+        internals_range: impl Into<MeshRange>,
     ) -> Result<()> {
         let ndim = self.ndim;
         self.piece_count += 1;
         self.piece_centroids
             .extend(iter_f32(ndim, centroid.as_vector()));
-        self.piece_internals_polygon_ranges
-            .push(internals_polygon_range)?;
-        self.piece_internals_triangle_ranges
-            .push(internals_triangle_range)?;
-        self.piece_internals_edge_ranges
-            .push(internals_edge_range)?;
+        self.piece_internals_ranges.push(internals_range.into())?;
 
         Ok(())
     }
 
     /// Adds a gizmo face to the mesh.
-    pub fn add_gizmo_face(
-        &mut self,
-        triangle_range: Range<u32>,
-        edge_range: Range<u32>,
-    ) -> Result<GizmoFace> {
+    pub fn add_gizmo_face(&mut self, range: impl Into<MeshRange>) -> Result<GizmoFace> {
         let ret = GizmoFace(self.gizmo_face_count as _);
         self.gizmo_face_count += 1;
-        self.gizmo_triangle_ranges.push(triangle_range)?;
-        self.gizmo_edge_ranges.push(edge_range)?;
+        self.gizmo_ranges.push(range.into())?;
         Ok(ret)
     }
 
@@ -337,4 +310,72 @@ pub struct MeshVertexData<'a> {
 /// Returns an iterator over the components of `v` as `f32`s, padded to `ndim`.
 fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
     v.iter_ndim(ndim).map(|x| x as f32)
+}
+
+/// Numbers of certain elements in the mesh.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct MeshCounts {
+    /// Number of vertices in the mesh.
+    pub vertex_count: u32,
+    /// Number of edges in the mesh.
+    pub edge_count: u32,
+    /// Number of triangles in the mesh.
+    pub triangle_count: u32,
+    /// Number of polygons in the mesh.
+    pub polygon_count: u32,
+}
+
+/// Contiguous portion of a mesh.
+///
+/// This is basically `std::ops::Range<MeshCounts>` but `Copy`.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct MeshRange {
+    /// Lower bounds of the range.
+    pub start: MeshCounts,
+    /// Upper bounds of the range.
+    pub end: MeshCounts,
+}
+
+impl From<Range<MeshCounts>> for MeshRange {
+    fn from(value: Range<MeshCounts>) -> Self {
+        Self {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
+
+impl MeshRange {
+    /// Empty range in a mesh.
+    pub const EMPTY: Self = {
+        let zero = MeshCounts {
+            vertex_count: 0,
+            edge_count: 0,
+            triangle_count: 0,
+            polygon_count: 0,
+        };
+        Self::new(zero, zero)
+    };
+
+    /// Constructs a range from `start` to `end`.
+    pub const fn new(start: MeshCounts, end: MeshCounts) -> Self {
+        Self { start, end }
+    }
+
+    /// Returns the range of vertices from the mesh.
+    pub const fn vertex_range(self) -> Range<usize> {
+        self.start.vertex_count as usize..self.end.vertex_count as usize
+    }
+    /// Returns the range of edges from the mesh.
+    pub const fn edge_range(self) -> Range<usize> {
+        self.start.edge_count as usize..self.end.edge_count as usize
+    }
+    /// Returns the range of triangles from the mesh.
+    pub const fn triangle_range(self) -> Range<usize> {
+        self.start.triangle_count as usize..self.end.triangle_count as usize
+    }
+    /// Returns the range of polygons from the mesh.
+    pub const fn polygon_range(self) -> Range<usize> {
+        self.start.polygon_count as usize..self.end.polygon_count as usize
+    }
 }
