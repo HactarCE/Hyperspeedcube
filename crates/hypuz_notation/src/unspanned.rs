@@ -60,13 +60,33 @@ impl FromIterator<Node> for NodeList {
     }
 }
 
+impl IntoIterator for NodeList {
+    type Item = Node;
+
+    type IntoIter = std::vec::IntoIter<Node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a NodeList {
+    type Item = &'a Node;
+
+    type IntoIter = std::slice::Iter<'a, Node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
 impl Invert for NodeList {
     fn inv(self) -> Result<Self, InvertError> {
-        self.0.into_iter().rev().map(|n| n.inv()).collect()
+        self.into_iter().rev().map(|n| n.inv()).collect()
     }
 
     fn inv_deep(self) -> Result<Self, InvertError> {
-        self.0.into_iter().rev().map(|n| n.inv_deep()).collect()
+        self.into_iter().rev().map(|n| n.inv_deep()).collect()
     }
 }
 
@@ -74,6 +94,28 @@ impl NodeList {
     /// Constructs a new empty node list.
     pub fn new() -> Self {
         Self(Vec::new())
+    }
+
+    /// Expands commutator & conjugate notation and flattens all groups.
+    ///
+    /// **NOTE: This is subject to trivial DOS attacks, such as `(R)999999999`.
+    pub fn flatten(&self) -> Result<NodeList, ExpandError> {
+        let mut output = vec![];
+        self.flatten_into(&mut output, false)?;
+        Ok(Self(output))
+    }
+
+    fn flatten_into(&self, output: &mut Vec<Node>, invert: bool) -> Result<(), ExpandError> {
+        if invert {
+            for node in self.iter().rev() {
+                node.flatten_into(output, true)?;
+            }
+        } else {
+            for node in self {
+                node.flatten_into(output, false)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -190,6 +232,52 @@ impl Node {
         match self {
             Node::Move(mv) => Some(mv),
             _ => None,
+        }
+    }
+
+    fn flatten_into(&self, output: &mut Vec<Node>, mut invert: bool) -> Result<(), ExpandError> {
+        match self {
+            Node::Group(Group {
+                kind,
+                contents,
+                multiplier,
+            }) => match kind {
+                GroupKind::Niss => Err(ExpandError::NissNodeCannotBeExpanded),
+                _ => {
+                    invert ^= multiplier.0.is_negative();
+                    for _ in 0..multiplier.0.abs() {
+                        contents.flatten_into(output, invert)?;
+                    }
+                    Ok(())
+                }
+            },
+            Node::BinaryGroup(BinaryGroup {
+                kind,
+                lhs,
+                rhs,
+                multiplier,
+            }) => {
+                invert ^= multiplier.0.is_negative();
+                for _ in 0..multiplier.0.abs() {
+                    match kind {
+                        BinaryGroupKind::Commutator => {
+                            let (a, b) = if invert { (&rhs, &lhs) } else { (&lhs, &rhs) };
+                            a.flatten_into(output, false)?;
+                            b.flatten_into(output, false)?;
+                            a.flatten_into(output, true)?;
+                            b.flatten_into(output, true)?;
+                        }
+                        BinaryGroupKind::Conjugate => {
+                            lhs.flatten_into(output, false)?;
+                            rhs.flatten_into(output, invert)?;
+                            lhs.flatten_into(output, true)?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+            _ if invert => Ok(output.push(self.clone().inv()?)),
+            _ => Ok(output.push(self.clone())),
         }
     }
 }

@@ -363,7 +363,7 @@ fn assert_elem_satisfies_constraints<P: TypedIndex>(
     elem: GroupElementId,
     constraint_set: &ConstraintSet<P>,
 ) {
-    for Constraint { old, new } in constraint_set {
-        assert_eq!(new, action.act(elem, old), "coset violated constraint");
+    for Constraint { from, to } in constraint_set {
+        assert_eq!(to, action.act(elem, from), "coset violated constraint");
     }
 }

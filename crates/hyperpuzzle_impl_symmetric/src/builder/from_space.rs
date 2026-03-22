@@ -1,43 +1,49 @@
-//! Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
-//! to cut polytope elements.
+//! Constructor for [`ProductPuzzleBuilder`] using [`hypershape::Space`] to cut
+//! polytope elements.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use eyre::{Result, bail, ensure};
+use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::IsometryGroup;
 use hypermath::pga::Motor;
-use hypermath::{Hyperplane, Point};
-use hyperpuzzle_core::{Color, PerColor, PerPiece, PerSurface, Piece, Surface, TiVec};
+use hypermath::{Float, Hyperplane, Point, Vector};
+use hyperpuzzle_core::{
+    Axis, Color, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface, TiVec,
+};
 use hypershape::PolytopeFate;
+use hypuz_notation::Layer;
 use itertools::Itertools;
 
-use super::SurfaceBuilder;
+use super::{
+    PieceBuilder, PieceFacetBuilder, ProductPuzzleBuilder, StickerBuilder, SurfaceBuilder,
+};
 use crate::geometry::PolytopeGeometry;
 use crate::names::NameBiMap;
 
-/// Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
+/// Constructor for [`ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.
 #[derive(Debug)]
-pub(super) struct PuzzleBuilderFromHypershape {
+pub(super) struct PuzzleShapeBuilder {
     symmetry: IsometryGroup,
     generator_motors: Vec<Motor>,
     space: Arc<hypershape::Space>,
-    pieces: PerPiece<PieceBuilder>,
+    pub pieces: PerPiece<PieceShapeBuilder>,
     surfaces: PerSurface<SurfaceBuilder>,
     colors: PerColor<()>,
 }
 
-impl PuzzleBuilderFromHypershape {
-    pub fn new(ndim: u8, symmetry: IsometryGroup) -> Result<Self> {
+impl PuzzleShapeBuilder {
+    pub fn new(ndim: u8, symmetry: IsometryGroup, axis_count: usize) -> Result<Self> {
         let generator_motors = symmetry.generator_motors().into_values().cloned().collect();
         let space = hypershape::Space::new(ndim);
-        let pieces = PerPiece::from_iter([PieceBuilder {
+        let pieces = PerPiece::from_iter([PieceShapeBuilder {
             polytope: space
                 .add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?
                 .as_element()
                 .id(),
             stickers: vec![],
+            grip_signature: PerAxis::new_with_len(axis_count),
         }]);
 
         Ok(Self {
@@ -58,19 +64,30 @@ impl PuzzleBuilderFromHypershape {
         for plane in hypergroup::orbit_geometric(&self.generator_motors, plane.clone()) {
             let color = self.colors.push(())?;
             let cut = hypershape::Cut::carve(&self.space, plane);
-            self.cut(cut, Some(color))?;
+            self.cut(cut, Some(color), None)?;
         }
         Ok(())
     }
-    pub fn slice_symmetric(&mut self, plane: &Hyperplane) -> Result<()> {
-        for plane in hypergroup::orbit_geometric(&self.generator_motors, plane.clone()) {
+    pub fn slice_symmetric<'a>(
+        &mut self,
+        axes: impl IntoIterator<Item = (Axis, &'a Vector)>,
+        distance: Float,
+        layer: Option<Layer>,
+    ) -> Result<()> {
+        for (axis, vector) in axes {
+            let plane = Hyperplane::new(vector, distance).ok_or_eyre("bad cut plane")?;
             let cut = hypershape::Cut::slice(&self.space, plane);
-            self.cut(cut, None)?;
+            self.cut(cut, None, Some((axis, layer)))?;
         }
         Ok(())
     }
 
-    fn cut(&mut self, mut cut: hypershape::Cut, color: Option<Color>) -> Result<()> {
+    fn cut(
+        &mut self,
+        mut cut: hypershape::Cut,
+        color: Option<Color>,
+        inside_grip: Option<(Axis, Option<Layer>)>,
+    ) -> Result<()> {
         let new_surface = if cut.params().inside == PolytopeFate::Remove
             || cut.params().outside == PolytopeFate::Remove
         {
@@ -86,7 +103,7 @@ impl PuzzleBuilderFromHypershape {
         self.pieces = self
             .pieces
             .iter()
-            .map(|(_, piece)| piece.cut(&mut cut, new_surface, color))
+            .map(|(_, piece)| piece.cut(&mut cut, new_surface, color, inside_grip))
             .flatten_ok()
             .try_collect()?;
         if self.pieces.is_empty() {
@@ -111,48 +128,48 @@ impl PuzzleBuilderFromHypershape {
         Ok(())
     }
 
-    pub fn into_product_puzzle_builder(self) -> Result<super::ProductPuzzleBuilder> {
+    pub fn into_product_puzzle_builder(self) -> Result<ProductPuzzleBuilder> {
         let ndim = self.ndim();
 
         let pieces = self.pieces.try_map_ref(|_, piece| {
-            let facet_id_to_sticker: HashMap<hypershape::ElementId, &StickerBuilder> = piece
+            let facet_id_to_sticker: HashMap<hypershape::ElementId, &StickerShapeBuilder> = piece
                 .stickers
                 .iter()
                 .map(|sticker| (sticker.polytope, sticker))
                 .collect();
 
             let piece_polytope = self.space.get(piece.polytope);
-            eyre::Ok(super::PieceBuilder {
+            eyre::Ok(PieceBuilder {
                 polytope: PolytopeGeometry::from_polytope_element(piece_polytope)?,
                 facets: piece_polytope
                     .boundary()
                     .map(|b| (b, facet_id_to_sticker.get(&b.id()).copied()))
                     .filter(|(_, sticker)| ndim <= 3 || sticker.is_some()) // remove internals in 4D+
                     .map(|(b, sticker)| {
-                        eyre::Ok(super::PieceFacetBuilder {
+                        eyre::Ok(PieceFacetBuilder {
                             polytope: PolytopeGeometry::from_polytope_element(b)?,
-                            sticker_data: sticker.map(|sticker| super::StickerBuilder {
+                            sticker_data: sticker.map(|sticker| StickerBuilder {
                                 surface: sticker.surface,
                                 color: sticker.color,
                             }),
                         })
                     })
                     .try_collect()?,
+                grip_signature: piece.grip_signature.clone(),
             })
         })?;
 
-        Ok(super::ProductPuzzleBuilder {
+        // TODO: factor this out into "ProductPuzzleShape"
+        Ok(ProductPuzzleBuilder {
             ndim,
 
             pieces,
             surfaces: self.surfaces,
             colors: self.colors,
 
-            named_point_group_action: self.symmetry.action_on_points(&TiVec::new())?,
-            named_point_names: NameBiMap::new(),
-
+            axis_vectors: PerAxis::new(),
             axis_group_action: self.symmetry.action_on_points(&TiVec::new())?,
-            axis_names: NameBiMap::new(),
+            axis_sets: vec![],
 
             sticker_color_action: self.symmetry.action_on_points(&TiVec::new())?,
             sticker_color_names: NameBiMap::new(),
@@ -163,26 +180,45 @@ impl PuzzleBuilderFromHypershape {
 }
 
 #[derive(Debug)]
-struct PieceBuilder {
+pub struct PieceShapeBuilder {
     pub polytope: hypershape::ElementId,
-    pub stickers: Vec<StickerBuilder>,
+    pub stickers: Vec<StickerShapeBuilder>,
+    /// Grip signature, represented as a layer on each axis.
+    ///
+    /// This defaults to `None`, which indicates that the piece does not move
+    /// with any layer on the axis.
+    pub grip_signature: PerAxis<Option<Layer>>,
 }
 
-impl PieceBuilder {
+impl PieceShapeBuilder {
     fn cut(
         &self,
         cut: &mut hypershape::Cut,
         new_surface: Option<Surface>,
         color: Option<Color>,
+        inside_grip: Option<(Axis, Option<Layer>)>,
     ) -> Result<SimpleCutOutput<Self>> {
-        let mut new_inside_stickers = vec![];
-        let mut new_outside_stickers = vec![];
+        let mut inside_stickers = vec![];
+        let mut outside_stickers = vec![];
 
         // Cut stickers
-        for sticker in &self.stickers {
-            let output = sticker.cut(cut)?;
-            new_inside_stickers.extend(output.inside);
-            new_outside_stickers.extend(output.outside);
+        let mut flush_sticker = None;
+        for &sticker in &self.stickers {
+            match cut.cut(sticker.polytope)? {
+                hypershape::ElementCutOutput::Flush => flush_sticker = Some(sticker),
+                hypershape::ElementCutOutput::NonFlush {
+                    inside, outside, ..
+                } => {
+                    inside_stickers.extend(inside.map(|polytope| StickerShapeBuilder {
+                        polytope,
+                        ..sticker
+                    }));
+                    outside_stickers.extend(outside.map(|polytope| StickerShapeBuilder {
+                        polytope,
+                        ..sticker
+                    }));
+                }
+            };
         }
 
         // Cut piece
@@ -193,30 +229,41 @@ impl PieceBuilder {
                 outside,
                 intersection,
             } => {
-                if let Some(polytope) = intersection
+                if let Some(flush_sticker) = flush_sticker {
+                    inside_stickers.push(flush_sticker);
+                    outside_stickers.push(flush_sticker);
+                } else if let Some(polytope) = intersection
                     && let Some(surface) = new_surface
                     && let Some(color) = color
                 {
-                    new_inside_stickers.push(StickerBuilder {
+                    inside_stickers.push(StickerShapeBuilder {
                         polytope,
                         surface,
                         color,
                     });
-                    new_outside_stickers.push(StickerBuilder {
+                    outside_stickers.push(StickerShapeBuilder {
                         polytope,
                         surface,
                         color,
                     });
                 }
 
+                let mut inside_grip_signature = self.grip_signature.clone();
+                let outside_grip_signature = self.grip_signature.clone();
+                if let Some((axis, layer)) = inside_grip {
+                    inside_grip_signature[axis] = layer;
+                }
+
                 Ok(SimpleCutOutput {
-                    inside: inside.map(|polytope| {
-                        let stickers = new_inside_stickers;
-                        PieceBuilder { polytope, stickers }
+                    inside: inside.map(|polytope| PieceShapeBuilder {
+                        polytope,
+                        stickers: inside_stickers,
+                        grip_signature: inside_grip_signature,
                     }),
-                    outside: outside.map(|polytope| {
-                        let stickers = new_outside_stickers;
-                        PieceBuilder { polytope, stickers }
+                    outside: outside.map(|polytope| PieceShapeBuilder {
+                        polytope,
+                        stickers: outside_stickers,
+                        grip_signature: outside_grip_signature,
                     }),
                 })
             }
@@ -225,37 +272,16 @@ impl PieceBuilder {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct StickerBuilder {
+struct StickerShapeBuilder {
     pub polytope: hypershape::ElementId,
     pub surface: Surface,
     pub color: Color,
-}
-
-impl StickerBuilder {
-    fn cut(&self, cut: &mut hypershape::Cut) -> Result<SimpleCutOutput<Self>> {
-        match cut.cut(self.polytope)? {
-            hypershape::ElementCutOutput::Flush => Ok(SimpleCutOutput::EMPTY),
-            hypershape::ElementCutOutput::NonFlush {
-                inside, outside, ..
-            } => Ok(SimpleCutOutput {
-                inside: inside.map(|polytope| StickerBuilder { polytope, ..*self }),
-                outside: outside.map(|polytope| StickerBuilder { polytope, ..*self }),
-            }),
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct SimpleCutOutput<T> {
     inside: Option<T>,
     outside: Option<T>,
-}
-
-impl<T> SimpleCutOutput<T> {
-    const EMPTY: Self = Self {
-        inside: None,
-        outside: None,
-    };
 }
 
 impl<T> IntoIterator for SimpleCutOutput<T> {

@@ -265,6 +265,11 @@ impl IsometryGroup {
         self.group.compose(a, b)
     }
 
+    /// Returns the `i`th power of an element `e`.
+    pub fn powi(&self, e: GroupElementId, i: i32) -> GroupElementId {
+        self.group.powi(e, i)
+    }
+
     /// Returns the motor for each generator.
     pub fn generator_motors(&self) -> PerGenerator<&Motor> {
         self.generators().map_ref(|g, _| self.generator_motor(g))
@@ -389,7 +394,6 @@ impl FactorGroupIsometries {
 
 fn lift_by_ndim(ndim: u8, lift_by: u8) -> Motor {
     (0..ndim)
-        .rev()
         .map(|i| Motor::rotation_infallible(Vector::unit(i), Vector::unit(i + lift_by)))
         .reduce(|m1, m2| m1 * m2)
         .unwrap_or_else(|| Motor::ident(0))
@@ -404,10 +408,27 @@ mod tests {
     #[test]
     fn test_lift_by_ndim() {
         let init = Motor::rotation_infallible(vector![1.0], vector![1.0, 2.0, 3.0]);
+
+        let expected = Motor::rotation_infallible(vector![1.0], vector![1.0, 2.0, 3.0]);
+        assert_approx_eq!(expected, lift_by_ndim(3, 0).transform(&init));
+
+        let expected = Motor::rotation_infallible(vector![0.0, 1.0], vector![0.0, 1.0, 2.0, 3.0]);
+        assert_approx_eq!(expected, lift_by_ndim(3, 1).transform(&init));
+
+        let expected =
+            Motor::rotation_infallible(vector![0.0, 0.0, 1.0], vector![0.0, 0.0, 1.0, 2.0, 3.0]);
+        assert_approx_eq!(expected, lift_by_ndim(3, 2).transform(&init));
+
+        let expected = Motor::rotation_infallible(
+            vector![0.0, 0.0, 0.0, 1.0],
+            vector![0.0, 0.0, 0.0, 1.0, 2.0, 3.0],
+        );
+        assert_approx_eq!(expected, lift_by_ndim(3, 3).transform(&init));
+
         let expected = Motor::rotation_infallible(
             vector![0.0, 0.0, 0.0, 0.0, 1.0],
             vector![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0],
         );
-        assert_approx_eq!(expected, lift_by_ndim(3, 4).transform(&init))
+        assert_approx_eq!(expected, lift_by_ndim(3, 4).transform(&init));
     }
 }

@@ -24,6 +24,7 @@ use crate::{Group, GroupElementId};
 /// [coset]: https://en.wikipedia.org/wiki/Coset
 /// [subgroup]: https://en.wikipedia.org/wiki/Subgroup
 /// [double coset]: https://en.wikipedia.org/wiki/Double_coset
+#[derive(Debug, Clone)]
 pub struct Coset {
     /// Group that the subgroup belongs to.
     pub overgroup: Group,

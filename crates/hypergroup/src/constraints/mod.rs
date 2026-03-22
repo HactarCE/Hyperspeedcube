@@ -7,20 +7,32 @@ mod solver;
 use orbits::SubgroupOrbits;
 pub use solver::ConstraintSolver;
 
-/// Constraint on a group element based on how it acts on points.
+/// Constraint on a group element based on how it acts on a point.
 ///
-/// An element `g` satisfies this constraint if `g * old = new`.
+/// An element `g` satisfies this constraint if `g * from = to`.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Constraint<P> {
     /// Original point.
-    pub old: P,
+    pub from: P,
     /// Transformed point.
-    pub new: P,
+    pub to: P,
 }
 
 impl<P: TypedIndex> From<[P; 2]> for Constraint<P> {
-    fn from([old, new]: [P; 2]) -> Self {
-        Self { old, new }
+    fn from([from, to]: [P; 2]) -> Self {
+        Self { from, to }
+    }
+}
+
+impl<P: TypedIndex> Constraint<P> {
+    /// Constructs a constraint that takes `from` to `to`.
+    pub fn to(from: P, to: P) -> Self {
+        Self { from, to }
+    }
+
+    /// Constructs a constraint that keeps `fixed_point` fixed.
+    pub fn fix(fixed_point: P) -> Self {
+        Self::to(fixed_point, fixed_point)
     }
 }
 
@@ -40,7 +52,7 @@ impl<P: TypedIndex> From<&[[P; 2]]> for ConstraintSet<P> {
         Self {
             constraints: pairs
                 .iter()
-                .map(|&[old, new]| Constraint { old, new })
+                .map(|&[from, to]| Constraint { from, to })
                 .collect(),
         }
     }

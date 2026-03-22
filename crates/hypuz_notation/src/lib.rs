@@ -2,6 +2,7 @@
 
 pub mod charsets;
 pub mod common;
+pub mod expand;
 pub mod family;
 pub mod invert;
 pub mod layer;
@@ -9,6 +10,7 @@ mod parse;
 pub mod spanned;
 pub mod unspanned;
 
+pub use expand::*;
 pub use invert::*;
 pub use layer::*;
 pub use parse::ParseError;

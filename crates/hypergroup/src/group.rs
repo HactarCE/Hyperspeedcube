@@ -395,6 +395,24 @@ impl Group {
             .map(|(factor_group, a_factor, b_factor)| factor_group.compose(a_factor, b_factor)),
         )
     }
+
+    /// Returns the `i`th power of an element `e`.
+    pub fn powi(&self, e: GroupElementId, i: i32) -> GroupElementId {
+        // By repeated squaring
+        if i == 0 {
+            GroupElementId::IDENTITY
+        } else if i < 0 {
+            self.powi(self.inverse(e), -i) // TODO: fix panic on overflow
+        } else {
+            let init = self.powi(e, i >> 1);
+            let squared = self.compose(init, init);
+            if i % 2 == 0 {
+                squared
+            } else {
+                self.compose(squared, e)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

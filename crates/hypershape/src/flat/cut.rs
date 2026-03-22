@@ -95,6 +95,16 @@ impl Cut {
         let cut = &mut *self;
         let element = element.to_element_id(&cut.space);
 
+        let distance = cut.params().divider.distance();
+        if distance.is_infinite() {
+            let element = element.to_element_id(&cut.space);
+            return Ok(ElementCutOutput::NonFlush {
+                inside: (distance == Float::INFINITY).then_some(element),
+                outside: (distance == -Float::INFINITY).then_some(element),
+                intersection: None,
+            });
+        }
+
         if let Some(&result) = cut.output_cache.get(&element) {
             return Ok(result);
         }

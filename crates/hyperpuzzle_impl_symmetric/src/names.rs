@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use hyperpuzzle_core::{TiVec, TypedIndex};
+use hypuz_util::ti::{IndexOverflow, TiVec, TypedIndex};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NameBiMap<I> {
     id_to_name: TiVec<I, String>,
     name_to_id: HashMap<String, I>,
 }
+
 impl<I: TypedIndex> NameBiMap<I> {
     pub fn new() -> Self {
         Self {
@@ -34,7 +35,21 @@ impl<I: TypedIndex> NameBiMap<I> {
         }
     }
 
+    pub fn push(&mut self, name: String) -> Result<I, IndexOverflow> {
+        let id = self.id_to_name.push(name.clone())?;
+        self.name_to_id.insert(name, id);
+        Ok(id)
+    }
+
     pub fn len(&self) -> usize {
         self.id_to_name.len()
+    }
+
+    pub fn id_to_name(&self) -> &TiVec<I, String> {
+        &self.id_to_name
+    }
+
+    pub fn name_to_id(&self, name: &str) -> Option<I> {
+        self.name_to_id.get(name).copied()
     }
 }

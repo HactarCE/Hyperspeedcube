@@ -67,7 +67,11 @@ impl TwistSystem {
     ///
     /// For example, on 3^4, the twist family `IUR` is on axis `I`.
     pub fn axis_from_move_family(&self, family: &str) -> Option<Axis> {
-        Some(self.twists[self.names.id_from_name(family)?].axis)
+        if let Some(twist) = self.names.id_from_name(family) {
+            Some(self.twists[twist].axis)
+        } else {
+            self.axes.names.id_from_name(family)
+        }
     }
 }
 

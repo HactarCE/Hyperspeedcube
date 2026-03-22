@@ -5,6 +5,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+pub use crate::expand::ExpandError;
 pub use crate::invert::{Invert, InvertError};
 pub use crate::layer::{Layer, LayerMask, LayerRange, SignedLayer};
 

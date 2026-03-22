@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, fmt};
 
 use hypuz_util::ti::{TiVec, TypedIndex};
 use itertools::Itertools;
@@ -39,9 +39,10 @@ pub(crate) struct FactorGroupConjugateCoset {
 ///
 /// Intermediate results are cached, so solvers should be reused whenever
 /// possible.
+#[derive(Debug)]
 pub struct ConstraintSolver<P> {
     action: GroupAction<P>,
-    solvers: PerFactorGroup<FactorGroupConstraintSolver<P>>,
+    factor_solvers: PerFactorGroup<FactorGroupConstraintSolver<P>>,
 }
 
 impl<P: TypedIndex> ConstraintSolver<P> {
@@ -51,21 +52,25 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .factors()
             .map_ref(|_, factor| FactorGroupConstraintSolver::new(Arc::clone(factor)));
 
-        Self { action, solvers }
+        Self {
+            action,
+            factor_solvers: solvers,
+        }
     }
 
     fn split_constraint_set(
         &self,
         constraint_set: &ConstraintSet<P>,
     ) -> Option<PerFactorGroup<ConstraintSet<P>>> {
-        let mut constraint_set_for_each_factor = self.solvers.map_ref(|_, _| ConstraintSet::EMPTY);
+        let mut constraint_set_for_each_factor =
+            self.factor_solvers.map_ref(|_, _| ConstraintSet::EMPTY);
 
-        for Constraint { old, new } in constraint_set {
-            let (factor, old) = self.action.point_to_factor(old);
-            let new = self.action.try_point_to_factor(factor, new)?;
+        for Constraint { from, to } in constraint_set {
+            let (factor, from) = self.action.point_to_factor(from);
+            let to = self.action.try_point_to_factor(factor, to)?;
             constraint_set_for_each_factor[factor]
                 .constraints
-                .push(Constraint { old, new });
+                .push(Constraint { from, to });
         }
 
         Some(constraint_set_for_each_factor)
@@ -80,9 +85,9 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .flat_map(|(factor, constraint_set)| {
                 constraint_set
                     .into_iter()
-                    .map(move |Constraint { old, new }| Constraint {
-                        old: self.action.point_from_factor(factor, old),
-                        new: self.action.point_from_factor(factor, new),
+                    .map(move |Constraint { from, to }| Constraint {
+                        from: self.action.point_from_factor(factor, from),
+                        to: self.action.point_from_factor(factor, to),
                     })
             })
             .collect()
@@ -96,7 +101,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         let constraint_set_for_each_factor = self.split_constraint_set(constraint_set)?;
 
         let conjugate_cosets = self
-            .solvers
+            .factor_solvers
             .iter_mut()
             .map(|(factor, solver)| solver.solve(&constraint_set_for_each_factor[factor]))
             .collect::<Option<PerFactorGroup<_>>>()?;
@@ -112,10 +117,10 @@ impl<P: TypedIndex> ConstraintSolver<P> {
             .element_from_factors(conjugate_cosets.iter_values().map(|cc| cc.rhs));
 
         #[cfg(debug_assertions)]
-        for Constraint { old, new } in constraint_set {
+        for Constraint { from, to } in constraint_set {
             debug_assert_eq!(
-                new,
-                self.action.act(group.compose(lhs, rhs), old),
+                to,
+                self.action.act(group.compose(lhs, rhs), from),
                 "coset does not satisfy constraints",
             );
         }
@@ -155,7 +160,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
     ) -> Option<(ConstraintSet<P>, GroupElementId)> {
         let constraint_set_for_each_factor = self.split_constraint_set(&constraint_set)?;
 
-        let outputs = std::iter::zip(&mut self.solvers, constraint_set_for_each_factor)
+        let outputs = std::iter::zip(&mut self.factor_solvers, constraint_set_for_each_factor)
             .map(|((_, solver), (_, constraint_set_for_factor))| {
                 solver.select(constraint_set_for_factor, &mut random_index)
             })
@@ -177,8 +182,8 @@ impl<P: TypedIndex> ConstraintSolver<P> {
 
         // The combined constraint set should be satisfied by the element.
         #[cfg(debug_assertions)]
-        for Constraint { old, new } in &combined_constraint_set {
-            debug_assert_eq!(new, self.action.act(combined_element, old))
+        for Constraint { from, to } in &combined_constraint_set {
+            debug_assert_eq!(to, self.action.act(combined_element, from))
         }
 
         Some((combined_constraint_set, combined_element))
@@ -186,7 +191,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
 
     #[cfg(test)]
     pub(crate) fn total_subgroup_orbit_count(&self) -> usize {
-        self.solvers
+        self.factor_solvers
             .iter_values()
             .map(|solver| solver.subgroup_orbits.len())
             .sum()
@@ -201,6 +206,14 @@ pub(crate) struct FactorGroupConstraintSolver<P> {
     subgroup_orbits: PerSubgroup<SubgroupOrbits<P>>,
     subgroups_by_fixed_points: HashMap<Box<[P]>, SubgroupId>,
     subgroups_by_generating_set: HashMap<Box<[GroupElementId]>, SubgroupId>,
+}
+
+impl<P: fmt::Debug> fmt::Debug for FactorGroupConstraintSolver<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FactorGroupConstraintSolver")
+            .field("subgroup_count", &self.subgroup_orbits.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
@@ -262,7 +275,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             })
     }
 
-    /// Constrains the coset so that it takes `old` to `new`.
+    /// Constrains the coset so that it takes `from` to `new`.
     ///
     /// Returns `None` if there is no such coset.
     fn constrain_coset(
@@ -270,8 +283,8 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
         mut coset: ConstrainedConjugateCoset<P>,
         constraint: Constraint<P>,
     ) -> Option<ConstrainedConjugateCoset<P>> {
-        let a = self.action.act(coset.rhs, constraint.old);
-        let b = self.action.act(coset.lhs_inv, constraint.new);
+        let a = self.action.act(coset.rhs, constraint.from);
+        let b = self.action.act(coset.lhs_inv, constraint.to);
         let orbits = &self.subgroup_orbits[coset.subgroup];
         if orbits.orbit_representatives[a] != orbits.orbit_representatives[b] {
             return None; // `a` and `b` are in different orbits
@@ -298,7 +311,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
                 .group()
                 .compose(self.group().inverse(coset.lhs_inv), coset.rhs);
             for pair in expected_constraint_set {
-                debug_assert_eq!(self.action.act(arbitrary_elem, pair.old), pair.new);
+                debug_assert_eq!(self.action.act(arbitrary_elem, pair.from), pair.to);
             }
         }
     }
@@ -349,8 +362,8 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             let (_, &mut destination, _) = destination_candidates.select_nth_unstable(random_index);
 
             let new_constraint = Constraint {
-                old: source,
-                new: destination,
+                from: source,
+                to: destination,
             };
             constraint_set.constraints.push(new_constraint);
             coset = self.constrain_coset(coset, new_constraint)?;

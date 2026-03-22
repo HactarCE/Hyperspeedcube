@@ -260,26 +260,6 @@ impl PuzzleState for NdEuclidPuzzleState {
         .into()
     }
 
-    fn partial_twist_render_data(&self, twist: &Move, t: f32) -> BoxDynPuzzleStateRenderData {
-        let Some(twist_id) = self
-            .puzzle_type
-            .twists
-            .names
-            .id_from_name(&twist.transform.family)
-        else {
-            return self.render_data(); // twist is invalid
-        };
-        let axis = self.puzzle_type.twists.twists[twist_id].axis;
-        let layers_info = self.puzzle_type.axis_layers[axis];
-        let grip = self.compute_gripped_pieces(axis, &twist.layers.to_layer_mask(layers_info));
-        let anim = NdEuclidPuzzleAnimation {
-            pieces: grip,
-            initial_transform: pga::Motor::ident(self.geom.ndim()),
-            final_transform: self.geom.twist_transforms[twist_id].powi(twist.multiplier.into()),
-        };
-        self.animated_render_data(&anim.into(), t)
-    }
-
     fn animated_render_data(
         &self,
         anim: &BoxDynPuzzleAnimation,

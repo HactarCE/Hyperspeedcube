@@ -77,6 +77,17 @@ impl<I: TypedIndex> Iterator for TypedIndexIter<I> {
         self.range.next().map(unwrap_index)
     }
 
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.range.nth(n).map(unwrap_index)
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.range.count()
+    }
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.range.size_hint()
     }

@@ -2905,10 +2905,13 @@ dependencies = [
  "hyperpuzzle_core",
  "hyperpuzzle_impl_nd_euclid",
  "hypershape",
+ "hypuz_notation",
  "hypuz_util",
  "itertools 0.14.0",
  "log",
+ "parking_lot",
  "smallvec",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

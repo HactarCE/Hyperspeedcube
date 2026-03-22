@@ -9,6 +9,7 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
+use hyperpuzzle::symmetric::SymmetricTwistSystemEngineData;
 use hyperpuzzle_log::{LogEvent, Scramble};
 use hypuz_notation::Invert;
 use itertools::Itertools;
@@ -674,6 +675,22 @@ impl PuzzleSimulation {
                                 .unwrap_or_else(|| Motor::ident(geom.ndim())),
                             final_transform: geom.twist_transforms[twist_id]
                                 .powi(twist.multiplier.into()),
+                        }
+                        .into(),
+                    });
+                } else if let Some(symmetric) = &puzzle
+                    .twists
+                    .engine_data
+                    .downcast_ref::<SymmetricTwistSystemEngineData>()
+                    && let Ok(m) = symmetric.twist_motor(twist)
+                {
+                    self.twist_anim.push(AnimationFromState {
+                        state,
+                        anim: NdEuclidPuzzleAnimation {
+                            pieces: grip,
+                            initial_transform: nd_euclid_initial_transform
+                                .unwrap_or_else(|| Motor::ident(symmetric.ndim())),
+                            final_transform: m,
                         }
                         .into(),
                     });

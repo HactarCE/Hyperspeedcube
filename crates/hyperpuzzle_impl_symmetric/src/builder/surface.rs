@@ -1,4 +1,4 @@
-use hypermath::{Point, Vector, VectorRef};
+use hypermath::{Point, Vector};
 
 #[derive(Debug)]
 pub struct SurfaceBuilder {
@@ -16,22 +16,11 @@ pub struct SurfaceBuilder {
 
 impl SurfaceBuilder {
     pub fn lift_by_ndim(&self, ndim_below: u8, ndim_above: u8) -> Self {
-        let below = std::iter::repeat_n(0.0, ndim_below as usize);
-        let above = std::iter::repeat_n(0.0, ndim_above as usize);
+        let centroid = self.centroid.as_vector();
         Self {
             ndim: ndim_below + self.ndim + ndim_above,
-            centroid: itertools::chain!(
-                below.clone(),
-                self.centroid.as_vector().iter_ndim(self.ndim),
-                above.clone()
-            )
-            .collect(),
-            normal: itertools::chain!(
-                below.clone(),
-                self.normal.iter_ndim(self.ndim),
-                above.clone()
-            )
-            .collect(),
+            centroid: crate::lift_vector_by_ndim(centroid, ndim_below, self.ndim, ndim_above),
+            normal: crate::lift_vector_by_ndim(&self.normal, ndim_below, self.ndim, ndim_above),
         }
     }
 }

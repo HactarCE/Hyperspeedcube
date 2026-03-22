@@ -20,6 +20,8 @@ pub struct PieceBuilder {
     /// In 3D and below, this includes non-sticker facets. In 4D+, non-sticker
     /// facets are removed because internals are never visible in 4D+.
     pub facets: Vec<PieceFacetBuilder>,
+    /// Grip signature for the piece.
+    pub grip_signature: PerAxis<Option<Layer>>,
 }
 
 impl PieceBuilder {
@@ -27,6 +29,7 @@ impl PieceBuilder {
     pub const POINT: Self = Self {
         polytope: PolytopeGeometry::POINT,
         facets: vec![],
+        grip_signature: PerAxis::new(),
     };
 
     /// Returns the number of dimensions of the piece.
@@ -76,6 +79,11 @@ impl PieceBuilder {
                             }
                         }),
                     }),
+            )
+            .collect(),
+            grip_signature: std::iter::chain(
+                a.grip_signature.iter_values().copied(),
+                b.grip_signature.iter_values().copied(),
             )
             .collect(),
         }

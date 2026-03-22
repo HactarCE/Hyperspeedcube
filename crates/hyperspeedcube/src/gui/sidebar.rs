@@ -24,7 +24,7 @@ fn sidebar_items() -> impl Iterator<Item = SidebarItem> {
         SidebarItem::Separator,
         SidebarItem::Tab(UtilityTab::PieceFilters),
         // SidebarItem::Tab(UtilityTab::Macros),
-        // SidebarItem::Tab(UtilityTab::MoveInput),
+        SidebarItem::Tab(UtilityTab::MoveInput),
         SidebarItem::Separator,
         SidebarItem::Tab(UtilityTab::Colors),
         SidebarItem::Tab(UtilityTab::Styles),

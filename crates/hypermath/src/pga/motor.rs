@@ -320,7 +320,7 @@ impl Motor {
         if other == 0 {
             Self::ident(self.ndim)
         } else if other < 0 {
-            self.reverse().powi(-other)
+            self.reverse().powi(-other) // TODO: fix panic on overflow
         } else {
             let init = self.powi(other >> 1);
             let squared = init.clone() * init;
