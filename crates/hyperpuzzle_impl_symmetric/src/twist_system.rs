@@ -68,7 +68,6 @@ impl SymmetricTwistSystemEngineData {
             }
         }
         let constraint_set = hypergroup::ConstraintSet { constraints };
-        dbg!(&constraint_set);
 
         let coset = self
             .constraint_solver

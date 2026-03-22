@@ -1,7 +1,6 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
 use eyre::Result;
-use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 
@@ -10,28 +9,22 @@ use crate::geometry::PolytopeGeometry;
 /// Shape of a puzzle under construction.
 #[derive(Debug)]
 pub(super) struct ProductPuzzleShape {
-    /// Symmetry group of the puzzle shape.
-    pub symmetry: IsometryGroup,
+    /// Number of dimensions of the puzzle and the space that contains it.
+    pub ndim: u8,
     /// Pieces and stickers.
     pub pieces: PerPiece<PieceData>,
     /// Surfaces.
     pub surfaces: PerSurface<SurfaceData>,
     /// Colors
-    pub colors: PerColor<()>,
+    pub colors: PerColor<(usize, String)>, // TODO: do this better
 }
 
 impl ProductPuzzleShape {
-    /// Returns the number of dimensions of the puzzle and the space that
-    /// contains it.
-    pub fn ndim(&self) -> u8 {
-        self.symmetry.ndim()
-    }
-
     /// Constructs the empty puzzle shape, which is the identity of the direct
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
-            symmetry: IsometryGroup::trivial(),
+            ndim: 0,
             pieces: PerPiece::from_iter([PieceData::POINT]),
             surfaces: PerSurface::new(),
             colors: PerColor::new(),
@@ -55,19 +48,29 @@ impl ProductPuzzleShape {
         let surfaces = std::iter::chain(
             a.surfaces
                 .iter_values()
-                .map(|a_surface| a_surface.lift_by_ndim(0, b.ndim())),
+                .map(|a_surface| a_surface.lift_by_ndim(0, b.ndim)),
             b.surfaces
                 .iter_values()
-                .map(|b_surface| b_surface.lift_by_ndim(a.ndim(), 0)),
+                .map(|b_surface| b_surface.lift_by_ndim(a.ndim, 0)),
         )
         .collect();
 
-        let colors = std::iter::chain(a.colors.iter_values(), b.colors.iter_values())
-            .copied()
-            .collect();
+        let a_color_sets = a
+            .colors
+            .iter_values()
+            .map(|(set, _)| *set + 1)
+            .max()
+            .unwrap_or(0);
+        let colors = std::iter::chain(
+            a.colors.iter_values().cloned(),
+            b.colors
+                .iter_values()
+                .map(|(set, name)| (a_color_sets + *set, name.clone())),
+        )
+        .collect();
 
         Ok(Self {
-            symmetry: IsometryGroup::product([&a.symmetry, &b.symmetry])?,
+            ndim: a.ndim + b.ndim,
             pieces,
             surfaces,
             colors,
@@ -76,7 +79,7 @@ impl ProductPuzzleShape {
 
     /// Constructs a mesh for rendering the puzzle.
     pub fn build_mesh(&self) -> Result<Mesh> {
-        let mut mesh = Mesh::new_empty(self.ndim());
+        let mut mesh = Mesh::new_empty(self.ndim);
 
         // Add puzzle surfaces to the mesh with the same IDs as they have in
         // `self.surfaces`.

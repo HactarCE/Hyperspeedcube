@@ -5,8 +5,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail, ensure};
-use hypergroup::IsometryGroup;
-use hypermath::pga::Motor;
 use hypermath::{Float, Hyperplane, Point, Vector};
 use hyperpuzzle_core::{Axis, Color, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface};
 use hypershape::PolytopeFate;
@@ -20,20 +18,15 @@ use crate::geometry::PolytopeGeometry;
 /// to cut polytope elements.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeBuilder {
-    symmetry: IsometryGroup,
-    /// Generating set for `symmetry`, cached for convenience.
-    generator_motors: Vec<Motor>,
-
     space: Arc<hypershape::Space>,
 
     pieces: PerPiece<PieceShapeBuilder>,
     surfaces: PerSurface<SurfaceData>,
-    colors: PerColor<()>,
+    colors: PerColor<String>,
 }
 
 impl PuzzleShapeBuilder {
-    pub fn new(ndim: u8, symmetry: IsometryGroup, axis_count: usize) -> Result<Self> {
-        let generator_motors = symmetry.generator_motors().into_values().cloned().collect();
+    pub fn new(ndim: u8, axis_count: usize) -> Result<Self> {
         let space = hypershape::Space::new(ndim);
         let pieces = PerPiece::from_iter([PieceShapeBuilder {
             polytope: space
@@ -45,9 +38,6 @@ impl PuzzleShapeBuilder {
         }]);
 
         Ok(Self {
-            symmetry,
-            generator_motors,
-
             space,
 
             pieces,
@@ -60,25 +50,22 @@ impl PuzzleShapeBuilder {
         self.space.ndim()
     }
 
-    pub fn carve_symmetric(&mut self, plane: &Hyperplane) -> Result<()> {
-        for plane in hypergroup::orbit_geometric(&self.generator_motors, plane.clone()) {
-            let color = self.colors.push(())?;
-            let cut = hypershape::Cut::carve(&self.space, plane);
-            self.cut(cut, Some(color), None)?;
-        }
+    pub fn carve(&mut self, plane: Hyperplane, color_name: &String) -> Result<()> {
+        let color = self.colors.push(color_name.clone())?;
+        let cut = hypershape::Cut::carve(&self.space, plane);
+        self.cut(cut, Some(color), None)?;
         Ok(())
     }
-    pub fn slice_symmetric<'a>(
+    pub fn slice<'a>(
         &mut self,
-        axes: impl IntoIterator<Item = (Axis, &'a Vector)>,
+        axis: Axis,
+        vector: &Vector,
         distance: Float,
         layer: Option<Layer>,
     ) -> Result<()> {
-        for (axis, vector) in axes {
-            let plane = Hyperplane::new(vector, distance).ok_or_eyre("bad cut plane")?;
-            let cut = hypershape::Cut::slice(&self.space, plane);
-            self.cut(cut, None, Some((axis, layer)))?;
-        }
+        let plane = Hyperplane::new(vector, distance).ok_or_eyre("bad cut plane")?;
+        let cut = hypershape::Cut::slice(&self.space, plane);
+        self.cut(cut, None, Some((axis, layer)))?;
         Ok(())
     }
 
@@ -162,10 +149,10 @@ impl PuzzleShapeBuilder {
         })?;
 
         Ok(ProductPuzzleShape {
-            symmetry: self.symmetry,
+            ndim,
             pieces,
             surfaces: self.surfaces,
-            colors: self.colors,
+            colors: self.colors.map(|_, name| (0, name)),
         })
     }
 }

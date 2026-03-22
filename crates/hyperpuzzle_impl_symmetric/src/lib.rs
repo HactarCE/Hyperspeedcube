@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use eyre::Result;
+use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
 use hyperpuzzle_core::prelude::*;
@@ -191,44 +192,123 @@ fn autonames() -> impl Iterator<Item = String> {
 const INF: Float = Float::INFINITY;
 
 fn ft_cube(ndim: u8) -> Result<ProductPuzzleBuilder> {
+    if ndim > 5 {
+        unimplemented!();
+    }
+
+    let names = vec![
+        (5, "A", None),
+        (4, "O", Some(4)),
+        (3, "F", Some(3)),
+        (2, "U", Some(2)),
+        (1, "R", Some(1)),
+        (1, "L", Some(0)),
+        (2, "D", Some(1)),
+        (3, "B", Some(2)),
+        (4, "I", Some(3)),
+        (5, "P", Some(4)),
+    ]
+    .into_iter()
+    .filter(|&(n, _, _)| n <= ndim)
+    .enumerate()
+    .map(|(i, (_, name, mirror))| {
+        let gen_seq = match mirror {
+            Some(g) => AbbrGenSeq::new([GeneratorId(g)], Some(i - 1)),
+            None => AbbrGenSeq::INIT,
+        };
+        (gen_seq, name.to_string())
+    })
+    .collect();
+
     ProductPuzzleBuilder::new_ft(
         ndim,
         CoxeterMatrix::B(ndim)?.isometry_group()?,
         &[(
             Vector::unit(ndim - 1),
             vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
+            names,
         )],
     )
 }
 
 fn shallow_polygon(n: u16) -> Result<ProductPuzzleBuilder> {
+    let names = (0..n)
+        .map(|i| {
+            let name = hypuz_notation::family::SequentialUppercaseName(i as u32).to_string();
+            let gen_seq = if i == 0 {
+                AbbrGenSeq::INIT
+            } else {
+                AbbrGenSeq::new([1, 0].map(GeneratorId), Some(i as usize - 1))
+            };
+            (gen_seq, name)
+        })
+        .collect();
+
     let pi_div_n = std::f64::consts::PI as Float / n as Float;
     let edge_length = 2.0 * pi_div_n.tan();
     let edge_depth = (2.0 * pi_div_n).sin() * edge_length;
     let cut_depth = 1.0 - edge_depth / 3.0;
-    let axes = [(Vector::unit(1), vec![INF, cut_depth])];
+    let axes = [(Vector::unit(1), vec![INF, cut_depth], names)];
     ProductPuzzleBuilder::new_ft(2, CoxeterMatrix::I(n)?.isometry_group()?, &axes)
 }
 
 fn shallow_line() -> Result<ProductPuzzleBuilder> {
-    let axes = [(Vector::unit(0), vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF])];
-    ProductPuzzleBuilder::new_ft(1, CoxeterMatrix::A(1)?.isometry_group()?, &axes)
+    line(vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF])
 }
 
 fn half_cut_line() -> Result<ProductPuzzleBuilder> {
-    let axes = [(Vector::unit(0), vec![INF, 0.0, -INF])];
+    line(vec![INF, 0.0, -INF])
+}
+
+fn line(cut_depths: Vec<Float>) -> Result<ProductPuzzleBuilder> {
+    let names = vec![
+        (AbbrGenSeq::INIT, "A".to_string()),
+        (AbbrGenSeq::new([GeneratorId(0)], Some(0)), "B".to_string()),
+    ];
+    let axes = [(Vector::unit(0), cut_depths, names)];
     ProductPuzzleBuilder::new_ft(1, CoxeterMatrix::A(1)?.isometry_group()?, &axes)
 }
 
 fn megaminx() -> Result<ProductPuzzleBuilder> {
+    let names = vec![
+        ("F", None, None),
+        ("U", Some(2), Some(0)),
+        ("R", Some(1), Some(1)),
+        ("L", Some(0), Some(2)),
+        ("DR", Some(1), Some(3)),
+        ("DL", Some(0), Some(4)),
+        ("BR", Some(2), Some(4)),
+        ("BL", Some(2), Some(5)),
+        ("PR", Some(1), Some(6)),
+        ("PL", Some(0), Some(8)),
+        ("PD", Some(1), Some(9)),
+        ("PB", Some(2), Some(10)),
+    ]
+    .into_iter()
+    .map(|(name, mirror, end)| {
+        let gen_seq = AbbrGenSeq::new(mirror.map(GeneratorId), end);
+        (gen_seq, name.to_string())
+    })
+    .collect();
+
     let symmetry = CoxeterMatrix::H3().isometry_group()?;
     let cut_depth = std::f64::consts::GOLDEN_RATIO.recip();
-    let axes = [(Vector::unit(2), vec![INF, cut_depth])];
+    let axes = [(Vector::unit(2), vec![INF, cut_depth], names)];
     ProductPuzzleBuilder::new_ft(3, symmetry, &axes)
 }
 
 fn shallow_ft_simplex(ndim: u8) -> Result<ProductPuzzleBuilder> {
-    let axes = [(Vector::unit(ndim - 1), vec![INF, 0.0, -INF])];
+    let gen_seqs = std::iter::chain(
+        [AbbrGenSeq::INIT],
+        (0..ndim)
+            .rev()
+            .enumerate()
+            .map(|(i, m)| AbbrGenSeq::new([GeneratorId(m)], Some(i))),
+    );
+    let name_strings = (0..=ndim as u32).map(hypuz_notation::family::SequentialUppercaseName);
+    let names = gen_seqs.zip(name_strings.map(|n| n.to_string())).collect();
+
+    let axes = [(Vector::unit(ndim - 1), vec![INF, 0.0, -INF], names)];
     ProductPuzzleBuilder::new_ft(ndim, CoxeterMatrix::A(ndim)?.isometry_group()?, &axes)
 }
 

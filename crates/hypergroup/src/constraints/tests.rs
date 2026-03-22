@@ -23,9 +23,9 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
     let group = CoxeterMatrix::H3().isometry_group()?;
     let chiral_group = CoxeterMatrix::H3().chiral_isometry_group()?;
 
-    let g0 = &group[GeneratorId(0)];
-    let g1 = &group[GeneratorId(1)];
-    let g2 = &group[GeneratorId(2)];
+    let g0 = &group.generator_motors()[GeneratorId(0)];
+    let g1 = &group.generator_motors()[GeneratorId(1)];
+    let g2 = &group.generator_motors()[GeneratorId(2)];
     let mut test_points = PerTestPoint::<Point>::new();
 
     let F = test_points.push(point![0.0, 0.0, 1.0])?;
@@ -120,10 +120,10 @@ fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
 
     let mut test_points = PerTestPoint::<Point>::new();
     let E = test_points.push(point![0.0, 0.0, 0.0, 1.0])?;
-    let D = test_points.push(group[gen3].transform(&test_points[E]))?;
-    let C = test_points.push(group[gen2].transform(&test_points[D]))?;
-    let B = test_points.push(group[gen1].transform(&test_points[C]))?;
-    let A = test_points.push(group[gen0].transform(&test_points[B]))?;
+    let D = test_points.push(group.generator_motors()[gen3].transform(&test_points[E]))?;
+    let C = test_points.push(group.generator_motors()[gen2].transform(&test_points[D]))?;
+    let B = test_points.push(group.generator_motors()[gen1].transform(&test_points[C]))?;
+    let A = test_points.push(group.generator_motors()[gen0].transform(&test_points[B]))?;
 
     let action = group.action_on_points(&test_points)?;
     let mut solver = ConstraintSolver::new(action.clone());
@@ -252,16 +252,16 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
     // Cube
     let mut test_points_a = PerTestPoint::<Point>::new();
     let aF = test_points_a.push(point![0.0, 0.0, 1.0])?;
-    let aU = test_points_a.push(ga[gen2].transform(&test_points_a[aF]))?;
-    let aR = test_points_a.push(ga[gen1].transform(&test_points_a[aU]))?;
-    let aL = test_points_a.push(ga[gen0].transform(&test_points_a[aR]))?;
-    let aD = test_points_a.push(ga[gen1].transform(&test_points_a[aL]))?;
+    let aU = test_points_a.push(ga.generator_motors()[gen2].transform(&test_points_a[aF]))?;
+    let aR = test_points_a.push(ga.generator_motors()[gen1].transform(&test_points_a[aU]))?;
+    let aL = test_points_a.push(ga.generator_motors()[gen0].transform(&test_points_a[aR]))?;
+    let aD = test_points_a.push(ga.generator_motors()[gen1].transform(&test_points_a[aL]))?;
     #[expect(unused)]
-    let aB = test_points_a.push(ga[gen2].transform(&test_points_a[aD]))?;
+    let aB = test_points_a.push(ga.generator_motors()[gen2].transform(&test_points_a[aD]))?;
 
     // 6-gon
     let mut test_points_b = PerTestPoint::<Point>::new();
-    let polygon_rot = &gb[gen1] * &gb[gen0];
+    let polygon_rot = &gb.generator_motors()[gen1] * &gb.generator_motors()[gen0];
     let mut bA = test_points_b.push(point![0.0, 1.0])?;
     let mut bB = test_points_b.push(polygon_rot.transform(&test_points_b[bA]))?;
     let mut bC = test_points_b.push(polygon_rot.transform(&test_points_b[bB]))?;
@@ -275,10 +275,10 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
     // 4-simplex
     let mut test_points_c = PerTestPoint::<Point>::new();
     let mut cE = test_points_c.push(point![0.0, 0.0, 0.0, 1.0])?;
-    let mut cD = test_points_c.push(gc[gen3].transform(&test_points_c[cE]))?;
-    let mut cC = test_points_c.push(gc[gen2].transform(&test_points_c[cD]))?;
-    let mut cB = test_points_c.push(gc[gen1].transform(&test_points_c[cC]))?;
-    let mut cA = test_points_c.push(gc[gen0].transform(&test_points_c[cB]))?;
+    let mut cD = test_points_c.push(gc.generator_motors()[gen3].transform(&test_points_c[cE]))?;
+    let mut cC = test_points_c.push(gc.generator_motors()[gen2].transform(&test_points_c[cD]))?;
+    let mut cB = test_points_c.push(gc.generator_motors()[gen1].transform(&test_points_c[cC]))?;
+    let mut cA = test_points_c.push(gc.generator_motors()[gen0].transform(&test_points_c[cB]))?;
     for p in [&mut cA, &mut cB, &mut cC, &mut cD, &mut cE] {
         p.0 += test_points_a.len() as u16 + test_points_b.len() as u16;
     }
@@ -317,7 +317,7 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
 fn shuffle_group_generators(group: &IsometryGroup, rng: &mut impl Rng) -> IsometryGroup {
     let mut generators = group
         .generator_motors()
-        .into_values()
+        .iter_values()
         .cloned()
         .collect_vec();
     for _ in 0..20 {

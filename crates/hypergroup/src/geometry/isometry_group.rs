@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     fmt,
-    ops::Index,
     sync::{Arc, LazyLock},
 };
 
@@ -22,25 +21,18 @@ use crate::{
 /// This type is reference-counted and thus cheap to clone.
 #[derive(Default, Clone)]
 pub struct IsometryGroup {
-    group: Group, // uses `Arc` internally
     ndim: u8,
+    group: Group, // uses `Arc` internally
     isometries: Arc<PerFactorGroup<Arc<FactorGroupIsometries>>>,
+    generator_motors: Arc<PerGenerator<Motor>>,
 }
 
 impl fmt::Debug for IsometryGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("IsometryGroup")
-            .field("group", &self.group)
             .field("ndim", &self.ndim)
+            .field("group", &self.group)
             .finish()
-    }
-}
-
-impl Index<GeneratorId> for IsometryGroup {
-    type Output = Motor;
-
-    fn index(&self, index: GeneratorId) -> &Self::Output {
-        self.generator_motor(index)
     }
 }
 
@@ -58,16 +50,25 @@ impl IsometryGroup {
     pub(crate) fn from_factors(
         factor_groups: impl IntoIterator<Item = (Arc<AbstractGroupLut>, Arc<FactorGroupIsometries>)>,
     ) -> GroupResult<Self> {
+        let mut ndim = 0;
         let mut groups = vec![];
         let mut isometries = PerFactorGroup::new();
+        let mut generator_motors = PerGenerator::new();
         for (g, i) in factor_groups {
+            let factor_ndim = i.ndim;
+            let lift = lift_by_ndim(factor_ndim, ndim);
+            for (_, &e) in g.generators() {
+                generator_motors.push(lift.transform(&i.element_motors[e]))?;
+            }
             groups.push(g);
             isometries.push(i)?;
+            ndim += factor_ndim;
         }
         Ok(Self {
+            ndim,
             group: Group::from_factors(groups)?,
-            ndim: isometries.iter_values().map(|g| g.ndim).sum(),
             isometries: Arc::new(isometries),
+            generator_motors: Arc::new(generator_motors),
         })
     }
 
@@ -131,8 +132,8 @@ impl IsometryGroup {
             MotorNearestNeighborMap::new(&element_motors, element_motors.iter_keys());
 
         Ok(Self {
-            group: abstract_group,
             ndim,
+            group: abstract_group,
             isometries: Arc::new(PerFactorGroup::from_iter([Arc::new(
                 FactorGroupIsometries {
                     ndim,
@@ -140,6 +141,7 @@ impl IsometryGroup {
                     nearest_neighbors,
                 },
             )])),
+            generator_motors: Arc::new(generators),
         })
     }
 
@@ -156,7 +158,7 @@ impl IsometryGroup {
             Self::from_generators(
                 self.group.label(),
                 self.generators()
-                    .map_ref(|g, _| self.generator_motor(g).clone()),
+                    .map_ref(|g, _| self.generator_motors[g].clone()),
             )
         }
     }
@@ -176,15 +178,13 @@ impl IsometryGroup {
     ) -> GroupResult<GroupAction<P>> {
         // TODO: be smart. return a direct product group action
 
-        let generators = self.generators().map_ref(|g, _| self.generator_motor(g));
-
         let mut ref_point_to_point = TiVec::<P, Point>::new();
         let mut point_to_ref_point = ApproxHashMap::new(APPROX);
         for initial_point in points {
             let init = ref_point_to_point.push(initial_point.clone())?;
             point_to_ref_point.insert(initial_point.clone(), init);
-            crate::orbit(init, &generators, |&p, &g| {
-                let new_point = g.transform(&ref_point_to_point[p]);
+            crate::orbit(init, &self.generator_motors, |&p, m| {
+                let new_point = m.transform(&ref_point_to_point[p]);
                 match point_to_ref_point.entry(new_point) {
                     Entry::Occupied(_) => None,
                     Entry::Vacant(entry) => {
@@ -200,7 +200,7 @@ impl IsometryGroup {
 
         self.group.action(ref_point_to_point.len(), |g, p| {
             *point_to_ref_point
-                .get(generators[g].transform(&ref_point_to_point[p]))
+                .get(self.generator_motors[g].transform(&ref_point_to_point[p]))
                 .expect("missing point")
         })
     }
@@ -217,8 +217,6 @@ impl IsometryGroup {
         &self,
         ref_point_to_point: &TiVec<P, Point>,
     ) -> GroupResult<GroupAction<P>> {
-        let generators = self.generators().map_ref(|g, _| self.generator_motor(g));
-
         let point_to_ref_point = ApproxHashMap::from_iter(
             APPROX,
             ref_point_to_point.iter().map(|(i, p)| (p.clone(), i)),
@@ -226,7 +224,7 @@ impl IsometryGroup {
 
         self.group.action(ref_point_to_point.len(), |g, p| {
             *point_to_ref_point
-                .get(generators[g].transform(&ref_point_to_point[p]))
+                .get(self.generator_motors[g].transform(&ref_point_to_point[p]))
                 .expect("missing point")
         })
     }
@@ -271,17 +269,8 @@ impl IsometryGroup {
     }
 
     /// Returns the motor for each generator.
-    pub fn generator_motors(&self) -> PerGenerator<&Motor> {
-        self.generators().map_ref(|g, _| self.generator_motor(g))
-    }
-
-    /// Returns the motor for a generator.
-    ///
-    /// This is an optimized equivalent to `group.motor(group.generators()[g])`.
-    pub fn generator_motor(&self, g: GeneratorId) -> &Motor {
-        let (factor, g_in_factor) = self.group.generator_within_factor(g);
-        let factor_group = &self.group.direct_product_decomposition()[factor];
-        &self.isometries[factor].element_motors[factor_group.generators()[g_in_factor]]
+    pub fn generator_motors(&self) -> &PerGenerator<Motor> {
+        &self.generator_motors
     }
 
     /// Returns the motor for an element.
@@ -306,7 +295,7 @@ impl IsometryGroup {
     pub fn is_reflection(&self, e: GroupElementId) -> bool {
         let mut is_reflection = false;
         for g in self.factorization(e) {
-            is_reflection ^= self.generator_motor(g).is_reflection();
+            is_reflection ^= self.generator_motors[g].is_reflection();
         }
         is_reflection
     }
@@ -439,5 +428,25 @@ mod tests {
             vector![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0],
         );
         assert_approx_eq!(expected, lift_by_ndim(3, 4).transform(&init));
+    }
+
+    #[test]
+    fn test_element_motors() -> GroupResult<()> {
+        let group = IsometryGroup::product(&[
+            crate::CoxeterMatrix::I(3)?.isometry_group()?,
+            crate::CoxeterMatrix::B(2)?.isometry_group()?,
+        ])?;
+        for e in group.elements() {
+            assert_approx_eq!(
+                group.motor(e).canonicalize().unwrap(),
+                group
+                    .factorization(e)
+                    .map(|g| &group.generator_motors()[g])
+                    .fold(Motor::ident(group.ndim()), |a, b| a * b)
+                    .canonicalize()
+                    .unwrap(),
+            );
+        }
+        Ok(())
     }
 }

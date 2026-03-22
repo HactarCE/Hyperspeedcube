@@ -36,7 +36,10 @@ pub(crate) struct GroupInner {
     factors: PerFactorGroup<Arc<AbstractGroupLut>>,
     /// For each factor group: how much to multiply its [`GroupElementId`]s by
     /// to get the corresponding [`GroupElementId`]s in the product group.
-    strides: PerFactorGroup<u32>,
+    element_strides: PerFactorGroup<u32>,
+    /// For each factor group: how much to add to its [`GeneratorId`]s by
+    /// to get the corresponding [`GeneratorId`]s in the product group.
+    generator_offsets: PerFactorGroup<u8>,
     /// For each generator: the index of its factor group, and the
     /// [`GeneratorId`] within that group.
     generators_within_factors: PerGenerator<(FactorGroup, GeneratorId)>,
@@ -97,7 +100,7 @@ impl Group {
             .filter(|n| n.saturating_sub(1) <= GroupElementId::MAX.0 as usize)
             .ok_or(IndexOverflow::new::<GroupElementId>())?;
 
-        let strides: PerFactorGroup<u32> = factors
+        let element_strides: PerFactorGroup<u32> = factors
             .iter_values()
             .scan(1, |stride, group| {
                 let this_stride = *stride;
@@ -105,8 +108,16 @@ impl Group {
                 Some(this_stride)
             })
             .collect();
+        let generator_offsets: PerFactorGroup<u8> = factors
+            .iter_values()
+            .scan(0, |offset, group| {
+                let this_offset = *offset;
+                *offset += group.generators().len() as u8;
+                Some(this_offset)
+            })
+            .collect();
 
-        let generators_within_groups: PerGenerator<(FactorGroup, GeneratorId)> = factors
+        let generators_within_factors: PerGenerator<(FactorGroup, GeneratorId)> = factors
             .iter()
             .flat_map(|(i, group)| group.generators().iter_keys().map(move |g| (i, g)))
             .collect();
@@ -121,8 +132,9 @@ impl Group {
                 element_count,
                 generators,
                 factors,
-                strides,
-                generators_within_factors: generators_within_groups,
+                element_strides,
+                generator_offsets,
+                generators_within_factors,
             }),
         })
     }
@@ -232,9 +244,13 @@ impl Group {
         &self.inner.factors
     }
 
-    /// Returns the offset in [`GroupElementId`] for each subgroup.
-    pub(crate) fn strides(&self) -> &PerFactorGroup<u32> {
-        &self.inner.strides
+    /// Returns the stride in [`GroupElementId`] for each factor group.
+    pub(crate) fn element_strides(&self) -> &PerFactorGroup<u32> {
+        &self.inner.element_strides
+    }
+    /// Returns the offset in [`GeneratorId`] for each factor group.
+    pub(crate) fn generator_offsets(&self) -> &PerFactorGroup<u8> {
+        &self.inner.generator_offsets
     }
 
     /// Decomposes an element into a factor element for each factor group.
@@ -259,7 +275,7 @@ impl Group {
         elements: impl IntoIterator<Item = GroupElementId>,
     ) -> GroupElementId {
         GroupElementId(
-            std::iter::zip(elements, self.strides().iter_values())
+            std::iter::zip(elements, self.element_strides().iter_values())
                 .map(|(e, stride)| e.0 * stride)
                 .sum(),
         )
@@ -278,7 +294,7 @@ impl Group {
         element: GroupElementId,
     ) -> GroupElementId {
         let group = &self.inner.factors[factor];
-        let group_stride = self.strides()[factor];
+        let group_stride = self.element_strides()[factor];
         GroupElementId((element.0 / group_stride) % group.element_count() as u32)
     }
 
@@ -299,7 +315,7 @@ impl Group {
         factor: FactorGroup,
         element: GroupElementId,
     ) -> GroupElementId {
-        GroupElementId(self.strides()[factor] * element.0)
+        GroupElementId(self.element_strides()[factor] * element.0)
     }
 
     /// Decomposes `element` into a factor element for each factor group,
@@ -319,7 +335,7 @@ impl Group {
         factor: FactorGroup,
         modify_element_within_factor: impl FnOnce(GroupElementId) -> GroupElementId,
     ) -> GroupElementId {
-        let group_stride = self.strides()[factor];
+        let group_stride = self.element_strides()[factor];
         let old_factor_element = self.project_element_to_factor(factor, element);
         let new_factor_element = modify_element_within_factor(old_factor_element);
         GroupElementId(
@@ -349,12 +365,16 @@ impl Group {
         &self,
         element: GroupElementId,
     ) -> impl Clone + DoubleEndedIterator<Item = GeneratorId> {
-        std::iter::zip(
+        itertools::izip!(
             self.inner.factors.iter_values(),
+            self.generator_offsets().iter_values(),
             self.element_to_factors(element),
         )
-        .flat_map(|(g, e)| g.factorization(e))
-        .copied()
+        .flat_map(|(g, generator_offset, e)| {
+            g.factorization(e)
+                .iter()
+                .map(move |&g| GeneratorId(generator_offset + g.0))
+        })
     }
 
     /// Returns the inverse of `element`.
