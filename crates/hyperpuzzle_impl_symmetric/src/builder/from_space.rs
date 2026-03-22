@@ -8,28 +8,26 @@ use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::IsometryGroup;
 use hypermath::pga::Motor;
 use hypermath::{Float, Hyperplane, Point, Vector};
-use hyperpuzzle_core::{
-    Axis, Color, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface, TiVec,
-};
+use hyperpuzzle_core::{Axis, Color, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface};
 use hypershape::PolytopeFate;
 use hypuz_notation::Layer;
 use itertools::Itertools;
 
-use super::{
-    PieceBuilder, PieceFacetBuilder, ProductPuzzleBuilder, StickerBuilder, SurfaceBuilder,
-};
+use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 use crate::geometry::PolytopeGeometry;
-use crate::names::NameBiMap;
 
 /// Constructor for [`ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeBuilder {
     symmetry: IsometryGroup,
+    /// Generating set for `symmetry`, cached for convenience.
     generator_motors: Vec<Motor>,
+
     space: Arc<hypershape::Space>,
-    pub pieces: PerPiece<PieceShapeBuilder>,
-    surfaces: PerSurface<SurfaceBuilder>,
+
+    pieces: PerPiece<PieceShapeBuilder>,
+    surfaces: PerSurface<SurfaceData>,
     colors: PerColor<()>,
 }
 
@@ -49,7 +47,9 @@ impl PuzzleShapeBuilder {
         Ok(Self {
             symmetry,
             generator_motors,
+
             space,
+
             pieces,
             surfaces: PerSurface::new(),
             colors: PerColor::new(),
@@ -91,7 +91,7 @@ impl PuzzleShapeBuilder {
         let new_surface = if cut.params().inside == PolytopeFate::Remove
             || cut.params().outside == PolytopeFate::Remove
         {
-            Some(self.surfaces.push(SurfaceBuilder {
+            Some(self.surfaces.push(SurfaceData {
                 ndim: self.ndim(),
                 centroid: Point::ORIGIN, // will be added later
                 normal: cut.params().divider.normal().clone(),
@@ -128,9 +128,11 @@ impl PuzzleShapeBuilder {
         Ok(())
     }
 
-    pub fn into_product_puzzle_builder(self) -> Result<ProductPuzzleBuilder> {
+    pub fn into_product_puzzle_shape(self) -> Result<ProductPuzzleShape> {
         let ndim = self.ndim();
 
+        // Add internal facets, which are necessary when computing the direct
+        // product of puzzles.
         let pieces = self.pieces.try_map_ref(|_, piece| {
             let facet_id_to_sticker: HashMap<hypershape::ElementId, &StickerShapeBuilder> = piece
                 .stickers
@@ -139,16 +141,16 @@ impl PuzzleShapeBuilder {
                 .collect();
 
             let piece_polytope = self.space.get(piece.polytope);
-            eyre::Ok(PieceBuilder {
+            eyre::Ok(PieceData {
                 polytope: PolytopeGeometry::from_polytope_element(piece_polytope)?,
                 facets: piece_polytope
                     .boundary()
                     .map(|b| (b, facet_id_to_sticker.get(&b.id()).copied()))
                     .filter(|(_, sticker)| ndim <= 3 || sticker.is_some()) // remove internals in 4D+
                     .map(|(b, sticker)| {
-                        eyre::Ok(PieceFacetBuilder {
+                        eyre::Ok(PieceFacetData {
                             polytope: PolytopeGeometry::from_polytope_element(b)?,
-                            sticker_data: sticker.map(|sticker| StickerBuilder {
+                            sticker_data: sticker.map(|sticker| StickerData {
                                 surface: sticker.surface,
                                 color: sticker.color,
                             }),
@@ -159,35 +161,24 @@ impl PuzzleShapeBuilder {
             })
         })?;
 
-        // TODO: factor this out into "ProductPuzzleShape"
-        Ok(ProductPuzzleBuilder {
-            ndim,
-
+        Ok(ProductPuzzleShape {
+            symmetry: self.symmetry,
             pieces,
             surfaces: self.surfaces,
             colors: self.colors,
-
-            axis_vectors: PerAxis::new(),
-            axis_group_action: self.symmetry.action_on_points(&TiVec::new())?,
-            axis_sets: vec![],
-
-            sticker_color_action: self.symmetry.action_on_points(&TiVec::new())?,
-            sticker_color_names: NameBiMap::new(),
-
-            isometry_group: self.symmetry.clone(),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct PieceShapeBuilder {
-    pub polytope: hypershape::ElementId,
-    pub stickers: Vec<StickerShapeBuilder>,
+struct PieceShapeBuilder {
+    polytope: hypershape::ElementId,
+    stickers: Vec<StickerShapeBuilder>,
     /// Grip signature, represented as a layer on each axis.
     ///
     /// This defaults to `None`, which indicates that the piece does not move
     /// with any layer on the axis.
-    pub grip_signature: PerAxis<Option<Layer>>,
+    grip_signature: PerAxis<Option<Layer>>,
 }
 
 impl PieceShapeBuilder {
@@ -273,9 +264,9 @@ impl PieceShapeBuilder {
 
 #[derive(Debug, Copy, Clone)]
 struct StickerShapeBuilder {
-    pub polytope: hypershape::ElementId,
-    pub surface: Surface,
-    pub color: Color,
+    polytope: hypershape::ElementId,
+    surface: Surface,
+    color: Color,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

@@ -82,11 +82,6 @@ impl Coset {
         }
     }
 
-    /// Returns the group that the subgroup belongs to.
-    pub fn overgroup(&self) -> &Group {
-        &self.overgroup
-    }
-
     /// Returns whether the subgroup is trivial (contains only the identity).
     ///
     /// Note that if the subgroup is (and thus the coset) only contain one
@@ -95,11 +90,6 @@ impl Coset {
     /// This is equivalent to `coset.element_count == 1`.
     pub fn is_trivial(&self) -> bool {
         self.element_count == 1
-    }
-
-    /// Returns the number of elements in the coset.
-    pub fn element_count(&self) -> usize {
-        self.element_count
     }
 
     /// Returns a list of the elements in the coset.

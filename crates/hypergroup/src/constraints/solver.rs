@@ -58,6 +58,9 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         }
     }
 
+    /// Splits a constraint set into a constraint set for each factor. Returns
+    /// `None` if any constraint spans multiple factors, making it
+    /// unsatisfiable.
     fn split_constraint_set(
         &self,
         constraint_set: &ConstraintSet<P>,
@@ -149,7 +152,8 @@ impl<P: TypedIndex> ConstraintSolver<P> {
     }
 
     /// Selects an random element deterministically and uniformly from the group
-    /// that satisfies a set of constraints.
+    /// that satisfies a set of constraints and returns a set of constraints
+    /// that precisely specifies it.
     ///
     /// `random_index` must return a deterministic random integer in the range
     /// `0..n`. The range will never be empty.
@@ -187,6 +191,45 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         }
 
         Some((combined_constraint_set, combined_element))
+    }
+
+    /// Returns a canonical set of constraints that uniquely specifies an
+    /// element, assuming the base constraints have already been applied.
+    ///
+    /// Returns `None` if `base_constraints` is unsatisfiable.
+    ///
+    /// Panics in debug mode if `element` does not satisfy `base_constraints`.
+    pub fn constraints_for_element(
+        &mut self,
+        base_constraints: &ConstraintSet<P>,
+        element: GroupElementId,
+    ) -> Option<ConstraintSet<P>> {
+        let constraint_set_for_each_factor = self.split_constraint_set(&base_constraints)?;
+        let outputs = itertools::izip!(
+            &mut self.factor_solvers,
+            constraint_set_for_each_factor,
+            self.action.group().element_to_factors(element)
+        )
+        .map(|((_, solver), (_, base_constraints_for_factor), element)| {
+            solver.constraints_for_element(&base_constraints_for_factor, element)
+        })
+        .collect::<Option<PerFactorGroup<_>>>()?;
+        let combined_constraint_set = self.merge_constraint_sets(outputs);
+
+        debug_assert_eq!(
+            element,
+            self.solve(&ConstraintSet::from_iter(std::iter::chain(
+                base_constraints,
+                &combined_constraint_set
+            )))
+            .unwrap()
+            .elements()
+            .into_iter()
+            .exactly_one()
+            .unwrap(),
+        );
+
+        Some(combined_constraint_set)
     }
 
     #[cfg(test)]
@@ -375,6 +418,51 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
         let single_element_in_coset = self.group().compose(lhs, coset.rhs);
 
         Some((constraint_set, single_element_in_coset))
+    }
+
+    /// Returns a canonical set of constraints that uniquely specifies an
+    /// element, assuming the base constraints have already been applied.
+    ///
+    /// Returns `None` if `base_constraints` is unsatisfiable.
+    ///
+    /// Panics in debug mode if `element` does not satisfy `base_constraints`.
+    pub fn constraints_for_element(
+        &mut self,
+        base_constraints: &ConstraintSet<P>,
+        element: GroupElementId,
+    ) -> Option<ConstraintSet<P>> {
+        let mut coset = self.solve_coset_impl(&base_constraints)?;
+
+        for c in base_constraints {
+            debug_assert_eq!(self.action.act(element, c.from), c.to);
+        }
+
+        let mut additional_constraints = ConstraintSet::EMPTY;
+
+        while !self.subgroup_orbits[coset.subgroup].subgroup.is_trivial() {
+            let rhs_inv = self.group().inverse(coset.rhs);
+            let canonical_largest_orbit =
+                &self.subgroup_orbits[coset.subgroup].canonical_largest_orbit;
+            assert!(canonical_largest_orbit.len() > 1);
+
+            let source_candidates = canonical_largest_orbit
+                .iter()
+                .map(|&p| self.action.act(rhs_inv, p));
+            let source = source_candidates.min()?;
+
+            let destination = self.action.act(element, source);
+
+            let new_constraint = Constraint {
+                from: source,
+                to: destination,
+            };
+            additional_constraints.constraints.push(new_constraint);
+            coset = self.constrain_coset(coset, new_constraint)?;
+        }
+
+        self.debug_assert_constraints(&coset, &additional_constraints);
+
+        Some(additional_constraints)
     }
 }
 

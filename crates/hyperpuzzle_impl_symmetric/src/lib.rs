@@ -1,16 +1,11 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use itertools::Itertools;
-use parking_lot::Mutex;
-use std::fmt;
 use std::sync::Arc;
 
 use eyre::Result;
-use hypergroup::{ConstraintSolver, GroupAction};
-use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId, IsometryGroup};
+use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
 
@@ -44,7 +39,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                     .direct_product(&shallow_polygon(5)?)?
                     .direct_product(&shallow_polygon(6)?)?
                     // .direct_product(&shallow_ft_simplex(3)?)?
-                    .build()
+                    .build(Some(&build_ctx), &mut |e| eprintln!("{e}")) // TODO: better warn function
             })()
             .map(Redirectable::Direct)
             .map_err(|e| e.to_string())
@@ -66,8 +61,8 @@ pub fn direct_product_vectors(
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,
     twists: Arc<SymmetricTwistSystemEngineData>,
-    piece_grip_signatures: Arc<PerAxis<PerPiece<Option<Layer>>>>, // TODO: consider transposing
-    piece_attitudes: PerPiece<GroupElementId>,                    // TODO: consider storing inverse
+    piece_grip_signatures: Arc<PerPiece<PerAxis<Option<Layer>>>>,
+    piece_attitudes: PerPiece<GroupElementId>, // TODO: consider storing inverse
 }
 
 impl PuzzleState for ProductPuzzleState {
@@ -106,11 +101,11 @@ impl PuzzleState for ProductPuzzleState {
     }
 
     fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide> {
-        self.piece_attitudes.map_ref(|piece, &attitude| {
-            let inverse_attitude = self.twists.group.inverse(attitude);
-            let layer_on_axis = self.piece_grip_signatures
-                [self.twists.group_action.act(inverse_attitude, axis)][piece];
-            if layer_on_axis.is_some_and(|l| layers.contains(l)) {
+        self.piece_attitudes.map_ref(|piece, _| {
+            if self
+                .piece_layer_on_axis(piece, axis)
+                .is_some_and(|l| layers.contains(l))
+            {
                 WhichSide::Inside
             } else {
                 WhichSide::Outside
@@ -120,12 +115,12 @@ impl PuzzleState for ProductPuzzleState {
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         Some(LayerMask::from_layer(
-            self.piece_grip_signatures[axis][piece]?,
+            self.piece_layer_on_axis(piece, axis)?,
         ))
     }
 
     fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        todo!() // TODO
+        self.min_layer_mask(axis, piece) // no blocked layers
     }
 
     fn render_data(&self) -> BoxDynPuzzleStateRenderData {
@@ -178,6 +173,12 @@ impl ProductPuzzleState {
             piece_transforms[piece] = transform * &piece_transforms[piece];
         }
         piece_transforms
+    }
+
+    fn piece_layer_on_axis(&self, piece: Piece, axis: Axis) -> Option<Layer> {
+        let attitude = self.piece_attitudes[piece];
+        let inverse_attitude = self.twists.group.inverse(attitude);
+        self.piece_grip_signatures[piece][self.twists.group_action.act(inverse_attitude, axis)]
     }
 }
 

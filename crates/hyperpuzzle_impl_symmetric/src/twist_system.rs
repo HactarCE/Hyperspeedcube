@@ -1,6 +1,7 @@
 use hypuz_notation::{Str, Transform};
 use itertools::Itertools;
 use parking_lot::Mutex;
+use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 use std::sync::Arc;
 
@@ -38,17 +39,20 @@ impl SymmetricTwistSystemEngineData {
         self.group.ndim()
     }
 
+    /// Returns the motor for a twist.
     pub fn twist_motor(&self, twist: &Move) -> Result<Motor> {
         let (_axis, transform) = self.resolve_twist_transform(&twist.transform)?;
         let multiplied_element = self.group.powi(transform, twist.multiplier.0);
         Ok(self.group.motor(multiplied_element))
     }
 
+    /// Resolves a twist to an axis and a group element.
     pub fn resolve_twist(&self, twist: &Move) -> Result<(Axis, GroupElementId), TwistError> {
         let (axis, element) = self.resolve_twist_transform(&twist.transform)?;
         Ok((axis, self.group.powi(element, twist.multiplier.0)))
     }
 
+    /// Resolves a twist transform to an axis and a group element.
     pub fn resolve_twist_transform(
         &self,
         transform: &Transform,
@@ -72,36 +76,12 @@ impl SymmetricTwistSystemEngineData {
             .solve(&constraint_set)
             .ok_or(TwistError::UnsatisfiableConstraints)?;
 
-        // Does the coset have any reflections and/or rotations?
-        let (has_refl, has_rot) = if coset
-            .subgroup_generators
-            .iter()
-            .any(|g| self.group.motor(*g).is_reflection())
-        {
-            (true, true) // reflections and rotations
-        } else if self.group.motor(coset.lhs).is_reflection() {
-            (true, false) // reflections only
-        } else {
-            (false, true) // rotations only
-        };
+        let rotation_count = self.count_rotations_in_coset(&coset);
 
-        let rotation_count = if has_rot {
-            if has_refl {
-                coset.element_count / 2
-            } else {
-                coset.element_count
-            }
-        } else {
-            0
-        };
-
-        let element = if rotation_count == 1
-            && let Some(unambiguous_rotation_in_coset) = coset
-                .elements()
-                .into_iter()
-                .filter(|&e| !self.group.motor(e).is_reflection())
-                .exactly_one()
-                .ok()
+        let element = if rotation_count == 0 {
+            return Err(TwistError::UnsatisfiableConstraints);
+        } else if rotation_count == 1
+            && let Ok(unambiguous_rotation_in_coset) = self.rotations_in_coset(&coset).exactly_one()
         {
             unambiguous_rotation_in_coset
         } else if let Some((_fixed_axis_constraint, single_constraint)) =
@@ -135,6 +115,103 @@ impl SymmetricTwistSystemEngineData {
         Ok((axis, element))
     }
 
+    /// Returns a constraint set specifying a random non-identity transformation
+    /// of an axis.
+    ///
+    /// Returns `None` if there is no such constraint set. Returns
+    /// `Some(ConstraintSet::EMPTY)` if there is only one such transformation
+    /// and so no constraints are needed.
+    pub fn random_constraints_on_axis(
+        &self,
+        rng: &mut dyn Rng,
+        axis: Axis,
+    ) -> Option<hypuz_notation::ConstraintSet> {
+        let mut solver = self.constraint_solver.lock();
+        let fixed_axis_constraint_set =
+            hypergroup::ConstraintSet::from_iter([hypergroup::Constraint::fix(axis)]);
+
+        let coset = solver.solve(&fixed_axis_constraint_set)?;
+        let random_rotation = match self.count_rotations_in_coset(&coset) {
+            0 => return None, // impossible! must contain identity
+            1 => return None, // only contains identity
+            2 => {
+                // only one non-identity element; just return it
+                self.rotations_in_coset(&coset)
+                    .find(|&e| e != GroupElementId::IDENTITY)?
+            }
+            _ => {
+                // Loop until we find a non-identity element. There must be at least 2
+                // of them, so at worst we have a 2/3 chance of finding one.
+                let mut random_elements = std::iter::from_fn(|| {
+                    solver.select(&fixed_axis_constraint_set, |n| rng.random_range(0..n))
+                });
+                let mut random_rotations = std::iter::from_fn(|| {
+                    let (_, candidate_1) = random_elements.next()?;
+                    if self.group.is_reflection(candidate_1) {
+                        let (_, candidate_2) = random_elements.next()?;
+                        if self.group.is_reflection(candidate_2) {
+                            Some(self.group.compose(candidate_1, candidate_2)) // refl * refl = rot
+                        } else {
+                            Some(candidate_2) // rot
+                        }
+                    } else {
+                        Some(candidate_1) // rot
+                    }
+                });
+                random_rotations.find(|&e| e != GroupElementId::IDENTITY)?
+            }
+        };
+
+        Some(hypuz_notation::ConstraintSet {
+            constraints: solver
+                .constraints_for_element(&fixed_axis_constraint_set, random_rotation)?
+                .into_iter()
+                .map(|c| self.hypergroup_constraint_to_notation_constraint(c))
+                .collect(),
+        })
+    }
+
+    fn count_rotations_in_coset(&self, coset: &hypergroup::Coset) -> usize {
+        // Does the coset have any reflections and/or rotations?
+        if coset
+            .subgroup_generators
+            .iter()
+            .any(|g| self.group.is_reflection(*g))
+        {
+            coset.element_count / 2 // reflections and rotations
+        } else if self.group.is_reflection(coset.lhs) {
+            0 // reflections only
+        } else {
+            coset.element_count // rotations only
+        }
+    }
+
+    /// Returns the rotation elements within a coset.
+    ///
+    /// This is **not** performant for large cosets.
+    fn rotations_in_coset(
+        &self,
+        coset: &hypergroup::Coset,
+    ) -> impl Iterator<Item = GroupElementId> {
+        coset
+            .elements()
+            .into_iter()
+            .filter(|&e| !self.group.is_reflection(e))
+    }
+
+    /// Returns whether an axis has any non-identity twist transforms available.
+    ///
+    /// On an actual puzzle, there may still be no twists available because the
+    /// axis has no layers.
+    pub fn axis_has_twists(&self, axis: Axis) -> bool {
+        self.constraint_solver
+            .lock()
+            .solve(&hypergroup::ConstraintSet {
+                constraints: smallvec![hypergroup::Constraint::fix(axis)],
+            })
+            .is_some_and(|coset| self.count_rotations_in_coset(&coset) > 1)
+    }
+
     fn notation_constraint_to_hypergroup_constraint(
         &self,
         notation_constraint: &hypuz_notation::Constraint,
@@ -158,6 +235,16 @@ impl SymmetricTwistSystemEngineData {
             }
         })
     }
+
+    fn hypergroup_constraint_to_notation_constraint(
+        &self,
+        hypergroup_constraint: hypergroup::Constraint<Axis>,
+    ) -> hypuz_notation::Constraint {
+        hypuz_notation::Constraint::from((
+            &self.axes.names[hypergroup_constraint.from],
+            &self.axes.names[hypergroup_constraint.to],
+        ))
+    }
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
@@ -178,6 +265,6 @@ pub enum TwistError {
     DirectRotationDoesNotExist,
     #[error("direct rotation does not preserve axis")]
     DirectRotationDoesNotFixAxis,
-    #[error("constraint force identity")]
+    #[error("constraints force identity")]
     Identity,
 }

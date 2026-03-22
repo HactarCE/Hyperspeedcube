@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::io::Write;
 use std::sync::{Arc, Weak};
 
 use hypuz_notation::AxisLayersInfo;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use scramble::{ScrambleProgress, ScrambledPuzzle};
-use sha2::Digest;
 
 use super::*;
 use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, Move, PuzzleListMetadata};
@@ -117,14 +115,7 @@ impl Puzzle {
 
         let ScrambleParams { ty, seed, .. } = &params;
 
-        let mut sha256 = sha2::Sha256::new();
-        sha256.write_all(&seed.len().to_le_bytes())?; // native endianness on x86 and Apple Silicon
-        sha256.write_all(seed.as_bytes())?;
-        let digest = sha256.finalize();
-
-        let mut rng = chacha20::ChaCha12Rng::from_seed(
-            <[u8; 32]>::try_from(&digest[..32]).expect("sha256 digest must be 32 bytes"),
-        );
+        let mut rng = crate::util::rng_from_seed(seed)?;
 
         let scramble_length = match ty {
             ScrambleType::Full => self.full_scramble_length,
@@ -186,28 +177,5 @@ impl Puzzle {
             let sticker_info = &self.stickers[sticker];
             sticker_info.color == color
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use itertools::Itertools;
-    use rand::RngExt;
-
-    use super::*;
-
-    #[test]
-    fn test_stable_deterministic_rng() {
-        let mut rng = chacha20::ChaCha12Rng::from_seed((0..32).collect_array().unwrap());
-        let a = rng.random::<[u64; 4]>();
-        assert_eq!(
-            a,
-            [
-                6829280927315210738,
-                12268062495221155140,
-                13566740668459520841,
-                3898457950037656553
-            ]
-        );
     }
 }

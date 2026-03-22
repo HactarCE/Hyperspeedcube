@@ -9,7 +9,7 @@ use crate::names::NameBiMap;
 ///
 /// This type is reference-counted and thus relatively cheap to clone.
 #[derive(Debug)]
-pub struct AxisSetBuilder {
+pub(super) struct AxisSet {
     /// Number of dimensions of the space containing the puzzle.
     pub ndim: u8,
     /// Number of axes in the set.
@@ -23,10 +23,10 @@ pub struct AxisSetBuilder {
     /// Axis names.
     pub names: Arc<NameBiMap<Axis>>,
     /// Axis orbits.
-    pub orbits: Vec<AxisOrbitBuilder>,
+    pub orbits: Vec<AxisOrbit>,
 }
 
-impl AxisSetBuilder {
+impl AxisSet {
     /// Lifts the axis orbit into a higher dimension.
     ///
     /// - All axis vectors are lifted into a higher dimension.
@@ -39,7 +39,7 @@ impl AxisSetBuilder {
             orbits: self
                 .orbits
                 .iter()
-                .map(|axis_orbit| AxisOrbitBuilder {
+                .map(|axis_orbit| AxisOrbit {
                     len: axis_orbit.len,
                     vector: crate::lift_vector_by_ndim(
                         &axis_orbit.vector,
@@ -63,7 +63,7 @@ impl AxisSetBuilder {
 }
 
 #[derive(Debug)]
-pub struct AxisOrbitBuilder {
+pub struct AxisOrbit {
     /// Number of axes in the orbit.
     pub len: usize,
     /// Vector for the first axis.

@@ -683,7 +683,13 @@ impl fmt::Display for Constraint {
 
 impl<A: Into<Str>, B: Into<Str>> From<(A, B)> for Constraint {
     fn from((a, b): (A, B)) -> Self {
-        Self::FromTo([a.into(), b.into()])
+        let a = a.into();
+        let b = b.into();
+        if a == b {
+            Self::Fix(a)
+        } else {
+            Self::FromTo([a, b])
+        }
     }
 }
 
@@ -726,7 +732,8 @@ impl From<()> for LayerPrefix {
 impl<T: Into<LayerPrefixContents>> From<T> for LayerPrefix {
     fn from(value: T) -> Self {
         let invert = false;
-        let contents = Some(value.into());
+        let contents = Some(value.into())
+            .filter(|contents| *contents != LayerPrefixContents::Single(Layer::SHALLOWEST));
         Self { invert, contents }
     }
 }

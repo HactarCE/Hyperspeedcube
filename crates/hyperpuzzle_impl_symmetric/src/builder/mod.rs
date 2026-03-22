@@ -2,10 +2,12 @@
 //! Hyperspeedcube.
 
 use std::collections::HashMap;
+use std::ops::Range;
 use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
+use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::group::{GroupAction, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::builder::ColorSystemBuilder;
@@ -13,37 +15,25 @@ use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData};
 
 mod axes;
 mod from_space;
-mod piece;
-mod surface;
+mod shape;
 
 use itertools::Itertools;
 use parking_lot::Mutex;
-use piece::{PieceBuilder, PieceFacetBuilder, StickerBuilder};
-use surface::SurfaceBuilder;
+use rand::seq::IndexedRandom;
+use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 
 use crate::names::NameBiMap;
 use crate::{ProductPuzzleState, SymmetricTwistSystemEngineData};
-use axes::{AxisOrbitBuilder, AxisSetBuilder};
+use axes::{AxisOrbit, AxisSet};
 
 #[derive(Debug)]
 pub struct ProductPuzzleBuilder {
-    ndim: u8,
+    shape: ProductPuzzleShape,
 
-    /// Pieces and stickers.
-    pieces: PerPiece<PieceBuilder>,
-    /// Surfaces.
-    surfaces: PerSurface<SurfaceBuilder>,
-    /// Colors
-    colors: PerColor<()>,
-
-    axis_sets: Vec<AxisSetBuilder>,
-    axis_vectors: PerAxis<Vector>,
+    axis_group: IsometryGroup,
     axis_group_action: GroupAction<Axis>,
-
-    sticker_color_action: GroupAction<Color>,
-    sticker_color_names: NameBiMap<Color>,
-
-    isometry_group: IsometryGroup,
+    axis_vectors: PerAxis<Vector>,
+    axis_sets: Vec<AxisSet>,
     // /// Twist gizmos to generate, which will be expanded by the symmetry of the
     // /// puzzle.
     // twist_gizmo_seeds: Vec<TwistGizmoBuilder>,
@@ -52,21 +42,9 @@ pub struct ProductPuzzleBuilder {
 impl ProductPuzzleBuilder {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        self.ndim
+        self.shape.ndim()
     }
 
-    /// Returns the number of pieces in the puzzle.
-    pub fn piece_count(&self) -> usize {
-        self.pieces.len()
-    }
-    /// Returns the number of surfaces on the puzzle.
-    pub fn surface_count(&self) -> usize {
-        self.surfaces.len()
-    }
-    /// Returns the number of sticker colors on the puzzle.
-    pub fn color_count(&self) -> usize {
-        self.colors.len()
-    }
     /// Returns the number of axes on the puzzle.
     pub fn axis_count(&self) -> usize {
         self.axis_sets.iter().map(|axis_set| axis_set.len).sum()
@@ -76,16 +54,12 @@ impl ProductPuzzleBuilder {
     /// product.
     pub fn direct_product_identity() -> Self {
         ProductPuzzleBuilder {
-            ndim: 0,
-            pieces: PerPiece::from_iter([PieceBuilder::POINT]),
-            surfaces: PerSurface::new(),
-            colors: PerColor::new(),
-            axis_sets: vec![],
-            axis_vectors: PerAxis::new(),
+            shape: ProductPuzzleShape::direct_product_identity(),
+
+            axis_group: IsometryGroup::trivial(),
             axis_group_action: GroupAction::trivial(),
-            sticker_color_action: GroupAction::trivial(),
-            sticker_color_names: NameBiMap::new(),
-            isometry_group: IsometryGroup::trivial(),
+            axis_vectors: PerAxis::new(),
+            axis_sets: vec![],
         }
     }
 
@@ -136,7 +110,7 @@ impl ProductPuzzleBuilder {
             for (layer, &depth) in layers.zip(depths) {
                 slice_cuts.push((axis_iter_start..axis_iter_end, depth, layer));
             }
-            axis_orbits.push(AxisOrbitBuilder {
+            axis_orbits.push(AxisOrbit {
                 len: gen_seqs.len(),
                 vector: axis_vector.clone(),
                 max_layer: (depths.len() - 1)
@@ -146,7 +120,7 @@ impl ProductPuzzleBuilder {
             });
         }
 
-        let axis_set = AxisSetBuilder {
+        let axis_set = AxisSet {
             ndim,
             len: axis_vectors.len(),
             id_offset: 0,
@@ -154,7 +128,8 @@ impl ProductPuzzleBuilder {
             orbits: axis_orbits,
         };
 
-        let mut shape_builder = from_space::PuzzleShapeBuilder::new(ndim, symmetry, axis_set.len)?;
+        let mut shape_builder =
+            from_space::PuzzleShapeBuilder::new(ndim, symmetry.clone(), axis_set.len)?;
         for plane in carve_planes {
             shape_builder.carve_symmetric(&plane)?;
         }
@@ -168,14 +143,38 @@ impl ProductPuzzleBuilder {
                 layer,
             )?;
         }
-        let mut ret = shape_builder.into_product_puzzle_builder()?;
+        let shape = shape_builder.into_product_puzzle_shape()?;
 
         let axis_points = axis_vectors.map_ref(|_, v| Point(v.clone()));
-        ret.axis_sets = vec![axis_set];
-        ret.axis_vectors = axis_vectors;
-        ret.axis_group_action = ret.isometry_group.action_on_points(&axis_points)?;
+        let axis_group_action = symmetry.action_on_points(&axis_points)?;
 
-        Ok(ret)
+        Ok(Self {
+            shape,
+
+            axis_group: symmetry,
+            axis_group_action,
+            axis_vectors,
+            axis_sets: vec![axis_set],
+        })
+    }
+
+    /// Returns an iterator over axis orbits, each paired with the ID range of
+    /// the axes in the orbit. The ID range is never empty.
+    fn axis_orbits(
+        &self,
+    ) -> Result<impl Iterator<Item = (Range<Axis>, &AxisSet, &AxisOrbit)>, IndexOverflow> {
+        if self.axis_count() > Axis::MAX_INDEX {
+            return Err(IndexOverflow::new::<Axis>());
+        }
+        Ok(self.axis_sets.iter().flat_map(|axis_set| {
+            let mut first_axis_in_next_orbit = Axis(axis_set.id_offset as u16);
+            axis_set.orbits.iter().map(move |axis_orbit| {
+                let first_axis_in_orbit = first_axis_in_next_orbit;
+                first_axis_in_next_orbit.0 += axis_orbit.len as u16;
+                let axis_range = first_axis_in_orbit..first_axis_in_next_orbit;
+                (axis_range, axis_set, axis_orbit)
+            })
+        }))
     }
 
     /// Returns the direct product of two puzzles.
@@ -187,79 +186,56 @@ impl ProductPuzzleBuilder {
         let a = self;
         let b = rhs;
 
-        let ndim = a.ndim + b.ndim;
         let a_axis_count = a.axis_count();
-
-        let pieces = itertools::iproduct!(a.pieces.iter_values(), b.pieces.iter_values(),)
-            .map(|(a_piece, b_piece)| {
-                PieceBuilder::direct_product(a_piece, b_piece, a.surface_count(), a.color_count())
-            })
-            .collect();
-
-        // Assume that the centroid of each entire puzzle is the origin.
-        let surfaces = std::iter::chain(
-            a.surfaces
-                .iter_values()
-                .map(|a_surface| a_surface.lift_by_ndim(0, b.ndim)),
-            b.surfaces
-                .iter_values()
-                .map(|b_surface| b_surface.lift_by_ndim(a.ndim, 0)),
-        )
-        .collect();
-
-        let colors = std::iter::chain(a.colors.iter_values(), b.colors.iter_values())
-            .copied()
-            .collect();
 
         let axis_sets = std::iter::chain(
             a.axis_sets
                 .iter()
-                .map(|a_axis_set| a_axis_set.lift_ndim(0, b.ndim)),
-            b.axis_sets
-                .iter()
-                .map(|b_axis_set| b_axis_set.lift_ndim(a.ndim, 0).offset_ids_by(a_axis_count)),
+                .map(|a_axis_set| a_axis_set.lift_ndim(0, b.ndim())),
+            b.axis_sets.iter().map(|b_axis_set| {
+                b_axis_set
+                    .lift_ndim(a.ndim(), 0)
+                    .offset_ids_by(a_axis_count)
+            }),
         )
         .collect();
 
         let axis_vectors = std::iter::chain(
             a.axis_vectors
                 .iter_values()
-                .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim, b.ndim)),
+                .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
             b.axis_vectors
                 .iter_values()
-                .map(|v| crate::lift_vector_by_ndim(v, a.ndim, b.ndim, 0)),
+                .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
         )
         .collect();
 
         Ok(ProductPuzzleBuilder {
-            ndim,
+            shape: ProductPuzzleShape::direct_product(&a.shape, &b.shape)?,
 
-            pieces,
-            surfaces,
-            colors,
-
+            axis_group: IsometryGroup::product([&a.axis_group, &b.axis_group])?,
             axis_group_action: GroupAction::product([&a.axis_group_action, &b.axis_group_action])?,
             axis_sets,
             axis_vectors,
-
-            sticker_color_action: GroupAction::product([
-                &a.sticker_color_action,
-                &b.sticker_color_action,
-            ])?,
-            sticker_color_names: NameBiMap::concat(&a.sticker_color_names, &b.sticker_color_names),
-
-            isometry_group: IsometryGroup::product([&a.isometry_group, &b.isometry_group])?,
         })
     }
 
     /// Constructs the final puzzle.
-    pub fn build(&self) -> Result<Arc<Puzzle>> {
-        let ndim = self.ndim;
-        let piece_count = self.piece_count();
+    pub fn build(
+        &self,
+        build_ctx: Option<&BuildCtx>,
+        warn_fn: &mut impl FnMut(eyre::Report),
+    ) -> Result<Arc<Puzzle>> {
+        if let Some(build_ctx) = build_ctx {
+            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+        }
+
+        let ndim = self.ndim();
+        let piece_count = self.shape.pieces.len();
 
         // Build pieces and stickers.
         let mut stickers = PerSticker::new();
-        let pieces = self.pieces.try_map_ref(|piece, piece_builder| {
+        let pieces = self.shape.pieces.try_map_ref(|piece, piece_builder| {
             let stickers = piece_builder
                 .facets
                 .iter()
@@ -281,13 +257,14 @@ impl ProductPuzzleBuilder {
             vertex_coordinates: vec![],
             piece_vertex_sets: PerPiece::new_with_len(piece_count),
             piece_centroids: self
+                .shape
                 .pieces
                 .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center()),
 
             planes: vec![Hyperplane::new(vector![1.0], 0.0).unwrap()],
             sticker_planes: stickers.map_ref(|_, _| 0),
 
-            mesh: self.build_mesh()?,
+            mesh: self.shape.build_mesh()?,
 
             axis_vectors: Arc::new(PerAxis::new()),
             axis_layer_depths: PerAxis::new(),
@@ -299,7 +276,7 @@ impl ProductPuzzleBuilder {
 
         // TODO: proper color system
         let mut colors = ColorSystemBuilder::new_ad_hoc("unknown_product_puzzle");
-        for _ in &self.surfaces {
+        for (_, ()) in &self.shape.colors {
             colors.add(None, |e| log::warn!("{e}"))?;
         }
         let colors = Arc::new(colors.build(None, None, &mut |e| log::warn!("{e}"))?);
@@ -364,7 +341,7 @@ impl ProductPuzzleBuilder {
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
             axis_vectors,
-            group: self.isometry_group.clone(),
+            group: self.axis_group.clone(),
             group_action: self.axis_group_action.clone(),
             constraint_solver: Arc::new(Mutex::new(hypergroup::ConstraintSolver::new(
                 self.axis_group_action.clone(),
@@ -373,27 +350,50 @@ impl ProductPuzzleBuilder {
         twists.engine_data = (*twist_system_engine_data).clone().into();
         let twists = Arc::new(twists);
 
-        let axis_layers = self
-            .axis_sets
-            .iter()
-            .flat_map(|axis_set| {
-                axis_set.orbits.iter().flat_map(|axis_orbit| {
-                    std::iter::repeat_n(
-                        AxisLayersInfo {
-                            max_layer: axis_orbit.max_layer,
-                            allow_negatives: false, // TODO: allow negatives on some axes
-                        },
-                        axis_orbit.len,
-                    )
-                })
+        let axis_layers: PerAxis<AxisLayersInfo> = self
+            .axis_orbits()?
+            .flat_map(|(_axis_range, _axis_set, axis_orbit)| {
+                std::iter::repeat_n(
+                    AxisLayersInfo {
+                        max_layer: axis_orbit.max_layer,
+                        allow_negatives: false, // TODO: allow negatives on some axes
+                    },
+                    axis_orbit.len,
+                )
             })
             .collect();
 
         let grip_signatures = Arc::new(
-            Axis::iter(twists.axes.len())
-                .map(|axis| self.pieces.map_ref(|_, piece| piece.grip_signature[axis]))
-                .collect(),
+            self.shape
+                .pieces
+                .map_ref(|_, piece| piece.grip_signature.clone()),
         );
+
+        let axes_with_twists: Vec<Axis> = self
+            .axis_orbits()?
+            .filter(|(axis_range, _axis_set, axis_orbit)| {
+                axis_orbit.max_layer > 0
+                    && twist_system_engine_data.axis_has_twists(axis_range.start)
+            })
+            .flat_map(|(axis_range, _axis_set, _axis_orbit)| {
+                (axis_range.start.0..axis_range.end.0).map(Axis)
+            })
+            .collect();
+
+        let random_move = Box::new({
+            let twist_system_engine_data = Arc::clone(&twist_system_engine_data);
+            let axis_layers = Arc::new(axis_layers.clone());
+            move |rng: &mut dyn rand::Rng| {
+                let axis = *axes_with_twists.choose(rng)?;
+                let layers =
+                    hyperpuzzle_core::util::random_layer_mask(rng, axis_layers[axis].max_layer)?;
+                let family = &twist_system_engine_data.axes.names[axis];
+                let constraints =
+                    Some(twist_system_engine_data.random_constraints_on_axis(rng, axis)?)
+                        .filter(|c| !c.constraints.is_empty());
+                Some(Move::new(layers, family, constraints, 1))
+            }
+        });
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -434,31 +434,12 @@ impl ProductPuzzleBuilder {
                     .into()
                 }
             }),
-            random_move: Box::new(|rng| None),
+            random_move,
         }))
-    }
-
-    /// Constructs a mesh for rendering the puzzle.
-    fn build_mesh(&self) -> Result<Mesh> {
-        let mut mesh = Mesh::new_empty(self.ndim);
-
-        // Add puzzle surfaces to the mesh with the same IDs as they have in
-        // `self.surfaces`.
-        for (_surface, surface_geometry) in &self.surfaces {
-            mesh.add_puzzle_surface(&surface_geometry.centroid, &surface_geometry.normal)?;
-        }
-        let dummy_surface = mesh.add_puzzle_surface(&Point::ORIGIN, Vector::EMPTY)?; // dummy surface for internals and 2D puzzles
-
-        // Add pieces to the mesh.
-        for (_piece, piece_builder) in &self.pieces {
-            piece_builder.add_to_mesh(&mut mesh, dummy_surface)?;
-        }
-
-        Ok(mesh)
     }
 }
 
-pub struct TwistGizmoBuilder {
+struct TwistGizmoBuilder {
     /// Distance from the origin (3D) or axis vector (4D).
     pub distance: Float,
     /// Clockwise twist for the gizmo.

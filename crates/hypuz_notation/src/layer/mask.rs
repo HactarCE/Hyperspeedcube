@@ -382,19 +382,17 @@ impl LayerMask {
 
     /// Serializes a layer set to a hexadecimal string.
     pub fn to_hex_string(&self) -> String {
-        use hypuz_util::serde_impl::hex_bitvec;
-
         match self.as_ref_enum() {
             LayerMaskEnum::Bitmask(bits) => {
-                hex_bitvec::bitvec_to_b16_string(&BitVec::from_element(bits))
+                hypuz_util::bitvec_to_b16_string(&BitVec::from_element(bits))
             }
-            LayerMaskEnum::BitVec(vec) => hex_bitvec::bitvec_to_b16_string(vec),
+            LayerMaskEnum::BitVec(vec) => hypuz_util::bitvec_to_b16_string(vec),
         }
     }
 
     /// Deserializes a layer set from a hexedecimal string.
     pub fn from_hex_str(s: &str) -> Option<Self> {
-        let bitvec = hypuz_util::serde_impl::hex_bitvec::b16_string_to_bitvec(s)?;
+        let bitvec = hypuz_util::b16_string_to_bitvec(s)?;
         let mut ret = Self::from_bitvec(Box::new(bitvec));
         ret.shrink_to_fit();
         Some(ret)

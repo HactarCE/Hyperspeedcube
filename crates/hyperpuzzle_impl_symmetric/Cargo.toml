@@ -29,5 +29,6 @@ hypershape.workspace = true
 itertools.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+rand.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true

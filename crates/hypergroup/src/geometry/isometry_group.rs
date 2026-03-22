@@ -302,6 +302,15 @@ impl IsometryGroup {
         .unwrap_or_else(|| Motor::ident(self.ndim as u8))
     }
 
+    /// Returns whether an element is a reflection.
+    pub fn is_reflection(&self, e: GroupElementId) -> bool {
+        let mut is_reflection = false;
+        for g in self.factorization(e) {
+            is_reflection ^= self.generator_motor(g).is_reflection();
+        }
+        is_reflection
+    }
+
     /// Returns the element with the nearest motor.
     pub fn nearest(&self, m: &Motor) -> GroupElementId {
         let mut prior_ndim = 0;

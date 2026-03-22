@@ -3,6 +3,7 @@ use hyperpuzzle::symmetric::SymmetricTwistSystemEngineData;
 use hyperpuzzle::{LayerMask, Move};
 use hyperpuzzle_view::ReplayEvent;
 use itertools::Itertools;
+use rand::SeedableRng;
 use smallvec::{SmallVec, smallvec};
 
 use crate::L;
@@ -16,9 +17,23 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             return;
         };
 
+        ui.group(|ui| {
+            let mut changed = false;
+            let mut prefs_ui = crate::gui::components::PrefsUi {
+                ui,
+                current: &mut app.animation_prefs.value,
+                defaults: app.prefs.animation.last_loaded().map(|p| &p.value),
+                changed: &mut false, // don't care. it's a preset
+            };
+
+            let l = &L.prefs.animation.twists;
+            prefs_ui.checkbox(&l.dynamic_twist_speed, access!(.dynamic_twist_speed));
+            prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
+        });
+
         let mut move_input_value = EguiTempValue::new(ui);
         let mut s: String = move_input_value.get().unwrap_or_default();
-        ui.text_edit_singleline(&mut s);
+        ui.text_edit_multiline(&mut s);
         let parsed =
             hyperpuzzle::notation::parse_notation(&s, hyperpuzzle::notation::Features::MAXIMAL)
                 .map_err(|e| e.into_iter().join("\n"));
@@ -66,6 +81,24 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
         }
+
+        let mut seed_value = EguiTempValue::new(ui);
+        let mut s: String = seed_value.get().unwrap_or_default();
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("Seed:");
+            ui.text_edit_singleline(&mut s);
+        });
+        if ui.button("Set random twists").clicked() {
+            let mut rng = hyperpuzzle::util::rng_from_seed(&s).expect("error seeding RNG");
+            let twist_count = 10;
+            move_input_value.set(Some(
+                std::iter::from_fn(|| (view.puzzle().random_move)(&mut rng))
+                    .take(twist_count)
+                    .join("\n"),
+            ));
+        }
+        seed_value.set(Some(s));
 
         ui.group(|ui| {
             ui.strong("Axis names");
