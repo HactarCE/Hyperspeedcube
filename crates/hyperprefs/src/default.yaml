@@ -93,11 +93,11 @@ styles:
     interactable: true
     face_opacity: 1.0
     outline_opacity: 1.0
-    outline_size: 3.0
+    outline_size: 2.0
     outline_color:
       mode: fixed
       color: '#ffffff'
-    outline_lighting: false
+    outline_lighting: true
   selected_piece:
     interactable: true
     face_opacity: 1.0

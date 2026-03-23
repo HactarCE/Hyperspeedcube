@@ -721,12 +721,16 @@ fn render_edge_ids_vertex(
     capsule_radius *= max(1.0, draw_params.pixel_size / min_radius);
 
     // Compute the maximum radius of the outline in NDC.
-    let max_z = clamp(
-        max(world_a.z, world_b.z),
+    let most_extreme_z = clamp(
+        select(
+            max(world_a.z, world_b.z),
+            min(world_a.z, world_b.z),
+            draw_params.fov_signum < 0.0,
+        ),
         draw_params.pre.f, // far plane Z
         draw_params.pre.n, // near plane Z
     );
-    let min_z_divisor = z_divisor(max_z);
+    let min_z_divisor = z_divisor(most_extreme_z);
     let radius = capsule_radius / min_z_divisor;
 
     // Starting with the edge from `a` to `b`, expand it to a rectangle by
