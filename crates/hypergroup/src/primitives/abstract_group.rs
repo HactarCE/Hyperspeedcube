@@ -133,4 +133,9 @@ impl AbstractGroupLut {
         }
         ret
     }
+
+    /// Conjugates two elements of the group.
+    pub fn conjugate(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        self.compose(self.compose(a, b), self.inverse(a))
+    }
 }

@@ -259,6 +259,14 @@ impl Motor {
     pub fn coefs(&self) -> impl '_ + Clone + Iterator<Item = Float> {
         self.coefficients.iter().copied()
     }
+    /// Returns the scalar coefficient for the motor, or `0.0` for a reflection.
+    pub fn scalar(&self) -> Float {
+        if self.is_reflection {
+            0.0
+        } else {
+            *self.coefficients.get(0).unwrap_or(&0.0)
+        }
+    }
     /// Lifts the motor into at least `ndim`-dimensional space.
     #[must_use]
     pub fn to_ndim_at_least(&self, ndim: u8) -> Self {

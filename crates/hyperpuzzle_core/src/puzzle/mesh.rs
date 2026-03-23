@@ -2,6 +2,7 @@ use std::ops::Range;
 
 use eyre::{OptionExt, Result, bail, ensure};
 use hypermath::prelude::*;
+use itertools::Itertools;
 
 use super::{PerGizmoFace, PerPiece, PerSticker, Piece, Surface};
 use crate::GizmoFace;
@@ -148,6 +149,82 @@ impl Mesh {
         }
     }
 
+    /// Adds a puzzle polygon to the mesh and returns its range.
+    ///
+    /// Each vertex consists of a position ([`Point`]) and a sticker shrink
+    /// vector ([`Vector`]).
+    pub fn add_puzzle_polygon<'a>(
+        &mut self,
+        vertex_positions: impl IntoIterator<Item = (&'a Point, &'a Vector)>,
+        piece_id: Piece,
+        surface_id: Surface,
+        u_tangent: &Vector,
+        v_tangent: &Vector,
+    ) -> Result<MeshRange> {
+        let start = self.counts();
+
+        let polygon_id = self.next_polygon_id()?;
+
+        // Vertices
+        let vertex_start = self.vertex_count() as u32;
+        for (position, sticker_shrink_vector) in vertex_positions {
+            self.add_puzzle_vertex(MeshVertexData {
+                position,
+                u_tangent,
+                v_tangent,
+                sticker_shrink_vector,
+                piece_id,
+                surface_id,
+                polygon_id,
+            })?;
+        }
+        let vertex_end = self.vertex_count() as u32;
+
+        // Edges
+        for (v1, v2) in (vertex_start..vertex_end).circular_tuple_windows() {
+            self.edges.push([v1, v2]);
+        }
+
+        // Triangles
+        let v1 = vertex_start;
+        for (v2, v3) in ((vertex_start + 1)..vertex_end).tuple_windows() {
+            self.triangles.push([v1, v2, v3]);
+        }
+
+        let end = self.counts();
+        Ok(MeshRange::new(start, end))
+    }
+
+    /// Adds a gizmo polygon to the mesh and returns its range.
+    pub fn add_gizmo_polygon<'a>(
+        &mut self,
+        vertex_positions: impl IntoIterator<Item = &'a Point>,
+        surface_id: u32,
+    ) -> Result<MeshRange> {
+        let start = self.counts();
+
+        // Vertices
+        let vertex_start = self.vertex_count() as u32;
+        for position in vertex_positions {
+            self.add_gizmo_vertex(position, surface_id)?;
+        }
+        let vertex_end = self.vertex_count() as u32;
+
+        // Edges
+        for (v1, v2) in (vertex_start..vertex_end).circular_tuple_windows() {
+            self.edges.push([v1, v2]);
+        }
+
+        // Triangles
+        let v1 = vertex_start;
+        for (v2, v3) in ((vertex_start + 1)..vertex_end).tuple_windows() {
+            self.triangles.push([v1, v2, v3]);
+        }
+
+        let end = self.counts();
+        Ok(MeshRange::new(start, end))
+    }
+
     /// Adds a vertex to the mesh and returns the vertex ID.
     pub fn add_puzzle_vertex(&mut self, data: MeshVertexData<'_>) -> Result<u32> {
         ensure!(
@@ -171,7 +248,7 @@ impl Mesh {
         Ok(vertex_id)
     }
     /// Adds a gizmo vertex to the mesh and returns the vertex ID.
-    pub fn add_gizmo_vertex(&mut self, pos: Point, surface_id: u32) -> Result<u32> {
+    pub fn add_gizmo_vertex(&mut self, pos: &Point, surface_id: u32) -> Result<u32> {
         let ndim = self.ndim;
         let vertex_id = self.vertex_count() as u32;
         self.gizmo_vertex_count += 1;

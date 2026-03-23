@@ -29,6 +29,10 @@ pub struct SymmetricTwistSystemEngineData {
     pub group_action: GroupAction<Axis>,
     /// Constraint solver based on the grip group.
     pub constraint_solver: Arc<Mutex<ConstraintSolver<Axis>>>,
+
+    /// Default twist for each axis, if it exists, or
+    /// [`GroupElementId::IDENTITY`] otherwise.
+    pub axis_unit_twists: Arc<PerAxis<GroupElementId>>,
 }
 
 impl TwistSystemEngineData for SymmetricTwistSystemEngineData {}
@@ -60,6 +64,13 @@ impl SymmetricTwistSystemEngineData {
         let Some(axis) = self.axes.names.id_from_name(&transform.family) else {
             return Err(TwistError::UnknownAxis(transform.family.clone()));
         };
+
+        if transform.constraints.is_none()
+            && let unit_twist = self.axis_unit_twists[axis]
+            && unit_twist != GroupElementId::IDENTITY
+        {
+            return Ok((axis, unit_twist));
+        }
 
         let mut constraints = smallvec![hypergroup::Constraint::fix(axis)];
         if let Some(notation_constraints) = &transform.constraints {
@@ -203,12 +214,20 @@ impl SymmetricTwistSystemEngineData {
     /// On an actual puzzle, there may still be no twists available because the
     /// axis has no layers.
     pub fn axis_has_twists(&self, axis: Axis) -> bool {
+        self.axis_stabilizer(axis)
+            .is_some_and(|coset| self.count_rotations_in_coset(&coset) > 1)
+    }
+
+    /// Returns the coset of twist transforms on an axis, or `None` if there are
+    /// none.
+    ///
+    /// These should be filtered to include only rotations.
+    pub fn axis_stabilizer(&self, axis: Axis) -> Option<hypergroup::Coset> {
         self.constraint_solver
             .lock()
             .solve(&hypergroup::ConstraintSet {
                 constraints: smallvec![hypergroup::Constraint::fix(axis)],
             })
-            .is_some_and(|coset| self.count_rotations_in_coset(&coset) > 1)
     }
 
     fn notation_constraint_to_hypergroup_constraint(

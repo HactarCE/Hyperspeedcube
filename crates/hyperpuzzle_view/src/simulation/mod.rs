@@ -1100,20 +1100,11 @@ impl PuzzleSimulation {
                     ref target,
                     reverse,
                 } => {
-                    // TODO: handle errors
-                    let Ok(hypuz_notation::Node::Move(target)) =
-                        hypuz_notation::parse_notation_node(
-                            target,
-                            hypuz_notation::Features::MAXIMAL,
-                        )
-                    else {
-                        continue;
-                    };
                     ret.replay_event(
                         ReplayEvent::GizmoClick {
                             time,
                             layers: layers.clone(),
-                            target,
+                            target: target.clone(),
                             reverse,
                         },
                         true,

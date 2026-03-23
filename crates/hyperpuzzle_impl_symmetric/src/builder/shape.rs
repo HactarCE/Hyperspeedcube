@@ -1,8 +1,12 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use eyre::Result;
+use std::{collections::HashMap, sync::Arc};
+
+use eyre::{Result, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_impl_nd_euclid::builder::ColorSystemBuilder;
+use smallvec::SmallVec;
 
 use crate::geometry::PolytopeGeometry;
 
@@ -77,6 +81,64 @@ impl ProductPuzzleShape {
         })
     }
 
+    pub fn build_piece_and_stickers(
+        &self,
+    ) -> Result<(PerPiece<PieceInfo>, PerSticker<StickerInfo>)> {
+        let mut pieces = PerPiece::new();
+        let mut stickers = PerSticker::new();
+        for (piece, piece_builder) in &self.pieces {
+            let mut piece_stickers = SmallVec::with_capacity(piece_builder.sticker_count());
+            for facet in piece_builder.facets.iter() {
+                if let Some(sticker_data) = &facet.sticker_data {
+                    let color = sticker_data.color;
+                    let sticker = stickers.push(StickerInfo { piece, color })?;
+                    piece_stickers.push(sticker);
+                }
+            }
+            pieces.push(PieceInfo {
+                stickers: piece_stickers,
+                piece_type: PieceType(0),
+            })?;
+        }
+
+        Ok((pieces, stickers))
+    }
+
+    pub fn build_colors(&self, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<ColorSystem> {
+        // TODO: proper color system
+        let mut colors = ColorSystemBuilder::new_ad_hoc("unknown_product_puzzle");
+        for (_, (i, name)) in &self.colors {
+            let prefix = hypuz_notation::family::SequentialLowercaseName(*i as _);
+            colors.add(Some(format!("{prefix}{name}")), |e| warn_fn(eyre!(e)))?;
+        }
+        colors.build(None, None, warn_fn)
+    }
+
+    pub fn build_piece_types(
+        &self,
+        warn_fn: &mut impl FnMut(eyre::Report),
+    ) -> Result<(
+        PerPieceType<PieceTypeInfo>,
+        PieceTypeHierarchy,
+        HashMap<String, PieceMask>,
+    )> {
+        let piece_types = PerPieceType::from_iter([PieceTypeInfo {
+            name: "piece".to_string(),
+            display: "Piece".to_ascii_lowercase(),
+        }]);
+        let mut piece_type_hierarchy = PieceTypeHierarchy::new(6);
+        for (id, piece_type_info) in &piece_types {
+            if let Err(e) = piece_type_hierarchy.set_piece_type_id(&piece_type_info.name, id) {
+                warn_fn(e)
+            }
+        }
+
+        let piece_type_masks =
+            HashMap::from_iter([("piece".to_string(), PieceMask::new_full(self.pieces.len()))]);
+
+        Ok((piece_types, piece_type_hierarchy, piece_type_masks))
+    }
+
     /// Constructs a mesh for rendering the puzzle.
     pub fn build_mesh(&self) -> Result<Mesh> {
         let mut mesh = Mesh::new_empty(self.ndim);
@@ -122,6 +184,14 @@ impl PieceData {
         facets: vec![],
         grip_signature: PerAxis::new(),
     };
+
+    /// Returns the number of stickers on the piece.
+    pub fn sticker_count(&self) -> usize {
+        self.facets
+            .iter()
+            .filter(|f| f.sticker_data.is_some())
+            .count()
+    }
 
     /// Returns the direct product of two pieces.
     ///

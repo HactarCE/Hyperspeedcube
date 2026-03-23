@@ -36,20 +36,21 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
         build: Box::new(|build_ctx| {
             // IIFE to mimic try_block
             (|| -> Result<_> {
+                let mut warn_fn = |e| eprintln!("{e}");
                 ProductPuzzleBuilder::new(
                     &ProductPuzzleSpec {
                         factors: vec![
                             // ft_cube(5)?,
                             megaminx()?,
-                            shallow_line()?,
+                            // shallow_line()?,
                             // shallow_polygon(5)?,
                             // shallow_polygon(6)?,
                             // shallow_ft_simplex(3)?,
                         ],
                     },
-                    &mut |e| eprintln!("{e}"),
+                    &mut warn_fn,
                 )?
-                .build(Some(&build_ctx)) // TODO: better warn function
+                .build(Some(&build_ctx), &mut warn_fn) // TODO: better warn function
             })()
             .map(Redirectable::Direct)
             .map_err(|e| e.to_string())

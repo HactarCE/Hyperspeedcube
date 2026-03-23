@@ -29,7 +29,7 @@ pub enum ReplayEvent {
         /// Layers affected by the twist.
         layers: LayerMask,
         /// Gizmo target clicked on, which corresponds to a twist.
-        target: Move,
+        target: String,
         /// Whether the twist should be executed in reverse.
         reverse: bool,
     },

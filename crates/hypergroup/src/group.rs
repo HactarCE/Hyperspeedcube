@@ -410,6 +410,18 @@ impl Group {
         )
     }
 
+    /// Returns the conjugation `a * b * a^-1`
+    pub fn conjugate(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        self.element_from_factors(
+            itertools::izip!(
+                self.inner.factors.iter_values(),
+                self.element_to_factors(a),
+                self.element_to_factors(b),
+            )
+            .map(|(factor_group, a_factor, b_factor)| factor_group.conjugate(a_factor, b_factor)),
+        )
+    }
+
     /// Returns the `i`th power of an element `e`.
     pub fn powi(&self, e: GroupElementId, i: i32) -> GroupElementId {
         // By repeated squaring

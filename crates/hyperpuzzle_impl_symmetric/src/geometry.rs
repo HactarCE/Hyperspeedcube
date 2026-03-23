@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map};
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Index, Range};
 
@@ -282,81 +282,54 @@ impl PolytopeGeometry {
 
         let start = mesh.counts();
 
-        // Add polygons and triangles.
-        let dummy_polygon = mesh.next_polygon_id()?; // for edges with no polygon
-        let mut vertex_map = HashMap::new();
+        // Add polygons.
         let mut i = 0;
         for &polygon_size in &self.polygon_sizes {
-            let polygon_id_in_mesh = mesh.next_polygon_id()?;
-
             let j = i + polygon_size as usize;
-            let polygon = &self.polygon_verts[i..j];
 
-            // Calculate tangent vectors.
+            let polygon = self.polygon_verts[i..j]
+                .iter()
+                .map(|&v| self.verts.get(v))
+                .collect_vec();
+
+            // Calculate tangent vectors (and orientation in 2D & 3D).
             ensure!(polygon.len() >= 3, "mesh polygon is too small");
-            let [a, b, c] = [0, 1, 2].map(|n| self.verts.get(polygon[n]));
-            // IIFE to mimic try_block
-            let (mut u_tangent, mut v_tangent) = (|| {
-                let u = (b - &a).normalize()?;
-                let v = (c - &a).rejected_from(&u)?.normalize()?;
-                Some((u, v))
-            })()
+            let [u, v] = hypermath::util::triangle_tangent_vectors(
+                [0, 1, 2].map(|n| &polygon[n]),
+                (ndim == 2 || ndim == 3).then_some(&interior_point),
+            )
             .unwrap_or_default(); // give up and return zero
 
-            // Fix polygon orientation in 2D and 3D.
-            if ndim == 2 || ndim == 3 {
-                if u_tangent
-                    .cross_product_3d(&v_tangent)
-                    .dot(a - interior_point)
-                    .is_sign_negative()
-                {
-                    std::mem::swap(&mut u_tangent, &mut v_tangent);
-                }
-            }
-
-            let polygon_start = mesh.vertex_count() as u32;
-            for &vertex_id in polygon {
-                let vertex_id_in_mesh = mesh.add_puzzle_vertex(MeshVertexData {
-                    position: &self.verts.get(vertex_id),
-                    u_tangent: &u_tangent,
-                    v_tangent: &v_tangent,
-                    sticker_shrink_vector: &Vector::zero(0), // TODO
-                    piece_id,
-                    surface_id,
-                    polygon_id: polygon_id_in_mesh,
-                })?;
-                vertex_map.entry(vertex_id).or_insert(vertex_id_in_mesh);
-            }
-
-            for k in 2..polygon_size as u32 {
-                mesh.triangles
-                    .push([0, k - 1, k].map(|q| polygon_start + q));
-            }
+            let sticker_shrink_vector = Vector::EMPTY; // TODO sticker shrink
+            mesh.add_puzzle_polygon(
+                polygon.iter().map(|p| (p, &sticker_shrink_vector)),
+                piece_id,
+                surface_id,
+                &u,
+                &v,
+            )?;
 
             i = j;
         }
 
-        // Add edges.
-        let mut get_or_add_vertex_for_edge = |mesh: &mut Mesh, v| {
-            eyre::Ok(match vertex_map.entry(v) {
-                hash_map::Entry::Occupied(entry) => *entry.get(),
-                hash_map::Entry::Vacant(entry) => {
-                    *entry.insert(mesh.add_puzzle_vertex(MeshVertexData {
-                        position: &self.verts.get(v),
-                        u_tangent: &Vector::EMPTY,
-                        v_tangent: &Vector::EMPTY,
-                        sticker_shrink_vector: &Vector::zero(0), // TODO
-                        piece_id,
-                        surface_id,
-                        polygon_id: dummy_polygon,
-                    })?)
-                }
-            })
-        };
-        for &[v1, v2] in &self.edges {
-            let v1 = get_or_add_vertex_for_edge(mesh, v1)?;
-            let v2 = get_or_add_vertex_for_edge(mesh, v2)?;
-            mesh.edges.push([v1, v2]);
+        // Add edges if there are no polygons.
+        if self.polygon_sizes.is_empty() {
+            let polygon_id = mesh.next_polygon_id()?; // dummy polygon ID
+            let vertex_offset = mesh.vertex_count() as u32;
+            for point in self.verts.iter().map(Point::from) {
+                mesh.add_puzzle_vertex(MeshVertexData {
+                    position: &point,
+                    u_tangent: &Vector::EMPTY,
+                    v_tangent: &Vector::EMPTY,
+                    sticker_shrink_vector: &Vector::EMPTY, // TODO sticker shrink
+                    piece_id,
+                    surface_id,
+                    polygon_id,
+                })?;
+            }
+            for &edge in &self.edges {
+                mesh.edges.push(edge.map(|Vertex(i)| vertex_offset + i));
+            }
         }
 
         let end = mesh.counts();

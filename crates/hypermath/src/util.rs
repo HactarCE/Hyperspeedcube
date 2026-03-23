@@ -8,6 +8,38 @@ use num_traits::{CheckedShl, PrimInt, Unsigned};
 
 use crate::{APPROX, Float};
 
+// TODO: move many of these to hypuz_util
+
+/// Returns [orthonormal] tangent vectors for a triangle.
+///
+/// [orthonormal]: https://en.wikipedia.org/wiki/Orthonormality
+///
+/// If `interior_point` is `Some`, then the tangent vectors are swapped if
+/// necessary to ensure that the surface is oriented with respect to it. This
+/// only works for 3D vectors.
+///
+/// Returns `None` if the triangle is degenerate.
+pub fn triangle_tangent_vectors(
+    [a, b, c]: [&crate::Point; 3],
+    interior_point: Option<&crate::Point>,
+) -> Option<[crate::Vector; 2]> {
+    use crate::VectorRef;
+
+    // IIFE to mimic try_block
+    let u = (b - a).normalize()?;
+    let v = (c - a).rejected_from(&u)?.normalize()?;
+
+    if let Some(interior_point) = interior_point
+        && u.cross_product_3d(&v)
+            .dot(a - interior_point)
+            .is_sign_negative()
+    {
+        Some([v, u]) // swapped
+    } else {
+        Some([u, v])
+    }
+}
+
 /// Linearly interpolates (unclamped) between two values.
 pub fn lerp<A, T>(a: A, b: A, t: T) -> <A::Output as Add>::Output
 where

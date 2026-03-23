@@ -10,7 +10,7 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use pga::Blade;
 
-use crate::NdEuclidTwistSystemEngineData;
+use crate::{GizmoTwist, NdEuclidTwistSystemEngineData};
 
 pub(super) fn build_twist_gizmos(
     space: &Space,
@@ -18,7 +18,7 @@ pub(super) fn build_twist_gizmos(
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<PerGizmoFace<Move>> {
+) -> Result<PerGizmoFace<GizmoTwist>> {
     let NdEuclidTwistSystemEngineData {
         axis_vectors,
         twist_transforms,
@@ -63,12 +63,11 @@ pub(super) fn build_twist_gizmos(
         let resulting_gizmo_faces =
             build_3d_gizmo(space, mesh, twists, engine_data, &gizmo_poles, warn_fn)?;
         for (_gizmo_face, twist) in resulting_gizmo_faces {
-            let mv = Move {
-                layers: LayerPrefix::default(),
+            gizmo_face_twists.push(GizmoTwist {
+                axis: twists.twists[twist].axis,
                 transform: notation::Transform::new(&twists.names[twist], None),
                 multiplier: Multiplier(1),
-            };
-            gizmo_face_twists.push(mv)?;
+            })?;
         }
     } else if space.ndim() == 4 {
         for (axis, axis_gizmo_poles) in gizmo_poles {
@@ -82,12 +81,11 @@ pub(super) fn build_twist_gizmos(
                 warn_fn,
             )?;
             for (_gizmo_face, twist) in resulting_gizmo_faces {
-                let mv = Move {
-                    layers: LayerPrefix::default(),
+                gizmo_face_twists.push(GizmoTwist {
+                    axis: twists.twists[twist].axis,
                     transform: notation::Transform::new(&twists.names[twist], None),
                     multiplier: Multiplier(1),
-                };
-                gizmo_face_twists.push(mv)?;
+                })?;
             }
         }
     }
@@ -294,7 +292,7 @@ fn build_gizmo(
         })
         .map(|(vertex, surface)| {
             let old_id = vertex.id();
-            let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
+            let new_id = mesh.add_gizmo_vertex(&vertex.pos(), surface)?;
             eyre::Ok(((old_id, surface), new_id))
         })
         .try_collect()?;

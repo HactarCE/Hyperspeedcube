@@ -6,7 +6,6 @@ use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::{FloatMinMaxByIteratorExt, prelude::*};
-use hypuz_notation::Invert;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
@@ -341,19 +340,14 @@ impl NdEuclidViewState {
                 return;
             };
 
-            let mut twist = match direction {
-                Sign::Pos => target.clone(),
-                Sign::Neg => {
-                    let Ok(t) = target.clone().inv() else { return };
-                    t
-                }
+            let Ok(twist) = target.to_move(LayerPrefix::from(&layers), direction) else {
+                return;
             };
-            twist.layers = LayerPrefix::from(&layers);
 
             sim.do_event(ReplayEvent::GizmoClick {
                 time: Some(hyperpuzzle::Timestamp::now()),
                 layers,
-                target: target.clone(),
+                target: target.transform.to_string(),
                 reverse: direction == Sign::Neg,
             });
             sim.do_event(ReplayEvent::Twists(smallvec![twist]));

@@ -1,22 +1,23 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, eyre};
+use hypergroup::{ConstraintSolver, GroupElementId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::group::{GroupAction, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::builder::ColorSystemBuilder;
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData};
 
 mod axes;
 mod from_space;
+mod gizmos;
 mod shape;
 
+use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::seq::IndexedRandom;
@@ -211,7 +212,11 @@ impl ProductPuzzleBuilder {
     }
 
     /// Constructs the final puzzle.
-    pub fn build(&self, build_ctx: Option<&BuildCtx>) -> Result<Arc<Puzzle>> {
+    pub fn build(
+        &self,
+        build_ctx: Option<&BuildCtx>,
+        warn_fn: &mut impl FnMut(eyre::Report),
+    ) -> Result<Arc<Puzzle>> {
         if let Some(build_ctx) = build_ctx {
             build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
         }
@@ -219,68 +224,14 @@ impl ProductPuzzleBuilder {
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
 
-        // Build pieces and stickers.
-        let mut stickers = PerSticker::new();
-        let pieces = self.shape.pieces.try_map_ref(|piece, piece_builder| {
-            let stickers = piece_builder
-                .facets
-                .iter()
-                .filter_map(|f| f.sticker_data.as_ref())
-                .map(|sticker_data| {
-                    stickers.push(StickerInfo {
-                        piece,
-                        color: sticker_data.color,
-                    })
-                })
-                .try_collect()?;
-            eyre::Ok(PieceInfo {
-                stickers,
-                piece_type: PieceType(0),
-            })
-        })?;
+        let (pieces, stickers) = self.shape.build_piece_and_stickers()?;
 
-        let geom = Arc::new(NdEuclidPuzzleGeometry {
-            vertex_coordinates: vec![],
-            piece_vertex_sets: PerPiece::new_with_len(piece_count),
-            piece_centroids: self
-                .shape
-                .pieces
-                .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center()),
+        let colors = Arc::new(self.shape.build_colors(warn_fn)?);
 
-            planes: vec![Hyperplane::new(vector![1.0], 0.0).unwrap()],
-            sticker_planes: stickers.map_ref(|_, _| 0),
+        let (piece_types, piece_type_hierarchy, piece_type_masks) =
+            self.shape.build_piece_types(warn_fn)?;
 
-            mesh: self.shape.build_mesh()?,
-
-            axis_vectors: Arc::new(PerAxis::new()),
-            axis_layer_depths: PerAxis::new(),
-            twist_transforms: Arc::new(PerTwist::new()),
-
-            gizmo_twists: PerGizmoFace::new(),
-        });
-        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
-
-        // TODO: proper color system
-        let mut colors = ColorSystemBuilder::new_ad_hoc("unknown_product_puzzle");
-        for (_, (i, name)) in &self.shape.colors {
-            let prefix = hypuz_notation::family::SequentialLowercaseName(*i as _);
-            colors.add(Some(format!("{prefix}{name}")), |e| log::warn!("{e}"))?;
-        }
-        let colors = Arc::new(colors.build(None, None, &mut |e| log::warn!("{e}"))?);
-
-        let piece_types = PerPieceType::from_iter([PieceTypeInfo {
-            name: "piece".to_string(),
-            display: "Piece".to_ascii_lowercase(),
-        }]);
-        let mut piece_type_hierarchy = PieceTypeHierarchy::new(6);
-        for (id, piece_type_info) in &piece_types {
-            if let Err(e) = piece_type_hierarchy.set_piece_type_id(&piece_type_info.name, id) {
-                log::warn!("{e}");
-            }
-        }
-
-        let piece_type_masks =
-            HashMap::from_iter([("piece".to_string(), PieceMask::new_full(piece_count))]);
+        let mut mesh = self.shape.build_mesh()?;
 
         let axes = Arc::new(AxisSystem {
             names: {
@@ -324,15 +275,45 @@ impl ProductPuzzleBuilder {
             },
         });
         let axis_vectors = Arc::new(self.axis_vectors.clone());
+        let mut axis_constraint_solver =
+            hypergroup::ConstraintSolver::new(self.axis_group_action.clone());
+        let mut axis_unit_twists = PerAxis::new();
+        for (axis_range, _axis_set, _axis_orbit) in self.axis_orbits()? {
+            let first_axis = axis_range.start;
+            let unit_twist_transform = if ndim == 3 {
+                axis_unit_twist_transform(
+                    &self.axis_group,
+                    &mut axis_constraint_solver,
+                    first_axis,
+                    &self.axis_vectors[first_axis],
+                )
+            } else {
+                None
+            };
+            for axis in (axis_range.start.0..axis_range.end.0).map(Axis) {
+                axis_unit_twists.push(
+                    unit_twist_transform
+                        .and_then(|transform| {
+                            transfer_twist_transform(
+                                &self.axis_group,
+                                &mut axis_constraint_solver,
+                                (first_axis, transform),
+                                axis,
+                            )
+                        })
+                        .unwrap_or(GroupElementId::IDENTITY), // sentinel indicating no unit twist
+                )?;
+            }
+        }
         let mut twists = TwistSystem::new_empty(&axes);
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
             axis_vectors,
             group: self.axis_group.clone(),
             group_action: self.axis_group_action.clone(),
-            constraint_solver: Arc::new(Mutex::new(hypergroup::ConstraintSolver::new(
-                self.axis_group_action.clone(),
-            ))),
+            constraint_solver: Arc::new(Mutex::new(axis_constraint_solver)),
+
+            axis_unit_twists: Arc::new(axis_unit_twists),
         });
         twists.engine_data = (*twist_system_engine_data).clone().into();
         let twists = Arc::new(twists);
@@ -366,6 +347,42 @@ impl ProductPuzzleBuilder {
                 (axis_range.start.0..axis_range.end.0).map(Axis)
             })
             .collect();
+
+        let mut mesh = self.shape.build_mesh()?;
+
+        let mut gizmo_twists = PerGizmoFace::new();
+        if ndim == 3 {
+            let mut gizmo_faces = vec![];
+            for (axis_range, _axis_set, _axis_orbit) in self.axis_orbits()? {
+                for axis in (axis_range.start.0..axis_range.end.0).map(Axis) {
+                    let twist_transform =
+                        hypuz_notation::Transform::new(&twists.axes.names[axis], None);
+                    gizmo_faces.push((self.axis_vectors[axis].clone(), axis, twist_transform));
+                }
+            }
+            gizmos::build_3d_gizmo(&mut mesh, &gizmo_faces, &mut gizmo_twists)?;
+        }
+
+        let geom = Arc::new(NdEuclidPuzzleGeometry {
+            vertex_coordinates: vec![],
+            piece_vertex_sets: PerPiece::new_with_len(piece_count),
+            piece_centroids: self
+                .shape
+                .pieces
+                .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center()),
+
+            planes: vec![Hyperplane::new(vector![1.0], 0.0).unwrap()],
+            sticker_planes: stickers.map_ref(|_, _| 0),
+
+            mesh,
+
+            axis_vectors: Arc::new(PerAxis::new()),
+            axis_layer_depths: PerAxis::new(),
+            twist_transforms: Arc::new(PerTwist::new()),
+
+            gizmo_twists,
+        });
+        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
 
         let random_move = Box::new({
             let twist_system_engine_data = Arc::clone(&twist_system_engine_data);
@@ -426,13 +443,6 @@ impl ProductPuzzleBuilder {
     }
 }
 
-struct TwistGizmoBuilder {
-    /// Distance from the origin (3D) or axis vector (4D).
-    pub distance: Float,
-    /// Clockwise twist for the gizmo.
-    pub twist: Twist,
-}
-
 fn shuffle_group_generators(group: &IsometryGroup, mut rng: impl rand::Rng) -> IsometryGroup {
     use rand::RngExt;
 
@@ -453,4 +463,62 @@ fn shuffle_group_generators(group: &IsometryGroup, mut rng: impl rand::Rng) -> I
         generators[i] = &generators[i] * &generators[j];
     }
     IsometryGroup::from_generators("", hypergroup::PerGenerator::from(generators)).unwrap()
+}
+
+fn axis_unit_twist_transform(
+    group: &IsometryGroup,
+    solver: &mut ConstraintSolver<Axis>,
+    axis: Axis,
+    axis_vector: &Vector,
+) -> Option<GroupElementId> {
+    if let Some(stabilizer) =
+        solver.solve(&hypergroup::ConstraintSet::from_iter([[axis, axis].into()]))
+        && let stabilizer_elements = stabilizer.elements().into_iter()
+        && let nontrivial_rotations = stabilizer_elements
+            .filter(|&e| e != GroupElementId::IDENTITY)
+            .filter(|&e| !group.is_reflection(e))
+        && let Some((min_group_element, min_rotation)) = nontrivial_rotations
+            .filter_map(|e| Some((e, group.motor(e).normalize()?)))
+            .max_by_float_key(|(_e, m)| m.scalar().abs())
+    {
+        let arbitrary_perpendicular_vector = Vector::unit(
+            (0..3 as u8)
+                .min_by_float_key(|&i| axis_vector[i].abs())
+                .unwrap_or(0),
+        );
+
+        match Sign::from(
+            arbitrary_perpendicular_vector
+                .cross_product_3d(min_rotation.transform(&arbitrary_perpendicular_vector))
+                .dot(axis_vector),
+        ) {
+            Sign::Pos => Some(group.inverse(min_group_element)),
+            Sign::Neg => Some(min_group_element),
+        }
+    } else {
+        None
+    }
+}
+
+fn transfer_twist_transform(
+    group: &IsometryGroup,
+    solver: &mut ConstraintSolver<Axis>,
+    original: (Axis, GroupElementId),
+    new_axis: Axis,
+) -> Option<GroupElementId> {
+    let (original_axis, original_twist_transform) = original;
+
+    let new_axis_deorbiter = solver
+        .solve(&hypergroup::ConstraintSet::from_iter([[
+            original_axis,
+            new_axis,
+        ]
+        .into()]))?
+        .lhs;
+    let new_transform = group.conjugate(new_axis_deorbiter, original_twist_transform);
+    if group.is_reflection(new_axis_deorbiter) {
+        Some(group.inverse(new_transform))
+    } else {
+        Some(new_transform)
+    }
 }

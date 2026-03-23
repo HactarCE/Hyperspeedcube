@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use hypermath::{Float, Hyperplane, Point, Vector, VectorRef, pga};
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{
+    notation::{InvertError, Transform},
+    prelude::*,
+};
 
 use crate::PuzzleLayerDepths;
 
@@ -46,9 +49,7 @@ pub struct NdEuclidPuzzleGeometry {
     pub twist_transforms: Arc<PerTwist<pga::Motor>>,
 
     /// Twist for each face of a twist gizmo.
-    ///
-    /// TODO: change this from `Move` to `(Axis, Transform, Multiplier)`
-    pub gizmo_twists: PerGizmoFace<Move>,
+    pub gizmo_twists: PerGizmoFace<GizmoTwist>,
 }
 
 impl NdEuclidPuzzleGeometry {
@@ -99,5 +100,39 @@ impl NdEuclidPuzzleGeometry {
         let vertex_distances_along_axis =
             vertex_coordinates.map(|vertex| normalized_axis_vector.dot(vertex));
         hypermath::util::min_max(vertex_distances_along_axis)
+    }
+}
+
+/// Clockwise twist on a twist gizmo.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GizmoTwist {
+    /// Axis that the gizmo belongs to.
+    ///
+    /// This can be derived from `transform` but is convenient to access it
+    /// directly.
+    pub axis: Axis,
+    /// Transform of the clockwise twist of the gizmo.
+    pub transform: Transform,
+    /// Multiplier for the clockwise twist of the gizmo.
+    ///
+    /// This is almost always `Multiplier(1)`.
+    pub multiplier: Multiplier,
+}
+
+impl GizmoTwist {
+    /// Constructs a move for the gizmo.
+    pub fn to_move(
+        &self,
+        layers: impl Into<LayerPrefix>,
+        direction: hypermath::Sign,
+    ) -> Result<Move, InvertError> {
+        Ok(Move {
+            layers: layers.into(),
+            transform: self.transform.clone(),
+            multiplier: match direction {
+                hypermath::Sign::Pos => self.multiplier,
+                hypermath::Sign::Neg => self.multiplier.inv()?,
+            },
+        })
     }
 }

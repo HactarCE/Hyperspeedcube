@@ -263,6 +263,11 @@ impl IsometryGroup {
         self.group.compose(a, b)
     }
 
+    /// Returns the conjugation `a * b * a^-1`
+    pub fn conjugate(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        self.group.conjugate(a, b)
+    }
+
     /// Returns the `i`th power of an element `e`.
     pub fn powi(&self, e: GroupElementId, i: i32) -> GroupElementId {
         self.group.powi(e, i)

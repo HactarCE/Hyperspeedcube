@@ -22,7 +22,7 @@ mod vantage_group;
 
 pub use anim::NdEuclidPuzzleAnimation;
 pub use engine::{NdEuclidTwistSystemEngineData, NdEuclidVantageSetEngineData};
-pub use geom::NdEuclidPuzzleGeometry;
+pub use geom::{GizmoTwist, NdEuclidPuzzleGeometry};
 pub use layers::{LayerDepths, PuzzleLayerDepths};
 pub use state::NdEuclidPuzzleState;
 pub use twist_key::TwistKey;
