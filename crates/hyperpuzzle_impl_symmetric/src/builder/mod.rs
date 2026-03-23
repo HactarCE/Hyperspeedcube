@@ -1,14 +1,11 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::ops::Range;
 use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, eyre};
-use hypergroup::{ConstraintSolver, GroupElementId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
-use hyperpuzzle_core::group::{GroupAction, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData};
 
@@ -17,40 +14,27 @@ mod from_space;
 mod gizmos;
 mod shape;
 
-use hypuz_util::FloatMinMaxByIteratorExt;
-use itertools::Itertools;
 use parking_lot::Mutex;
+use rand::RngExt;
 use rand::seq::IndexedRandom;
 use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 
-use crate::names::NameBiMap;
 use crate::{
     FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, SymmetricTwistSystemEngineData,
 };
-use axes::{AxisOrbit, AxisSet};
+use axes::ProductPuzzleAxes;
 
 #[derive(Debug)]
 pub struct ProductPuzzleBuilder {
     shape: ProductPuzzleShape,
-
-    axis_group: IsometryGroup,
-    axis_group_action: GroupAction<Axis>,
-    axis_vectors: PerAxis<Vector>,
-    axis_sets: Vec<AxisSet>,
-    // /// Twist gizmos to generate, which will be expanded by the symmetry of the
-    // /// puzzle.
-    // twist_gizmo_seeds: Vec<TwistGizmoBuilder>,
+    axes: ProductPuzzleAxes,
 }
 
 impl ProductPuzzleBuilder {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
+        debug_assert_eq!(self.shape.ndim, self.axes.ndim());
         self.shape.ndim
-    }
-
-    /// Returns the number of axes on the puzzle.
-    pub fn axis_count(&self) -> usize {
-        self.axis_sets.iter().map(|axis_set| axis_set.len).sum()
     }
 
     /// Constructs the empty puzzle, which is the identity of the direct
@@ -58,11 +42,7 @@ impl ProductPuzzleBuilder {
     pub fn direct_product_identity() -> Self {
         ProductPuzzleBuilder {
             shape: ProductPuzzleShape::direct_product_identity(),
-
-            axis_group: IsometryGroup::trivial(),
-            axis_group_action: GroupAction::trivial(),
-            axis_vectors: PerAxis::new(),
-            axis_sets: vec![],
+            axes: ProductPuzzleAxes::direct_product_identity(),
         }
     }
 
@@ -85,7 +65,10 @@ impl ProductPuzzleBuilder {
 
         let mut shape_builder =
             from_space::PuzzleShapeBuilder::new(spec.ndim(), spec.axis_count())?;
+
         // TODO: color orbits (dev data)
+
+        // Carve facets
         for orbit in &spec.facet_orbits {
             let named_facet_poles = orbit.named_facet_poles(generators, |e| warn_fn(eyre!(e)));
             for (pole, name) in named_facet_poles {
@@ -93,79 +76,22 @@ impl ProductPuzzleBuilder {
                 shape_builder.carve(plane, name)?;
             }
         }
-
         shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
 
-        let mut axis_vectors = PerAxis::new();
-        let mut axis_names = NameBiMap::new();
-        let mut axis_orbits = vec![];
-        for orbit in &spec.axis_orbits {
-            axis_orbits.push(AxisOrbit {
-                len: orbit.len(),
-                vector: orbit.initial_vector.clone(),
-                max_layer: orbit.layer_count().try_into()?,
-                generator_sequences: Arc::new(
-                    orbit
-                        .names
-                        .iter()
-                        .map(|(abbr_gen_seq, _)| abbr_gen_seq.clone())
-                        .collect(),
-                ),
-            });
-            let named_axis_vectors = orbit.named_axis_vectors(generators, |e| warn_fn(eyre!(e)));
-            for (vector, name) in named_axis_vectors {
-                let axis = axis_vectors.push(vector.clone())?;
-                axis_names.push(name.clone())?;
-                for (layer, cut_distance) in orbit.layer_cut_distances() {
-                    shape_builder.slice(axis, &vector, cut_distance, layer)?;
+        let axes = ProductPuzzleAxes::new(&spec.symmetry, &spec.axis_orbits, warn_fn)?;
+
+        // Slice axes
+        for (orbit, axis_orbit_spec) in axes.orbits().zip(&spec.axis_orbits) {
+            for axis in orbit.axis_range {
+                for (layer, cut_distance) in axis_orbit_spec.layer_cut_distances() {
+                    shape_builder.slice(axis, &axes.vectors[axis], cut_distance, layer)?;
                 }
             }
         }
 
         let shape = shape_builder.into_product_puzzle_shape()?;
 
-        let axis_set = AxisSet {
-            ndim: spec.ndim(),
-            len: axis_vectors.len(),
-            id_offset: 0,
-            names: Arc::new(axis_names),
-            orbits: axis_orbits,
-        };
-
-        // Shuffling group generators improves average word length, making some
-        // group operations faster.
-        let symmetry = shuffle_group_generators(&spec.symmetry, &mut rand::rng());
-
-        let axis_points = axis_vectors.map_ref(|_, v| Point(v.clone()));
-        let axis_group_action = symmetry.action_on_points(&axis_points)?;
-
-        Ok(Self {
-            shape,
-
-            axis_group: symmetry,
-            axis_group_action,
-            axis_vectors,
-            axis_sets: vec![axis_set],
-        })
-    }
-
-    /// Returns an iterator over axis orbits, each paired with the ID range of
-    /// the axes in the orbit. The ID range is never empty.
-    fn axis_orbits(
-        &self,
-    ) -> Result<impl Iterator<Item = (Range<Axis>, &AxisSet, &AxisOrbit)>, IndexOverflow> {
-        if self.axis_count() > Axis::MAX_INDEX {
-            return Err(IndexOverflow::new::<Axis>());
-        }
-        Ok(self.axis_sets.iter().flat_map(|axis_set| {
-            let mut first_axis_in_next_orbit = Axis(axis_set.id_offset as u16);
-            axis_set.orbits.iter().map(move |axis_orbit| {
-                let first_axis_in_orbit = first_axis_in_next_orbit;
-                first_axis_in_next_orbit.0 += axis_orbit.len as u16;
-                let axis_range = first_axis_in_orbit..first_axis_in_next_orbit;
-                (axis_range, axis_set, axis_orbit)
-            })
-        }))
+        Ok(Self { shape, axes })
     }
 
     /// Returns the direct product of two puzzles.
@@ -174,40 +100,9 @@ impl ProductPuzzleBuilder {
     /// `a.ndim() + b.ndim()`, with puzzle `a` occupying the lower dimensions
     /// and puzzle `b` occupying the higher dimensions.
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
-        let a = self;
-        let b = rhs;
-
-        let a_axis_count = a.axis_count();
-
-        let axis_sets = std::iter::chain(
-            a.axis_sets
-                .iter()
-                .map(|a_axis_set| a_axis_set.lift_ndim(0, b.ndim())),
-            b.axis_sets.iter().map(|b_axis_set| {
-                b_axis_set
-                    .lift_ndim(a.ndim(), 0)
-                    .offset_ids_by(a_axis_count)
-            }),
-        )
-        .collect();
-
-        let axis_vectors = std::iter::chain(
-            a.axis_vectors
-                .iter_values()
-                .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
-            b.axis_vectors
-                .iter_values()
-                .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
-        )
-        .collect();
-
         Ok(ProductPuzzleBuilder {
-            shape: ProductPuzzleShape::direct_product(&a.shape, &b.shape)?,
-
-            axis_group: IsometryGroup::product([&a.axis_group, &b.axis_group])?,
-            axis_group_action: GroupAction::product([&a.axis_group_action, &b.axis_group_action])?,
-            axis_sets,
-            axis_vectors,
+            shape: self.shape.direct_product(&rhs.shape)?,
+            axes: self.axes.direct_product(&rhs.axes)?,
         })
     }
 
@@ -231,121 +126,36 @@ impl ProductPuzzleBuilder {
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
             self.shape.build_piece_types(warn_fn)?;
 
-        let mut mesh = self.shape.build_mesh()?;
-
-        let axes = Arc::new(AxisSystem {
-            names: {
-                let mut axis_names = NameSpecBiMapBuilder::new();
-                for (i, axis_set) in self.axis_sets.iter().enumerate() {
-                    let prefix = hypuz_notation::family::SequentialLowercaseName(i as _);
-                    for (id, name) in axis_set.names.id_to_name() {
-                        axis_names.set(
-                            Axis::try_from_index(axis_set.id_offset + id.to_index())?,
-                            Some(format!("{prefix}{name}")),
-                        )?;
-                    }
-                }
-                Arc::new(
-                    axis_names
-                        .build(self.axis_count())
-                        .ok_or_eyre("missing axis name")?,
-                )
-            },
-            orbits: {
-                let mut cumulative_axis_count = 0;
-                self.axis_sets
-                    .iter()
-                    .flat_map(|axis_set| {
-                        axis_set.orbits.iter().map(move |axis_orbit| {
-                            let elements = Arc::new(
-                                (0..axis_orbit.len)
-                                    .map(|i| {
-                                        Axis::try_from_index(cumulative_axis_count + i).map(Some)
-                                    })
-                                    .try_collect()?,
-                            );
-                            cumulative_axis_count += axis_orbit.len;
-                            eyre::Ok(Orbit {
-                                elements,
-                                generator_sequences: Arc::clone(&axis_orbit.generator_sequences),
-                            })
-                        })
-                    })
-                    .try_collect()?
-            },
-        });
-        let axis_vectors = Arc::new(self.axis_vectors.clone());
+        let axes = Arc::new(self.axes.build_axis_system()?);
         let mut axis_constraint_solver =
-            hypergroup::ConstraintSolver::new(self.axis_group_action.clone());
-        let mut axis_unit_twists = PerAxis::new();
-        for (axis_range, _axis_set, _axis_orbit) in self.axis_orbits()? {
-            let first_axis = axis_range.start;
-            let unit_twist_transform = if ndim == 3 {
-                axis_unit_twist_transform(
-                    &self.axis_group,
-                    &mut axis_constraint_solver,
-                    first_axis,
-                    &self.axis_vectors[first_axis],
-                )
-            } else {
-                None
-            };
-            for axis in (axis_range.start.0..axis_range.end.0).map(Axis) {
-                axis_unit_twists.push(
-                    unit_twist_transform
-                        .and_then(|transform| {
-                            transfer_twist_transform(
-                                &self.axis_group,
-                                &mut axis_constraint_solver,
-                                (first_axis, transform),
-                                axis,
-                            )
-                        })
-                        .unwrap_or(GroupElementId::IDENTITY), // sentinel indicating no unit twist
-                )?;
-            }
-        }
+            hypergroup::ConstraintSolver::new(self.axes.action.clone());
         let mut twists = TwistSystem::new_empty(&axes);
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
-            axis_vectors,
-            group: self.axis_group.clone(),
-            group_action: self.axis_group_action.clone(),
+            axis_vectors: Arc::clone(&self.axes.vectors),
+            axis_unit_twists: Arc::new(
+                self.axes
+                    .build_3d_unit_twists(&mut axis_constraint_solver)?,
+            ),
+            group: self.axes.group.clone(),
+            group_action: self.axes.action.clone(),
             constraint_solver: Arc::new(Mutex::new(axis_constraint_solver)),
-
-            axis_unit_twists: Arc::new(axis_unit_twists),
         });
         twists.engine_data = (*twist_system_engine_data).clone().into();
         let twists = Arc::new(twists);
 
-        let axis_layers: PerAxis<AxisLayersInfo> = self
-            .axis_orbits()?
-            .flat_map(|(_axis_range, _axis_set, axis_orbit)| {
-                std::iter::repeat_n(
-                    AxisLayersInfo {
-                        max_layer: axis_orbit.max_layer,
-                        allow_negatives: false, // TODO: allow negatives on some axes
-                    },
-                    axis_orbit.len,
-                )
-            })
-            .collect();
+        let axis_layers: PerAxis<AxisLayersInfo> = self.axes.build_axis_layers();
 
-        let grip_signatures = Arc::new(
-            self.shape
-                .pieces
-                .map_ref(|_, piece| piece.grip_signature.clone()),
-        );
+        let grip_signatures = Arc::new(self.shape.build_grip_signatures());
 
         let axes_with_twists: Vec<Axis> = self
-            .axis_orbits()?
-            .filter(|(axis_range, _axis_set, axis_orbit)| {
-                axis_orbit.max_layer > 0
-                    && twist_system_engine_data.axis_has_twists(axis_range.start)
+            .axes
+            .orbits()
+            .filter(|orbit| {
+                orbit.axis_orbit.max_layer > 0
+                    && twist_system_engine_data.axis_has_twists(orbit.first_axis)
             })
-            .flat_map(|(axis_range, _axis_set, _axis_orbit)| {
-                (axis_range.start.0..axis_range.end.0).map(Axis)
-            })
+            .flat_map(|orbit| orbit.axis_range)
             .collect();
 
         let mut mesh = self.shape.build_mesh()?;
@@ -353,12 +163,10 @@ impl ProductPuzzleBuilder {
         let mut gizmo_twists = PerGizmoFace::new();
         if ndim == 3 {
             let mut gizmo_faces = vec![];
-            for (axis_range, _axis_set, _axis_orbit) in self.axis_orbits()? {
-                for axis in (axis_range.start.0..axis_range.end.0).map(Axis) {
-                    let twist_transform =
-                        hypuz_notation::Transform::new(&twists.axes.names[axis], None);
-                    gizmo_faces.push((self.axis_vectors[axis].clone(), axis, twist_transform));
-                }
+            for (axis, axis_vector) in &*self.axes.vectors {
+                let twist_transform =
+                    hypuz_notation::Transform::new(&twists.axes.names[axis], None);
+                gizmo_faces.push((axis_vector.clone(), axis, twist_transform));
             }
             gizmos::build_3d_gizmo(&mut mesh, &gizmo_faces, &mut gizmo_twists)?;
         }
@@ -389,13 +197,23 @@ impl ProductPuzzleBuilder {
             let axis_layers = Arc::new(axis_layers.clone());
             move |rng: &mut dyn rand::Rng| {
                 let axis = *axes_with_twists.choose(rng)?;
+                // TODO: avoid total layer mask when that covers all pieces
                 let layers =
                     hyperpuzzle_core::util::random_layer_mask(rng, axis_layers[axis].max_layer)?;
                 let family = &twist_system_engine_data.axes.names[axis];
-                let constraints =
-                    Some(twist_system_engine_data.random_constraints_on_axis(rng, axis)?)
-                        .filter(|c| !c.constraints.is_empty());
-                Some(Move::new(layers, family, constraints, 1))
+                let (_unit_twist, order) = twist_system_engine_data.axis_unit_twists[axis];
+                if order > 0 {
+                    let mut multiplier = rng.random_range(1..order);
+                    if multiplier * 2 > order {
+                        multiplier -= order;
+                    }
+                    Some(Move::new(layers, family, None, multiplier))
+                } else {
+                    let constraints =
+                        Some(twist_system_engine_data.random_constraints_on_axis(rng, axis)?)
+                            .filter(|c| !c.constraints.is_empty());
+                    Some(Move::new(layers, family, constraints, 1))
+                }
             }
         });
 
@@ -440,85 +258,5 @@ impl ProductPuzzleBuilder {
             }),
             random_move,
         }))
-    }
-}
-
-fn shuffle_group_generators(group: &IsometryGroup, mut rng: impl rand::Rng) -> IsometryGroup {
-    use rand::RngExt;
-
-    const SHUFFLE_ITERATIONS: usize = 100;
-
-    if group.generators().len() < 2 {
-        return group.clone();
-    }
-
-    // TODO: add more generators, especially for polygons
-    let mut generators = group.generator_motors().to_vec();
-    for _ in 0..SHUFFLE_ITERATIONS {
-        let i = rng.random_range(0..generators.len());
-        let mut j = rng.random_range(0..generators.len() - 1);
-        if j >= i {
-            j += 1;
-        }
-        generators[i] = &generators[i] * &generators[j];
-    }
-    IsometryGroup::from_generators("", hypergroup::PerGenerator::from(generators)).unwrap()
-}
-
-fn axis_unit_twist_transform(
-    group: &IsometryGroup,
-    solver: &mut ConstraintSolver<Axis>,
-    axis: Axis,
-    axis_vector: &Vector,
-) -> Option<GroupElementId> {
-    if let Some(stabilizer) =
-        solver.solve(&hypergroup::ConstraintSet::from_iter([[axis, axis].into()]))
-        && let stabilizer_elements = stabilizer.elements().into_iter()
-        && let nontrivial_rotations = stabilizer_elements
-            .filter(|&e| e != GroupElementId::IDENTITY)
-            .filter(|&e| !group.is_reflection(e))
-        && let Some((min_group_element, min_rotation)) = nontrivial_rotations
-            .filter_map(|e| Some((e, group.motor(e).normalize()?)))
-            .max_by_float_key(|(_e, m)| m.scalar().abs())
-    {
-        let arbitrary_perpendicular_vector = Vector::unit(
-            (0..3 as u8)
-                .min_by_float_key(|&i| axis_vector[i].abs())
-                .unwrap_or(0),
-        );
-
-        match Sign::from(
-            arbitrary_perpendicular_vector
-                .cross_product_3d(min_rotation.transform(&arbitrary_perpendicular_vector))
-                .dot(axis_vector),
-        ) {
-            Sign::Pos => Some(group.inverse(min_group_element)),
-            Sign::Neg => Some(min_group_element),
-        }
-    } else {
-        None
-    }
-}
-
-fn transfer_twist_transform(
-    group: &IsometryGroup,
-    solver: &mut ConstraintSolver<Axis>,
-    original: (Axis, GroupElementId),
-    new_axis: Axis,
-) -> Option<GroupElementId> {
-    let (original_axis, original_twist_transform) = original;
-
-    let new_axis_deorbiter = solver
-        .solve(&hypergroup::ConstraintSet::from_iter([[
-            original_axis,
-            new_axis,
-        ]
-        .into()]))?
-        .lhs;
-    let new_transform = group.conjugate(new_axis_deorbiter, original_twist_transform);
-    if group.is_reflection(new_axis_deorbiter) {
-        Some(group.inverse(new_transform))
-    } else {
-        Some(new_transform)
     }
 }

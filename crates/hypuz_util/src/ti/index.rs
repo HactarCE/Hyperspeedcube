@@ -39,14 +39,25 @@ pub trait TypedIndex:
     /// Returns an index from a `usize`, or an error if it does not fit.
     fn try_from_index(index: usize) -> Result<Self, IndexOverflow>;
 
-    /// Returns an iterator over all indexes up to `count` (exclusive). If
-    /// `count` exceeds the maximum value, then the iterator stops before
-    /// reaching the maximum value.
+    /// Returns an iterator over all indexes up to `count` (exclusive).
+    ///
+    /// The iterator never yields elements past the maximum value, even if
+    /// `count` exceeds the maximum value.
     fn iter(count: usize) -> TypedIndexIter<Self> {
-        // Clip to `Self::MAX`
-        let count = std::cmp::min(count, Self::MAX_INDEX + 1);
+        Self::iter_range(0..count)
+    }
+
+    /// Returns an iterator over all indexes in `range`.
+    ///
+    /// The iterator never yields elements past the maximum value, even if
+    /// `range.end` exceeds the maximum value.
+    fn iter_range(mut range: Range<usize>) -> TypedIndexIter<Self> {
+        // Clamp to `Self::MAX_INDEX`
+        if range.end > Self::MAX_INDEX {
+            range.end = Self::MAX_INDEX + 1; // overflow is impossible
+        }
         TypedIndexIter {
-            range: 0..count,
+            range,
             _phantom: PhantomData,
         }
     }
@@ -63,7 +74,7 @@ pub trait TypedIndex:
     }
 }
 
-/// Iterator over all indexes up to a certain value. See [`TypedIndex::iter()`].
+/// Iterator over all indexes in a range. See [`TypedIndex::iter()`].
 #[derive(Debug, Default, Clone)]
 pub struct TypedIndexIter<I> {
     range: Range<usize>,
@@ -100,6 +111,13 @@ impl<I: TypedIndex> DoubleEndedIterator for TypedIndexIter<I> {
 }
 
 impl<I: TypedIndex> ExactSizeIterator for TypedIndexIter<I> {}
+
+impl<I: TypedIndex> TypedIndexIter<I> {
+    /// Returns the same range as `Range<usize>`.
+    pub fn to_usize_range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
 
 fn unwrap_index<I: TypedIndex>(index: usize) -> I {
     I::try_from_index(index).expect("error constructing typed index from usize")

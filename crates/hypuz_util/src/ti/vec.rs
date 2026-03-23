@@ -87,6 +87,13 @@ impl<I: TypedIndex, E> TiVec<I, E> {
     {
         I::iter(len).map(|_| E::default()).collect()
     }
+    /// Constructs a new empty vector with a preallocated capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        TiVec {
+            values: Vec::with_capacity(capacity),
+            _phantom: PhantomData,
+        }
+    }
 
     /// Adds an element to the end of the vector and returns its index.
     pub fn push(&mut self, value: E) -> Result<I, IndexOverflow> {

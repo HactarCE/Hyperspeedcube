@@ -23,16 +23,17 @@ pub struct SymmetricTwistSystemEngineData {
     /// Physical location of each axis, for constructing simple direct rotations
     /// from one axis to another.
     pub axis_vectors: Arc<PerAxis<Vector>>,
+    /// Default twist for each axis and its order, if it exists, or
+    /// `(`[`GroupElementId::IDENTITY`]`, 1)` otherwise.
+    ///
+    /// This usually only exists in 3D.
+    pub axis_unit_twists: Arc<PerAxis<(GroupElementId, i32)>>,
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
     /// Action of the grip group on the axes.
     pub group_action: GroupAction<Axis>,
     /// Constraint solver based on the grip group.
     pub constraint_solver: Arc<Mutex<ConstraintSolver<Axis>>>,
-
-    /// Default twist for each axis, if it exists, or
-    /// [`GroupElementId::IDENTITY`] otherwise.
-    pub axis_unit_twists: Arc<PerAxis<GroupElementId>>,
 }
 
 impl TwistSystemEngineData for SymmetricTwistSystemEngineData {}
@@ -66,7 +67,7 @@ impl SymmetricTwistSystemEngineData {
         };
 
         if transform.constraints.is_none()
-            && let unit_twist = self.axis_unit_twists[axis]
+            && let (unit_twist, _order) = self.axis_unit_twists[axis]
             && unit_twist != GroupElementId::IDENTITY
         {
             return Ok((axis, unit_twist));

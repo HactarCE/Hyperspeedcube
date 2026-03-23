@@ -1,6 +1,6 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use eyre::{Result, eyre};
 use hypermath::prelude::*;
@@ -137,6 +137,11 @@ impl ProductPuzzleShape {
             HashMap::from_iter([("piece".to_string(), PieceMask::new_full(self.pieces.len()))]);
 
         Ok((piece_types, piece_type_hierarchy, piece_type_masks))
+    }
+
+    /// Returns the grip signature for each piece.
+    pub fn build_grip_signatures(&self) -> PerPiece<PerAxis<Option<Layer>>> {
+        self.pieces.map_ref(|_, piece| piece.grip_signature.clone())
     }
 
     /// Constructs a mesh for rendering the puzzle.

@@ -41,9 +41,9 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                     &ProductPuzzleSpec {
                         factors: vec![
                             // ft_cube(5)?,
-                            megaminx()?,
-                            // shallow_line()?,
-                            // shallow_polygon(5)?,
+                            // megaminx()?,
+                            shallow_line()?,
+                            shallow_polygon(5)?,
                             // shallow_polygon(6)?,
                             // shallow_ft_simplex(3)?,
                         ],
@@ -357,4 +357,33 @@ fn lift_vector_by_ndim<V: FromIterator<Float>>(
     let below = std::iter::repeat_n(0.0, ndim_below as usize);
     let above = std::iter::repeat_n(0.0, ndim_above as usize);
     itertools::chain!(below.clone(), v.iter_ndim(v_ndim), above.clone()).collect()
+}
+
+fn shuffle_group_generators(
+    group: &hypergroup::IsometryGroup,
+    mut rng: impl rand::Rng,
+) -> hypergroup::IsometryGroup {
+    use rand::RngExt;
+
+    const SHUFFLE_ITERATIONS: usize = 100;
+
+    if group.generators().len() < 2 {
+        return group.clone();
+    }
+
+    // TODO: add more generators, especially for polygons
+    let mut generators = group.generator_motors().to_vec();
+    for _ in 0..SHUFFLE_ITERATIONS {
+        let i = rng.random_range(0..generators.len());
+        let mut j = rng.random_range(0..generators.len() - 1);
+        if j >= i {
+            j += 1;
+        }
+        generators[i] = &generators[i] * &generators[j];
+    }
+    hypergroup::IsometryGroup::from_generators(
+        group.abstract_group().label(),
+        hypergroup::PerGenerator::from(generators),
+    )
+    .unwrap()
 }
