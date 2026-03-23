@@ -4,6 +4,7 @@ use egui::AtomExt;
 use egui::emath::GuiRounding;
 use hypermath::num::Float;
 use hyperprefs::SidebarStyle;
+use hyperpuzzle::FloatMinMaxIteratorExt;
 
 use crate::L;
 use crate::gui::AppUi;
@@ -56,7 +57,7 @@ fn sidebar_items() -> impl Iterator<Item = SidebarItem> {
 pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
     let max_text_width = sidebar_items()
         .map(|item| item.min_width(ctx))
-        .max_by(f32::total_cmp)
+        .max_float()
         .unwrap_or(0.0)
         + PADDING
         + TEXT_END_PADDING;

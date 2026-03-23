@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperdraw::PieceStyleValues;
 use hyperprefs::{Preferences, PresetRef};
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{FloatMinMaxIteratorExt, prelude::*};
 use itertools::Itertools;
 
 /// Returns a closure that updates the given style state.
@@ -211,10 +211,10 @@ impl PieceStyleState {
         let ss = self.selected_sticker.then_some(styles.selected_piece); // may be different in the future
 
         fn min(xs: impl IntoIterator<Item = Option<f32>>) -> Option<f32> {
-            xs.into_iter().flatten().min_by(f32::total_cmp)
+            xs.into_iter().flatten().min_float()
         }
         fn max(xs: impl IntoIterator<Item = Option<f32>>) -> Option<f32> {
-            xs.into_iter().flatten().max_by(f32::total_cmp)
+            xs.into_iter().flatten().max_float()
         }
         fn first_or_default<T: Default>(xs: impl IntoIterator<Item = Option<T>>) -> T {
             xs.into_iter().find_map(|x| x).unwrap_or_default()

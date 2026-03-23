@@ -8,7 +8,7 @@ use hypercubing_leaderboards_client::{
 use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
-use hyperpuzzle::{Puzzle, chrono};
+use hyperpuzzle::{FloatMinMaxIteratorExt, Puzzle, chrono};
 use hyperpuzzle_log::verify::SolveVerificationError;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
@@ -460,7 +460,7 @@ impl SolveSummaryModal {
         ]
         .into_iter()
         .map(|text| text_width(ui, text) + ui.spacing().item_spacing.x + MDI_BIG_SIZE.x)
-        .max_by(f32::total_cmp)
+        .max_float()
         .unwrap_or(0.0);
 
         let header_width = |text: &egui::RichText| -> f32 {
@@ -896,7 +896,7 @@ impl SolveMetric {
         solves
             .into_iter()
             .map(|s| s.total_width(ui))
-            .max_by(f32::total_cmp)
+            .max_float()
             .unwrap_or(0.0)
     }
 

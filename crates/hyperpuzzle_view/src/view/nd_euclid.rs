@@ -5,7 +5,7 @@ use float_ord::FloatOrd;
 use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
-use hyperpuzzle::prelude::*;
+use hyperpuzzle::{FloatMinMaxByIteratorExt, prelude::*};
 use hypuz_notation::Invert;
 use parking_lot::Mutex;
 use smallvec::smallvec;
@@ -313,7 +313,7 @@ impl NdEuclidViewState {
                     vertex_3d_positions,
                 )
             })
-            .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
+            .max_by_float_key(|hov| hov.z)
     }
 
     /// Computes the new gizmo hover state using the latest cursor position.
@@ -331,7 +331,7 @@ impl NdEuclidViewState {
             .filter_map(|(gizmo, &mesh_range)| {
                 self.gizmo_triangle_hover(cursor_pos, gizmo, mesh_range, vertex_3d_positions)
             })
-            .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
+            .max_by_float_key(|hov| hov.z)
     }
 
     /// Applies a twist to the puzzle based on the current mouse position.
