@@ -9,7 +9,7 @@ use hyperprefs::{AnimationPreferences, ModifiedPreset, ViewPreferences};
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
-const DEFAULT_ZOOM: f32 = 0.5;
+const DEFAULT_ZOOM: f32 = 0.75;
 
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]

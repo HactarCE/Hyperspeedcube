@@ -79,11 +79,15 @@ pub fn placeholder_mesh(ndim: u8) -> Result<Mesh> {
         sticker_ranges: PerSticker::new(), // will be modified
         piece_internals_ranges: PerPiece::from_iter([MeshRange::EMPTY]),
         gizmo_ranges: PerGizmoFace::new(),
+
+        farthest_point_mag2: 1.0, // will be modified
     };
 
     add_sticker(&mut mesh, add_base_shape)?;
     add_sticker(&mut mesh, add_line_set_1)?;
     add_sticker(&mut mesh, add_line_set_2)?;
+
+    mesh.farthest_point_mag2 = 10.0; // manual override to fix outline size
 
     Ok(mesh)
 }

@@ -29,7 +29,7 @@ use super::{CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState, pipelin
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
 /// clipping far from the camera, but also less Z buffer precision.
-const Z_CLIP: f32 = 8.0;
+const Z_CLIP: f32 = 16.0;
 
 /// Minimum distance of the near/far clipping plane from the camera Z
 /// coordinate. Larger number means more clipping near the camera, but also more
@@ -47,7 +47,7 @@ const RAINBOW_COLOR_ID: u32 = 2;
 const FACES_BASE_COLOR_ID: u32 = 3;
 
 /// How much to scale outline radius values compared to size of one 3D unit.
-const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
+const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.025;
 /// Factor by which to scale internals outlines.
 ///
 /// TODO: instead of this, move each outline slightly inward toward its polygon
@@ -535,11 +535,12 @@ impl NdEuclidPuzzleRenderer {
 
         // Write the puzzle transform.
         {
+            let global_scale = self.model.global_scale * draw_params.cam.global_scale();
             let puzzle_transform = draw_params.cam.rot().euclidean_rotation_matrix();
             let puzzle_transform: Vec<f32> = puzzle_transform
                 .cols_ndim(self.model.ndim)
                 .flat_map(|column| column.iter_ndim(4).collect_vec())
-                .map(|x| x as f32 * draw_params.cam.global_scale())
+                .map(|x| global_scale * x as f32)
                 .collect();
             self.gfx.queue.write_buffer(
                 &self.buffers.puzzle_transform,
@@ -683,8 +684,11 @@ impl NdEuclidPuzzleRenderer {
                 }
                 outline_color_ids_data[sticker_range.edge_range()].fill(outline_color_id);
                 // Write sticker outline radii.
-                outline_radii_data[sticker_range.edge_range()]
-                    .fill(style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR);
+                outline_radii_data[sticker_range.edge_range()].fill(
+                    OUTLINE_RADIUS_SCALE_FACTOR
+                        * self.model.global_outline_scale
+                        * style.outline_size,
+                );
             }
 
             let internals_range = self.model.piece_internals_ranges[piece];
@@ -710,7 +714,10 @@ impl NdEuclidPuzzleRenderer {
             outline_color_ids_data[internals_range.edge_range()].fill(outline_color_id);
             // Write internals outline radii.
             outline_radii_data[internals_range.edge_range()].fill(
-                style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR * OUTLINE_RADIUS_INTERNALS_SCALE,
+                OUTLINE_RADIUS_INTERNALS_SCALE
+                    * OUTLINE_RADIUS_SCALE_FACTOR
+                    * self.model.global_outline_scale
+                    * style.outline_size,
             );
         }
 
@@ -1078,6 +1085,8 @@ struct_with_constructor! {
                 edge_count: usize = mesh.edge_count(),
                 triangle_count: usize = mesh.triangle_count(),
                 first_gizmo_vertex_index: usize = mesh.puzzle_vertex_count,
+                global_scale: f32 = mesh.global_scale(),
+                global_outline_scale: f32 = mesh.global_outline_scale(),
 
                 /*
                  * PER-VERTEX STORAGE BUFFERS

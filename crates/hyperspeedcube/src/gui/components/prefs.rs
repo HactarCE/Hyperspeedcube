@@ -11,8 +11,8 @@ use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::locales::HoverStrings;
 
-const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
-const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
+const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=160.0;
+const FOV_3D_RANGE: RangeInclusive<f32> = -160.0..=160.0;
 
 pub struct PartialPrefsUi<'a, T> {
     pub current: &'a mut T,

@@ -9,7 +9,7 @@
 const NDIM: i32 = {{ndim}};
 
 /// `w_divisor` below which geometry gets clipped.
-const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
+const W_DIVISOR_CLIPPING_PLANE: f32 = 0.0;
 
 /// Color ID for background.
 const COLOR_BACKGROUND: u32 = 0u;

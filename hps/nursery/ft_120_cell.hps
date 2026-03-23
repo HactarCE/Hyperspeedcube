@@ -19,8 +19,8 @@ add_puzzle(
     build = fn() {
         shape = @shapes/h/120_cell.new()
         with #sym = shape.sym {
-            carve(plane(shape.facet_pole), shape.facet_names)
-            a0 = add_axis(shape.facet_pole, shape.facet_names, [∞, SHALLOW_CUT_DEPTH])
+            carve(plane(shape.facet_pole/0.27), shape.facet_names)
+            a0 = add_axis(shape.facet_pole/0.27, shape.facet_names, [∞, SHALLOW_CUT_DEPTH/0.27])
             a1 = #sym.thru(3).transform(a0)
             a2 = #sym.thru(2).transform(a1)
             a3 = #sym.thru(1).transform(a2)

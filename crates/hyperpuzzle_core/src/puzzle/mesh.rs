@@ -66,6 +66,11 @@ pub struct Mesh {
     pub piece_internals_ranges: PerPiece<MeshRange>,
     /// For each twist gizmo, the portion of the mesh corresponding to it.
     pub gizmo_ranges: PerGizmoFace<MeshRange>,
+
+    /// Squared magnitude of the farthest vertex from the origin.
+    ///
+    /// This is used to determine the global scale of the mesh.
+    pub farthest_point_mag2: f32,
 }
 
 impl Default for Mesh {
@@ -108,6 +113,8 @@ impl Mesh {
             sticker_ranges: PerSticker::new(),
             piece_internals_ranges: PerPiece::new(),
             gizmo_ranges: PerGizmoFace::new(),
+
+            farthest_point_mag2: 1.0,
         }
     }
 
@@ -230,6 +237,11 @@ impl Mesh {
         ensure!(
             self.gizmo_vertex_count == 0,
             "puzzle mesh must be constructed before twist gizmos",
+        );
+
+        self.farthest_point_mag2 = f32::max(
+            self.farthest_point_mag2,
+            data.position.as_vector().mag2() as f32,
         );
 
         let ndim = self.ndim;
@@ -355,6 +367,16 @@ impl Mesh {
         let start = i as usize * self.ndim as usize;
         let end = (i + 1) as usize * self.ndim as usize;
         v[start..end].iter().map(|&x| x as _).collect()
+    }
+
+    /// Returns the global scale factor for the whole model.
+    pub fn global_scale(&self) -> f32 {
+        (self.farthest_point_mag2.recip() * self.ndim as f32).sqrt()
+    }
+
+    /// Returns the global outline scale factor for the whole model.
+    pub fn global_outline_scale(&self) -> f32 {
+        self.farthest_point_mag2.recip()
     }
 }
 

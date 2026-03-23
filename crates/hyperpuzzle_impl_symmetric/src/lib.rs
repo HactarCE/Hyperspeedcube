@@ -43,7 +43,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                             // ft_cube(5)?,
                             // megaminx()?,
                             shallow_line()?,
-                            shallow_polygon(5)?,
+                            shallow_polygon(20)?,
                             // shallow_polygon(6)?,
                             // shallow_ft_simplex(3)?,
                         ],
@@ -262,8 +262,8 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::I(n)?.isometry_group()?,
         vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(1),
-            cut_distances: vec![INF, cut_depth],
+            initial_vector: Vector::unit(1) * 2.0 / edge_length,
+            cut_distances: vec![INF, cut_depth * 2.0 / edge_length],
             names,
         }],
     ))
