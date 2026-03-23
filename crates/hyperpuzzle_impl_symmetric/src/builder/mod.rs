@@ -5,8 +5,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::{Arc, Weak};
 
-use eyre::{OptionExt, Result, ensure, eyre};
-use hypergroup::{AbbrGenSeq, GroupElementId};
+use eyre::{OptionExt, Result, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::group::{GroupAction, IsometryGroup};
@@ -24,7 +23,9 @@ use rand::seq::IndexedRandom;
 use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 
 use crate::names::NameBiMap;
-use crate::{ProductPuzzleState, SymmetricTwistSystemEngineData};
+use crate::{
+    FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, SymmetricTwistSystemEngineData,
+};
 use axes::{AxisOrbit, AxisSet};
 
 #[derive(Debug)]
@@ -65,112 +66,75 @@ impl ProductPuzzleBuilder {
     }
 
     /// Constructs a symmetric puzzle.
-    ///
-    /// Each axis has a vector and a list of depths, which must be sorted from
-    /// outermost (greatest) to innermost (least).
-    pub fn new_ft(
-        ndim: u8,
-        symmetry: IsometryGroup,
-        axis_orbits: &[(Vector, Vec<Float>, Vec<(AbbrGenSeq, String)>)],
+    pub fn new(
+        product_puzzle_spec: &ProductPuzzleSpec,
+        warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
-        let mut new_axis_orbits: Vec<(&Vector, &Vec<f64>, Vec<(AbbrGenSeq, Vector, String)>)> =
-            vec![];
-        for (axis_vector, depths, names) in axis_orbits {
-            let index_to_gen_seq = hyperpuzzle_core::util::lazy_resolve(
-                names
-                    .iter()
-                    .map(|(gen_seq, _)| (gen_seq.generators.clone(), gen_seq.end))
-                    .enumerate(),
-                |gens1, gens2| std::iter::chain(&gens1.0, &gens2.0).copied().collect(),
-                |e| eprintln!("{e}"), // TODO: warn_fn
-            );
-            new_axis_orbits.push((
-                axis_vector,
-                depths,
-                names
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, (abbr_gen_seq, name))| {
-                        let gen_seq = &index_to_gen_seq[&i];
-                        let e = gen_seq.0.iter().fold(GroupElementId::IDENTITY, |e, &g| {
-                            symmetry.abstract_group().compose_elem_generator(e, g)
-                        });
-                        (
-                            abbr_gen_seq.clone(), // TODO: indices are wrong with respect to sorted names
-                            symmetry.motor(e).transform(axis_vector),
-                            name.clone(),
-                        )
-                    })
-                    .sorted_by_cached_key(|(_, _, name)| name.clone())
-                    .collect(),
-            ));
-        }
-        let named_axis_orbits = new_axis_orbits;
-
-        let carve_planes = named_axis_orbits
+        product_puzzle_spec
+            .factors
             .iter()
-            .flat_map(|(_init_vector, _depths, names)| {
-                names.iter().map(|(_abbr_gen_seq, v, name)| {
-                    (Hyperplane::from_pole(v).expect("bad hyperplane"), name)
-                })
-            });
-        let mut slice_cuts = vec![];
+            .map(|factor_spec| Self::new_factor(factor_spec, warn_fn))
+            .try_fold(ProductPuzzleBuilder::direct_product_identity(), |a, b| {
+                a.direct_product(&b?)
+            })
+    }
+
+    fn new_factor(spec: &FactorPuzzleSpec, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<Self> {
+        let generators = spec.symmetry.generator_motors();
+
+        let mut shape_builder =
+            from_space::PuzzleShapeBuilder::new(spec.ndim(), spec.axis_count())?;
+        // TODO: color orbits (dev data)
+        for orbit in &spec.facet_orbits {
+            let named_facet_poles = orbit.named_facet_poles(generators, |e| warn_fn(eyre!(e)));
+            for (pole, name) in named_facet_poles {
+                let plane = Hyperplane::from_pole(pole).ok_or_eyre("bad hyperplane")?;
+                shape_builder.carve(plane, name)?;
+            }
+        }
+
+        shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
 
         let mut axis_vectors = PerAxis::new();
         let mut axis_names = NameBiMap::new();
-        let mut new_axis_orbits = vec![];
-        for &(axis_vector, depths, ref names) in &named_axis_orbits {
-            ensure!(
-                depths.is_sorted_by(|a, b| a > b),
-                "depths {depths:?} are not sorted from outermost (greatest) to innermost (least)",
-            );
-
-            let axis_iter_start = axis_names.len();
-
-            let mut abbr_gen_seqs = vec![];
-            for (abbr_gen_seq, vector, name) in names {
-                abbr_gen_seqs.push(abbr_gen_seq.clone());
-                axis_vectors.push(vector.clone())?; // TODO: what about overlapping axes?
-                axis_names.push(name.clone())?;
-            }
-
-            let axis_iter_end = axis_names.len();
-
-            let layers = Layer::iter(depths.len() - 1).map(Some).chain([None]); // last cut has no layer
-            for (layer, &depth) in layers.zip(depths) {
-                slice_cuts.push((axis_iter_start..axis_iter_end, depth, layer));
-            }
-            new_axis_orbits.push(AxisOrbit {
-                len: names.len(),
-                vector: axis_vector.clone(),
-                max_layer: (depths.len() - 1)
-                    .try_into()
-                    .map_err(|_| eyre!("too many layers"))?,
-                generator_sequences: Arc::new(abbr_gen_seqs),
+        let mut axis_orbits = vec![];
+        for orbit in &spec.axis_orbits {
+            axis_orbits.push(AxisOrbit {
+                len: orbit.len(),
+                vector: orbit.initial_vector.clone(),
+                max_layer: orbit.layer_count().try_into()?,
+                generator_sequences: Arc::new(
+                    orbit
+                        .names
+                        .iter()
+                        .map(|(abbr_gen_seq, _)| abbr_gen_seq.clone())
+                        .collect(),
+                ),
             });
+            let named_axis_vectors = orbit.named_axis_vectors(generators, |e| warn_fn(eyre!(e)));
+            for (vector, name) in named_axis_vectors {
+                let axis = axis_vectors.push(vector.clone())?;
+                axis_names.push(name.clone())?;
+                for (layer, cut_distance) in orbit.layer_cut_distances() {
+                    shape_builder.slice(axis, &vector, cut_distance, layer)?;
+                }
+            }
         }
 
+        let shape = shape_builder.into_product_puzzle_shape()?;
+
         let axis_set = AxisSet {
-            ndim,
+            ndim: spec.ndim(),
             len: axis_vectors.len(),
             id_offset: 0,
             names: Arc::new(axis_names),
-            orbits: new_axis_orbits,
+            orbits: axis_orbits,
         };
 
-        let mut shape_builder = from_space::PuzzleShapeBuilder::new(ndim, axis_set.len)?;
-        for (plane, name) in carve_planes {
-            shape_builder.carve(plane, name)?;
-        }
-        shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
-        for (axis_iter, distance, layer) in slice_cuts {
-            for axis in axis_iter.map(|i| Axis(i as u16)) {
-                shape_builder.slice(axis, &axis_vectors[axis], distance, layer)?;
-            }
-        }
-        let shape = shape_builder.into_product_puzzle_shape()?;
+        // Shuffling group generators improves average word length, making some
+        // group operations faster.
+        let symmetry = shuffle_group_generators(&spec.symmetry, &mut rand::rng());
 
-        let symmetry = shuffle_group_generators(&symmetry, &mut rand::rng());
         let axis_points = axis_vectors.map_ref(|_, v| Point(v.clone()));
         let axis_group_action = symmetry.action_on_points(&axis_points)?;
 
@@ -247,11 +211,7 @@ impl ProductPuzzleBuilder {
     }
 
     /// Constructs the final puzzle.
-    pub fn build(
-        &self,
-        build_ctx: Option<&BuildCtx>,
-        warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<Arc<Puzzle>> {
+    pub fn build(&self, build_ctx: Option<&BuildCtx>) -> Result<Arc<Puzzle>> {
         if let Some(build_ctx) = build_ctx {
             build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
         }
@@ -476,8 +436,15 @@ struct TwistGizmoBuilder {
 fn shuffle_group_generators(group: &IsometryGroup, mut rng: impl rand::Rng) -> IsometryGroup {
     use rand::RngExt;
 
+    const SHUFFLE_ITERATIONS: usize = 100;
+
+    if group.generators().len() < 2 {
+        return group.clone();
+    }
+
+    // TODO: add more generators, especially for polygons
     let mut generators = group.generator_motors().to_vec();
-    for _ in 0..20 {
+    for _ in 0..SHUFFLE_ITERATIONS {
         let i = rng.random_range(0..generators.len());
         let mut j = rng.random_range(0..generators.len() - 1);
         if j >= i {

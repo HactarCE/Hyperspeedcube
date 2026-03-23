@@ -4,10 +4,10 @@ General symmetric puzzle backend for Hyperspeedcube
 
 ## To-do
 
-- [ ] proper axis names
-- [ ] 3D twist notation
+- [x] proper axis names
 - [ ] 3D twist gizmos
 - [ ] 4D twist gizmos
+- [ ] 3D twist notation
 - [ ] fix sticker shrink
 - [ ] color systems
 - [ ] better error messages

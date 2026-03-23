@@ -72,6 +72,8 @@ pub fn titlecase(s: &str) -> String {
 }
 
 /// Lazily resolves a set of dependencies.
+///
+/// TODO: use TypedIndex instead of strings
 pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     key_value_dependencies: impl IntoIterator<Item = (K, (V, Option<K>))>,
     compose: fn(V, &V) -> V,

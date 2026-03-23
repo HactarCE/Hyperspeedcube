@@ -388,12 +388,6 @@ impl Group {
         )
     }
 
-    /// Returns the factor group containing a generator and its ID within that
-    /// factor group.
-    pub(crate) fn generator_within_factor(&self, g: GeneratorId) -> (FactorGroup, GeneratorId) {
-        self.inner.generators_within_factors[g]
-    }
-
     /// Composes an element and a generator.
     ///
     /// This is an optimized equivalent to `group.compose(e, group.generators()[g])`.

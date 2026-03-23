@@ -13,10 +13,11 @@ use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRen
 mod builder;
 mod geometry;
 mod names;
+mod spec;
 mod twist_system;
 
 use builder::ProductPuzzleBuilder;
-
+pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, ProductPuzzleSpec};
 pub use twist_system::SymmetricTwistSystemEngineData;
 
 pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()> {
@@ -35,12 +36,20 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
         build: Box::new(|build_ctx| {
             // IIFE to mimic try_block
             (|| -> Result<_> {
-                ProductPuzzleBuilder::direct_product_identity()
-                    // .direct_product(&ft_cube(5)?)?
-                    .direct_product(&shallow_polygon(5)?)?
-                    .direct_product(&shallow_polygon(6)?)?
-                    // .direct_product(&shallow_ft_simplex(3)?)?
-                    .build(Some(&build_ctx), &mut |e| eprintln!("{e}")) // TODO: better warn function
+                ProductPuzzleBuilder::new(
+                    &ProductPuzzleSpec {
+                        factors: vec![
+                            // ft_cube(5)?,
+                            megaminx()?,
+                            shallow_line()?,
+                            // shallow_polygon(5)?,
+                            // shallow_polygon(6)?,
+                            // shallow_ft_simplex(3)?,
+                        ],
+                    },
+                    &mut |e| eprintln!("{e}"),
+                )?
+                .build(Some(&build_ctx)) // TODO: better warn function
             })()
             .map(Redirectable::Direct)
             .map_err(|e| e.to_string())
@@ -191,47 +200,47 @@ fn autonames() -> impl Iterator<Item = String> {
 
 const INF: Float = Float::INFINITY;
 
-fn ft_cube(ndim: u8) -> Result<ProductPuzzleBuilder> {
+fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
     if ndim > 5 {
         unimplemented!();
     }
 
     let names = vec![
-        (5, "A", None),
-        (4, "O", Some(4)),
-        (3, "F", Some(3)),
-        (2, "U", Some(2)),
-        (1, "R", Some(1)),
-        (1, "L", Some(0)),
-        (2, "D", Some(1)),
-        (3, "B", Some(2)),
-        (4, "I", Some(3)),
-        (5, "P", Some(4)),
+        (5, "A", 5),
+        (4, "O", 4),
+        (3, "F", 3),
+        (2, "U", 2),
+        (1, "R", 1),
+        (1, "L", 0),
+        (2, "D", 1),
+        (3, "B", 2),
+        (4, "I", 3),
+        (5, "P", 4),
     ]
     .into_iter()
     .filter(|&(n, _, _)| n <= ndim)
     .enumerate()
-    .map(|(i, (_, name, mirror))| {
-        let gen_seq = match mirror {
-            Some(g) => AbbrGenSeq::new([GeneratorId(g)], Some(i - 1)),
-            None => AbbrGenSeq::INIT,
+    .map(|(i, (_, name, g))| {
+        let gen_seq = if i == 0 {
+            AbbrGenSeq::INIT
+        } else {
+            AbbrGenSeq::new([GeneratorId(g)], Some(i - 1))
         };
         (gen_seq, name.to_string())
     })
     .collect();
 
-    ProductPuzzleBuilder::new_ft(
-        ndim,
+    Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::B(ndim)?.isometry_group()?,
-        &[(
-            Vector::unit(ndim - 1),
-            vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
+        vec![AxisOrbitSpec {
+            initial_vector: Vector::unit(ndim - 1),
+            cut_distances: vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
             names,
-        )],
-    )
+        }],
+    ))
 }
 
-fn shallow_polygon(n: u16) -> Result<ProductPuzzleBuilder> {
+fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     let names = (0..n)
         .map(|i| {
             let name = hypuz_notation::family::SequentialUppercaseName(i as u32).to_string();
@@ -248,28 +257,42 @@ fn shallow_polygon(n: u16) -> Result<ProductPuzzleBuilder> {
     let edge_length = 2.0 * pi_div_n.tan();
     let edge_depth = (2.0 * pi_div_n).sin() * edge_length;
     let cut_depth = 1.0 - edge_depth / 3.0;
-    let axes = [(Vector::unit(1), vec![INF, cut_depth], names)];
-    ProductPuzzleBuilder::new_ft(2, CoxeterMatrix::I(n)?.isometry_group()?, &axes)
+
+    Ok(FactorPuzzleSpec::new_ft(
+        CoxeterMatrix::I(n)?.isometry_group()?,
+        vec![AxisOrbitSpec {
+            initial_vector: Vector::unit(1),
+            cut_distances: vec![INF, cut_depth],
+            names,
+        }],
+    ))
 }
 
-fn shallow_line() -> Result<ProductPuzzleBuilder> {
+fn shallow_line() -> Result<FactorPuzzleSpec> {
     line(vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF])
 }
 
-fn half_cut_line() -> Result<ProductPuzzleBuilder> {
+fn half_cut_line() -> Result<FactorPuzzleSpec> {
     line(vec![INF, 0.0, -INF])
 }
 
-fn line(cut_depths: Vec<Float>) -> Result<ProductPuzzleBuilder> {
+fn line(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
     let names = vec![
         (AbbrGenSeq::INIT, "A".to_string()),
         (AbbrGenSeq::new([GeneratorId(0)], Some(0)), "B".to_string()),
     ];
-    let axes = [(Vector::unit(0), cut_depths, names)];
-    ProductPuzzleBuilder::new_ft(1, CoxeterMatrix::A(1)?.isometry_group()?, &axes)
+
+    Ok(FactorPuzzleSpec::new_ft(
+        CoxeterMatrix::A(1)?.isometry_group()?,
+        vec![AxisOrbitSpec {
+            initial_vector: Vector::unit(0),
+            cut_distances,
+            names,
+        }],
+    ))
 }
 
-fn megaminx() -> Result<ProductPuzzleBuilder> {
+fn megaminx() -> Result<FactorPuzzleSpec> {
     let names = vec![
         ("F", None, None),
         ("U", Some(2), Some(0)),
@@ -279,25 +302,31 @@ fn megaminx() -> Result<ProductPuzzleBuilder> {
         ("DL", Some(0), Some(4)),
         ("BR", Some(2), Some(4)),
         ("BL", Some(2), Some(5)),
-        ("PR", Some(1), Some(6)),
+        ("PR", Some(1), Some(7)),
         ("PL", Some(0), Some(8)),
         ("PD", Some(1), Some(9)),
         ("PB", Some(2), Some(10)),
     ]
     .into_iter()
-    .map(|(name, mirror, end)| {
-        let gen_seq = AbbrGenSeq::new(mirror.map(GeneratorId), end);
+    .map(|(name, g, end)| {
+        let gen_seq = AbbrGenSeq::new(g.map(GeneratorId), end);
         (gen_seq, name.to_string())
     })
     .collect();
 
-    let symmetry = CoxeterMatrix::H3().isometry_group()?;
-    let cut_depth = std::f64::consts::GOLDEN_RATIO.recip();
-    let axes = [(Vector::unit(2), vec![INF, cut_depth], names)];
-    ProductPuzzleBuilder::new_ft(3, symmetry, &axes)
+    let cut_distance = std::f64::consts::GOLDEN_RATIO.recip();
+
+    Ok(FactorPuzzleSpec::new_ft(
+        CoxeterMatrix::H3().isometry_group()?,
+        vec![AxisOrbitSpec {
+            initial_vector: Vector::unit(2),
+            cut_distances: vec![INF, cut_distance],
+            names,
+        }],
+    ))
 }
 
-fn shallow_ft_simplex(ndim: u8) -> Result<ProductPuzzleBuilder> {
+fn shallow_ft_simplex(ndim: u8) -> Result<FactorPuzzleSpec> {
     let gen_seqs = std::iter::chain(
         [AbbrGenSeq::INIT],
         (0..ndim)
@@ -308,8 +337,14 @@ fn shallow_ft_simplex(ndim: u8) -> Result<ProductPuzzleBuilder> {
     let name_strings = (0..=ndim as u32).map(hypuz_notation::family::SequentialUppercaseName);
     let names = gen_seqs.zip(name_strings.map(|n| n.to_string())).collect();
 
-    let axes = [(Vector::unit(ndim - 1), vec![INF, 0.0, -INF], names)];
-    ProductPuzzleBuilder::new_ft(ndim, CoxeterMatrix::A(ndim)?.isometry_group()?, &axes)
+    Ok(FactorPuzzleSpec::new_ft(
+        CoxeterMatrix::A(ndim)?.isometry_group()?,
+        vec![AxisOrbitSpec {
+            initial_vector: Vector::unit(ndim - 1),
+            cut_distances: vec![INF, 0.0, -INF],
+            names,
+        }],
+    ))
 }
 
 fn lift_vector_by_ndim<V: FromIterator<Float>>(
