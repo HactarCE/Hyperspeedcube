@@ -227,7 +227,7 @@ impl Group {
             combined_factor_group,
             point_count,
             act,
-        ))])
+        )?)])
     }
 
     /// Returns a label for the group for debugging.

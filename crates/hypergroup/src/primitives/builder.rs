@@ -111,7 +111,7 @@ impl AbstractGroupLutBuilder {
         let successors = self.successors.try_unwrap()?;
         let predecessors = self.predecessors.try_unwrap()?;
 
-        let generators = GeneratorId::iter(self.generator_count)
+        let generators = GeneratorId::try_iter(self.generator_count)?
             .map(|g| *successors.get(GroupElementId::IDENTITY, g))
             .collect();
 

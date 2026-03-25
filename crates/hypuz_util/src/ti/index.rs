@@ -29,6 +29,9 @@ pub trait TypedIndex:
     /// Maximum value for the type.
     const MAX: Self;
     /// Maximum index representable by the type.
+    ///
+    /// This **must not** be equal to [`usize::MAX`]. It may equal
+    /// `usize::MAX-1`.
     const MAX_INDEX: usize;
     /// User-friendly type name (lowercase).
     const TYPE_NAME: &'static str;
@@ -41,20 +44,60 @@ pub trait TypedIndex:
 
     /// Returns an iterator over all indexes up to `count` (exclusive).
     ///
-    /// The iterator never yields elements past the maximum value, even if
-    /// `count` exceeds the maximum value.
+    /// # Panics
+    ///
+    /// Panics if `count-1 > `[`Self::MAX_INDEX`].
+    #[track_caller]
     fn iter(count: usize) -> TypedIndexIter<Self> {
         Self::iter_range(0..count)
+    }
+
+    /// Returns an iterator over all indexes up to `count` (exclusive).
+    ///
+    /// Returns an error if `count-1 > `[`Self::MAX_INDEX`].
+    fn try_iter(count: usize) -> Result<TypedIndexIter<Self>, IndexOverflow> {
+        Self::try_iter_range(0..count)
+    }
+
+    /// Returns an iterator over all indexes up to `count` (exclusive).
+    ///
+    /// The iterator never yields elements past the maximum value, even if
+    /// `count` exceeds the maximum value.
+    fn iter_clamped(count: usize) -> TypedIndexIter<Self> {
+        Self::iter_range_clamped(0..count)
+    }
+
+    /// Returns an iterator over all indexes in `range`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `range.end-1 > `[`Self::MAX_INDEX`].
+    #[track_caller]
+    fn iter_range(range: Range<usize>) -> TypedIndexIter<Self> {
+        #[allow(clippy::unwrap_used)] // IndexOverflow gives good error message
+        Self::try_iter_range(range).unwrap()
+    }
+
+    /// Returns an iterator over all indexes in `range`.
+    ///
+    /// Returns an error if `range.end-1 > `[`Self::MAX_INDEX`].
+    fn try_iter_range(range: Range<usize>) -> Result<TypedIndexIter<Self>, IndexOverflow> {
+        if range.end > Self::MAX_INDEX + 1 {
+            return Err(IndexOverflow::new::<Self>());
+        }
+        Ok(TypedIndexIter {
+            range,
+            _phantom: PhantomData,
+        })
     }
 
     /// Returns an iterator over all indexes in `range`.
     ///
     /// The iterator never yields elements past the maximum value, even if
     /// `range.end` exceeds the maximum value.
-    fn iter_range(mut range: Range<usize>) -> TypedIndexIter<Self> {
-        // Clamp to `Self::MAX_INDEX`
-        if range.end > Self::MAX_INDEX {
-            range.end = Self::MAX_INDEX + 1; // overflow is impossible
+    fn iter_range_clamped(mut range: Range<usize>) -> TypedIndexIter<Self> {
+        if range.end > Self::MAX_INDEX + 1 {
+            range.end = Self::MAX_INDEX + 1;
         }
         TypedIndexIter {
             range,

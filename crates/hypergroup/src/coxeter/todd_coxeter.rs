@@ -44,8 +44,8 @@ pub fn construct_group(
 
     let mut relation_table_headers = vec![];
     // Set up a relation table for each possible pair of generators.
-    for (j, b) in GeneratorId::iter(n).enumerate() {
-        for (i, a) in GeneratorId::iter(j).enumerate() {
+    for (j, b) in GeneratorId::try_iter(n)?.enumerate() {
+        for (i, a) in GeneratorId::try_iter(j)?.enumerate() {
             let ab_order = coxeter_matrix[[i as u8, j as u8]];
             relation_table_headers.push(RelationTableHeader { a, b, ab_order });
         }
@@ -61,7 +61,7 @@ pub fn construct_group(
     while element_id < g.element_count() {
         let element = GroupElementId::try_from_index(element_id)?;
 
-        for generator in GeneratorId::iter(n) {
+        for generator in GeneratorId::try_iter(n)? {
             // If we already know the result of `element * generator` then
             // skip this iteration.
             if g.successor(element, generator).is_some() {

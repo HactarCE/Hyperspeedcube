@@ -77,7 +77,7 @@ impl AbstractGroupLut {
         let mut builder = crate::primitives::AbstractGroupLutBuilder::new(label, generator_count)?;
         let mut e = GroupElementId::IDENTITY;
         while (e.0 as usize) < builder.element_count() {
-            for g in GeneratorId::iter(generator_count) {
+            for g in GeneratorId::try_iter(generator_count)? {
                 let result = compose(e, g)?;
                 if (result.0 as usize) < builder.element_count() {
                     builder.set_successor(e, g, result);

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypuz_util::ti::{TypedIndex, TypedIndexIter};
+use hypuz_util::ti::{IndexOverflow, TypedIndex, TypedIndexIter};
 
 use crate::{AbstractSubgroup, GeneratorId, GroupElementId};
 
@@ -33,17 +33,17 @@ impl<P: TypedIndex> AbstractGroupActionLut<P> {
         group: Arc<AbstractGroupLut>,
         point_count: usize,
         mut act: impl FnMut(GeneratorId, P) -> P,
-    ) -> Self {
+    ) -> Result<Self, IndexOverflow> {
         let action_table =
-            itertools::iproduct!(P::iter(point_count), group.generators().iter_keys())
+            itertools::iproduct!(P::try_iter(point_count)?, group.generators().iter_keys())
                 .map(|(p, g)| act(g, p))
                 .collect();
 
-        Self {
+        Ok(Self {
             group,
             point_count,
             action_table,
-        }
+        })
     }
 
     /// Returns the group.
