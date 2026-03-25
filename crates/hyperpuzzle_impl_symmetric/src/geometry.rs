@@ -12,8 +12,9 @@ hypuz_util::typed_index_struct! {
     pub struct Vertex(pub u32);
 }
 
-/// List of unique vertices, indexed [`Vertex`].
-pub struct VertexList {
+/// List of a vector for each [`Vertex`], stored as a flattened
+/// `Vec<`[`Float`]`>`.
+pub struct VectorPerVertex {
     /// Number of dimensions.
     ndim: u8,
     /// Number of points.
@@ -22,24 +23,24 @@ pub struct VertexList {
     /// the zero-dimensional case.
     len: usize,
     /// Flattened list of coordinates for each vertex.
-    values: Vec<Float>,
+    values: Vec<f32>,
 }
 
-impl fmt::Debug for VertexList {
+impl fmt::Debug for VectorPerVertex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl Index<Vertex> for VertexList {
-    type Output = [Float];
+impl Index<Vertex> for VectorPerVertex {
+    type Output = [f32];
 
     fn index(&self, index: Vertex) -> &Self::Output {
         &self.values[self.index_range(index)]
     }
 }
 
-impl VertexList {
+impl VectorPerVertex {
     pub fn new(ndim: u8) -> Self {
         Self {
             ndim,
@@ -58,10 +59,6 @@ impl VertexList {
         }
     }
 
-    pub fn get(&self, i: Vertex) -> Point {
-        Point::from(&self[i])
-    }
-
     fn index_range(&self, v: Vertex) -> Range<usize> {
         let i = v.to_index();
         let ndim = self.ndim as usize;
@@ -75,7 +72,8 @@ impl VertexList {
     pub fn push(&mut self, point: impl VectorRef) -> Result<Vertex, IndexOverflow> {
         let len = self.len;
         self.len += 1;
-        self.values.extend(point.iter_ndim(self.ndim));
+        self.values
+            .extend(point.iter_ndim(self.ndim).map(|x| x as f32));
         Vertex::try_from_index(len)
     }
 
@@ -83,7 +81,7 @@ impl VertexList {
         Vertex::iter(self.len)
     }
 
-    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = &[Float]> + ExactSizeIterator {
+    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = &[f32]> + ExactSizeIterator {
         self.keys().map(|i| &self[i])
     }
 }
@@ -95,7 +93,9 @@ impl VertexList {
 #[derive(Debug)]
 pub struct PolytopeGeometry {
     /// Vertex coordinates.
-    pub verts: VertexList,
+    pub verts: VectorPerVertex,
+    /// Vertex shrink vectors.
+    pub shrink_vectors: VectorPerVertex,
     /// Edges, defined in terms of `verts`.
     pub edges: Vec<[Vertex; 2]>,
     /// Concatenated polygons, defined in terms of `verts`.
@@ -116,7 +116,12 @@ pub struct PolytopeGeometry {
 impl PolytopeGeometry {
     /// Geometry for a single point in a zero-dimensional space.
     pub const POINT: Self = Self {
-        verts: VertexList {
+        verts: VectorPerVertex {
+            ndim: 0,
+            len: 1,
+            values: vec![],
+        },
+        shrink_vectors: VectorPerVertex {
             ndim: 0,
             len: 1,
             values: vec![],
@@ -149,7 +154,8 @@ impl PolytopeGeometry {
             ]
         };
 
-        let verts = VertexList::direct_product(&a.verts, &b.verts);
+        let verts = VectorPerVertex::direct_product(&a.verts, &b.verts);
+        let shrink_vectors = VectorPerVertex::direct_product(&a.shrink_vectors, &b.shrink_vectors);
 
         let edges = if a.space_ndim() == 1
             && b.space_ndim() == 1
@@ -210,6 +216,7 @@ impl PolytopeGeometry {
 
         Self {
             verts,
+            shrink_vectors,
             edges,
             polygon_verts,
             polygon_sizes,
@@ -218,13 +225,21 @@ impl PolytopeGeometry {
     }
 
     /// Constructs a `PolytopeGeometry` from a `hypershape` polytope element.
-    pub fn from_polytope_element(polytope: hypershape::Element<'_>) -> Result<Self> {
+    pub fn from_polytope_element(
+        polytope: hypershape::Element<'_>,
+        sticker_shrink_vectors: &HashMap<hypershape::VertexId, Vector>,
+    ) -> Result<Self> {
         let ndim = polytope.space().ndim();
 
         let mut vertex_map = HashMap::new();
-        let mut verts = VertexList::new(polytope.space().ndim());
+        let mut verts = VectorPerVertex::new(ndim);
+        let mut shrink_vectors = VectorPerVertex::new(ndim);
         for v in polytope.vertex_set() {
             vertex_map.insert(v.id(), verts.push(v.pos().into_vector())?);
+            let shrink_vector = sticker_shrink_vectors
+                .get(&v.id())
+                .unwrap_or(const { &Vector::EMPTY });
+            shrink_vectors.push(shrink_vector)?;
         }
 
         let mut edges: Vec<[Vertex; 2]> = vec![];
@@ -257,6 +272,7 @@ impl PolytopeGeometry {
 
         Ok(Self {
             verts,
+            shrink_vectors,
             edges,
             polygon_verts,
             polygon_sizes,
@@ -287,27 +303,21 @@ impl PolytopeGeometry {
         for &polygon_size in &self.polygon_sizes {
             let j = i + polygon_size as usize;
 
-            let polygon = self.polygon_verts[i..j]
+            let vertices = self.polygon_verts[i..j]
                 .iter()
-                .map(|&v| self.verts.get(v))
+                .map(|&v| (&self.verts[v], &self.shrink_vectors[v]))
                 .collect_vec();
 
             // Calculate tangent vectors (and orientation in 2D & 3D).
-            ensure!(polygon.len() >= 3, "mesh polygon is too small");
+            let [a, b, c] = [0, 1, 2].map(|n| Point::from(&vertices[n].0));
+            ensure!(vertices.len() >= 3, "mesh polygon is too small");
             let [u, v] = hypermath::util::triangle_tangent_vectors(
-                [0, 1, 2].map(|n| &polygon[n]),
+                [&a, &b, &c],
                 (ndim == 2 || ndim == 3).then_some(&interior_point),
             )
             .unwrap_or_default(); // give up and return zero
 
-            let sticker_shrink_vector = Vector::EMPTY; // TODO sticker shrink
-            mesh.add_puzzle_polygon(
-                polygon.iter().map(|p| (p, &sticker_shrink_vector)),
-                piece_id,
-                surface_id,
-                &u,
-                &v,
-            )?;
+            mesh.add_puzzle_polygon(vertices, piece_id, surface_id, &u, &v)?;
 
             i = j;
         }

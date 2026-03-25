@@ -1,3 +1,5 @@
+use hypuz_util::ti::IndexOverflow;
+
 use super::*;
 
 /// Parameters for cutting shapes.
@@ -44,6 +46,8 @@ pub struct Cut {
     space: Arc<Space>,
     /// Cut parameters.
     params: CutParams,
+    /// ID of the new hyperplane.
+    hyperplane_id: HyperplaneId,
     /// Cache of the result of splitting each shape.
     output_cache: HashMap<ElementId, ElementCutOutput>,
 }
@@ -57,7 +61,7 @@ impl fmt::Display for Cut {
 impl Cut {
     /// Constructs a cutting operation that deletes polytopes on the outside of
     /// the cut and keeps only those on the inside.
-    pub fn carve(space: &Space, divider: Hyperplane) -> Self {
+    pub fn carve(space: &Space, divider: Hyperplane) -> Result<Self, IndexOverflow> {
         let params = CutParams {
             divider,
             inside: PolytopeFate::Keep,
@@ -66,7 +70,7 @@ impl Cut {
         Self::new(space, params)
     }
     /// Constructs a cutting operation that keeps all resulting polytopes.
-    pub fn slice(space: &Space, divider: Hyperplane) -> Self {
+    pub fn slice(space: &Space, divider: Hyperplane) -> Result<Self, IndexOverflow> {
         let params = CutParams {
             divider,
             inside: PolytopeFate::Keep,
@@ -76,12 +80,14 @@ impl Cut {
     }
 
     /// Constructs a cutting operation.
-    pub fn new(space: &Space, params: CutParams) -> Self {
-        Self {
+    pub fn new(space: &Space, params: CutParams) -> Result<Self, IndexOverflow> {
+        let hyperplane_id = space.hyperplanes.lock().push(params.divider.clone())?;
+        Ok(Self {
             space: space.arc(),
             params,
+            hyperplane_id,
             output_cache: HashMap::new(),
-        }
+        })
     }
 
     /// Returns the parameters used to create the cut.
@@ -176,26 +182,16 @@ impl Cut {
                 } else {
                     let intersection = match flush_polytopes.first() {
                         Some(&p) => Some(p),
-                        None => {
-                            let new_id =
-                                space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
-                                    rank: rank - 1,
-                                    boundary: flush_polytope_boundary,
+                        None => space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
+                            rank: rank - 1,
+                            boundary: flush_polytope_boundary,
+                            hyperplane: (rank == space.ndim()).then_some(cut.hyperplane_id),
 
-                                    is_primordial: false,
+                            is_primordial: false,
 
-                                    seam: None,
-                                    patch: None,
-                                })?;
-
-                            if let Some(new) = new_id {
-                                // New facet! Cache the hyperplane.
-                                let plane = cut.params.divider.clone();
-                                space.cached_hyperplane_of_facet.lock().insert(new, plane);
-                            }
-
-                            new_id
-                        }
+                            seam: None,
+                            patch: None,
+                        })?,
                     };
 
                     let inside = match cut.params.inside {

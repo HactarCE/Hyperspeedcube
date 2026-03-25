@@ -117,6 +117,34 @@ pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero + Ndim {
     fn rejected_from(&self, other: &Vector) -> Option<Vector> {
         Some(-self.projected_to(other)? + self)
     }
+    /// Returns the component of vector that is perpendicular to all vectors in
+    /// `others`.
+    fn rejected_from_all(&self, others: impl Iterator<Item = Vector>) -> Vector {
+        let mut ret = self.to_vector();
+        for v in normal_basis_from(others) {
+            ret -= &v * ret.dot(&v);
+        }
+        ret
+    }
+}
+
+/// Returns a normal basis from a set of vectors using the Gram-Schmidt process.
+///
+/// Zero vectors are ignored.
+fn normal_basis_from(vectors: impl Iterator<Item = Vector>) -> Vec<Vector> {
+    let mut basis = vec![];
+    'v: for mut v in vectors {
+        for u in &basis {
+            if APPROX.eq(&v, &Vector::EMPTY) {
+                continue 'v;
+            }
+            v -= u * v.dot(u);
+        }
+        if let Some(v_unit) = v.normalize() {
+            basis.push(v_unit);
+        }
+    }
+    basis
 }
 
 /// Iterator over the nonzero components of a vector.
@@ -171,27 +199,51 @@ impl VectorRef for Vector {
     }
 }
 
-impl Ndim for &[Float] {
+impl Ndim for &[f32] {
     /// Returns the number of components in the vector.
     fn ndim(&self) -> u8 {
         self.len().try_into().unwrap_or(u8::MAX)
     }
 }
-impl VectorRef for &[Float] {
+impl VectorRef for &[f32] {
     fn get(&self, idx: u8) -> Float {
-        <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
+        <[f32]>::get(self, idx as usize).copied().unwrap_or(0.0) as Float
     }
 }
 
-impl<const N: usize> Ndim for [Float; N] {
+impl Ndim for &[f64] {
     /// Returns the number of components in the vector.
     fn ndim(&self) -> u8 {
         self.len().try_into().unwrap_or(u8::MAX)
     }
 }
-impl<const N: usize> VectorRef for [Float; N] {
+impl VectorRef for &[f64] {
     fn get(&self, idx: u8) -> Float {
-        <[Float]>::get(self, idx as usize).copied().unwrap_or(0.0)
+        <[f64]>::get(self, idx as usize).copied().unwrap_or(0.0) as Float
+    }
+}
+
+impl<const N: usize> Ndim for [f32; N] {
+    /// Returns the number of components in the vector.
+    fn ndim(&self) -> u8 {
+        self.len().try_into().unwrap_or(u8::MAX)
+    }
+}
+impl<const N: usize> VectorRef for [f32; N] {
+    fn get(&self, idx: u8) -> Float {
+        <[f32]>::get(self, idx as usize).copied().unwrap_or(0.0) as Float
+    }
+}
+
+impl<const N: usize> Ndim for [f64; N] {
+    /// Returns the number of components in the vector.
+    fn ndim(&self) -> u8 {
+        self.len().try_into().unwrap_or(u8::MAX)
+    }
+}
+impl<const N: usize> VectorRef for [f64; N] {
+    fn get(&self, idx: u8) -> Float {
+        <[f64]>::get(self, idx as usize).copied().unwrap_or(0.0) as Float
     }
 }
 

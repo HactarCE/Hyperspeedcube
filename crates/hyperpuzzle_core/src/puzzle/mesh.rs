@@ -158,15 +158,15 @@ impl Mesh {
 
     /// Adds a puzzle polygon to the mesh and returns its range.
     ///
-    /// Each vertex consists of a position ([`Point`]) and a sticker shrink
-    /// vector ([`Vector`]).
-    pub fn add_puzzle_polygon<'a>(
+    /// Each vertex consists of a position ([`P`]) and a sticker shrink
+    /// vector ([`V`]).
+    pub fn add_puzzle_polygon<P: MeshVector, T: MeshVector, V: MeshVector>(
         &mut self,
-        vertex_positions: impl IntoIterator<Item = (&'a Point, &'a Vector)>,
+        vertices: impl IntoIterator<Item = (P, V)>,
         piece_id: Piece,
         surface_id: Surface,
-        u_tangent: &Vector,
-        v_tangent: &Vector,
+        u_tangent: T,
+        v_tangent: T,
     ) -> Result<MeshRange> {
         let start = self.counts();
 
@@ -174,11 +174,11 @@ impl Mesh {
 
         // Vertices
         let vertex_start = self.vertex_count() as u32;
-        for (position, sticker_shrink_vector) in vertex_positions {
+        for (position, sticker_shrink_vector) in vertices {
             self.add_puzzle_vertex(MeshVertexData {
                 position,
-                u_tangent,
-                v_tangent,
+                u_tangent: &u_tangent,
+                v_tangent: &v_tangent,
                 sticker_shrink_vector,
                 piece_id,
                 surface_id,
@@ -233,26 +233,25 @@ impl Mesh {
     }
 
     /// Adds a vertex to the mesh and returns the vertex ID.
-    pub fn add_puzzle_vertex(&mut self, data: MeshVertexData<'_>) -> Result<u32> {
+    pub fn add_puzzle_vertex<P: MeshVector, T: MeshVector, S: MeshVector>(
+        &mut self,
+        data: MeshVertexData<P, T, S>,
+    ) -> Result<u32> {
         ensure!(
             self.gizmo_vertex_count == 0,
             "puzzle mesh must be constructed before twist gizmos",
         );
 
-        self.farthest_point_mag2 = f32::max(
-            self.farthest_point_mag2,
-            data.position.as_vector().mag2() as f32,
-        );
+        self.farthest_point_mag2 = f32::max(self.farthest_point_mag2, data.position.mag2_f32());
 
         let ndim = self.ndim;
         let vertex_id = self.vertex_count() as u32;
         self.puzzle_vertex_count += 1;
-        self.vertex_positions
-            .extend(iter_f32(ndim, data.position.as_vector()));
-        self.u_tangents.extend(iter_f32(ndim, data.u_tangent));
-        self.v_tangents.extend(iter_f32(ndim, data.v_tangent));
+        self.vertex_positions.extend(data.position.iter_f32(ndim));
+        self.u_tangents.extend(data.u_tangent.iter_f32(ndim));
+        self.v_tangents.extend(data.v_tangent.iter_f32(ndim));
         self.sticker_shrink_vectors
-            .extend(iter_f32(ndim, data.sticker_shrink_vector));
+            .extend(data.sticker_shrink_vector.iter_f32(ndim));
         self.piece_ids.push(data.piece_id.0);
         self.surface_ids.push(data.surface_id.0 as u32);
         self.polygon_ids.push(data.polygon_id);
@@ -260,12 +259,10 @@ impl Mesh {
         Ok(vertex_id)
     }
     /// Adds a gizmo vertex to the mesh and returns the vertex ID.
-    pub fn add_gizmo_vertex(&mut self, pos: &Point, surface_id: u32) -> Result<u32> {
-        let ndim = self.ndim;
+    pub fn add_gizmo_vertex(&mut self, pos: impl MeshVector, surface_id: u32) -> Result<u32> {
         let vertex_id = self.vertex_count() as u32;
         self.gizmo_vertex_count += 1;
-        self.vertex_positions
-            .extend(iter_f32(ndim, pos.as_vector()));
+        self.vertex_positions.extend(pos.iter_f32(self.ndim));
         // No tangent vectors needed.
         // No sticker shrink vectors needed.
         // No piece ID needed.
@@ -295,13 +292,11 @@ impl Mesh {
     /// Adds a piece to the mesh.
     pub fn add_piece(
         &mut self,
-        centroid: &Point,
+        centroid: impl MeshVector,
         internals_range: impl Into<MeshRange>,
     ) -> Result<()> {
-        let ndim = self.ndim;
         self.piece_count += 1;
-        self.piece_centroids
-            .extend(iter_f32(ndim, centroid.as_vector()));
+        self.piece_centroids.extend(centroid.iter_f32(self.ndim));
         self.piece_internals_ranges.push(internals_range.into())?;
 
         Ok(())
@@ -320,33 +315,30 @@ impl Mesh {
     /// This cannot be called after `add_gizmo_surface()`.
     pub fn add_puzzle_surface(
         &mut self,
-        centroid: &Point,
-        normal: impl VectorRef,
+        centroid: impl MeshVector,
+        normal: impl MeshVector,
     ) -> Result<Surface> {
         let surface_id = self.surface_count() as u16;
-        let ndim = self.ndim;
         self.puzzle_surface_count += 1;
         if self.gizmo_surface_count > 0 {
             bail!("puzzle surfaces must precede gizmo surfaces");
         }
-        self.surface_centroids
-            .extend(iter_f32(ndim, centroid.as_vector()));
-        self.surface_normals.extend(iter_f32(ndim, &normal));
+        self.surface_centroids.extend(centroid.iter_f32(self.ndim));
+        self.surface_normals.extend(normal.iter_f32(self.ndim));
         Ok(Surface(surface_id))
     }
 
     /// Adds a gizmo surface to the mesh and returns the new surface ID.
-    pub fn add_gizmo_surface(&mut self, axis_vector: impl VectorRef) -> Result<u32> {
+    pub fn add_gizmo_surface(&mut self, axis_vector: &Vector) -> Result<u32> {
         let normal = axis_vector
             .normalize()
             .ok_or_eyre("axis vector cannot be zero")?;
         let centroid = axis_vector;
 
-        let ndim = self.ndim;
         let surface_id = self.surface_count() as u32;
         self.gizmo_surface_count += 1;
-        self.surface_centroids.extend(iter_f32(ndim, &centroid));
-        self.surface_normals.extend(iter_f32(ndim, &normal));
+        self.surface_centroids.extend(centroid.iter_f32(self.ndim));
+        self.surface_normals.extend(normal.iter_f32(self.ndim));
 
         Ok(surface_id)
     }
@@ -382,17 +374,17 @@ impl Mesh {
 
 /// Vertex that can be added to a mesh.
 #[derive(Debug, Copy, Clone)]
-pub struct MeshVertexData<'a> {
+pub struct MeshVertexData<P, T, S> {
     /// N-dimensional coordinates of the point.
-    pub position: &'a Point,
+    pub position: P,
     /// N-dimensional unit vector tangent to the surface at the point. This must
     /// be perpendicular to `v_tangent`.
-    pub u_tangent: &'a Vector,
+    pub u_tangent: T,
     /// N-dimensional unit vector tangent to the surface at the point. This must
     /// be perpendicular to `u_tangent`.
-    pub v_tangent: &'a Vector,
+    pub v_tangent: T,
     /// Vector along which to shrink the vertex for sticker shrink.
-    pub sticker_shrink_vector: &'a Vector,
+    pub sticker_shrink_vector: S,
     /// ID of the piece that the vertex is part of. This is used for piece
     /// explode.
     pub piece_id: Piece,
@@ -406,9 +398,56 @@ pub struct MeshVertexData<'a> {
     pub polygon_id: u32,
 }
 
-/// Returns an iterator over the components of `v` as `f32`s, padded to `ndim`.
-fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
-    v.iter_ndim(ndim).map(|x| x as f32)
+/// Trait for types that can be used as vectors or points when constructing a
+/// mesh.
+pub trait MeshVector {
+    /// Returns an iterator over the components of `self` as `f32`s,
+    /// padded/truncated to `ndim`.
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32>;
+    /// Returns the squared magnitude of `self` as an `f32`.
+    fn mag2_f32(&self) -> f32;
+}
+
+impl MeshVector for [f32] {
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32> {
+        (0..ndim as usize).map(|i| *self.get(i).unwrap_or(&0.0))
+    }
+    fn mag2_f32(&self) -> f32 {
+        self.iter().map(|&x| x * x).sum()
+    }
+}
+impl MeshVector for [f64] {
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32> {
+        (0..ndim as usize).map(|i| *self.get(i).unwrap_or(&0.0) as f32)
+    }
+    fn mag2_f32(&self) -> f32 {
+        self.iter().map(|&x| x as f32).map(|x| x * x).sum()
+    }
+}
+impl MeshVector for Vector {
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32> {
+        self.0.iter_f32(ndim)
+    }
+    fn mag2_f32(&self) -> f32 {
+        self.0.mag2_f32()
+    }
+}
+impl MeshVector for Point {
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32> {
+        self.0.iter_f32(ndim)
+    }
+    fn mag2_f32(&self) -> f32 {
+        self.0.mag2_f32()
+    }
+}
+impl<T: ?Sized + MeshVector> MeshVector for &T {
+    fn iter_f32(&self, ndim: u8) -> impl '_ + Iterator<Item = f32> {
+        T::iter_f32(self, ndim)
+    }
+
+    fn mag2_f32(&self) -> f32 {
+        T::mag2_f32(self)
+    }
 }
 
 /// Numbers of certain elements in the mesh.

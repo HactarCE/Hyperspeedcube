@@ -52,7 +52,7 @@ impl PuzzleShapeBuilder {
 
     pub fn carve(&mut self, plane: Hyperplane, color_name: &String) -> Result<()> {
         let color = self.colors.push(color_name.clone())?;
-        let cut = hypershape::Cut::carve(&self.space, plane);
+        let cut = hypershape::Cut::carve(&self.space, plane)?;
         self.cut(cut, Some(color), None)?;
         Ok(())
     }
@@ -64,7 +64,7 @@ impl PuzzleShapeBuilder {
         layer: Option<Layer>,
     ) -> Result<()> {
         let plane = Hyperplane::new(vector, distance).ok_or_eyre("bad cut plane")?;
-        let cut = hypershape::Cut::slice(&self.space, plane);
+        let cut = hypershape::Cut::slice(&self.space, plane)?;
         self.cut(cut, None, Some((axis, layer)))?;
         Ok(())
     }
@@ -118,25 +118,36 @@ impl PuzzleShapeBuilder {
     pub fn into_product_puzzle_shape(self) -> Result<ProductPuzzleShape> {
         let ndim = self.ndim();
 
-        // Add internal facets, which are necessary when computing the direct
-        // product of puzzles.
         let pieces = self.pieces.try_map_ref(|_, piece| {
+            let piece_polytope = self.space.get(piece.polytope);
             let facet_id_to_sticker: HashMap<hypershape::ElementId, &StickerShapeBuilder> = piece
                 .stickers
                 .iter()
                 .map(|sticker| (sticker.polytope, sticker))
                 .collect();
-
-            let piece_polytope = self.space.get(piece.polytope);
+            let sticker_facet_id_list: Vec<hypershape::FacetId> = piece
+                .stickers
+                .iter()
+                .map(|sticker| eyre::Ok(self.space.get(sticker.polytope).as_facet()?.id()))
+                .try_collect()?;
+            let sticker_shrink_vectors = piece_polytope
+                .as_polytope()?
+                .sticker_shrink_vectors(&sticker_facet_id_list)?;
             eyre::Ok(PieceData {
-                polytope: PolytopeGeometry::from_polytope_element(piece_polytope)?,
+                polytope: PolytopeGeometry::from_polytope_element(
+                    piece_polytope,
+                    &sticker_shrink_vectors,
+                )?,
                 facets: piece_polytope
                     .boundary()
                     .map(|b| (b, facet_id_to_sticker.get(&b.id()).copied()))
                     .filter(|(_, sticker)| ndim <= 3 || sticker.is_some()) // remove internals in 4D+
                     .map(|(b, sticker)| {
                         eyre::Ok(PieceFacetData {
-                            polytope: PolytopeGeometry::from_polytope_element(b)?,
+                            polytope: PolytopeGeometry::from_polytope_element(
+                                b,
+                                &sticker_shrink_vectors,
+                            )?,
                             sticker_data: sticker.map(|sticker| StickerData {
                                 surface: sticker.surface,
                                 color: sticker.color,

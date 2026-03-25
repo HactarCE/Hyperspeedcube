@@ -42,9 +42,10 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                         factors: vec![
                             // ft_cube(5)?,
                             // megaminx()?,
-                            shallow_line()?,
-                            shallow_polygon(20)?,
-                            // shallow_polygon(6)?,
+                            // shallow_line()?,
+                            // shallow_polygon(20)?,
+                            shallow_polygon(7)?,
+                            shallow_polygon(4)?,
                             // shallow_ft_simplex(3)?,
                         ],
                     },

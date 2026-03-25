@@ -19,26 +19,19 @@ impl Space {
         // Construct a 3^d array of polytope elements. Along each axis X, the
         // polytopes at X=0 and X=1 are on the boundary of X=2.
         let mut elements = Vec::<ElementId>::with_capacity(3_usize.pow(self.ndim() as _));
-        let mut boundary_indexes = Vec::<usize>::with_capacity(1 << self.ndim());
-        let mut position = vec![0_u8; self.ndim() as usize];
+        let mut position = vec![0; self.ndim() as usize];
         'outer: loop {
             let zero_axes = position.iter().positions(|&x| x == 2).collect_vec();
+            let centroid = Point::from_iter(position.iter().map(|&x| [-size, size, 0.0][x]));
             let element_rank = zero_axes.len() as u8;
             let polytope_data = if element_rank == 0 {
-                self.add_vertex(
-                    position
-                        .iter()
-                        .map(|&x| size * (x as Float * 2.0 - 1.0))
-                        .collect(),
-                )?
-                .into()
+                self.add_vertex(centroid)?.into()
             } else {
                 let stride = |i| 3_usize.pow(i as _);
-                boundary_indexes.clear();
                 let base: usize = position
                     .iter()
                     .enumerate()
-                    .map(|(i, &x)| stride(i) * x as usize)
+                    .map(|(i, &x)| stride(i) * x)
                     .sum();
                 let boundary_indexes = position
                     .iter()
@@ -47,11 +40,22 @@ impl Space {
                     .collect_vec();
 
                 let boundary = boundary_indexes.iter().map(|&i| elements[i]).collect();
+                let hyperplane = if element_rank + 1 == self.ndim() {
+                    Some(
+                        self.hyperplanes.lock().push(
+                            Hyperplane::from_pole(centroid.as_vector())
+                                .ok_or_eyre("error constructing primordial hyperplane")?,
+                        )?,
+                    )
+                } else {
+                    None
+                };
                 PolytopeData::Polytope {
                     rank: element_rank,
                     boundary,
+                    hyperplane,
 
-                    is_primordial: element_rank == self.ndim() - 1,
+                    is_primordial: element_rank + 1 == self.ndim(),
                     seam: None,
 
                     patch: None,

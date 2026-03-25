@@ -46,6 +46,9 @@ hypuz_util::typed_index_struct! {
     /// ID for a memoized vertex in a [`Space`].
     pub struct VertexId(pub u32);
 
+    /// ID for a memoized hyperplane in a [`Space`].
+    pub struct HyperplaneId(pub u16);
+
     /// ID for a patch in a [`Space`].
     pub struct PatchId(pub u16);
     /// ID for a seam of a patch in a [`Space`].
@@ -56,19 +59,19 @@ hypuz_util::typed_index_struct! {
 pub type PerElement<T> = TiVec<ElementId, T>;
 /// List containing a value per vertex.
 pub type PerVertex<T> = TiVec<VertexId, T>;
+/// List containing a value per hyperplane.
+type PerHyperplane<T> = TiVec<HyperplaneId, T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_cube() {
+    fn test_cube() -> Result<()> {
         let space = Space::new(2);
-        let root = space.add_primordial_cube(10.0).unwrap();
+        let root = space.add_primordial_cube(10.0)?;
         println!("{}", space.dump_to_string(root.as_element().id));
-        let result = Cut::carve(&space, Hyperplane::from_pole(vector![1.0]).unwrap())
-            .cut(root)
-            .unwrap();
+        let result = Cut::carve(&space, Hyperplane::from_pole(vector![1.0]).unwrap())?.cut(root)?;
         match result {
             ElementCutOutput::Flush => println!("flush"),
             ElementCutOutput::NonFlush {
@@ -90,5 +93,6 @@ mod tests {
                 }
             }
         }
+        Ok(())
     }
 }

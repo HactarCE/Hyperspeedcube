@@ -18,7 +18,7 @@ pub fn build_3d_gizmo(
         .to_element_id(&space);
     for (vector, _, _) in faces {
         let cut_plane = Hyperplane::from_pole(vector).ok_or_eyre("bad axis vector")?; // TODO: warn instead of error
-        gizmo_polytope = Cut::carve(&space, cut_plane)
+        gizmo_polytope = Cut::carve(&space, cut_plane)?
             .cut(gizmo_polytope)?
             .inside()
             .ok_or_eyre("twist gizmo does not exist")?; // TODO: warn instead of error
@@ -38,7 +38,7 @@ pub fn build_3d_gizmo(
         };
 
         let vertex_positions = face.vertices_in_order()?.map(|v| v.pos()).collect_vec();
-        let surface_id = mesh.add_gizmo_surface(face_pole)?;
+        let surface_id = mesh.add_gizmo_surface(&face_pole)?;
         let range = mesh.add_gizmo_polygon(&vertex_positions, surface_id)?;
         mesh.add_gizmo_face(range)?;
         gizmo_twists.push(GizmoTwist {

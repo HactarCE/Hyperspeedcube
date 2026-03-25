@@ -17,6 +17,8 @@ pub enum PolytopeData {
         rank: u8,
         /// Facets of the polytope.
         boundary: Set64<ElementId>,
+        /// Hyperplane, if the polytope is a facet.
+        hyperplane: Option<HyperplaneId>,
 
         /// Whether the facet is on the surface of the primordial cube. This is
         /// only used for facets.

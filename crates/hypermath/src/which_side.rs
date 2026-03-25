@@ -8,11 +8,11 @@ use crate::Sign;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PointWhichSide {
     /// The point is on the manifold between inside and outside.
-    On,
+    On = 0,
     /// The point is on the "inside" space relative to the manifold.
-    Inside,
+    Inside = -1,
     /// The point is on the "outside" space relative to the manifold.
-    Outside,
+    Outside = 1,
 }
 impl Neg for PointWhichSide {
     type Output = Self;

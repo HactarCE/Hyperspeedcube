@@ -230,6 +230,126 @@ impl<'a> Polytope<'a> {
     pub fn has_primordial_facet(self) -> bool {
         self.facets().any(|f| f.is_primordial())
     }
+
+    /// Computes the sticker shrink vectors for a polytope.
+    ///
+    /// Each vertex shrinks along a vector pointing toward the centroid of the
+    /// polytope, projected onto whatever sticker facets that vertex is part of.
+    /// For example, if a vertex is on an edge (1D manifold) of a 3D polytope,
+    /// then its shrink vector will point toward the centroid of the polytope,
+    /// projected onto that edge. If a vertex is on a corner of its polytope,
+    /// then its shrink vector is zero.
+    ///
+    /// `sticker_facets` must _not_ include internal facets.
+    ///
+    /// This is a relatively expensive operation, so it should be called only
+    /// once per polytope.
+    pub fn sticker_shrink_vectors(
+        &self,
+        sticker_facets: &[FacetId],
+    ) -> Result<HashMap<VertexId, Vector>> {
+        let space = self.space();
+
+        // For each element of the polytope, compute a set of the sticker facets
+        // that contain the element.
+        let mut elements_and_facet_sets_by_rank: Vec<HashMap<ElementId, Set64<FacetId>>> =
+            vec![HashMap::new(); space.ndim() as usize + 1];
+        for &sticker_facet in sticker_facets {
+            for ridge in space.get(sticker_facet).subelements() {
+                let rank = ridge.rank();
+                elements_and_facet_sets_by_rank[rank as usize]
+                    .entry(ridge.id())
+                    .or_default()
+                    .insert(sticker_facet);
+            }
+        }
+
+        // Find the largest (by rank) elements contained by all the sticker facets
+        // of the piece.
+        let centroid_of_greatest_common_elements: Option<Centroid> =
+            elements_and_facet_sets_by_rank
+                .iter()
+                .rev()
+                .map(|elements_and_facet_sets| {
+                    // Find elements that are contained by all sticker facets of the
+                    // piece.
+                    let elements_with_maximal_facet_set = elements_and_facet_sets
+                        .iter()
+                        .filter(|(_element, facet_set)| facet_set.len() == sticker_facets.len())
+                        .map(|(element, _facet_set)| *element);
+                    // Add up their centroids. Technically we should take the centroid
+                    // of their convex hull, but this works well enough.
+                    space.combined_centroid(elements_with_maximal_facet_set)
+                })
+                // Select the elements with the largest rank and nonzero centroid.
+                .find_map(|result_option| result_option.transpose())
+                .transpose()?;
+        // If such elements exist, then all vertices can shrink to the same point.
+        if let Some(centroid) = centroid_of_greatest_common_elements {
+            let shrink_target = centroid.center();
+            return Ok(self
+                .vertex_set()
+                .map(|v| (v.id(), &shrink_target - v.pos()))
+                .collect());
+        }
+
+        // Otherwise, find the best elements for each set of facets. If a vertex is
+        // not contained by any facets, then it will shrink toward the centroid of
+        // the piece.
+        let piece_centroid = self.centroid()?.center();
+
+        // Compute the shrink target for each possible facet set that has a good
+        // shrink target.
+        let unique_facet_sets_of_vertices = elements_and_facet_sets_by_rank[0].values().unique();
+        let shrink_target_by_surface_set: HashMap<&Set64<FacetId>, Point> =
+            unique_facet_sets_of_vertices
+                .map(|facet_set| {
+                    // Find the largest elements of the piece that are contained by all
+                    // the facets in this set. There must be at least one vertex.
+                    let centroid_of_greatest_common_elements: Centroid =
+                        elements_and_facet_sets_by_rank
+                            .iter()
+                            .rev()
+                            .map(|elements_and_facet_sets| {
+                                // Find elements that are contained by all sticker facets of
+                                // the vertex.
+                                let elements_with_superset_of_facets = elements_and_facet_sets
+                                    .iter()
+                                    .filter(|(_element, fs)| {
+                                        facet_set.iter().all(|f| fs.contains(f))
+                                    })
+                                    .map(|(element, _fs)| *element);
+                                // Add up their centroids. Technically we should take the
+                                // centroid of their convex hull, but this works well
+                                // enough.
+                                space.combined_centroid(elements_with_superset_of_facets)
+                            })
+                            // Select the elements with the largest rank.
+                            .find_map(|result_option| result_option.transpose())
+                            // There must be some element with a superset of `facet_set`
+                            // because `facet_set` came from a vertex.
+                            .ok_or_eyre("no element with facet subset")??;
+
+                    eyre::Ok((facet_set, centroid_of_greatest_common_elements.center()))
+                })
+                .try_collect()?;
+
+        // Compute shrink vectors for all vertices.
+        let empty_set = Set64::new();
+        let shrink_vectors = self.vertex_set().map(|vertex| {
+            let surface_set = &elements_and_facet_sets_by_rank[0]
+                .get(&vertex.as_element().id())
+                .unwrap_or(&empty_set);
+            let vertex_pos = vertex.pos();
+            let shrink_vector = match shrink_target_by_surface_set.get(surface_set) {
+                Some(target) => target - vertex_pos,
+                None => &piece_centroid - vertex_pos,
+            };
+
+            (vertex.id(), shrink_vector)
+        });
+        Ok(shrink_vectors.collect())
+    }
 }
 
 impl<'a> From<Facet<'a>> for Element<'a> {
@@ -250,9 +370,19 @@ impl<'a> Facet<'a> {
             _ => false,
         }
     }
-    /// Returns the hyperplane of the facet.
+    /// Returns the unoriented hyperplane of the facet.
     pub fn hyperplane(self) -> Result<Hyperplane> {
-        self.space.hyperplane_of_facet(self.id)
+        match self.space.polytopes.lock()[self.as_element().id] {
+            PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
+                Hyperplane::new(vector![1.0], self.space.get(vertex_id).pos()[0])
+                    .ok_or_eyre("error constructing hyperplane")
+            }
+            PolytopeData::Polytope {
+                hyperplane: Some(hyperplane_id),
+                ..
+            } => Ok(self.space.hyperplanes.lock().get(hyperplane_id)?.clone()),
+            _ => bail!("expected hyperplane"),
+        }
     }
 }
 

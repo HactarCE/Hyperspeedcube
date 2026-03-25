@@ -13,6 +13,7 @@ pub struct SpaceMap<'a> {
     destination: &'a Space,
     vertices: HashMap<VertexId, VertexId>,
     polytopes: HashMap<ElementId, ElementId>,
+    hyperplanes: HashMap<HyperplaneId, HyperplaneId>,
 }
 impl<'a> SpaceMap<'a> {
     /// Constructs a map from `old_space` to `new_space`.
@@ -27,6 +28,7 @@ impl<'a> SpaceMap<'a> {
             destination,
             vertices: HashMap::new(),
             polytopes: HashMap::new(),
+            hyperplanes: HashMap::new(),
         })
     }
 }
@@ -34,10 +36,10 @@ impl SpaceMapFor<VertexId> for SpaceMap<'_> {
     fn map(&mut self, thing: VertexId) -> Result<VertexId> {
         match self.vertices.entry(thing) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
-            hash_map::Entry::Vacant(e) => Ok(*e.insert(
-                self.destination
-                    .add_vertex(self.source.vertices.lock()[thing].clone())?,
-            )),
+            hash_map::Entry::Vacant(e) => {
+                let vertex_pos = self.source.vertices.lock()[thing].clone();
+                Ok(*e.insert(self.destination.add_vertex(vertex_pos)?))
+            }
         }
     }
 }
@@ -56,6 +58,7 @@ impl SpaceMapFor<ElementId> for SpaceMap<'_> {
             PolytopeData::Polytope {
                 rank,
                 boundary,
+                hyperplane,
 
                 is_primordial,
 
@@ -66,6 +69,7 @@ impl SpaceMapFor<ElementId> for SpaceMap<'_> {
                 PolytopeData::Polytope {
                     rank,
                     boundary: boundary.iter().map(|b| self.map(b)).try_collect()?,
+                    hyperplane,
 
                     is_primordial,
 
@@ -78,5 +82,16 @@ impl SpaceMapFor<ElementId> for SpaceMap<'_> {
 
         self.polytopes.insert(thing, new_id);
         Ok(new_id)
+    }
+}
+impl SpaceMapFor<HyperplaneId> for SpaceMap<'_> {
+    fn map(&mut self, thing: HyperplaneId) -> Result<HyperplaneId> {
+        match self.hyperplanes.entry(thing) {
+            hash_map::Entry::Occupied(e) => Ok(*e.get()),
+            hash_map::Entry::Vacant(e) => {
+                let hyperplane = self.source.hyperplanes.lock()[thing].clone();
+                Ok(*e.insert(self.destination.hyperplanes.lock().push(hyperplane)?))
+            }
+        }
     }
 }

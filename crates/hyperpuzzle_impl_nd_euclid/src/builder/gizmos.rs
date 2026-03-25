@@ -156,7 +156,7 @@ fn build_4d_gizmo(
         outside: PolytopeFate::Remove,
     };
     let primordial_cube = space.get_primordial_cube()?;
-    let polyhedron = match Cut::new(space, initial_cut_params).cut(primordial_cube)? {
+    let polyhedron = match Cut::new(space, initial_cut_params)?.cut(primordial_cube)? {
         hypershape::ElementCutOutput::Flush => bail!("bad axis vector"),
         hypershape::ElementCutOutput::NonFlush { intersection, .. } => {
             intersection.ok_or_eyre("bad axis vector")?
@@ -205,7 +205,7 @@ fn build_gizmo(
             let cut_normal = Vector::unit(axis) * distance;
             let cut_plane =
                 Hyperplane::new(cut_normal, primordial_face_radius).ok_or_eyre("bad hyperplane")?;
-            let mut cut = Cut::carve(space, cut_plane);
+            let mut cut = Cut::carve(space, cut_plane)?;
             let result = cut.cut(polyhedron)?.inside();
             polyhedron = result.ok_or_eyre("error cutting primordial cube for twist gizmo")?;
         }
@@ -221,7 +221,7 @@ fn build_gizmo(
             ));
             continue;
         };
-        let mut cut = Cut::carve(space, cut_plane);
+        let mut cut = Cut::carve(space, cut_plane)?;
 
         let mut new_face_polygons = vec![];
 

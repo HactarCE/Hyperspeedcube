@@ -20,7 +20,8 @@ pub struct Space {
     pub(super) polytopes: Mutex<PerElement<PolytopeData>>,
     pub(super) polytope_data_to_id: Mutex<HashMap<PolytopeData, ElementId>>,
 
-    pub(super) cached_hyperplane_of_facet: Mutex<HashMap<ElementId, Hyperplane>>,
+    pub(super) hyperplanes: Mutex<PerHyperplane<Hyperplane>>,
+
     pub(super) cached_vertex_set: Mutex<HashMap<ElementId, Set64<VertexId>>>,
 
     pub(super) cached_which_side_has_polytope:
@@ -67,7 +68,8 @@ impl Space {
             polytopes: Mutex::new(PerElement::new()),
             polytope_data_to_id: Mutex::new(HashMap::new()),
 
-            cached_hyperplane_of_facet: Mutex::new(HashMap::new()),
+            hyperplanes: Mutex::new(PerHyperplane::new()),
+
             cached_vertex_set: Mutex::new(HashMap::new()),
 
             cached_which_side_has_polytope: Mutex::new(ApproxHashMap::new(APPROX)),
@@ -125,21 +127,6 @@ impl Space {
             }
         }
     }
-    /// Memoizes a line.
-    pub fn add_line(&self, points: [VertexId; 2]) -> Result<ElementId, IndexOverflow> {
-        let [a, b] = points;
-        let a = self.add_polytope(a.into())?;
-        let b = self.add_polytope(b.into())?;
-        self.add_polytope(PolytopeData::Polytope {
-            rank: 1,
-            boundary: Set64::from_iter([a, b]),
-
-            is_primordial: false,
-            seam: None,
-
-            patch: None,
-        })
-    }
     /// Memoizes a polytope.
     pub fn add_polytope(&self, p: PolytopeData) -> Result<ElementId, IndexOverflow> {
         // Validate the boundary of the polytope.
@@ -194,34 +181,24 @@ impl Space {
         new_boundary: Set64<ElementId>,
     ) -> Result<Option<ElementId>> {
         let p = match &self.polytopes.lock()[original] {
-            PolytopeData::Vertex(_) => bail!("expected polytope; got vertex"),
+            PolytopeData::Vertex(_) => bail!("expected non-vertex polytope; got vertex"),
             PolytopeData::Polytope {
                 rank,
                 boundary: _,
+                hyperplane,
                 is_primordial,
                 seam,
                 patch,
             } => PolytopeData::Polytope {
                 rank: *rank,
                 boundary: new_boundary,
+                hyperplane: *hyperplane,
                 is_primordial: *is_primordial,
                 seam: *seam,
                 patch: *patch,
             },
         };
-        let new_id = self.add_polytope_if_non_degenerate(p)?;
-
-        if let Some(new) = new_id
-            && self.polytopes.lock()[new].rank() + 1 == self.ndim
-        {
-            // Intersection is a new facet! Copy the facet hyperplane.
-            let mut cache = self.cached_hyperplane_of_facet.lock();
-            if let Some(plane) = cache.get(&original).cloned() {
-                cache.insert(new, plane);
-            }
-        }
-
-        Ok(new_id)
+        Ok(self.add_polytope_if_non_degenerate(p)?)
     }
 
     /// Returns the endpoints of a line, or an error if `line` is not a line.
@@ -256,15 +233,6 @@ impl Space {
             .lock()
             .insert(polytope, result.clone());
         result
-    }
-
-    /// Returns the hyperplane in which a facet lives.
-    pub fn hyperplane_of_facet(&self, facet: FacetId) -> Result<Hyperplane> {
-        self.cached_hyperplane_of_facet
-            .lock()
-            .get(&ElementId(facet.0))
-            .cloned()
-            .ok_or_eyre("missing hyperplane for facet")
     }
 
     /// Returns a set of subelements of a polytope, of all ranks except points.
@@ -403,6 +371,7 @@ impl Space {
                     PolytopeData::Polytope {
                         rank,
                         boundary,
+                        hyperplane,
 
                         is_primordial,
 
@@ -412,6 +381,9 @@ impl Space {
                         s += &format!("{p}: {rank}D polytope");
                         if *is_primordial {
                             s += " (primordial)";
+                        }
+                        if let Some(h) = hyperplane {
+                            s += &format!(" (hyperplane {h})");
                         }
                         if let Some(seam) = seam {
                             s += &format!(" (seam {seam})");
