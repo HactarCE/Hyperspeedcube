@@ -81,8 +81,8 @@ impl ProductPuzzleBuilder {
         let axes = ProductPuzzleAxes::new(&spec.symmetry, &spec.axis_orbits, warn_fn)?;
 
         // Slice axes
-        for (orbit, axis_orbit_spec) in axes.orbits().zip(&spec.axis_orbits) {
-            for axis in orbit.axis_range {
+        for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
+            for axis in orbit.axes() {
                 for (layer, cut_distance) in axis_orbit_spec.layer_cut_distances() {
                     shape_builder.slice(axis, &axes.vectors[axis], cut_distance, layer)?;
                 }
@@ -150,12 +150,12 @@ impl ProductPuzzleBuilder {
 
         let axes_with_twists: Vec<Axis> = self
             .axes
-            .orbits()
+            .orbits
+            .iter()
             .filter(|orbit| {
-                orbit.axis_orbit.max_layer > 0
-                    && twist_system_engine_data.axis_has_twists(orbit.first_axis)
+                orbit.max_layer > 0 && twist_system_engine_data.axis_has_twists(orbit.first())
             })
-            .flat_map(|orbit| orbit.axis_range)
+            .flat_map(|orbit| orbit.axes())
             .collect();
 
         let mut mesh = self.shape.build_mesh()?;

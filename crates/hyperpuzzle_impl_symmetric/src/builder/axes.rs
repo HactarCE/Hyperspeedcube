@@ -11,7 +11,7 @@ use hypuz_notation::AxisLayersInfo;
 use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 
-use crate::{AxisOrbitSpec, names::NameBiMap};
+use crate::AxisOrbitSpec;
 
 /// Axis system of a puzzle under construction.
 #[derive(Debug)]
@@ -21,9 +21,14 @@ pub(super) struct ProductPuzzleAxes {
     /// Action of the grip group on axes.
     pub action: GroupAction<Axis>,
     /// Vector for each axis.
+    ///
+    /// The vector is not necessarily normalized. Its magnitude determines the
+    /// placement of twist gizmos in 3D and 4D. For a facet-turning puzzle, each
+    /// axis vector will typically be scaled to match the distance of its
+    /// corresponding facet.
     pub vectors: Arc<PerAxis<Vector>>,
-    /// Axis sets, each with a distinct lowercase Latin prefix.
-    pub sets: Vec<AxisSet>,
+    /// Axis orbits.
+    pub orbits: Vec<AxisOrbit>,
 }
 
 impl ProductPuzzleAxes {
@@ -39,7 +44,7 @@ impl ProductPuzzleAxes {
             group: IsometryGroup::trivial(),
             action: GroupAction::trivial(),
             vectors: Arc::new(PerAxis::new()),
-            sets: vec![],
+            orbits: vec![],
         }
     }
 
@@ -51,12 +56,18 @@ impl ProductPuzzleAxes {
         let generators = symmetry.generator_motors();
 
         let mut vectors = PerAxis::new();
-        let mut axis_names = NameBiMap::new();
         let mut new_orbits = vec![];
         for orbit in axis_orbits {
+            let mut names = vec![];
+            let named_axis_vectors = orbit.named_axis_vectors(generators, |e| warn_fn(eyre!(e)));
+            for (vector, name) in named_axis_vectors {
+                vectors.push(vector.clone())?;
+                names.push(name.clone());
+            }
             new_orbits.push(AxisOrbit {
                 len: orbit.len(),
-                vector: orbit.initial_vector.clone(),
+                prefix: hypuz_notation::family::SequentialLowercaseName(0),
+                id_offset: 0,
                 max_layer: orbit.layer_count().try_into()?,
                 generator_sequences: Arc::new(
                     orbit
@@ -65,25 +76,13 @@ impl ProductPuzzleAxes {
                         .map(|(abbr_gen_seq, _)| abbr_gen_seq.clone())
                         .collect(),
                 ),
+                names: Arc::new(names),
             });
-            let named_axis_vectors = orbit.named_axis_vectors(generators, |e| warn_fn(eyre!(e)));
-            for (vector, name) in named_axis_vectors {
-                vectors.push(vector.clone())?;
-                axis_names.push(name.clone())?;
-            }
         }
-
-        let axis_set = AxisSet {
-            ndim: symmetry.ndim(),
-            len: vectors.len(),
-            id_offset: 0,
-            names: Arc::new(axis_names),
-            orbits: new_orbits,
-        };
 
         // Shuffling group generators improves average word length, making some
         // group operations faster.
-        let symmetry = crate::shuffle_group_generators(&symmetry, &mut rand::rng());
+        let symmetry = crate::shuffle_group_generators(&symmetry, &mut rand::rng())?;
 
         let axis_points = vectors.map_ref(|_, v| Point(v.clone()));
         let action = symmetry.action_on_points(&axis_points)?;
@@ -92,7 +91,7 @@ impl ProductPuzzleAxes {
             group: symmetry,
             action,
             vectors: Arc::new(vectors),
-            sets: vec![axis_set],
+            orbits: new_orbits,
         })
     }
 
@@ -107,8 +106,6 @@ impl ProductPuzzleAxes {
             return Err(IndexOverflow::new::<Axis>().into());
         }
 
-        let a_axis_count = a.len();
-
         let vectors = std::iter::chain(
             a.vectors
                 .iter_values()
@@ -119,23 +116,21 @@ impl ProductPuzzleAxes {
         )
         .collect();
 
-        let sets = std::iter::chain(
-            a.sets
-                .iter()
-                .map(|a_axis_set| a_axis_set.lift_ndim(0, b.ndim())),
-            b.sets.iter().map(|b_axis_set| {
-                b_axis_set
-                    .lift_ndim(a.ndim(), 0)
-                    .offset_ids_by(a_axis_count)
+        let orbits = std::iter::chain(
+            a.orbits.iter().cloned().map(eyre::Ok),
+            b.orbits.iter().cloned().map(|b_orbit| {
+                Ok(b_orbit
+                    .offset_ids_by(a.len())?
+                    .offset_prefix_by(a.prefix_count()))
             }),
         )
-        .collect();
+        .try_collect()?;
 
         Ok(Self {
             group: IsometryGroup::product([&a.group, &b.group])?,
             action: GroupAction::product([&a.action, &b.action])?,
             vectors: Arc::new(vectors),
-            sets,
+            orbits,
         })
     }
 
@@ -144,49 +139,30 @@ impl ProductPuzzleAxes {
         self.vectors.len()
     }
 
-    /// Returns an iterator over axis orbits. Each item in the iterator
-    /// contains:
-    ///
-    /// - First axis in the orbit
-    /// - Range of axes in the orbit
-    /// - Axis set, which is shared among several orbits
-    /// - Axis orbit itself
-    pub fn orbits(&self) -> impl Iterator<Item = AxisOrbitIterItem<'_>> {
-        self.sets.iter().flat_map(|axis_set| {
-            let mut next_orbit_start = axis_set.id_offset;
-            axis_set.orbits.iter().map(move |axis_orbit| {
-                let orbit_start = next_orbit_start;
-                next_orbit_start += axis_orbit.len;
-                let axis_range = Axis::iter_range(orbit_start..next_orbit_start);
-                let first_axis = Axis::try_from_index(orbit_start).expect("unchecked overflow");
-                AxisOrbitIterItem {
-                    first_axis,
-                    axis_range,
-                    axis_set,
-                    axis_orbit,
-                }
-            })
-        })
+    /// Returns the number of lowercase prefixes that are in use for axis sets.
+    pub fn prefix_count(&self) -> u32 {
+        self.orbits
+            .iter()
+            .map(|orbit| orbit.prefix.0 + 1)
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn build_axis_system(&self) -> Result<AxisSystem> {
         let mut names = NameSpecBiMapBuilder::new();
-        for (i, axis_set) in self.sets.iter().enumerate() {
-            let prefix = hypuz_notation::family::SequentialLowercaseName(i as _);
-            for (id, name) in axis_set.names.id_to_name() {
-                names.set(
-                    Axis::try_from_index(axis_set.id_offset + id.to_index())?,
-                    Some(format!("{prefix}{name}")),
-                )?;
+        for orbit in &self.orbits {
+            for (id, name) in std::iter::zip(orbit.axes(), &*orbit.names) {
+                names.set(id, Some(format!("{}{}", orbit.prefix, name)))?;
             }
         }
         let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis name")?);
 
         let orbits = self
-            .orbits()
+            .orbits
+            .iter()
             .map(|orbit| Orbit {
-                elements: Arc::new(orbit.axis_range.map(Some).collect()),
-                generator_sequences: Arc::clone(&orbit.axis_orbit.generator_sequences),
+                elements: Arc::new(orbit.axes().map(Some).collect()),
+                generator_sequences: Arc::clone(&orbit.generator_sequences),
             })
             .collect();
 
@@ -202,19 +178,18 @@ impl ProductPuzzleAxes {
         solver: &mut ConstraintSolver<Axis>,
     ) -> Result<PerAxis<(GroupElementId, i32)>> {
         let mut unit_twists = PerAxis::with_capacity(self.len());
-        for orbit in self.orbits() {
-            let first_axis = orbit.first_axis;
+        for orbit in &self.orbits {
             let (first_transform, order) = if self.ndim() == 3 {
-                self.axis_unit_twist_transform(solver, first_axis)
+                self.axis_unit_twist_transform(solver, orbit.first())
             } else {
                 None
             }
             .unwrap_or((GroupElementId::IDENTITY, 0)); // sentinel indicating no unit twist
-            for new_axis in orbit.axis_range {
+            for new_axis in orbit.axes() {
                 if order != 0
                     && let Some(new_transform) = self.transfer_twist_transform(
                         solver,
-                        (first_axis, first_transform),
+                        (orbit.first(), first_transform),
                         new_axis,
                     )
                 {
@@ -289,10 +264,11 @@ impl ProductPuzzleAxes {
     }
 
     pub fn build_axis_layers(&self) -> PerAxis<AxisLayersInfo> {
-        self.orbits()
+        self.orbits
+            .iter()
             .flat_map(|orbit| {
-                orbit.axis_range.map(|_| AxisLayersInfo {
-                    max_layer: orbit.axis_orbit.max_layer,
+                orbit.axes().map(|_| AxisLayersInfo {
+                    max_layer: orbit.max_layer,
                     allow_negatives: false, // TODO: allow negatives on some axes
                 })
             })
@@ -300,85 +276,57 @@ impl ProductPuzzleAxes {
     }
 }
 
-/// Set of axes with a common lowercase Latin prefix.
+/// Orbit of axes.
 ///
-/// This type is reference-counted and thus relatively cheap to clone.
-#[derive(Debug)]
-pub(super) struct AxisSet {
-    /// Number of dimensions of the space containing the puzzle.
-    pub ndim: u8,
-    /// Number of axes in the set.
-    pub len: usize,
-    /// ID offset of the axes in the set.
-    ///
-    /// IDs within an set always count starting from 0, but the puzzle may have
-    /// multiple sets and so puzzle-facing IDs for axes in this set must start
-    /// counting from this offset.
-    pub id_offset: usize,
-    /// Axis names.
-    pub names: Arc<NameBiMap<Axis>>,
-    /// Axis orbits.
-    pub orbits: Vec<AxisOrbit>,
-}
-
-impl AxisSet {
-    /// Lifts the axis orbit into a higher dimension.
-    ///
-    /// - All axis vectors are lifted into a higher dimension.
-    pub fn lift_ndim(&self, ndim_below: u8, ndim_above: u8) -> Self {
-        Self {
-            ndim: ndim_below + self.ndim + ndim_above,
-            len: self.len,
-            id_offset: self.id_offset,
-            names: Arc::clone(&self.names),
-            orbits: self
-                .orbits
-                .iter()
-                .map(|axis_orbit| AxisOrbit {
-                    len: axis_orbit.len,
-                    vector: crate::lift_vector_by_ndim(
-                        &axis_orbit.vector,
-                        ndim_below,
-                        self.ndim,
-                        ndim_above,
-                    ),
-                    max_layer: axis_orbit.max_layer,
-                    generator_sequences: Arc::clone(&axis_orbit.generator_sequences),
-                })
-                .collect(),
-        }
-    }
-
-    /// Offsets all axis IDs by an additional amount.
-    #[must_use]
-    pub fn offset_ids_by(mut self, additional_offset: usize) -> Self {
-        self.id_offset += additional_offset;
-        self
-    }
-}
-
-#[derive(Debug)]
+/// This type is mostly reference-counted and thus relatively cheap to clone.
+#[derive(Debug, Clone)]
 pub struct AxisOrbit {
     /// Number of axes in the orbit.
     pub len: usize,
-    /// Vector for the first axis.
+    /// Sequential lowercase prefix for the orbit.
     ///
-    /// This vector is not necessarily normalized. Its magnitude determines the
-    /// placement of twist gizmos in 4D. For a facet-turning puzzle, each axis
-    /// vector will typically be scaled to match the distance of its
-    /// corresponding facet.
-    pub vector: Vector,
+    /// This may be shared among other orbits.
+    pub prefix: hypuz_notation::family::SequentialLowercaseName,
+    /// ID offset of the axes in the orbit.
+    ///
+    /// IDs within an orbit always count starting from 0, but the puzzle may
+    /// have multiple sets and so puzzle-facing IDs for axes in this set must
+    /// start counting from this offset.
+    pub id_offset: usize,
     /// Number of layers on each axis, which is equivalent to the maximum layer
     /// number.
     pub max_layer: u16,
     /// Generator sequence for each axis in the orbit.
     pub generator_sequences: Arc<Vec<hypergroup::AbbrGenSeq>>,
+    /// Name for each axis in the orbit, not including its prefix.
+    pub names: Arc<Vec<String>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AxisOrbitIterItem<'a> {
-    pub first_axis: Axis,
-    pub axis_range: TypedIndexIter<Axis>,
-    pub axis_set: &'a AxisSet,
-    pub axis_orbit: &'a AxisOrbit,
+impl AxisOrbit {
+    /// Offsets all axis IDs by an additional amount.
+    #[must_use]
+    pub fn offset_ids_by(mut self, additional_id_offset: usize) -> Result<Self, IndexOverflow> {
+        self.id_offset += additional_id_offset;
+        Axis::try_iter_range(self.id_offset..self.id_offset + self.len)?; // check for overflow
+        Ok(self)
+    }
+
+    /// Offsets the axis prefix by an additional amount.
+    pub fn offset_prefix_by(mut self, additional_prefix_offset: u32) -> Self {
+        self.prefix.0 += additional_prefix_offset;
+        self
+    }
+}
+
+impl AxisOrbit {
+    /// Returns the first axis in the orbit.
+    pub fn first(&self) -> Axis {
+        Axis::try_from_index(self.id_offset)
+            .expect("overflow should have been caught on construction")
+    }
+
+    /// Returns an iterator over the axes in the orbit.
+    pub fn axes(&self) -> TypedIndexIter<Axis> {
+        Axis::iter_range(self.id_offset..self.id_offset + self.len)
+    }
 }

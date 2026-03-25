@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
@@ -363,13 +363,13 @@ fn lift_vector_by_ndim<V: FromIterator<Float>>(
 fn shuffle_group_generators(
     group: &hypergroup::IsometryGroup,
     mut rng: impl rand::Rng,
-) -> hypergroup::IsometryGroup {
+) -> Result<hypergroup::IsometryGroup> {
     use rand::RngExt;
 
     const SHUFFLE_ITERATIONS: usize = 100;
 
     if group.generators().len() < 2 {
-        return group.clone();
+        return Ok(group.clone());
     }
 
     // TODO: add more generators, especially for polygons
@@ -380,11 +380,12 @@ fn shuffle_group_generators(
         if j >= i {
             j += 1;
         }
-        generators[i] = &generators[i] * &generators[j];
+        generators[i] = (&generators[i] * &generators[j])
+            .canonicalize()
+            .ok_or_eyre("error canonicalizing motor")?;
     }
-    hypergroup::IsometryGroup::from_generators(
+    Ok(hypergroup::IsometryGroup::from_generators(
         group.abstract_group().label(),
         hypergroup::PerGenerator::from(generators),
-    )
-    .unwrap()
+    )?)
 }
