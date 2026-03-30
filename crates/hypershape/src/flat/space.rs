@@ -1,35 +1,36 @@
-use hypuz_util::ti::IndexOverflow;
+use std::sync::atomic::AtomicU64;
 
 use super::*;
 
-/// Patch of Euclidean (i.e., flat) space in which polytopes can be constructed.
+/// Global monotonic ID for [`Space`].
+static GLOBAL_SPACE_ID: AtomicU64 = AtomicU64::new(0);
+
+/// Infinite Euclidean (i.e., flat) space in which polytopes can be constructed.
 pub struct Space {
+    /// Unique ID.
+    pub(super) id: u64,
+
     /// Number of dimensions of the space.
     ndim: u8,
 
-    /// Reference-counted pointer to this struct.
-    this: Weak<Self>,
-
     /// Primordial cube.
-    pub(super) primordial_cube: Mutex<Option<PolytopeId>>,
+    pub(super) primordial_cube: PolytopeId,
 
-    // TODO: consider using `scc`
-    pub(super) vertices: Mutex<PerVertex<Point>>,
-    pub(super) vertex_data_to_id: Mutex<ApproxHashMap<Point, VertexId>>,
+    /// Coordinates for each vertex.
+    ///
+    /// Every vertex also has an entry in [`Self::polytopes`].
+    pub(super) vertex_coordinates: FlatTiVec<VertexId, Float>,
+    pub(super) polytopes: TiVec<ElementId, PolytopeData>,
+    pub(super) hyperplanes: TiVec<HyperplaneId, Hyperplane>,
 
-    pub(super) polytopes: Mutex<PerElement<PolytopeData>>,
-    pub(super) polytope_data_to_id: Mutex<HashMap<PolytopeData, ElementId>>,
+    pub(super) vertex_data_to_id: ApproxHashMap<Point, VertexId>,
+    pub(super) polytope_data_to_id: HashMap<PolytopeData, ElementId>,
 
-    pub(super) hyperplanes: Mutex<PerHyperplane<Hyperplane>>,
-
+    /// Cached results for [`Self::vertex_set()`].
     pub(super) cached_vertex_set: Mutex<HashMap<ElementId, Set64<VertexId>>>,
-
-    pub(super) cached_which_side_has_polytope:
-        Mutex<ApproxHashMap<Hyperplane, HashMap<ElementId, WhichSide>>>,
-
-    /// Decomposition of each polytope element into simplices.
+    /// Cached results for [`Self::simplices()`].
     pub(super) cached_simplices: Mutex<HashMap<ElementId, SimplexBlob>>,
-    /// Centroid of each polytope element.
+    /// Cached results for [`Self::centroid()`].
     pub(super) cached_centroids: Mutex<HashMap<ElementId, Centroid>>,
 }
 
@@ -47,53 +48,130 @@ impl Space {
     /// Maximum number of dimensions.
     pub const MAX_NDIM: u8 = 7;
 
-    /// Constructs a new space containing no polytopes.
+    /// Constructs a new space with a primordial cube of radius
+    /// [`crate::PRIMORDIAL_CUBE_RADIUS`].
     ///
-    /// # Panics
+    /// Returns an error if `ndim` is not in the range
+    /// [`Self::MIN_NDIM`]`..=`[`Self::MAX_NDIM`].
+    pub fn new(ndim: u8) -> Result<Self> {
+        Self::with_primordial_cube_radius(ndim, crate::PRIMORDIAL_CUBE_RADIUS)
+    }
+
+    /// Constructs a new space with a primordial cube of radius `radius`.
     ///
-    /// Panics if `ndim` is not within `MIN_NDIM..=MAX_NDIM`.
-    pub fn new(ndim: u8) -> Arc<Self> {
+    /// Returns an error if `ndim` is not in the range
+    /// [`Self::MIN_NDIM`]`..=`[`Self::MAX_NDIM`].
+    pub fn with_primordial_cube_radius(ndim: u8, radius: Float) -> Result<Self> {
+        let id = GLOBAL_SPACE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         let (min, max) = (Self::MIN_NDIM, Self::MAX_NDIM);
-        assert!(ndim >= min, "ndim={ndim} is below min value of {min}");
-        assert!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
-        Arc::new_cyclic(|this| Self {
+        ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
+        ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
+
+        let mut vertex_coordinates: FlatTiVec<VertexId, f64> = FlatTiVec::new(ndim as usize);
+        let mut polytopes: TiVec<ElementId, PolytopeData> = TiVec::new();
+        let mut hyperplanes: TiVec<HyperplaneId, Hyperplane> = TiVec::new();
+
+        // Construct a 3^d array of polytope elements. Along each axis X, the
+        // polytopes at X=0 and X=1 are on the boundary of X=2.
+        let mut elements = Vec::<ElementId>::with_capacity(3_usize.pow(ndim as _));
+        let mut position = vec![0; ndim as usize];
+        let primordial_cube = 'outer: loop {
+            let zero_axes = position.iter().positions(|&x| x == 2).collect_vec();
+            let element_centroid =
+                Point::from_iter(position.iter().map(|&x| [-radius, radius, 0.0][x]));
+            let element_rank = zero_axes.len() as u8;
+            let polytope_data = if element_rank == 0 {
+                let vertex_id = vertex_coordinates.push_row(element_centroid.as_vector().iter())?;
+                PolytopeData::Vertex(vertex_id)
+            } else {
+                let stride = |i| 3_usize.pow(i as _);
+                let base: usize = position
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &x)| stride(i) * x)
+                    .sum();
+                let boundary_indexes = position
+                    .iter()
+                    .positions(|&x| x == 2)
+                    .flat_map(|i| [base - stride(i), base - stride(i) * 2])
+                    .collect_vec();
+
+                let boundary = boundary_indexes.iter().map(|&i| elements[i]).collect();
+                let hyperplane = if element_rank + 1 == ndim {
+                    Some(
+                        hyperplanes.push(
+                            Hyperplane::from_pole(element_centroid.as_vector())
+                                .ok_or_eyre("error constructing primordial hyperplane")?,
+                        )?,
+                    )
+                } else {
+                    None
+                };
+                PolytopeData::Polytope {
+                    rank: element_rank,
+                    boundary,
+                    hyperplane,
+                    is_primordial: element_rank + 1 == ndim,
+                }
+            };
+
+            let new_id = polytopes.push(polytope_data)?;
+            if element_rank == ndim {
+                // We've constructed the whole cube!
+                break PolytopeId(new_id.0);
+            }
+            elements.push(new_id);
+
+            // Move to the next element position.
+            for component in &mut position {
+                *component += 1;
+                if *component > 2 {
+                    *component = 0;
+                } else {
+                    continue 'outer;
+                }
+            }
+        };
+
+        let vertex_data_to_id = ApproxHashMap::from_iter(
+            APPROX,
+            vertex_coordinates
+                .iter()
+                .map(|(id, data)| (Point::from(data), id)),
+        );
+        let polytope_data_to_id =
+            HashMap::from_iter(polytopes.iter().map(|(id, data)| (data.clone(), id)));
+
+        Ok(Self {
+            id,
+
             ndim,
-            this: this.clone(),
 
-            primordial_cube: Mutex::new(None),
+            primordial_cube,
 
-            vertices: Mutex::new(PerVertex::new()),
-            vertex_data_to_id: Mutex::new(ApproxHashMap::new(APPROX)),
+            vertex_coordinates,
+            polytopes,
+            hyperplanes,
 
-            polytopes: Mutex::new(PerElement::new()),
-            polytope_data_to_id: Mutex::new(HashMap::new()),
-
-            hyperplanes: Mutex::new(PerHyperplane::new()),
+            vertex_data_to_id,
+            polytope_data_to_id,
 
             cached_vertex_set: Mutex::new(HashMap::new()),
-
-            cached_which_side_has_polytope: Mutex::new(ApproxHashMap::new(APPROX)),
-
             cached_simplices: Mutex::new(HashMap::new()),
             cached_centroids: Mutex::new(HashMap::new()),
         })
     }
 
-    /// Returns an `Arc` reference to the space.
-    pub fn arc(&self) -> Arc<Self> {
-        self.this.upgrade().expect("`Space` removed from `Arc`")
+    /// Returns the primordial cube.
+    pub fn primordial_cube(&self) -> PolytopeId {
+        self.primordial_cube
     }
+
     /// Returns an error if `self` and `other` are different spaces.
     pub fn ensure_same_as(&self, other: &Self) -> Result<()> {
-        if !Weak::ptr_eq(&self.this, &other.this) {
+        if self.id != other.id {
             bail!("cannot operate between different spaces");
-        }
-        Ok(())
-    }
-    /// Returns an error if `self` and `other` are the same space.
-    pub fn ensure_not_same_as(&self, other: &Self) -> Result<()> {
-        if Weak::ptr_eq(&self.this, &other.this) {
-            bail!("expected different spaces but got the same space");
         }
         Ok(())
     }
@@ -108,27 +186,38 @@ impl Space {
         SpaceRef { space: self, id }
     }
 
+    /// Returns the position of a vertex.
+    pub fn vertex_pos(&self, v: VertexId) -> Point {
+        Point::from(&self.vertex_coordinates[v])
+    }
+
     /// Returns the polytope ID for a vertex.
+    ///
+    /// Returns an error if the vertex is not added as a polytope.
     pub fn vertex_to_polytope(&self, v: VertexId) -> ElementId {
-        self.add_polytope(v.into())
-            .expect("TODO: handle vertex_to_polytope() error better")
+        // This should never panic because vertices are always added as
+        // polytopes.
+        self.polytope_data_to_id[&PolytopeData::Vertex(v)]
     }
 
     /// Memoizes a vertex.
-    pub fn add_vertex(&self, p: Point) -> Result<VertexId, IndexOverflow> {
-        let cache = &mut self.vertex_data_to_id.lock();
-        match cache.entry(p.clone()) {
-            approx_collections::hash_map::Entry::Occupied(e) => Ok(*e.get()),
+    pub fn add_vertex(&mut self, p: Point) -> Result<(VertexId, ElementId), IndexOverflow> {
+        let vertex_id = match self.vertex_data_to_id.entry(p) {
+            approx_collections::hash_map::Entry::Occupied(e) => *e.get(),
             approx_collections::hash_map::Entry::Vacant(e) => {
-                let vertex_id = *e.insert(self.vertices.lock().push(p)?);
+                let coordinates = e.key().as_vector().iter();
+                let vertex_id = self.vertex_coordinates.push_row(coordinates)?;
+                let vertex_id = *e.insert(vertex_id);
                 // Ensure that the vertex has a polytope ID as well.
                 self.add_polytope(vertex_id.into())?;
-                Ok(vertex_id)
+                vertex_id
             }
-        }
+        };
+        let element_id = self.add_polytope(PolytopeData::Vertex(vertex_id))?;
+        Ok((vertex_id, element_id))
     }
     /// Memoizes a polytope.
-    pub fn add_polytope(&self, p: PolytopeData) -> Result<ElementId, IndexOverflow> {
+    pub fn add_polytope(&mut self, p: PolytopeData) -> Result<ElementId, IndexOverflow> {
         // Validate the boundary of the polytope.
         #[cfg(debug_assertions)]
         match &p {
@@ -159,13 +248,13 @@ impl Space {
             }
         }
 
-        match self.polytope_data_to_id.lock().entry(p.clone()) {
+        match self.polytope_data_to_id.entry(p.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
-            hash_map::Entry::Vacant(e) => Ok(*e.insert(self.polytopes.lock().push(p)?)),
+            hash_map::Entry::Vacant(e) => Ok(*e.insert(self.polytopes.push(p)?)),
         }
     }
     pub(super) fn add_polytope_if_non_degenerate(
-        &self,
+        &mut self,
         p: PolytopeData,
     ) -> Result<Option<ElementId>, IndexOverflow> {
         if let PolytopeData::Polytope { rank, boundary, .. } = &p
@@ -176,26 +265,22 @@ impl Space {
         self.add_polytope(p).map(Some)
     }
     pub(super) fn add_subpolytope_if_non_degenerate(
-        &self,
+        &mut self,
         original: ElementId,
         new_boundary: Set64<ElementId>,
     ) -> Result<Option<ElementId>> {
-        let p = match &self.polytopes.lock()[original] {
+        let p = match &self.polytopes[original] {
             PolytopeData::Vertex(_) => bail!("expected non-vertex polytope; got vertex"),
             PolytopeData::Polytope {
                 rank,
                 boundary: _,
                 hyperplane,
                 is_primordial,
-                seam,
-                patch,
             } => PolytopeData::Polytope {
                 rank: *rank,
                 boundary: new_boundary,
                 hyperplane: *hyperplane,
                 is_primordial: *is_primordial,
-                seam: *seam,
-                patch: *patch,
             },
         };
         Ok(self.add_polytope_if_non_degenerate(p)?)
@@ -203,12 +288,11 @@ impl Space {
 
     /// Returns the endpoints of a line, or an error if `line` is not a line.
     pub fn line_endpoints(&self, line: ElementId) -> Option<[VertexId; 2]> {
-        let polytopes = self.polytopes.lock();
-        let mut points = polytopes[line]
+        let mut points = self.polytopes[line]
             .boundary()
             .ok()?
             .iter()
-            .map(|p| polytopes[p].to_vertex());
+            .map(|p| self.polytopes[p].to_vertex());
         Some([points.next()??, points.next()??])
     }
 
@@ -219,11 +303,9 @@ impl Space {
             return result.clone();
         }
 
-        let polytopes = self.polytopes.lock();
-        let result = match polytopes[polytope].clone() {
-            PolytopeData::Vertex(p) => Set64::<VertexId>::from_iter([p]),
+        let result = match &self.polytopes[polytope] {
+            PolytopeData::Vertex(p) => Set64::<VertexId>::from_iter([*p]),
             PolytopeData::Polytope { boundary, .. } => {
-                drop(polytopes);
                 let boundary = boundary.clone();
                 boundary.iter().flat_map(|b| self.vertex_set(b)).collect()
             }
@@ -241,7 +323,7 @@ impl Space {
         let mut queue = vec![root];
         while let Some(p) = queue.pop() {
             if ret.insert(p)
-                && let Ok(boundary) = self.polytopes.lock()[p].boundary()
+                && let Ok(boundary) = self.polytopes[p].boundary()
             {
                 queue.extend(boundary.iter());
             }
@@ -251,20 +333,19 @@ impl Space {
 
     /// Returns the set of all subelements of `root` with rank `rank`.
     pub(super) fn subelements_with_rank(&self, root: ElementId, rank: u8) -> Set64<ElementId> {
-        let polytopes = self.polytopes.lock();
-        if rank > polytopes[root].rank() {
+        if rank > self.polytopes[root].rank() {
             return Set64::new();
         }
         let mut ret = Set64::<ElementId>::from_iter([root]);
         while ret
             .iter()
             .next()
-            .is_some_and(|p| polytopes[p].rank() > rank)
+            .is_some_and(|p| self.polytopes[p].rank() > rank)
         {
             ret = ret
                 .iter()
                 // TODO: handle lines better?
-                .filter_map(|p| polytopes[p].boundary().ok())
+                .filter_map(|p| self.polytopes[p].boundary().ok())
                 .flat_map(|p| p.iter())
                 .collect();
         }
@@ -280,11 +361,9 @@ impl Space {
         &self,
         elements: Set64<ElementId>,
     ) -> Result<Set64<ElementId>> {
-        let polytopes = self.polytopes.lock();
-
         let mut rank = elements
             .iter()
-            .map(|p| polytopes[p].rank())
+            .map(|p| self.polytopes[p].rank())
             .all_equal_value()
             .map_err(|_| eyre!("polytopes have different ranks"))?;
 
@@ -306,7 +385,7 @@ impl Space {
                 .iter()
                 .map(|set| {
                     set.iter()
-                        .filter_map(|e| Some(polytopes[e].boundary().ok()?.iter()))
+                        .filter_map(|e| Some(self.polytopes[e].boundary().ok()?.iter()))
                         .flatten()
                         .collect()
                 })
@@ -319,29 +398,10 @@ impl Space {
         Ok(Set64::<ElementId>::new())
     }
 
-    /// Returns which side of `divider` contains `element`. The result is
-    /// cached.
-    pub fn which_side_has_polytope(&self, divider: &Hyperplane, element: ElementId) -> WhichSide {
-        let vertex_set = self.vertex_set(element);
-        *self
-            .cached_which_side_has_polytope
-            .lock()
-            .entry(divider.clone())
-            .or_default()
-            .entry(element)
-            .or_insert_with(|| {
-                WhichSide::from_points(
-                    vertex_set
-                        .iter()
-                        .map(|v| divider.location_of_point(&self.vertices.lock()[v])),
-                )
-            })
-    }
-
     /// Returns a human-readable string representation of a polytope element.
     pub fn dump_to_string(&self, root: ElementId) -> String {
-        let polytopes = self.polytopes.lock();
-        let vertices = self.vertices.lock();
+        let polytopes = &self.polytopes;
+        let vertices = &self.vertex_coordinates;
 
         let max_rank = polytopes[root].rank();
         let mut s = String::new();
@@ -362,7 +422,7 @@ impl Space {
                     Some([points.next()??, points.next()??])
                 })();
                 s += &match edge_verts {
-                    Some([a, b]) => format!("{p}: line {} .. {}", vertices[a], vertices[b]),
+                    Some([a, b]) => format!("{p}: line {:?} .. {:?}", &vertices[a], &vertices[b]),
                     None => format!("{p}: invalid edge"),
                 }
             } else {
@@ -372,11 +432,7 @@ impl Space {
                         rank,
                         boundary,
                         hyperplane,
-
                         is_primordial,
-
-                        seam,
-                        patch,
                     } => {
                         s += &format!("{p}: {rank}D polytope");
                         if *is_primordial {
@@ -384,12 +440,6 @@ impl Space {
                         }
                         if let Some(h) = hyperplane {
                             s += &format!(" (hyperplane {h})");
-                        }
-                        if let Some(seam) = seam {
-                            s += &format!(" (seam {seam})");
-                        }
-                        if let Some(patch) = patch {
-                            s += &format!(" (patch {patch})");
                         }
                         stack.extend(boundary.iter());
                     }

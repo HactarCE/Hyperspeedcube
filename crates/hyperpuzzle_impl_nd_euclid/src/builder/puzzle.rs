@@ -25,8 +25,8 @@ pub struct PuzzleBuilder {
     /// Puzzle metadata.
     pub meta: Arc<PuzzleListMetadata>,
 
-    /// Space in which the puzzle is constructed.
-    pub space: Arc<Space>,
+    /// Number of dimensions of the underlying space the puzzle is built in.
+    pub ndim: u8,
     /// Shape of the puzzle.
     pub shape: Arc<Mutex<ShapeBuilder>>,
     /// Twist system of the puzzle.
@@ -48,13 +48,12 @@ impl PuzzleBuilder {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
-        let space = Space::new(ndim);
-        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, Arc::clone(&space))?;
+        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, ndim)?;
         let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
         Ok(Self {
             meta,
 
-            space,
+            ndim,
             shape: Arc::new(Mutex::new(shape)),
             twists: Arc::new(Mutex::new(twists)),
 
@@ -65,9 +64,9 @@ impl PuzzleBuilder {
     }
 
     /// Returns the nubmer of dimensions of the underlying space the puzzle is
-    /// built in. Equivalent to `self.space.ndim()`.
+    /// built in.
     pub fn ndim(&self) -> u8 {
-        self.space.ndim()
+        self.ndim
     }
 
     /// Returns a mutable reference to the axis layers. All layers are
@@ -124,10 +123,8 @@ impl PuzzleBuilder {
     ) -> Result<Arc<Puzzle>> {
         let opt_id = Some(self.meta.id.as_str());
 
-        let shape_builder = self.shape.lock();
+        let mut shape_builder = self.shape.lock();
         let twists_builder = self.twists.lock();
-        let space = &shape_builder.space;
-        let ndim = space.ndim();
 
         // Build color system. TODO: cache this if unmodified
         let colors = Arc::new(shape_builder.colors.build(build_ctx, opt_id, warn_fn)?);
@@ -151,6 +148,9 @@ impl PuzzleBuilder {
             piece_type_hierarchy,
             piece_type_masks,
         } = shape_builder.build(warn_fn)?;
+
+        let space = &mut shape_builder.space;
+        let ndim = space.ndim();
 
         let engine_data = twists
             .engine_data

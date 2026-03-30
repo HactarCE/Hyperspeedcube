@@ -2,12 +2,11 @@
 
 use std::collections::{HashMap, hash_map};
 use std::fmt;
-use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, bail, ensure, eyre};
 use float_ord::FloatOrd;
 use hypermath::prelude::*;
-use hypuz_util::ti::TiVec;
+use hypuz_util::ti::{IndexOverflow, TiVec, flat_vec::FlatTiVec};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::{SmallVec, smallvec};
@@ -16,9 +15,7 @@ use tinyset::Set64;
 mod cut;
 mod cut_output;
 mod elements;
-mod map;
 mod polytope_data;
-mod primordial;
 mod simplicial;
 mod space;
 mod spaceref;
@@ -26,7 +23,6 @@ mod spaceref;
 pub use cut::{Cut, CutParams, PolytopeFate};
 pub use cut_output::ElementCutOutput;
 pub use elements::*;
-pub use map::{SpaceMap, SpaceMapFor};
 pub use polytope_data::PolytopeData;
 pub use simplicial::{Simplex, SimplexBlob};
 pub use space::Space;
@@ -48,19 +44,7 @@ hypuz_util::typed_index_struct! {
 
     /// ID for a memoized hyperplane in a [`Space`].
     pub struct HyperplaneId(pub u16);
-
-    /// ID for a patch in a [`Space`].
-    pub struct PatchId(pub u16);
-    /// ID for a seam of a patch in a [`Space`].
-    pub struct SeamId(pub u16);
 }
-
-/// List containing a value per polytope.
-pub type PerElement<T> = TiVec<ElementId, T>;
-/// List containing a value per vertex.
-pub type PerVertex<T> = TiVec<VertexId, T>;
-/// List containing a value per hyperplane.
-type PerHyperplane<T> = TiVec<HyperplaneId, T>;
 
 #[cfg(test)]
 mod tests {
@@ -68,10 +52,11 @@ mod tests {
 
     #[test]
     fn test_cube() -> Result<()> {
-        let space = Space::new(2);
-        let root = space.add_primordial_cube(10.0)?;
-        println!("{}", space.dump_to_string(root.as_element().id));
-        let result = Cut::carve(&space, Hyperplane::from_pole(vector![1.0]).unwrap())?.cut(root)?;
+        let mut space = Space::with_primordial_cube_radius(2, 10.0)?;
+        let root: ElementId = space.primordial_cube().into();
+        println!("{}", space.dump_to_string(root));
+        let result =
+            Cut::carve(Hyperplane::from_pole(vector![1.0]).unwrap()).cut(&mut space, root)?;
         match result {
             ElementCutOutput::Flush => println!("flush"),
             ElementCutOutput::NonFlush {

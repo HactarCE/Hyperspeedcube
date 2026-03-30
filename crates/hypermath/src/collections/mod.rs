@@ -1,4 +1,4 @@
-//! Collections for geometric algebra constructs.
+//! Collections for geometric constructs.
 
 mod motor_nn;
 mod vecmap;

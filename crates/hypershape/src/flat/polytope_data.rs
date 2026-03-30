@@ -19,17 +19,9 @@ pub enum PolytopeData {
         boundary: Set64<ElementId>,
         /// Hyperplane, if the polytope is a facet.
         hyperplane: Option<HyperplaneId>,
-
         /// Whether the facet is on the surface of the primordial cube. This is
         /// only used for facets.
         is_primordial: bool,
-        /// Which seam if any, this facet links across. This is only used for
-        /// facets.
-        seam: Option<SeamId>,
-
-        /// Which patch of space the polytope exists in. This is only used for
-        /// top-level polytopes.
-        patch: Option<PatchId>,
     },
 }
 impl From<VertexId> for PolytopeData {

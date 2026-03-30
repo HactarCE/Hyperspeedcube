@@ -2,7 +2,6 @@
 //! polytope elements.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use eyre::{OptionExt, Result, bail, ensure};
 use hypermath::{Float, Hyperplane, Point, Vector};
@@ -14,11 +13,11 @@ use itertools::Itertools;
 use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 use crate::geometry::PolytopeGeometry;
 
-/// Constructor for [`ProductPuzzleBuilder`] using [`hypershape::Space`]
+/// Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeBuilder {
-    space: Arc<hypershape::Space>,
+    space: hypershape::Space,
 
     pieces: PerPiece<PieceShapeBuilder>,
     surfaces: PerSurface<SurfaceData>,
@@ -27,12 +26,9 @@ pub(super) struct PuzzleShapeBuilder {
 
 impl PuzzleShapeBuilder {
     pub fn new(ndim: u8, axis_count: usize) -> Result<Self> {
-        let space = hypershape::Space::new(ndim);
+        let space = hypershape::Space::new(ndim)?;
         let pieces = PerPiece::from_iter([PieceShapeBuilder {
-            polytope: space
-                .add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?
-                .as_element()
-                .id(),
+            polytope: space.primordial_cube().into(),
             stickers: vec![],
             grip_signature: PerAxis::new_with_len(axis_count),
         }]);
@@ -52,7 +48,7 @@ impl PuzzleShapeBuilder {
 
     pub fn carve(&mut self, plane: Hyperplane, color_name: &String) -> Result<()> {
         let color = self.colors.push(color_name.clone())?;
-        let cut = hypershape::Cut::carve(&self.space, plane)?;
+        let cut = hypershape::Cut::carve(plane);
         self.cut(cut, Some(color), None)?;
         Ok(())
     }
@@ -64,7 +60,7 @@ impl PuzzleShapeBuilder {
         layer: Option<Layer>,
     ) -> Result<()> {
         let plane = Hyperplane::new(vector, distance).ok_or_eyre("bad cut plane")?;
-        let cut = hypershape::Cut::slice(&self.space, plane)?;
+        let cut = hypershape::Cut::slice(plane);
         self.cut(cut, None, Some((axis, layer)))?;
         Ok(())
     }
@@ -90,7 +86,7 @@ impl PuzzleShapeBuilder {
         self.pieces = self
             .pieces
             .iter()
-            .map(|(_, piece)| piece.cut(&mut cut, new_surface, color, inside_grip))
+            .map(|(_, piece)| piece.cut(&mut self.space, &mut cut, new_surface, color, inside_grip))
             .flatten_ok()
             .try_collect()?;
         if self.pieces.is_empty() {
@@ -182,6 +178,7 @@ struct PieceShapeBuilder {
 impl PieceShapeBuilder {
     fn cut(
         &self,
+        space: &mut hypershape::Space,
         cut: &mut hypershape::Cut,
         new_surface: Option<Surface>,
         color: Option<Color>,
@@ -193,7 +190,7 @@ impl PieceShapeBuilder {
         // Cut stickers
         let mut flush_sticker = None;
         for &sticker in &self.stickers {
-            match cut.cut(sticker.polytope)? {
+            match cut.cut(space, sticker.polytope)? {
                 hypershape::ElementCutOutput::Flush => flush_sticker = Some(sticker),
                 hypershape::ElementCutOutput::NonFlush {
                     inside, outside, ..
@@ -211,7 +208,7 @@ impl PieceShapeBuilder {
         }
 
         // Cut piece
-        match cut.cut(self.polytope)? {
+        match cut.cut(space, self.polytope)? {
             hypershape::ElementCutOutput::Flush => bail!("piece is flush with cut"),
             hypershape::ElementCutOutput::NonFlush {
                 inside,

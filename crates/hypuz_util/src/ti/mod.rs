@@ -11,10 +11,12 @@
 
 pub use tinyset::Fits64;
 
+pub mod flat_vec;
 mod index;
 mod mask;
 pub mod vec;
 
+pub use flat_vec::FlatTiVec;
 pub use index::{TypedIndex, TypedIndexIter};
 pub use mask::{TiMask, TiMaskIter};
 pub use vec::TiVec;

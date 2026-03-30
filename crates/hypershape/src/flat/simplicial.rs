@@ -51,6 +51,8 @@ impl Space {
 
             sum += Centroid::new(&center, weight);
         }
+
+        self.cached_centroids.lock().insert(element, sum.clone());
         Ok(sum)
     }
 

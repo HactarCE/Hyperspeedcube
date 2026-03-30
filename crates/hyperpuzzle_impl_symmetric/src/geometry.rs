@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::fmt;
-use std::ops::{Index, Range};
 
 use eyre::{Result, ensure};
 use hypermath::prelude::*;
@@ -14,76 +12,14 @@ hypuz_util::typed_index_struct! {
 
 /// List of a vector for each [`Vertex`], stored as a flattened
 /// `Vec<`[`Float`]`>`.
-pub struct VectorPerVertex {
-    /// Number of dimensions.
-    ndim: u8,
-    /// Number of points.
-    ///
-    /// This is tracked separately from `values` so that it works correctly in
-    /// the zero-dimensional case.
-    len: usize,
-    /// Flattened list of coordinates for each vertex.
-    values: Vec<f32>,
-}
+pub type FlatVectorList = FlatTiVec<Vertex, f32>;
 
-impl fmt::Debug for VectorPerVertex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
-}
-
-impl Index<Vertex> for VectorPerVertex {
-    type Output = [f32];
-
-    fn index(&self, index: Vertex) -> &Self::Output {
-        &self.values[self.index_range(index)]
-    }
-}
-
-impl VectorPerVertex {
-    pub fn new(ndim: u8) -> Self {
-        Self {
-            ndim,
-            len: 0,
-            values: vec![],
-        }
-    }
-
-    fn direct_product(a: &Self, b: &Self) -> Self {
-        Self {
-            ndim: a.ndim + b.ndim,
-            len: a.len * b.len,
-            values: itertools::iproduct!(a.iter(), b.iter())
-                .flat_map(|(va, vb)| std::iter::chain(va, vb).copied())
-                .collect(),
-        }
-    }
-
-    fn index_range(&self, v: Vertex) -> Range<usize> {
-        let i = v.to_index();
-        let ndim = self.ndim as usize;
-        i * ndim..(i + 1) * ndim
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn push(&mut self, point: impl VectorRef) -> Result<Vertex, IndexOverflow> {
-        let len = self.len;
-        self.len += 1;
-        self.values
-            .extend(point.iter_ndim(self.ndim).map(|x| x as f32));
-        Vertex::try_from_index(len)
-    }
-
-    pub fn keys(&self) -> TypedIndexIter<Vertex> {
-        Vertex::iter(self.len)
-    }
-
-    pub fn iter(&self) -> impl Clone + DoubleEndedIterator<Item = &[f32]> + ExactSizeIterator {
-        self.keys().map(|i| &self[i])
-    }
+fn direct_product_vector_lists(a: &FlatVectorList, b: &FlatVectorList) -> FlatVectorList {
+    FlatVectorList::from_iter(
+        a.column_count() + b.column_count(),
+        itertools::iproduct!(a.iter_rows(), b.iter_rows())
+            .map(|(va, vb)| std::iter::chain(va, vb).copied()),
+    )
 }
 
 /// Vertices, edges, and triangles of a polytope.
@@ -93,9 +29,9 @@ impl VectorPerVertex {
 #[derive(Debug)]
 pub struct PolytopeGeometry {
     /// Vertex coordinates.
-    pub verts: VectorPerVertex,
+    pub verts: FlatVectorList,
     /// Vertex shrink vectors.
-    pub shrink_vectors: VectorPerVertex,
+    pub shrink_vectors: FlatVectorList,
     /// Edges, defined in terms of `verts`.
     pub edges: Vec<[Vertex; 2]>,
     /// Concatenated polygons, defined in terms of `verts`.
@@ -116,35 +52,32 @@ pub struct PolytopeGeometry {
 impl PolytopeGeometry {
     /// Geometry for a single point in a zero-dimensional space.
     pub const POINT: Self = Self {
-        verts: VectorPerVertex {
-            ndim: 0,
-            len: 1,
-            values: vec![],
-        },
-        shrink_vectors: VectorPerVertex {
-            ndim: 0,
-            len: 1,
-            values: vec![],
-        },
+        verts: FlatVectorList::with_zero_columns(1), // 1 point
+        shrink_vectors: FlatVectorList::with_zero_columns(1), // 1 vector
         edges: vec![],
         polygon_verts: vec![],
         polygon_sizes: vec![],
         centroid: Centroid::ZERO,
     };
 
-    /// Retunrs the number of dimensions of the space containing the polytope.
+    /// Returns the number of dimensions of the space containing the polytope.
     ///
     /// This may be larger than the number of dimensions of the polytope itself.
     /// In fact, this type has no knowldege of the number of dimensions of the
     /// polytope itself.
     pub fn space_ndim(&self) -> u8 {
-        self.verts.ndim
+        self.verts.column_count() as u8
+    }
+
+    /// Returns the number of vertices in the polytope.
+    pub fn vertex_count(&self) -> usize {
+        self.verts.row_count()
     }
 
     /// Returns the direct product of two polytopes `a` and `b`, which exists in
     /// a space of dimension `a.space_ndim() + b.space_ndim()`.
     pub fn direct_product(a: &Self, b: &Self) -> Self {
-        let product_verts = |va: Vertex, vb: Vertex| Vertex(va.0 * b.verts.len() as u32 + vb.0);
+        let product_verts = |va: Vertex, vb: Vertex| Vertex(va.0 * b.vertex_count() as u32 + vb.0);
         let product_edges = |[va1, va2]: [Vertex; 2], [vb1, vb2]: [Vertex; 2]| {
             [
                 product_verts(va1, vb1),
@@ -154,8 +87,8 @@ impl PolytopeGeometry {
             ]
         };
 
-        let verts = VectorPerVertex::direct_product(&a.verts, &b.verts);
-        let shrink_vectors = VectorPerVertex::direct_product(&a.shrink_vectors, &b.shrink_vectors);
+        let verts = direct_product_vector_lists(&a.verts, &b.verts);
+        let shrink_vectors = direct_product_vector_lists(&a.shrink_vectors, &b.shrink_vectors);
 
         let edges = if a.space_ndim() == 1
             && b.space_ndim() == 1
@@ -164,17 +97,17 @@ impl PolytopeGeometry {
         {
             // Special case to keep orientation counterclockwise around
             // the polygon
-            assert_eq!(a.verts.len(), 2);
-            assert_eq!(b.verts.len(), 2);
+            assert_eq!(a.vertex_count(), 2);
+            assert_eq!(b.vertex_count(), 2);
             let [v0, v1, v2, v3] = product_edges(ea, eb);
             vec![[v0, v1], [v1, v3], [v3, v2], [v2, v0]]
         } else {
             std::iter::chain(
                 // a edge * b vertex
-                itertools::iproduct!(&a.edges, b.verts.keys())
+                itertools::iproduct!(&a.edges, b.verts.iter_keys())
                     .map(|(&[va1, va2], vb)| [product_verts(va1, vb), product_verts(va2, vb)]),
                 // a vertex * b edge
-                itertools::iproduct!(a.verts.keys(), &b.edges)
+                itertools::iproduct!(a.verts.iter_keys(), &b.edges)
                     .map(|(va, &[vb1, vb2])| [product_verts(va, vb1), product_verts(va, vb2)]),
             )
             .collect()
@@ -187,10 +120,10 @@ impl PolytopeGeometry {
                 [v0, v1, v3, v2]
             }),
             // a vertex * b polygon vertex
-            itertools::iproduct!(a.verts.keys(), &b.polygon_verts)
+            itertools::iproduct!(a.verts.iter_keys(), &b.polygon_verts)
                 .map(|(va, &pvb)| product_verts(va, pvb)),
             // b vertex * a polygon vertex
-            itertools::iproduct!(b.verts.keys(), &a.polygon_verts)
+            itertools::iproduct!(b.verts.iter_keys(), &a.polygon_verts)
                 .map(|(vb, &pva)| product_verts(pva, vb)),
         )
         .collect();
@@ -199,9 +132,9 @@ impl PolytopeGeometry {
             // a edge * b edge * 4
             itertools::iproduct!(0..a.edges.len(), 0..b.edges.len()).map(|_| 4),
             // a vertex * b polygon vertex
-            itertools::iproduct!(a.verts.keys(), &b.polygon_sizes).map(|(_, &size)| size),
+            itertools::iproduct!(a.verts.iter_keys(), &b.polygon_sizes).map(|(_, &size)| size),
             // b vertex * a polygon vertex
-            itertools::iproduct!(b.verts.keys(), &a.polygon_sizes).map(|(_, &size)| size),
+            itertools::iproduct!(b.verts.iter_keys(), &a.polygon_sizes).map(|(_, &size)| size),
         )
         .collect();
 
@@ -232,14 +165,17 @@ impl PolytopeGeometry {
         let ndim = polytope.space().ndim();
 
         let mut vertex_map = HashMap::new();
-        let mut verts = VectorPerVertex::new(ndim);
-        let mut shrink_vectors = VectorPerVertex::new(ndim);
+        let mut verts = FlatVectorList::new(ndim as usize);
+        let mut shrink_vectors = FlatVectorList::new(ndim as usize);
         for v in polytope.vertex_set() {
-            vertex_map.insert(v.id(), verts.push(v.pos().into_vector())?);
+            vertex_map.insert(
+                v.id(),
+                verts.push_row(v.pos().into_vector().iter().map(|x| x as f32))?,
+            );
             let shrink_vector = sticker_shrink_vectors
                 .get(&v.id())
                 .unwrap_or(const { &Vector::EMPTY });
-            shrink_vectors.push(shrink_vector)?;
+            shrink_vectors.push_row(shrink_vector.iter().map(|x| x as f32))?;
         }
 
         let mut edges: Vec<[Vertex; 2]> = vec![];
@@ -326,7 +262,7 @@ impl PolytopeGeometry {
         if self.polygon_sizes.is_empty() {
             let polygon_id = mesh.next_polygon_id()?; // dummy polygon ID
             let vertex_offset = mesh.vertex_count() as u32;
-            for point in self.verts.iter().map(Point::from) {
+            for point in self.verts.iter_rows().map(Point::from) {
                 mesh.add_puzzle_vertex(MeshVertexData {
                     position: &point,
                     u_tangent: &Vector::EMPTY,

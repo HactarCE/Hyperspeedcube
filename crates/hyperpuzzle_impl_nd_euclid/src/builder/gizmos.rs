@@ -13,7 +13,7 @@ use pga::Blade;
 use crate::{GizmoTwist, NdEuclidTwistSystemEngineData};
 
 pub(super) fn build_twist_gizmos(
-    space: &Space,
+    space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
@@ -97,7 +97,7 @@ pub(super) fn build_twist_gizmos(
 }
 
 fn build_3d_gizmo(
-    space: &Space,
+    space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
@@ -108,7 +108,7 @@ fn build_3d_gizmo(
         return Ok(vec![]);
     }
 
-    let polyhedron = space.get_primordial_cube()?.id();
+    let primordial_cube = space.primordial_cube();
 
     let mut gizmo_surfaces = HashMap::new();
     for (_, twist_info) in &twists.twists {
@@ -122,7 +122,7 @@ fn build_3d_gizmo(
         space,
         mesh,
         twists,
-        polyhedron.to_element_id(space),
+        primordial_cube.into(),
         hypershape::PRIMORDIAL_CUBE_RADIUS,
         gizmo_poles,
         "twist gizmo",
@@ -132,7 +132,7 @@ fn build_3d_gizmo(
 }
 
 fn build_4d_gizmo(
-    space: &Space,
+    space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
     engine_data: &NdEuclidTwistSystemEngineData,
@@ -155,8 +155,8 @@ fn build_4d_gizmo(
         inside: PolytopeFate::Remove,
         outside: PolytopeFate::Remove,
     };
-    let primordial_cube = space.get_primordial_cube()?;
-    let polyhedron = match Cut::new(space, initial_cut_params)?.cut(primordial_cube)? {
+    let primordial_cube = space.primordial_cube();
+    let polyhedron = match Cut::new(initial_cut_params).cut(space, primordial_cube)? {
         hypershape::ElementCutOutput::Flush => bail!("bad axis vector"),
         hypershape::ElementCutOutput::NonFlush { intersection, .. } => {
             intersection.ok_or_eyre("bad axis vector")?
@@ -181,10 +181,10 @@ fn build_4d_gizmo(
 }
 
 fn build_gizmo(
-    space: &Space,
+    space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
-    mut polyhedron: ElementId,
+    mut base_polyhedron: ElementId,
     min_radius: Float,
     gizmo_poles: &[(Vector, Twist)],
     gizmo_name: &str,
@@ -205,9 +205,9 @@ fn build_gizmo(
             let cut_normal = Vector::unit(axis) * distance;
             let cut_plane =
                 Hyperplane::new(cut_normal, primordial_face_radius).ok_or_eyre("bad hyperplane")?;
-            let mut cut = Cut::carve(space, cut_plane)?;
-            let result = cut.cut(polyhedron)?.inside();
-            polyhedron = result.ok_or_eyre("error cutting primordial cube for twist gizmo")?;
+            let mut cut = Cut::carve(cut_plane);
+            let result = cut.cut(space, base_polyhedron)?.inside();
+            base_polyhedron = result.ok_or_eyre("error cutting primordial cube for twist gizmo")?;
         }
     }
 
@@ -221,13 +221,13 @@ fn build_gizmo(
             ));
             continue;
         };
-        let mut cut = Cut::carve(space, cut_plane)?;
+        let mut cut = Cut::carve(cut_plane);
 
         let mut new_face_polygons = vec![];
 
         // Cut each existing facet.
         for (f, twist) in face_polygons {
-            match cut.cut(f)? {
+            match cut.cut(space, f)? {
                 hypershape::ElementCutOutput::Flush => {
                     let twist_name = &twists.names[twist];
                     let new_twist_name = &twists.names[*new_twist];
@@ -250,7 +250,7 @@ fn build_gizmo(
         }
 
         // Cut the polyhedron.
-        let polyhedron_cut_output = cut.cut(polyhedron)?;
+        let polyhedron_cut_output = cut.cut(space, base_polyhedron)?;
         match polyhedron_cut_output {
             hypershape::ElementCutOutput::Flush => bail!("polytope is flush"),
             hypershape::ElementCutOutput::NonFlush {
@@ -259,7 +259,7 @@ fn build_gizmo(
                 intersection,
             } => {
                 // Update the polyhedron.
-                polyhedron = inside.ok_or_eyre("twist gizmo becomes null")?;
+                base_polyhedron = inside.ok_or_eyre("twist gizmo becomes null")?;
 
                 // Add the new facet.
                 match intersection {
@@ -275,7 +275,7 @@ fn build_gizmo(
         face_polygons = new_face_polygons;
     }
 
-    if space.get(polyhedron).boundary().count() > face_polygons.len() {
+    if space.get(base_polyhedron).boundary().count() > face_polygons.len() {
         let r = primordial_face_radius;
         warn_fn(eyre!(
             "{gizmo_name} is infinite; it has been bounded with a radius-{r} cube",

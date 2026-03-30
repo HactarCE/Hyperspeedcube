@@ -1,5 +1,4 @@
 use std::collections::{HashMap, hash_map};
-use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
@@ -21,7 +20,7 @@ const DEFAULT_PIECE_TYPE_DISPLAY: &str = "Piece";
 #[derive(Debug)]
 pub struct ShapeBuilder {
     /// Space where the puzzle exists.
-    pub space: Arc<Space>,
+    pub space: Space,
 
     /// Puzzle pieces.
     pub pieces: PerPiece<PieceBuilder>,
@@ -46,9 +45,9 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(puzzle_id: &str, space: Arc<Space>) -> Self {
-        Self {
-            space,
+    pub fn new_empty(puzzle_id: &str, ndim: u8) -> Result<Self> {
+        Ok(Self {
+            space: Space::new(ndim)?,
 
             pieces: PerPiece::new(),
             active_pieces: PieceSet::new(),
@@ -61,14 +60,14 @@ impl ShapeBuilder {
             overwritten_piece_types: vec![],
 
             colors: ColorSystemBuilder::new_ad_hoc(puzzle_id),
-        }
+        })
     }
 
     /// Constructs a shape builder that starts with a single solid piece (the
     /// primordial cube)
-    pub fn new_with_primordial_cube(puzzle_id: &str, space: Arc<Space>) -> Result<Self> {
-        let mut this = Self::new_empty(puzzle_id, Arc::clone(&space));
-        let primordial_cube = space.add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?;
+    pub fn new_with_primordial_cube(puzzle_id: &str, ndim: u8) -> Result<Self> {
+        let mut this = Self::new_empty(puzzle_id, ndim)?;
+        let primordial_cube = this.space.get(this.space.primordial_cube());
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
         let root_piece = this.pieces.push(root_piece_builder)?;
         this.active_pieces.insert(root_piece);
@@ -92,8 +91,8 @@ impl ShapeBuilder {
         cut_plane: Hyperplane,
         inside_color: Option<Color>,
     ) -> Result<()> {
-        let mut cut = Cut::carve(&self.space, cut_plane)?;
-        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, None)
+        let cut = Cut::carve(cut_plane);
+        self.cut_and_deactivate_pieces(cut, pieces, inside_color, None)
     }
     /// Cuts each piece by a cut, keeping all results. Each piece in the old set
     /// becomes defunct, and each piece in the new set inherits its active
@@ -106,12 +105,12 @@ impl ShapeBuilder {
         cut_plane: Hyperplane,
         inside_color: Option<Color>,
     ) -> Result<()> {
-        let mut cut = Cut::slice(&self.space, cut_plane)?;
-        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, None)
+        let cut = Cut::slice(cut_plane);
+        self.cut_and_deactivate_pieces(cut, pieces, inside_color, None)
     }
     fn cut_and_deactivate_pieces(
         &mut self,
-        cut: &mut Cut,
+        mut cut: Cut,
         pieces: Option<&PieceSet>,
         inside_color: Option<Color>,
         outside_color: Option<Color>,
@@ -129,7 +128,10 @@ impl ShapeBuilder {
 
             // Cut the old piece and add the new pieces as active.
             let old_piece_polytope = self.pieces[old_piece].polytope;
-            match cut.cut(old_piece_polytope).context("error cutting piece")? {
+            match cut
+                .cut(&mut self.space, old_piece_polytope)
+                .context("error cutting piece")?
+            {
                 ElementCutOutput::Flush => bail!("piece is flush with cut"),
 
                 out @ ElementCutOutput::NonFlush {
@@ -163,7 +165,7 @@ impl ShapeBuilder {
             for entry in &self.pieces[old_piece].stickers {
                 let (&old_sticker_polytope, &old_color) = (entry.key(), &entry.value);
                 match cut
-                    .cut(old_sticker_polytope)
+                    .cut(&mut self.space, old_sticker_polytope)
                     .context("error cutting sticker")?
                 {
                     ElementCutOutput::Flush => {

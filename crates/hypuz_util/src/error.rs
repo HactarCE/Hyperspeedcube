@@ -52,7 +52,7 @@ impl std::error::Error for IndexOutOfRange {}
 
 impl IndexOutOfRange {
     /// Constructs a new out-of-bounds error for the type `I`.
-    pub fn new<I: TypedIndex>() -> Self {
+    pub const fn new<I: TypedIndex>() -> Self {
         Self {
             type_name: I::TYPE_NAME,
         }

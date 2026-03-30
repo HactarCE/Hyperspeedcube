@@ -144,18 +144,16 @@ impl<I: TypedIndex, E> TiVec<I, E> {
     /// Returns a reference to the element at `index`, or an error if the index
     /// is out of range.
     pub fn get(&self, index: I) -> Result<&E, IndexOutOfRange> {
-        self.values.get(index.to_index()).ok_or(IndexOutOfRange {
-            type_name: I::TYPE_NAME,
-        })
+        self.values
+            .get(index.to_index())
+            .ok_or(IndexOutOfRange::new::<I>())
     }
     /// Returns a mutable reference to the element at `index`, or an error if
     /// the index is out of range.
     pub fn get_mut(&mut self, index: I) -> Result<&mut E, IndexOutOfRange> {
         self.values
             .get_mut(index.to_index())
-            .ok_or(IndexOutOfRange {
-                type_name: I::TYPE_NAME,
-            })
+            .ok_or(IndexOutOfRange::new::<I>())
     }
 
     /// Swaps two elements, or returns an error if the index is out of range.
@@ -166,9 +164,7 @@ impl<I: TypedIndex, E> TiVec<I, E> {
             self.values.swap(i, j);
             Ok(())
         } else {
-            Err(IndexOutOfRange {
-                type_name: I::TYPE_NAME,
-            })
+            Err(IndexOutOfRange::new::<I>())
         }
     }
 
@@ -263,7 +259,7 @@ impl<I: TypedIndex, E> TiVec<I, E> {
 
 impl<I: TypedIndex, E> TiVec<I, Option<E>> {
     /// Returns a reference to the element at `index`, collapsing
-    /// `Result<Option<E>>` to `E`.
+    /// `Result<Option<&E>>` to `Option<&E>`.
     ///
     /// Short for `self.get(index).ok().and_then(Option::as_ref)`.
     pub fn get_opt(&self, index: I) -> Option<&E> {
@@ -318,7 +314,15 @@ impl<I: TypedIndex, E> Iterator for IntoIter<I, E> {
     type Item = (I, E);
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some((self.indexes.next()?, self.values.next()?))
+        let index = self.indexes.next();
+        let value = self.values.next();
+        Some((index?, value?))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let index = self.indexes.nth(n);
+        let value = self.values.nth(n);
+        Some((index?, value?))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -330,7 +334,9 @@ impl<I: TypedIndex, E> ExactSizeIterator for IntoIter<I, E> {}
 
 impl<I: TypedIndex, E> DoubleEndedIterator for IntoIter<I, E> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        Some((self.indexes.next_back()?, self.values.next_back()?))
+        let index = self.indexes.next_back();
+        let value = self.values.next_back();
+        Some((index?, value?))
     }
 }
 

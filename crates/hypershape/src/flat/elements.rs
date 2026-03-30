@@ -36,31 +36,31 @@ impl ToElementId for ElementId {
         *self
     }
 }
-impl ToElementId for PolytopeId {
-    fn to_element_id(&self, _space: &Space) -> ElementId {
-        ElementId(self.0)
-    }
-}
-impl ToElementId for FacetId {
-    fn to_element_id(&self, _space: &Space) -> ElementId {
-        ElementId(self.0)
-    }
-}
-impl ToElementId for FaceId {
-    fn to_element_id(&self, _space: &Space) -> ElementId {
-        ElementId(self.0)
-    }
-}
-impl ToElementId for EdgeId {
-    fn to_element_id(&self, _space: &Space) -> ElementId {
-        ElementId(self.0)
-    }
-}
 impl ToElementId for VertexId {
     fn to_element_id(&self, space: &Space) -> ElementId {
         space.vertex_to_polytope(*self)
     }
 }
+
+macro_rules! impl_trivial_to_element_id {
+    ($ty:ty) => {
+        impl ToElementId for $ty {
+            fn to_element_id(&self, _space: &Space) -> ElementId {
+                ElementId(self.0)
+            }
+        }
+        impl From<$ty> for ElementId {
+            fn from(value: $ty) -> Self {
+                ElementId(value.0)
+            }
+        }
+    };
+}
+
+impl_trivial_to_element_id!(PolytopeId);
+impl_trivial_to_element_id!(FacetId);
+impl_trivial_to_element_id!(FaceId);
+impl_trivial_to_element_id!(EdgeId);
 
 impl<'a, I: ToElementId> SpaceRef<'a, I> {
     /// Returns a reference to the element as an element, ignoring any
@@ -117,12 +117,6 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
     pub fn arbitrary_vertex(self) -> Result<Vertex<'a>> {
         self.vertex_set().next().ok_or_eyre("degenerate polytope")
     }
-
-    /// Returns which side of `divider` contains the element.
-    pub fn is_on_which_side_of(self, divider: &Hyperplane) -> WhichSide {
-        self.space
-            .which_side_has_polytope(divider, self.as_element().id)
-    }
 }
 impl<I: ToElementId> ToElementId for SpaceRef<'_, I> {
     fn to_element_id(&self, space: &Space) -> ElementId {
@@ -157,14 +151,14 @@ impl<'a, I: 'a + Fits64> IntoIterator for &'_ SpaceRef<'a, Set64<I>> {
 impl<'a> Element<'a> {
     /// Returns the rank of the element.
     pub fn rank(self) -> u8 {
-        self.space.polytopes.lock()[self.id].rank()
+        self.space.polytopes[self.id].rank()
     }
     /// Returns an iterator over the boundary of the element. Each element of
     /// the boundary has rank one less than the original element.
     pub fn boundary(self) -> ElementIter<'a> {
         ElementIter::new(
             self.space,
-            self.space.polytopes.lock()[self.id]
+            self.space.polytopes[self.id]
                 .boundary()
                 .cloned()
                 .unwrap_or_default(),
@@ -189,7 +183,7 @@ impl<'a> Element<'a> {
     }
     /// Returns the element if it is a vertex; otherwise returns an error.
     pub fn as_vertex(self) -> Result<Vertex<'a>> {
-        let id = self.space.polytopes.lock()[self.id]
+        let id = self.space.polytopes[self.id]
             .to_vertex()
             .ok_or_eyre("expected vertex; got higher element")?;
         Ok(Vertex {
@@ -365,14 +359,14 @@ impl<'a> Facet<'a> {
     /// Returns whether the facet is primordial (i.e., whether it is on the
     /// boundary of the primordial cube).
     pub fn is_primordial(self) -> bool {
-        match self.space.polytopes.lock()[self.as_element().id] {
+        match self.space.polytopes[self.as_element().id] {
             PolytopeData::Polytope { is_primordial, .. } => is_primordial,
             _ => false,
         }
     }
     /// Returns the unoriented hyperplane of the facet.
     pub fn hyperplane(self) -> Result<Hyperplane> {
-        match self.space.polytopes.lock()[self.as_element().id] {
+        match self.space.polytopes[self.as_element().id] {
             PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
                 Hyperplane::new(vector![1.0], self.space.get(vertex_id).pos()[0])
                     .ok_or_eyre("error constructing hyperplane")
@@ -380,7 +374,7 @@ impl<'a> Facet<'a> {
             PolytopeData::Polytope {
                 hyperplane: Some(hyperplane_id),
                 ..
-            } => Ok(self.space.hyperplanes.lock().get(hyperplane_id)?.clone()),
+            } => Ok(self.space.hyperplanes.get(hyperplane_id)?.clone()),
             _ => bail!("expected hyperplane"),
         }
     }
@@ -472,13 +466,9 @@ impl<'a> Edge<'a> {
     pub fn endpoints(self) -> Result<[Vertex<'a>; 2]> {
         let space = self.space;
         let [a, b] = <[_; 2]>::try_from(self.as_element().boundary().collect_vec())
-            .map_err(|e| eyre!("bad edge boundary set: {e:?}"))?;
-        let polytopes = space.polytopes.lock();
-        Ok([
-            polytopes[a.id].to_vertex().ok_or_eyre("bad edge")?,
-            polytopes[b.id].to_vertex().ok_or_eyre("bad edge")?,
-        ]
-        .map(|id| Vertex { space, id }))
+            .map_err(|e| eyre!("bad edge boundary set: {e:?}"))?
+            .map(|v| self.space.polytopes[v.id].to_vertex());
+        Ok([a.ok_or_eyre("bad edge")?, b.ok_or_eyre("bad edge")?].map(|id| Vertex { space, id }))
     }
 }
 
@@ -490,7 +480,7 @@ impl<'a> From<Vertex<'a>> for Element<'a> {
 impl Vertex<'_> {
     /// Returns the position of the vertex.
     pub fn pos(self) -> Point {
-        self.space.vertices.lock()[self.id].clone()
+        self.space.vertex_pos(self.id)
     }
 }
 
@@ -528,8 +518,8 @@ mod tests {
 
     #[test]
     fn test_face_edge_endpoints() -> Result<()> {
-        let space = Space::new(2);
-        let square = space.add_primordial_cube(3.0)?.as_element().as_face()?;
+        let space = Space::with_primordial_cube_radius(2, 3.0)?;
+        let square = space.get(space.primordial_cube()).as_element().as_face()?;
         let edge_endpoints = square.edges_in_order()?.collect_vec();
         println!("{edge_endpoints:?}");
         assert_eq!(edge_endpoints.len(), 4);

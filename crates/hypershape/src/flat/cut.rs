@@ -1,5 +1,3 @@
-use hypuz_util::ti::IndexOverflow;
-
 use super::*;
 
 /// Parameters for cutting shapes.
@@ -39,17 +37,43 @@ impl fmt::Display for PolytopeFate {
         }
     }
 }
+impl CutParams {
+    /// Constructs a cutting operation that deletes polytopes on the outside of
+    /// the cut and keeps only those on the inside.
+    pub fn carve(divider: Hyperplane) -> Self {
+        Self {
+            divider,
+            inside: PolytopeFate::Keep,
+            outside: PolytopeFate::Remove,
+        }
+    }
+    /// Constructs a cutting operation that keeps all resulting polytopes.
+    pub fn slice(divider: Hyperplane) -> Self {
+        Self {
+            divider,
+            inside: PolytopeFate::Keep,
+            outside: PolytopeFate::Keep,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CutCache {
+    /// Cached space ID.
+    space_id: u64,
+    /// Cached ID of the new hyperplane.
+    hyperplane_id: HyperplaneId,
+    /// Cache of the result of splitting each shape.
+    outputs: HashMap<ElementId, ElementCutOutput>,
+}
 
 /// In-progress cut operation, which caches intermediate results.
 #[derive(Debug)]
 pub struct Cut {
-    space: Arc<Space>,
     /// Cut parameters.
     params: CutParams,
-    /// ID of the new hyperplane.
-    hyperplane_id: HyperplaneId,
-    /// Cache of the result of splitting each shape.
-    output_cache: HashMap<ElementId, ElementCutOutput>,
+    /// Cache, which is initialized when the first polytope is cut.
+    cache: Option<CutCache>,
 }
 impl fmt::Display for Cut {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -61,33 +85,24 @@ impl fmt::Display for Cut {
 impl Cut {
     /// Constructs a cutting operation that deletes polytopes on the outside of
     /// the cut and keeps only those on the inside.
-    pub fn carve(space: &Space, divider: Hyperplane) -> Result<Self, IndexOverflow> {
-        let params = CutParams {
-            divider,
-            inside: PolytopeFate::Keep,
-            outside: PolytopeFate::Remove,
-        };
-        Self::new(space, params)
+    ///
+    /// This is equivalent to `Cut::new(CutParams::carve(divider))`.
+    pub fn carve(divider: Hyperplane) -> Self {
+        Self::new(CutParams::carve(divider))
     }
     /// Constructs a cutting operation that keeps all resulting polytopes.
-    pub fn slice(space: &Space, divider: Hyperplane) -> Result<Self, IndexOverflow> {
-        let params = CutParams {
-            divider,
-            inside: PolytopeFate::Keep,
-            outside: PolytopeFate::Keep,
-        };
-        Self::new(space, params)
+    ///
+    /// This is equivalent to `Cut::new(CutParams::slice(divider))`.
+    pub fn slice(divider: Hyperplane) -> Self {
+        Self::new(CutParams::slice(divider))
     }
 
     /// Constructs a cutting operation.
-    pub fn new(space: &Space, params: CutParams) -> Result<Self, IndexOverflow> {
-        let hyperplane_id = space.hyperplanes.lock().push(params.divider.clone())?;
-        Ok(Self {
-            space: space.arc(),
+    pub fn new(params: CutParams) -> Self {
+        Self {
             params,
-            hyperplane_id,
-            output_cache: HashMap::new(),
-        })
+            cache: None,
+        }
     }
 
     /// Returns the parameters used to create the cut.
@@ -97,13 +112,33 @@ impl Cut {
 
     /// Cuts an element.
     #[expect(clippy::too_many_lines)] // it's a complicated algorithm!
-    pub fn cut(&mut self, element: impl ToElementId) -> Result<ElementCutOutput> {
-        let cut = &mut *self;
-        let element = element.to_element_id(&cut.space);
+    pub fn cut(
+        &mut self,
+        space: &mut Space,
+        element: impl ToElementId,
+    ) -> Result<ElementCutOutput> {
+        let cache = match &mut self.cache {
+            Some(c) => c,
+            None => {
+                let c = CutCache {
+                    space_id: space.id,
+                    hyperplane_id: space.hyperplanes.push(self.params.divider.clone())?,
+                    outputs: HashMap::new(),
+                };
+                self.cache.insert(c)
+            }
+        };
 
-        let distance = cut.params().divider.distance();
+        if cache.space_id != space.id {
+            bail!("cut constructed for a different space");
+        };
+        let hyperplane_id = cache.hyperplane_id;
+
+        let element = element.to_element_id(space);
+
+        let distance = self.params.divider.distance();
         if distance.is_infinite() {
-            let element = element.to_element_id(&cut.space);
+            let element = element.to_element_id(space);
             return Ok(ElementCutOutput::NonFlush {
                 inside: (distance == Float::INFINITY).then_some(element),
                 outside: (distance == -Float::INFINITY).then_some(element),
@@ -111,17 +146,14 @@ impl Cut {
             });
         }
 
-        if let Some(&result) = cut.output_cache.get(&element) {
+        if let Some(&result) = cache.outputs.get(&element) {
             return Ok(result);
         }
 
-        let space = cut.space.arc();
+        let div = &self.params.divider;
 
-        let div = &cut.params.divider;
-
-        let polytopes = space.polytopes.lock();
-        let result = match polytopes[element].clone() {
-            PolytopeData::Vertex(p) => match div.location_of_point(&space.vertices.lock()[p]) {
+        let result = match space.polytopes[element].clone() {
+            PolytopeData::Vertex(v) => match div.location_of_point(&space.vertex_pos(v)) {
                 PointWhichSide::On => ElementCutOutput::Flush,
                 PointWhichSide::Inside => ElementCutOutput::all_inside(element, None),
                 PointWhichSide::Outside => ElementCutOutput::all_outside(element, None),
@@ -132,16 +164,15 @@ impl Cut {
                 let mut flush_polytopes = vec![];
                 let mut flush_polytope_boundary = Set64::<ElementId>::new();
 
-                drop(polytopes);
-
-                if let Some(line @ [a, b]) = space.line_endpoints(element) {
-                    let vertices = space.vertices.lock();
+                if let Some([a, b]) = space.line_endpoints(element) {
                     let HyperplaneLineIntersection {
                         a_loc,
                         b_loc,
                         intersection,
-                    } = div.intersection_with_line_segment(line.map(|i| &vertices[i]));
-                    drop(vertices);
+                    } = div.intersection_with_line_segment([
+                        &space.vertex_pos(a),
+                        &space.vertex_pos(b),
+                    ]);
                     for (v, v_loc) in [(a, a_loc), (b, b_loc)] {
                         let v = space.add_polytope(v.into())?;
                         match v_loc {
@@ -157,12 +188,12 @@ impl Cut {
                     if flush_polytopes.is_empty()
                         && let Some(intersection_point) = intersection
                     {
-                        let v = space.add_vertex(intersection_point)?.into();
-                        flush_polytopes.push(space.add_polytope(v)?);
+                        let (_vertex_id, element_id) = space.add_vertex(intersection_point)?;
+                        flush_polytopes.push(element_id);
                     }
                 } else {
                     for b in boundary.iter() {
-                        match cut.cut(b)? {
+                        match self.cut(space, b)? {
                             ElementCutOutput::Flush => flush_polytopes.push(b),
                             ElementCutOutput::NonFlush {
                                 inside,
@@ -185,16 +216,12 @@ impl Cut {
                         None => space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
                             rank: rank - 1,
                             boundary: flush_polytope_boundary,
-                            hyperplane: (rank == space.ndim()).then_some(cut.hyperplane_id),
-
+                            hyperplane: (rank == space.ndim()).then_some(hyperplane_id),
                             is_primordial: false,
-
-                            seam: None,
-                            patch: None,
                         })?,
                     };
 
-                    let inside = match cut.params.inside {
+                    let inside = match self.params.inside {
                         PolytopeFate::Keep => {
                             inside_boundary.extend(intersection);
                             space.add_subpolytope_if_non_degenerate(element, inside_boundary)?
@@ -202,7 +229,7 @@ impl Cut {
                         PolytopeFate::Remove => None,
                     };
 
-                    let outside = match cut.params.outside {
+                    let outside = match self.params.outside {
                         PolytopeFate::Keep => {
                             outside_boundary.extend(intersection);
                             space.add_subpolytope_if_non_degenerate(element, outside_boundary)?
@@ -219,7 +246,8 @@ impl Cut {
             }
         };
 
-        cut.output_cache.insert(element, result);
+        let cache = self.cache.as_mut().expect("missing cut cache");
+        cache.outputs.insert(element, result);
         Ok(result)
     }
 }

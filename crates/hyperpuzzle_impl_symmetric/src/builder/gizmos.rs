@@ -2,7 +2,7 @@ use eyre::{OptionExt, Result};
 use hypermath::{APPROX, ApproxHashMap, Hyperplane, Vector};
 use hyperpuzzle_core::{Axis, Mesh, PerGizmoFace};
 use hyperpuzzle_impl_nd_euclid::GizmoTwist;
-use hypershape::{Cut, Space, ToElementId};
+use hypershape::{Cut, ElementId, Space};
 use hypuz_notation::{Multiplier, Transform};
 use itertools::Itertools;
 
@@ -11,15 +11,12 @@ pub fn build_3d_gizmo(
     faces: &[(Vector, Axis, Transform)],
     gizmo_twists: &mut PerGizmoFace<GizmoTwist>,
 ) -> Result<()> {
-    let space = Space::new(3);
-    let mut gizmo_polytope = space
-        .add_primordial_cube(hypershape::PRIMORDIAL_CUBE_RADIUS)?
-        .id()
-        .to_element_id(&space);
+    let mut space = Space::new(3)?;
+    let mut gizmo_polytope: ElementId = space.primordial_cube().into();
     for (vector, _, _) in faces {
         let cut_plane = Hyperplane::from_pole(vector).ok_or_eyre("bad axis vector")?; // TODO: warn instead of error
-        gizmo_polytope = Cut::carve(&space, cut_plane)?
-            .cut(gizmo_polytope)?
+        gizmo_polytope = Cut::carve(cut_plane)
+            .cut(&mut space, gizmo_polytope)?
             .inside()
             .ok_or_eyre("twist gizmo does not exist")?; // TODO: warn instead of error
     }
