@@ -27,24 +27,32 @@ pub type EdgeSet<'a> = SpaceRef<'a, Set64<EdgeId>>;
 pub type VertexSet<'a> = SpaceRef<'a, Set64<VertexId>>;
 
 /// Trait for types that reference an element of a polytope.
-pub trait ToElementId: Copy {
+pub trait ElementIdConvert: Copy {
     /// Returns the ID of the corresponding polytope.
     fn to_element_id(&self, space: &Space) -> ElementId;
+    /// Returns the corresponding vertex ID, or `None` if the polytope is not a
+    /// vertex.
+    fn to_vertex_id(&self, space: &Space) -> Option<VertexId> {
+        Some(space.get(self.to_element_id(space)).as_vertex().ok()?.id())
+    }
 }
-impl ToElementId for ElementId {
+impl ElementIdConvert for ElementId {
     fn to_element_id(&self, _space: &Space) -> ElementId {
         *self
     }
 }
-impl ToElementId for VertexId {
+impl ElementIdConvert for VertexId {
     fn to_element_id(&self, space: &Space) -> ElementId {
         space.vertex_to_polytope(*self)
+    }
+    fn to_vertex_id(&self, _space: &Space) -> Option<VertexId> {
+        Some(*self)
     }
 }
 
 macro_rules! impl_trivial_to_element_id {
     ($ty:ty) => {
-        impl ToElementId for $ty {
+        impl ElementIdConvert for $ty {
             fn to_element_id(&self, _space: &Space) -> ElementId {
                 ElementId(self.0)
             }
@@ -62,7 +70,7 @@ impl_trivial_to_element_id!(FacetId);
 impl_trivial_to_element_id!(FaceId);
 impl_trivial_to_element_id!(EdgeId);
 
-impl<'a, I: ToElementId> SpaceRef<'a, I> {
+impl<'a, I: ElementIdConvert> SpaceRef<'a, I> {
     /// Returns a reference to the element as an element, ignoring any
     /// information about its rank.
     pub fn as_element(self) -> Element<'a> {
@@ -99,6 +107,16 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
             .into_iter()
             .map(|v| space.get(v))
     }
+    /// Returns an iterator over the set of boundary portals of the element.
+    pub fn boundary_portals(self) -> impl Iterator<Item = PortalId> {
+        match &self.space.polytopes[self.as_element().id] {
+            PolytopeData::Vertex(_) => &BoundaryPortals::EMPTY,
+            PolytopeData::Polytope {
+                boundary_portals, ..
+            } => boundary_portals,
+        }
+        .iter_portals()
+    }
 
     /// Returns the centroid of the element.
     pub fn centroid(self) -> Result<Centroid> {
@@ -118,7 +136,7 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
         self.vertex_set().next().ok_or_eyre("degenerate polytope")
     }
 }
-impl<I: ToElementId> ToElementId for SpaceRef<'_, I> {
+impl<I: ElementIdConvert> ElementIdConvert for SpaceRef<'_, I> {
     fn to_element_id(&self, space: &Space) -> ElementId {
         space.ensure_same_as(self.space).expect("different space");
         self.id.to_element_id(space)
@@ -366,6 +384,7 @@ impl<'a> Facet<'a> {
     }
     /// Returns the unoriented hyperplane of the facet.
     pub fn hyperplane(self) -> Result<Hyperplane> {
+        // TODO: return ID when possible. in 1D, use vertex IDs as hyperplane IDs?
         match self.space.polytopes[self.as_element().id] {
             PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
                 Hyperplane::new(vector![1.0], self.space.get(vertex_id).pos()[0])

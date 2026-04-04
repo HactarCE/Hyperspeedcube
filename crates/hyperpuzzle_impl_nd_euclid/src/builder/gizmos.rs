@@ -154,6 +154,7 @@ fn build_4d_gizmo(
         divider: Hyperplane::from_pole(axis_vector).ok_or_eyre("bad axis vector")?,
         inside: PolytopeFate::Remove,
         outside: PolytopeFate::Remove,
+        portal: false,
     };
     let primordial_cube = space.primordial_cube();
     let polyhedron = match Cut::new(initial_cut_params).cut(space, primordial_cube)? {

@@ -65,6 +65,16 @@ impl<I: TypedIndex, E> FlatTiVec<I, E> {
         }
     }
 
+    /// Constructs a new empty vector with a certain size pre-allocated.
+    pub fn with_capacity(column_count: usize, row_capacity: usize) -> Self {
+        FlatTiVec {
+            column_count,
+            row_count: 0,
+            values: Vec::with_capacity(column_count * row_capacity),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Constructs a vector from an iterator over rows.
     pub fn from_iter<T: IntoIterator>(column_count: usize, iter: T) -> Self
     where

@@ -119,32 +119,13 @@ pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero + Ndim {
     }
     /// Returns the component of vector that is perpendicular to all vectors in
     /// `others`.
-    fn rejected_from_all(&self, others: impl Iterator<Item = Vector>) -> Vector {
+    fn rejected_from_all(&self, others: impl IntoIterator<Item = Vector>) -> Vector {
         let mut ret = self.to_vector();
-        for v in normal_basis_from(others) {
+        for v in crate::util::normal_basis_from(others) {
             ret -= &v * ret.dot(&v);
         }
         ret
     }
-}
-
-/// Returns a normal basis from a set of vectors using the Gram-Schmidt process.
-///
-/// Zero vectors are ignored.
-fn normal_basis_from(vectors: impl Iterator<Item = Vector>) -> Vec<Vector> {
-    let mut basis = vec![];
-    'v: for mut v in vectors {
-        for u in &basis {
-            if APPROX.eq(&v, &Vector::EMPTY) {
-                continue 'v;
-            }
-            v -= u * v.dot(u);
-        }
-        if let Some(v_unit) = v.normalize() {
-            basis.push(v_unit);
-        }
-    }
-    basis
 }
 
 /// Iterator over the nonzero components of a vector.

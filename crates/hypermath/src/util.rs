@@ -6,7 +6,7 @@ use std::ops::{Add, BitXorAssign, Mul};
 use itertools::Itertools;
 use num_traits::{CheckedShl, PrimInt, Unsigned};
 
-use crate::{APPROX, Float};
+use crate::{APPROX, Float, Point, Vector, VectorRef};
 
 // TODO: move many of these to hypuz_util
 
@@ -20,11 +20,9 @@ use crate::{APPROX, Float};
 ///
 /// Returns `None` if the triangle is degenerate.
 pub fn triangle_tangent_vectors(
-    [a, b, c]: [&crate::Point; 3],
-    interior_point: Option<&crate::Point>,
-) -> Option<[crate::Vector; 2]> {
-    use crate::VectorRef;
-
+    [a, b, c]: [&Point; 3],
+    interior_point: Option<&Point>,
+) -> Option<[Vector; 2]> {
     // IIFE to mimic try_block
     let u = (b - a).normalize()?;
     let v = (c - a).rejected_from(&u)?.normalize()?;
@@ -38,6 +36,25 @@ pub fn triangle_tangent_vectors(
     } else {
         Some([u, v])
     }
+}
+
+/// Returns a normal basis from a set of vectors using the Gram-Schmidt process.
+///
+/// Zero vectors are ignored.
+pub fn normal_basis_from(vectors: impl IntoIterator<Item = Vector>) -> Vec<Vector> {
+    let mut basis = vec![];
+    'v: for mut v in vectors {
+        for u in &basis {
+            if APPROX.eq_zero(&v) {
+                continue 'v;
+            }
+            v -= u * v.dot(u);
+        }
+        if let Some(v_unit) = v.normalize() {
+            basis.push(v_unit);
+        }
+    }
+    basis
 }
 
 /// Linearly interpolates (unclamped) between two values.

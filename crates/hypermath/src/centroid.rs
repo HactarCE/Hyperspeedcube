@@ -4,7 +4,9 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
-use crate::{APPROX, Float, Point, Vector};
+use approx_collections::{ApproxHash, ApproxInternable};
+
+use crate::{APPROX, Float, Ndim, Point, TransformByMotor, Vector};
 
 /// Centroid and Lebasgue measure of a polytope element. In simpler terms: the
 /// "center of mass" and "N-dimensional mass" of a polytope element.
@@ -51,6 +53,37 @@ impl Sum<Centroid> for Centroid {
             ret += it;
         }
         ret
+    }
+}
+
+impl Ndim for Centroid {
+    fn ndim(&self) -> u8 {
+        self.weighted_center.ndim()
+    }
+}
+
+impl TransformByMotor for Centroid {
+    fn transform_by(&self, m: &crate::pga::Motor) -> Self {
+        Self::new(&m.transform(&self.center()), self.weight)
+    }
+}
+
+impl ApproxInternable for Centroid {
+    fn intern_floats<F: FnMut(&mut f64)>(&mut self, f: &mut F) {
+        self.weighted_center.intern_floats(f);
+        self.weight.intern_floats(f);
+    }
+}
+
+impl ApproxHash for Centroid {
+    fn interned_eq(&self, other: &Self) -> bool {
+        self.weighted_center.interned_eq(&other.weighted_center)
+            && self.center().interned_eq(&other.center())
+    }
+
+    fn interned_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.weighted_center.interned_hash(state);
+        self.weight.interned_hash(state);
     }
 }
 

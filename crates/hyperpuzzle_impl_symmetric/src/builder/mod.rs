@@ -33,8 +33,8 @@ pub struct ProductPuzzleBuilder {
 impl ProductPuzzleBuilder {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        debug_assert_eq!(self.shape.ndim, self.axes.ndim());
-        self.shape.ndim
+        debug_assert_eq!(self.shape.ndim(), self.axes.ndim());
+        self.shape.ndim()
     }
 
     /// Constructs the empty puzzle, which is the identity of the direct
@@ -61,10 +61,11 @@ impl ProductPuzzleBuilder {
     }
 
     fn new_factor(spec: &FactorPuzzleSpec, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<Self> {
-        let generators = spec.symmetry.generator_motors();
+        let group = spec.coxeter_matrix.isometry_group()?;
+        let generators = group.generator_motors();
 
         let mut shape_builder =
-            from_space::PuzzleShapeBuilder::new(spec.ndim(), spec.axis_count())?;
+            from_space::PuzzleShapeFactorBuilder::new(spec.coxeter_matrix.clone(), group.clone())?;
 
         // TODO: color orbits (dev data)
 
@@ -73,23 +74,41 @@ impl ProductPuzzleBuilder {
             let named_facet_poles = orbit.named_facet_poles(generators, |e| warn_fn(eyre!(e)));
             for (pole, name) in named_facet_poles {
                 let plane = Hyperplane::from_pole(pole).ok_or_eyre("bad hyperplane")?;
-                shape_builder.carve(plane, name)?;
+                let color = shape_builder.add_color(name.clone())?;
+                shape_builder.carve(plane, color)?;
             }
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
 
-        let axes = ProductPuzzleAxes::new(&spec.symmetry, &spec.axis_orbits, warn_fn)?;
+        let axes = ProductPuzzleAxes::new(&group, &spec.axis_orbits, warn_fn)?;
 
         // Slice axes
         for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
             for axis in orbit.axes() {
-                for (layer, cut_distance) in axis_orbit_spec.layer_cut_distances() {
-                    shape_builder.slice(axis, &axes.vectors[axis], cut_distance, layer)?;
+                for &cut_distance in &axis_orbit_spec.cut_distances {
+                    let plane = Hyperplane::new(&axes.vectors[axis], cut_distance)
+                        .ok_or_eyre("bad axis vector")?;
+                    shape_builder.slice(plane)?;
                 }
             }
         }
 
-        let shape = shape_builder.into_product_puzzle_shape()?;
+        let mut shape = shape_builder.into_product_puzzle_shape()?;
+
+        // Add grip signatures
+        for (_, piece_data) in &mut shape.pieces {
+            piece_data.grip_signature = PerAxis::new_with_len(axes.len());
+            for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
+                for axis in orbit.axes() {
+                    if let Some((min_height, max_height)) =
+                        piece_data.polytope.height_on_axis(&axes.vectors[axis])
+                    {
+                        piece_data.grip_signature[axis] =
+                            axis_orbit_spec.layer_range_for_distance_range(max_height, min_height);
+                    }
+                }
+            }
+        }
 
         Ok(Self { shape, axes })
     }

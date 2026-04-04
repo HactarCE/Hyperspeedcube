@@ -27,7 +27,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         (
             "plane",
             |_, (normal, normal_span): Vector, point: Point| -> Hyperplane {
-                Hyperplane::through_point(&normal, point.0).ok_or_else(|| {
+                Hyperplane::through_point(&normal, &point).ok_or_else(|| {
                     Error::bad_arg(normal, Some("plane normal vector cannot be zero"))
                         .at(normal_span)
                 })?

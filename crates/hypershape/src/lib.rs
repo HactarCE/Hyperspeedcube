@@ -11,4 +11,7 @@ pub mod prelude {
 
 /// Radius of the promordial cube, which determines the maximum extent of all
 /// vertices along any axis.
-pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power of 2 feels good
+///
+/// This must be large enough that it contains all geomoetry, but should be
+/// relatively small to improve precision.
+pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 64.0; // big power of 2 feels good

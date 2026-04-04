@@ -1,5 +1,3 @@
-use std::sync::atomic::AtomicU64;
-
 use super::*;
 
 /// Global monotonic ID for [`Space`].
@@ -22,9 +20,11 @@ pub struct Space {
     pub(super) vertex_coordinates: FlatTiVec<VertexId, Float>,
     pub(super) polytopes: TiVec<ElementId, PolytopeData>,
     pub(super) hyperplanes: TiVec<HyperplaneId, Hyperplane>,
+    pub(super) portals: TiVec<PortalId, PortalData>,
 
     pub(super) vertex_data_to_id: ApproxHashMap<Point, VertexId>,
     pub(super) polytope_data_to_id: HashMap<PolytopeData, ElementId>,
+    pub(super) hyperplane_data_to_id: ApproxHashMap<Hyperplane, HyperplaneId>,
 
     /// Cached results for [`Self::vertex_set()`].
     pub(super) cached_vertex_set: Mutex<HashMap<ElementId, Set64<VertexId>>>,
@@ -32,6 +32,8 @@ pub struct Space {
     pub(super) cached_simplices: Mutex<HashMap<ElementId, SimplexBlob>>,
     /// Cached results for [`Self::centroid()`].
     pub(super) cached_centroids: Mutex<HashMap<ElementId, Centroid>>,
+    /// Cached results for [`Self::unfold()`].
+    cached_unfolded: HashMap<ElementId, ElementId>,
 }
 
 impl fmt::Debug for Space {
@@ -83,7 +85,7 @@ impl Space {
             let element_rank = zero_axes.len() as u8;
             let polytope_data = if element_rank == 0 {
                 let vertex_id = vertex_coordinates.push_row(element_centroid.as_vector().iter())?;
-                PolytopeData::Vertex(vertex_id)
+                PolytopeData::from(vertex_id)
             } else {
                 let stride = |i| 3_usize.pow(i as _);
                 let base: usize = position
@@ -111,6 +113,7 @@ impl Space {
                 PolytopeData::Polytope {
                     rank: element_rank,
                     boundary,
+                    boundary_portals: BoundaryPortals::EMPTY,
                     hyperplane,
                     is_primordial: element_rank + 1 == ndim,
                 }
@@ -153,19 +156,78 @@ impl Space {
             vertex_coordinates,
             polytopes,
             hyperplanes,
+            portals: TiVec::new(),
 
             vertex_data_to_id,
             polytope_data_to_id,
+            hyperplane_data_to_id: ApproxHashMap::new(APPROX),
 
             cached_vertex_set: Mutex::new(HashMap::new()),
             cached_simplices: Mutex::new(HashMap::new()),
             cached_centroids: Mutex::new(HashMap::new()),
+            cached_unfolded: HashMap::new(),
         })
     }
 
     /// Returns the primordial cube.
     pub fn primordial_cube(&self) -> PolytopeId {
         self.primordial_cube
+    }
+
+    /// Adds a folded shape with the given mirror planes and carve planes.
+    ///
+    /// The shape can be sliced as normal using [`Cut`] and can be unfolded
+    /// using [`Self::unfold()`].
+    pub fn add_folded_shape(
+        &mut self,
+        mirror_planes: impl IntoIterator<Item = Hyperplane>,
+        carve_planes: impl IntoIterator<Item = Hyperplane>,
+    ) -> Result<PolytopeId> {
+        let mut ret: ElementId = self.primordial_cube().into();
+
+        let mirror_planes = mirror_planes.into_iter().collect_vec();
+        let carve_planes = carve_planes
+            .into_iter()
+            .flat_map(|init| {
+                let mut seen = ApproxHashMap::new(APPROX);
+                seen.insert(init.clone(), ());
+                let mut orbit = vec![init];
+                let mut next_unprocessed_index = 0;
+                while next_unprocessed_index < orbit.len() {
+                    for m in &mirror_planes {
+                        let new_plane = m.reflect_hyperplane(&orbit[next_unprocessed_index]);
+                        if seen.insert(new_plane.clone(), ()).is_none() {
+                            orbit.push(new_plane);
+                        }
+                    }
+                    next_unprocessed_index += 1;
+                }
+                orbit
+            })
+            .collect_vec();
+
+        // IIFE to mimic try_block
+        for mirror_plane in mirror_planes {
+            ret = Cut::carve_portal(mirror_plane)
+                .cut(self, ret)?
+                .outside()
+                .ok_or_eyre("fundamental region is empty")?;
+        }
+
+        for carve_plane in carve_planes {
+            ret = Cut::carve(carve_plane)
+                .cut(self, ret)?
+                .inside()
+                .ok_or_eyre("geometry is empty")?;
+        }
+
+        let ret = self.get(ret).as_polytope()?;
+
+        if ret.has_primordial_facet() {
+            bail!("primordial cube exists in final shape");
+        }
+
+        Ok(ret.id())
     }
 
     /// Returns an error if `self` and `other` are different spaces.
@@ -187,8 +249,10 @@ impl Space {
     }
 
     /// Returns the position of a vertex.
-    pub fn vertex_pos(&self, v: VertexId) -> Point {
-        Point::from(&self.vertex_coordinates[v])
+    ///
+    /// Panics if the polytope is not a vertex.
+    pub fn vertex_pos(&self, v: impl ElementIdConvert) -> Point {
+        Point::from(&self.vertex_coordinates[v.to_vertex_id(self).expect("not a vertex")])
     }
 
     /// Returns the polytope ID for a vertex.
@@ -197,11 +261,23 @@ impl Space {
     pub fn vertex_to_polytope(&self, v: VertexId) -> ElementId {
         // This should never panic because vertices are always added as
         // polytopes.
-        self.polytope_data_to_id[&PolytopeData::Vertex(v)]
+        self.polytope_data_to_id[&PolytopeData::from(v)]
     }
 
+    /// Memoizes a hyperplane.
+    pub(super) fn add_hyperplane(&mut self, h: Hyperplane) -> Result<HyperplaneId> {
+        // We could canonicalize the hyperplane's orientation to avoid storing
+        // duplicates but it doesn't really matter.
+        match self.hyperplane_data_to_id.entry(h) {
+            approx_collections::hash_map::Entry::Occupied(e) => Ok(*e.get()),
+            approx_collections::hash_map::Entry::Vacant(e) => {
+                let id = self.hyperplanes.push(e.key().clone())?;
+                Ok(*e.insert(id))
+            }
+        }
+    }
     /// Memoizes a vertex.
-    pub fn add_vertex(&mut self, p: Point) -> Result<(VertexId, ElementId), IndexOverflow> {
+    pub(super) fn add_vertex(&mut self, p: Point) -> Result<(VertexId, ElementId)> {
         let vertex_id = match self.vertex_data_to_id.entry(p) {
             approx_collections::hash_map::Entry::Occupied(e) => *e.get(),
             approx_collections::hash_map::Entry::Vacant(e) => {
@@ -213,11 +289,11 @@ impl Space {
                 vertex_id
             }
         };
-        let element_id = self.add_polytope(PolytopeData::Vertex(vertex_id))?;
+        let element_id = self.add_polytope(PolytopeData::from(vertex_id))?;
         Ok((vertex_id, element_id))
     }
     /// Memoizes a polytope.
-    pub fn add_polytope(&mut self, p: PolytopeData) -> Result<ElementId, IndexOverflow> {
+    pub(super) fn add_polytope(&mut self, p: PolytopeData) -> Result<ElementId> {
         // Validate the boundary of the polytope.
         #[cfg(debug_assertions)]
         match &p {
@@ -225,11 +301,11 @@ impl Space {
             PolytopeData::Polytope { rank, boundary, .. } => {
                 for b in boundary.iter() {
                     let boundary_rank = self.get(b).rank();
-                    assert_eq!(boundary_rank + 1, *rank, "bad boundary ranks of polytope");
+                    ensure!(boundary_rank + 1 == *rank, "bad boundary ranks of polytope");
                 }
                 if *rank == 1 {
-                    assert_eq!(boundary.len(), 2, "line must have two endpoints");
-                    assert!(
+                    ensure!(boundary.len() == 2, "line must have two endpoints");
+                    ensure!(
                         !boundary.iter().all_equal(),
                         "line endpoints must be distinct",
                     );
@@ -237,12 +313,12 @@ impl Space {
                 if *rank == 2 {
                     let mut multiplicity = HashMap::<VertexId, usize>::new();
                     for b in boundary.iter() {
-                        for v in self.line_endpoints(b).expect("expected line") {
+                        for v in self.line_endpoints(b).ok_or_eyre("expected line")? {
                             *multiplicity.entry(v).or_default() += 1;
                         }
                     }
                     for &m in multiplicity.values() {
-                        assert_eq!(m, 2, "bad polygon structure");
+                        ensure!(m == 2, "bad polygon structure");
                     }
                 }
             }
@@ -256,7 +332,7 @@ impl Space {
     pub(super) fn add_polytope_if_non_degenerate(
         &mut self,
         p: PolytopeData,
-    ) -> Result<Option<ElementId>, IndexOverflow> {
+    ) -> Result<Option<ElementId>> {
         if let PolytopeData::Polytope { rank, boundary, .. } = &p
             && boundary.len() <= *rank as usize
         {
@@ -267,27 +343,76 @@ impl Space {
     pub(super) fn add_subpolytope_if_non_degenerate(
         &mut self,
         original: ElementId,
-        new_boundary: Set64<ElementId>,
+        new_boundary: impl IntoIterator<Item = ElementId>,
+        new_boundary_portals: impl IntoIterator<Item = (PortalId, ElementId)>,
     ) -> Result<Option<ElementId>> {
         let p = match &self.polytopes[original] {
             PolytopeData::Vertex(_) => bail!("expected non-vertex polytope; got vertex"),
             PolytopeData::Polytope {
                 rank,
                 boundary: _,
+                boundary_portals: _,
                 hyperplane,
                 is_primordial,
             } => PolytopeData::Polytope {
                 rank: *rank,
-                boundary: new_boundary,
+                boundary_portals: BoundaryPortals::new(new_boundary_portals),
+                boundary: new_boundary.into_iter().collect(),
                 hyperplane: *hyperplane,
                 is_primordial: *is_primordial,
             },
         };
-        Ok(self.add_polytope_if_non_degenerate(p)?)
+        self.add_polytope_if_non_degenerate(p)
+    }
+
+    /// Applies a portal's transfomr to a polytope.
+    fn send_polytope_through_portal(
+        &mut self,
+        polytope: ElementId,
+        portal: PortalId,
+    ) -> Result<ElementId> {
+        let portal_plane = &self.hyperplanes[self.portals[portal].hyperplane];
+        match self.polytopes[polytope].clone() {
+            PolytopeData::Vertex(v) => {
+                let (_vertex_id, element_id) =
+                    self.add_vertex(portal_plane.reflect_point(&self.vertex_pos(v)))?;
+                Ok(element_id)
+            }
+
+            PolytopeData::Polytope {
+                rank,
+                boundary,
+                boundary_portals,
+                hyperplane,
+                is_primordial,
+            } => {
+                ensure!(
+                    boundary_portals.is_empty(),
+                    "cannot send polytope through portal when polytope has nonempty boundary portals",
+                );
+                let portal_plane = portal_plane.clone();
+                let new_polytope_data = PolytopeData::Polytope {
+                    rank,
+                    boundary: boundary
+                        .iter()
+                        .map(|b| self.send_polytope_through_portal(b, portal))
+                        .try_collect()?,
+                    boundary_portals: BoundaryPortals::EMPTY,
+                    hyperplane: match hyperplane {
+                        Some(h) => Some(self.add_hyperplane(
+                            portal_plane.reflect_hyperplane(&self.hyperplanes[h]),
+                        )?),
+                        None => None,
+                    },
+                    is_primordial,
+                };
+                Ok(self.add_polytope(new_polytope_data)?)
+            }
+        }
     }
 
     /// Returns the endpoints of a line, or an error if `line` is not a line.
-    pub fn line_endpoints(&self, line: ElementId) -> Option<[VertexId; 2]> {
+    pub(super) fn line_endpoints(&self, line: ElementId) -> Option<[VertexId; 2]> {
         let mut points = self.polytopes[line]
             .boundary()
             .ok()?
@@ -304,7 +429,7 @@ impl Space {
         }
 
         let result = match &self.polytopes[polytope] {
-            PolytopeData::Vertex(p) => Set64::<VertexId>::from_iter([*p]),
+            PolytopeData::Vertex(v) => Set64::<VertexId>::from_iter([*v]),
             PolytopeData::Polytope { boundary, .. } => {
                 let boundary = boundary.clone();
                 boundary.iter().flat_map(|b| self.vertex_set(b)).collect()
@@ -398,6 +523,75 @@ impl Space {
         Ok(Set64::<ElementId>::new())
     }
 
+    /// Unfolds a polytope across portals, and returns the set of portals that
+    /// the polytope crosses through.
+    ///
+    /// Returns `None` if the polytope only exists because of portals. This
+    /// should never happen for a max-rank polytope.
+    pub fn unfold(&mut self, polytope: ElementId) -> Result<ElementId> {
+        if let Some(cached_result) = self.cached_unfolded.get(&polytope) {
+            return Ok(*cached_result);
+        }
+
+        match self.polytopes[polytope].clone() {
+            PolytopeData::Vertex { .. } => Ok(polytope),
+
+            PolytopeData::Polytope {
+                rank,
+                boundary,
+                boundary_portals,
+                hyperplane,
+                is_primordial,
+            } => {
+                if boundary
+                    .iter()
+                    .any(|b| self.get(b).as_facet().is_ok_and(|f| f.is_primordial()))
+                {
+                    bail!(
+                        "polytope is too big/infinite (cannot unfold shape with primordial facets)",
+                    )
+                }
+
+                let mut unprocessed_boundary_elements: VecDeque<ElementId> = boundary
+                    .iter()
+                    .filter(|b| !boundary_portals.contains_element(*b))
+                    .map(|b| self.unfold(b))
+                    .try_collect()?;
+
+                // Orbit the non-portal boundary elements using the bounding portals
+                // elements as the generating set.
+
+                let generator_portals = boundary_portals.iter_portals().collect_vec();
+                let mut new_boundary_elements_set: Set64<ElementId> =
+                    unprocessed_boundary_elements.iter().copied().collect();
+                while let Some(elem) = unprocessed_boundary_elements.pop_front() {
+                    for &g in &generator_portals {
+                        let new_elem = self.send_polytope_through_portal(elem, g)?;
+                        if new_boundary_elements_set.insert(new_elem) {
+                            unprocessed_boundary_elements.push_back(new_elem);
+                        }
+                    }
+                }
+
+                let unfolded_polytope = self.add_polytope(PolytopeData::Polytope {
+                    rank,
+                    boundary: new_boundary_elements_set,
+                    boundary_portals: BoundaryPortals::EMPTY,
+                    hyperplane,
+                    is_primordial,
+                })?;
+                self.cached_unfolded.insert(polytope, unfolded_polytope);
+                Ok(unfolded_polytope)
+            }
+        }
+    }
+
+    /// Returns the transform to apply when passing through a portal.
+    pub fn portal_transform(&self, portal_id: PortalId) -> Result<pga::Motor> {
+        let h = self.portals.get(portal_id)?.hyperplane;
+        pga::Motor::plane_reflection(self.ndim, &self.hyperplanes[h]).ok_or_eyre("bad hyperplane")
+    }
+
     /// Returns a human-readable string representation of a polytope element.
     pub fn dump_to_string(&self, root: ElementId) -> String {
         let polytopes = &self.polytopes;
@@ -405,49 +599,65 @@ impl Space {
 
         let max_rank = polytopes[root].rank();
         let mut s = String::new();
-        let mut stack = vec![root];
-        while let Some(p) = stack.pop() {
+        let mut stack = vec![(root, String::new())];
+        while let Some((p, p_portals_str)) = stack.pop() {
             for _ in polytopes[p].rank()..max_rank {
                 s += "  ";
             }
-
-            if polytopes[p].rank() == 1 {
-                // IIFE to mimic try_block
-                let edge_verts = (|| {
-                    let mut points = polytopes[p]
-                        .boundary()
-                        .ok()?
-                        .iter()
-                        .map(|p| polytopes[p].to_vertex());
-                    Some([points.next()??, points.next()??])
-                })();
-                s += &match edge_verts {
-                    Some([a, b]) => format!("{p}: line {:?} .. {:?}", &vertices[a], &vertices[b]),
-                    None => format!("{p}: invalid edge"),
+            match &polytopes[p] {
+                PolytopeData::Vertex(v) => {
+                    s += &format!("{p}: point {v} {:.4?}", self.vertex_coordinates.get(*v));
                 }
-            } else {
-                match &polytopes[p] {
-                    PolytopeData::Vertex(v) => s += &format!("{p}: point {v}"),
-                    PolytopeData::Polytope {
-                        rank,
-                        boundary,
-                        hyperplane,
-                        is_primordial,
-                    } => {
-                        s += &format!("{p}: {rank}D polytope");
+                PolytopeData::Polytope {
+                    rank,
+                    boundary,
+                    boundary_portals,
+                    hyperplane,
+                    is_primordial,
+                } => {
+                    if *rank == 1 {
+                        if let Some([a, b]) = boundary.iter().collect_array()
+                            && let Some(va) = polytopes[a].to_vertex()
+                            && let Some(vb) = polytopes[b].to_vertex()
+                        {
+                            s += &format!(
+                                "{p}: line{p_portals_str} <{:.4?}{}> .. <{:.4?}{}>",
+                                &vertices[va],
+                                format_portal_list(boundary_portals.portals_for_element(a)),
+                                &vertices[vb],
+                                format_portal_list(boundary_portals.portals_for_element(b)),
+                            );
+                        } else {
+                            s += &format!("{p}: invalid edge");
+                        }
+                    } else {
+                        s += &format!("{p}: {rank}D polytope{p_portals_str}");
                         if *is_primordial {
                             s += " (primordial)";
                         }
                         if let Some(h) = hyperplane {
                             s += &format!(" (hyperplane {h})");
                         }
-                        stack.extend(boundary.iter());
+                        stack.extend(boundary.iter().map(|b| {
+                            let portals_str =
+                                format_portal_list(boundary_portals.portals_for_element(b));
+                            (b, portals_str)
+                        }));
                     }
                 }
             }
             s.push('\n');
         }
         s
+    }
+}
+
+fn format_portal_list(portals: impl Iterator<Item = PortalId>) -> String {
+    let portals = portals.collect_vec();
+    if portals.is_empty() {
+        String::new()
+    } else {
+        format!(" (portals [{}])", portals.iter().join(", "))
     }
 }
 

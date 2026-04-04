@@ -30,12 +30,13 @@ pub fn build_3d_gizmo(
 
     for face in space.get(gizmo_polytope).face_set() {
         let face_pole = face.as_element().as_facet()?.hyperplane()?.pole();
-        let Some(&(axis, transform)) = gizmo_faces_by_vector.get(face_pole.clone()) else {
+        let Some(&(axis, transform)) = gizmo_faces_by_vector.get(face_pole.as_vector().clone())
+        else {
             continue; // TODO: warn
         };
 
         let vertex_positions = face.vertices_in_order()?.map(|v| v.pos()).collect_vec();
-        let surface_id = mesh.add_gizmo_surface(&face_pole)?;
+        let surface_id = mesh.add_gizmo_surface(face_pole.as_vector())?;
         let range = mesh.add_gizmo_polygon(&vertex_positions, surface_id)?;
         mesh.add_gizmo_face(range)?;
         gizmo_twists.push(GizmoTwist {

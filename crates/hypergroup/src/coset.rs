@@ -61,7 +61,7 @@ impl Coset {
     /// [coset]: https://en.wikipedia.org/wiki/Coset
     /// [subgroup]: https://en.wikipedia.org/wiki/Subgroup
     /// [double coset]: https://en.wikipedia.org/wiki/Double_coset
-    pub fn from_conjugate_coset(
+    pub(crate) fn from_conjugate_coset(
         overgroup: Group,
         element_count: usize,
         lhs: GroupElementId,

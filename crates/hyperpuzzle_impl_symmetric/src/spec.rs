@@ -1,35 +1,38 @@
-use hypergroup::{AbbrGenSeq, IsometryGroup, PerGenerator};
+use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
 use hypermath::{pga::Motor, prelude::*};
 use hyperpuzzle_core::TypedIndex;
-use hypuz_notation::Layer;
+use hypuz_notation::{Layer, LayerRange};
 
+#[derive(Debug)]
 pub struct ProductPuzzleSpec {
     pub factors: Vec<FactorPuzzleSpec>,
 }
 
+#[derive(Debug)]
 pub struct FactorPuzzleSpec {
-    pub symmetry: IsometryGroup,
+    // TODO: split axes symmetry and facets symmetry (requires expanding shape symmetry before slicing)
+    pub coxeter_matrix: CoxeterMatrix,
     pub facet_orbits: Vec<FacetOrbitSpec>,
     pub axis_orbits: Vec<AxisOrbitSpec>,
 }
 
 impl FactorPuzzleSpec {
     /// Constructs the spec for a facet-turning puzzle.
-    pub fn new_ft(symmetry: IsometryGroup, axis_orbits: Vec<AxisOrbitSpec>) -> Self {
+    pub fn new_ft(coxeter_matrix: CoxeterMatrix, axis_orbits: Vec<AxisOrbitSpec>) -> Self {
         let facet_orbits = axis_orbits
             .iter()
             .map(|axis_orbit| axis_orbit.facets())
             .collect();
 
         Self {
-            symmetry,
+            coxeter_matrix,
             facet_orbits,
             axis_orbits,
         }
     }
 
     pub fn ndim(&self) -> u8 {
-        self.symmetry.ndim()
+        self.coxeter_matrix.generator_count()
     }
 
     pub fn axis_count(&self) -> usize {
@@ -37,6 +40,7 @@ impl FactorPuzzleSpec {
     }
 }
 
+#[derive(Debug)]
 pub struct FacetOrbitSpec {
     pub initial_facet_pole: Vector,
     pub names: Vec<(AbbrGenSeq, String)>,
@@ -62,6 +66,7 @@ impl FacetOrbitSpec {
     }
 }
 
+#[derive(Debug)]
 pub struct AxisOrbitSpec {
     pub initial_vector: Vector,
     /// Cut distances from the origin, which must be sorted from outermost
@@ -80,13 +85,29 @@ impl AxisOrbitSpec {
         self.cut_distances.len().saturating_sub(1)
     }
 
-    /// Returns the cut distance bounding the outside of layer, with an extra
-    /// `None` at the end.
-    pub fn layer_cut_distances(&self) -> impl Iterator<Item = (Option<Layer>, Float)> {
+    /// Returns the cut distance bounding the outside of each layer, from
+    /// outermost to innermost, with an extra `None` at the end.
+    pub fn layer_outside_distances(&self) -> impl Iterator<Item = (Option<Layer>, Float)> {
         Layer::iter(self.layer_count())
             .map(Some)
             .chain([None])
             .zip(self.cut_distances.iter().copied())
+    }
+
+    pub fn layer_range_for_distance_range(
+        &self,
+        max_distance: Float,
+        min_distance: Float,
+    ) -> Option<LayerRange> {
+        let (max_layer, _) = self
+            .layer_outside_distances()
+            .take_while(|(_, d)| APPROX.gt_eq(d, &max_distance))
+            .last()?;
+        let (min_layer, _) = self
+            .layer_outside_distances()
+            .take_while(|(_, d)| APPROX.gt(d, &min_distance))
+            .last()?;
+        Some(LayerRange::new(min_layer?, max_layer?))
     }
 
     /// Returns the generator sequence, vector, and name for each axis.

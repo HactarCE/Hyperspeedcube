@@ -85,9 +85,9 @@ impl Hyperplane {
     }
     /// Constructs a new hyperplane from a normal vector and a point that it
     /// passes through. Returns `None` if `normal` is approximately zero.
-    pub fn through_point(normal: impl VectorRef, point: impl VectorRef) -> Option<Self> {
+    pub fn through_point(normal: impl VectorRef, point: &Point) -> Option<Self> {
         let normal = normal.normalize()?;
-        let distance = normal.dot(point);
+        let distance = normal.dot(point.as_vector());
         Some(Self { normal, distance })
     }
 
@@ -100,9 +100,10 @@ impl Hyperplane {
     pub fn distance(&self) -> Float {
         self.distance
     }
-    /// Returns the pole of the hyperplane, which may be zero.
-    pub fn pole(&self) -> Vector {
-        &self.normal * self.distance
+    /// Returns the pole of the hyperplane, which is the point on the hyperplane
+    /// closest to the origin. It may be the origin.
+    pub fn pole(&self) -> Point {
+        Point(&self.normal * self.distance)
     }
 
     /// Returns the signed perpendicular distance of a point from the plane.
@@ -151,6 +152,25 @@ impl Hyperplane {
             b_loc,
             intersection,
         }
+    }
+
+    /// Reflects a point across the hyperplane.
+    pub fn reflect_point(&self, p: &Point) -> Point {
+        p - &self.normal * (2.0 * self.signed_distance_to_point(p))
+    }
+
+    /// Reflects a vector across a hyperplane.
+    pub fn reflect_vector(&self, v: &Vector) -> Vector {
+        v - &self.normal * (2.0 * self.normal.dot(v))
+    }
+
+    /// Reflects a hyperplane `h` across `self`.
+    pub fn reflect_hyperplane(&self, h: &Hyperplane) -> Hyperplane {
+        Hyperplane::through_point(
+            self.reflect_vector(&h.normal),
+            &self.reflect_point(&h.pole()),
+        )
+        .expect("invalid hyperplane")
     }
 }
 

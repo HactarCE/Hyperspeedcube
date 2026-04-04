@@ -17,6 +17,7 @@ mod spec;
 mod twist_system;
 
 use builder::ProductPuzzleBuilder;
+use itertools::Itertools;
 pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, ProductPuzzleSpec};
 pub use twist_system::SymmetricTwistSystemEngineData;
 
@@ -37,21 +38,27 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
             // IIFE to mimic try_block
             (|| -> Result<_> {
                 let mut warn_fn = |e| eprintln!("{e}");
-                ProductPuzzleBuilder::new(
+                let t = std::time::Instant::now();
+                let ret = ProductPuzzleBuilder::new(
                     &ProductPuzzleSpec {
                         factors: vec![
-                            // ft_cube(5)?,
+                            // ft_cube(3)?,
                             // megaminx()?,
                             // shallow_line()?,
                             // shallow_polygon(20)?,
-                            shallow_polygon(7)?,
-                            shallow_polygon(4)?,
+                            // shallow_polygon(7)?,
+                            // shallow_polygon(4)?,
                             // shallow_ft_simplex(3)?,
+                            ft_120_cell_shallow()?,
+                            // ft_120_cell_evil()?,
+                            // ft_120_cell(vec![])?,
                         ],
                     },
                     &mut warn_fn,
                 )?
-                .build(Some(&build_ctx), &mut warn_fn) // TODO: better warn function
+                .build(Some(&build_ctx), &mut warn_fn); // TODO: better warn function
+                dbg!(t.elapsed());
+                ret
             })()
             .map(Redirectable::Direct)
             .map_err(|e| e.to_string())
@@ -73,7 +80,7 @@ pub fn direct_product_vectors(
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,
     twists: Arc<SymmetricTwistSystemEngineData>,
-    piece_grip_signatures: Arc<PerPiece<PerAxis<Option<Layer>>>>,
+    piece_grip_signatures: Arc<PerPiece<PerAxis<Option<LayerRange>>>>,
     piece_attitudes: PerPiece<GroupElementId>, // TODO: consider storing inverse
 }
 
@@ -114,20 +121,22 @@ impl PuzzleState for ProductPuzzleState {
 
     fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide> {
         self.piece_attitudes.map_ref(|piece, _| {
-            if self
-                .piece_layer_on_axis(piece, axis)
-                .is_some_and(|l| layers.contains(l))
-            {
-                WhichSide::Inside
-            } else {
-                WhichSide::Outside
+            match self.piece_layer_range_on_axis(piece, axis) {
+                Some(range) => WhichSide::from_points(range.into_iter().map(|l| {
+                    if layers.contains(l) {
+                        PointWhichSide::Inside
+                    } else {
+                        PointWhichSide::Outside
+                    }
+                })),
+                None => WhichSide::Split, // axis is entirely blocked
             }
         })
     }
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        Some(LayerMask::from_layer(
-            self.piece_layer_on_axis(piece, axis)?,
+        Some(LayerMask::from_range(
+            self.piece_layer_range_on_axis(piece, axis)?,
         ))
     }
 
@@ -187,7 +196,7 @@ impl ProductPuzzleState {
         piece_transforms
     }
 
-    fn piece_layer_on_axis(&self, piece: Piece, axis: Axis) -> Option<Layer> {
+    fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> Option<LayerRange> {
         let attitude = self.piece_attitudes[piece];
         let inverse_attitude = self.twists.group.inverse(attitude);
         self.piece_grip_signatures[piece][self.twists.group_action.act(inverse_attitude, axis)]
@@ -198,6 +207,20 @@ fn autonames() -> impl Iterator<Item = String> {
     (0..)
         .map(hypuz_notation::family::SequentialUppercaseName)
         .map(|prefix| prefix.to_string())
+}
+
+fn autoname_orbit(sym: &hypergroup::IsometryGroup, point: Vector) -> Vec<(AbbrGenSeq, String)> {
+    hypergroup::orbit_geometric_with_gen_seq(
+        &sym.generator_motors()
+            .iter()
+            .map(|(g, m)| (hypergroup::GenSeq::new([g]), m.clone()))
+            .collect_vec(),
+        point,
+    )
+    .into_iter()
+    .map(|(gen_seq, _, _)| gen_seq)
+    .zip(crate::autonames())
+    .collect()
 }
 
 const INF: Float = Float::INFINITY;
@@ -233,7 +256,7 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
     .collect();
 
     Ok(FactorPuzzleSpec::new_ft(
-        CoxeterMatrix::B(ndim)?.isometry_group()?,
+        CoxeterMatrix::B(ndim)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(ndim - 1),
             cut_distances: vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
@@ -261,7 +284,7 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     let cut_depth = 1.0 - edge_depth / 3.0;
 
     Ok(FactorPuzzleSpec::new_ft(
-        CoxeterMatrix::I(n)?.isometry_group()?,
+        CoxeterMatrix::I(n)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(1) * 2.0 / edge_length,
             cut_distances: vec![INF, cut_depth * 2.0 / edge_length],
@@ -285,7 +308,7 @@ fn line(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
     ];
 
     Ok(FactorPuzzleSpec::new_ft(
-        CoxeterMatrix::A(1)?.isometry_group()?,
+        CoxeterMatrix::A(1)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(0),
             cut_distances,
@@ -319,10 +342,40 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
     let cut_distance = std::f64::consts::GOLDEN_RATIO.recip();
 
     Ok(FactorPuzzleSpec::new_ft(
-        CoxeterMatrix::H3().isometry_group()?,
+        CoxeterMatrix::H3(),
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(2),
             cut_distances: vec![INF, cut_distance],
+            names,
+        }],
+    ))
+}
+
+use std::f64::consts::GOLDEN_RATIO as PHI;
+
+fn ft_120_cell_shallow() -> Result<FactorPuzzleSpec> {
+    const SHALLOW_CUT_DEPTH: Float = 3.0 / 2.0 * (1.0 / PHI);
+    // ft_120_cell(vec![INF, 0.95])
+    ft_120_cell(vec![INF, SHALLOW_CUT_DEPTH])
+}
+
+fn ft_120_cell_evil() -> Result<FactorPuzzleSpec> {
+    const EVIL_CUT_DEPTH: Float = 1.0 / PHI;
+    ft_120_cell(vec![INF, EVIL_CUT_DEPTH])
+}
+
+fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
+    let coxeter_matrix = CoxeterMatrix::H4();
+    let isometry_group = coxeter_matrix.isometry_group()?;
+    let axis_vector = (coxeter_matrix.mirror_basis()? * vector![0.0, 0.0, 0.0, 1.0])
+        .normalize()
+        .unwrap();
+    let names = autoname_orbit(&isometry_group, axis_vector.clone());
+    Ok(FactorPuzzleSpec::new_ft(
+        coxeter_matrix,
+        vec![AxisOrbitSpec {
+            initial_vector: axis_vector,
+            cut_distances,
             names,
         }],
     ))
@@ -340,7 +393,7 @@ fn shallow_ft_simplex(ndim: u8) -> Result<FactorPuzzleSpec> {
     let names = gen_seqs.zip(name_strings.map(|n| n.to_string())).collect();
 
     Ok(FactorPuzzleSpec::new_ft(
-        CoxeterMatrix::A(ndim)?.isometry_group()?,
+        CoxeterMatrix::A(ndim)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(ndim - 1),
             cut_distances: vec![INF, 0.0, -INF],
@@ -358,6 +411,16 @@ fn lift_vector_by_ndim<V: FromIterator<Float>>(
     let below = std::iter::repeat_n(0.0, ndim_below as usize);
     let above = std::iter::repeat_n(0.0, ndim_above as usize);
     itertools::chain!(below.clone(), v.iter_ndim(v_ndim), above.clone()).collect()
+}
+
+fn lift_hyperplane_by_ndim(
+    h: &Hyperplane,
+    ndim_below: u8,
+    h_ndim: u8,
+    ndim_above: u8,
+) -> Result<Hyperplane> {
+    let normal: Vector = lift_vector_by_ndim(h.normal(), ndim_below, h_ndim, ndim_above);
+    Hyperplane::new(normal, h.distance()).ok_or_eyre("error lifting hyperplane")
 }
 
 fn shuffle_group_generators(

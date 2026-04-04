@@ -2,6 +2,8 @@
 
 use std::cmp::Ordering;
 
+use itertools::Itertools;
+
 /// Extension trait generalizing [`Iterator::max()`] and [`Iterator::min()`] to
 /// [`f32`] and [`f64`] using float total comparison functions.
 pub trait FloatMinMaxIteratorExt: Iterator + Sized
@@ -18,6 +20,12 @@ where
     /// [`f32::total_cmp()`]/[`f64::total_cmp()`] to compare items.
     fn min_float(self) -> Option<Self::Item> {
         self.min_by(|a, b| a.hypuz_util_total_cmp(b))
+    }
+
+    /// Same as [`Itertools::minmax()`], but using
+    /// [`f32::total_cmp()`]/[`f64::total_cmp()`] to compare items.
+    fn minmax_float(self) -> itertools::MinMaxResult<Self::Item> {
+        self.minmax_by(|a, b| a.hypuz_util_total_cmp(b))
     }
 
     /// Same as [`Iterator::is_sorted()`], but using

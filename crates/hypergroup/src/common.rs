@@ -12,7 +12,7 @@ use super::{AbbrGenSeq, GenSeq};
 /// `apply_generator` is called on every pair of an element and a generator. It
 /// must return `Some(e * g)` if `e * g` has not yet been seen, or `None` if
 /// `e * g` has already been seen.
-pub(crate) fn orbit<E, G>(
+pub fn orbit<E, G>(
     init: E,
     generators: &[G],
     mut apply_generator: impl FnMut(&E, &G) -> Option<E>,
@@ -32,7 +32,7 @@ pub(crate) fn orbit<E, G>(
 /// along with the index of the element in discovery order (where `init` has
 /// index 0). It must return `Some(e * g)` if `e * g` has not yet been seen, or
 /// `None` if `e * g` has already been seen.
-pub(crate) fn orbit_collect<E, G>(
+pub fn orbit_collect<E, G>(
     init: E,
     generators: &[G],
     mut apply_generator: impl FnMut(usize, &E, &G) -> Option<E>,
@@ -53,14 +53,14 @@ pub(crate) fn orbit_collect<E, G>(
 }
 
 /// Returns the orbit of an object under the symmetry.
-pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
+pub fn orbit_geometric<T: std::fmt::Debug + Clone + ApproxHash + Ndim + TransformByMotor>(
     generators: &[pga::Motor],
     mut object: T,
 ) -> Vec<T> {
     let mut seen = ApproxHashMap::new(APPROX);
     seen.entry_with_mut_key(&mut object).or_insert(());
 
-    orbit_collect(object, generators, |_, unprocessed_object, generator| {
+    orbit_collect(object, generators, |i, unprocessed_object, generator| {
         let mut new_object = generator.transform(unprocessed_object);
         if let approx_collections::hash_map::Entry::Vacant(e) =
             seen.entry_with_mut_key(&mut new_object)
@@ -73,8 +73,8 @@ pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     })
 }
 
-/// Returns the orbit of an object under the symmetry. Each generator is
-/// specified along with its generator sequence.
+/// Returns the orbit of an object under the symmetry. Each object in the orbit
+/// is specified along with its generator sequence.
 pub fn orbit_geometric_with_gen_seq<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     generators: &[(GenSeq, pga::Motor)],
     mut object: T,

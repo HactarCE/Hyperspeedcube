@@ -21,6 +21,7 @@ use crate::{
 /// [Coxeter matrix]: https://en.wikipedia.org/wiki/Coxeter_group#Coxeter_matrix_and_Schl%C3%A4fli_matrix
 /// [Coxeter group]: https://en.wikipedia.org/wiki/Coxeter_group
 /// [symmetric]: https://en.wikipedia.org/wiki/Symmetric_matrix
+#[derive(Clone)]
 pub struct CoxeterMatrix {
     /// Name, for a named Coxeter group.
     name: Option<(char, u16)>,

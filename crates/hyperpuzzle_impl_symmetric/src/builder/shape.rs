@@ -3,9 +3,11 @@
 use std::collections::HashMap;
 
 use eyre::{Result, eyre};
+use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::builder::ColorSystemBuilder;
+use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::geometry::PolytopeGeometry;
@@ -13,25 +15,30 @@ use crate::geometry::PolytopeGeometry;
 /// Shape of a puzzle under construction.
 #[derive(Debug)]
 pub(super) struct ProductPuzzleShape {
-    /// Number of dimensions of the puzzle and the space that contains it.
-    pub ndim: u8,
+    /// Symmetry group of the shape.
+    pub group: IsometryGroup,
+    /// Colors
+    pub colors: PerColor<(usize, String)>, // TODO: do this better; currently it's `(lowercase_index, uppercase_name)`
     /// Pieces and stickers.
     pub pieces: PerPiece<PieceData>,
-    /// Surfaces.
+    /// Data for each surface.
     pub surfaces: PerSurface<SurfaceData>,
-    /// Colors
-    pub colors: PerColor<(usize, String)>, // TODO: do this better
 }
 
 impl ProductPuzzleShape {
+    /// Returns the number of the dimensions of the puzzle.
+    pub fn ndim(&self) -> u8 {
+        self.group.ndim()
+    }
+
     /// Constructs the empty puzzle shape, which is the identity of the direct
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
-            ndim: 0,
+            group: IsometryGroup::trivial(),
+            colors: PerColor::new(),
             pieces: PerPiece::from_iter([PieceData::POINT]),
             surfaces: PerSurface::new(),
-            colors: PerColor::new(),
         }
     }
 
@@ -43,21 +50,19 @@ impl ProductPuzzleShape {
         let b = rhs;
 
         let pieces = itertools::iproduct!(a.pieces.iter_values(), b.pieces.iter_values(),)
-            .map(|(a_piece, b_piece)| {
-                PieceData::direct_product(a_piece, b_piece, a.surfaces.len(), a.colors.len())
-            })
+            .map(|(a_piece, b_piece)| PieceData::direct_product(a_piece, b_piece, a.surfaces.len()))
             .collect();
 
         // Assume that the centroid of each entire puzzle is the origin.
         let surfaces = std::iter::chain(
             a.surfaces
                 .iter_values()
-                .map(|a_surface| a_surface.lift_by_ndim(0, b.ndim)),
+                .map(|a_surface| a_surface.lift_by_ndim(0, 0, a.ndim(), b.ndim())),
             b.surfaces
                 .iter_values()
-                .map(|b_surface| b_surface.lift_by_ndim(a.ndim, 0)),
+                .map(|b_surface| b_surface.lift_by_ndim(a.colors.len(), a.ndim(), b.ndim(), 0)),
         )
-        .collect();
+        .try_collect()?;
 
         let a_color_sets = a
             .colors
@@ -74,10 +79,10 @@ impl ProductPuzzleShape {
         .collect();
 
         Ok(Self {
-            ndim: a.ndim + b.ndim,
+            group: IsometryGroup::product([&a.group, &b.group])?,
+            colors,
             pieces,
             surfaces,
-            colors,
         })
     }
 
@@ -90,7 +95,7 @@ impl ProductPuzzleShape {
             let mut piece_stickers = SmallVec::with_capacity(piece_builder.sticker_count());
             for facet in piece_builder.facets.iter() {
                 if let Some(sticker_data) = &facet.sticker_data {
-                    let color = sticker_data.color;
+                    let color = self.surfaces[sticker_data.surface].color;
                     let sticker = stickers.push(StickerInfo { piece, color })?;
                     piece_stickers.push(sticker);
                 }
@@ -140,18 +145,18 @@ impl ProductPuzzleShape {
     }
 
     /// Returns the grip signature for each piece.
-    pub fn build_grip_signatures(&self) -> PerPiece<PerAxis<Option<Layer>>> {
+    pub fn build_grip_signatures(&self) -> PerPiece<PerAxis<Option<LayerRange>>> {
         self.pieces.map_ref(|_, piece| piece.grip_signature.clone())
     }
 
     /// Constructs a mesh for rendering the puzzle.
     pub fn build_mesh(&self) -> Result<Mesh> {
-        let mut mesh = Mesh::new_empty(self.ndim);
+        let mut mesh = Mesh::new_empty(self.ndim());
 
         // Add puzzle surfaces to the mesh with the same IDs as they have in
         // `self.surfaces`.
-        for (_surface, surface_geometry) in &self.surfaces {
-            mesh.add_puzzle_surface(&surface_geometry.centroid, &surface_geometry.normal)?;
+        for (_surface, surface_data) in &self.surfaces {
+            mesh.add_puzzle_surface(&surface_data.centroid, &surface_data.hyperplane.normal())?;
         }
         let dummy_surface = mesh.add_puzzle_surface(&Point::ORIGIN, Vector::EMPTY)?; // dummy surface for internals and 2D puzzles
 
@@ -179,7 +184,7 @@ pub(super) struct PieceData {
     /// facets are removed because internals are never visible in 4D+.
     pub facets: Vec<PieceFacetData>,
     /// Grip signature for the piece.
-    pub grip_signature: PerAxis<Option<Layer>>,
+    pub grip_signature: PerAxis<Option<LayerRange>>,
 }
 
 impl PieceData {
@@ -202,12 +207,7 @@ impl PieceData {
     ///
     /// In order to track sticker data correctly, this requires the number of
     /// surfaces and colors in the `a` puzzle.
-    pub fn direct_product(
-        a: &Self,
-        b: &Self,
-        a_surface_count: usize,
-        a_color_count: usize,
-    ) -> Self {
+    pub fn direct_product(a: &Self, b: &Self, a_surface_count: usize) -> Self {
         let ndim = a.polytope.space_ndim() + b.polytope.space_ndim();
 
         Self {
@@ -221,7 +221,6 @@ impl PieceData {
                         sticker_data: a_facet.sticker_data.as_ref().map(|sticker_data| {
                             StickerData {
                                 surface: sticker_data.surface,
-                                color: sticker_data.color,
                             }
                         }),
                     }),
@@ -233,7 +232,6 @@ impl PieceData {
                         sticker_data: b_facet.sticker_data.as_ref().map(|sticker_data| {
                             StickerData {
                                 surface: Surface(a_surface_count as u16 + sticker_data.surface.0),
-                                color: Color(a_color_count as u16 + sticker_data.color.0),
                             }
                         }),
                     }),
@@ -308,33 +306,42 @@ pub(super) struct PieceFacetData {
 #[derive(Debug)]
 pub(super) struct StickerData {
     /// Surface that the sticker is part of.
+    ///
+    /// This determines the color of the sticker.
     pub surface: Surface,
-    /// Color of the sticker, which typically (but not always) corresponds to
-    /// the surface.
-    pub color: Color,
 }
 
 #[derive(Debug)]
 pub(super) struct SurfaceData {
-    /// Number of dimensions of the space containing the surface.
-    ///
-    /// The surface is always one dimension lower than this.
-    pub ndim: u8,
     /// Centroid of the surface, used to compute facet shrink.
     ///
     /// It is acceptable for this to be slightly inaccurate.
     pub centroid: Point,
-    /// Normal vector to the surface, used to cull 4D backfaces.
-    pub normal: Vector,
+    /// Hyperplane for the surface, whose normal vector is used to cull 4D
+    /// backfaces.
+    pub hyperplane: Hyperplane,
+    /// Sticker color for the surface.
+    pub color: Color,
 }
 
 impl SurfaceData {
-    pub fn lift_by_ndim(&self, ndim_below: u8, ndim_above: u8) -> Self {
+    pub fn lift_by_ndim(
+        &self,
+        color_count_below: usize,
+        ndim_below: u8,
+        ndim: u8,
+        ndim_above: u8,
+    ) -> Result<Self> {
         let centroid = self.centroid.as_vector();
-        Self {
-            ndim: ndim_below + self.ndim + ndim_above,
-            centroid: crate::lift_vector_by_ndim(centroid, ndim_below, self.ndim, ndim_above),
-            normal: crate::lift_vector_by_ndim(&self.normal, ndim_below, self.ndim, ndim_above),
-        }
+        Ok(Self {
+            centroid: crate::lift_vector_by_ndim(centroid, ndim_below, ndim, ndim_above),
+            hyperplane: crate::lift_hyperplane_by_ndim(
+                &self.hyperplane,
+                ndim_below,
+                ndim,
+                ndim_above,
+            )?,
+            color: Color(color_count_below as u16 + self.color.0),
+        })
     }
 }

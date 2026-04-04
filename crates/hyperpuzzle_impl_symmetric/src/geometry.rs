@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use eyre::{Result, ensure};
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
+use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 
 hypuz_util::typed_index_struct! {
@@ -12,7 +13,7 @@ hypuz_util::typed_index_struct! {
 
 /// List of a vector for each [`Vertex`], stored as a flattened
 /// `Vec<`[`Float`]`>`.
-pub type FlatVectorList = FlatTiVec<Vertex, f32>;
+pub type FlatVectorList = FlatTiVec<Vertex, Float>;
 
 fn direct_product_vector_lists(a: &FlatVectorList, b: &FlatVectorList) -> FlatVectorList {
     FlatVectorList::from_iter(
@@ -168,14 +169,11 @@ impl PolytopeGeometry {
         let mut verts = FlatVectorList::new(ndim as usize);
         let mut shrink_vectors = FlatVectorList::new(ndim as usize);
         for v in polytope.vertex_set() {
-            vertex_map.insert(
-                v.id(),
-                verts.push_row(v.pos().into_vector().iter().map(|x| x as f32))?,
-            );
+            vertex_map.insert(v.id(), verts.push_row(v.pos().as_vector().iter())?);
             let shrink_vector = sticker_shrink_vectors
                 .get(&v.id())
                 .unwrap_or(const { &Vector::EMPTY });
-            shrink_vectors.push_row(shrink_vector.iter().map(|x| x as f32))?;
+            shrink_vectors.push_row(shrink_vector.iter())?;
         }
 
         let mut edges: Vec<[Vertex; 2]> = vec![];
@@ -280,5 +278,45 @@ impl PolytopeGeometry {
 
         let end = mesh.counts();
         Ok(MeshRange::new(start, end))
+    }
+
+    /// Returns the minimum and maximum heights of vertices in the polytope
+    /// along the given axis vector.
+    ///
+    /// Returns `None` if the polytope is empty.
+    pub(super) fn height_on_axis(&self, axis: &Vector) -> Option<(f64, f64)> {
+        self.verts
+            .iter_rows()
+            .map(|v| std::iter::zip(axis.iter(), v).map(|(a, b)| a * b).sum()) // dot product
+            .minmax_float()
+            .into_option()
+    }
+}
+
+impl TransformByMotor for PolytopeGeometry {
+    fn transform_by(&self, m: &pga::Motor) -> Self {
+        let ndim = self.space_ndim();
+
+        let mut verts = FlatVectorList::with_capacity(ndim as usize, self.vertex_count());
+        for (_, p) in &self.verts {
+            verts
+                .push_row(m.transform_point(p).as_vector().iter())
+                .expect("error transforming geometry");
+        }
+        let mut shrink_vectors = FlatVectorList::with_capacity(ndim as usize, self.vertex_count());
+        for (_, v) in &self.shrink_vectors {
+            shrink_vectors
+                .push_row(m.transform_vector(v).iter())
+                .expect("error transforming geometry");
+        }
+
+        PolytopeGeometry {
+            verts,
+            shrink_vectors,
+            edges: self.edges.clone(),
+            polygon_verts: self.polygon_verts.clone(),
+            polygon_sizes: self.polygon_sizes.clone(),
+            centroid: m.transform(&self.centroid),
+        }
     }
 }
