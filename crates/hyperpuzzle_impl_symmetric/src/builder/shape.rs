@@ -167,6 +167,23 @@ impl ProductPuzzleShape {
 
         Ok(mesh)
     }
+
+    /// Constructs a list of unique surface hyperplanes and an index into that
+    /// list for each sticker.
+    pub fn build_sticker_planes(&self) -> (Vec<Hyperplane>, PerSticker<usize>) {
+        (
+            self.surfaces
+                .iter_values()
+                .map(|surface_data| surface_data.hyperplane.clone())
+                .collect(),
+            self.pieces
+                .iter_values()
+                .flat_map(|piece_data| &piece_data.facets)
+                .filter_map(|piece_facet_data| piece_facet_data.sticker_data.as_ref())
+                .map(|sticker_data| sticker_data.surface.to_index())
+                .collect(),
+        )
+    }
 }
 
 /// Data for a piece in a puzzle under construction.

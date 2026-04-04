@@ -190,6 +190,8 @@ impl ProductPuzzleBuilder {
             gizmos::build_3d_gizmo(&mut mesh, &gizmo_faces, &mut gizmo_twists)?;
         }
 
+        let (planes, sticker_planes) = self.shape.build_sticker_planes();
+
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates: vec![],
             piece_vertex_sets: PerPiece::new_with_len(piece_count),
@@ -198,13 +200,13 @@ impl ProductPuzzleBuilder {
                 .pieces
                 .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center()),
 
-            planes: vec![Hyperplane::new(vector![1.0], 0.0).unwrap()],
-            sticker_planes: stickers.map_ref(|_, _| 0),
+            planes,
+            sticker_planes,
 
             mesh,
 
-            axis_vectors: Arc::new(PerAxis::new()),
-            axis_layer_depths: PerAxis::new(),
+            axis_vectors: Arc::new(PerAxis::new()), // TODO: is this needed?
+            axis_layer_depths: PerAxis::new(),      // TODO: is this needed?
             twist_transforms: Arc::new(PerTwist::new()),
 
             gizmo_twists,
