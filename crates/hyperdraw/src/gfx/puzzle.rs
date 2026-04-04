@@ -625,7 +625,7 @@ impl NdEuclidPuzzleRenderer {
             .color_palette_texture
             .set_size(color_palette_size);
 
-        // Write color palette. TOOD: only write to buffer when it changes
+        // Write color palette. TODO: only write to buffer when it changes
         let color_palette_data = color_palette;
         self.buffers
             .color_palette_texture

@@ -17,8 +17,8 @@ use crate::geometry::PolytopeGeometry;
 pub(super) struct ProductPuzzleShape {
     /// Symmetry group of the shape.
     pub group: IsometryGroup,
-    /// Colors
-    pub colors: PerColor<(usize, String)>, // TODO: do this better; currently it's `(lowercase_index, uppercase_name)`
+    /// Lowercase index and name for each color.
+    pub colors: PerColor<(usize, String)>, // TODO: do this better
     /// Pieces and stickers.
     pub pieces: PerPiece<PieceData>,
     /// Data for each surface.

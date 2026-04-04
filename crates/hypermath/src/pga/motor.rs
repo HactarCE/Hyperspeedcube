@@ -264,7 +264,7 @@ impl Motor {
         if self.is_reflection {
             0.0
         } else {
-            *self.coefficients.get(0).unwrap_or(&0.0)
+            *self.coefficients.first().unwrap_or(&0.0)
         }
     }
     /// Lifts the motor into at least `ndim`-dimensional space.

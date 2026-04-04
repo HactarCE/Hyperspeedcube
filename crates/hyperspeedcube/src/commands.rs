@@ -3,7 +3,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hyperpuzzle::{notation::LayerPrefix, prelude::*};
+use hyperpuzzle::notation::LayerPrefix;
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de};
 

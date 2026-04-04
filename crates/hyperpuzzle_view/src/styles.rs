@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use hyperdraw::PieceStyleValues;
 use hyperprefs::{Preferences, PresetRef};
-use hyperpuzzle::{FloatMinMaxIteratorExt, prelude::*};
+use hyperpuzzle::FloatMinMaxIteratorExt;
+use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 
 /// Returns a closure that updates the given style state.

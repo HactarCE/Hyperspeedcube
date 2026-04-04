@@ -30,7 +30,6 @@ pub use hyperspeedcube_cli_types::*;
 pub use hypuz_notation as notation;
 /// Re-export of `hypuz_util`.
 pub use hypuz_util::*;
-
 pub use prelude::*;
 pub use tags::{AllTags, TAGS};
 

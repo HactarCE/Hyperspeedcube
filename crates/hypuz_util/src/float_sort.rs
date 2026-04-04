@@ -30,6 +30,7 @@ where
 
     /// Same as [`Iterator::is_sorted()`], but using
     /// [`f32::total_cmp()`]/[`f64::total_cmp()`] to compare items.
+    #[allow(clippy::wrong_self_convention)]
     fn is_float_sorted(self) -> bool {
         self.is_sorted_by(|a, b| a.hypuz_util_total_cmp(b).is_le())
     }
@@ -63,6 +64,7 @@ pub trait FloatMinMaxByIteratorExt: Iterator + Sized {
 
     /// Same as [`Iterator::is_sorted_by_key()`], but using
     /// [`f32::total_cmp()`]/[`f64::total_cmp()`] to compare items.
+    #[allow(clippy::wrong_self_convention)]
     fn is_float_sorted<B, F>(self, mut f: F) -> bool
     where
         B: TotalCmp,

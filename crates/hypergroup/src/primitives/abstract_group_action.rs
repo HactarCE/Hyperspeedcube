@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use hypuz_util::ti::{IndexOverflow, TypedIndex, TypedIndexIter};
 
-use crate::{AbstractSubgroup, GeneratorId, GroupElementId};
-
-use super::AbstractGroupLut;
+use crate::{AbstractGroupLut, AbstractSubgroup, GeneratorId, GroupElementId};
 
 /// Lookup table for an [action] of an abstract finite group (represented using
 /// [`AbstractGroupLut`]) on a set of points (represented using the generic

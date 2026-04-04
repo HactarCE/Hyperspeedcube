@@ -1,5 +1,6 @@
+use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
-use std::{collections::HashMap, fmt};
 
 use hypuz_util::ti::{TiVec, TypedIndex};
 use itertools::Itertools;

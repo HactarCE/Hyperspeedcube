@@ -173,14 +173,13 @@
 
 #![allow(clippy::unwrap_used)]
 
-use proc_macro2::TokenStream;
-use quote::{ToTokens, TokenStreamExt, quote};
-use syn::{DeriveInput, parse_macro_input};
-
 #[cfg(test)]
 use hyperkdl as _; // used in doctests
 #[cfg(test)]
-use kdl as _; // used in doctests
+use kdl as _;
+use proc_macro2::TokenStream;
+use quote::{ToTokens, TokenStreamExt, quote};
+use syn::{DeriveInput, parse_macro_input}; // used in doctests
 
 mod attrs;
 mod fields;

@@ -1,5 +1,6 @@
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
-use hypermath::{pga::Motor, prelude::*};
+use hypermath::pga::Motor;
+use hypermath::prelude::*;
 use hyperpuzzle_core::TypedIndex;
 use hypuz_notation::{Layer, LayerRange};
 
@@ -10,7 +11,8 @@ pub struct ProductPuzzleSpec {
 
 #[derive(Debug)]
 pub struct FactorPuzzleSpec {
-    // TODO: split axes symmetry and facets symmetry (requires expanding shape symmetry before slicing)
+    // TODO: split axes symmetry and facets symmetry (requires expanding shape
+    // symmetry before slicing)
     pub coxeter_matrix: CoxeterMatrix,
     pub facet_orbits: Vec<FacetOrbitSpec>,
     pub axis_orbits: Vec<AxisOrbitSpec>,

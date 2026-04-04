@@ -3,8 +3,8 @@ use super::{Layer, LayerRange, SignedLayer};
 /// Number of layers on an axis and a boolean flag to indicate whether negative
 /// layer numbers are allowed.
 ///
-/// By default, the max layer is [`Layer::MAX`] and negative layer numbers are not
-/// allowed.
+/// By default, the max layer is [`Layer::MAX`] and negative layer numbers are
+/// not allowed.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]

@@ -4,8 +4,7 @@ use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::verification::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
-use smallvec::smallvec;
+use smallvec::{SmallVec, smallvec};
 
 use super::*;
 

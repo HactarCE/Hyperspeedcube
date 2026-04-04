@@ -1,13 +1,10 @@
-use std::{
-    borrow::Cow,
-    fmt,
-    sync::{Arc, LazyLock},
-};
+use std::borrow::Cow;
+use std::fmt;
+use std::sync::{Arc, LazyLock};
 
-use hypermath::{
-    APPROX, ApproxHashMap, MotorNearestNeighborMap, Point, Vector,
-    approx_collections::hash_map::Entry, pga::Motor,
-};
+use hypermath::approx_collections::hash_map::Entry;
+use hypermath::pga::Motor;
+use hypermath::{APPROX, ApproxHashMap, MotorNearestNeighborMap, Point, Vector};
 use hypuz_util::ti::{TiVec, TypedIndex, TypedIndexIter};
 use itertools::Itertools;
 

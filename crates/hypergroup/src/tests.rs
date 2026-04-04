@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use rand::{RngExt, SeedableRng, seq::IndexedRandom};
+use rand::seq::IndexedRandom;
+use rand::{RngExt, SeedableRng};
 
 use super::*;
 

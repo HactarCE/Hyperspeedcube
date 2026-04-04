@@ -8,8 +8,8 @@
 //! # Implementation
 //!
 //! I first understood this algorithm by reading ["Building 4D Polytopes" by
-//! Mikael Hvidtfeldt Christensen][building 4d polytopes]. (Search for the word "demo" in that
-//! page.)
+//! Mikael Hvidtfeldt Christensen][building 4d polytopes]. (Search for the word
+//! "demo" in that page.)
 //!
 //! [building 4d polytopes]: https://syntopia.github.io/Polytopia/polytopes.html
 //!
@@ -24,7 +24,8 @@
 //!
 //! See [`RelationTables`] for more info about how that's structured and why.
 
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
 
 use hypuz_util::ti::TypedIndex;
 
@@ -97,8 +98,8 @@ pub fn construct_group(
     g.build()
 }
 
-/// See the comment at the start of [`FiniteCoxeterGroup::group()`] for an explanation
-/// of the role this structure takes in the Todd-Coxeter algorithm.
+/// See the comment at the start of [`FiniteCoxeterGroup::group()`] for an
+/// explanation of the role this structure takes in the Todd-Coxeter algorithm.
 ///
 /// The most important thing about each row is the element+generator composition
 /// that must be known in order to fill in more of that row. Each row has two

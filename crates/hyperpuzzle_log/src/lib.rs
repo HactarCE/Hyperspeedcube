@@ -66,10 +66,11 @@ fn remove_kdl_version_number(
 
 #[cfg(test)]
 mod tests {
-    use crate::schema::latest::*;
-
-    use hyperpuzzle_core::{Timestamp, prelude::*};
+    use hyperpuzzle_core::Timestamp;
+    use hyperpuzzle_core::prelude::*;
     use itertools::Itertools;
+
+    use crate::schema::latest::*;
 
     #[test]
     fn test_puzzle_log_export() {

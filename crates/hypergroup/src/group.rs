@@ -1,9 +1,7 @@
-use std::{
-    borrow::Cow,
-    fmt,
-    ops::Mul,
-    sync::{Arc, LazyLock},
-};
+use std::borrow::Cow;
+use std::fmt;
+use std::ops::Mul;
+use std::sync::{Arc, LazyLock};
 
 use hypermath::num::Euclid;
 use hypuz_util::ti::{IndexOverflow, TypedIndex, TypedIndexIter};
@@ -390,7 +388,8 @@ impl Group {
 
     /// Composes an element and a generator.
     ///
-    /// This is an optimized equivalent to `group.compose(e, group.generators()[g])`.
+    /// This is an optimized equivalent to `group.compose(e,
+    /// group.generators()[g])`.
     pub fn compose_elem_generator(&self, e: GroupElementId, g: GeneratorId) -> GroupElementId {
         let (factor, g_in_factor) = self.inner.generators_within_factors[g];
         self.replace_factor_element(e, factor, |e_in_factor| {

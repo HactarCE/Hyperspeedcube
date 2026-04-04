@@ -14,6 +14,7 @@ mod from_space;
 mod gizmos;
 mod shape;
 
+use axes::ProductPuzzleAxes;
 use parking_lot::Mutex;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
@@ -22,7 +23,6 @@ use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceD
 use crate::{
     FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, SymmetricTwistSystemEngineData,
 };
-use axes::ProductPuzzleAxes;
 
 #[derive(Debug)]
 pub struct ProductPuzzleBuilder {

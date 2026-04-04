@@ -12,11 +12,6 @@ mod geometry;
 mod group;
 mod primitives;
 
-use geometry::FactorGroupIsometries;
-use primitives::{
-    AbstractGroupActionLut, AbstractGroupLut, AbstractGroupLutBuilder, AbstractSubgroup, EggTable,
-};
-
 pub use action::GroupAction;
 pub use common::*;
 pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
@@ -24,8 +19,12 @@ pub use coset::Coset;
 pub use coxeter::{CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation};
 pub use errors::{GroupError, GroupResult};
 pub use gen_seq::*;
+use geometry::FactorGroupIsometries;
 pub use geometry::IsometryGroup;
 pub use group::Group;
+use primitives::{
+    AbstractGroupActionLut, AbstractGroupLut, AbstractGroupLutBuilder, AbstractSubgroup, EggTable,
+};
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.

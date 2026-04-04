@@ -5,10 +5,9 @@ use hyperkdl::Warning;
 use itertools::Itertools;
 use kdl::*;
 
-use crate::Error;
-
 #[allow(unused)]
 use super::v3::{DrandRound, LogEvent, LogFile, LogPuzzle, Program, Scramble, Solve};
+use crate::Error;
 
 /// Deserializes a log file from a string and updates it to the latest schema.
 pub fn deserialize(mut doc: KdlDocument, warnings: &mut Vec<Warning>) -> Result<LogFile, Error> {

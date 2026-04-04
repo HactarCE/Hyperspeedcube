@@ -1,4 +1,5 @@
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
 
 use hypuz_util::ti::{TypedIndex, TypedIndexIter};
 use smallvec::{SmallVec, smallvec};

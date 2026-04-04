@@ -1,8 +1,3 @@
-use hypuz_notation::{Str, Transform};
-use itertools::Itertools;
-use parking_lot::Mutex;
-use rand::{Rng, RngExt};
-use smallvec::{SmallVec, smallvec};
 use std::sync::Arc;
 
 use eyre::Result;
@@ -12,6 +7,11 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::TwistSystemEngineData;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
+use hypuz_notation::{Str, Transform};
+use itertools::Itertools;
+use parking_lot::Mutex;
+use rand::{Rng, RngExt};
+use smallvec::{SmallVec, smallvec};
 
 /// Simulation data for a symmetric puzzle.
 ///

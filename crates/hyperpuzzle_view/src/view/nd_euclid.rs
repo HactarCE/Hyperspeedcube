@@ -5,7 +5,8 @@ use float_ord::FloatOrd;
 use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
-use hyperpuzzle::{FloatMinMaxByIteratorExt, prelude::*};
+use hyperpuzzle::FloatMinMaxByIteratorExt;
+use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 

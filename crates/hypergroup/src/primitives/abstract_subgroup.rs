@@ -1,9 +1,9 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
 use hypuz_util::ti::TiMask;
 
 use super::AbstractGroupLut;
-
 use crate::GroupElementId;
 
 /// Subgroup of an [`AbstractGroupLut`].
