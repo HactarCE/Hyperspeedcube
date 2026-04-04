@@ -120,7 +120,7 @@ pub struct PieceInfo {
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
-    /// Color on the sticker.
+    /// Color of the sticker.
     pub color: Color,
 }
 

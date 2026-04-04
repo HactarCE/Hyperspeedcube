@@ -82,7 +82,7 @@ impl ProductPuzzleAxes {
 
         // Shuffling group generators improves average word length, making some
         // group operations faster.
-        let symmetry = crate::shuffle_group_generators(&symmetry, &mut rand::rng())?;
+        let symmetry = crate::shuffle_group_generators(symmetry, &mut rand::rng())?;
 
         let axis_points = vectors.map_ref(|_, v| Point(v.clone()));
         let action = symmetry.action_on_points(&axis_points)?;
@@ -226,7 +226,7 @@ impl ProductPuzzleAxes {
             .max_by_float_key(|(_e, m)| m.scalar().abs())?;
         let axis_vector = &self.vectors[axis];
         let arbitrary_nonparallel_vector = Vector::unit(
-            (0..3 as u8)
+            (0..3)
                 .min_by_float_key(|&i| axis_vector[i].abs())
                 .unwrap_or(0),
         );
@@ -304,7 +304,6 @@ pub struct AxisOrbit {
 
 impl AxisOrbit {
     /// Offsets all axis IDs by an additional amount.
-    #[must_use]
     pub fn offset_ids_by(mut self, additional_id_offset: usize) -> Result<Self, IndexOverflow> {
         self.id_offset += additional_id_offset;
         Axis::try_iter_range(self.id_offset..self.id_offset + self.len)?; // check for overflow

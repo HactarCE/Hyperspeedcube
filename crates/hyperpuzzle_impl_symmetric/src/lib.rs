@@ -1,5 +1,6 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
+#![allow(unused)]
 
 use std::sync::Arc;
 

@@ -163,7 +163,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         constraint_set: &ConstraintSet<P>,
         mut random_index: impl FnMut(usize) -> usize,
     ) -> Option<(ConstraintSet<P>, GroupElementId)> {
-        let constraint_set_for_each_factor = self.split_constraint_set(&constraint_set)?;
+        let constraint_set_for_each_factor = self.split_constraint_set(constraint_set)?;
 
         let outputs = std::iter::zip(&mut self.factor_solvers, constraint_set_for_each_factor)
             .map(|((_, solver), (_, constraint_set_for_factor))| {
@@ -188,7 +188,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         // The combined constraint set should be satisfied by the element.
         #[cfg(debug_assertions)]
         for Constraint { from, to } in &combined_constraint_set {
-            debug_assert_eq!(to, self.action.act(combined_element, from))
+            debug_assert_eq!(to, self.action.act(combined_element, from));
         }
 
         Some((combined_constraint_set, combined_element))
@@ -205,7 +205,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
         base_constraints: &ConstraintSet<P>,
         element: GroupElementId,
     ) -> Option<ConstraintSet<P>> {
-        let constraint_set_for_each_factor = self.split_constraint_set(&base_constraints)?;
+        let constraint_set_for_each_factor = self.split_constraint_set(base_constraints)?;
         let outputs = itertools::izip!(
             &mut self.factor_solvers,
             constraint_set_for_each_factor,
@@ -223,11 +223,11 @@ impl<P: TypedIndex> ConstraintSolver<P> {
                 base_constraints,
                 &combined_constraint_set
             )))
-            .unwrap()
+            .expect("error sanity-checking constraint")
             .elements()
             .into_iter()
             .exactly_one()
-            .unwrap(),
+            .expect("error sanity-checking constraint"),
         );
 
         Some(combined_constraint_set)
@@ -296,7 +296,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             // Next fastest: cached by subgroup generators
             let subgroup = Arc::new(self.action.pointwise_stabilizer(fixed_points));
             let gen_set = subgroup.generators();
-            get_or_insert_entry_with(&mut self.subgroups_by_generating_set, &gen_set, || {
+            get_or_insert_entry_with(&mut self.subgroups_by_generating_set, gen_set, || {
                 // Slowest: not cached
                 let subgroup = SubgroupOrbits::new(&self.action, Arc::clone(&subgroup));
                 self.subgroup_orbits
@@ -432,7 +432,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
         base_constraints: &ConstraintSet<P>,
         element: GroupElementId,
     ) -> Option<ConstraintSet<P>> {
-        let mut coset = self.solve_coset_impl(&base_constraints)?;
+        let mut coset = self.solve_coset_impl(base_constraints)?;
 
         for c in base_constraints {
             debug_assert_eq!(self.action.act(element, c.from), c.to);

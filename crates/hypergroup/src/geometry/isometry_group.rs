@@ -238,7 +238,7 @@ impl IsometryGroup {
 
     /// Returns the list of generators used to generate the group.
     pub fn generators(&self) -> &PerGenerator<GroupElementId> {
-        &self.group.generators()
+        self.group.generators()
     }
 
     /// Returns the shortest factorization of `element` into generators. Ties
@@ -290,7 +290,7 @@ impl IsometryGroup {
             m
         })
         .reduce(|m1, m2| m1 * m2)
-        .unwrap_or_else(|| Motor::ident(self.ndim as u8))
+        .unwrap_or_else(|| Motor::ident(self.ndim))
     }
 
     /// Returns whether an element is a reflection.

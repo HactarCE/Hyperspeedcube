@@ -60,8 +60,7 @@ impl<P: TypedIndex> AbstractGroupActionLut<P> {
 
     /// Applies the action of a generator to a point.
     fn successor(&self, generator: GeneratorId, point: P) -> P {
-        let index =
-            point.to_index() as usize * self.group.generators().len() + generator.0 as usize;
+        let index = point.to_index() * self.group.generators().len() + generator.0 as usize;
         self.action_table[index]
     }
 
@@ -69,7 +68,7 @@ impl<P: TypedIndex> AbstractGroupActionLut<P> {
     pub fn act(&self, element: GroupElementId, point: P) -> P {
         self.group
             .factorization(element)
-            .into_iter()
+            .iter()
             .rfold(point, |p, &g| self.successor(g, p))
     }
 

@@ -235,7 +235,7 @@ impl PolytopeGeometry {
         // Add polygons.
         let mut i = 0;
         for &polygon_size in &self.polygon_sizes {
-            let j = i + polygon_size as usize;
+            let j = i + polygon_size;
 
             let vertices = self.polygon_verts[i..j]
                 .iter()
@@ -247,7 +247,7 @@ impl PolytopeGeometry {
             ensure!(vertices.len() >= 3, "mesh polygon is too small");
             let [u, v] = hypermath::util::triangle_tangent_vectors(
                 [&a, &b, &c],
-                (ndim == 2 || ndim == 3).then_some(&interior_point),
+                (ndim == 2 || ndim == 3).then_some(interior_point),
             )
             .unwrap_or_default(); // give up and return zero
 

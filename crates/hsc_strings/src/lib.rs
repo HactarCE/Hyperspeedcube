@@ -62,7 +62,6 @@ impl fmt::Display for Langs {
     }
 }
 
-#[allow(clippy::nonminimal_bool)]
 pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: impl AsRef<Path>) {
     // Sanity-check file extension to ensure that we don't accidentally
     // overwrite a KDL file.

@@ -60,7 +60,7 @@ pub fn orbit_geometric<T: std::fmt::Debug + Clone + ApproxHash + Ndim + Transfor
     let mut seen = ApproxHashMap::new(APPROX);
     seen.entry_with_mut_key(&mut object).or_insert(());
 
-    orbit_collect(object, generators, |i, unprocessed_object, generator| {
+    orbit_collect(object, generators, |_, unprocessed_object, generator| {
         let mut new_object = generator.transform(unprocessed_object);
         if let approx_collections::hash_map::Entry::Vacant(e) =
             seen.entry_with_mut_key(&mut new_object)

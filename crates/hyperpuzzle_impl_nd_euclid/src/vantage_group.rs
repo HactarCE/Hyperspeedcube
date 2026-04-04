@@ -48,7 +48,7 @@ impl NdEuclidVantageGroup {
     }
     /// Returns the vantage corresponding to a group element.
     pub fn group_element_to_vantage(&self, element: GroupElementId) -> Vantage {
-        Vantage(u32::from(element.0))
+        Vantage(element.0)
     }
     /// Returns the vantage corresponding to a vantage group element.
     ///

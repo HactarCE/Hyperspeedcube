@@ -2908,7 +2908,6 @@ dependencies = [
  "hypuz_notation",
  "hypuz_util",
  "itertools 0.14.0",
- "log",
  "parking_lot",
  "rand 0.10.0",
  "smallvec",

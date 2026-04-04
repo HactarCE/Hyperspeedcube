@@ -293,7 +293,7 @@ fn build_gizmo(
         })
         .map(|(vertex, surface)| {
             let old_id = vertex.id();
-            let new_id = mesh.add_gizmo_vertex(&vertex.pos(), surface)?;
+            let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
             eyre::Ok(((old_id, surface), new_id))
         })
         .try_collect()?;

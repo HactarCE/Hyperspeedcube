@@ -220,9 +220,9 @@ impl HpsSymmetry {
             "h3" => CoxeterMatrix::H3(),
             "h4" => CoxeterMatrix::H4(),
             s => match split_alpha_number(s) {
-                Some(("a", _, Some(n))) => CoxeterMatrix::A(n as u8),
-                Some(("b" | "c" | "bc", _, Some(n))) => CoxeterMatrix::B(n as u8),
-                Some(("d", _, Some(n))) => CoxeterMatrix::D(n as u8),
+                Some(("a", _, Some(n))) => CoxeterMatrix::A(n),
+                Some(("b" | "c" | "bc", _, Some(n))) => CoxeterMatrix::B(n),
+                Some(("d", _, Some(n))) => CoxeterMatrix::D(n),
                 Some(("i", n, _)) => CoxeterMatrix::I(n),
                 _ => return Err("unknown coxeter group string".at(span)),
             }

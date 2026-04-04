@@ -38,7 +38,7 @@ pub(super) struct SubgroupOrbits<P> {
 impl<P: TypedIndex> SubgroupOrbits<P> {
     /// Constructs the total subgroup that contains the entire group.
     pub fn new_total(action: &AbstractGroupActionLut<P>) -> Self {
-        let subgroup = Arc::new(AbstractSubgroup::new_total(Arc::clone(&action.group())));
+        let subgroup = Arc::new(AbstractSubgroup::new_total(Arc::clone(action.group())));
         Self::new(action, subgroup)
     }
 

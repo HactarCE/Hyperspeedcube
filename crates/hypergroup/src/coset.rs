@@ -9,10 +9,10 @@ use crate::{Group, GroupElementId};
 /// by group elements: `lhs * subgroup * rhs`. This itself is _not_ a coset of
 /// the subgroup, but it can be written as any of the following:
 ///
-/// - Left [coset] of a conjugated subgroup: `(lhs * rhs) * (rhs^-1 * subgroup *
-///   rhs)`
-/// - Right [coset] of a conjugated subgroup: `(lhs * subgroup * lhs^-1) * (lhs
-///   * rhs)`
+/// - Left [coset] of a conjugated subgroup:
+///   `(lhs * rhs) * (rhs^-1 * subgroup * rhs)`
+/// - Right [coset] of a conjugated subgroup:
+///   `(lhs * subgroup * lhs^-1) * (lhs * rhs)`
 /// - Conjugate of a left [coset]: `rhs^-1 * ((rhs * lhs) * subgroup) * rhs`
 /// - Conjugate of a right [coset]: `lhs * (subgroup * (rhs * lhs)) * lhs^-1`
 ///
@@ -40,15 +40,14 @@ pub struct Coset {
 impl Coset {
     /// Constructs a left coset from a "conjugate coset."
     ///
-    /// A "conjugate coset" is a sandwich of a subgroup by group elements: `lhs
-    /// * subgroup * rhs`. This itself is _not_ a coset of the subgroup, but it
-    /// can be written as any of the following:
+    /// A "conjugate coset" is a sandwich of a subgroup by group elements:
+    /// `lhs * subgroup * rhs`. This itself is _not_ a coset of the subgroup,
+    /// but it can be written as any of the following:
     ///
     /// - Left [coset] of a conjugated subgroup: `(lhs * rhs) * (rhs^-1 *
     ///   subgroup * rhs)`
     /// - Right [coset] of a conjugated subgroup: `(lhs * subgroup * lhs^-1) *
-    ///   (lhs
-    ///   * rhs)`
+    ///   (lhs * rhs)`
     /// - Conjugate of a left [coset]: `rhs^-1 * ((rhs * lhs) * subgroup) * rhs`
     /// - Conjugate of a right [coset]: `lhs * (subgroup * (rhs * lhs)) *
     ///   lhs^-1`

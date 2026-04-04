@@ -124,7 +124,7 @@ impl<P: TypedIndex> GroupAction<P> {
         let i = point
             .to_index()
             .checked_sub(self.inner.point_index_offsets[factor])?;
-        ((i as usize) < self.factors()[factor].point_count()).then_some(P::try_from_index(i).ok()?)
+        (i < self.factors()[factor].point_count()).then_some(P::try_from_index(i).ok()?)
     }
 
     pub(crate) fn point_from_factor(&self, factor: FactorGroup, point: P) -> P {

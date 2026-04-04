@@ -44,7 +44,6 @@ pub fn modify_draw_params(mut draw_params: DrawParams) -> DrawParams {
     draw_params
 }
 
-#[expect(clippy::single_range_in_vec_init)]
 pub fn placeholder_mesh(ndim: u8) -> Result<Mesh> {
     let mut mesh = Mesh {
         ndim,

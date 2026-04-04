@@ -299,8 +299,8 @@ fn try_element_from_motor(
         .map(NdEuclidVantageGroupElement)
 }
 
-fn try_motor_from_element<'a>(
-    group: &'a NdEuclidVantageGroup,
+fn try_motor_from_element(
+    group: &NdEuclidVantageGroup,
     element: &BoxDynVantageGroupElement,
 ) -> Result<pga::Motor> {
     Ok(group.group_element_motor(

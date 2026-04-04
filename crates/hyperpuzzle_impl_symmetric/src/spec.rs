@@ -4,17 +4,26 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::TypedIndex;
 use hypuz_notation::{Layer, LayerRange};
 
+/// Specification for a puzzle product, which is defined in terms of puzzle
+/// factors.
 #[derive(Debug)]
 pub struct ProductPuzzleSpec {
+    /// Puzzle factors, which will be combined using direct product.
     pub factors: Vec<FactorPuzzleSpec>,
 }
 
+/// Specification for a factor of a [`ProductPuzzleSpec`].
 #[derive(Debug)]
 pub struct FactorPuzzleSpec {
+    /// Symmetry for the puzzle factor.
     // TODO: split axes symmetry and facets symmetry (requires expanding shape
     // symmetry before slicing)
     pub coxeter_matrix: CoxeterMatrix,
+    /// Orbits of facets.
+    ///
+    /// Each facet is assigned a unique color.
     pub facet_orbits: Vec<FacetOrbitSpec>,
+    /// Orbits of twist axes.
     pub axis_orbits: Vec<AxisOrbitSpec>,
 }
 
@@ -31,14 +40,6 @@ impl FactorPuzzleSpec {
             facet_orbits,
             axis_orbits,
         }
-    }
-
-    pub fn ndim(&self) -> u8 {
-        self.coxeter_matrix.generator_count()
-    }
-
-    pub fn axis_count(&self) -> usize {
-        self.axis_orbits.iter().map(|orbit| orbit.len()).sum()
     }
 }
 
@@ -68,34 +69,41 @@ impl FacetOrbitSpec {
     }
 }
 
+/// Specification for an orbit of axes in a [`FactorPuzzleSpec`].
 #[derive(Debug)]
 pub struct AxisOrbitSpec {
+    /// Vector for the first axis in the orbit.
     pub initial_vector: Vector,
     /// Cut distances from the origin, which must be sorted from outermost
     /// (greatest) to innermost (least).
     pub cut_distances: Vec<Float>,
+    /// Names for the axes, with associated generator sequences.
     pub names: Vec<(AbbrGenSeq, String)>,
 }
 
 impl AxisOrbitSpec {
     /// Returns the number of axes in the orbit.
+    #[allow(clippy::len_without_is_empty)] // should never be empty
     pub fn len(&self) -> usize {
         self.names.len()
     }
 
+    /// Returns the number of layers on each axis in the orbit.
     pub fn layer_count(&self) -> usize {
         self.cut_distances.len().saturating_sub(1)
     }
 
     /// Returns the cut distance bounding the outside of each layer, from
     /// outermost to innermost, with an extra `None` at the end.
-    pub fn layer_outside_distances(&self) -> impl Iterator<Item = (Option<Layer>, Float)> {
+    fn layer_outside_distances(&self) -> impl Iterator<Item = (Option<Layer>, Float)> {
         Layer::iter(self.layer_count())
             .map(Some)
             .chain([None])
             .zip(self.cut_distances.iter().copied())
     }
 
+    /// Returns the layer range for a piece that spans from `min_distance` to
+    /// `max_distance` along the axis vector.
     pub fn layer_range_for_distance_range(
         &self,
         max_distance: Float,

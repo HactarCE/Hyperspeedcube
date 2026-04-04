@@ -276,8 +276,14 @@ impl Node {
                 }
                 Ok(())
             }
-            _ if invert => Ok(output.push(self.clone().inv()?)),
-            _ => Ok(output.push(self.clone())),
+            _ if invert => {
+                output.push(self.clone().inv()?);
+                Ok(())
+            }
+            _ => {
+                output.push(self.clone());
+                Ok(())
+            }
         }
     }
 }
@@ -823,13 +829,19 @@ impl LayerPrefixContents {
     /// Converts the layer prefix to a bitmask of layers.
     pub fn to_layer_mask(&self, layers_info: AxisLayersInfo) -> LayerMask {
         match self {
-            LayerPrefixContents::Single(l) => (l.to_u16() <= layers_info.max_layer)
-                .then(|| LayerMask::from_layer(*l))
-                .unwrap_or_default(),
-            LayerPrefixContents::Range(range) => range
-                .clamp_to_layer_count(layers_info.max_layer)
-                .map(LayerMask::from_range)
-                .unwrap_or_default(),
+            LayerPrefixContents::Single(l) => {
+                if l.to_u16() <= layers_info.max_layer {
+                    LayerMask::from_layer(*l)
+                } else {
+                    LayerMask::default()
+                }
+            }
+            LayerPrefixContents::Range(range) => {
+                match range.clamp_to_layer_count(layers_info.max_layer) {
+                    Some(x) => LayerMask::from_range(x),
+                    None => LayerMask::default(),
+                }
+            }
             LayerPrefixContents::Set(elements) => elements.to_layer_mask(layers_info),
         }
     }

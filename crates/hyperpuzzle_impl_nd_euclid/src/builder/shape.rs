@@ -598,7 +598,7 @@ impl ShapeBuilder {
 
         for (expected_id, surface_data) in surfaces {
             let surface_id =
-                mesh.add_puzzle_surface(&surface_data.centroid.center(), surface_data.normal)?;
+                mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
             ensure!(surface_id == expected_id);
         }
 
@@ -717,7 +717,7 @@ fn build_shape_polygons(
         ensure!(vertices.len() >= 3, "mesh polygon is too small");
         let [u, v] = hypermath::util::triangle_tangent_vectors(
             [0, 1, 2].map(|n| &vertices[n].0),
-            (ndim == 2 || ndim == 3).then_some(&piece_centroid),
+            (ndim == 2 || ndim == 3).then_some(piece_centroid),
         )
         .unwrap_or_default(); // give up and return zero
 

@@ -5,8 +5,7 @@ use hyperkdl::Warning;
 use itertools::Itertools;
 use kdl::*;
 
-#[allow(unused)]
-use super::v3::{DrandRound, LogEvent, LogFile, LogPuzzle, Program, Scramble, Solve};
+use super::v3::{LogEvent, LogFile, Solve};
 use crate::Error;
 
 /// Deserializes a log file from a string and updates it to the latest schema.

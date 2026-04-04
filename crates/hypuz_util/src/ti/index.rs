@@ -74,7 +74,7 @@ pub trait TypedIndex:
     /// Panics if `range.end-1 > `[`Self::MAX_INDEX`].
     #[track_caller]
     fn iter_range(range: Range<usize>) -> TypedIndexIter<Self> {
-        #[allow(clippy::unwrap_used)] // IndexOverflow gives good error message
+        #[expect(clippy::unwrap_used)] // IndexOverflow gives good error message
         Self::try_iter_range(range).unwrap()
     }
 

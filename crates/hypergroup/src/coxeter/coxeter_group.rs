@@ -256,14 +256,14 @@ impl CoxeterMatrix {
 /// Constructors for every finite Coxeter group by their names
 impl CoxeterMatrix {
     fn with_name(mut self, chr: char, n: u16) -> Self {
-        self.name = Some((chr, n.into()));
+        self.name = Some((chr, n));
         self
     }
 
     /// Returns A`n`, the symmetry of an `n`-dimensional simplex.
     ///
     /// Returns an error if `n < 1`.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn A(n: u8) -> GroupResult<Self> {
         if n < 1 {
             return Err(GroupError::BadCD);
@@ -274,7 +274,7 @@ impl CoxeterMatrix {
     /// Returns B`n`, the symmetry an `n`-dimensional hypercube.
     ///
     /// Returns an error if `n < 2`.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn B(n: u8) -> GroupResult<Self> {
         if n < 2 {
             return Err(GroupError::BadCD);
@@ -287,12 +287,13 @@ impl CoxeterMatrix {
     /// Returns D`n`.
     ///
     /// Returns an error if `n < 4`.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn D(n: u8) -> GroupResult<Self> {
         if n < 4 {
             return Err(GroupError::BadCD);
         }
         Ok(Self::from_matrix_fn(n, |i, j| {
+            #[expect(clippy::if_same_then_else)]
             if i == 0 && j == 2 {
                 3 // branch
             } else if i > 0 && i + 1 == j {
@@ -305,27 +306,28 @@ impl CoxeterMatrix {
     }
 
     /// Returns E6.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn E6() -> Self {
         Self::E(6)
     }
 
     /// Returns E7.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn E7() -> Self {
         Self::E(7)
     }
 
     /// Returns E6.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn E8() -> Self {
         Self::E(8)
     }
 
     /// Returns E`n`, where `6 <= n <= 8`.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     fn E(n: u8) -> Self {
         Self::from_matrix_fn(n, |i, j| {
+            #[expect(clippy::if_same_then_else)]
             if i == 0 && j == 3 {
                 3 // branch
             } else if i > 0 && i + 1 == j {
@@ -339,31 +341,31 @@ impl CoxeterMatrix {
     }
 
     /// Returns F4, the symmetry of the 24-cell.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn F4() -> Self {
         Self::linear_named('F', 4, [3, 4, 3])
     }
 
     /// Returns G2, the symmetry of the hexagon. It is equivalent to I6.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn G2() -> Self {
         Self::linear_named('G', 2, [6])
     }
 
     /// Returns H2, the symmetry of the pentagon. It is equivalent to I5.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn H2() -> Self {
         Self::linear_named('H', 2, [5])
     }
 
     /// Returns H3, the symmetry of the dodecahedron.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn H3() -> Self {
         Self::linear_named('H', 3, [5, 3])
     }
 
     /// Returns H4, the symmetry of the 120-cell.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn H4() -> Self {
         Self::linear_named('H', 4, [5, 3, 3])
     }
@@ -371,7 +373,7 @@ impl CoxeterMatrix {
     /// Returns I`n`, the symmetry of an `n`-gon.
     ///
     /// Returns an error if `n < 2`.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case)]
     pub fn I(n: u16) -> GroupResult<Self> {
         if n < 2 {
             return Err(GroupError::BadCD);

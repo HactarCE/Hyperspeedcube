@@ -87,7 +87,7 @@ impl PuzzleShapeFactorBuilder {
         self.cut(cut)?;
         Ok(())
     }
-    pub fn slice<'a>(&mut self, plane: Hyperplane) -> Result<()> {
+    pub fn slice(&mut self, plane: Hyperplane) -> Result<()> {
         let cut = hypershape::Cut::slice(plane);
         self.cut(cut)?;
         Ok(())
@@ -207,29 +207,31 @@ impl PuzzleShapeFactorBuilder {
                     |_, piece_data, g| {
                         let new_centroid = g.transform(&piece_data.polytope.centroid);
 
-                        if centroids_seen.insert(new_centroid.clone(), ()).is_none() {
-                            let polytope = g.transform(&piece_data.polytope);
-                            let facets = piece_data
-                                .facets
-                                .iter()
-                                .map(|f| PieceFacetData {
-                                    polytope: g.transform(&f.polytope),
-                                    sticker_data: f.sticker_data.as_ref().and_then(|s| {
-                                        let h = g.transform(&self.surfaces[s.surface].hyperplane);
-                                        Some(StickerData {
-                                            surface: *self.hyperplane_to_surface.get(h)?,
-                                        })
-                                    }),
-                                })
-                                .collect();
-                            Some(PieceData {
-                                polytope,
-                                facets,
-                                grip_signature: PerAxis::new(), // will be computed later
+                        centroids_seen
+                            .insert(new_centroid.clone(), ())
+                            .is_none()
+                            .then(|| {
+                                let polytope = g.transform(&piece_data.polytope);
+                                let facets = piece_data
+                                    .facets
+                                    .iter()
+                                    .map(|f| PieceFacetData {
+                                        polytope: g.transform(&f.polytope),
+                                        sticker_data: f.sticker_data.as_ref().and_then(|s| {
+                                            let h =
+                                                g.transform(&self.surfaces[s.surface].hyperplane);
+                                            Some(StickerData {
+                                                surface: *self.hyperplane_to_surface.get(h)?,
+                                            })
+                                        }),
+                                    })
+                                    .collect();
+                                PieceData {
+                                    polytope,
+                                    facets,
+                                    grip_signature: PerAxis::new(), // will be computed later
+                                }
                             })
-                        } else {
-                            None
-                        }
                     },
                 ))
             })
@@ -268,14 +270,9 @@ impl PieceShapeBuilder {
                 hypershape::ElementCutOutput::NonFlush {
                     inside, outside, ..
                 } => {
-                    inside_stickers.extend(inside.map(|polytope| StickerShapeBuilder {
-                        polytope,
-                        ..sticker
-                    }));
-                    outside_stickers.extend(outside.map(|polytope| StickerShapeBuilder {
-                        polytope,
-                        ..sticker
-                    }));
+                    inside_stickers.extend(inside.map(|polytope| StickerShapeBuilder { polytope }));
+                    outside_stickers
+                        .extend(outside.map(|polytope| StickerShapeBuilder { polytope }));
                 }
             };
         }
@@ -325,12 +322,9 @@ struct SimpleCutOutput<T> {
 impl<T> IntoIterator for SimpleCutOutput<T> {
     type Item = T;
 
-    type IntoIter =
-        std::iter::FilterMap<std::array::IntoIter<Option<T>, 2>, fn(Option<T>) -> Option<T>>;
+    type IntoIter = std::iter::Flatten<std::array::IntoIter<Option<T>, 2>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        [self.inside, self.outside]
-            .into_iter()
-            .filter_map(std::convert::identity)
+        [self.inside, self.outside].into_iter().flatten()
     }
 }

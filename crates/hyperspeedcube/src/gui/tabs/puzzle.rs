@@ -624,8 +624,7 @@ fn show_gizmo_face(
         for face in other_faces_on_same_gizmo {
             let mesh_range = geom.mesh.gizmo_ranges[face]; // TODO: fix crash here
             for edge_id in mesh_range.edge_range() {
-                let edge = geom.mesh.edges[edge_id as usize]
-                    .map(|i| gizmo_vertex_3d_positions[i as usize]);
+                let edge = geom.mesh.edges[edge_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
                 painter.line_segment(edge.map(&project_to_egui), stroke_weak);
             }
         }
@@ -633,8 +632,7 @@ fn show_gizmo_face(
 
     let mesh_range = geom.mesh.gizmo_ranges[gizmo_face];
     for tri_id in mesh_range.triangle_range() {
-        let tri =
-            geom.mesh.triangles[tri_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+        let tri = geom.mesh.triangles[tri_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.add(egui::Shape::convex_polygon(
             tri.into_iter().map(&project_to_egui).collect(),
             fill,
@@ -642,7 +640,7 @@ fn show_gizmo_face(
         ));
     }
     for edge_id in mesh_range.edge_range() {
-        let edge = geom.mesh.edges[edge_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+        let edge = geom.mesh.edges[edge_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.line_segment(edge.map(&project_to_egui), stroke_strong);
     }
 }

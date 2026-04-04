@@ -134,7 +134,7 @@ impl ProductPuzzleShape {
         let mut piece_type_hierarchy = PieceTypeHierarchy::new(6);
         for (id, piece_type_info) in &piece_types {
             if let Err(e) = piece_type_hierarchy.set_piece_type_id(&piece_type_info.name, id) {
-                warn_fn(e)
+                warn_fn(e);
             }
         }
 
@@ -156,7 +156,7 @@ impl ProductPuzzleShape {
         // Add puzzle surfaces to the mesh with the same IDs as they have in
         // `self.surfaces`.
         for (_surface, surface_data) in &self.surfaces {
-            mesh.add_puzzle_surface(&surface_data.centroid, &surface_data.hyperplane.normal())?;
+            mesh.add_puzzle_surface(&surface_data.centroid, surface_data.hyperplane.normal())?;
         }
         let dummy_surface = mesh.add_puzzle_surface(&Point::ORIGIN, Vector::EMPTY)?; // dummy surface for internals and 2D puzzles
 
