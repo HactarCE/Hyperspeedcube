@@ -69,8 +69,12 @@ impl TwistSystem {
     pub fn axis_from_move_family(&self, family: &str) -> Option<Axis> {
         if let Some(twist) = self.names.id_from_name(family) {
             Some(self.twists[twist].axis)
+        } else if let Some((prefix, _)) = family.split_once('_') // TODO: correct separator
+            && let Some(axis) = self.axes.names.id_from_name(prefix)
+        {
+            Some(axis)
         } else {
-            self.axes.names.id_from_name(family)
+            None
         }
     }
 }

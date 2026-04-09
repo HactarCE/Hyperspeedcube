@@ -15,7 +15,7 @@ mod primitives;
 pub use action::GroupAction;
 pub use common::*;
 pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
-pub use coset::Coset;
+pub use coset::{ConjugateCoset, LeftCoset, RightCoset, Subgroup};
 pub use coxeter::{CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation};
 pub use errors::{GroupError, GroupResult};
 pub use gen_seq::*;

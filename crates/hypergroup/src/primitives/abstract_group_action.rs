@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use hypuz_util::ti::{IndexOverflow, TypedIndex, TypedIndexIter};
+use hypuz_util::ti::{TypedIndex, TypedIndexIter};
+use itertools::Itertools;
 
-use crate::{AbstractGroupLut, AbstractSubgroup, GeneratorId, GroupElementId};
+use crate::{AbstractGroupLut, AbstractSubgroup, GeneratorId, GroupElementId, GroupResult};
 
 /// Lookup table for an [action] of an abstract finite group (represented using
 /// [`AbstractGroupLut`]) on a set of points (represented using the generic
@@ -30,12 +31,12 @@ impl<P: TypedIndex> AbstractGroupActionLut<P> {
     pub fn from_fn(
         group: Arc<AbstractGroupLut>,
         point_count: usize,
-        mut act: impl FnMut(GeneratorId, P) -> P,
-    ) -> Result<Self, IndexOverflow> {
+        mut act: impl FnMut(GeneratorId, P) -> GroupResult<P>,
+    ) -> GroupResult<Self> {
         let action_table =
             itertools::iproduct!(P::try_iter(point_count)?, group.generators().iter_keys())
                 .map(|(p, g)| act(g, p))
-                .collect();
+                .try_collect()?;
 
         Ok(Self {
             group,

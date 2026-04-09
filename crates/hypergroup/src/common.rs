@@ -53,7 +53,7 @@ pub fn orbit_collect<E, G>(
 }
 
 /// Returns the orbit of an object under the symmetry.
-pub fn orbit_geometric<T: std::fmt::Debug + Clone + ApproxHash + Ndim + TransformByMotor>(
+pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
     generators: &[pga::Motor],
     mut object: T,
 ) -> Vec<T> {

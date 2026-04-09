@@ -251,6 +251,19 @@ impl CoxeterMatrix {
             self.chiral_generator_transforms()?,
         )
     }
+
+    /// Constructs the direct product of two Coxeter groups.
+    pub fn direct_product(a: &Self, b: &Self) -> GroupResult<Self> {
+        CoxeterMatrix::from_matrix_fn(a.generator_count + b.generator_count, |i, j| {
+            if i < a.generator_count && j < a.generator_count {
+                a[[i, j]]
+            } else if i >= a.generator_count && j >= a.generator_count {
+                b[[i - a.generator_count, j - a.generator_count]]
+            } else {
+                2
+            }
+        })
+    }
 }
 
 /// Constructors for every finite Coxeter group by their names

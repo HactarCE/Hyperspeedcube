@@ -107,16 +107,6 @@ impl<'a, I: ElementIdConvert> SpaceRef<'a, I> {
             .into_iter()
             .map(|v| space.get(v))
     }
-    /// Returns an iterator over the set of boundary portals of the element.
-    pub fn boundary_portals(self) -> impl Iterator<Item = PortalId> {
-        match &self.space.polytopes[self.as_element().id] {
-            PolytopeData::Vertex(_) => &BoundaryPortals::EMPTY,
-            PolytopeData::Polytope {
-                boundary_portals, ..
-            } => boundary_portals,
-        }
-        .iter_portals()
-    }
 
     /// Returns the centroid of the element.
     pub fn centroid(self) -> Result<Centroid> {
@@ -134,6 +124,16 @@ impl<'a, I: ElementIdConvert> SpaceRef<'a, I> {
     /// Returns an arbitrary vertex of the element.
     pub fn arbitrary_vertex(self) -> Result<Vertex<'a>> {
         self.vertex_set().next().ok_or_eyre("degenerate polytope")
+    }
+
+    /// Returns the boundary portals of the element.
+    pub fn boundary_portals(self) -> &'a BoundaryPortals {
+        match &self.space.polytopes[self.as_element().id] {
+            PolytopeData::Vertex(_) => &BoundaryPortals::EMPTY,
+            PolytopeData::Polytope {
+                boundary_portals, ..
+            } => boundary_portals,
+        }
     }
 }
 impl<I: ElementIdConvert> ElementIdConvert for SpaceRef<'_, I> {

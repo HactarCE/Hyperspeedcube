@@ -5,7 +5,7 @@ use rand::{Rng, RngExt, SeedableRng};
 
 use super::*;
 use crate::{
-    Coset, CoxeterMatrix, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup,
+    ConjugateCoset, CoxeterMatrix, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup,
     PerGenerator, orbit_geometric_with_gen_seq,
 };
 
@@ -63,11 +63,11 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
         let t = std::time::Instant::now();
 
         let coset = solver.solve(&constraint_set).unwrap();
-        assert_eq!(coset.element_count, expected_order);
+        assert_eq!(coset.subgroup.element_count, expected_order);
         assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
         let chiral_coset = chiral_solver.solve(&constraint_set).unwrap();
-        assert_eq!(chiral_coset.element_count, expected_chiral_order);
+        assert_eq!(chiral_coset.subgroup.element_count, expected_chiral_order);
         assert_coset_satisfies_constraints(&chiral_action, &chiral_coset, &constraint_set);
 
         println!(
@@ -88,6 +88,7 @@ fn test_group_element_constraint_solver_h3() -> eyre::Result<()> {
         solver
             .solve(&[[U, U], [L, R], [F, F]].into())
             .unwrap()
+            .subgroup
             .element_count,
         1,
     );
@@ -142,11 +143,11 @@ fn test_group_element_constraint_solver_a4() -> eyre::Result<()> {
         let t = std::time::Instant::now();
 
         let coset = solver.solve(&constraint_set).unwrap();
-        assert_eq!(coset.element_count, expected_order);
+        assert_eq!(coset.subgroup.element_count, expected_order);
         assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
         let chiral_coset = chiral_solver.solve(&constraint_set).unwrap();
-        assert_eq!(chiral_coset.element_count, expected_chiral_order);
+        assert_eq!(chiral_coset.subgroup.element_count, expected_chiral_order);
         assert_coset_satisfies_constraints(&chiral_action, &chiral_coset, &constraint_set);
 
         println!(
@@ -292,17 +293,17 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
 
     let constraint_set = ConstraintSet::from([]);
     let coset = solver.solve(&constraint_set).unwrap();
-    assert_eq!(coset.element_count, 48 * 12 * 120);
+    assert_eq!(coset.subgroup.element_count, 48 * 12 * 120);
     assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
     let constraint_set = ConstraintSet::from([[bA, bA]]);
     let coset = solver.solve(&constraint_set).unwrap();
-    assert_eq!(coset.element_count, 48 * 2 * 120);
+    assert_eq!(coset.subgroup.element_count, 48 * 2 * 120);
     assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
     let constraint_set = ConstraintSet::from([[aF, aR], [bC, bF], [cA, cC], [cB, cD], [cD, cE]]);
     let coset = solver.solve(&constraint_set).unwrap();
-    assert_eq!(coset.element_count, 8 * 2 * 2);
+    assert_eq!(coset.subgroup.element_count, 8 * 2 * 2);
     assert_coset_satisfies_constraints(&action, &coset, &constraint_set);
 
     let constraint_set = ConstraintSet::from([[aF, aR], [aF, aF]]);
@@ -334,12 +335,12 @@ fn shuffle_group_generators(group: &IsometryGroup, rng: &mut impl Rng) -> Isomet
 #[track_caller]
 fn assert_coset_satisfies_constraints<P: TypedIndex>(
     action: &GroupAction<P>,
-    coset: &Coset,
+    coset: &ConjugateCoset,
     constraint_set: &ConstraintSet<P>,
 ) {
     let mut coset_elements = coset.elements();
     assert_eq!(
-        coset.element_count,
+        coset.subgroup.element_count,
         coset_elements.len(),
         "coset lied about element count"
     );
@@ -347,10 +348,38 @@ fn assert_coset_satisfies_constraints<P: TypedIndex>(
     coset_elements.sort();
     coset_elements.dedup();
     assert_eq!(
-        coset.element_count,
+        coset.subgroup.element_count,
         coset_elements.len(),
         "coset contained duplicate elements"
     );
+
+    let g = &coset.subgroup.overgroup;
+    let conjugate_coset_elements = coset
+        .subgroup
+        .elements()
+        .into_iter()
+        .map(|e| g.compose(g.compose(coset.lhs, e), coset.rhs))
+        .sorted()
+        .collect_vec();
+    assert_eq!(coset_elements, conjugate_coset_elements);
+    let left_coset = coset.to_left_coset();
+    let left_coset_elements = left_coset
+        .subgroup
+        .elements()
+        .into_iter()
+        .map(|e| g.compose(left_coset.lhs, e))
+        .sorted()
+        .collect_vec();
+    assert_eq!(coset_elements, left_coset_elements);
+    let right_coset = coset.to_right_coset();
+    let right_coset_elements = right_coset
+        .subgroup
+        .elements()
+        .into_iter()
+        .map(|e| g.compose(e, right_coset.rhs))
+        .sorted()
+        .collect_vec();
+    assert_eq!(coset_elements, right_coset_elements);
 
     for elem in coset.elements() {
         assert_elem_satisfies_constraints(action, elem, constraint_set);

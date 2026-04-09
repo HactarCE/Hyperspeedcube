@@ -92,10 +92,17 @@ pub trait VectorRef: Sized + fmt::Debug + ApproxEq + ApproxEqZero + Ndim {
         self.dot(self)
     }
 
-    /// Returns a normalized copy of the vector.
+    /// Returns a normalized copy of the vector, or `None` if the vector is
+    /// zero.
     #[must_use]
     fn normalize(&self) -> Option<Vector> {
-        let mult = 1.0 / self.mag();
+        self.normalize_to(1.0)
+    }
+    /// Returns a normalized and scaled copy of the vector, or `None` if the
+    /// vector is zero.
+    #[must_use]
+    fn normalize_to(&self, mag: Float) -> Option<Vector> {
+        let mult = mag / self.mag();
         mult.is_finite().then(|| self.scale(mult))
     }
     /// Returns a scaled copy of the vector.

@@ -21,6 +21,11 @@ pub enum GroupError {
     #[error("bad inverse; inverse of {0} is {1} but inverse of {1} is {2}")]
     BadInverse(GroupElementId, GroupElementId, GroupElementId),
 
+    #[error("missing point {0}")]
+    MissingPoint(String),
+    #[error("duplicate points")]
+    DuplicatePoints,
+
     #[error("coxeter-dynkin diagram is hyperbolic")]
     HyperbolicCD,
     #[error("coxeter-dynkin diagram is euclidean")]

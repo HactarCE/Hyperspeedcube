@@ -182,18 +182,19 @@ impl SymmetricTwistSystemEngineData {
         })
     }
 
-    fn count_rotations_in_coset(&self, coset: &hypergroup::Coset) -> usize {
+    fn count_rotations_in_coset(&self, coset: &hypergroup::ConjugateCoset) -> usize {
         // Does the coset have any reflections and/or rotations?
         if coset
-            .subgroup_generators
+            .subgroup
+            .generators
             .iter()
             .any(|g| self.group.is_reflection(*g))
         {
-            coset.element_count / 2 // reflections and rotations
-        } else if self.group.is_reflection(coset.lhs) {
-            0 // reflections only
+            coset.subgroup.element_count / 2 // reflections and rotations
+        } else if self.group.is_reflection(coset.lhs) == self.group.is_reflection(coset.rhs) {
+            coset.subgroup.element_count // rotations only
         } else {
-            coset.element_count // rotations only
+            0 // reflections only
         }
     }
 
@@ -202,7 +203,7 @@ impl SymmetricTwistSystemEngineData {
     /// This is **not** performant for large cosets.
     fn rotations_in_coset(
         &self,
-        coset: &hypergroup::Coset,
+        coset: &hypergroup::ConjugateCoset,
     ) -> impl Iterator<Item = GroupElementId> {
         coset
             .elements()
@@ -223,7 +224,7 @@ impl SymmetricTwistSystemEngineData {
     /// none.
     ///
     /// These should be filtered to include only rotations.
-    pub fn axis_stabilizer(&self, axis: Axis) -> Option<hypergroup::Coset> {
+    pub fn axis_stabilizer(&self, axis: Axis) -> Option<hypergroup::ConjugateCoset> {
         self.constraint_solver
             .lock()
             .solve(&hypergroup::ConstraintSet {

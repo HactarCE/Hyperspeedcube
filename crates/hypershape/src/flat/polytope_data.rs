@@ -65,7 +65,7 @@ impl PolytopeData {
 
 /// List of `(`[`ElementId`], [`PortalId`]`)` pairs.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub(super) struct BoundaryPortals {
+pub struct BoundaryPortals {
     /// Boxed so that it is only a single `usize` when not present.
     entries: Option<Box<SmallVec<[(PortalId, ElementId); 8]>>>,
 }

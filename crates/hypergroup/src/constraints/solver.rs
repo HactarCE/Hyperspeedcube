@@ -8,8 +8,8 @@ use smallvec::{SmallVec, smallvec};
 
 use super::SubgroupOrbits;
 use crate::{
-    AbstractGroupActionLut, AbstractGroupLut, AbstractSubgroup, Constraint, ConstraintSet, Coset,
-    GroupAction, GroupElementId, PerFactorGroup,
+    AbstractGroupActionLut, AbstractGroupLut, AbstractSubgroup, ConjugateCoset, Constraint,
+    ConstraintSet, GroupAction, GroupElementId, PerFactorGroup, Subgroup,
 };
 
 hypuz_util::typed_index_struct! {
@@ -99,7 +99,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
 
     /// Returns the coset satisfying a set of constraints, or `None` if there is
     /// no such coset.
-    pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<Coset> {
+    pub fn solve(&mut self, constraint_set: &ConstraintSet<P>) -> Option<ConjugateCoset> {
         let group = self.action.group();
 
         let constraint_set_for_each_factor = self.split_constraint_set(constraint_set)?;
@@ -143,13 +143,15 @@ impl<P: TypedIndex> ConstraintSolver<P> {
                 .map(move |&g| group.element_from_factor(factor, g))
         });
 
-        Some(Coset::from_conjugate_coset(
-            group.clone(),
-            subgroup_element_count,
+        Some(ConjugateCoset {
+            subgroup: Subgroup {
+                overgroup: group.clone(),
+                element_count: subgroup_element_count,
+                generators: subgroup_generators.collect(),
+            },
             lhs,
-            subgroup_generators,
             rhs,
-        ))
+        })
     }
 
     /// Selects an random element deterministically and uniformly from the group
@@ -319,7 +321,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             })
     }
 
-    /// Constrains the coset so that it takes `from` to `new`.
+    /// Constrains the coset so that it satisfies `constraint`.
     ///
     /// Returns `None` if there is no such coset.
     fn constrain_coset(

@@ -213,7 +213,7 @@ impl Group {
     pub fn action<P: TypedIndex>(
         &self,
         point_count: usize,
-        act: impl FnMut(GeneratorId, P) -> P,
+        act: impl FnMut(GeneratorId, P) -> GroupResult<P>,
     ) -> GroupResult<GroupAction<P>> {
         let combined_factor_group = self
             .flatten()?

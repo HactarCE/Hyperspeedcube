@@ -104,6 +104,13 @@ impl ElementCutOutput {
             ElementCutOutput::NonFlush { outside, .. } => outside,
         }
     }
+    /// Returns the portion of the element on the cut border itself.
+    pub fn intersection(self) -> Option<ElementId> {
+        match self {
+            ElementCutOutput::Flush => None,
+            ElementCutOutput::NonFlush { intersection, .. } => intersection,
+        }
+    }
 
     /// Returns an iterator containing `inside` and `outside`, ignoring `None`
     /// values.

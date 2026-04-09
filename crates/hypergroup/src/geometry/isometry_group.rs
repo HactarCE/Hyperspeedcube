@@ -4,7 +4,10 @@ use std::sync::{Arc, LazyLock};
 
 use hypermath::approx_collections::hash_map::Entry;
 use hypermath::pga::Motor;
-use hypermath::{APPROX, ApproxHashMap, MotorNearestNeighborMap, Point, Vector};
+use hypermath::{
+    APPROX, ApproxHash, ApproxHashMap, MotorNearestNeighborMap, Ndim, Point, TransformByMotor,
+    Vector,
+};
 use hypuz_util::ti::{TiVec, TypedIndex, TypedIndexIter};
 use itertools::Itertools;
 
@@ -193,12 +196,19 @@ impl IsometryGroup {
             });
         }
 
+        if ref_point_to_point.len() != point_to_ref_point.len() {
+            return Err(GroupError::DuplicatePoints);
+        }
+
         // TODO: optimize this. remember results. don't multiply points extra.
 
         self.group.action(ref_point_to_point.len(), |g, p| {
-            *point_to_ref_point
-                .get(self.generator_motors[g].transform(&ref_point_to_point[p]))
-                .expect("missing point")
+            let get_transformed_point =
+                || self.generator_motors[g].transform(&ref_point_to_point[p]);
+            point_to_ref_point
+                .get(get_transformed_point())
+                .copied()
+                .ok_or_else(|| GroupError::MissingPoint(get_transformed_point().to_string()))
         })
     }
 
@@ -219,10 +229,17 @@ impl IsometryGroup {
             ref_point_to_point.iter().map(|(i, p)| (p.clone(), i)),
         );
 
+        if ref_point_to_point.len() != point_to_ref_point.len() {
+            return Err(GroupError::DuplicatePoints);
+        }
+
         self.group.action(ref_point_to_point.len(), |g, p| {
-            *point_to_ref_point
-                .get(self.generator_motors[g].transform(&ref_point_to_point[p]))
-                .expect("missing point")
+            let get_transformed_point =
+                || self.generator_motors[g].transform(&ref_point_to_point[p]);
+            point_to_ref_point
+                .get(get_transformed_point())
+                .copied()
+                .ok_or_else(|| GroupError::MissingPoint(get_transformed_point().to_string()))
         })
     }
 
@@ -324,6 +341,36 @@ impl IsometryGroup {
     /// Returns an element from its motor.
     pub fn element_from_motor(&self, m: &Motor) -> Option<GroupElementId> {
         Some(self.nearest(m)).filter(|&id| self.motor(id).is_equivalent_to(m))
+    }
+
+    /// Generates the orbit of `init` in the group and returns an arbitrary
+    /// group element from the coset for each element in the orbit.
+    pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
+        &self,
+        mut init: T,
+    ) -> Vec<(GroupElementId, T)> {
+        let mut seen = ApproxHashMap::new(APPROX);
+        seen.entry_with_mut_key(&mut init).or_insert(());
+
+        let mut ret = vec![(GroupElementId::IDENTITY, init)];
+        let mut next_unprocessed_index = 0;
+        while next_unprocessed_index < ret.len() {
+            for (g, m) in self.generator_motors() {
+                let i = next_unprocessed_index;
+                let (elem, obj) = &ret[i];
+                let mut new_object = m.transform(obj);
+                match seen.entry_with_mut_key(&mut new_object) {
+                    Entry::Occupied(_) => continue,
+                    Entry::Vacant(e) => {
+                        e.insert(());
+                        // TODO: composing the other way would be faster
+                        ret.push((self.compose(self.generators()[g], *elem), new_object));
+                    }
+                }
+            }
+            next_unprocessed_index += 1;
+        }
+        ret
     }
 }
 
