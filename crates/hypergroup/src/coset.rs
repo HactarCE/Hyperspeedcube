@@ -103,6 +103,11 @@ impl ConjugateCoset {
     pub fn elements(&self) -> Vec<GroupElementId> {
         self.to_left_coset().elements()
     }
+
+    /// Returns an arbitrary element from the coset.
+    pub fn arbitrary_element(&self) -> GroupElementId {
+        self.subgroup.overgroup.compose(self.lhs, self.rhs)
+    }
 }
 
 /// Left [coset].

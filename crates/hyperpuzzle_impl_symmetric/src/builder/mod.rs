@@ -1,9 +1,11 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, eyre};
+use hypergroup::GroupError;
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
@@ -15,13 +17,15 @@ mod gizmos;
 mod shape;
 
 use axes::ProductPuzzleAxes;
+use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
 use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 
 use crate::{
-    FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, SymmetricTwistSystemEngineData,
+    FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, StabilizerFamily,
+    SymmetricTwistSystemEngineData,
 };
 
 #[derive(Debug)]
@@ -80,7 +84,14 @@ impl ProductPuzzleBuilder {
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
 
-        let axes = ProductPuzzleAxes::new(&group, &spec.axis_orbits, warn_fn)?;
+        let axes = ProductPuzzleAxes::new(
+            spec.coxeter_matrix.clone(),
+            group.clone(),
+            &spec.axis_orbits,
+            &spec.pseudo_axis_orbits,
+            &spec.axis_pairs,
+            warn_fn,
+        )?;
 
         // Slice axes
         for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
@@ -149,16 +160,22 @@ impl ProductPuzzleBuilder {
         let mut axis_constraint_solver =
             hypergroup::ConstraintSolver::new(self.axes.action.clone());
         let mut twists = TwistSystem::new_empty(&axes);
+        let axis_unit_twists = self
+            .axes
+            .build_3d_unit_twists(&mut axis_constraint_solver, warn_fn);
+        let stabilizer_twists = self
+            .axes
+            .build_4d_unit_twists(&mut axis_constraint_solver, warn_fn);
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
             axis_vectors: Arc::clone(&self.axes.vectors),
-            axis_unit_twists: Arc::new(
-                self.axes
-                    .build_3d_unit_twists(&mut axis_constraint_solver)?,
-            ),
             group: self.axes.group.clone(),
             group_action: self.axes.action.clone(),
             constraint_solver: Arc::new(Mutex::new(axis_constraint_solver)),
+
+            axis_unit_twists: Arc::new(axis_unit_twists),
+
+            stabilizer_twists: Arc::new(stabilizer_twists),
         });
         twists.engine_data = (*twist_system_engine_data).clone().into();
         let twists = Arc::new(twists);
@@ -181,13 +198,16 @@ impl ProductPuzzleBuilder {
 
         let mut gizmo_twists = PerGizmoFace::new();
         if ndim == 3 {
-            let mut gizmo_faces = vec![];
-            for (axis, axis_vector) in &*self.axes.vectors {
-                let twist_transform =
-                    hypuz_notation::Transform::new(&twists.axes.names[axis], None);
-                gizmo_faces.push((axis_vector.clone(), axis, twist_transform));
-            }
-            gizmos::build_3d_gizmo(&mut mesh, &gizmo_faces, &mut gizmo_twists)?;
+            gizmos::build_3d_gizmo(&mut mesh, &mut gizmo_twists, &self.axes, &twists.axes.names)?;
+        } else if ndim == 4 {
+            gizmos::build_4d_gizmo(
+                &mut mesh,
+                &mut gizmo_twists,
+                &mut twist_system_engine_data.constraint_solver.lock(),
+                &self.axes,
+                &twists.axes.names,
+                warn_fn,
+            )?;
         }
 
         let (planes, sticker_planes) = self.shape.build_sticker_planes();
@@ -222,9 +242,9 @@ impl ProductPuzzleBuilder {
                 let layers =
                     hyperpuzzle_core::util::random_layer_mask(rng, axis_layers[axis].max_layer)?;
                 let family = &twist_system_engine_data.axes.names[axis];
-                let (_unit_twist, order) = twist_system_engine_data.axis_unit_twists[axis];
-                if order > 0 {
-                    let mut multiplier = rng.random_range(1..order);
+                if let Some(unit_twist) = twist_system_engine_data.axis_unit_twists[axis] {
+                    let order = unit_twist.order.get();
+                    let mut multiplier = rng.random_range(1..order); // guaranteed nonempty
                     if multiplier * 2 > order {
                         multiplier -= order;
                     }

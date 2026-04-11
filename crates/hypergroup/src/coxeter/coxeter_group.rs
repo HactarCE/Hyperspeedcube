@@ -207,7 +207,7 @@ impl CoxeterMatrix {
 
     /// Returns the transform for each mirror, or an error if the group is not
     /// finite (spherical).
-    pub fn generator_transforms(&self) -> GroupResult<PerGenerator<pga::Motor>> {
+    pub fn generator_motors(&self) -> GroupResult<PerGenerator<pga::Motor>> {
         self.mirrors()?
             .cols()
             .map(pga::Motor::vector_reflection)
@@ -217,8 +217,8 @@ impl CoxeterMatrix {
 
     /// Returns a generating set for the orientation-preserving subgroup of the
     /// group, or an error if the group is hyperbolic.
-    pub fn chiral_generator_transforms(&self) -> GroupResult<PerGenerator<pga::Motor>> {
-        let mut mirror_generators = self.generator_transforms()?.into_values();
+    pub fn chiral_generator_motors(&self) -> GroupResult<PerGenerator<pga::Motor>> {
+        let mut mirror_generators = self.generator_motors()?.into_values();
         let Some(first) = mirror_generators.next() else {
             return Ok(PerGenerator::new());
         };
@@ -237,7 +237,7 @@ impl CoxeterMatrix {
     /// Constructs the full group structure with isometries.
     pub fn isometry_group(&self) -> GroupResult<IsometryGroup> {
         let group = self.abstract_group_lut()?;
-        let mirror_generators = self.generator_transforms()?;
+        let mirror_generators = self.generator_motors()?;
         let isometries =
             FactorGroupIsometries::from_generators_unchecked(&group, &mirror_generators);
         IsometryGroup::from_factors([(Arc::new(group), Arc::new(isometries))])
@@ -246,10 +246,7 @@ impl CoxeterMatrix {
     /// Constructs the full chiral group structure with isometries using an
     /// _O(n)_ algorithm, where _n_ is the order of the group.
     pub fn chiral_isometry_group(&self) -> GroupResult<IsometryGroup> {
-        IsometryGroup::from_generators(
-            format!("chiral {self}"),
-            self.chiral_generator_transforms()?,
-        )
+        IsometryGroup::from_generators(format!("chiral {self}"), self.chiral_generator_motors()?)
     }
 
     /// Constructs the direct product of two Coxeter groups.

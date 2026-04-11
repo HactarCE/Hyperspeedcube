@@ -13,6 +13,10 @@ General symmetric puzzle backend for Hyperspeedcube
 - [ ] better error messages (HPS logs)
 - [x] fix axis names
 - [x] merge axes and named points, or otherwise ensure that the lowercase letters remain in sync
-  - examples of symmetric puzzles that require non-axis named points? could maybe be resolved by adding extra axes that are not allowed to turn?
 - [x] do expensive calculations in `build` function, not when generating spec
 - [ ] Hyperpuzzlescript API
+- [ ] proper number of underscores
+  - [ ] when making gizmos (3D & 4D)
+  - [ ] when parsing twists
+  - [ ] when parsing axis from twist
+- [ ] sort axes by name for canonical scrambling etc

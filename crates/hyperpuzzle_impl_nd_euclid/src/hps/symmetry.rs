@@ -184,7 +184,7 @@ impl HpsSymmetry {
 
     /// Constructs a symmetry object from a Coxeter group.
     pub fn from_coxeter(coxeter: CoxeterMatrix) -> GroupResult<Self> {
-        let generators = coxeter.generator_transforms()?;
+        let generators = coxeter.generator_motors()?;
         Ok(Self {
             generators: Arc::new(generators.into_vec()),
             coxeter_group: Some(Arc::new(coxeter)),

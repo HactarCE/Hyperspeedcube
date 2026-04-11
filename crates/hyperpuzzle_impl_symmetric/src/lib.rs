@@ -14,13 +14,15 @@ use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRen
 mod builder;
 mod geometry;
 mod names;
+mod pseudo_axis;
 mod spec;
 mod twist_system;
 
 use builder::ProductPuzzleBuilder;
 use itertools::Itertools;
+pub use pseudo_axis::{StabilizableAxisSet, StabilizerFamily};
 pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, ProductPuzzleSpec};
-pub use twist_system::SymmetricTwistSystemEngineData;
+pub use twist_system::{SymmetricTwistSystemEngineData, UniqueMinimalClockwiseGenerator};
 
 pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()> {
     catalog.add_puzzle(Arc::new(PuzzleSpec {
@@ -43,14 +45,14 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                 let ret = ProductPuzzleBuilder::new(
                     &ProductPuzzleSpec {
                         factors: vec![
-                            // ft_cube(3)?,
-                            // megaminx()?,
+                            // ft_cube(4)?,
+                            megaminx()?,
                             // shallow_line()?,
                             // shallow_polygon(20)?,
                             // shallow_polygon(7)?,
                             // shallow_polygon(4)?,
                             // shallow_ft_simplex(3)?,
-                            ft_120_cell_shallow()?,
+                            // ft_120_cell_shallow()?,
                             // ft_120_cell_evil()?,
                             // ft_120_cell(vec![])?,
                         ],
@@ -58,7 +60,6 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                     &mut warn_fn,
                 )?
                 .build(Some(&build_ctx), &mut warn_fn); // TODO: better warn function
-                dbg!(t.elapsed());
                 ret
             })()
             .map(Redirectable::Direct)
@@ -256,6 +257,19 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
     })
     .collect();
 
+    const GIZMO_EDGE_FACTOR: f64 = 0.8;
+    let edge_pole_distance = (1.0 + GIZMO_EDGE_FACTOR) / 2.0_f64.sqrt();
+    let corner_pole_distance = (1.0 + 2.0 * GIZMO_EDGE_FACTOR) / 3.0_f64.sqrt();
+    let s = hypuz_notation::Str::from_static_str;
+
+    let mut pseudo_axis_orbits = vec![];
+    if (2..=4).contains(&ndim) {
+        pseudo_axis_orbits.push((vec![s("R"), s("U")], edge_pole_distance));
+    }
+    if (3..=4).contains(&ndim) {
+        pseudo_axis_orbits.push((vec![s("R"), s("U"), s("F")], edge_pole_distance));
+    }
+
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::B(ndim)?,
         vec![AxisOrbitSpec {
@@ -263,6 +277,16 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
             cut_distances: vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
             names,
         }],
+        pseudo_axis_orbits,
+        if ndim == 4 {
+            vec![
+                (s("I"), vec![s("R")], 1.0),
+                (s("I"), vec![s("R"), s("U")], edge_pole_distance),
+                (s("I"), vec![s("R"), s("U"), s("F")], corner_pole_distance),
+            ]
+        } else {
+            vec![]
+        },
     ))
 }
 
@@ -284,6 +308,9 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     let edge_depth = (2.0 * pi_div_n).sin() * edge_length;
     let cut_depth = 1.0 - edge_depth / 3.0;
 
+    const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
+    let s = hypuz_notation::Str::from_static_str;
+
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::I(n)?,
         vec![AxisOrbitSpec {
@@ -291,6 +318,8 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
             cut_distances: vec![INF, cut_depth * 2.0 / edge_length],
             names,
         }],
+        vec![(vec![s("A"), s("B")], FACET_GIZMO_EDGE_FACTOR)],
+        vec![],
     ))
 }
 
@@ -315,6 +344,8 @@ fn line(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
             cut_distances,
             names,
         }],
+        vec![],
+        vec![],
     ))
 }
 
@@ -342,6 +373,8 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
 
     let cut_distance = std::f64::consts::GOLDEN_RATIO.recip();
 
+    const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
+
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::H3(),
         vec![AxisOrbitSpec {
@@ -349,6 +382,8 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
             cut_distances: vec![INF, cut_distance],
             names,
         }],
+        vec![], // TODO
+        vec![],
     ))
 }
 
@@ -379,6 +414,8 @@ fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
             cut_distances,
             names,
         }],
+        vec![], // TODO
+        vec![], // TODO
     ))
 }
 
@@ -395,11 +432,14 @@ fn shallow_ft_simplex(ndim: u8) -> Result<FactorPuzzleSpec> {
 
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::A(ndim)?,
+        // TODO: vertex axes
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(ndim - 1),
             cut_distances: vec![INF, 0.0, -INF],
             names,
         }],
+        vec![], // TODO
+        vec![], // TODO
     ))
 }
 

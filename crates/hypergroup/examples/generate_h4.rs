@@ -23,8 +23,8 @@ fn main() {
     assert_eq!(order, g.element_count());
 
     let t = std::time::Instant::now();
-    let g = IsometryGroup::from_generators("H4", coxeter_matrix.generator_transforms().unwrap())
-        .unwrap();
+    let g =
+        IsometryGroup::from_generators("H4", coxeter_matrix.generator_motors().unwrap()).unwrap();
     println!("Generated isometry group from motors {:?}", t.elapsed());
     assert_eq!(order, g.element_count());
 

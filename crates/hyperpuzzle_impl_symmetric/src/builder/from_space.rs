@@ -119,7 +119,6 @@ impl PuzzleShapeFactorBuilder {
         let mut centroids = PerSurface::<Centroid>::new_with_len(self.surface_count());
 
         for sticker_data in &self.pieces[piece].stickers {
-            dbg!("sticker");
             let sticker_polytope = self.space.get(sticker_data.polytope);
 
             let centroid = sticker_polytope.centroid()?;

@@ -2,7 +2,7 @@ use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::TypedIndex;
-use hypuz_notation::{Layer, LayerRange};
+use hypuz_notation::{Layer, LayerRange, Str};
 
 /// Specification for a puzzle product, which is defined in terms of puzzle
 /// factors.
@@ -25,11 +25,20 @@ pub struct FactorPuzzleSpec {
     pub facet_orbits: Vec<FacetOrbitSpec>,
     /// Orbits of twist axes.
     pub axis_orbits: Vec<AxisOrbitSpec>,
+    /// Orbits of pseudo-axes, each with a gizmo pole distance.
+    pub pseudo_axis_orbits: Vec<(Vec<Str>, f64)>,
+    /// Orbits of axis pairs, each with a gizmo pole distance.
+    pub axis_pairs: Vec<(Str, Vec<Str>, f64)>,
 }
 
 impl FactorPuzzleSpec {
     /// Constructs the spec for a facet-turning puzzle.
-    pub fn new_ft(coxeter_matrix: CoxeterMatrix, axis_orbits: Vec<AxisOrbitSpec>) -> Self {
+    pub fn new_ft(
+        coxeter_matrix: CoxeterMatrix,
+        axis_orbits: Vec<AxisOrbitSpec>,
+        pseudo_axis_orbits: Vec<(Vec<Str>, f64)>,
+        axis_pairs: Vec<(Str, Vec<Str>, f64)>,
+    ) -> Self {
         let facet_orbits = axis_orbits
             .iter()
             .map(|axis_orbit| axis_orbit.facets())
@@ -39,6 +48,8 @@ impl FactorPuzzleSpec {
             coxeter_matrix,
             facet_orbits,
             axis_orbits,
+            pseudo_axis_orbits,
+            axis_pairs,
         }
     }
 }
@@ -109,6 +120,7 @@ impl AxisOrbitSpec {
         max_distance: Float,
         min_distance: Float,
     ) -> Option<LayerRange> {
+        // TODO: `None` should represent "not in any layer". blocking the axis completely is currently unrepresentable
         let (max_layer, _) = self
             .layer_outside_distances()
             .take_while(|(_, d)| APPROX.gt_eq(d, &max_distance))
@@ -166,4 +178,23 @@ fn named_vectors<'a>(
             (transformed_vector, name)
         })
         .collect()
+}
+
+/// Data for a named rotation of the entire polytope.
+///
+/// One of these automatically created for each axis orbit.
+struct NamedRotationSpec {
+    /// Set of axes that the rotation is named for.
+    pub axis_names: Vec<Str>,
+    /// Distance from the axis for the 4D twist gizmo.
+    pub gizmo_pole_distance: f64,
+}
+
+impl NamedRotationSpec {
+    pub fn new(axis_names: Vec<Str>, gizmo_pole_distance: f64) -> Self {
+        Self {
+            axis_names,
+            gizmo_pole_distance,
+        }
+    }
 }

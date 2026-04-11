@@ -1,17 +1,22 @@
+use std::collections::HashMap;
+use std::num::NonZeroI32;
 use std::sync::Arc;
 
 use eyre::Result;
-use hypergroup::{ConstraintSolver, GroupAction};
+use hypergroup::{ConjugateCoset, ConstraintSolver, GroupAction};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::TwistSystemEngineData;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
 use hypuz_notation::{Str, Transform};
+use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
+
+use crate::{StabilizableAxisSet, StabilizerFamily};
 
 /// Simulation data for a symmetric puzzle.
 ///
@@ -23,17 +28,21 @@ pub struct SymmetricTwistSystemEngineData {
     /// Physical location of each axis, for constructing simple direct rotations
     /// from one axis to another.
     pub axis_vectors: Arc<PerAxis<Vector>>,
-    /// Default twist for each axis and its order, if it exists, or
-    /// `(`[`GroupElementId::IDENTITY`]`, 1)` otherwise.
-    ///
-    /// This usually only exists in 3D.
-    pub axis_unit_twists: Arc<PerAxis<(GroupElementId, i32)>>,
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
     /// Action of the grip group on the axes.
     pub group_action: GroupAction<Axis>,
     /// Constraint solver based on the grip group.
     pub constraint_solver: Arc<Mutex<ConstraintSolver<Axis>>>,
+
+    /// Unique minimal clockwise twist for each axis.
+    ///
+    /// This only exists in 3D.
+    pub axis_unit_twists: Arc<PerAxis<Option<UniqueMinimalClockwiseGenerator>>>,
+
+    /// Map from stablizer twist family to unique minimal clockwise twist.
+    pub stabilizer_twists: Arc<Vec<(StabilizerFamily, UniqueMinimalClockwiseGenerator)>>,
+    // TODO: consider unifying `axis_unit_twists` with `stabilizer_twists`
 }
 
 impl TwistSystemEngineData for SymmetricTwistSystemEngineData {}
@@ -63,14 +72,28 @@ impl SymmetricTwistSystemEngineData {
         transform: &Transform,
     ) -> Result<(Axis, GroupElementId), TwistError> {
         let Some(axis) = self.axes.names.id_from_name(&transform.family) else {
-            return Err(TwistError::UnknownAxis(transform.family.clone()));
+            let separator = '_'; // TODO: correct number of underscores (maybe none)
+            if let Some((primary_axis_str, secondary_axes_str)) =
+                transform.family.split_once(separator)
+                && let Some(primary) = self.axes.names.id_from_name(primary_axis_str)
+                && let Some(secondary) = secondary_axes_str
+                    .split(separator)
+                    .map(|s| self.axes.names.id_from_name(s))
+                    .collect::<Option<_>>()
+                    .and_then(|axes| StabilizableAxisSet::new(axes).ok())
+                && let Some(group_element_id) =
+                    self.resolve_stabilizer_twist_transform(StabilizerFamily { primary, secondary })
+            {
+                return Ok((primary, group_element_id.element));
+            } else {
+                return Err(TwistError::UnknownAxis(transform.family.clone()));
+            }
         };
 
         if transform.constraints.is_none()
-            && let (unit_twist, _order) = self.axis_unit_twists[axis]
-            && unit_twist != GroupElementId::IDENTITY
+            && let Some(unit_twist) = self.axis_unit_twists[axis]
         {
-            return Ok((axis, unit_twist));
+            return Ok((axis, unit_twist.element));
         }
 
         let mut constraints = smallvec![hypergroup::Constraint::fix(axis)];
@@ -124,6 +147,43 @@ impl SymmetricTwistSystemEngineData {
         }
 
         Ok((axis, element))
+    }
+
+    pub fn resolve_stabilizer_twist_transform(
+        &self,
+        stabilizer_family: StabilizerFamily,
+    ) -> Option<UniqueMinimalClockwiseGenerator> {
+        for (candidate, unit_twist) in &*self.stabilizer_twists {
+            if stabilizer_family.secondary.len() == candidate.secondary.len()
+                && let Some(coset) =
+                    self.constraint_solver
+                        .lock()
+                        .solve(&hypergroup::ConstraintSet::from_iter(
+                            std::iter::zip(
+                                candidate.iter_flatten(),
+                                stabilizer_family.iter_flatten(),
+                            )
+                            .map(|(from, to)| hypergroup::Constraint { from, to }),
+                        ))
+            {
+                // The coset stabilizes the twist transform, so it doesn't
+                // matter which element we take from it.
+                let coset_representative = coset.arbitrary_element();
+                let minimal_stabilizer = self
+                    .group
+                    .conjugate(coset_representative, unit_twist.element);
+                return Some(UniqueMinimalClockwiseGenerator {
+                    element: if self.group.is_reflection(coset_representative) {
+                        self.group.inverse(minimal_stabilizer)
+                    } else {
+                        minimal_stabilizer
+                    },
+                    order: unit_twist.order,
+                });
+            }
+        }
+
+        None
     }
 
     /// Returns a constraint set specifying a random non-identity transformation
@@ -182,7 +242,9 @@ impl SymmetricTwistSystemEngineData {
         })
     }
 
-    fn count_rotations_in_coset(&self, coset: &hypergroup::ConjugateCoset) -> usize {
+    /// Returns the number of rotations in a coset without enumerating the
+    /// entire coset.
+    fn count_rotations_in_coset(&self, coset: &ConjugateCoset) -> usize {
         // Does the coset have any reflections and/or rotations?
         if coset
             .subgroup
@@ -201,10 +263,7 @@ impl SymmetricTwistSystemEngineData {
     /// Returns the rotation elements within a coset.
     ///
     /// This is **not** performant for large cosets.
-    fn rotations_in_coset(
-        &self,
-        coset: &hypergroup::ConjugateCoset,
-    ) -> impl Iterator<Item = GroupElementId> {
+    fn rotations_in_coset(&self, coset: &ConjugateCoset) -> impl Iterator<Item = GroupElementId> {
         coset
             .elements()
             .into_iter()
@@ -224,7 +283,7 @@ impl SymmetricTwistSystemEngineData {
     /// none.
     ///
     /// These should be filtered to include only rotations.
-    pub fn axis_stabilizer(&self, axis: Axis) -> Option<hypergroup::ConjugateCoset> {
+    pub fn axis_stabilizer(&self, axis: Axis) -> Option<ConjugateCoset> {
         self.constraint_solver
             .lock()
             .solve(&hypergroup::ConstraintSet {
@@ -265,6 +324,18 @@ impl SymmetricTwistSystemEngineData {
             &self.axes.names[hypergroup_constraint.to],
         ))
     }
+}
+
+/// Unique minimal clockwise generator for a cyclic subgroup.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct UniqueMinimalClockwiseGenerator {
+    /// Unique generator for the subgroup that is the smallest clockwise
+    /// rotation.
+    pub element: GroupElementId,
+    /// [Order] of the group element.
+    ///
+    /// [order]: https://en.wikipedia.org/wiki/Order_(group_theory)
+    pub order: NonZeroI32,
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
