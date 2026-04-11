@@ -1,9 +1,9 @@
+use std::borrow::Cow;
+
 use eyre::{OptionExt, Result, eyre};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
 use indexmap::IndexMap;
-
-use crate::PUZZLE_PREFIX;
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
@@ -11,10 +11,10 @@ pub struct ColorBuilder {}
 impl ColorBuilder {}
 
 /// Set of all sticker colors during shape construction.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ColorSystemBuilder {
     /// Color system ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Name of the color system.
     pub name: Option<String>,
 
@@ -43,26 +43,37 @@ pub struct ColorSystemBuilder {
 }
 impl ColorSystemBuilder {
     /// Constructs a new shared color system.
-    pub fn new_shared(id: String) -> Self {
-        Self {
-            id,
-            is_shared: true,
-            ..Default::default()
-        }
+    pub fn new_shared(id: CatalogId) -> Self {
+        Self::new(id, true)
     }
 
     /// Constructs a new empty ad-hoc color system.
-    pub fn new_ad_hoc(puzzle_id: &str) -> Self {
+    pub fn new_ad_hoc(puzzle_id: &CatalogId) -> Self {
+        Self::new(crate::ad_hoc_id(puzzle_id.clone()), false)
+    }
+
+    fn new(id: CatalogId, is_shared: bool) -> Self {
         Self {
-            id: format!("{PUZZLE_PREFIX}{puzzle_id}"),
-            is_shared: false,
-            ..Default::default()
+            id,
+            name: None,
+            by_id: PerColor::new(),
+            names: NameSpecBiMapBuilder::new(),
+            display_names: PerColor::new(),
+            autonames: AutoNames::default(),
+            schemes: IndexMap::new(),
+            default_scheme: None,
+            orbits: vec![],
+            is_modified: false,
+            is_shared,
         }
     }
 
     /// Returns the name or the ID of the color system.
-    pub fn display_name(&self) -> &str {
-        self.name.as_deref().unwrap_or(&self.id)
+    pub fn display_name(&self) -> Cow<'_, str> {
+        match &self.name {
+            Some(s) => Cow::Borrowed(s),
+            None => Cow::Owned(self.id.to_string()),
+        }
     }
 
     /// Returns whether there are no colors in the color system.
@@ -175,7 +186,7 @@ impl ColorSystemBuilder {
     pub fn build(
         &self,
         build_ctx: Option<&BuildCtx>,
-        puzzle_id: Option<&str>,
+        puzzle_id: Option<&CatalogId>,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<ColorSystem> {
         if let Some(build_ctx) = build_ctx {
@@ -187,7 +198,7 @@ impl ColorSystemBuilder {
             if self.is_modified {
                 warn_fn(eyre!("shared color system cannot be modified"));
                 if let Some(puzzle_id) = puzzle_id {
-                    id = format!("{PUZZLE_PREFIX}{puzzle_id}");
+                    id = crate::ad_hoc_id(puzzle_id.clone());
                 };
             }
             if self.name.is_none() {
@@ -196,7 +207,7 @@ impl ColorSystemBuilder {
         } else {
             warn_fn(eyre!("using ad-hoc color system"));
         }
-        let name = self.name.clone().unwrap_or_else(|| self.id.clone());
+        let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
 
         let names = self.names.clone();
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;

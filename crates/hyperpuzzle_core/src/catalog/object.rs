@@ -2,14 +2,14 @@ use super::*;
 
 /// Object with an ID.
 pub trait HasId: Sized {
-    /// Returns the ID.
-    fn id(&self) -> &str;
+    /// Returns the ID as a string.
+    fn id_string(&self) -> String;
 }
 macro_rules! impl_has_id {
     ($type:ty, $($tok:tt)*) => {
         impl HasId for $type {
-            fn id(&self) -> &str {
-                &self.$($tok)*
+            fn id_string(&self) -> String {
+                self.$($tok)*.to_string()
             }
         }
     };
@@ -55,7 +55,7 @@ pub trait CatalogObjectImpl: Sized + HasId {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<String>,
+        params: Vec<CatalogArgValue>,
     ) -> BuildResult<Self::Spec>;
 }
 
@@ -91,7 +91,7 @@ impl CatalogObjectImpl for Puzzle {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<String>,
+        params: Vec<CatalogArgValue>,
     ) -> BuildResult<Self::Spec> {
         (generator.generate)(ctx, params)
     }
@@ -123,7 +123,7 @@ impl CatalogObjectImpl for ColorSystem {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<String>,
+        params: Vec<CatalogArgValue>,
     ) -> BuildResult<Self::Spec> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }
@@ -155,7 +155,7 @@ impl CatalogObjectImpl for TwistSystem {
     fn generate_spec(
         ctx: BuildCtx,
         generator: &Arc<Self::SpecGenerator>,
-        params: Vec<String>,
+        params: Vec<CatalogArgValue>,
     ) -> BuildResult<Self::Spec> {
         (generator.generate)(ctx, params).map_err(|e| format!("{e:#}"))
     }

@@ -8,10 +8,11 @@ pub type PuzzleBuildFn = Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<Puzzl
 
 /// Type of [`PuzzleSpecGenerator::generate`].
 pub type PuzzleGenerateFn =
-    Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<PuzzleSpec>>;
+    Box<dyn Send + Sync + Fn(BuildCtx, Vec<CatalogArgValue>) -> BuildResult<PuzzleSpec>>;
 
 /// Type of [`Generator::generate`].
-pub type GenerateFn<T> = Box<dyn Send + Sync + Fn(BuildCtx, Vec<String>) -> BuildResult<T>>;
+pub type GenerateFn<T> =
+    Box<dyn Send + Sync + Fn(BuildCtx, Vec<CatalogArgValue>) -> BuildResult<T>>;
 
 /// Possible ID redirect.
 #[derive(Debug, Clone)]
@@ -90,7 +91,7 @@ impl fmt::Debug for PuzzleSpecGenerator {
 /// Twist system specification.
 pub struct TwistSystemSpec {
     /// Twist system ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Twist system name.
     pub name: String,
     /// Function to build the twist system.
@@ -99,8 +100,8 @@ pub struct TwistSystemSpec {
     pub build: Box<dyn Send + Sync + Fn(BuildCtx) -> BuildResult<TwistSystem>>,
 }
 impl HasId for TwistSystemSpec {
-    fn id(&self) -> &str {
-        &self.id
+    fn id_string(&self) -> String {
+        self.id.to_string()
     }
 }
 
@@ -138,7 +139,7 @@ impl fmt::Debug for ColorSystemGenerator {
 #[derive(Serialize, Debug, Clone)]
 pub struct PuzzleListMetadata {
     /// Internal ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Semantic version.
     pub version: Version,
     /// Human-friendly name.
@@ -166,7 +167,7 @@ impl PartialOrd for PuzzleListMetadata {
 /// Compare by puzzle ID.
 impl Ord for PuzzleListMetadata {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        crate::compare_ids(&self.id, &other.id)
+        CatalogId::cmp(&self.id, &other.id)
     }
 }
 

@@ -62,7 +62,7 @@ impl AppUi {
         // Initialize UI.
         let puzzle_widget = app.new_puzzle_widget();
         app.set_active_puzzle(&puzzle_widget);
-        app.load_puzzle("ft_hypercube:3");
+        app.load_puzzle("ft_hypercube(3)");
         let layout = app
             .prefs
             .layout

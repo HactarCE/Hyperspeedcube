@@ -15,6 +15,8 @@ use crate::geometry::PolytopeGeometry;
 /// Shape of a puzzle under construction.
 #[derive(Debug)]
 pub(super) struct ProductPuzzleShape {
+    /// Puzzle ID for each factor puzzle.
+    pub factor_ids: Vec<CatalogId>,
     /// Symmetry group of the shape.
     pub group: IsometryGroup,
     /// Lowercase index and name for each color.
@@ -35,6 +37,7 @@ impl ProductPuzzleShape {
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
+            factor_ids: vec![],
             group: IsometryGroup::trivial(),
             colors: PerColor::new(),
             pieces: PerPiece::from_iter([PieceData::POINT]),
@@ -48,6 +51,10 @@ impl ProductPuzzleShape {
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
         let a = self;
         let b = rhs;
+
+        let factor_ids = std::iter::chain(&a.factor_ids, &b.factor_ids)
+            .cloned()
+            .collect();
 
         let pieces = itertools::iproduct!(a.pieces.iter_values(), b.pieces.iter_values(),)
             .map(|(a_piece, b_piece)| PieceData::direct_product(a_piece, b_piece, a.surfaces.len()))
@@ -79,6 +86,7 @@ impl ProductPuzzleShape {
         .collect();
 
         Ok(Self {
+            factor_ids,
             group: IsometryGroup::product([&a.group, &b.group])?,
             colors,
             pieces,
@@ -110,8 +118,8 @@ impl ProductPuzzleShape {
     }
 
     pub fn build_colors(&self, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<ColorSystem> {
-        // TODO: proper color system
-        let mut colors = ColorSystemBuilder::new_ad_hoc("unknown_product_puzzle");
+        let id = crate::product_id(&self.factor_ids);
+        let mut colors = ColorSystemBuilder::new_shared(id);
         for (_, (i, name)) in &self.colors {
             let prefix = hypuz_notation::family::SequentialLowercaseName(*i as _);
             colors.add(Some(format!("{prefix}{name}")), |e| warn_fn(eyre!(e)))?;

@@ -50,16 +50,12 @@ impl<T: CatalogObject> Default for SubCatalog<T> {
 
 impl<T: CatalogObject> SubCatalog<T> {
     pub(crate) fn add_spec(&mut self, spec: Arc<T::Spec>) -> eyre::Result<()> {
-        let id = spec.id();
-        crate::validate_id(id)?;
-        self.loaded_specs.insert(id.to_owned(), spec);
+        self.loaded_specs.insert(spec.id_string(), spec);
         self.clear_cache();
         Ok(())
     }
     pub(crate) fn add_spec_generator(&mut self, spec: Arc<T::SpecGenerator>) -> eyre::Result<()> {
-        let id = spec.id();
-        crate::validate_id(id)?;
-        self.loaded_generators.insert(id.to_owned(), spec);
+        self.loaded_generators.insert(spec.id_string(), spec);
         self.clear_cache();
         Ok(())
     }
@@ -87,7 +83,7 @@ impl<T: CatalogObject> SubCatalog<T> {
                 .collect_vec();
             for example_spec in &*example_specs {
                 self.generated_specs.insert(
-                    example_spec.id().to_string(),
+                    example_spec.id_string(),
                     Arc::new(Mutex::new(CacheEntry::Ok(Redirectable::Direct(
                         Arc::clone(example_spec),
                     )))),

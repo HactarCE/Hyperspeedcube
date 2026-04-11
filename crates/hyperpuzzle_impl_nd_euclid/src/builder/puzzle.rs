@@ -121,7 +121,7 @@ impl PuzzleBuilder {
         build_ctx: Option<&BuildCtx>,
         warn_fn: &mut impl FnMut(eyre::Error),
     ) -> Result<Arc<Puzzle>> {
-        let opt_id = Some(self.meta.id.as_str());
+        let opt_id = Some(&self.meta.id);
 
         let mut shape_builder = self.shape.lock();
         let twists_builder = self.twists.lock();

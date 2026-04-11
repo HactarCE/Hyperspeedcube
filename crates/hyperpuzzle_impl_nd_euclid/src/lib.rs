@@ -31,8 +31,13 @@ pub use vantage_group::{
     PerReferenceVector, ReferenceVector,
 };
 
-/// Prefix for ad-hoc color system and twist system IDs.
-const PUZZLE_PREFIX: &str = "puzzle:";
+/// Returns the ID for an ad-hoc color system or twist system.
+pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
+    CatalogId {
+        base: "ad_hoc".into(),
+        args: vec![puzzle_id.into()],
+    }
+}
 
 /// Maximum period of a twist.
 const MAX_TWIST_REPEAT: usize = 1000;
@@ -76,7 +81,7 @@ lazy_static! {
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: Arc::new(PuzzleListMetadata {
-                id: "~placeholder".to_string(),
+                id: CatalogId::new("placeholder",[]).expect("bad placeholder ID"),
                 version: Version::PLACEHOLDER,
                 name: "🤔".to_string(),
                 aliases: vec![],

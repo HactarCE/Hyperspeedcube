@@ -10,7 +10,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::{AxisSystemBuildOutput, AxisSystemBuilder, VantageGroupBuilder, VantageSetBuilder};
-use crate::{NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PUZZLE_PREFIX, TwistKey};
+use crate::{NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, TwistKey};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl TwistBuilder {
 #[derive(Debug)]
 pub struct TwistSystemBuilder {
     /// Twist system ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Name of the twist system.
     pub name: Option<String>,
 
@@ -82,27 +82,20 @@ pub struct TwistSystemBuilder {
 }
 impl TwistSystemBuilder {
     /// Constructs a new shared twist system.
-    pub fn new_shared(id: String, name: Option<String>, ndim: u8) -> Self {
-        Self {
-            name,
-            is_shared: true,
-            ..Self::new(id, ndim)
-        }
+    pub fn new_shared(id: CatalogId, name: Option<String>, ndim: u8) -> Self {
+        Self::new(id, name, ndim, true)
     }
 
     /// Constructs a new empty ad-hoc color system.
-    pub fn new_ad_hoc(puzzle_id: &str, ndim: u8) -> Self {
-        Self {
-            is_shared: false,
-            ..Self::new(format!("{PUZZLE_PREFIX}{puzzle_id}"), ndim)
-        }
+    pub fn new_ad_hoc(puzzle_id: &CatalogId, ndim: u8) -> Self {
+        Self::new(crate::ad_hoc_id(puzzle_id.clone()), None, ndim, false)
     }
 
     /// Constructs a empty twist system with a given axis system.
-    fn new(id: String, ndim: u8) -> Self {
+    fn new(id: CatalogId, name: Option<String>, ndim: u8, is_shared: bool) -> Self {
         Self {
             id,
-            name: None,
+            name,
             axes: AxisSystemBuilder::new(ndim),
             by_id: PerTwist::new(),
             names: NameSpecBiMapBuilder::new(),
@@ -112,7 +105,7 @@ impl TwistSystemBuilder {
             vantage_sets: vec![],
             directions: IndexMap::new(),
             is_modified: false,
-            is_shared: false,
+            is_shared,
             hps_exports: Arc::new(hyperpuzzlescript::Map::new()),
         }
     }
@@ -200,7 +193,7 @@ impl TwistSystemBuilder {
     pub fn build(
         &self,
         build_ctx: Option<&BuildCtx>,
-        puzzle_id: Option<&str>,
+        puzzle_id: Option<&CatalogId>,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<TwistSystem> {
         if let Some(build_ctx) = build_ctx {
@@ -212,7 +205,7 @@ impl TwistSystemBuilder {
             if self.is_modified {
                 warn_fn(eyre!("shared twist system cannot be modified"));
                 if let Some(puzzle_id) = puzzle_id {
-                    id = format!("{PUZZLE_PREFIX}{puzzle_id}");
+                    id = crate::ad_hoc_id(puzzle_id.clone());
                 };
             }
             if self.name.is_none() {
@@ -222,7 +215,7 @@ impl TwistSystemBuilder {
             // TODO: canonicalize empty twist system
             warn_fn(eyre!("using ad-hoc twist system"));
         }
-        let name = self.name.clone().unwrap_or_else(|| self.id.clone());
+        let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
 
         // Build axis system.
         let AxisSystemBuildOutput {

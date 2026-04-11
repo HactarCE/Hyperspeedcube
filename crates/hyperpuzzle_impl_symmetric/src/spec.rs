@@ -1,7 +1,7 @@
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::TypedIndex;
+use hyperpuzzle_core::{CatalogId, TypedIndex};
 use hypuz_notation::{Layer, LayerRange, Str};
 
 /// Specification for a puzzle product, which is defined in terms of puzzle
@@ -15,6 +15,11 @@ pub struct ProductPuzzleSpec {
 /// Specification for a factor of a [`ProductPuzzleSpec`].
 #[derive(Debug)]
 pub struct FactorPuzzleSpec {
+    /// ID for the puzzle.
+    pub puzzle_id: CatalogId,
+    /// ID for the shape / color system.
+    pub shape_id: CatalogId,
+
     /// Symmetry for the puzzle factor.
     // TODO: split axes symmetry and facets symmetry (requires expanding shape
     // symmetry before slicing)
@@ -34,6 +39,8 @@ pub struct FactorPuzzleSpec {
 impl FactorPuzzleSpec {
     /// Constructs the spec for a facet-turning puzzle.
     pub fn new_ft(
+        puzzle_id: CatalogId,
+        shape_id: CatalogId,
         coxeter_matrix: CoxeterMatrix,
         axis_orbits: Vec<AxisOrbitSpec>,
         pseudo_axis_orbits: Vec<(Vec<Str>, f64)>,
@@ -45,6 +52,9 @@ impl FactorPuzzleSpec {
             .collect();
 
         Self {
+            puzzle_id,
+            shape_id,
+
             coxeter_matrix,
             facet_orbits,
             axis_orbits,

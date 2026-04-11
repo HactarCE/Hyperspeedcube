@@ -30,6 +30,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ProductPuzzleBuilder {
+    factor_ids: Vec<CatalogId>,
     shape: ProductPuzzleShape,
     axes: ProductPuzzleAxes,
 }
@@ -45,6 +46,7 @@ impl ProductPuzzleBuilder {
     /// product.
     pub fn direct_product_identity() -> Self {
         ProductPuzzleBuilder {
+            factor_ids: vec![],
             shape: ProductPuzzleShape::direct_product_identity(),
             axes: ProductPuzzleAxes::direct_product_identity(),
         }
@@ -68,8 +70,11 @@ impl ProductPuzzleBuilder {
         let group = spec.coxeter_matrix.isometry_group()?;
         let generators = group.generator_motors();
 
-        let mut shape_builder =
-            from_space::PuzzleShapeFactorBuilder::new(spec.coxeter_matrix.clone(), group.clone())?;
+        let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(
+            spec.shape_id.clone(),
+            spec.coxeter_matrix.clone(),
+            group.clone(),
+        )?;
 
         // TODO: color orbits (dev data)
 
@@ -121,7 +126,11 @@ impl ProductPuzzleBuilder {
             }
         }
 
-        Ok(Self { shape, axes })
+        Ok(Self {
+            factor_ids: vec![spec.puzzle_id.clone()],
+            shape,
+            axes,
+        })
     }
 
     /// Returns the direct product of two puzzles.
@@ -131,6 +140,9 @@ impl ProductPuzzleBuilder {
     /// and puzzle `b` occupying the higher dimensions.
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
         Ok(ProductPuzzleBuilder {
+            factor_ids: std::iter::chain(&self.factor_ids, &rhs.factor_ids)
+                .cloned()
+                .collect(),
             shape: self.shape.direct_product(&rhs.shape)?,
             axes: self.axes.direct_product(&rhs.axes)?,
         })
@@ -148,6 +160,8 @@ impl ProductPuzzleBuilder {
 
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
+
+        let id = crate::product_id(&self.factor_ids);
 
         let (pieces, stickers) = self.shape.build_piece_and_stickers()?;
 
@@ -261,7 +275,7 @@ impl ProductPuzzleBuilder {
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: Arc::new(PuzzleListMetadata {
-                id: "symmetric_puzzle_test".to_string(),
+                id,
                 version: Version {
                     major: 0,
                     minor: 0,

@@ -43,9 +43,10 @@ pub use crate::timestamp::Timestamp;
 /// Prelude of common imports.
 pub mod prelude {
     pub use crate::catalog::{
-        Catalog, ColorSystemCatalog, ColorSystemGenerator, GeneratorParam, GeneratorParamError,
-        GeneratorParamType, GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec,
-        PuzzleSpecGenerator, Redirectable,
+        Catalog, CatalogArgValue, CatalogId, CatalogIdParseError, ColorSystemCatalog,
+        ColorSystemGenerator, GeneratorParam, GeneratorParamError, GeneratorParamType,
+        GeneratorParamValue, PuzzleCatalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator,
+        Redirectable,
     };
     pub use crate::lint::PuzzleLintOutput;
     pub use crate::names::{
@@ -88,16 +89,25 @@ pub fn get_drand_chain() -> timecheck::drand::Chain {
 /// Maximum number of ID redirects.
 const MAX_ID_REDIRECTS: usize = 5;
 
+/// **This function is deprecated after 2.0.0-zeta.12.**
+///
 /// Parses the ID of a generated object into its components: the generator ID,
 /// and the parameters. Returns `None` if the ID is not a valid ID for a
 /// generated object.
-pub fn parse_generated_id(id: &str) -> Option<(&str, Vec<&str>)> {
+#[deprecated = "use `CatalogId` instead"]
+pub fn zeta12_parse_generated_id(id: &str) -> Option<(&str, Vec<&str>)> {
     let (generator_id, args) = id.split_once(':')?;
     Some((generator_id, args.split(',').collect()))
 }
 
+/// **This function is deprecated after 2.0.0-zeta.12.**
+///
 /// Returns the ID of a generated object.
-pub fn generated_id(generator_id: &str, params: impl IntoIterator<Item = impl ToString>) -> String {
+#[deprecated = "use `CatalogId` instead"]
+pub fn zeta12_generated_id(
+    generator_id: &str,
+    params: impl IntoIterator<Item = impl ToString>,
+) -> String {
     let mut ret = generator_id.to_owned();
     let mut is_first = true;
     for param in params {
@@ -114,16 +124,4 @@ pub fn generated_id(generator_id: &str, params: impl IntoIterator<Item = impl To
 /// handles numbers in a human-friendly way.
 pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     numeric_sort::cmp(a, b)
-}
-
-/// Validates an ID string for a catalog object.
-pub fn validate_id(s: &str) -> eyre::Result<()> {
-    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        Ok(())
-    } else {
-        Err(eyre::eyre!(
-            "invalid ID {s:?}; ID must be nonempty and \
-             contain only alphanumeric characters and '_'",
-        ))
-    }
 }

@@ -1,8 +1,8 @@
-use std::io::Read;
 use std::sync::Arc;
+use std::{io::Read, str::FromStr};
 
 use eyre::{Context, Result, eyre};
-use hyperpuzzle::Puzzle;
+use hyperpuzzle::{CatalogId, Puzzle};
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -27,7 +27,7 @@ pub(crate) enum Subcommand {
     About,
     /// Print information about a puzzle or generator as JSON.
     Puzzle {
-        /// Puzzle or generator ID(s) (such as `ft_cube` or `ft_cube:3`)
+        /// Puzzle or generator ID(s) (such as `ft_cube` or `ft_cube(3)`)
         ids: Vec<String>,
     },
     /// Print all non-experimental puzzle and puzzle generator IDs.
@@ -79,8 +79,9 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 if let Some(generator) = catalog.get_generator::<Puzzle>(&puzzle_id) {
                     requested_puzzles.push(generator.meta.to_cli());
                 } else {
+                    let catalog_id = CatalogId::from_str(&puzzle_id).map_err(|e| eyre!("{e}"))?;
                     let puzzle = catalog
-                        .build_spec_blocking::<Puzzle>(&puzzle_id)
+                        .build_spec_blocking::<Puzzle>(&catalog_id)
                         .map_err(|e| eyre!("error building puzzle: {e}"))?;
                     requested_puzzles.push(puzzle.meta.to_cli());
                 }

@@ -24,10 +24,20 @@ pub use pseudo_axis::{StabilizableAxisSet, StabilizerFamily};
 pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, ProductPuzzleSpec};
 pub use twist_system::{SymmetricTwistSystemEngineData, UniqueMinimalClockwiseGenerator};
 
+const PRODUCT_ID: &str = "product";
+
+fn product_id(factor_ids: &[CatalogId]) -> CatalogId {
+    CatalogId::new(
+        crate::PRODUCT_ID,
+        factor_ids.iter().map(|id| id.clone().into()),
+    )
+    .expect("product ID is invalid")
+}
+
 pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()> {
     catalog.add_puzzle(Arc::new(PuzzleSpec {
         meta: Arc::new(PuzzleListMetadata {
-            id: "symmetric_puzzle_test".to_string(),
+            id: CatalogId::new("symmetric_puzzle_test", vec![]).unwrap(),
             version: Version {
                 major: 0,
                 minor: 0,
@@ -271,6 +281,8 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
     }
 
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("ft_cube", vec![(ndim as i64).into()]).unwrap(),
+        CatalogId::new("cube", vec![(ndim as i64).into()]).unwrap(),
         CoxeterMatrix::B(ndim)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(ndim - 1),
@@ -314,6 +326,8 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     let s = hypuz_notation::Str::from_static_str;
 
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("shallow_polygon", vec![(n as i64).into()]).unwrap(),
+        CatalogId::new("polygon", vec![(n as i64).into()]).unwrap(),
         CoxeterMatrix::I(n)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(1) / half_edge_length,
@@ -342,7 +356,11 @@ fn line(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
         (AbbrGenSeq::new([GeneratorId(0)], Some(0)), "B".to_string()),
     ];
 
+    let layer_count = cut_distances.len().saturating_sub(1);
+
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("line", vec![(layer_count as i64).into()]).unwrap(),
+        CatalogId::new("line", vec![]).unwrap(),
         CoxeterMatrix::A(1)?,
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(0),
@@ -382,6 +400,8 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
     let s = hypuz_notation::Str::from_static_str;
 
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("ft_dodecahedron", vec![(1_i64).into()]).unwrap(),
+        CatalogId::new("dodecahedron", vec![]).unwrap(),
         CoxeterMatrix::H3(),
         vec![AxisOrbitSpec {
             initial_vector: Vector::unit(2),
@@ -415,10 +435,14 @@ fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
         .unwrap();
     let names = autoname_orbit(&isometry_group, axis_vector.clone());
 
+    let layer_count = cut_distances.len().saturating_sub(1);
+
     let gizmo_facet_size = (std::f64::consts::PI / 10.0).tan();
     let s = hypuz_notation::Str::from_static_str;
 
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("ft_120cell", vec![(layer_count as i64).into()]).unwrap(),
+        CatalogId::new("120cell", vec![]).unwrap(),
         coxeter_matrix,
         vec![AxisOrbitSpec {
             initial_vector: axis_vector,
@@ -451,6 +475,8 @@ fn shallow_ft_simplex(ndim: u8) -> Result<FactorPuzzleSpec> {
     let names = gen_seqs.zip(name_strings.map(|n| n.to_string())).collect();
 
     Ok(FactorPuzzleSpec::new_ft(
+        CatalogId::new("ft_simplex", vec![(ndim as i64).into()]).unwrap(),
+        CatalogId::new("simplex", vec![(ndim as i64).into()]).unwrap(),
         CoxeterMatrix::A(ndim)?,
         // TODO: vertex axes
         vec![AxisOrbitSpec {

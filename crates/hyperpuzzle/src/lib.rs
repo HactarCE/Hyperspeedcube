@@ -6,13 +6,15 @@
 //!
 //! ```rust
 //! # use std::sync::Arc;
-//! # use hyperpuzzle::Puzzle;
+//! # use hyperpuzzle::{CatalogId, Puzzle};
 //! hyperpuzzle::load_global_catalog();
 //!
-//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:3").unwrap();
+//! let id: CatalogId = "ft_cube(3)".parse().unwrap();
+//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking(id).unwrap();
 //! assert_eq!("3x3x3", puzzle.meta.name);
 //!
-//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
+//! let id: CatalogId = "ft_cube(2)".parse().unwrap();
+//! let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking(id).unwrap();
 //! assert_eq!("2x2x2", puzzle.meta.name);
 //! ```
 //!

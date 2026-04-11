@@ -51,7 +51,7 @@ pub fn define_in(
         /// Other keyword arguments are copied into the output of `gen`.
         #[kwargs(kwargs)]
         fn add_twist_system_generator(ctx: EvalCtx) -> () {
-            pop_kwarg!(kwargs, id: String);
+            pop_kwarg!(kwargs, (id, id_span): String);
             pop_kwarg!(kwargs, name: String = {
                 ctx.warn(eco_format!("missing `name` for twist system generator `{id}`"));
                 id.clone()
@@ -66,6 +66,7 @@ pub fn define_in(
 
             let gen_meta = super::generators::GeneratorMeta {
                 id,
+                id_span,
                 params: super::generators::params_from_array(params)?,
                 params_span,
                 gen_fn: r#gen,
@@ -125,13 +126,14 @@ fn twist_system_from_kwargs(
     catalog: &Catalog,
     eval_tx: &EvalRequestTx,
 ) -> Result<TwistSystemSpec> {
-    pop_kwarg!(kwargs, id: String);
+    pop_kwarg!(kwargs, (id, id_span): String);
     pop_kwarg!(kwargs, name: String = {
         ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
         id.clone()
     });
     pop_kwarg!(kwargs, (engine, engine_span): Str);
 
+    let id = id.parse().at(id_span)?;
     let meta = crate::IdAndName { id, name };
 
     let Some(engine) = ctx

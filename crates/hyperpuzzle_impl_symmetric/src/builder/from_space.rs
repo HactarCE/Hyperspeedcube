@@ -5,7 +5,7 @@ use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::{APPROX, ApproxHashMap, Centroid, Hyperplane, Point};
 use hyperpuzzle_core::{
-    Color, IndexOverflow, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
+    CatalogId, Color, IndexOverflow, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
 };
 use itertools::Itertools;
 
@@ -18,6 +18,8 @@ use crate::geometry::PolytopeGeometry;
 /// This type cannot be direct-producted.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeFactorBuilder {
+    id: CatalogId,
+
     group: IsometryGroup,
 
     space: hypershape::Space,
@@ -30,7 +32,7 @@ pub(super) struct PuzzleShapeFactorBuilder {
 }
 
 impl PuzzleShapeFactorBuilder {
-    pub fn new(coxeter_matrix: CoxeterMatrix, group: IsometryGroup) -> Result<Self> {
+    pub fn new(id: CatalogId, coxeter_matrix: CoxeterMatrix, group: IsometryGroup) -> Result<Self> {
         let mut space = hypershape::Space::new(group.ndim())?;
         let mut initial_piece = space.primordial_cube().into();
         for mirror_vector in coxeter_matrix.mirrors()?.cols() {
@@ -47,6 +49,8 @@ impl PuzzleShapeFactorBuilder {
         }]);
 
         Ok(Self {
+            id,
+
             group,
 
             space,
@@ -238,6 +242,7 @@ impl PuzzleShapeFactorBuilder {
             .try_collect()?;
 
         Ok(ProductPuzzleShape {
+            factor_ids: vec![self.id],
             group: self.group,
             colors: self.color_names.map(|_, name| (0, name)),
             pieces,

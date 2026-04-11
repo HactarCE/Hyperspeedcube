@@ -17,6 +17,7 @@ mod subcatalog;
 
 use db::*;
 pub use entry::*;
+pub use hyperspeedcube_cli_types::catalog_id::*;
 pub use object::*;
 pub use params::*;
 pub use specs::*;
@@ -139,7 +140,7 @@ impl Catalog {
     /// # Example
     ///
     /// ```ignore
-    /// let rubiks_cube = catalog.build::<Puzzle>("ft_cube:3");
+    /// let rubiks_cube = catalog.build::<Puzzle>("ft_cube(3)".parse().unwrap());
     /// println!("Requested Rubik's cube ...");
     /// loop {
     ///     let cache_entry_guard = rubiks_cube.lock();
@@ -165,12 +166,12 @@ impl Catalog {
     ///     }
     /// }
     /// ```
-    pub fn build<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T>>> {
-        let id = id.to_owned();
+    pub fn build<T: CatalogObject>(&self, id: &CatalogId) -> Arc<Mutex<CacheEntry<T>>> {
+        let id = id.clone();
         let mut db = self.db.lock();
         self.build_non_blocking(
             id.clone(),
-            db.get_mut::<T>().objects.entry(id.clone()),
+            db.get_mut::<T>().objects.entry(id.to_string()),
             move |this| this.build_object_generic_blocking::<T>(&id),
         )
     }
@@ -180,13 +181,13 @@ impl Catalog {
     /// # Example
     ///
     /// ```ignore
-    /// let rubiks_cube_result = catalog.build_blocking::<Puzzle>("ft_cube:3");
+    /// let rubiks_cube_result = catalog.build_blocking::<Puzzle>("ft_cube(3)".parse().unwrap());
     /// match rubiks_cube_result {
     ///     Ok(_puzzle) => println!("Success!"),
     ///     Err(e) => println!("Error: {e}"),
     /// }
     /// ```
-    pub fn build_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
+    pub fn build_blocking<T: CatalogObject>(&self, id: &CatalogId) -> Result<Arc<T>, String> {
         self.build_object_generic_blocking(id)
     }
 
@@ -195,18 +196,21 @@ impl Catalog {
     ///
     /// It may take time to generate the spec. If you want to block the current
     /// thread, see [`Self::build_spec_blocking()`].
-    pub fn build_spec<T: CatalogObject>(&self, id: &str) -> Arc<Mutex<CacheEntry<T::Spec>>> {
+    pub fn build_spec<T: CatalogObject>(&self, id: &CatalogId) -> Arc<Mutex<CacheEntry<T::Spec>>> {
         let id = id.to_owned();
         let mut db = self.db.lock();
         self.build_non_blocking(
             id.clone(),
-            db.get_mut::<T>().generated_specs.entry(id.clone()),
+            db.get_mut::<T>().generated_specs.entry(id.to_string()),
             move |this| this.build_spec_blocking::<T>(&id),
         )
     }
     /// Builds an object specification and blocks the current thread until it is
     /// complete.
-    pub fn build_spec_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T::Spec>, String> {
+    pub fn build_spec_blocking<T: CatalogObject>(
+        &self,
+        id: &CatalogId,
+    ) -> Result<Arc<T::Spec>, String> {
         // Start building an object spec on another thread and return
         // immediately
         self.build_spec_generic_blocking::<T>(id)
@@ -214,7 +218,7 @@ impl Catalog {
 
     fn build_non_blocking<T>(
         &self,
-        id: String,
+        id: CatalogId,
         entry: hash_map::Entry<'_, String, Arc<Mutex<CacheEntry<T>>>>,
         build_fn: impl 'static + Send + FnOnce(Self) -> Result<Arc<T>, String>,
     ) -> Arc<Mutex<CacheEntry<T>>> {
@@ -234,37 +238,40 @@ impl Catalog {
 
     fn build_spec_generic_blocking<T: CatalogObject>(
         &self,
-        initial_id: &str,
+        initial_id: &CatalogId,
     ) -> Result<Arc<T::Spec>, String> {
-        let get_cache_entry_fn = |id: &str| {
+        let get_cache_entry_fn = |id: &CatalogId| {
             let mut db = self.db.lock();
             let subcatalog = db.get_mut::<T>();
-            Arc::clone(subcatalog.generated_specs.entry(id.to_owned()).or_default())
+            Arc::clone(
+                subcatalog
+                    .generated_specs
+                    .entry(id.to_string())
+                    .or_default(),
+            )
         };
 
-        let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
+        let build_fn = |id: &CatalogId, progress: &Arc<Mutex<Progress>>| {
             let mut db_guard = self.db.lock();
             let subcatalog = db_guard.get_mut::<T>();
             // Get the object spec, which may be expensive.
             progress.lock().task = BuildTask::GeneratingSpec;
-            let generator_output = match crate::parse_generated_id(id) {
-                None => match subcatalog.loaded_specs.get(id).cloned() {
+            let generator_output = if id.args.is_empty() {
+                match subcatalog.loaded_specs.get(&id.to_string()).cloned() {
                     None => Err(format!("no {} with ID {id:?}", T::NAME)),
                     Some(spec) => {
                         drop(db_guard);
                         Ok(Redirectable::Direct(spec))
                     }
-                },
-                Some((generator_id, params)) => {
-                    match subcatalog.loaded_generators.get(generator_id).cloned() {
-                        None => Err(format!("no {} generator with ID {generator_id:?}", T::NAME)),
-                        Some(generator) => {
-                            drop(db_guard); // unlock mutex before running user code
-                            let ctx = BuildCtx::new(&self.default_logger, progress);
-                            log::trace!("Generating spec for {generator_id:?} {params:?}");
-                            let params = params.into_iter().map(|s| s.to_owned()).collect();
-                            T::generate_spec(ctx, &generator, params)
-                        }
+                }
+            } else {
+                match subcatalog.loaded_generators.get(&*id.base).cloned() {
+                    None => Err(format!("no {} generator with ID {:?}", T::NAME, id.base)),
+                    Some(generator) => {
+                        drop(db_guard); // unlock mutex before running user code
+                        let ctx = BuildCtx::new(&self.default_logger, progress);
+                        log::trace!("Generating spec for {id:?}");
+                        T::generate_spec(ctx, &generator, id.args.clone())
                     }
                 }
             };
@@ -282,13 +289,16 @@ impl Catalog {
         )
     }
 
-    fn build_object_generic_blocking<T: CatalogObject>(&self, id: &str) -> Result<Arc<T>, String> {
-        let get_cache_entry_fn = |id: &str| {
+    fn build_object_generic_blocking<T: CatalogObject>(
+        &self,
+        id: &CatalogId,
+    ) -> Result<Arc<T>, String> {
+        let get_cache_entry_fn = |id: &CatalogId| {
             let mut db = self.db.lock();
-            Arc::clone(db.get_mut::<T>().objects.entry(id.to_owned()).or_default())
+            Arc::clone(db.get_mut::<T>().objects.entry(id.to_string()).or_default())
         };
 
-        let build_fn = |id: &str, progress: &Arc<Mutex<Progress>>| {
+        let build_fn = |id: &CatalogId, progress: &Arc<Mutex<Progress>>| {
             // Get the object spec, which may be expensive.
             progress.lock().task = BuildTask::GeneratingSpec;
             let spec = match self.build_spec_generic_blocking::<T>(id) {
@@ -296,9 +306,9 @@ impl Catalog {
                 Err(e) => return CacheEntry::Err(e),
             };
             // Redirect if necessary.
-            let new_id = spec.id();
-            if new_id != id {
-                return CacheEntry::Ok(Redirectable::Redirect(new_id.to_owned()));
+            let new_id = spec.id_string();
+            if new_id != id.to_string() {
+                return CacheEntry::Ok(Redirectable::Redirect(new_id));
             }
             // Build the object, which may be expensive.
             let ctx = BuildCtx::new(&self.default_logger, progress);
@@ -316,10 +326,10 @@ impl Catalog {
 
     fn build_generic_with_redirect_handling<T>(
         &self,
-        id: String,
-        redirect_sequence: &mut Vec<String>,
-        get_cache_entry_fn: &impl Fn(&str) -> Arc<Mutex<CacheEntry<T>>>,
-        build_fn: &impl Fn(&str, &Arc<Mutex<Progress>>) -> CacheEntry<T>,
+        id: CatalogId,
+        redirect_sequence: &mut Vec<CatalogId>,
+        get_cache_entry_fn: &impl Fn(&CatalogId) -> Arc<Mutex<CacheEntry<T>>>,
+        build_fn: &impl Fn(&CatalogId, &Arc<Mutex<Progress>>) -> CacheEntry<T>,
     ) -> Result<Arc<T>, String> {
         let type_str = unqualified_type_name::<T>();
 
@@ -376,7 +386,7 @@ impl Catalog {
                 let new_id = new_id.clone();
                 drop(cache_entry_guard);
                 self.build_generic_with_redirect_handling::<T>(
-                    new_id,
+                    new_id.parse::<CatalogId>().map_err(|e| e.to_string())?,
                     redirect_sequence,
                     get_cache_entry_fn,
                     build_fn,

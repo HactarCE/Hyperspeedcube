@@ -4,13 +4,15 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::catalog_id::CatalogId;
+
 /// Common metadata about a puzzle or puzzle generator.
 ///
 /// This is a particularly useful abstraction for displaying the puzzle list.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PuzzleListMetadata {
     /// Internal ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Semantic version: `[major, minor, patch]`.
     pub version: [u32; 3],
     /// Human-friendly name.

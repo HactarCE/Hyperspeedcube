@@ -58,7 +58,7 @@ pub fn solves_dir() -> Result<&'static Path, NoPaths> {
 }
 /// Returns the directory containing autosaved solves for a particular puzzle.
 pub fn solves_dir_for_puzzle(puzzle_id: &str) -> Result<PathBuf, NoPaths> {
-    Ok(solves_dir()?.join(puzzle_id.replace(':', "~")))
+    Ok(solves_dir()?.join(puzzle_id))
 }
 /// Returns the file name for an autosaved solve.
 pub fn solve_autosave_filename(timestamp: &str, stm: u64) -> String {

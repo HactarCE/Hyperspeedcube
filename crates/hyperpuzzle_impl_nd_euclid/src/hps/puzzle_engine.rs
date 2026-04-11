@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use eyre::eyre;
 use hyperpuzzle_core::catalog::BuildTask;
@@ -25,8 +25,8 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
         unpack_kwargs!(
             kwargs,
-            colors: Option<String>, // TODO: string or array of strings (gen ID + params)
-            twists: Option<String>, // TODO: string or array of strings (gen ID + params)
+            colors: Option<String>,
+            twists: Option<String>,
             ndim: u8,
             (build, build_span): Arc<FnValue>,
             remove_internals: Option<bool>,
@@ -62,7 +62,9 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 // Build color system.
                 if let Some(color_system_id) = &colors {
                     build_ctx.progress.lock().task = BuildTask::BuildingColors;
-                    let colors = catalog.build_blocking(color_system_id)?;
+                    let colors = catalog.build_blocking(
+                        &CatalogId::from_str(color_system_id).map_err(|e| e.to_string())?,
+                    )?;
                     builder.shape().lock().colors =
                         ColorSystemBuilder::unbuild(&colors).map_err(|e| format!("{e:#}"))?;
                 }
@@ -70,7 +72,9 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 // Build twist system.
                 if let Some(twist_system_id) = &twists {
                     build_ctx.progress.lock().task = BuildTask::BuildingTwists;
-                    let twists = catalog.build_blocking(twist_system_id)?;
+                    let twists = catalog.build_blocking(
+                        &CatalogId::from_str(twist_system_id).map_err(|e| e.to_string())?,
+                    )?;
                     *builder.twists().lock() =
                         TwistSystemBuilder::unbuild(&twists).map_err(|e| format!("{e:#}"))?;
                 }
@@ -90,7 +94,7 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
                 scope.special.shape = builder.shape().at(BUILTIN_SPAN);
                 scope.special.twists = builder.twists().at(BUILTIN_SPAN);
                 scope.special.axes = builder.axes().at(BUILTIN_SPAN);
-                scope.special.id = Some((&id).into());
+                scope.special.id = Some(id.to_string().into());
                 let scope = Arc::new(scope);
 
                 let build_fn = Arc::clone(&build);

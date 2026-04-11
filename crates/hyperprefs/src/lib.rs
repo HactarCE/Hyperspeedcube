@@ -297,7 +297,7 @@ impl Preferences {
     }
 
     pub fn filters_mut(&mut self, puzzle: &Puzzle) -> &mut PuzzleFilterPreferences {
-        self.filters.entry(puzzle.meta.id.clone()).or_default()
+        self.filters.entry(puzzle.meta.id.to_string()).or_default()
     }
 
     pub fn background_color(&self, dark_mode: bool) -> Rgb {

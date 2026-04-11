@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 use super::*;
 use crate::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
-    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, NameSpecBiMap, VantageGroup,
+    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogId, NameSpecBiMap, VantageGroup,
     VantageGroupElement,
 };
 
@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TwistSystem {
     /// Twist system ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Human-friendly name for the twist system.
     pub name: String,
 
@@ -41,7 +41,7 @@ impl TwistSystem {
     /// Returns an empty twist system.
     pub fn new_empty(axes: &Arc<AxisSystem>) -> Self {
         Self {
-            id: String::new(),
+            id: CatalogId::unnamed(),
             name: String::new(),
             axes: Arc::clone(axes),
             names: Arc::new(NameSpecBiMap::new()),

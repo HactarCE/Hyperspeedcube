@@ -66,10 +66,10 @@ fn show_puzzle_load_hint(
         ui.heading(L.puzzle_view.select_a_puzzle);
         ui.horizontal(|ui| {
             if ui.button(L.puzzle_view.rubiks_3d).clicked() {
-                puzzle_widget.load_puzzle("ft_cube:3", prefs);
+                puzzle_widget.load_puzzle("ft_cube(3)", prefs);
             }
             if ui.button(L.puzzle_view.rubiks_4d).clicked() {
-                puzzle_widget.load_puzzle("ft_hypercube:3", prefs);
+                puzzle_widget.load_puzzle("ft_hypercube(3)", prefs);
             }
         });
         ui.label(L.puzzle_view.more_in_catalog);
@@ -174,7 +174,12 @@ impl PuzzleWidget {
     fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
         use hyperpuzzle::catalog::CacheEntry;
 
-        let cache_entry = hyperpuzzle::catalog().build::<Puzzle>(&puzzle_id);
+        let Ok(parsed_puzzle_id) = puzzle_id.parse() else {
+            log::warn!("invalid puzzle ID {puzzle_id:?}");
+            return;
+        };
+
+        let cache_entry = hyperpuzzle::catalog().build::<Puzzle>(&parsed_puzzle_id);
         let cache_entry_guard = cache_entry.lock();
         match &*cache_entry_guard {
             CacheEntry::NotStarted => {
@@ -215,7 +220,7 @@ impl PuzzleWidget {
                 let view = match std::mem::take(&mut self.contents) {
                     PuzzleWidgetContents::None => None,
                     PuzzleWidgetContents::Ok(view) => {
-                        (view.puzzle().meta.id == puzzle_id).then_some(view)
+                        (view.puzzle().meta.id.to_string() == puzzle_id).then_some(view)
                     }
                     PuzzleWidgetContents::Err {
                         puzzle_id: old_id,
@@ -686,7 +691,7 @@ impl PuzzleWidgetContents {
     fn puzzle_id(&self) -> Option<String> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Ok(view) => Some(view.puzzle().meta.id.clone()),
+            PuzzleWidgetContents::Ok(view) => Some(view.puzzle().meta.id.to_string()),
             PuzzleWidgetContents::Err { puzzle_id, .. } => Some(puzzle_id.clone()),
         }
     }

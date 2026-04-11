@@ -6,7 +6,7 @@ General symmetric puzzle backend for Hyperspeedcube
 
 - [x] proper axis names
 - [x] 3D twist gizmos
-- [ ] 4D twist gizmos
+- [x] 4D twist gizmos
 - [x] 3D twist notation
 - [x] sticker shrink
 - [ ] color systems

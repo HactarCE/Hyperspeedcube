@@ -8,7 +8,7 @@ use hypercubing_leaderboards_client::{
 use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
-use hyperpuzzle::{FloatMinMaxIteratorExt, Puzzle, chrono};
+use hyperpuzzle::{CatalogArgValue, FloatMinMaxIteratorExt, Puzzle, chrono};
 use hyperpuzzle_log::verify::SolveVerificationError;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
@@ -261,7 +261,9 @@ impl SolveSummaryModal {
                     }
                 }
             }
-            if let Ok(dir_path) = hyperpaths::solves_dir_for_puzzle(&self.puzzle.meta.id) {
+            if let Ok(dir_path) =
+                hyperpaths::solves_dir_for_puzzle(&self.puzzle.meta.id.to_string())
+            {
                 if self.save_result == Some(Ok(())) {
                     if let Ok(file_path) = &self.file_path
                         && ui
@@ -692,8 +694,8 @@ impl SolveSummaryModal {
         }
 
         // TODO: make sure that these IDs generalize across dimensions
-        if self.puzzle.meta.id.starts_with("ft_hypercube:")
-            && self.puzzle.meta.id != "ft_hypercube:2"
+        if &*self.puzzle.meta.id.base == "ft_hypercube"
+            && self.puzzle.meta.id.args != vec![CatalogArgValue::from(2)]
         {
             ui.add_space(20.0);
 
@@ -715,13 +717,13 @@ impl SolveSummaryModal {
             self.show_support_request(ui);
 
             return;
-        } else if self.puzzle.meta.id.starts_with("ft_5_cube:") {
+        } else if &*self.puzzle.meta.id.base == "ft_5_cube" {
             message = Some(L.solve_summary.solved_5d);
-        } else if self.puzzle.meta.id.starts_with("ft_6_cube:") {
+        } else if &*self.puzzle.meta.id.base == "ft_6_cube" {
             message = Some(L.solve_summary.solved_6d);
-        } else if self.puzzle.meta.id.starts_with("ft_7_cube:") {
+        } else if &*self.puzzle.meta.id.base == "ft_7_cube" {
             message = Some(L.solve_summary.solved_7d);
-        } else if self.puzzle.meta.id.starts_with("ft_8_cube:") {
+        } else if &*self.puzzle.meta.id.base == "ft_8_cube" {
             message = Some(L.solve_summary.solved_8d);
         }
 
@@ -1075,7 +1077,9 @@ mod tests {
         let mut prefs = Preferences::default();
         prefs.online_mode = true;
 
-        let puzzle: Arc<Puzzle> = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
+        let puzzle: Arc<Puzzle> = hyperpuzzle::catalog()
+            .build_blocking(&"ft_cube(2)".parse().unwrap())
+            .unwrap();
         let mut sim = PuzzleSimulation::new(&puzzle);
 
         // Scramble the puzzle

@@ -4,13 +4,13 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 
 use super::*;
-use crate::NameSpecBiMap;
+use crate::{CatalogId, NameSpecBiMap};
 
 /// System of sticker colors for a puzzle.
 #[derive(Debug)]
 pub struct ColorSystem {
     /// Color system ID.
-    pub id: String,
+    pub id: CatalogId,
     /// Human-friendly name for the color system.
     pub name: String,
 
@@ -58,7 +58,7 @@ impl ColorSystem {
     /// Returns an empty color system.
     pub fn new_empty() -> Self {
         Self {
-            id: String::new(),
+            id: CatalogId::unnamed(),
             name: String::new(),
             names: NameSpecBiMap::new(),
             display_names: PerColor::new(),

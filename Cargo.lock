@@ -3062,6 +3062,7 @@ name = "hyperspeedcube_cli_types"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "chumsky",
  "serde",
 ]
 

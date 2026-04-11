@@ -4,17 +4,19 @@
 
 use std::sync::Arc;
 
-use hyperpuzzle_core::{GeneratorParam, GeneratorParamType, GeneratorParamValue, Redirectable};
+use hyperpuzzle_core::{
+    CatalogArgValue, CatalogId, GeneratorParam, GeneratorParamType, GeneratorParamValue,
+    Redirectable,
+};
 use itertools::Itertools;
 
 use crate::util::pop_map_key;
-use crate::{
-    ErrorExt, EvalCtx, FnValue, Map, Num, Result, Span, Spanned, Str, Type, Value, ValueData,
-};
+use crate::{ErrorExt, EvalCtx, FnValue, Map, Num, Result, Span, Spanned, Type, Value, ValueData};
 
 #[derive(Debug, Clone)]
 pub(super) struct GeneratorMeta {
     pub id: String,
+    pub id_span: Span,
     pub params: Vec<GeneratorParam>,
     pub params_span: Span,
     pub gen_fn: Arc<FnValue>,
@@ -25,7 +27,7 @@ impl GeneratorMeta {
     pub(super) fn generate_spec(
         &self,
         ctx: &mut EvalCtx<'_>,
-        generator_param_values: Vec<String>,
+        generator_param_values: Vec<CatalogArgValue>,
     ) -> Result<Redirectable<Map>> {
         let expected = self.params.len();
         let got = generator_param_values.len();
@@ -39,7 +41,7 @@ impl GeneratorMeta {
 
         let params = std::iter::zip(&self.params, &generator_param_values)
             .map(|(p, s)| {
-                let v = &p.value_from_str(s).at(ctx.caller_span)?;
+                let v = &p.value_from_arg(s).at(ctx.caller_span)?;
                 Ok(param_value_into_hps(v))
             })
             .try_collect()?;
@@ -48,24 +50,12 @@ impl GeneratorMeta {
 
         match user_gen_fn_output.data {
             ValueData::Str(redirect_id) => Ok(Redirectable::Redirect(redirect_id.into())),
-            ValueData::List(l) => {
-                let mut iter = Arc::unwrap_or_clone(l).into_iter();
-                let redirect_id = iter
-                    .next()
-                    .ok_or("empty redirect sequence".at(user_gen_fn_output.span))?
-                    .to::<String>()?;
-                let redirect_params: Vec<Str> = iter.map(|v| v.to()).try_collect()?;
-                Ok(Redirectable::Redirect(if redirect_params.is_empty() {
-                    redirect_id
-                } else {
-                    hyperpuzzle_core::generated_id(&redirect_id, redirect_params)
-                }))
-            }
             ValueData::Map(m) => {
                 let mut params = Arc::unwrap_or_clone(m);
-                let id_str = hyperpuzzle_core::generated_id(&self.id, &generator_param_values);
-                let id = ValueData::Str(id_str.into()).at(crate::BUILTIN_SPAN);
-                if let Some(old_id) = params.insert("id".into(), id) {
+                let id = CatalogId::new(&*self.id, generator_param_values.clone())
+                    .ok_or_else(|| "invalid generator ID".at(self.id_span))?;
+                let id_str_value = ValueData::Str(id.to_string().into()).at(self.id_span);
+                if let Some(old_id) = params.insert("id".into(), id_str_value) {
                     ctx.warn_at(old_id.span, "overwriting `id` from generator");
                 }
                 for (k, v) in &self.extra {
@@ -85,6 +75,7 @@ impl GeneratorMeta {
 pub(super) fn param_value_into_hps(value: &GeneratorParamValue) -> Value {
     match value {
         GeneratorParamValue::Int(i) => ValueData::Num(*i as Num),
+        GeneratorParamValue::PuzzleId(p) => ValueData::Str(p.to_string().into()),
     }
     .at(crate::BUILTIN_SPAN)
 }
@@ -135,5 +126,8 @@ fn param_value_from_hps(
             }
             Ok(GeneratorParamValue::Int(i))
         }
+        GeneratorParamType::Puzzle => Ok(GeneratorParamValue::PuzzleId(
+            value.to::<String>()?.parse().at(span)?,
+        )),
     }
 }

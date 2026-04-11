@@ -329,7 +329,8 @@ fn puzzle_color_edit_button(
 fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
     use hyperprefs::MODIFIED_SUFFIX;
 
-    let id_string_literal = hyperpuzzlescript::codegen::to_str_literal(&color_system.id);
+    let id_string_literal =
+        hyperpuzzlescript::codegen::to_str_literal(&color_system.id.to_string());
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hyperpuzzle_core::catalog::TwistSystemSpec;
-use hyperpuzzle_core::{Catalog, PuzzleListMetadata, PuzzleSpec};
+use hyperpuzzle_core::{Catalog, CatalogId, PuzzleListMetadata, PuzzleSpec};
 
 use crate::{EvalCtx, EvalRequestTx, Map, Result};
 
@@ -32,7 +32,7 @@ pub type TwistSystemEngineCallback = Arc<dyn EngineCallback<IdAndName, TwistSyst
 /// ID and name for a catalog object.
 pub struct IdAndName {
     /// ID
-    pub id: String,
+    pub id: CatalogId,
     /// Name
     pub name: String,
 }

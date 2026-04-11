@@ -45,7 +45,7 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(puzzle_id: &str, ndim: u8) -> Result<Self> {
+    pub fn new_empty(puzzle_id: &CatalogId, ndim: u8) -> Result<Self> {
         Ok(Self {
             space: Space::new(ndim)?,
 
@@ -65,7 +65,7 @@ impl ShapeBuilder {
 
     /// Constructs a shape builder that starts with a single solid piece (the
     /// primordial cube)
-    pub fn new_with_primordial_cube(puzzle_id: &str, ndim: u8) -> Result<Self> {
+    pub fn new_with_primordial_cube(puzzle_id: &CatalogId, ndim: u8) -> Result<Self> {
         let mut this = Self::new_empty(puzzle_id, ndim)?;
         let primordial_cube = this.space.get(this.space.primordial_cube());
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());

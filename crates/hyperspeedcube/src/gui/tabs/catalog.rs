@@ -201,10 +201,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         for query_result in query_results {
                             let obj = query_result.object.clone();
                             let r = ui.add(query_result);
-                            match catalog.get_generator::<Puzzle>(&obj.id) {
+                            match catalog.get_generator::<Puzzle>(&obj.id.to_string()) {
                                 None => {
                                     if r.clicked() {
-                                        app.load_puzzle(&obj.id);
+                                        app.load_puzzle(&obj.id.to_string());
                                     }
                                 }
 
@@ -216,7 +216,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                                     if let Some(popup_data) = generator_popup_data
                                         .as_mut()
-                                        .filter(|data| data.id == obj.id)
+                                        .filter(|data| data.id == obj.id.to_string())
                                     {
                                         egui::Popup::from_toggle_button_response(&r)
                                             .close_behavior(
@@ -252,7 +252,7 @@ struct PuzzleGeneratorPopupData {
 impl PuzzleGeneratorPopupData {
     fn new(puzzle_generator: &PuzzleSpecGenerator) -> Self {
         Self {
-            id: puzzle_generator.meta.id.clone(),
+            id: puzzle_generator.meta.id.to_string(),
             params: puzzle_generator
                 .params
                 .iter()
@@ -273,12 +273,19 @@ fn show_puzzle_generator_ui(
     for (param, value) in std::iter::zip(&puzzle_generator.params, &mut popup_data.params) {
         match param.ty {
             GeneratorParamType::Int { min, max } => {
-                let GeneratorParamValue::Int(i) = value;
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().slider_width = GENERATOR_SLIDER_WIDTH;
-                    ui.add(egui::Slider::new(i, min..=max).logarithmic(true));
-                    ui.label(&param.name);
-                });
+                if let GeneratorParamValue::Int(i) = value {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().slider_width = GENERATOR_SLIDER_WIDTH;
+                        ui.add(egui::Slider::new(i, min..=max).logarithmic(true));
+                        ui.label(&param.name);
+                    });
+                };
+            }
+            GeneratorParamType::Puzzle => {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    "puzzle parameter is not yet supported",
+                );
             }
         }
     }
@@ -287,8 +294,14 @@ fn show_puzzle_generator_ui(
         || ui.input(|input| input.key_pressed(egui::Key::Enter))
     {
         ui.close();
-        let puzzle_id = hyperpuzzle::generated_id(&puzzle_generator.meta.id, &popup_data.params);
-        app.load_puzzle(&puzzle_id);
+        if let Some(puzzle_id) = CatalogId::new(
+            &*puzzle_generator.meta.id.base,
+            popup_data.params.iter().map(|value| value.clone().into()),
+        ) {
+            app.load_puzzle(&puzzle_id.to_string());
+        } else {
+            log::warn!("invalid generated puzzle ID")
+        }
     };
 }
 
@@ -507,7 +520,7 @@ impl<'a> Query<'a> {
         let name_match = sublime_fuzzy::best_match(&self.text, &object.name);
 
         let additional_match = itertools::chain(
-            [("ID", &object.id, ID_MATCH_PENALTY)], // TODO: localize this
+            [("ID", &object.id.to_string(), ID_MATCH_PENALTY)], // TODO: localize this
             object
                 .aliases
                 .iter()

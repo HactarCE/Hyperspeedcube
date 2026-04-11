@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::catalog::BuildTask;
+use hyperpuzzle_core::catalog::{BuildTask, HasId};
 use hyperpuzzle_core::{
-    Catalog, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, Redirectable, TAGS, TagSet,
-    TagType, TagValue,
+    Catalog, CatalogId, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, Redirectable, TAGS,
+    TagSet, TagType, TagValue,
 };
 use itertools::Itertools;
 
@@ -64,7 +64,7 @@ pub fn define_in(
         /// Other keyword arguments are copied into the output of `gen`.
         #[kwargs(kwargs)]
         fn add_puzzle_generator(ctx: EvalCtx) -> () {
-            pop_kwarg!(kwargs, id: String);
+            pop_kwarg!(kwargs, (id, id_span): String);
             pop_kwarg!(kwargs, name: String = {
                 ctx.warn(eco_format!("missing `name` for puzzle generator `{id}`"));
                 id.clone()
@@ -108,6 +108,7 @@ pub fn define_in(
 
             let gen_meta = super::generators::GeneratorMeta {
                 id,
+                id_span,
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
                 params_span,
@@ -120,7 +121,10 @@ pub fn define_in(
             for (example, example_span) in examples {
                 let mut example = Arc::unwrap_or_clone(example);
                 let params: Vec<Value> = pop_map_key(&mut example, example_span, "params")?;
-                let generator_param_values = params.iter().map(|v| v.to_string()).collect();
+                let generator_param_values = params
+                    .iter()
+                    .map(|v| v.to_string().parse().at(v.span))
+                    .try_collect()?;
 
                 let mut scope = Scope::default();
                 scope.special.id = Some((&gen_meta.id).into());
@@ -156,7 +160,7 @@ pub fn define_in(
 
                 match puzzle_spec_result {
                     Ok(puzzle_spec) => {
-                        example_specs.insert(puzzle_spec.meta.id.clone(), Arc::new(puzzle_spec));
+                        example_specs.insert(puzzle_spec.id_string(), Arc::new(puzzle_spec));
                     }
                     Err(e) => {
                         ctx.runtime.report_diagnostic(e);
@@ -173,7 +177,8 @@ pub fn define_in(
 
             let spec = PuzzleSpecGenerator {
                 meta: Arc::new(PuzzleListMetadata {
-                    id: gen_meta.id.clone(),
+                    id: CatalogId::new(&*gen_meta.id, [])
+                        .ok_or_else(|| "invalid generator ID".at(id_span))?,
                     version,
                     name,
                     aliases,
@@ -241,7 +246,7 @@ fn puzzle_spec_from_kwargs(
     generator_tags: Option<TagSet>,
     example_data: Option<Spanned<Map>>,
 ) -> Result<PuzzleSpec> {
-    pop_kwarg!(kwargs, id: String);
+    pop_kwarg!(kwargs, (id, id_span): String);
     pop_kwarg!(kwargs, name: String = {
         ctx.warn(eco_format!("missing `name` for puzzle `{id}`"));
         id.clone()
@@ -296,7 +301,7 @@ fn puzzle_spec_from_kwargs(
     tags.inherit_parent_tags();
 
     let meta = PuzzleListMetadata {
-        id,
+        id: id.parse().at(id_span)?,
         version,
         name,
         aliases,

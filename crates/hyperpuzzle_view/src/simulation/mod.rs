@@ -1049,7 +1049,7 @@ impl PuzzleSimulation {
         hyperpuzzle_log::Solve {
             replay: Some(replay),
             puzzle: hyperpuzzle_log::LogPuzzle {
-                id: puz.meta.id.clone(),
+                id: puz.meta.id.to_string(),
                 version: puz.meta.version.to_string(),
             },
             solved: self
@@ -1323,7 +1323,7 @@ solve {
         let (log_file, _) = hyperpuzzle_log::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
         let original_solve = &log_file.solves[0];
         let puzzle = hyperpuzzle::catalog()
-            .build_blocking(&original_solve.puzzle.id)
+            .build_blocking(&original_solve.puzzle.id.parse().unwrap())
             .unwrap();
         let sim = PuzzleSimulation::deserialize(&puzzle, original_solve);
         let mut reserialized_solve = sim.serialize(true);
@@ -1341,7 +1341,9 @@ solve {
     #[test]
     fn test_puzzle_twist_with_no_effect() {
         hyperpuzzle::load_global_catalog();
-        let puzzle = hyperpuzzle::catalog().build_blocking("ft_cube:2").unwrap();
+        let puzzle = hyperpuzzle::catalog()
+            .build_blocking(&"ft_cube(2)".parse().unwrap())
+            .unwrap();
         let mut sim = PuzzleSimulation::new(&puzzle);
         sim.do_event(ReplayEvent::Twists(parse_twists("U")));
         sim.do_event(ReplayEvent::Twists(parse_twists("3R")));

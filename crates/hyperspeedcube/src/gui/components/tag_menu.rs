@@ -107,11 +107,12 @@ impl TagMenu {
                         if name == "colors/system" {
                             self.color_systems
                                 .iter()
-                                // Sort by name (could sort by ID instead)
-                                .sorted_unstable_by(|a, b| hyperpuzzle::compare_ids(&a.id, &b.id))
+                                // Sort by ID (could sort by name instead)
+                                .sorted_unstable_by(|a, b| CatalogId::cmp(&a.id, &b.id))
                                 .map(|color_system| {
                                     let name = &color_system.name;
-                                    self.tag_checkbox(ui, name, Some(&color_system.id), name)
+                                    let id_str = color_system.id.to_string();
+                                    self.tag_checkbox(ui, name, Some(&id_str), name)
                                 })
                                 .reduce(Option::or)
                                 .flatten()

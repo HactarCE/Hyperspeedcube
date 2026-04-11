@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::{CatalogArgValue, CatalogId};
+
 /// Parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratorParam {
@@ -13,20 +15,20 @@ pub struct GeneratorParam {
 impl GeneratorParam {
     /// Converts a string to a value for this parameter and returns an error if
     /// it is invalid.
-    pub fn value_from_str(&self, s: &str) -> Result<GeneratorParamValue, GeneratorParamError> {
-        if s.is_empty() {
-            return Ok(self.default.clone());
-        }
-
+    pub fn value_from_arg(
+        &self,
+        arg: &CatalogArgValue,
+    ) -> Result<GeneratorParamValue, GeneratorParamError> {
         let make_error = || GeneratorParamError {
             expected: self.clone(),
-            got: s.to_owned(),
+            got: arg.to_string(),
         };
 
         match self.ty {
             GeneratorParamType::Int { .. } => Ok(GeneratorParamValue::Int(
-                s.parse().map_err(|_| make_error())?,
+                arg.to_int().ok_or_else(make_error)?,
             )),
+            GeneratorParamType::Puzzle => Ok(GeneratorParamValue::PuzzleId(arg.to_id())),
         }
     }
 }
@@ -40,11 +42,14 @@ pub enum GeneratorParamType {
         /// Maximum value (inclusive).
         max: i64,
     },
+    /// Puzzle ID.
+    Puzzle,
 }
 impl fmt::Display for GeneratorParamType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GeneratorParamType::Int { min, max } => write!(f, "int ({min} to {max})"),
+            GeneratorParamType::Puzzle => write!(f, "puzzle"),
         }
     }
 }
@@ -54,11 +59,22 @@ impl fmt::Display for GeneratorParamType {
 pub enum GeneratorParamValue {
     /// Integer.
     Int(i64),
+    /// Puzzle ID.
+    PuzzleId(CatalogId),
 }
 impl fmt::Display for GeneratorParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GeneratorParamValue::Int(i) => write!(f, "{i}"),
+            GeneratorParamValue::PuzzleId(id) => write!(f, "{id}"),
+        }
+    }
+}
+impl From<GeneratorParamValue> for CatalogArgValue {
+    fn from(value: GeneratorParamValue) -> Self {
+        match value {
+            GeneratorParamValue::Int(i) => i.into(),
+            GeneratorParamValue::PuzzleId(id) => id.into(),
         }
     }
 }
