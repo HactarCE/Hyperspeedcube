@@ -56,8 +56,8 @@ add_puzzle_generator(
             name = ft_polygonal_prism_name(n, width, height, "Shallow"),
             aliases = [ft_polygonal_prism_long_name(n, width, height, "Shallow")],
             ndim = 3,
-            colors = "polygonal_prism:${n}",
-            twists = "ft_polygonal_prismatic:${n}",
+            colors = "polygonal_prism(${n})",
+            twists = "ft_polygonal_prismatic(${n})",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
                     polygon = @shapes/i/polygon.new(n),
@@ -121,8 +121,8 @@ add_puzzle_generator(
             name = ft_polygonal_prism_name(3, width, height, "Triminx"),
             aliases = [ft_polygonal_prism_long_name(3, width, height, "Triminx")],
             ndim = 3,
-            colors = "polygonal_prism:3",
-            twists = "ft_polygonal_prismatic:3",
+            colors = "polygonal_prism(3)",
+            twists = "ft_polygonal_prismatic(3)",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
                     polygon = @shapes/i/polygon.new(3),
@@ -273,15 +273,19 @@ add_puzzle_generator(
     ndim = 4,
     gen = fn(n, m, n_layers, m_layers) {
         if n_layers == 1 and m_layers == 1 {
-            return "polygonal_duoprism:${n},${m}"
+            return "polygonal_duoprism(${n},${m})"
         }
-        canonical_id = (if n > m or (n == m and n_layers > m_layers) { "${#id}:${n},${m},${n_layers},${m_layers}" } else { "${#id}:${m},${n},${m_layers},${n_layers}" })
+        canonical_id = (if n > m or (n == m and n_layers > m_layers) {
+            "${#id}(${n},${m},${n_layers},${m_layers})"
+        } else {
+            "${#id}(${m},${n},${m_layers},${n_layers})"
+        })
 
         return #{
             name = ft_duoprism_name(n, m, n_layers, m_layers, "Shallow"),
             aliases = [ft_duoprism_long_name(m, n, m_layers, n_layers, "Shallow")],
-            colors = "polygonal_duoprism:${n},${m}",
-            twists = "ft_polygonal_duoprism:${n},${m}",
+            colors = "polygonal_duoprism(${n},${m})",
+            twists = "ft_polygonal_duoprism(${n},${m})",
             build = fn() {
                 shape = @shapes/prisms/polygonal_duoprism.new(n, m)
                 a_depths = shape.a.shallow_cut_depths(n_layers)
@@ -351,8 +355,8 @@ add_puzzle_generator(
         return #{
             name = ft_duoprism_name(n, 3, n_layers, m_layers, "Shallow", "Triminx"),
             aliases = [ft_duoprism_long_name(3, n, m_layers, n_layers, "Triminx", "Shallow")],
-            colors = "polygonal_duoprism:${n},3",
-            twists = "ft_polygonal_duoprism:${n},3",
+            colors = "polygonal_duoprism(${n},3)",
+            twists = "ft_polygonal_duoprism(${n},3)",
             build = fn() {
                 shape = @shapes/prisms/polygonal_duoprism.new(n, 3)
                 a_depths = shape.a.shallow_cut_depths(n_layers)
@@ -401,12 +405,16 @@ add_puzzle_generator(
     engine = "euclid",
     ndim = 4,
     gen = fn(n_layers, m_layers) {
-        canonical_id = (if n_layers > m_layers { "${#id}:${n_layers},${m_layers}" } else { "${#id}:${m_layers},${n_layers}" })
+        canonical_id = (if n_layers > m_layers {
+            "${#id}(${n_layers},${m_layers})"
+        } else {
+            "${#id}(${m_layers},${n_layers})"
+        })
         return #{
             name = ft_duoprism_name(3, 3, n_layers, m_layers, "Triminx"),
             aliases = [ft_duoprism_long_name(3, 3, m_layers, n_layers, "Triminx")],
-            colors = "polygonal_duoprism:3,3",
-            twists = "ft_polygonal_duoprism:3,3",
+            colors = "polygonal_duoprism(3,3)",
+            twists = "ft_polygonal_duoprism(3,3)",
             build = fn() {
                 shape = @shapes/prisms/polygonal_duoprism.new(3, 3)
                 a_depths = shape.a.full_cut_depths(n_layers)
