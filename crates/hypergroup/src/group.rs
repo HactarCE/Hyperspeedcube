@@ -120,10 +120,15 @@ impl Group {
             .flat_map(|(i, group)| group.generators().iter_keys().map(move |g| (i, g)))
             .collect();
 
-        let generators: PerGenerator<GroupElementId> = factors
-            .iter_values()
-            .flat_map(|group| group.generators().iter_values().copied())
-            .collect();
+        let generators: PerGenerator<GroupElementId> =
+            std::iter::zip(factors.iter_values(), element_strides.iter_values())
+                .flat_map(|(group, stride)| {
+                    group
+                        .generators()
+                        .iter_values()
+                        .map(move |&GroupElementId(i)| GroupElementId(i * stride))
+                })
+                .collect();
 
         Ok(Self {
             inner: Arc::new(GroupInner {

@@ -27,7 +27,7 @@ use crate::{
 #[derive(Clone)]
 pub struct CoxeterMatrix {
     /// Name, for a named Coxeter group.
-    name: Option<(char, u16)>,
+    name: Option<Box<str>>,
     /// Linear indices, for a linear Coxeter group.
     linear_indices: Option<Box<[u16]>>,
     /// Number of generators.
@@ -70,8 +70,8 @@ impl fmt::Debug for CoxeterMatrix {
 impl fmt::Display for CoxeterMatrix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Coxeter group ")?;
-        if let Some((chr, n)) = self.name {
-            write!(f, "{chr}{n}")
+        if let Some(s) = &self.name {
+            write!(f, "{s}")
         } else if let Some(linear_indices) = &self.linear_indices {
             write!(f, "{linear_indices:?}")
         } else {
@@ -251,22 +251,30 @@ impl CoxeterMatrix {
 
     /// Constructs the direct product of two Coxeter groups.
     pub fn direct_product(a: &Self, b: &Self) -> GroupResult<Self> {
-        CoxeterMatrix::from_matrix_fn(a.generator_count + b.generator_count, |i, j| {
-            if i < a.generator_count && j < a.generator_count {
-                a[[i, j]]
-            } else if i >= a.generator_count && j >= a.generator_count {
-                b[[i - a.generator_count, j - a.generator_count]]
-            } else {
-                2
-            }
-        })
+        let mut ret =
+            CoxeterMatrix::from_matrix_fn(a.generator_count + b.generator_count, |i, j| {
+                if i < a.generator_count && j < a.generator_count {
+                    a[[i, j]]
+                } else if i >= a.generator_count && j >= a.generator_count {
+                    b[[i - a.generator_count, j - a.generator_count]]
+                } else {
+                    2
+                }
+            })?;
+        if let (Some(ia), Some(ib)) = (&a.linear_indices, &b.linear_indices) {
+            ret.linear_indices = Some(std::iter::chain(ia, ib).copied().collect());
+        }
+        if let (Some(sa), Some(sb)) = (&a.name, &b.name) {
+            ret.name = Some(format!("{sa} x {sb}").into_boxed_str());
+        }
+        Ok(ret)
     }
 }
 
 /// Constructors for every finite Coxeter group by their names
 impl CoxeterMatrix {
     fn with_name(mut self, chr: char, n: u16) -> Self {
-        self.name = Some((chr, n));
+        self.name = Some(format!("{chr}{n}").into_boxed_str());
         self
     }
 

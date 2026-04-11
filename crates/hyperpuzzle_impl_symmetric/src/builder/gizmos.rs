@@ -5,15 +5,17 @@ use hypergroup::{
     ConstraintSet, ConstraintSolver, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup,
 };
 use hypermath::{
-    APPROX, ApproxHashMap, Hyperplane, Vector, VectorRef, approx_collections, pga::Motor,
+    APPROX, ApproxHashMap, Float, Hyperplane, Point, Vector, VectorRef, approx_collections,
+    pga::Motor,
 };
-use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace};
+use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace, TiMask};
 use hyperpuzzle_impl_nd_euclid::GizmoTwist;
 use hypershape::{Cut, ElementCutOutput, ElementId, ElementIdConvert, FaceId, FacetId, Space};
 use hypuz_notation::{Multiplier, Transform};
+use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 
-use crate::{StabilizerFamily, builder::ProductPuzzleAxes};
+use crate::{StabilizableAxisSet, StabilizerFamily, builder::ProductPuzzleAxes};
 
 pub fn build_3d_gizmo<'a>(
     mesh: &mut Mesh,
@@ -21,59 +23,34 @@ pub fn build_3d_gizmo<'a>(
     axes: &ProductPuzzleAxes,
     axis_names: &NameSpecBiMap<Axis>,
 ) -> Result<()> {
+    let axis_from_vector =
+        ApproxHashMap::from_iter(APPROX, axes.vectors.iter().map(|(ax, v)| (v.clone(), ax)));
+
     let mut space = Space::new(3)?;
-    let gizmo_faces = gizmo_facets(&mut space, axes)?
-        .into_iter()
-        .map(|f| f.as_element().id())
-        .collect_vec();
+    let mut seen_axes = TiMask::new_empty(axes.len());
+    for facet_id in gizmo_facets(&mut space, axes)? {
+        let init_axis = *axis_from_vector
+            .get(space.get(facet_id).hyperplane()?.pole().into_vector())
+            .ok_or_eyre("unknown axis vector")?;
 
-    let mut seen_axis_vectors = ApproxHashMap::new(APPROX);
-
-    for face_id in gizmo_faces {
-        let unfolded_face_id = space.unfold(face_id)?;
-        let face = space.get(unfolded_face_id).as_face()?;
-        let facet = space.get(unfolded_face_id).as_facet()?;
-
-        let init_axis_vector = facet.hyperplane()?.normal().clone();
-
-        if seen_axis_vectors
-            .insert(init_axis_vector.clone(), ())
-            .is_some()
-        {
+        if seen_axes.contains(init_axis) {
             continue; // already handled!
         }
+        seen_axes.insert(init_axis);
 
-        let vertex_positions = face.vertices_in_order()?.map(|v| v.pos()).collect_vec();
+        let unfolded_face_id = space.unfold(facet_id.into())?;
+        let unfolded_face = space.get(unfolded_face_id).as_face()?;
 
-        let orbit = hypergroup::orbit_collect(
-            (init_axis_vector, Motor::ident(space.ndim())),
-            &axes.coxeter_matrix.generator_motors()?,
-            |_, (v, m), g| {
-                let mut new_vector = g.transform(v);
-                if let approx_collections::hash_map::Entry::Vacant(e) =
-                    seen_axis_vectors.entry_with_mut_key(&mut new_vector)
-                {
-                    e.insert(());
-                    Some((new_vector, g * m))
-                } else {
-                    None
-                }
-            },
-        );
+        let vertex_positions = unfolded_face
+            .vertices_in_order()?
+            .map(|v| v.pos())
+            .collect_vec();
 
-        let axis_from_vector =
-            ApproxHashMap::from_iter(APPROX, axes.vectors.iter().map(|(ax, v)| (v.clone(), ax)));
-
-        for (axis_vector, m) in orbit {
-            let axis = *axis_from_vector
-                .get(axis_vector.clone())
-                .ok_or_eyre("bad axis vector")?;
-            let transformed_vertex_positions = vertex_positions
-                .iter()
-                .map(|p| m.transform(p))
-                .collect_vec();
-            let surface_id = mesh.add_gizmo_surface(&axis_vector)?;
-            let range = mesh.add_gizmo_polygon(&transformed_vertex_positions, surface_id)?;
+        // Generate mesh for each face
+        for (axis, _, m) in orbit_axes_with_representatives(init_axis, axes, &mut seen_axes) {
+            let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
+            let surface_id = mesh.add_gizmo_surface(&axes.vectors[axis])?;
+            let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
             mesh.add_gizmo_face(range)?;
             gizmo_twists.push(GizmoTwist {
                 axis,
@@ -94,174 +71,153 @@ pub fn build_4d_gizmo<'a>(
     axis_names: &NameSpecBiMap<Axis>,
     mut warn_fn: impl FnMut(eyre::Report),
 ) -> Result<()> {
-    // let mut space = Space::new(4)?;
-    // let mirror_planes = axis_symmetry
-    //     .mirrors()?
-    //     .cols()
-    //     .filter_map(|mirror_vector| Hyperplane::new(mirror_vector, 0.0));
-    // let carve_planes = axis_orbit_vectors
-    //     .into_iter()
-    //     .filter_map(Hyperplane::from_pole);
+    let axis_from_vector =
+        ApproxHashMap::from_iter(APPROX, axes.vectors.iter().map(|(ax, v)| (v.clone(), ax)));
 
-    // let gizmo_polychoron = space.add_folded_shape(mirror_planes, carve_planes)?;
-    // let gizmo_polychoron = space.get(gizmo_polychoron);
-    // let mut gizmo_cells = gizmo_polychoron
-    //     .facets()
-    //     .map(|c| c.as_element().id())
-    //     .filter(|&c| !gizmo_polychoron.boundary_portals().contains_element(c))
-    //     .collect_vec();
-    // dbg!(gizmo_polychoron.id(), &gizmo_cells);
+    let mut space = Space::new(4)?;
+    let mut seen_axes = TiMask::new_empty(axes.len());
+    'facet: for facet_id in gizmo_facets(&mut space, axes)? {
+        let init_axis = *axis_from_vector
+            .get(space.get(facet_id).hyperplane()?.pole().into_vector())
+            .ok_or_eyre("unknown axis vector")?;
 
-    // let mut twists_by_axis = HashMap::<Axis, Vec<(PseudoAxis, f64)>>::new();
-    // for (family, distance) in stabilizer_twist_orbits {
-    //     twists_by_axis
-    //         .entry(family.primary)
-    //         .or_default()
-    //         .push((family.secondary, *distance));
-    // }
-    // dbg!(&twists_by_axis);
+        if seen_axes.contains(init_axis) {
+            continue; // already handled!
+        }
+        seen_axes.insert(init_axis);
 
-    // let mut twist_faces: HashMap<Axis, Vec<(ElementId, PseudoAxis, Vector)>> = HashMap::new();
+        let mut unfolded_cell_id = space.unfold(facet_id.into())?;
 
-    // // Carve the gizmo polytope
-    // for (family, distance) in stabilizer_twist_orbits {
-    //     for cell_id in &mut gizmo_cells {
-    //         let Some(&facet_axis) = axis_from_vector.get(
-    //             space
-    //                 .get(*cell_id)
-    //                 .as_facet()?
-    //                 .hyperplane()?
-    //                 .normal()
-    //                 .clone(),
-    //         ) else {
-    //             continue;
-    //         };
+        let mut vector_to_twist_family = ApproxHashMap::new(APPROX);
+        for (family, gizmo_pole_distance) in &axes.stabilizer_twists {
+            if let Some(coset) = solver.solve(&ConstraintSet::from([[family.primary, init_axis]])) {
+                let right_coset = coset.to_right_coset();
+                let init_secondary = family
+                    .secondary
+                    .transform_by_group_element(&axes.action, right_coset.rhs);
+                // IIFE to mimic try_block
+                let init_vector = (|| {
+                    init_secondary
+                        .vector(&axes.vectors)
+                        .rejected_from(&axes.vectors[init_axis])?
+                        .normalize_to(*gizmo_pole_distance)
+                })()
+                .ok_or_eyre("gizmo pole distance cannot be zero")?;
+                vector_to_twist_family.insert(
+                    init_vector.clone(),
+                    (init_secondary.clone(), *gizmo_pole_distance),
+                );
+                let subgroup_generators = right_coset
+                    .subgroup
+                    .generators
+                    .into_iter()
+                    .map(|g| (g, axes.group.motor(g)))
+                    .collect_vec();
+                hypergroup::orbit(
+                    (init_vector, init_secondary),
+                    &subgroup_generators,
+                    |(vector, secondary), (g, m)| {
+                        let mut new_vector = m.transform(vector);
+                        if let approx_collections::hash_map::Entry::Vacant(entry) =
+                            vector_to_twist_family.entry_with_mut_key(&mut new_vector)
+                        {
+                            let new_secondary =
+                                secondary.transform_by_group_element(&axes.action, *g);
+                            entry.insert((new_secondary.clone(), *gizmo_pole_distance));
+                            Some((new_vector, new_secondary))
+                        } else {
+                            None
+                        }
+                    },
+                );
+            }
+        }
 
-    //         for (&primary_axis, twists) in &mut twists_by_axis {
-    //             if let Some(conj_coset) = solver.solve(&ConstraintSet::from([[
-    //                 axes.axis_to_pseudo_axis(primary_axis),
-    //                 axes.axis_to_pseudo_axis(facet_axis),
-    //             ]])) {
-    //                 let right_coset = conj_coset.to_right_coset();
-    //                 let axis_twist_faces = twist_faces.entry(facet_axis).or_default();
+        // Carve gizmo faces
+        let mut cell = unfolded_cell_id;
+        let mut faces = vec![];
+        for (v, (secondary, gizmo_pole_distance)) in vector_to_twist_family {
+            let cut_plane = Hyperplane::from_pole(v).ok_or_eyre("bad gizmo pole")?;
+            let mut cut = Cut::carve(cut_plane);
+            let cut_result = cut.cut(&mut space, cell)?;
+            if let Some(cut_cell) = cut_result.inside() {
+                cell = cut_cell;
+            } else {
+                warn_fn(eyre!(
+                    "twist gizmo for axis {:?} is empty due to {} with distance {}",
+                    &axis_names[init_axis],
+                    StabilizerFamily {
+                        primary: init_axis,
+                        secondary
+                    }
+                    .debug_str(&axis_names),
+                    gizmo_pole_distance,
+                ));
+                continue 'facet;
+            };
 
-    //                 // TODO: think through left vs. right coset again
-    //                 let subgroup_generator_motors = right_coset
-    //                     .subgroup
-    //                     .generators
-    //                     .into_iter()
-    //                     .map(|e| axis_group.motor(e))
-    //                     .collect_vec();
-    //                 for (secondary_axis, distance) in twists {
-    //                     let secondary_axis =
-    //                         pseudo_axis_action.act(right_coset.rhs, *secondary_axis);
-    //                     let secondary_axis_vector = pseudo_axes[secondary_axis]
-    //                         .iter()
-    //                         .map(|&a| &axis_vectors[a])
-    //                         .sum::<Vector>()
-    //                         .rejected_from(&axis_vectors[primary_axis])
-    //                         .ok_or_eyre("axis vector cannot be zero")?;
-    //                     for transformed_secondary_axis_vector in hypergroup::orbit_geometric(
-    //                         &subgroup_generator_motors,
-    //                         secondary_axis_vector,
-    //                     ) {
-    //                         if let Some(h) =
-    //                             Hyperplane::new(&transformed_secondary_axis_vector, *distance)
-    //                         {
-    //                             let mut cut = Cut::carve(h);
-    //                             *axis_twist_faces = std::mem::take(axis_twist_faces)
-    //                                 .into_iter()
-    //                                 .filter_map(|(p, secondary_axis, secondary_axis_vector)| {
-    //                                     match cut.cut(&mut space, p) {
-    //                                         Err(e) => {
-    //                                             warn_fn(e);
-    //                                             None
-    //                                         }
-    //                                         Ok(ElementCutOutput::NonFlush {
-    //                                             inside: Some(inside),
-    //                                             ..
-    //                                         }) => Some((
-    //                                             inside,
-    //                                             secondary_axis,
-    //                                             secondary_axis_vector,
-    //                                         )),
-    //                                         _ => {
-    //                                             warn_fn(eyre!("gizmo face is empty"));
-    //                                             None
-    //                                         }
-    //                                     }
-    //                                 })
-    //                                 .collect_vec();
-    //                             let cut_output = cut.cut(&mut space, *cell_id)?;
-    //                             if let Some(remaining_cell) = cut_output.inside() {
-    //                                 *cell_id = remaining_cell;
-    //                             } else {
-    //                                 warn_fn(eyre!("twist gizmo is empty"));
-    //                             }
-    //                             if let Some(new_face) = cut_output.intersection() {
-    //                                 axis_twist_faces.push((
-    //                                     new_face,
-    //                                     secondary_axis.clone(),
-    //                                     transformed_secondary_axis_vector,
-    //                                 ));
-    //                             } else {
-    //                                 // ok. probably not in the fundamental region
-    //                             }
-    //                         } else {
-    //                             warn_fn(eyre!("cannot construct hyperplane for twist gizmo"));
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // dbg!(&twist_faces);
+            for (face, _, _) in &mut faces {
+                if let Some(f) = face {
+                    *face = cut.cut(&mut space, *f)?.inside();
+                }
+            }
 
-    // // Expand each gizmo face
-    // let axis_gizmo_surfaces = axis_vectors.try_map_ref(|_, v| mesh.add_gizmo_surface(v))?;
-    // for (primary_axis, faces) in twist_faces {
-    //     dbg!(&primary_axis, &faces);
-    //     let primary_axis_vector = &axis_vectors[primary_axis];
+            faces.push((cut_result.intersection(), secondary, gizmo_pole_distance));
+        }
 
-    //     for (face_id, secondary_axis, secondary_axis_vector) in faces {
-    //         dbg!(&face_id, &secondary_axis, &secondary_axis_vector);
-    //         let unfolded_face_id = space.unfold(face_id)?;
-    //         let face = space.get(unfolded_face_id).as_face()?;
+        // Generate vertex positions for each face
+        let faces: Vec<(Vec<Point>, StabilizableAxisSet)> = faces
+            .into_iter()
+            .filter_map(|(face, secondary, gizmo_pole_distance)| match face {
+                Some(f) => Some((f, secondary)),
+                None => {
+                    warn_fn(eyre!(
+                        "gizmo pole distance of {} is too far for {}",
+                        gizmo_pole_distance,
+                        StabilizerFamily {
+                            primary: init_axis,
+                            secondary
+                        }
+                        .debug_str(axis_names)
+                    ));
+                    None
+                }
+            })
+            .map(|(face, secondary)| {
+                let vertex_positions = space
+                    .get(face)
+                    .as_face()?
+                    .vertices_in_order()?
+                    .map(|v| v.pos())
+                    .collect_vec();
+                eyre::Ok((vertex_positions, secondary))
+            })
+            .try_collect()?;
 
-    //         let vertex_positions = face.vertices_in_order()?.map(|v| v.pos()).collect_vec();
-
-    //         for (elem, _) in
-    //             axis_group.orbit_geometric((primary_axis_vector.clone(), secondary_axis_vector))
-    //         {
-    //             dbg!(&elem);
-    //             let transformed_primary_axis = axis_action.act(elem, primary_axis);
-    //             let transformed_secondary_axis = pseudo_axis_action.act(elem, secondary_axis);
-    //             let transformed_family = StabilizerFamily {
-    //                 primary: transformed_primary_axis,
-    //                 secondary: transformed_secondary_axis,
-    //             };
-
-    //             let m = axis_group.motor(elem);
-    //             let transformed_points = vertex_positions
-    //                 .iter()
-    //                 .map(|p| m.transform(p))
-    //                 .collect_vec();
-    //             let range =
-    //                 mesh.add_gizmo_polygon(&transformed_points, axis_gizmo_surfaces[primary_axis])?;
-    //             mesh.add_gizmo_face(range);
-    //             dbg!(
-    //                 &transformed_points,
-    //                 transform_from_stabilizer_family(&transformed_family)
-    //             );
-    //             gizmo_twists.push(GizmoTwist {
-    //                 axis: primary_axis,
-    //                 transform: transform_from_stabilizer_family(&transformed_family),
-    //                 multiplier: Multiplier(1),
-    //             });
-    //         }
-    //     }
-    // }
+        // Generate mesh for each cell/axis
+        for (axis, e, m) in orbit_axes_with_representatives(init_axis, axes, &mut seen_axes) {
+            // Generate mesh for each face
+            for (vertex_positions, secondary) in &faces {
+                let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
+                let transformed_secondary = secondary.transform_by_group_element(&axes.action, e);
+                let surface_id = mesh.add_gizmo_surface(&axes.vectors[axis])?;
+                let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
+                mesh.add_gizmo_face(range)?;
+                let family_str = StabilizerFamily {
+                    primary: axis,
+                    secondary: transformed_secondary,
+                }
+                .iter_flatten()
+                .map(|ax| &axis_names[ax])
+                .join("_"); // TODO: proper separator
+                gizmo_twists.push(GizmoTwist {
+                    axis,
+                    transform: Transform::new(family_str, None),
+                    multiplier: Multiplier(1),
+                })?;
+            }
+        }
+    }
 
     Ok(())
 }
@@ -269,7 +225,7 @@ pub fn build_4d_gizmo<'a>(
 fn gizmo_facets<'a, 'b>(
     space: &'a mut Space,
     axes: &ProductPuzzleAxes,
-) -> Result<Vec<hypershape::Facet<'a>>> {
+) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = axes
         .coxeter_matrix
         .mirrors()?
@@ -289,5 +245,28 @@ fn gizmo_facets<'a, 'b>(
                 .boundary_portals()
                 .contains_element(f.as_element().id())
         })
+        .map(|f| f.id())
         .collect())
+}
+
+fn orbit_axes_with_representatives(
+    init: Axis,
+    axes: &ProductPuzzleAxes,
+    seen: &mut TiMask<Axis>,
+) -> Vec<(Axis, GroupElementId, Motor)> {
+    hypergroup::orbit_collect(
+        (init, GroupElementId::IDENTITY, Motor::ident(axes.ndim())),
+        axes.group.generators(),
+        |_, (ax, e, m), &g| {
+            let new_axis = axes.action.act(g, *ax);
+            if !seen.contains(new_axis) {
+                seen.insert(new_axis);
+                let new_elem = axes.group.compose(g, *e);
+                let new_motor = axes.group.motor(g) * m;
+                Some((new_axis, new_elem, new_motor))
+            } else {
+                None
+            }
+        },
+    )
 }

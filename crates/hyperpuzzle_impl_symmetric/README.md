@@ -20,3 +20,4 @@ General symmetric puzzle backend for Hyperspeedcube
   - [ ] when parsing twists
   - [ ] when parsing axis from twist
 - [ ] sort axes by name for canonical scrambling etc
+- [ ] fix animations for 180-degree turns

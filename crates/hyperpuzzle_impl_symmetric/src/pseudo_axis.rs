@@ -3,7 +3,7 @@ use std::ops::Deref;
 use eyre::{OptionExt, Result, bail, eyre};
 use hypergroup::{GroupAction, GroupElementId};
 use hypermath::{Vector, VectorRef};
-use hyperpuzzle_core::{Axis, PerAxis, TiVec};
+use hyperpuzzle_core::{Axis, NameSpecBiMap, PerAxis, TiVec};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -54,6 +54,13 @@ impl StabilizerFamily {
                 .circular_tuple_windows()
                 .map(|(&from, &to)| hypergroup::Constraint { from, to }),
         )))
+    }
+
+    pub(crate) fn debug_str(&self, axis_names: &NameSpecBiMap<Axis>) -> String {
+        format!(
+            "[{}]",
+            self.iter_flatten().map(|ax| &axis_names[ax]).join(", "),
+        )
     }
 }
 

@@ -47,7 +47,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                         factors: vec![
                             // ft_cube(4)?,
                             megaminx()?,
-                            // shallow_line()?,
+                            shallow_line()?,
                             // shallow_polygon(20)?,
                             // shallow_polygon(7)?,
                             // shallow_polygon(4)?,
@@ -304,9 +304,11 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
         .collect();
 
     let pi_div_n = std::f64::consts::PI as Float / n as Float;
-    let edge_length = 2.0 * pi_div_n.tan();
-    let edge_depth = (2.0 * pi_div_n).sin() * edge_length;
-    let cut_depth = 1.0 - edge_depth / 3.0;
+    let half_edge_length = pi_div_n.tan();
+    let edge_length = 2.0 * half_edge_length;
+    let edge_height = (2.0 * pi_div_n).sin() * edge_length;
+    let circumradius = pi_div_n.cos().recip();
+    let cut_depth = 1.0 - edge_height / 3.0;
 
     const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
     let s = hypuz_notation::Str::from_static_str;
@@ -314,12 +316,15 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::I(n)?,
         vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(1) * 2.0 / edge_length,
-            cut_distances: vec![INF, cut_depth * 2.0 / edge_length],
+            initial_vector: Vector::unit(1) / half_edge_length,
+            cut_distances: vec![INF, cut_depth / half_edge_length],
             names,
         }],
-        vec![(vec![s("A"), s("B")], FACET_GIZMO_EDGE_FACTOR)],
-        vec![],
+        vec![(
+            vec![s("A"), s("B")],
+            hypermath::util::lerp(circumradius, 1.0, FACET_GIZMO_EDGE_FACTOR) / half_edge_length,
+        )],
+        vec![(s("A"), vec![s("B")], 1.0)],
     ))
 }
 
@@ -374,6 +379,7 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
     let cut_distance = std::f64::consts::GOLDEN_RATIO.recip();
 
     const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
+    let s = hypuz_notation::Str::from_static_str;
 
     Ok(FactorPuzzleSpec::new_ft(
         CoxeterMatrix::H3(),
@@ -382,8 +388,9 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
             cut_distances: vec![INF, cut_distance],
             names,
         }],
-        vec![], // TODO
+        // vec![(vec![s("F"), s("U")], 1.0)],
         vec![],
+        vec![(s("F"), vec![s("U")], std::f64::consts::GOLDEN_RATIO.recip())], // TODO: prove this number
     ))
 }
 
@@ -407,6 +414,10 @@ fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
         .normalize()
         .unwrap();
     let names = autoname_orbit(&isometry_group, axis_vector.clone());
+
+    let gizmo_facet_size = (std::f64::consts::PI / 10.0).tan();
+    let s = hypuz_notation::Str::from_static_str;
+
     Ok(FactorPuzzleSpec::new_ft(
         coxeter_matrix,
         vec![AxisOrbitSpec {
@@ -414,8 +425,17 @@ fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
             cut_distances,
             names,
         }],
-        vec![], // TODO
-        vec![], // TODO
+        // vec![
+        //     (vec![s("R"), s("U")], edge_pole_distance),
+        //     (vec![s("R"), s("U"), s("F")], edge_pole_distance),
+        // ],
+        vec![],
+        vec![
+            // TODO: this is definitely wrong lmao
+            (s("A"), vec![s("B")], gizmo_facet_size),
+            //     (s("I"), vec![s("R"), s("U")], edge_pole_distance),
+            //     (s("I"), vec![s("R"), s("U"), s("F")], corner_pole_distance),
+        ],
     ))
 }
 

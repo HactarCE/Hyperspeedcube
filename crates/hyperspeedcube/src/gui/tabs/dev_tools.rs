@@ -136,7 +136,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         info_line(ui, "Allow negatives?", layers_info.allow_negatives);
         ui.label("");
         info_line(ui, "Twist transform", transform);
-        info_line(ui, "Twist multiplier", multiplier);
+        info_line(ui, "Twist multiplier", multiplier.0);
     }
 }
 
