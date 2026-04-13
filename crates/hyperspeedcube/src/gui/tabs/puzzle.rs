@@ -879,7 +879,6 @@ fn show_nd_euclid_puzzle_view(
     }
 
     let cam = nd_euclid.transient_camera(sim);
-    let effects = sim.lock().special_effects();
 
     let piece_transforms;
     {
@@ -904,8 +903,6 @@ fn show_nd_euclid_puzzle_view(
         sticker_colors,
         piece_styles,
         piece_transforms,
-
-        effects,
     };
 
     if draw_params.any_animated() {

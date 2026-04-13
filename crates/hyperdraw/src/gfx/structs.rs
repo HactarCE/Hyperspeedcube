@@ -165,11 +165,3 @@ pub struct GfxDrawParams {
 
     pub padding: i32,
 }
-
-/// Parameters for postprocessing rendering effects.
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub struct GfxEffectParams {
-    /// 2D vector along which to apply chromatic abberation.
-    pub chromatic_abberation: [f32; 2],
-}

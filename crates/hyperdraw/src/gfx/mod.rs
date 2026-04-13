@@ -15,7 +15,6 @@ pub use cache::{CachedTexture, CachedTexture1d, CachedTexture2d};
 pub use draw_params::DrawParams;
 pub use puzzle::NdEuclidPuzzleRenderer;
 pub use state::GraphicsState;
-pub use structs::GfxEffectParams;
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
 fn pad_buffer_to_wgpu_copy_buffer_alignment<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {

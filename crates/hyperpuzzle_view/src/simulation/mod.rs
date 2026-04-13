@@ -3,7 +3,6 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
 use float_ord::FloatOrd;
-use hyperdraw::GfxEffectParams;
 use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
@@ -914,20 +913,6 @@ impl PuzzleSimulation {
     /// Starts the special animation, if it is not already happening.
     pub fn start_special_anim(&mut self) {
         self.special_anim.start();
-    }
-    /// Returns the special effects to use for drawing for one frame.
-    pub fn special_effects(&self) -> GfxEffectParams {
-        if let Some(t) = self.special_anim_t() {
-            use std::f32::consts::PI;
-
-            let amount = (t * PI).sin();
-
-            GfxEffectParams {
-                chromatic_abberation: [amount / 8.0, amount / 12.0],
-            }
-        } else {
-            GfxEffectParams::default()
-        }
     }
 
     /// Returns the combined session time of the file in milliseconds.

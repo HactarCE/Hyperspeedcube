@@ -6,7 +6,6 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     struct Bindings<'a> {
         src_texture:   &'a wgpu::TextureView = pub(FRAGMENT) bindings::BLIT_SRC_TEXTURE,
         src_sampler:   &'a wgpu::Sampler     = pub(FRAGMENT) bindings::BLIT_SRC_SAMPLER,
-        effect_params: &'a wgpu::Buffer      = pub(FRAGMENT) bindings::EFFECT_PARAMS,
     }
 
     struct PipelineParams {

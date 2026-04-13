@@ -95,10 +95,6 @@ struct DrawParams {
     _padding: i32,
 }
 
-struct EffectParams {
-    chromatic_abberation: vec2<f32>,
-}
-
 
 
 /*
@@ -141,7 +137,6 @@ struct EffectParams {
 @group(2) @binding(4) var<storage, read> outline_color_ids: array<u32>;
 @group(2) @binding(5) var<storage, read> outline_radii: array<f32>;
 @group(2) @binding(6) var<uniform> draw_params: DrawParams;
-@group(2) @binding(7) var<uniform> effect_params: EffectParams;
 
 
 
@@ -589,22 +584,16 @@ fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
     return out;
 }
 
-fn sample_blit_src_with_postprocessing(in: UvVertexOutput) -> vec4<f32> {
-    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
-    color.r = textureSample(blit_src_texture, blit_src_sampler, in.uv + vec2(1.0,-1.0)* effect_params.chromatic_abberation/50.0).r;
-    color.b = textureSample(blit_src_texture, blit_src_sampler, in.uv - vec2(1.0,-1.0)* effect_params.chromatic_abberation/50.0).b;
-    return color;
-}
-
 @fragment
 fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    return sample_blit_src_with_postprocessing(in);
+    return textureSample(blit_src_texture, blit_src_sampler, in.uv);
 }
 
 @fragment
 fn blit_fragment_unmultiply_alpha(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    var color = sample_blit_src_with_postprocessing(in);
-    return vec4(color.rgb / color.a, color.a);
+    let color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
+    let a = linear_to_gamma(color.a);
+    return vec4(color.rgb / a, a);
 }
 
 
@@ -1173,7 +1162,7 @@ fn turbo(value: f32, min: f32, max: f32) -> vec4<f32> {
     );
 }
 
-fn linear_to_gamma(linear: vec4<f32>) -> vec4<f32> {
+fn linear_to_gamma(linear: f32) -> f32 {
     // from http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
-    return max(1.055 * pow(linear, vec4(0.416666667)) - 0.055, vec4(0.0));
+    return max(1.055 * pow(linear, 0.416666667) - 0.055, 0.0);
 }

@@ -46,7 +46,6 @@ mod bindings {
     pub const OUTLINE_COLOR_IDS:            BindingMetadata = buffer(2, 4, Storage { read_only: true });
     pub const OUTLINE_RADII:                BindingMetadata = buffer(2, 5, Storage { read_only: true });
     pub const DRAW_PARAMS:                  BindingMetadata = buffer(2, 6, Uniform);
-    pub const EFFECT_PARAMS:                BindingMetadata = buffer(2, 7, Uniform);
 
     pub const COLOR_PALETTE_TEXTURE:        BindingMetadata = texture(0, 50, D1, Float { filterable: false });
 
@@ -71,12 +70,8 @@ pub(in crate::gfx) struct Pipelines {
     pub render_edge_ids: render_edge_ids::Pipeline,
     /// Composite polygons and edges into antialiased output.
     pub render_composite_puzzle: render_composite_puzzle::Pipeline,
-    /// Apply postprocessing effects onto another texture for exporting an
-    /// image.
-    pub postprocess_to_screen: blit::Pipeline,
-    /// Apply postprocessing effects onto another texture for exporting an
-    /// image.
-    pub postprocess_to_export: blit::Pipeline,
+    /// Copy a texture onto another, unpremultiplying alpha.
+    pub blit_unpremultiplied: blit::Pipeline,
 }
 impl Pipelines {
     pub(super) fn new(device: &wgpu::Device) -> Self {
@@ -95,15 +90,7 @@ impl Pipelines {
             render_polygons: render_polygons::Pipeline::new(device, shader_module),
             render_edge_ids: render_edge_ids::Pipeline::new(device, shader_module),
             render_composite_puzzle: render_composite_puzzle::Pipeline::new(device, shader_module),
-            postprocess_to_screen: blit::Pipeline::new(
-                device,
-                shader_module,
-                blit::PipelineParams {
-                    target_format: wgpu::TextureFormat::Rgba8Unorm,
-                    premultiply_alpha: true,
-                },
-            ),
-            postprocess_to_export: blit::Pipeline::new(
+            blit_unpremultiplied: blit::Pipeline::new(
                 device,
                 shader_module,
                 blit::PipelineParams {

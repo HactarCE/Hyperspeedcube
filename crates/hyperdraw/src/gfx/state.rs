@@ -16,7 +16,6 @@ pub struct GraphicsState {
 
     pub(super) uv_vertex_buffer: wgpu::Buffer,
     pub(super) nearest_neighbor_sampler: wgpu::Sampler,
-    pub(super) bilinear_sampler: wgpu::Sampler,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -37,11 +36,6 @@ impl GraphicsState {
             wgpu::BufferUsages::VERTEX,
         );
         let nearest_neighbor_sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
-        let bilinear_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
 
         Self {
             device: device.clone(),
@@ -53,7 +47,6 @@ impl GraphicsState {
             uv_vertex_buffer,
 
             nearest_neighbor_sampler,
-            bilinear_sampler,
         }
     }
 
