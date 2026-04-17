@@ -965,10 +965,7 @@ impl NdEuclidPuzzleRenderer {
         // wants), we tell the GPU to treat it like it's an sRGB texture so that
         // we store sRGB values in there.
         let target_texture = &self.buffers.composite_texture.texture;
-        let target_texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor {
-            format: Some(target_texture.format().add_srgb_suffix()),
-            ..Default::default()
-        });
+        let target_texture_view = target_texture.create_view(&Default::default());
         let mut render_pass = pipelines::render_composite_puzzle::PassParams {
             clear,
             target: &target_texture_view,

@@ -95,7 +95,6 @@ impl Pipelines {
                 shader_module,
                 blit::PipelineParams {
                     target_format: wgpu::TextureFormat::Rgba8Unorm,
-                    premultiply_alpha: false,
                 },
             ),
         }

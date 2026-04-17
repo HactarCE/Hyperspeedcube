@@ -585,13 +585,6 @@ fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
 }
 
 @fragment
-fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    let color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
-    let a = linear_to_gamma(color.a);
-    return vec4(color.rgb, a);
-}
-
-@fragment
 fn blit_fragment_unmultiply_alpha(in: UvVertexOutput) -> @location(0) vec4<f32> {
     let color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
     let a = linear_to_gamma(color.a);
@@ -812,7 +805,7 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
         composited_edge_color = composited_edge_color * (1.0 - a.colors[i].a) + a.colors[i];
     }
 
-    return polygon.color * (1.0 - composited_edge_color.a) + composited_edge_color;
+    return vec4_linear_to_gamma(polygon.color * (1.0 - composited_edge_color.a) + composited_edge_color);
 }
 
 struct DepthsAndColors {
@@ -1167,4 +1160,13 @@ fn turbo(value: f32, min: f32, max: f32) -> vec4<f32> {
 fn linear_to_gamma(linear: f32) -> f32 {
     // from http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
     return max(1.055 * pow(linear, 0.416666667) - 0.055, 0.0);
+}
+
+fn vec4_linear_to_gamma(linear: vec4<f32>) -> vec4<f32> {
+    return vec4(
+        linear_to_gamma(linear.r),
+        linear_to_gamma(linear.g),
+        linear_to_gamma(linear.b),
+        linear.a,
+    );
 }
