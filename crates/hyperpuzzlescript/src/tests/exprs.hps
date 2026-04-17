@@ -39,3 +39,17 @@ assert_eq(vec( ), vec(
 
 assert_eq("\n", "
 ")
+
+x = if false { 3 } else {
+    5
+}
+assert_eq(5, x)
+
+assert_eq(
+    3,
+    if true {
+        3
+    } else {
+        5
+    }
+)

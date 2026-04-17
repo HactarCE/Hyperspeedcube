@@ -67,6 +67,16 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
     let braces = select_ref! { Token::Braces(toks) = e => make_input(e.span(), toks) };
     let map_literal = select_ref! { Token::MapLiteral(toks) = e => make_input(e.span(), toks) };
 
+    let boxed_expr_in_delimiters = boxed_expr.clone().recover_with(via_parser(
+        any()
+            .repeated()
+            .map_with(|_, e| Box::new((ast::NodeContents::Error, e.span()))),
+    ));
+    let boxed_expr_in_parens = boxed_expr_in_delimiters.clone().nested_in(parens);
+    let boxed_expr_in_braces = boxed_expr_in_delimiters
+        .padded_by(just(Token::Newline).repeated()) // ideally we would allow newlines inside the expression too
+        .nested_in(braces);
+
     let statement_list = statement
         .clone()
         .separated_by(just(Token::Newline).repeated().at_least(1))
@@ -78,6 +88,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
     let statement_block = statement_list
         .clone()
+        .recover_with(via_parser(
+            any().repeated().map(|_| ast::NodeContents::Error),
+        ))
         .nested_in(braces)
         .labelled("statement block");
     let spanned_statement_block = statement_block
@@ -105,6 +118,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         just(Token::DoubleStar)
             .ignore_then(ident.clone())
             .map(ast::FnParam::NamedSplat),
+    ))
+    .recover_with(skip_then_retry_until(
+        any().ignored(),
+        just(Token::Comma).ignored(),
     ))
     .separated_by(comma_sep.clone())
     .allow_trailing()
@@ -206,15 +223,11 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let if_else_expr = just(Token::If)
             .ignore_then(boxed_expr.clone())
-            .then(boxed_expr.clone().nested_in(braces))
+            .then(boxed_expr_in_braces.clone())
             .separated_by(just(Token::Else))
             .at_least(1)
             .collect()
-            .then(
-                just(Token::Else)
-                    .ignore_then(boxed_expr.clone().nested_in(braces))
-                    .or_not(),
-            )
+            .then(just(Token::Else).ignore_then(boxed_expr_in_braces).or_not())
             .map(|(if_cases, else_case)| ast::NodeContents::IfElse {
                 if_cases,
                 else_case,
@@ -225,10 +238,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .map(ast::NodeContents::Fn)
             .map_err_with_state(inside_this("function"));
 
-        let paren_expr = boxed_expr
-            .clone()
-            .nested_in(parens)
-            .map(ast::NodeContents::Paren);
+        let paren_expr = boxed_expr_in_parens.map(ast::NodeContents::Paren);
 
         let atom = choice((
             ident_expr,

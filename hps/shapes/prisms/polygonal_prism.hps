@@ -7,7 +7,7 @@ export fn aliases(n: Nat) -> List[Str] {
     @shapes/i/polygon.aliases(n).map(fn(s) { "${s} Prism" })
 }
 export fn adjective(n: Nat) -> Str { name(n) }
-export fn facet_colors(n: Nat) -> Str { "polygonal_prism:${n}" }
+export fn facet_colors(n: Nat) -> Str { "polygonal_prism(${n})" }
 export ndim = 3
 export shape_tag = "3d/prism"
 
