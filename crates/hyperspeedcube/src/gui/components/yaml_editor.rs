@@ -63,8 +63,12 @@ where
     }
     fn set_state(&self, ui: &egui::Ui, state: Option<PlaintextYamlEditorState>) {
         ui.data_mut(|data| match state {
-            Some(state) => data.insert_temp::<PlaintextYamlEditorState>(self.id, state),
-            None => data.remove::<PlaintextYamlEditorState>(self.id),
+            Some(state) => {
+                data.insert_temp::<PlaintextYamlEditorState>(self.id, state);
+            }
+            None => {
+                data.remove::<PlaintextYamlEditorState>(self.id);
+            }
         });
     }
 
@@ -89,13 +93,15 @@ where
                 .code_editor()
                 .lock_focus(false)
                 .min_size(ui.available_size())
-                .show(ui);
+                .show(ui)
+                .response
+                .response;
 
-            if r.response.changed() {
+            if r.changed() {
                 self.set_state(ui, Some(state));
             }
 
-            r.response
+            r
         })
     }
 

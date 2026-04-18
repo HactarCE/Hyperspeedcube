@@ -80,23 +80,9 @@ pub fn text_size(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Vec2
         .into_galley(ui, wrap, max_width, egui::TextStyle::Button)
         .size()
 }
-pub fn text_size_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) -> egui::Vec2 {
-    text.into()
-        .into_galley_impl(
-            ctx,
-            &ctx.style(),
-            egui::text::TextWrapping::no_max_width(),
-            egui::TextStyle::Button.into(),
-            egui::Align::TOP,
-        )
-        .size()
-}
 
 pub fn text_width(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> f32 {
     text_size(ui, text).x
-}
-pub fn text_width_ctx(ctx: &egui::Context, text: impl Into<egui::WidgetText>) -> f32 {
-    text_size_ctx(ctx, text).x
 }
 
 /// Reduces the font size of `text` as much as necessary to make it fit the
@@ -229,7 +215,7 @@ pub fn focus_and_select_all(
             egui::text::CCursor::new(r.galley.len()),
         )));
     r.state.store(ui.ctx(), r.response.id);
-    r.response
+    r.response.response
 }
 
 /// Adds a label to the UI, centering it unless it needs multiple lines.

@@ -246,6 +246,8 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
 
         comrak::nodes::NodeValue::Subtext => not_implemented_label(ui, "Subtext"),
 
+        comrak::nodes::NodeValue::BlockDirective(_) => not_implemented_label(ui, "BlockDirective"),
+
         comrak::nodes::NodeValue::Text(_) => (),   // inline
         comrak::nodes::NodeValue::SoftBreak => (), // inline
         comrak::nodes::NodeValue::LineBreak => (), // inline
@@ -255,6 +257,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::Strong => (),    // inline
         comrak::nodes::NodeValue::Strikethrough => (), // inline
         comrak::nodes::NodeValue::Highlight => (), // inline
+        comrak::nodes::NodeValue::Insert => (),    // inline
         comrak::nodes::NodeValue::Superscript => (), // inline
         comrak::nodes::NodeValue::Link(_) => (),   // inline
         comrak::nodes::NodeValue::Image(_) => (),  // inline

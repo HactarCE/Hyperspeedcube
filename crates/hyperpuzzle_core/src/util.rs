@@ -3,21 +3,20 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::io::Write;
 
 use itertools::Itertools;
 use rand::SeedableRng;
 use sha2::Digest;
 
 /// Returns a canonical RNG from a seed value.
-pub fn rng_from_seed(seed: &str) -> std::io::Result<chacha20::ChaCha12Rng> {
+pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
     let mut sha256 = sha2::Sha256::new();
-    sha256.write_all(&seed.len().to_le_bytes())?; // native endianness on x86 and Apple Silicon
-    sha256.write_all(seed.as_bytes())?;
+    sha256.update(&seed.len().to_le_bytes()); // native endianness on x86 and Apple Silicon
+    sha256.update(seed.as_bytes());
     let digest = sha256.finalize();
-    Ok(chacha20::ChaCha12Rng::from_seed(
+    chacha20::ChaCha12Rng::from_seed(
         <[u8; 32]>::try_from(&digest[..32]).expect("sha256 digest must be 32 bytes"),
-    ))
+    )
 }
 
 /// Returns a random nonempty layer mask, or `None` if `max_layer == 0`.

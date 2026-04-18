@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui::NumExt;
 use egui_dock::tab_viewer::OnCloseResponse;
-use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
+use egui_dock::{NodeIndex, NodePath, SurfaceIndex, TabIndex, TabPath};
 use markdown::md;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
@@ -55,7 +55,7 @@ impl AppUi {
         hyperpuzzle::load_global_catalog();
 
         // Override UI style.
-        cc.egui_ctx.style_mut(|style| {
+        cc.egui_ctx.global_style_mut(|style| {
             style.spacing.scroll = egui::style::ScrollStyle::solid();
         });
 
@@ -117,11 +117,11 @@ impl AppUi {
         }
     }
 
-    pub fn build(&mut self, ctx: &egui::Context) {
-        set_middle_click_delete(ctx, self.app.prefs.interaction.middle_click_delete);
+    pub fn build(&mut self, ui: &mut egui::Ui) {
+        set_middle_click_delete(ui, self.app.prefs.interaction.middle_click_delete);
 
         if !self.app.prefs.eula {
-            egui::Modal::new(unique_id!()).show(ctx, |ui| {
+            egui::Modal::new(unique_id!()).show(ui, |ui| {
                 md(ui, L.eula);
                 let flag = EguiTempFlag::new(ui);
                 let mut flag_value = flag.get();
@@ -138,22 +138,22 @@ impl AppUi {
             });
         }
 
-        let dark_mode = ctx.style().visuals.dark_mode;
+        let dark_mode = ui.style().visuals.dark_mode;
         let background_color = self.app.prefs.background_color(dark_mode);
 
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, self));
+        egui::Panel::top("menu_bar").show_inside(ui, |ui| menu_bar::build(ui, self));
 
-        sidebar::show(self, ctx);
+        sidebar::show(self, ui);
 
         if self.sidebar_style.is_shown()
             && let Some(sidebar_utility) = self.sidebar_utility
         {
-            egui::SidePanel::left("sidebar_utility")
-                .default_width(400.0)
-                .min_width(sidebar_utility.min_width())
-                .max_width(ctx.available_rect().width() * 0.75)
-                .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(8.0))
-                .show(ctx, |ui| {
+            egui::Panel::left("sidebar_utility")
+                .default_size(400.0)
+                .min_size(sidebar_utility.min_width())
+                .max_size(ui.content_rect().width() * 0.75)
+                .frame(egui::Frame::side_top_panel(ui.style()).inner_margin(8.0))
+                .show_inside(ui, |ui| {
                     ui.set_width(ui.available_width().round()); // take all available space, but don't grow ominously
                     ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
                     ui.add_space(6.0);
@@ -166,7 +166,7 @@ impl AppUi {
                 let [r, g, b] = background_color.rgb;
                 egui::Color32::from_rgb(r, g, b)
             }))
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.spacing_mut().window_margin.top += 18;
 
                 let mut style = egui_dock::Style::from_egui(ui.style());
@@ -221,8 +221,8 @@ impl AppUi {
                     .show_leaf_close_all_buttons(false)
                     .show_leaf_collapse_buttons(false)
                     .show_inside(ui, &mut tab_viewer);
-                for index in tab_viewer.added_nodes {
-                    self.dock_state.set_focused_node_and_surface(index);
+                for node_path in tab_viewer.added_nodes {
+                    self.dock_state.set_focused_node_and_surface(node_path);
                     self.dock_state
                         .push_to_focused_leaf(Tab::Puzzle(Some(self.app.new_puzzle_widget())));
                 }
@@ -285,13 +285,14 @@ impl AppUi {
                     let needs_redraw = sim.step(&self.app.animation_prefs.value);
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles
-                        ctx.request_repaint();
+                        ui.request_repaint();
                     }
                 }
             }
         }
-        if let Some(i) = puzzle_widget_to_focus {
-            self.dock_state.set_focused_node_and_surface(i);
+        if let Some(tab_path) = puzzle_widget_to_focus {
+            self.dock_state
+                .set_focused_node_and_surface(tab_path.node_path());
         }
 
         if let Some((_rect, Tab::Puzzle(Some(p)))) = self.dock_state.find_active_focused()
@@ -310,14 +311,14 @@ impl AppUi {
         self.app.autosave();
 
         // Confirm discard before close.
-        if ctx.input(|input| input.viewport().close_requested())
+        if ui.input(|input| input.viewport().close_requested())
             && !self.confirm_discard_all_puzzles(L.confirm_discard.exit)
         {
-            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ui.send_viewport_cmd(egui::ViewportCommand::CancelClose);
         }
     }
 
-    fn iter_tabs(&self) -> impl '_ + Iterator<Item = ((SurfaceIndex, NodeIndex, TabIndex), &Tab)> {
+    fn iter_tabs(&self) -> impl '_ + Iterator<Item = (TabPath, &Tab)> {
         self.dock_state
             .iter_surfaces()
             .enumerate()
@@ -327,19 +328,16 @@ impl AppUi {
                     let j = NodeIndex(j);
                     node.iter_tabs().enumerate().map(move |(k, tab)| {
                         let k = TabIndex(k);
-                        ((i, j, k), tab)
+                        (TabPath::new(i, j, k), tab)
                     })
                 })
             })
     }
 
-    pub fn find_docked_utility(
-        &self,
-        tab: UtilityTab,
-    ) -> Option<(SurfaceIndex, NodeIndex, TabIndex)> {
+    pub fn find_docked_utility(&self, tab: UtilityTab) -> Option<TabPath> {
         self.iter_tabs()
             .find(|&(_, t)| *t == Tab::Utility(tab))
-            .map(|(index, _)| index)
+            .map(|(tab_path, _)| tab_path)
     }
 
     pub fn is_docked_utility_open(&self, tab: UtilityTab) -> bool {
@@ -369,19 +367,20 @@ impl AppUi {
 
     pub fn toggle_docked_utility(&mut self, tab: UtilityTab) {
         self.close_sidebar_utility(tab);
-        if let Some((s, n, t)) = self.find_docked_utility(tab) {
-            let Some(leaf) = self.dock_state[s][n].get_leaf_mut() else {
+        if let Some(tab_path) = self.find_docked_utility(tab) {
+            let Some(leaf) = self.dock_state[tab_path.node_path()].get_leaf_mut() else {
                 log::error!("Error closing docked utility: found tab at non-leaf");
                 return;
             };
-            let is_visible = leaf.active == t;
+            let is_visible = leaf.active == tab_path.tab;
             if is_visible {
                 // Open and visible, so close the tab
-                self.dock_state.remove_tab((s, n, t));
+                self.dock_state.remove_tab(tab_path);
             } else {
                 // Open but not visible, so focus the tab
-                leaf.set_active_tab(t);
-                self.dock_state.set_focused_node_and_surface((s, n));
+                leaf.set_active_tab(tab_path.tab);
+                self.dock_state
+                    .set_focused_node_and_surface(tab_path.node_path());
             }
         } else {
             // Not open, so open the tab
@@ -390,9 +389,10 @@ impl AppUi {
     }
 
     pub fn activate_docked_utility(&mut self, tab: UtilityTab) {
-        if let Some((s, n, t)) = self.find_docked_utility(tab) {
-            self.dock_state.set_active_tab((s, n, t));
-            self.dock_state.set_focused_node_and_surface((s, n));
+        if let Some(tab_path) = self.find_docked_utility(tab) {
+            self.dock_state.set_active_tab(tab_path);
+            self.dock_state
+                .set_focused_node_and_surface(tab_path.node_path());
         } else {
             self.dock_state.push_to_focused_leaf(Tab::Utility(tab));
         }
@@ -424,7 +424,7 @@ impl AppUi {
 
 struct TabViewer<'a> {
     app: &'a mut App,
-    added_nodes: Vec<(SurfaceIndex, NodeIndex)>,
+    added_nodes: Vec<NodePath>,
 }
 
 impl egui_dock::TabViewer for TabViewer<'_> {
@@ -458,8 +458,8 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         }
     }
 
-    fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
-        self.added_nodes.push((surface, node));
+    fn on_add(&mut self, path: NodePath) {
+        self.added_nodes.push(path);
     }
 
     fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
@@ -475,8 +475,8 @@ fn get_middle_click_delete(ui: &egui::Ui) -> bool {
     ui.data(|data| data.get_temp(middle_click_delete_id()))
         .unwrap_or_default()
 }
-fn set_middle_click_delete(ctx: &egui::Context, middle_click_delete: bool) {
-    ctx.data_mut(|data| data.insert_temp(middle_click_delete_id(), middle_click_delete));
+fn set_middle_click_delete(ui: &egui::Ui, middle_click_delete: bool) {
+    ui.data_mut(|data| data.insert_temp(middle_click_delete_id(), middle_click_delete));
 }
 fn middle_click_delete_id() -> egui::Id {
     unique_id!()

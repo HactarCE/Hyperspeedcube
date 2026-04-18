@@ -10,7 +10,7 @@ use crate::L;
 use crate::gui::AppUi;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{GuiRoundingExt, MDI_BIG, text_width_ctx};
+use crate::gui::util::{GuiRoundingExt, MDI_BIG, text_width};
 
 const FONT_SIZE: f32 = 15.0;
 const PADDING: f32 = 12.0;
@@ -54,9 +54,9 @@ fn sidebar_items() -> impl Iterator<Item = SidebarItem> {
     .filter(move |tab| *crate::IS_PRERELEASE || *tab != SidebarItem::Tab(UtilityTab::Debug))
 }
 
-pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
+pub fn show(app_ui: &mut AppUi, ui: &mut egui::Ui) {
     let max_text_width = sidebar_items()
-        .map(|item| item.min_width(ctx))
+        .map(|item| item.min_width(ui))
         .max_float()
         .unwrap_or(0.0)
         + PADDING
@@ -66,11 +66,11 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
 
     let show_sidebar = app_ui.sidebar_style.is_shown();
 
-    let force_collapsed = ctx.available_rect().width() < 500.0; // not enough space!
+    let force_collapsed = ui.content_rect().width() < 500.0; // not enough space!
 
     // Compute animations even when sidebar is not shown.
     let show_labels = app_ui.sidebar_style == SidebarStyle::IconsAndText;
-    let mut show_labels_anim = ctx.animate_bool(unique_id!(), show_labels);
+    let mut show_labels_anim = ui.animate_bool(unique_id!(), show_labels);
     if force_collapsed {
         show_labels_anim = 0.0;
     }
@@ -92,11 +92,11 @@ pub fn show(app_ui: &mut AppUi, ctx: &egui::Context) {
         .filter_map(|(_s, leaf)| leaf.tabs.get(leaf.active.0)?.utility_tab())
         .collect();
 
-    egui::SidePanel::left("sidebar")
-        .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
-        .exact_width(sidebar_width)
+    egui::Panel::left("sidebar")
+        .frame(egui::Frame::side_top_panel(ui.style()).inner_margin(0.0))
+        .exact_size(sidebar_width)
         .resizable(false)
-        .show(ctx, |ui| {
+        .show_inside(ui, |ui| {
             let spacing = ui.spacing_mut();
             spacing.item_spacing = ITEM_SPACING;
             spacing.button_padding.x = spacing.button_padding.y;
@@ -159,10 +159,10 @@ enum SidebarItem {
 }
 
 impl SidebarItem {
-    fn min_width(&self, ctx: &egui::Context) -> f32 {
+    fn min_width(&self, ui: &egui::Ui) -> f32 {
         match self {
             SidebarItem::Tab(tab) => {
-                text_width_ctx(ctx, egui::RichText::from(tab.title()).size(FONT_SIZE))
+                text_width(ui, egui::RichText::from(tab.title()).size(FONT_SIZE))
             }
             SidebarItem::Separator => 0.0,
         }

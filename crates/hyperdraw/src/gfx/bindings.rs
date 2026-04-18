@@ -148,8 +148,8 @@ pub(in crate::gfx) trait BindGroupsTrait<'a>: Sized {
             .collect_vec();
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some(&format!("{label}_pipeline_layout")),
-            bind_group_layouts: &bind_group_layouts.iter().collect_vec(),
-            push_constant_ranges: &[],
+            bind_group_layouts: &bind_group_layouts.iter().map(Some).collect_vec(),
+            immediate_size: 0,
         });
         (pipeline_layout, bind_group_layouts)
     }

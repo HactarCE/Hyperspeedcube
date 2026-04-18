@@ -90,7 +90,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             ui.text_edit_singleline(&mut s);
         });
         if ui.button("Set random twists").clicked() {
-            let mut rng = hyperpuzzle::util::rng_from_seed(&s).expect("error seeding RNG");
+            let mut rng = hyperpuzzle::util::rng_from_seed(&s);
             let twist_count = 10;
             move_input_value.set(Some(
                 std::iter::from_fn(|| (view.puzzle().random_move)(&mut rng))

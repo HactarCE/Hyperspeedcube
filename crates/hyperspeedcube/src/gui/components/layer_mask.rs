@@ -25,6 +25,7 @@ impl egui::Widget for LayerMaskEdit<'_> {
                 let r = egui::TextEdit::singleline(&mut text)
                     .desired_width(LAYER_DESCRIPTION_WIDTH)
                     .show(ui)
+                    .response
                     .response;
 
                 if r.changed() {

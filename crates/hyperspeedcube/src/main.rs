@@ -157,11 +157,11 @@ async fn run() -> eframe::Result<()> {
 }
 
 impl eframe::App for gui::AppUi {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui_extras::install_image_loaders(ctx); // ok to call every frame
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ui); // ok to call every frame
 
         // Build all the UI.
-        self.build(ctx);
+        self.build(ui);
     }
 
     fn on_exit(&mut self) {
@@ -221,7 +221,7 @@ fn error_dialog(title: impl ToString, message: impl ToString) {
 }
 
 fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
-    let mut wgpu_setup = eframe::egui_wgpu::WgpuSetupCreateNew::default();
+    let mut wgpu_setup = eframe::egui_wgpu::WgpuSetupCreateNew::without_display_handle();
 
     let old_device_descriptor_fn = std::sync::Arc::clone(&wgpu_setup.device_descriptor);
 
@@ -239,7 +239,7 @@ fn make_wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
             device_descriptor.required_limits.max_texture_dimension_2d;
 
         // Increase limits as needed for puzzle rendering.
-        new_limits.max_storage_buffers_per_shader_stage = 6; // default is 8
+        new_limits.max_storage_buffers_per_shader_stage = 13; // default is 8
         new_limits.max_compute_invocations_per_workgroup = 64; // same as default
         new_limits.max_compute_workgroup_size_x = 64; // same as default
         new_limits.max_compute_workgroup_size_y = 1; // default is 256

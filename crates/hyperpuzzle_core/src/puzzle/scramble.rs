@@ -225,8 +225,6 @@ pub enum ScrambleError {
     #[cfg(feature = "timecheck")]
     #[error("{0}")]
     Drand(#[from] timecheck::drand::DrandError),
-    #[error("{0}")]
-    Io(#[from] std::io::Error),
     #[error("canceled")]
     Canceled,
     #[error("unsupported version")]

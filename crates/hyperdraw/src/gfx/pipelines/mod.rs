@@ -155,7 +155,7 @@ impl RenderPipelineDescriptor<'_> {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[self.fragment_target],
             }),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         })
     }

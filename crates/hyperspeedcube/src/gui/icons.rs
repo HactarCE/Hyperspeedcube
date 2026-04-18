@@ -2,12 +2,18 @@ use hyperpuzzle::TagValue;
 
 use crate::gui::util::MDI_MEDIUM_SIZE;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum IconSide {
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone)]
 pub struct CatalogIcon {
     pub icon_data: egui::ImageSource<'static>,
     pub icon_data_dark_mode: Option<egui::ImageSource<'static>>,
     pub description: &'static str,
-    pub side: egui::panel::Side,
+    pub side: IconSide,
     pub color: IconColor,
 }
 impl CatalogIcon {
@@ -27,8 +33,8 @@ impl CatalogIcon {
     pub fn add_to(&self, ui: &egui::Ui, atoms: &mut egui::Atoms<'static>) {
         let atom = self.to_atom(ui);
         match self.side {
-            egui::panel::Side::Left => atoms.push_left(atom),
-            egui::panel::Side::Right => atoms.push_right(atom),
+            IconSide::Left => atoms.push_left(atom),
+            IconSide::Right => atoms.push_right(atom),
         }
     }
 }
@@ -74,7 +80,7 @@ macro_rules! svg_catalog_icon {
             icon_data: light,
             icon_data_dark_mode: dark,
             description: $description,
-            side: egui::panel::Side::$side,
+            side: IconSide::$side,
             color: $color,
         }
     }};

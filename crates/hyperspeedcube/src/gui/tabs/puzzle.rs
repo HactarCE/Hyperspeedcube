@@ -319,7 +319,7 @@ impl PuzzleWidget {
             }
 
             if let Some(sim) = &sim {
-                egui::TopBottomPanel::bottom(unique_id!(self.id)).show_inside(ui, |ui| {
+                egui::Panel::bottom(unique_id!(self.id)).show_inside(ui, |ui| {
                     egui::ScrollArea::horizontal()
                         .auto_shrink([false, true])
                         .show(ui, |ui| {

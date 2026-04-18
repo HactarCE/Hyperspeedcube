@@ -115,7 +115,7 @@ impl Puzzle {
 
         let ScrambleParams { ty, seed, .. } = &params;
 
-        let mut rng = crate::util::rng_from_seed(seed)?;
+        let mut rng = crate::util::rng_from_seed(seed);
 
         let scramble_length = match ty {
             ScrambleType::Full => self.full_scramble_length,
