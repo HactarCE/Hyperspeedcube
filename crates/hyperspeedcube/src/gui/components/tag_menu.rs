@@ -110,9 +110,9 @@ impl TagMenu {
                                 // Sort by ID (could sort by name instead)
                                 .sorted_unstable_by(|a, b| CatalogId::cmp(&a.id, &b.id))
                                 .map(|color_system| {
-                                    let name = &color_system.name;
+                                    let name = "colors/system";
                                     let id_str = color_system.id.to_string();
-                                    self.tag_checkbox(ui, name, Some(&id_str), name)
+                                    self.tag_checkbox(ui, name, Some(&id_str), &color_system.name)
                                 })
                                 .reduce(Option::or)
                                 .flatten()
