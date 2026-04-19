@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::{Span, Spanned};
+use crate::{AstSyntaxError, Span, Spanned};
 
 pub type Node = Spanned<NodeContents>;
 
@@ -29,7 +29,7 @@ pub enum NodeContents {
     /// - `export (ident1, ident2 as ident3)`
     /// - `export ident1, ident2 as ident3 from expr`
     /// - `export (ident1, ident2 as ident3) from expr`
-    Export(Vec<IdentAs>, Option<Box<Node>>),
+    Export(Result<Vec<IdentAs>, AstSyntaxError>, Option<Box<Node>>),
     /// - `export ident = expr`
     /// - `export ident: Type = expr`
     ExportAssign {
@@ -46,7 +46,7 @@ pub enum NodeContents {
     UseAllFrom(Box<Node>),
     /// - `use ident1, ident2 as ident3 from expr`
     /// - `use (ident1, ident2 as ident3) from expr`
-    UseFrom(Vec<IdentAs>, Box<Node>),
+    UseFrom(Result<Vec<IdentAs>, AstSyntaxError>, Box<Node>),
 
     // Control flow
     Block(Vec<Node>),
@@ -177,10 +177,19 @@ pub struct FnArg {
     pub name: Option<Span>,
     pub value: Box<Node>,
 }
+impl FnArg {
+    /// Constructs an error AST node.
+    pub(crate) fn error(span: Span) -> FnArg {
+        FnArg {
+            name: None,
+            value: Box::new((NodeContents::Error, span)),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct FnContents {
-    pub params: Vec<FnParam>,
+    pub params: Result<Vec<FnParam>, AstSyntaxError>,
     pub return_type: Option<Box<Node>>,
     pub body: Arc<Node>,
 }

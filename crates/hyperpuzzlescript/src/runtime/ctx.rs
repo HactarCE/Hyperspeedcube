@@ -491,6 +491,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::Export(items, Some(source)) => {
+                let items = items.as_ref().map_err(|e| e.to_full_diagnostic())?;
                 self.for_each_field(items, source, |this, k, v| {
                     this.export(span, k, v);
                     Ok(())
@@ -498,6 +499,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::Export(items, None) => {
+                let items = items.as_ref().map_err(|e| e.to_full_diagnostic())?;
                 for item in items {
                     let key = self.substr(item.alias());
                     let value = self.get_var(item.target)?;
@@ -539,6 +541,7 @@ impl EvalCtx<'_> {
                 Ok(null)
             }
             ast::NodeContents::UseFrom(items, source) => {
+                let items = items.as_ref().map_err(|e| e.to_full_diagnostic())?;
                 self.for_each_field(items, source, |this, k, v| {
                     if let Some(old_var) = self.scope.get(&k)
                         && !(old_var.is_func() && v.is_func())
@@ -888,7 +891,11 @@ impl EvalCtx<'_> {
         let mut seq_end = None;
         let mut named_params = vec![];
         let mut named_splat = None;
-        for param in &contents.params {
+        let params = contents
+            .params
+            .as_ref()
+            .map_err(|e| e.to_full_diagnostic())?;
+        for param in params {
             if let Some(splat_span) = named_splat {
                 return Err(Error::FnParamSplatBeforeEnd.at(splat_span));
             }

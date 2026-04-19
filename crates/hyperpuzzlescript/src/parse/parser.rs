@@ -6,7 +6,7 @@ use chumsky::prelude::*;
 use itertools::Itertools;
 
 use super::lexer::{StringSegmentToken, Token};
-use crate::{Span, Spanned, ast};
+use crate::{AstSyntaxError, Span, Spanned, ast};
 
 pub(super) type ParserInput<'src> = chumsky::input::MappedInput<
     'src,
@@ -50,6 +50,18 @@ fn span_to_str<'src>(span: Span, e: &mut ParseState<'src>) -> &'src str {
     &e[span.start as usize..span.end as usize]
 }
 
+macro_rules! recover_nested {
+    ($surrounding:expr, $error_from_span:expr) => {
+        via_parser(
+            any()
+                .repeated()
+                .nested_in($surrounding)
+                .to_span()
+                .map($error_from_span),
+        )
+    };
+}
+
 pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseExtra<'src>> {
     let mut expr = Recursive::declare();
     let mut statement = Recursive::declare();
@@ -67,13 +79,9 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
     let braces = select_ref! { Token::Braces(toks) = e => make_input(e.span(), toks) };
     let map_literal = select_ref! { Token::MapLiteral(toks) = e => make_input(e.span(), toks) };
 
-    let boxed_expr_in_delimiters = boxed_expr.clone().recover_with(via_parser(
-        any()
-            .repeated()
-            .map_with(|_, e| Box::new((ast::NodeContents::Error, e.span()))),
-    ));
-    let boxed_expr_in_parens = boxed_expr_in_delimiters.clone().nested_in(parens);
-    let boxed_expr_in_braces = boxed_expr_in_delimiters
+    let boxed_expr_in_parens = boxed_expr.clone().nested_in(parens);
+    let boxed_expr_in_braces = boxed_expr
+        .clone()
         .padded_by(just(Token::Newline).repeated()) // ideally we would allow newlines inside the expression too
         .nested_in(braces);
 
@@ -88,10 +96,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
     let statement_block = statement_list
         .clone()
-        .recover_with(via_parser(
-            any().repeated().map(|_| ast::NodeContents::Error),
-        ))
         .nested_in(braces)
+        .recover_with(recover_nested!(braces, |_| ast::NodeContents::Error))
         .labelled("statement block");
     let spanned_statement_block = statement_block
         .clone()
@@ -119,15 +125,13 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .ignore_then(ident.clone())
             .map(ast::FnParam::NamedSplat),
     ))
-    .recover_with(skip_then_retry_until(
-        any().ignored(),
-        just(Token::Comma).ignored(),
-    ))
     .separated_by(comma_sep.clone())
     .allow_trailing()
     .collect()
     .boxed()
-    .nested_in(parens);
+    .nested_in(parens)
+    .map(Ok)
+    .recover_with(recover_nested!(parens, |span| Err(AstSyntaxError(span))));
 
     let fn_contents = fn_params
         .clone()
@@ -154,7 +158,12 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let ident_expr = ident.clone().map(ast::NodeContents::Ident);
 
-        let special_ident_expr = special_ident.clone().map(ast::NodeContents::SpecialIdent);
+        let special_ident_expr = special_ident
+            .clone()
+            .map(ast::NodeContents::SpecialIdent)
+            .recover_with(via_parser(
+                just(Token::SpecialIdent).map(|_| ast::NodeContents::Error),
+            ));
 
         let expr_clone = expr.clone();
         let string_literal_contents =
@@ -201,7 +210,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .clone()
             .map_err_with_state(inside_this("list"))
             .nested_in(brackets)
-            .map(ast::NodeContents::ListLiteral);
+            .map(ast::NodeContents::ListLiteral)
+            .recover_with(recover_nested!(brackets, |_| ast::NodeContents::Error));
 
         let map_literal = choice((
             just(Token::DoubleStar)
@@ -219,7 +229,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .collect()
         .map_err_with_state(inside_this("map"))
         .map(ast::NodeContents::MapLiteral)
-        .nested_in(map_literal);
+        .nested_in(map_literal)
+        .recover_with(recover_nested!(map_literal, |_| ast::NodeContents::Error));
 
         let if_else_expr = just(Token::If)
             .ignore_then(boxed_expr.clone())
@@ -289,7 +300,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 .separated_by(comma_sep.clone())
                 .allow_trailing()
                 .collect()
-                .nested_in(parens);
+                .nested_in(parens)
+                .recover_with(recover_nested!(parens, |span| vec![ast::FnArg::error(
+                    span
+                )]));
             chumsky::pratt::postfix(binding_power, paren_fn_arg_list, |lhs, args, extra| {
                 let func = Box::new(lhs);
                 (ast::NodeContents::FnCall { func, args }, extra.span())
@@ -299,6 +313,10 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             let bracket_expr_list = expr_list
                 .clone()
                 .nested_in(brackets)
+                .recover_with(recover_nested!(brackets, |span| vec![(
+                    ast::NodeContents::Error,
+                    span
+                )]))
                 .map_with(|exprs, e| Box::new((exprs, e.span())));
             chumsky::pratt::postfix(binding_power, bracket_expr_list, |lhs, args, extra| {
                 let obj = Box::new(lhs);
@@ -408,11 +426,13 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             .separated_by(comma_sep.clone())
             .at_least(1);
         let name_as_alias_list = choice((
-            bare_name_as_alias_list.clone().collect(),
+            bare_name_as_alias_list.clone().collect().map(Ok),
             bare_name_as_alias_list
                 .allow_trailing()
                 .collect()
-                .nested_in(parens),
+                .nested_in(parens)
+                .map(Ok)
+                .recover_with(recover_nested!(parens, |span| Err(AstSyntaxError(span)))),
         ));
         let fn_declaration_contents = just(Token::Fn)
             .ignore_then(ident.clone())
@@ -480,11 +500,7 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
                 else_case,
             });
 
-        let ident_list = ident
-            .clone()
-            .separated_by(just(Token::Comma))
-            .at_least(1)
-            .collect();
+        let ident_list = ident.clone().separated_by(comma_sep).at_least(1).collect();
         let for_loop = just(Token::For)
             .ignore_then(ident_list.map_with(|idents, e| Box::new((idents, e.span()))))
             .then_ignore(just(Token::In))
@@ -530,11 +546,6 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             with_statement,
             // Assignment (last because it doesn't start with a keyword)
             expr_or_assignment,
-        ))
-        .recover_with(skip_until(
-            any().ignored(),
-            just(Token::Newline).ignored(),
-            || ast::NodeContents::Error,
         ))
         .map_with(|stmt, e| (stmt, e.span()))
         .boxed()

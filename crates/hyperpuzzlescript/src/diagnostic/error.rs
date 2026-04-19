@@ -537,3 +537,14 @@ impl<T, E: fmt::Display> ErrorExt for Result<T, E> {
         self.map_err(|e| Error::User(eco_format!("{e:#}")).at(span))
     }
 }
+
+/// Syntax error node stored in the AST.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct AstSyntaxError(pub Span);
+impl AstSyntaxError {
+    // We can't `impl Into<FullDiagnostic>` because that would break type inference
+    // in a bunch of places.
+    pub(crate) fn to_full_diagnostic(self) -> FullDiagnostic {
+        Error::AstErrorNode.at(self.0)
+    }
+}

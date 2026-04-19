@@ -20,7 +20,8 @@ pub use ast::SpecialVar;
 pub use custom_value::{BoxDynValue, CustomValue, TryEq};
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{
-    Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine, Warning,
+    AstSyntaxError, Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine,
+    Warning,
 };
 pub use engines::{EngineCallback, IdAndName, PuzzleEngineCallback};
 pub use request::EvalRequestTx;
