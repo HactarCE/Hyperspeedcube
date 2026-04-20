@@ -1,9 +1,21 @@
-a = 0
+fn a() { b() } // captures scope, not current variables
+fn b() { 15 }
+assert_eq(a(), 15)
 
-// capture current value of `a`
-fn f() { a }
+x = 0
+fn f() { x }
+x += 1
+assert_eq(x, 1)
+assert_eq(f(), 1) // I don't like this behavior, but it's a necessary evil
 
-a += 1
+functions = []
+for i in 0..5 {
+    functions ++= [fn() { i }] // captures scope
+}
+assert_eq(functions[2](), 4)
 
-assert_eq(a, 1)
-assert_eq(f(), 0)
+functions = []
+for i in 0..5 {
+    functions ++= [fn(*, i=i) { i }] // captures current value of i
+}
+assert_eq(functions[2](), 2)
