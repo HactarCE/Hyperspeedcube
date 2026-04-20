@@ -103,7 +103,7 @@ pub enum Error {
         min: usize,
         max: usize,
     },
-    #[error("wrnog number of loop variables")]
+    #[error("wrong number of loop variables")]
     WrongNumberOfLoopVars {
         iter_span: Span,
         count: usize,
