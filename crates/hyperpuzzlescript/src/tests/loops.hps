@@ -1,0 +1,32 @@
+new_list = []
+for x in 10..20 {
+    new_list ++= [x]
+}
+assert_eq(new_list, 10..20)
+
+indices = []
+values = []
+for i, x in 10..20 {
+    indices ++= [i]
+    values ++= [x]
+}
+assert_eq(indices, 0..10)
+assert_eq(values, 10..20)
+
+seen_a = false
+seen_b = false
+iterations = 0
+for k, v in #{ a = 10, b = 20 } {
+    iterations += 1
+    if k == "a" {
+        seen_a = true
+        assert_eq(v, 10)
+    }
+    if k == "b" {
+        seen_b = true
+        assert_eq(v, 20)
+    }
+}
+assert_eq(iterations, 2)
+assert(seen_a)
+assert(seen_b)
