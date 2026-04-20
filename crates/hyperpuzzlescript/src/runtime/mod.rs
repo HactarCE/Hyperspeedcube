@@ -14,7 +14,7 @@ pub use file_store::Modules;
 pub use scope::{Builtins, ParentScope, Scope};
 pub use special::SpecialVariables;
 
-use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, ast, engines};
+use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, Warning, ast, engines};
 
 /// Script runtime.
 pub struct Runtime {
@@ -132,6 +132,7 @@ impl Runtime {
     fn load_module_uncached(&mut self, file_id: FileId) -> Option<Result<Value, ()>> {
         let file = self.modules.get(file_id)?;
         let submodules = file.submodules.clone();
+        let file_path = file.file_path.clone();
         let mut exports: Option<Map> = None;
         for submodule_id in submodules {
             match self.load_module(submodule_id).cloned() {
@@ -141,7 +142,15 @@ impl Runtime {
                         submodule_return_value,
                     );
                 }
-                _ => return Some(Err(())), // submodule failed to load or doesn't exist
+                _ => {
+                    // submodule failed to load or doesn't exist
+                    if !file_path.is_empty() {
+                        self.report_diagnostic(
+                            Warning::ErrorInSubmodule(file_path).at(crate::BUILTIN_SPAN),
+                        );
+                    }
+                    return Some(Err(()));
+                }
             }
         }
         let ast = self.file_ast(file_id)?;

@@ -1,3 +1,4 @@
+use arcstr::Substr;
 use ecow::EcoString;
 
 use super::{FullDiagnostic, ReportBuilder};
@@ -15,6 +16,8 @@ pub enum Warning {
     ShadowedVariable(Spanned<Key>, bool),
     #[error("export is shadowed")]
     ShadowedExport(Spanned<Key>),
+    #[error("unable to load {0} due to error loading submodule")]
+    ErrorInSubmodule(Substr),
 }
 
 impl From<EcoString> for Warning {
@@ -59,6 +62,7 @@ impl Warning {
                 .main_label(format!("this shadows \x02{shadowed_name}\x03"))
                 .label(original_span, "originally defined here")
                 .help("store the result in a variable, then export it once"),
+            Self::ErrorInSubmodule(_) => report_builder,
         }
     }
 }
