@@ -108,7 +108,10 @@ impl Modules {
         if !directory.is_dir() {
             return;
         }
-        for entry in walkdir::WalkDir::new(directory).follow_links(true) {
+        for entry in walkdir::WalkDir::new(directory)
+            .follow_links(true)
+            .sort_by_file_name()
+        {
             match entry {
                 Ok(entry) => {
                     let path = entry.path();
