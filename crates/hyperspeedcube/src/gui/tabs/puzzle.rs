@@ -239,7 +239,7 @@ impl PuzzleWidget {
                         PuzzleView::new(gfx, &sim, prefs)
                     }),
                     is_placeholder,
-                    error: e.clone(),
+                    error: Arc::clone(&e),
                 };
             }
         }
@@ -574,7 +574,12 @@ impl PuzzleWidget {
 
         if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
             ui.scope_builder(egui::UiBuilder::new().max_rect(r.rect), |ui| {
-                crate::gui::components::show_ariadne_error_in_egui(ui, error);
+                if let Some(e) = error.downcast_ref::<hyperpuzzlescript::FormattedFullDiagnostic>()
+                {
+                    crate::gui::components::show_ariadne_error_in_egui(ui, &e.ansi_string);
+                } else {
+                    ui.monospace(format!("{error:?}"));
+                }
             });
         }
     }
@@ -667,7 +672,7 @@ pub enum PuzzleWidgetContents {
         /// Whether `view` contains a placeholder model.
         is_placeholder: bool,
         /// Error message.
-        error: String,
+        error: Arc<eyre::Report>,
     },
 }
 impl PuzzleWidgetContents {

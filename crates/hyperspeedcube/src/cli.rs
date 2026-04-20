@@ -76,15 +76,11 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             let catalog = hyperpuzzle::catalog();
             let mut requested_puzzles = vec![];
             for puzzle_id in ids {
-                if let Some(generator) = catalog.get_generator::<Puzzle>(&puzzle_id) {
-                    requested_puzzles.push(generator.meta.to_cli());
-                } else {
-                    let catalog_id = CatalogId::from_str(&puzzle_id).map_err(|e| eyre!("{e}"))?;
-                    let puzzle = catalog
-                        .build_spec_blocking::<Puzzle>(&catalog_id)
-                        .map_err(|e| eyre!("error building puzzle: {e}"))?;
-                    requested_puzzles.push(puzzle.meta.to_cli());
-                }
+                let catalog_id = CatalogId::from_str(&puzzle_id).map_err(|e| eyre!("{e}"))?;
+                let puzzle_meta = catalog
+                    .get_puzzle_metadata_blocking(&catalog_id)
+                    .wrap_err("error building puzzle")?;
+                requested_puzzles.push(puzzle_meta.to_cli());
             }
             write_json_output(&requested_puzzles)?;
             Ok(())
@@ -99,43 +95,49 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
 
             query,
         } => {
-            let all = !puzzles && !generators && !examples;
+            let all = (!puzzles && !generators && !examples) || (puzzles && generators && examples);
             hyperpuzzle::load_global_catalog();
             let catalog = hyperpuzzle::catalog();
-            let mut db = catalog.lock_db();
-            let mut entries = vec![];
+
+            let mut entries = catalog.puzzle_list.clone();
 
             // Filter by type
-            if all || puzzles {
-                let specs_map = db.puzzles.loaded_specs();
-                entries.extend(specs_map.values().map(|v| Arc::clone(&v.meta)));
-            }
-            if all || generators {
-                let generators_map = db.puzzles.loaded_generators();
-                entries.extend(generators_map.values().map(|v| Arc::clone(&v.meta)));
-            }
-            if all || examples {
-                let examples_list = db.puzzles.generator_examples();
-                entries.extend(examples_list.iter().map(|v| Arc::clone(&v.meta)));
+            if !all {
+                entries.retain(|meta| {
+                    let Some(generator) = catalog.puzzles.generators.get(&*meta.id.base) else {
+                        log::warn!(
+                            "puzzle list entry {} has no corresponding generator",
+                            meta.id
+                        );
+                        return false;
+                    };
+                    let is_generator = !generator.params.is_empty();
+                    let is_example = meta.tags.has_present("generated");
+
+                    generators && is_generator
+                        || examples && is_example
+                        || puzzles && !is_generator && !is_example
+                });
             }
 
             // Filter by experimental
-            let entries = entries
-                .iter()
-                .filter(|meta| experimental || !meta.tags.is_experimental());
+            if !experimental {
+                entries.retain(|meta| !meta.tags.is_experimental());
+            }
 
             // Filter by query
             let query_str = query.join(" ");
             let ids = if !query_str.is_empty() {
                 let query = crate::gui::Query::from_str(&query_str);
                 entries
+                    .iter()
                     .filter_map(|entry| query.try_match(entry))
                     .sorted_unstable()
                     .map(|query_match| &query_match.object.id)
                     .collect_vec()
             } else {
                 entries
-                    .into_iter()
+                    .iter()
                     .sorted_unstable()
                     .map(|meta| &meta.id)
                     .collect_vec()

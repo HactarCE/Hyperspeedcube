@@ -44,7 +44,7 @@ fn show_contents(
     presets_ui
         .with_text(&L.presets.color_schemes)
         .with_help_contents(&crate::gui::components::get_color_schemes_markdown(true))
-        .show(ui, Some(&color_system.name), |mut prefs_ui| {
+        .show(ui, Some(&color_system.meta.name), |mut prefs_ui| {
             let (prefs, ui) = prefs_ui.split();
 
             let mut colors_ui = crate::gui::components::ColorsUi::new(ui.ctx(), palette)

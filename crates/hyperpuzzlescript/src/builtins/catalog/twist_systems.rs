@@ -1,18 +1,21 @@
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::Catalog;
-use hyperpuzzle_core::catalog::{BuildTask, Generator, TwistSystemSpec};
+use hyperpuzzle_core::catalog::BuildTask;
+use hyperpuzzle_core::{
+    CatalogBuilder, CatalogId, CatalogMetadata, TwistSystem, TwistSystemGenerator,
+};
 use itertools::Itertools;
 
 use crate::{
-    Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, Map, Result, Scope, Spanned, Str,
+    Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, LazyCatalogConstructor, Map, Result,
+    Spanned, Str,
 };
 
 /// Adds the built-in functions.
 pub fn define_in(
     builtins: &mut Builtins<'_>,
-    catalog: &Catalog,
+    catalog: &CatalogBuilder,
     eval_tx: &EvalRequestTx,
 ) -> Result<()> {
     let cat = catalog.clone();
@@ -30,7 +33,8 @@ pub fn define_in(
         /// `engine`.
         #[kwargs(kwargs)]
         fn add_twist_system(ctx: EvalCtx) -> () {
-            cat.add_twist_system(Arc::new(twist_system_from_kwargs(ctx, kwargs, &cat, &tx)?))
+            let lazy_twist_system = twist_system_from_kwargs(ctx, kwargs, &tx)?;
+            cat.add_generator(Arc::new(lazy_twist_system.into_generator()))
                 .at(ctx.caller_span)?;
         }
     ])?;
@@ -59,82 +63,64 @@ pub fn define_in(
             pop_kwarg!(kwargs, (params, params_span): Vec<Spanned<Arc<Map>>>);
             pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
 
-            let caller_span = ctx.caller_span;
-
-            let cat2 = cat.clone();
             let tx = tx.clone();
-
-            let gen_meta = super::generators::GeneratorMeta {
-                id,
+            let hps_gen = super::generators::HpsGenerator {
+                def_span: ctx.caller_span,
+                id: CatalogId::new(id, []).ok_or("invalid ID").at(id_span)?,
                 id_span,
                 params: super::generators::params_from_array(params)?,
                 params_span,
                 gen_fn: r#gen,
                 gen_span,
-                extra: kwargs,
+                extra: Arc::new(kwargs),
             };
 
-            let spec = Generator {
-                id: gen_meta.id.clone(),
-                name,
-                params: gen_meta.params.clone(),
-                generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
-
-                    let cat2 = cat2.clone();
-                    let tx2 = tx.clone();
-
-                    let mut scope = Scope::default();
-                    scope.special.id = Some((&gen_meta.id).into());
-                    let scope = Arc::new(scope);
-
-                    let meta = gen_meta.clone();
-
-                    tx.clone().eval_blocking(move |runtime| {
-                        let mut ctx = EvalCtx {
-                            scope: &scope,
-                            runtime,
-                            caller_span,
-                            exports: &mut None,
-                            stack_depth: 0,
-                        };
-
-                        // IIFE to mimic try_block
-                        (|| {
-                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
-                                twist_system_from_kwargs(&mut ctx, spec, &cat2, &tx2).map(Arc::new)
-                            })
-                        })()
-                        .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
-                            ctx.runtime.report_diagnostic(e);
-                            s
-                        })
+            let tx2 = tx.clone();
+            let hps_gen2 = hps_gen.clone();
+            let generator = TwistSystemGenerator {
+                meta: Arc::new(CatalogMetadata::simple(hps_gen.id.clone(), name.clone())),
+                params: hps_gen.params.clone(),
+                generate_meta: Box::new(move |build_ctx, param_values| {
+                    build_ctx.progress.lock().task = BuildTask::BuildingTwists;
+                    hps_gen.generate_on_hps_thread(&tx, param_values, |ctx, mut kwargs| {
+                        pop_twist_system_meta_from_kwargs(ctx, &mut kwargs).map(Arc::new)
                     })
+                }),
+                generate: Box::new(move |build_ctx, param_values| {
+                    build_ctx.progress.lock().task = BuildTask::BuildingTwists;
+                    let tx3 = tx2.clone();
+                    hps_gen2
+                        .generate_on_hps_thread(&tx2, param_values, move |ctx, kwargs| {
+                            twist_system_from_kwargs(ctx, kwargs, &tx3).map(Arc::new)
+                        })?
+                        .try_map(|lazy_twist_system| (lazy_twist_system.build)(build_ctx))
                 }),
             };
 
-            cat.add_twist_system_generator(Arc::new(spec))
-                .at(ctx.caller_span)?;
+            cat.add_generator(Arc::new(generator)).at(ctx.caller_span)?;
         }
     ])
+}
+
+fn pop_twist_system_meta_from_kwargs(
+    ctx: &mut EvalCtx<'_>,
+    kwargs: &mut Map,
+) -> Result<CatalogMetadata> {
+    pop_kwarg!(*kwargs, (id, id_span): String);
+    pop_kwarg!(*kwargs, name: String = {
+        ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
+        id.clone()
+    });
+    Ok(CatalogMetadata::simple(id.parse().at(id_span)?, name))
 }
 
 fn twist_system_from_kwargs(
     ctx: &mut EvalCtx<'_>,
     mut kwargs: Map,
-    catalog: &Catalog,
     eval_tx: &EvalRequestTx,
-) -> Result<TwistSystemSpec> {
-    pop_kwarg!(kwargs, (id, id_span): String);
-    pop_kwarg!(kwargs, name: String = {
-        ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
-        id.clone()
-    });
+) -> Result<LazyCatalogConstructor<TwistSystem>> {
+    let meta = pop_twist_system_meta_from_kwargs(ctx, &mut kwargs)?;
     pop_kwarg!(kwargs, (engine, engine_span): Str);
-
-    let id = id.parse().at(id_span)?;
-    let meta = crate::IdAndName { id, name };
 
     let Some(engine) = ctx
         .runtime
@@ -149,5 +135,5 @@ fn twist_system_from_kwargs(
         );
     };
 
-    engine.new(ctx, meta, kwargs, catalog.clone(), eval_tx.clone())
+    engine.new(ctx, meta, kwargs, eval_tx.clone())
 }

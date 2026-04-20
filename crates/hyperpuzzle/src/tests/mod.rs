@@ -1,17 +1,18 @@
 use std::fmt;
 use std::io::Write;
 
-use hyperpuzzle_core::Catalog;
+use hyperpuzzle_core::{Catalog, CatalogBuilder};
 
 mod hps_construction;
 mod verification;
 
 fn load_new_catalog() -> Catalog {
-    let catalog = Catalog::new();
+    let mut catalog = CatalogBuilder::new();
     time_it("Loading all puzzles", || {
-        crate::load_catalog(&catalog);
-    });
-    catalog
+        crate::load_catalog(&mut catalog).expect("error loading catalog");
+        catalog.build().expect("error building catalog")
+    })
+    .0
 }
 
 fn time_it<T>(task: impl fmt::Display, f: impl FnOnce() -> T) -> (T, std::time::Duration) {

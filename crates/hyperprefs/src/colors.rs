@@ -28,10 +28,10 @@ impl schema::PrefsConvert for ColorSchemePreferences {
 }
 impl ColorSchemePreferences {
     pub fn get(&self, color_system: &ColorSystem) -> Option<&ColorSystemPreferences> {
-        self.0.get(&color_system.id.to_string())
+        self.0.get(&color_system.meta.id.to_string())
     }
     pub fn get_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
-        match self.0.entry(color_system.id.to_string()) {
+        match self.0.entry(color_system.meta.id.to_string()) {
             btree_map::Entry::Vacant(e) => {
                 e.insert(ColorSystemPreferences::from_color_system(color_system))
             }

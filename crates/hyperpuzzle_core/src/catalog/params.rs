@@ -12,6 +12,7 @@ pub struct GeneratorParam {
     /// Default value.
     pub default: GeneratorParamValue,
 }
+
 impl GeneratorParam {
     /// Converts a string to a value for this parameter and returns an error if
     /// it is invalid.
@@ -45,6 +46,7 @@ pub enum GeneratorParamType {
     /// Puzzle ID.
     Puzzle,
 }
+
 impl fmt::Display for GeneratorParamType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -62,6 +64,7 @@ pub enum GeneratorParamValue {
     /// Puzzle ID.
     PuzzleId(CatalogId),
 }
+
 impl fmt::Display for GeneratorParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -70,6 +73,7 @@ impl fmt::Display for GeneratorParamValue {
         }
     }
 }
+
 impl From<GeneratorParamValue> for CatalogArgValue {
     fn from(value: GeneratorParamValue) -> Self {
         match value {
@@ -87,6 +91,7 @@ pub struct GeneratorParamError {
     /// Value supplied.
     pub got: String,
 }
+
 impl fmt::Display for GeneratorParamError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self { expected, got } = self;
@@ -94,4 +99,5 @@ impl fmt::Display for GeneratorParamError {
         write!(f, "bad value {got:?} for param {name:?} (expected {ty})")
     }
 }
+
 impl std::error::Error for GeneratorParamError {}

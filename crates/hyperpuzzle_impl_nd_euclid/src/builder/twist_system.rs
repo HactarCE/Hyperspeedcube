@@ -303,8 +303,7 @@ impl TwistSystemBuilder {
             .collect();
 
         Ok(TwistSystem {
-            id,
-            name,
+            meta: Arc::new(CatalogMetadata::simple(id, name)),
 
             axes: Arc::new(axes),
 
@@ -325,8 +324,7 @@ impl TwistSystemBuilder {
     /// warning and change its ID.
     pub fn unbuild(twist_system: &TwistSystem) -> Result<Self> {
         let TwistSystem {
-            id,
-            name,
+            meta,
             axes,
             names,
             twists,
@@ -363,8 +361,8 @@ impl TwistSystemBuilder {
             .try_collect()?;
 
         Ok(TwistSystemBuilder {
-            id: id.clone(),
-            name: Some(name.clone()),
+            id: meta.id.clone(),
+            name: Some(meta.name.clone()),
 
             axes: AxisSystemBuilder::unbuild(axes, engine_data)?,
 

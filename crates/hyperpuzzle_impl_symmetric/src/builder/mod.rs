@@ -274,7 +274,7 @@ impl ProductPuzzleBuilder {
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            meta: Arc::new(PuzzleListMetadata {
+            meta: Arc::new(CatalogMetadata {
                 id,
                 version: Version {
                     major: 0,

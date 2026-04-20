@@ -1,3 +1,5 @@
+//! ID string for an object in a catalog.
+
 use std::{fmt, str::FromStr};
 
 use chumsky::prelude::*;
@@ -6,12 +8,9 @@ use serde::{Deserialize, Serialize, de};
 /// Error produced when parsing a catalog ID.
 pub type CatalogIdParseError = Rich<'static, char, SimpleSpan>;
 
-/// ID string for an object in a catalog or an argument value.
+/// ID string for an object in a catalog.
 ///
-/// For example, `megaminx_crystal` is parsed into the following:
-///
-/// `ParsedCatalogId { base: "megaminx_crystal", args: vec![] }`.
-/// `product(ft_ngon(3,3),line(3))` is parsed into the following:
+/// ## Examples
 ///
 /// ```
 /// # use hyperpuzzle_core::CatalogId;
@@ -19,6 +18,7 @@ pub type CatalogIdParseError = Rich<'static, char, SimpleSpan>;
 ///     CatalogId::from_str("megaminx_crystal").unwrap(),
 ///     CatalogId::new("megaminx_crystal", []).unwrap(),
 /// );
+///
 /// assert_eq!(
 ///     CatalogId::from_str("product(ft_ngon(7,3),line(3))").unwrap(),
 ///     CatalogId::new(
@@ -159,9 +159,10 @@ mod tests {
     }
 }
 
+/// Argument to a generator parameter.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(transparent)]
-pub struct CatalogArgValue(CatalogId);
+pub struct CatalogArgValue(CatalogId); // stored as `CatalogId` only to avoid quadratic reparsing ofs nested parens
 
 impl fmt::Debug for CatalogArgValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -199,6 +200,8 @@ impl From<i64> for CatalogArgValue {
 }
 
 impl CatalogArgValue {
+    /// Interprets the argument as a boolean, or returns `None` if it is not a
+    /// valid boolean.
     pub fn to_bool(&self) -> Option<bool> {
         if self.0.args.is_empty() {
             match &*self.0.base {
@@ -211,6 +214,8 @@ impl CatalogArgValue {
         }
     }
 
+    /// Interprets the argument as a signed integer, or returns `None` if it is
+    /// not a valid signed integer.
     pub fn to_int(&self) -> Option<i64> {
         if self.0.args.is_empty() {
             self.0.base.parse().ok()
@@ -219,6 +224,7 @@ impl CatalogArgValue {
         }
     }
 
+    /// Interprets the argument as a catalog ID.
     pub fn to_id(&self) -> CatalogId {
         self.0.clone()
     }

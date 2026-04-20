@@ -34,9 +34,9 @@ fn product_id(factor_ids: &[CatalogId]) -> CatalogId {
     .expect("product ID is invalid")
 }
 
-pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()> {
-    catalog.add_puzzle(Arc::new(PuzzleSpec {
-        meta: Arc::new(PuzzleListMetadata {
+pub fn add_puzzles_to_catalog(catalog: &mut hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+    catalog.add_puzzle_generator(Arc::new(PuzzleGenerator::new_lazy_constant(
+        Arc::new(CatalogMetadata {
             id: CatalogId::new("symmetric_puzzle_test", vec![]).unwrap(),
             version: Version {
                 major: 0,
@@ -47,7 +47,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
             aliases: vec![],
             tags: TagSet::new(),
         }),
-        build: Box::new(|build_ctx| {
+        Box::new(|build_ctx| {
             // IIFE to mimic try_block
             (|| -> Result<_> {
                 let mut warn_fn = |e| eprintln!("{e}");
@@ -73,9 +73,8 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::Catalog) -> Result<()>
                 ret
             })()
             .map(Redirectable::Direct)
-            .map_err(|e| e.to_string())
         }),
-    }))?;
+    )))?;
     Ok(())
 }
 

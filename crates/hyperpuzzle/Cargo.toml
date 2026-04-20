@@ -21,6 +21,7 @@ hyperpuzzle_impl_nd_euclid.workspace = true
 hyperpuzzle_impl_symmetric.workspace = true
 hyperpuzzlescript.workspace = true
 
+eyre.workspace = true
 lazy_static.workspace = true
 parking_lot.workspace = true
 

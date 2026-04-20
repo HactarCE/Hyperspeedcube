@@ -51,7 +51,7 @@ impl Default for Runtime {
             twist_system_engines: HashMap::new(),
 
             on_print: Box::new(|s| println!("[INFO] {s}")),
-            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.to_string(files))),
+            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.formatted(files).ansi_string)),
             diagnostic_count: 0,
         }
     }
@@ -187,6 +187,16 @@ impl Runtime {
         for e in errors {
             self.report_diagnostic(e);
         }
+    }
+
+    /// Reports a diagnostic in the case of an error, and converts the error to
+    /// [`eyre::Report`].
+    pub fn report_and_convert_to_eyre<T>(&mut self, result: Result<T>) -> eyre::Result<T> {
+        result.map_err(|e| {
+            let s = e.formatted(&*self);
+            self.report_diagnostic(e);
+            eyre::eyre!("{s}")
+        })
     }
 
     /// Locks the map of built-ins and executes a closure with it.

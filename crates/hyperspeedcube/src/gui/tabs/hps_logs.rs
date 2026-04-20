@@ -7,7 +7,7 @@ use crate::L;
 use crate::app::App;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
-    let logger = hyperpuzzle::catalog().default_logger().clone();
+    let logger = &hyperpuzzle::catalog().logger;
     if ui.button(L.dev.logs.clear).clicked() {
         logger.clear();
     }

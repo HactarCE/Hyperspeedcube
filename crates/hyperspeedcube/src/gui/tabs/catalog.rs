@@ -191,8 +191,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 .iter()
                                 .any(|(tag, _value)| *tag == "experimental");
 
-                        let puzzle_list_entries = catalog.puzzle_list_entries();
-                        let query_results = puzzle_list_entries
+                        let query_results = catalog
+                            .puzzle_list
                             .iter()
                             .filter(|entry| show_experimental || !entry.tags.is_experimental())
                             .filter_map(|entry| query.try_match(entry))
@@ -200,37 +200,38 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                         for query_result in query_results {
                             let obj = query_result.object.clone();
+                            let Some(generator) = catalog.puzzles.generators.get(&*obj.id.base)
+                            else {
+                                ui.colored_label(
+                                    ui.visuals().error_fg_color,
+                                    format!("Missing generator for {:?}", obj.id),
+                                );
+                                continue;
+                            };
                             let r = ui.add(query_result);
-                            match catalog.get_generator::<Puzzle>(&obj.id.to_string()) {
-                                None => {
-                                    if r.clicked() {
-                                        app.load_puzzle(&obj.id.to_string());
-                                    }
+                            if generator.params.len() == obj.id.args.len() {
+                                if r.clicked() {
+                                    app.load_puzzle(&obj.id.to_string());
+                                }
+                            } else {
+                                if r.clicked() {
+                                    generator_popup_data =
+                                        Some(PuzzleGeneratorPopupData::new(&generator));
                                 }
 
-                                Some(puzzle_generator) => {
-                                    if r.clicked() {
-                                        generator_popup_data =
-                                            Some(PuzzleGeneratorPopupData::new(&puzzle_generator));
-                                    }
-
-                                    if let Some(popup_data) = generator_popup_data
-                                        .as_mut()
-                                        .filter(|data| data.id == obj.id.to_string())
-                                    {
-                                        egui::Popup::from_toggle_button_response(&r)
-                                            .close_behavior(
-                                                egui::PopupCloseBehavior::CloseOnClickOutside,
-                                            )
-                                            .show(|ui| {
-                                                show_puzzle_generator_ui(
-                                                    ui,
-                                                    app,
-                                                    &puzzle_generator,
-                                                    popup_data,
-                                                );
-                                            });
-                                    }
+                                if let Some(popup_data) = generator_popup_data
+                                    .as_mut()
+                                    .filter(|data| data.id == obj.id.to_string())
+                                {
+                                    egui::Popup::from_toggle_button_response(&r)
+                                        .close_behavior(
+                                            egui::PopupCloseBehavior::CloseOnClickOutside,
+                                        )
+                                        .show(|ui| {
+                                            show_puzzle_generator_ui(
+                                                ui, app, &generator, popup_data,
+                                            );
+                                        });
                                 }
                             }
                         }
@@ -250,7 +251,7 @@ struct PuzzleGeneratorPopupData {
     params: Vec<GeneratorParamValue>,
 }
 impl PuzzleGeneratorPopupData {
-    fn new(puzzle_generator: &PuzzleSpecGenerator) -> Self {
+    fn new(puzzle_generator: &PuzzleGenerator) -> Self {
         Self {
             id: puzzle_generator.meta.id.to_string(),
             params: puzzle_generator
@@ -265,7 +266,7 @@ impl PuzzleGeneratorPopupData {
 fn show_puzzle_generator_ui(
     ui: &mut egui::Ui,
     app: &mut App,
-    puzzle_generator: &PuzzleSpecGenerator,
+    puzzle_generator: &PuzzleGenerator,
     popup_data: &mut PuzzleGeneratorPopupData,
 ) {
     ui.strong(&puzzle_generator.meta.name);
@@ -498,7 +499,7 @@ impl<'a> Query<'a> {
         ui.fonts_mut(|fonts| fonts.layout_job(job))
     }
 
-    pub fn try_match<'b>(&self, object: &'b PuzzleListMetadata) -> Option<FuzzyQueryMatch<'b>> {
+    pub fn try_match<'b>(&self, object: &'b CatalogMetadata) -> Option<FuzzyQueryMatch<'b>> {
         let tags = &object.tags;
         let mut include = self.included_tags.iter();
         let mut exclude = self.excluded_tags.iter();
@@ -597,7 +598,7 @@ impl egui::Widget for SubstringQueryMatch<'_> {
 
 pub struct FuzzyQueryMatch<'a> {
     /// Matched object.
-    pub object: &'a PuzzleListMetadata,
+    pub object: &'a CatalogMetadata,
     /// Info about the fuzzy match for the display name, or `None` if the text
     /// portion of the query is empty.
     name_match: Option<sublime_fuzzy::Match>,

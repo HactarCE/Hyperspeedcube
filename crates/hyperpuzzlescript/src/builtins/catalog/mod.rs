@@ -1,7 +1,7 @@
 //! Hyperpuzzle catalog functions.
 
 use ecow::eco_format;
-use hyperpuzzle_core::{Catalog, Version};
+use hyperpuzzle_core::{CatalogBuilder, Version};
 
 mod color_systems;
 mod generators;
@@ -13,7 +13,7 @@ use crate::{Builtins, EvalCtx, EvalRequestTx, Result};
 /// Adds the built-in functions.
 pub fn define_in(
     builtins: &mut Builtins<'_>,
-    catalog: &Catalog,
+    catalog: &CatalogBuilder,
     eval_tx: &EvalRequestTx,
 ) -> Result<()> {
     color_systems::define_in(builtins, catalog, eval_tx)?;

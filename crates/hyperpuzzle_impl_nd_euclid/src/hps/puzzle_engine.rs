@@ -1,6 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
-use eyre::eyre;
+use eyre::{Context, eyre};
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
@@ -8,7 +8,7 @@ use hyperpuzzlescript::*;
 use super::{ArcMut, HpsNdEuclid};
 use crate::builder::*;
 
-impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNdEuclid {
+impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
     fn name(&self) -> String {
         self.to_string()
     }
@@ -16,11 +16,10 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
     fn new(
         &self,
         ctx: &mut EvalCtx<'_>,
-        mut meta: PuzzleListMetadata,
+        mut meta: CatalogMetadata,
         kwargs: Map,
-        catalog: Catalog,
         eval_tx: EvalRequestTx,
-    ) -> Result<PuzzleSpec> {
+    ) -> Result<LazyCatalogConstructor<Puzzle>> {
         let caller_span = ctx.caller_span;
 
         unpack_kwargs!(
@@ -51,32 +50,36 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
         let meta = Arc::new(meta);
 
-        Ok(PuzzleSpec {
+        Ok(LazyCatalogConstructor {
             meta: Arc::clone(&meta),
             build: Box::new(move |build_ctx| {
-                let builder = ArcMut::new(
-                    PuzzleBuilder::new(Arc::clone(&meta), ndim).map_err(|e| format!("{e:#}"))?,
-                );
+                let builder = ArcMut::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
                 let id = meta.id.clone();
 
                 // Build color system.
                 if let Some(color_system_id) = &colors {
                     build_ctx.progress.lock().task = BuildTask::BuildingColors;
-                    let colors = catalog.build_blocking(
-                        &CatalogId::from_str(color_system_id).map_err(|e| e.to_string())?,
-                    )?;
-                    builder.shape().lock().colors =
-                        ColorSystemBuilder::unbuild(&colors).map_err(|e| format!("{e:#}"))?;
+                    let colors = build_ctx
+                        .catalog
+                        .build_blocking(
+                            &CatalogId::from_str(color_system_id).map_err(|e| eyre!("{e}"))?,
+                        )
+                        .map_err(|e| eyre!("{e:#}")) // cursed reformatting of eyre::Report
+                        .wrap_err("error building color system")?;
+                    builder.shape().lock().colors = ColorSystemBuilder::unbuild(&colors)?;
                 }
 
                 // Build twist system.
                 if let Some(twist_system_id) = &twists {
                     build_ctx.progress.lock().task = BuildTask::BuildingTwists;
-                    let twists = catalog.build_blocking(
-                        &CatalogId::from_str(twist_system_id).map_err(|e| e.to_string())?,
-                    )?;
-                    *builder.twists().lock() =
-                        TwistSystemBuilder::unbuild(&twists).map_err(|e| format!("{e:#}"))?;
+                    let twists = build_ctx
+                        .catalog
+                        .build_blocking(
+                            &CatalogId::from_str(twist_system_id).map_err(|e| eyre!("{e}"))?,
+                        )
+                        .map_err(|e| eyre!("{e:#}")) // cursed reformatting of eyre::Report
+                        .wrap_err("error building twist system")?;
+                    *builder.twists().lock() = TwistSystemBuilder::unbuild(&twists)?;
                 }
 
                 build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
@@ -99,31 +102,28 @@ impl hyperpuzzlescript::EngineCallback<PuzzleListMetadata, PuzzleSpec> for HpsNd
 
                 let build_fn = Arc::clone(&build);
 
-                eval_tx
-                    .eval_blocking(move |runtime| {
-                        let mut ctx = EvalCtx {
-                            scope: &scope,
-                            runtime,
-                            caller_span,
-                            exports: &mut None,
-                            stack_depth: 0,
-                        };
-                        build_fn
-                            .call(build_span, &mut ctx, vec![], Map::new())
-                            .map_err(|e| {
-                                ctx.runtime.report_diagnostic(e);
-                                eyre!("unable to build puzzle `{id}`; see HPS logs")
-                            })?;
+                eval_tx.eval_blocking(move |runtime| {
+                    let mut ctx = EvalCtx {
+                        scope: &scope,
+                        runtime,
+                        caller_span,
+                        exports: &mut None,
+                        stack_depth: 0,
+                    };
+                    build_fn
+                        .call(build_span, &mut ctx, vec![], Map::new())
+                        .map_err(|e| {
+                            ctx.runtime.report_diagnostic(e);
+                            eyre!("unable to build puzzle `{id}`; see HPS logs")
+                        })?;
 
-                        let b = builder.lock();
+                    let b = builder.lock();
 
-                        // Assign default piece type to remaining pieces.
-                        b.shape.lock().mark_untyped_pieces()?;
+                    // Assign default piece type to remaining pieces.
+                    b.shape.lock().mark_untyped_pieces()?;
 
-                        b.build(Some(&build_ctx), &mut ctx.warnf())
-                            .map(Redirectable::Direct)
-                    })
-                    .map_err(|e| format!("{e:#}"))
+                    b.build(Some(&build_ctx), &mut ctx.warnf())
+                })
             }),
         })
     }

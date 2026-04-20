@@ -80,7 +80,7 @@ lazy_static! {
         let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            meta: Arc::new(PuzzleListMetadata {
+            meta: Arc::new(CatalogMetadata {
                 id: CatalogId::new("placeholder",[]).expect("bad placeholder ID"),
                 version: Version::PLACEHOLDER,
                 name: "🤔".to_string(),

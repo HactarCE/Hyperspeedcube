@@ -91,8 +91,8 @@ pub fn about_text() -> String {
 
 fn markdown_puzzle_authors_list() -> String {
     hyperpuzzle::catalog()
-        .authors()
-        .into_iter()
+        .authors
+        .iter()
         .map(|s| format!("- {s}"))
         .join("\n")
 }

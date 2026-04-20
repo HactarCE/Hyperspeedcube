@@ -23,7 +23,7 @@ use crate::prelude::*;
 #[derive(Debug)]
 pub struct PuzzleBuilder {
     /// Puzzle metadata.
-    pub meta: Arc<PuzzleListMetadata>,
+    pub meta: Arc<CatalogMetadata>,
 
     /// Number of dimensions of the underlying space the puzzle is built in.
     pub ndim: u8,
@@ -44,7 +44,7 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(meta: Arc<PuzzleListMetadata>, ndim: u8) -> Result<Self> {
+    pub fn new(meta: Arc<CatalogMetadata>, ndim: u8) -> Result<Self> {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");

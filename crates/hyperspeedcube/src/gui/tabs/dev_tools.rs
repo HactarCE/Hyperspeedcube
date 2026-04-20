@@ -330,8 +330,8 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     use hyperprefs::MODIFIED_SUFFIX;
 
     let id_string_literal =
-        hyperpuzzlescript::codegen::to_str_literal(&color_system.id.to_string());
-    let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
+        hyperpuzzlescript::codegen::to_str_literal(&color_system.meta.id.to_string());
+    let name_string_literal = format!("{:?}", color_system.meta.name); // escape using double quotes
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
     let mut schemes = color_system.schemes.clone();
@@ -439,9 +439,9 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.horizontal(|ui| {
         if ui.button("Lint all puzzles").clicked() {
             state.lint_results = hyperpuzzle::catalog()
-                .puzzle_specs()
+                .puzzle_list
                 .iter()
-                .map(PuzzleLintOutput::from_spec)
+                .map(PuzzleLintOutput::from_meta)
                 .filter(|lint| !lint.all_good())
                 .collect();
         }
@@ -472,18 +472,18 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.separator();
 
     for lint in &state.lint_results {
-        if !show_experimental && lint.puzzle.meta.tags.is_experimental() {
+        if !show_experimental && lint.meta.tags.is_experimental() {
             continue;
         }
 
-        egui::CollapsingHeader::new(&lint.puzzle.meta.name)
-            .id_salt(&lint.puzzle.meta.id)
+        egui::CollapsingHeader::new(&lint.meta.name)
+            .id_salt(&lint.meta.id)
             .default_open(false)
             .open(override_state)
             .show_background(true)
             .show(ui, |ui| {
                 let PuzzleLintOutput {
-                    puzzle: _,
+                    meta: _,
                     schema,
                     missing_tags,
                 } = lint;
@@ -508,7 +508,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                         ui.ctx().copy_text(text);
                     }
                     egui::CollapsingHeader::new("Missing tags")
-                        .id_salt((&lint.puzzle.meta.id, "missing_tags"))
+                        .id_salt((&lint.meta.id, "missing_tags"))
                         .default_open(true)
                         .show(ui, |ui| {
                             let markdown_text = missing_tags

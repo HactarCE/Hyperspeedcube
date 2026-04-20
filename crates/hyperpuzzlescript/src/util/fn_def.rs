@@ -243,7 +243,7 @@ macro_rules! unpack_kwargs {
 /// ```
 #[macro_export]
 macro_rules! pop_kwarg {
-    ($kwargs:ident, $name:tt: $param_ty:ty = $default:expr) => {
+    ($kwargs:expr, $name:tt: $param_ty:ty = $default:expr) => {
         let $name = $crate::util::pop_kwarg::<Option<$param_ty>>(
             &mut $kwargs,
             $crate::fn_arg_name!($name),
@@ -251,7 +251,7 @@ macro_rules! pop_kwarg {
         )?
         .unwrap_or_else(|| -> $param_ty { $default });
     };
-    ($kwargs:ident, $name:tt: $param_ty:ty) => {
+    ($kwargs:expr, $name:tt: $param_ty:ty) => {
         let $name = $crate::util::pop_kwarg::<$crate::fn_arg_ty!($name: $param_ty)>(
             &mut $kwargs,
             $crate::fn_arg_name!($name),

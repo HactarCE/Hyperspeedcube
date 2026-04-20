@@ -1,18 +1,17 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 
 use super::*;
-use crate::{CatalogId, NameSpecBiMap};
+use crate::{CatalogMetadata, NameSpecBiMap};
 
 /// System of sticker colors for a puzzle.
 #[derive(Debug)]
 pub struct ColorSystem {
-    /// Color system ID.
-    pub id: CatalogId,
-    /// Human-friendly name for the color system.
-    pub name: String,
+    /// Metadata.
+    pub meta: Arc<CatalogMetadata>,
 
     /// Color names.
     pub names: NameSpecBiMap<Color>,
@@ -58,8 +57,7 @@ impl ColorSystem {
     /// Returns an empty color system.
     pub fn new_empty() -> Self {
         Self {
-            id: CatalogId::unnamed(),
-            name: String::new(),
+            meta: Arc::new(CatalogMetadata::dummy()),
             names: NameSpecBiMap::new(),
             display_names: PerColor::new(),
             schemes: IndexMap::new(),

@@ -7,15 +7,15 @@ use rand::Rng;
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, Move, PuzzleListMetadata};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, CatalogMetadata, Move};
 
 /// Puzzle type info.
 pub struct Puzzle {
     /// Reference-counted pointer to this struct.
     pub this: Weak<Puzzle>,
 
-    /// Metadata for the puzzle.
-    pub meta: Arc<PuzzleListMetadata>,
+    /// Catalog metadata.
+    pub meta: Arc<CatalogMetadata>,
 
     /// Set of view preferences to use for the puzzle.
     pub view_prefs_set: Option<PuzzleViewPreferencesSet>,

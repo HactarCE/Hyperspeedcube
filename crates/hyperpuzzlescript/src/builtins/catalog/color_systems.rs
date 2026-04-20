@@ -4,20 +4,20 @@ use std::sync::Arc;
 use ecow::eco_format;
 use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
-    Catalog, ColorSystem, ColorSystemGenerator, NameSpecBiMapBuilder, PaletteColor, PerColor,
+    CatalogBuilder, CatalogId, CatalogMetadata, ColorSystem, ColorSystemGenerator,
+    NameSpecBiMapBuilder, PaletteColor, PerColor,
 };
 use indexmap::IndexMap;
 
 use crate::util::pop_map_key;
 use crate::{
-    Builtins, Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned,
-    Str,
+    Builtins, Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Spanned, Str,
 };
 
 /// Adds the built-in functions.
 pub fn define_in(
     builtins: &mut Builtins<'_>,
-    catalog: &Catalog,
+    catalog: &CatalogBuilder,
     eval_tx: &EvalRequestTx,
 ) -> Result<()> {
     let cat = catalog.clone();
@@ -33,7 +33,7 @@ pub fn define_in(
         /// - `default: Str?`
         #[kwargs(kwargs)]
         fn add_color_system(ctx: EvalCtx) -> () {
-            cat.add_color_system(Arc::new(color_system_from_kwargs(ctx, kwargs)?))
+            cat.add(Arc::new(color_system_from_kwargs(ctx, kwargs)?))
                 .at(ctx.caller_span)?;
         }
     ])?;
@@ -61,73 +61,60 @@ pub fn define_in(
             pop_kwarg!(kwargs, (params, params_span): Vec<Spanned<Arc<Map>>>);
             pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
 
-            let caller_span = ctx.caller_span;
-
             let tx = tx.clone();
-
-            let gen_meta = super::generators::GeneratorMeta {
-                id,
+            let hps_gen = super::generators::HpsGenerator {
+                def_span: ctx.caller_span,
+                id: CatalogId::new(id, []).ok_or("invalid ID").at(id_span)?,
                 id_span,
                 params: super::generators::params_from_array(params)?,
                 params_span,
                 gen_fn: r#gen,
                 gen_span,
-                extra: kwargs,
+                extra: Arc::new(kwargs),
             };
 
+            let tx2 = tx.clone();
+            let hps_gen2 = hps_gen.clone();
             let generator = ColorSystemGenerator {
-                id: gen_meta.id.clone(),
-                name,
-                params: gen_meta.params.clone(),
+                meta: Arc::new(CatalogMetadata::simple(hps_gen.id.clone(), name.clone())),
+                params: hps_gen.params.clone(),
+                generate_meta: Box::new(move |build_ctx, param_values| {
+                    build_ctx.progress.lock().task = BuildTask::BuildingColors;
+                    hps_gen.generate_on_hps_thread(&tx, param_values, |ctx, mut kwargs| {
+                        pop_color_system_meta_from_kwargs(ctx, &mut kwargs).map(Arc::new)
+                    })
+                }),
                 generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
-
-                    let mut scope = Scope::default();
-                    scope.special.id = Some((&gen_meta.id).into());
-                    let scope = Arc::new(scope);
-
-                    let meta = gen_meta.clone();
-
-                    tx.eval_blocking(move |runtime| {
-                        let mut ctx = EvalCtx {
-                            scope: &scope,
-                            runtime,
-                            caller_span,
-                            exports: &mut None,
-                            stack_depth: 0,
-                        };
-
-                        // IIFE to mimic try_block
-                        (|| {
-                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
-                                color_system_from_kwargs(&mut ctx, spec).map(Arc::new)
-                            })
-                        })()
-                        .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
-                            ctx.runtime.report_diagnostic(e);
-                            s
-                        })
+                    build_ctx.progress.lock().task = BuildTask::BuildingColors;
+                    hps_gen2.generate_on_hps_thread(&tx2, param_values, |ctx, kwargs| {
+                        color_system_from_kwargs(ctx, kwargs).map(Arc::new)
                     })
                 }),
             };
 
-            cat.add_color_system_generator(Arc::new(generator))
-                .at(ctx.caller_span)?;
+            cat.add_generator(Arc::new(generator)).at(ctx.caller_span)?;
         }
     ])?;
 
     Ok(())
 }
 
-fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, kwargs: Map) -> Result<ColorSystem> {
+fn pop_color_system_meta_from_kwargs(
+    ctx: &mut EvalCtx<'_>,
+    kwargs: &mut Map,
+) -> Result<CatalogMetadata> {
+    pop_kwarg!(*kwargs, (id, id_span): String);
+    pop_kwarg!(*kwargs, name: String = {
+        ctx.warn(eco_format!("missing `name` for color system `{id}`"));
+        id.clone()
+    });
+    Ok(CatalogMetadata::simple(id.parse().at(id_span)?, name))
+}
+
+fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<ColorSystem> {
+    let meta = pop_color_system_meta_from_kwargs(ctx, &mut kwargs)?;
     unpack_kwargs!(
         kwargs,
-        (id, id_span): String,
-        name: String = {
-            ctx.warn(eco_format!("missing `name` for color system `{id}`"));
-            id.clone()
-        },
         colors: Vec<Spanned<Arc<Map>>>,
         schemes: Option<Vec<Spanned<List>>>,
         default: Option<String>,
@@ -205,8 +192,7 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, kwargs: Map) -> Result<ColorS
     }
 
     Ok(ColorSystem {
-        id: id.parse().at(id_span)?,
-        name,
+        meta: Arc::new(meta),
         names,
         display_names,
         schemes: ret_schemes,

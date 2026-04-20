@@ -86,8 +86,11 @@ pub fn verify(
     log::info!("Building puzzle {} for verification", solve.puzzle.id);
     let puzzle = match (solve.puzzle.id.parse::<CatalogId>())
         .map_err(|e| e.to_string())
-        .and_then(|id| catalog.build_blocking::<Puzzle>(&id))
-    {
+        .and_then(|id| {
+            catalog
+                .build_blocking::<Puzzle>(&id)
+                .map_err(|e| e.to_string())
+        }) {
         Ok(p) => p,
         Err(e) => {
             log::error!("Error building puzzle {}: {e}", solve.puzzle.id);

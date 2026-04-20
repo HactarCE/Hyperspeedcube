@@ -17,26 +17,23 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
     let mut out = String::new();
 
-    for puzzle in &*catalog.puzzle_specs() {
-        if !LINT_EXPERIMENTAL && puzzle.meta.tags.is_experimental() {
+    for entry in &*catalog.puzzle_list {
+        if !LINT_EXPERIMENTAL && entry.tags.is_experimental() {
             continue;
         }
 
-        let puzzle_lint_output = time_it(format!("Linting puzzle {}", puzzle.meta.id), || {
-            PuzzleLintOutput::from_spec(&puzzle)
+        let puzzle_lint_output = time_it(format!("Linting puzzle {}", entry.id), || {
+            PuzzleLintOutput::from_meta(entry)
         })
         .0;
 
         if !puzzle_lint_output.all_good() {
             fail_count += 1;
 
-            out += &format!(
-                "Puzzle {} has lint errors:\n",
-                puzzle_lint_output.puzzle.meta.id,
-            );
+            out += &format!("Puzzle {} has lint errors:\n", puzzle_lint_output.meta.id,);
 
             let PuzzleLintOutput {
-                puzzle: _,
+                meta: _,
                 schema,
                 missing_tags,
             } = puzzle_lint_output;
@@ -71,35 +68,28 @@ fn build_all_puzzles() -> Result<(), String> {
     let mut failed = vec![];
     let mut times = vec![];
     let t1 = std::time::Instant::now();
-    let puzzle_specs = catalog.puzzle_specs();
-    for puzzle in &*puzzle_specs {
-        if puzzle.meta.tags.has_present("big") {
-            println!(
-                "Skipping big puzzle {} ({})",
-                puzzle.meta.name, puzzle.meta.id,
-            );
+    for entry in &*catalog.puzzle_list {
+        if entry.tags.has_present("big") {
+            println!("Skipping big puzzle {} ({})", entry.name, entry.id,);
             continue;
         }
 
-        if puzzle.meta.tags.is_experimental() {
-            println!(
-                "Skipping experimental puzzle {} ({})",
-                puzzle.meta.name, puzzle.meta.id,
-            );
+        if entry.tags.is_experimental() {
+            println!("Skipping experimental puzzle {} ({})", entry.name, entry.id,);
             continue;
         }
 
         let (result, time) = time_it(
-            format!("Building puzzle {} ({})", puzzle.meta.name, puzzle.meta.id),
-            || catalog.build_blocking::<Puzzle>(&puzzle.meta.id),
+            format!("Building puzzle {} ({})", entry.name, entry.id),
+            || catalog.build_blocking::<Puzzle>(&entry.id),
         );
         match result {
             Ok(_) => {
-                times.push((time, puzzle.meta.name.clone()));
+                times.push((time, entry.name.clone()));
             }
             Err(_) => {
-                println!("Error building {}!", puzzle.meta.name);
-                failed.push(puzzle);
+                println!("Error building {}!", entry.name);
+                failed.push(entry);
             }
         }
     }
@@ -121,8 +111,8 @@ fn build_all_puzzles() -> Result<(), String> {
         let fail_count = failed.len();
         println!();
         println!("{fail_count} puzzles failed to build:");
-        for puzzle in failed {
-            println!("  {} ({})", puzzle.meta.name, puzzle.meta.id);
+        for entry in failed {
+            println!("  {} ({})", entry.name, entry.id);
         }
         Err(format!("{fail_count} puzzles failed to build:"))
     }

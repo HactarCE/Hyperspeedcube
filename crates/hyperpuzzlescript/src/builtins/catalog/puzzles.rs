@@ -2,23 +2,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::catalog::{BuildTask, HasId};
+use hyperpuzzle_core::catalog::BuildTask;
 use hyperpuzzle_core::{
-    Catalog, CatalogId, PuzzleListMetadata, PuzzleSpec, PuzzleSpecGenerator, Redirectable, TAGS,
+    CatalogBuilder, CatalogId, CatalogMetadata, Puzzle, PuzzleGenerator, Redirectable, TAGS,
     TagSet, TagType, TagValue,
 };
 use itertools::Itertools;
 
 use crate::util::pop_map_key;
 use crate::{
-    Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Scope, Spanned, Str,
-    Type, Value, ValueData, Warning,
+    Builtins, ErrorExt, EvalCtx, EvalRequestTx, FnValue, LazyCatalogConstructor, List, Map, Result,
+    Spanned, Str, Type, Value, ValueData, Warning,
 };
 
 /// Adds the built-in functions.
 pub fn define_in(
     builtins: &mut Builtins<'_>,
-    catalog: &Catalog,
+    catalog: &CatalogBuilder,
     eval_tx: &EvalRequestTx,
 ) -> Result<()> {
     let cat = catalog.clone();
@@ -38,10 +38,9 @@ pub fn define_in(
         /// `engine`.
         #[kwargs(kwargs)]
         fn add_puzzle(ctx: EvalCtx) -> () {
-            cat.add_puzzle(Arc::new(puzzle_spec_from_kwargs(
-                ctx, kwargs, &cat, &tx, None, None,
-            )?))
-            .at(ctx.caller_span)?;
+            let lazy_puzzle = lazy_puzzle_from_kwargs(ctx, kwargs, &tx, None, None)?;
+            cat.add_puzzle_generator(Arc::new(lazy_puzzle.into_generator()))
+                .at(ctx.caller_span)?;
         }
     ])?;
 
@@ -106,18 +105,20 @@ pub fn define_in(
             )
             .at(ctx.caller_span)?;
 
-            let gen_meta = super::generators::GeneratorMeta {
-                id,
+            let tx = tx.clone();
+            let hps_gen = super::generators::HpsGenerator {
+                def_span: ctx.caller_span,
+                id: CatalogId::new(id, []).ok_or("invalid ID").at(id_span)?,
                 id_span,
                 params: super::generators::params_from_array(params)?,
                 gen_fn: r#gen,
                 params_span,
                 gen_span,
-                extra: kwargs,
+                extra: Arc::new(kwargs),
             };
 
             // Add examples.
-            let mut example_specs = HashMap::new();
+            let mut examples_by_id = HashMap::new();
             for (example, example_span) in examples {
                 let mut example = Arc::unwrap_or_clone(example);
                 let params: Vec<Value> = pop_map_key(&mut example, example_span, "params")?;
@@ -126,126 +127,104 @@ pub fn define_in(
                     .map(|v| v.to_string().parse().at(v.span))
                     .try_collect()?;
 
-                let mut scope = Scope::default();
-                scope.special.id = Some((&gen_meta.id).into());
-                let scope = Arc::new(scope);
-
-                let mut ctx = EvalCtx {
-                    scope: &scope,
-                    runtime: ctx.runtime,
-                    caller_span,
-                    exports: &mut None,
-                    stack_depth: 0,
-                };
-
-                let puzzle_spec_result =
-                    match gen_meta.generate_spec(&mut ctx, generator_param_values) {
-                        Ok(Redirectable::Direct(spec_kwargs)) => puzzle_spec_from_kwargs(
+                let tx2 = tx.clone();
+                let tags2 = tags.clone();
+                let lazy_puzzle_result = hps_gen.generate(
+                    ctx.runtime,
+                    generator_param_values,
+                    move |mut ctx, kwargs| {
+                        lazy_puzzle_from_kwargs(
                             &mut ctx,
-                            spec_kwargs,
-                            &cat,
-                            &tx,
-                            Some(tags.clone()),
+                            kwargs,
+                            &tx2,
+                            Some(tags2),
                             Some((example, example_span)),
-                        ),
-                        Ok(Redirectable::Redirect(other)) => {
-                            ctx.warn_at(
-                                example_span,
-                                format!("ignoring example because it redirects to {other:?}"),
-                            );
-                            continue;
-                        }
-                        Err(e) => Err(e),
-                    };
+                        )
+                    },
+                );
 
-                match puzzle_spec_result {
-                    Ok(puzzle_spec) => {
-                        example_specs.insert(puzzle_spec.id_string(), Arc::new(puzzle_spec));
+                match lazy_puzzle_result {
+                    Ok(Redirectable::Direct(lazy_puzzle)) => {
+                        cat.add_to_puzzle_list(Arc::clone(&lazy_puzzle.meta))
+                            .at(example_span)?;
+                        examples_by_id
+                            .insert(lazy_puzzle.meta.id.to_string(), Arc::new(lazy_puzzle));
                     }
-                    Err(e) => {
-                        ctx.runtime.report_diagnostic(e);
-                        ctx.warn_at(example_span, "error building example");
-                    }
+                    Ok(Redirectable::Redirect(other)) => ctx.warn_at(
+                        example_span,
+                        format!("ignoring example because it redirects to {other:?}"),
+                    ),
+                    Err(_) => ctx.warn_at(example_span, "error building example"),
                 }
             }
-
-            let cat2 = cat.clone();
-            let tx = tx.clone();
+            let examples_by_id = Arc::new(examples_by_id);
 
             let mut generator_tags = tags.clone();
             generator_tags.inherit_parent_tags();
 
-            let spec = PuzzleSpecGenerator {
-                meta: Arc::new(PuzzleListMetadata {
-                    id: CatalogId::new(&*gen_meta.id, [])
-                        .ok_or_else(|| "invalid generator ID".at(id_span))?,
+            let tx2 = tx.clone();
+            let tags2 = tags.clone();
+            let hps_gen2 = hps_gen.clone();
+            let examples_by_id2 = Arc::clone(&examples_by_id);
+            let generator = PuzzleGenerator {
+                meta: Arc::new(CatalogMetadata {
+                    id: hps_gen.id.clone(),
                     version,
                     name,
                     aliases,
                     tags: generator_tags,
                 }),
-                params: gen_meta.params.clone(),
-                examples: example_specs,
+                params: hps_gen.params.clone(),
+                generate_meta: Box::new(move |build_ctx, param_values| {
+                    build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
+                    let tx3 = tx.clone();
+                    let tags3 = tags.clone();
+                    hps_gen
+                        .generate_on_hps_thread_with_examples(
+                            &tx,
+                            param_values,
+                            &examples_by_id,
+                            move |ctx, kwargs| {
+                                lazy_puzzle_from_kwargs(ctx, kwargs, &tx3, Some(tags3), None)
+                                    .map(Arc::new)
+                            },
+                        )?
+                        .try_map(|lazy_puzzle| Ok(Arc::clone(&lazy_puzzle.meta)))
+                }),
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.progress.lock().task = BuildTask::GeneratingSpec;
-
-                    let cat2 = cat2.clone();
-                    let tx2 = tx.clone();
-                    let tags = tags.clone();
-
-                    let mut scope = Scope::default();
-                    scope.special.id = Some((&gen_meta.id).into());
-                    let scope = Arc::new(scope);
-
-                    let meta = gen_meta.clone();
-
-                    tx.clone().eval_blocking(move |runtime| {
-                        let mut ctx = EvalCtx {
-                            scope: &scope,
-                            runtime,
-                            caller_span,
-                            exports: &mut None,
-                            stack_depth: 0,
-                        };
-
-                        // IIFE to mimic try_block
-                        (|| {
-                            meta.generate_spec(&mut ctx, param_values)?.try_map(|spec| {
-                                // TODO: add tags
-                                puzzle_spec_from_kwargs(
-                                    &mut ctx,
-                                    spec,
-                                    &cat2,
-                                    &tx2,
-                                    Some(tags),
-                                    None,
-                                )
-                                .map(Arc::new)
-                            })
-                        })()
-                        .map_err(|e| {
-                            let s = e.to_string(&*ctx.runtime);
-                            ctx.runtime.report_diagnostic(e);
-                            s
+                    let tx4 = tx2.clone();
+                    let tags4 = tags2.clone();
+                    hps_gen2
+                        .generate_on_hps_thread_with_examples(
+                            &tx2,
+                            param_values,
+                            &examples_by_id2,
+                            move |ctx, kwargs| {
+                                lazy_puzzle_from_kwargs(ctx, kwargs, &tx4, Some(tags4), None)
+                                    .map(Arc::new)
+                            },
+                        )?
+                        .try_map(|lazy_puzzle| {
+                            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+                            (lazy_puzzle.build)(build_ctx)
                         })
-                    })
                 }),
             };
 
-            cat.add_puzzle_generator(Arc::new(spec))
+            cat.add_puzzle_generator(Arc::new(generator))
                 .at(ctx.caller_span)?;
         }
     ])
 }
 
-fn puzzle_spec_from_kwargs(
+fn lazy_puzzle_from_kwargs(
     ctx: &mut EvalCtx<'_>,
     mut kwargs: Map,
-    catalog: &Catalog,
     eval_tx: &EvalRequestTx,
     generator_tags: Option<TagSet>,
     example_data: Option<Spanned<Map>>,
-) -> Result<PuzzleSpec> {
+) -> Result<LazyCatalogConstructor<Puzzle>> {
     pop_kwarg!(kwargs, (id, id_span): String);
     pop_kwarg!(kwargs, name: String = {
         ctx.warn(eco_format!("missing `name` for puzzle `{id}`"));
@@ -300,7 +279,7 @@ fn puzzle_spec_from_kwargs(
 
     tags.inherit_parent_tags();
 
-    let meta = PuzzleListMetadata {
+    let meta = CatalogMetadata {
         id: id.parse().at(id_span)?,
         version,
         name,
@@ -316,7 +295,7 @@ fn puzzle_spec_from_kwargs(
         );
     };
 
-    engine.new(ctx, meta, kwargs, catalog.clone(), eval_tx.clone())
+    engine.new(ctx, meta, kwargs, eval_tx.clone())
 }
 
 fn tags_from_map(ctx: &mut EvalCtx<'_>, m: Arc<Map>) -> TagSet {

@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
-use parking_lot::{Condvar, Mutex};
-
-use super::Redirectable;
+use super::*;
 
 /// Entry in the catalog.
 ///
@@ -24,13 +20,14 @@ pub enum CacheEntry<T> {
     /// The object has been built.
     Ok(Redirectable<Arc<T>>),
     /// The object could not be built due to an error.
-    Err(String),
+    Err(Arc<eyre::Report>),
 }
-impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
-    fn from(value: Result<Redirectable<Arc<T>>, String>) -> Self {
+
+impl<T> From<Result<Redirectable<Arc<T>>>> for CacheEntry<T> {
+    fn from(value: Result<Redirectable<Arc<T>>>) -> Self {
         match value {
             Ok(ok) => Self::Ok(ok),
-            Err(err) => Self::Err(err),
+            Err(err) => Self::Err(Arc::new(err)),
         }
     }
 }
@@ -55,6 +52,7 @@ impl<T> From<Result<Redirectable<Arc<T>>, String>> for CacheEntry<T> {
 /// ```
 #[derive(Debug, Default)]
 pub struct NotifyWhenDropped(Arc<(Mutex<bool>, Condvar)>);
+
 impl NotifyWhenDropped {
     /// Constructs a new notify-when-dropped flag.
     pub fn new() -> Self {
@@ -65,6 +63,7 @@ impl NotifyWhenDropped {
         Waiter(Arc::clone(&self.0))
     }
 }
+
 impl Drop for NotifyWhenDropped {
     fn drop(&mut self) {
         let (mutex, condvar) = &*self.0;
@@ -76,6 +75,7 @@ impl Drop for NotifyWhenDropped {
 /// Handle to a [`NotifyWhenDropped`] flag.
 #[derive(Debug, Clone)]
 pub struct Waiter(Arc<(Mutex<bool>, Condvar)>);
+
 impl Waiter {
     /// Waits until the flag is set.
     pub fn wait(self) {

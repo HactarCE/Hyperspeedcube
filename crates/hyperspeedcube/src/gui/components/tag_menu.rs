@@ -17,8 +17,6 @@ enum TagFilterState {
 pub struct TagMenu {
     tag_states: HashMap<String, TagFilterState>,
     show_experimental: bool,
-    puzzle_list_entries: Arc<Vec<Arc<PuzzleListMetadata>>>,
-    color_systems: Arc<Vec<Arc<ColorSystem>>>,
 }
 impl TagMenu {
     pub fn new(
@@ -46,8 +44,6 @@ impl TagMenu {
         Self {
             tag_states,
             show_experimental: true,
-            puzzle_list_entries: hyperpuzzle::catalog().puzzle_list_entries(),
-            color_systems: hyperpuzzle::catalog().object_specs::<ColorSystem>(),
         }
     }
 
@@ -105,8 +101,11 @@ impl TagMenu {
                         let name = name.as_deref().unwrap_or("");
 
                         if name == "colors/system" {
-                            self.color_systems
-                                .iter()
+                            hyperpuzzle::catalog()
+                                .color_systems
+                                .generators
+                                .values()
+                                .map(|g| &g.meta)
                                 // Sort by ID (could sort by name instead)
                                 .sorted_unstable_by(|a, b| CatalogId::cmp(&a.id, &b.id))
                                 .map(|color_system| {
@@ -117,7 +116,8 @@ impl TagMenu {
                                 .reduce(Option::or)
                                 .flatten()
                         } else {
-                            self.puzzle_list_entries
+                            hyperpuzzle::catalog()
+                                .puzzle_list
                                 .iter()
                                 .filter_map(|meta| meta.tags.get(name))
                                 .flat_map(|tag_value| tag_value.to_strings())

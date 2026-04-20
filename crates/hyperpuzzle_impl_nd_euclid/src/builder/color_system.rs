@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
@@ -247,8 +248,7 @@ impl ColorSystemBuilder {
         let orbits = self.orbits.clone();
 
         let color_system = ColorSystem {
-            id,
-            name,
+            meta: Arc::new(CatalogMetadata::simple(id, name)),
 
             names,
             display_names,
@@ -267,8 +267,7 @@ impl ColorSystemBuilder {
     /// warning and change its ID.
     pub fn unbuild(color_system: &ColorSystem) -> Result<Self> {
         let ColorSystem {
-            id,
-            name,
+            meta,
             names,
             display_names,
             schemes,
@@ -277,8 +276,8 @@ impl ColorSystemBuilder {
         } = color_system;
 
         Ok(ColorSystemBuilder {
-            id: id.clone(),
-            name: Some(name.clone()),
+            id: meta.id.clone(),
+            name: Some(meta.name.clone()),
 
             by_id: (0..color_system.len()).map(|_| ColorBuilder {}).collect(),
             names: names.clone().into(),

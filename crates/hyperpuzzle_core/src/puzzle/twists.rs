@@ -7,17 +7,15 @@ use smallvec::SmallVec;
 use super::*;
 use crate::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
-    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogId, NameSpecBiMap, VantageGroup,
-    VantageGroupElement,
+    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogMetadata, NameSpecBiMap,
+    VantageGroup, VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
 #[derive(Debug)]
 pub struct TwistSystem {
-    /// Twist system ID.
-    pub id: CatalogId,
-    /// Human-friendly name for the twist system.
-    pub name: String,
+    /// Metadata.
+    pub meta: Arc<CatalogMetadata>,
 
     /// Axis system.
     pub axes: Arc<AxisSystem>,
@@ -41,8 +39,7 @@ impl TwistSystem {
     /// Returns an empty twist system.
     pub fn new_empty(axes: &Arc<AxisSystem>) -> Self {
         Self {
-            id: CatalogId::unnamed(),
-            name: String::new(),
+            meta: Arc::new(CatalogMetadata::dummy()),
             axes: Arc::clone(axes),
             names: Arc::new(NameSpecBiMap::new()),
             twists: PerTwist::new(),

@@ -5,8 +5,8 @@ mod traceback;
 mod warning;
 
 pub use error::{AstSyntaxError, Error, ErrorExt, ImmutReason};
-pub use full::FullDiagnostic;
 pub(crate) use full::LoopControlFlow;
+pub use full::{FormattedFullDiagnostic, FullDiagnostic};
 use report::ReportBuilder;
 pub use traceback::TracebackLine;
 pub use warning::Warning;
