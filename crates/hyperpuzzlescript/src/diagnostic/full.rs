@@ -107,7 +107,7 @@ impl FullDiagnostic {
 /// When displayed using [`std::fmt::Display`], only `msg` is shown. Use
 /// `.ansi_string` to get the full error with source code snippets and
 /// traceback, using ANSI escape codes for coloring.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 #[error("{msg}")]
 pub struct FormattedFullDiagnostic {
     /// Short message describing the error.

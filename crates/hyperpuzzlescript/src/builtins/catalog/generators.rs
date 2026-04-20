@@ -88,7 +88,7 @@ impl HpsGenerator {
         map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<T>,
     ) -> eyre::Result<Redirectable<T>> {
         // IIFE to mimic try_block
-        let result = (|| {
+        (|| {
             let mut scope = Scope::default();
             scope.special.id = Some(self.generated_id(param_values.clone())?);
             let scope = Arc::new(scope);
@@ -142,8 +142,8 @@ impl HpsGenerator {
                           redirect), list (ID redirect to generator), or map"
                     .at(ctx.caller_span)),
             }
-        })();
-        runtime.report_and_convert_to_eyre(result)
+        })()
+        .map_err(|e| runtime.report_and_convert_to_eyre(e))
     }
 }
 

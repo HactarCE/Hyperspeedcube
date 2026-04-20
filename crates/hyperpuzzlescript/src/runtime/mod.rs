@@ -191,12 +191,10 @@ impl Runtime {
 
     /// Reports a diagnostic in the case of an error, and converts the error to
     /// [`eyre::Report`].
-    pub fn report_and_convert_to_eyre<T>(&mut self, result: Result<T>) -> eyre::Result<T> {
-        result.map_err(|e| {
-            let s = e.formatted(&*self);
-            self.report_diagnostic(e);
-            eyre::eyre!("{s}")
-        })
+    pub fn report_and_convert_to_eyre(&mut self, e: FullDiagnostic) -> eyre::Report {
+        let formatted = e.formatted(&*self);
+        self.report_diagnostic(e);
+        eyre::eyre!(formatted)
     }
 
     /// Locks the map of built-ins and executes a closure with it.

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use eyre::eyre;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
 
@@ -55,8 +54,9 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
                     let exports = build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
                         .map_err(|e| {
-                            ctx.runtime.report_diagnostic(e);
-                            eyre!("unable to build twist system `{id}`; see HPS logs")
+                            ctx.runtime
+                                .report_and_convert_to_eyre(e)
+                                .wrap_err("error building twist system")
                         })?;
 
                     let mut b = builder.lock();

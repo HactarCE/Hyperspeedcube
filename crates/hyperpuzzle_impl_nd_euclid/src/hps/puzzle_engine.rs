@@ -64,7 +64,7 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                         .build_blocking(
                             &CatalogId::from_str(color_system_id).map_err(|e| eyre!("{e}"))?,
                         )
-                        .map_err(|e| eyre!("{e:#}")) // cursed reformatting of eyre::Report
+                        .map_err(|e| clone_eyre(&e))
                         .wrap_err("error building color system")?;
                     builder.shape().lock().colors = ColorSystemBuilder::unbuild(&colors)?;
                 }
@@ -77,7 +77,7 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                         .build_blocking(
                             &CatalogId::from_str(twist_system_id).map_err(|e| eyre!("{e}"))?,
                         )
-                        .map_err(|e| eyre!("{e:#}")) // cursed reformatting of eyre::Report
+                        .map_err(|e| clone_eyre(&e))
                         .wrap_err("error building twist system")?;
                     *builder.twists().lock() = TwistSystemBuilder::unbuild(&twists)?;
                 }
@@ -113,8 +113,9 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                     build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
                         .map_err(|e| {
-                            ctx.runtime.report_diagnostic(e);
-                            eyre!("unable to build puzzle `{id}`; see HPS logs")
+                            ctx.runtime
+                                .report_and_convert_to_eyre(e)
+                                .wrap_err("error building puzzle")
                         })?;
 
                     let b = builder.lock();
@@ -126,5 +127,14 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                 })
             }),
         })
+    }
+}
+
+#[track_caller]
+fn clone_eyre(e: &eyre::Report) -> eyre::Report {
+    if let Some(e) = e.downcast_ref::<FormattedFullDiagnostic>().cloned() {
+        eyre!(e)
+    } else {
+        eyre!("{e}") // cursed reformatting of eyre::Report
     }
 }

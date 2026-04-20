@@ -16,6 +16,7 @@ use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
 };
+use hyperpuzzlescript::FormattedFullDiagnostic;
 use parking_lot::Mutex;
 
 use crate::L;
