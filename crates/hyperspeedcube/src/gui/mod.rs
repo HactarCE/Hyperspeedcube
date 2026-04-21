@@ -24,9 +24,11 @@ mod modals;
 mod quick_settings;
 mod sidebar;
 mod tabs;
+mod temp_value;
 
 use parking_lot::Mutex;
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
+pub use temp_value::{EguiFlag, EguiOptionValue, EguiValue};
 use util::EguiTempFlag;
 
 use crate::L;
