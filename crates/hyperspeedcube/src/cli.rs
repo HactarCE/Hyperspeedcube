@@ -76,7 +76,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             let catalog = hyperpuzzle::catalog();
             let mut requested_puzzles = vec![];
             for puzzle_id in ids {
-                let catalog_id = CatalogId::from_str(&puzzle_id).map_err(|e| eyre!("{e}"))?;
+                let catalog_id = CatalogId::from_str(&puzzle_id)
+                    .map_err(|e| eyre!("error parsing ID string: {e}"))?;
                 let puzzle_meta = catalog
                     .get_puzzle_metadata_blocking(&catalog_id)
                     .wrap_err("error building puzzle")?;

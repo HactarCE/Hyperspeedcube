@@ -10,8 +10,9 @@ use regex::Regex;
 
 use crate::L;
 use crate::app::App;
+use crate::gui::EguiOptionValue;
 use crate::gui::components::{
-    IconButton, escape_tag_value, format_tag_and_value, unescape_tag_value,
+    IconButton, PuzzleGeneratorUi, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
@@ -19,8 +20,6 @@ use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
 pub const ADDITIONAL_MATCH_INDENT: &str = "    ";
-
-const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let stored_search_query_string = EguiTempValue::new(ui);
@@ -181,9 +180,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     } else {
                         // Show puzzles & generators search
 
-                        let generator_popup_data_stored =
-                            EguiTempValue::<PuzzleGeneratorPopupData>::new(ui);
-                        let mut generator_popup_data = generator_popup_data_stored.get();
+                        let mut generator_popup_data = EguiOptionValue::load(ui, unique_id!());
 
                         let show_experimental = app.prefs.show_experimental_puzzles
                             || query
@@ -215,13 +212,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 }
                             } else {
                                 if r.clicked() {
-                                    generator_popup_data =
+                                    *generator_popup_data =
                                         Some(PuzzleGeneratorPopupData::new(&generator));
                                 }
 
                                 if let Some(popup_data) = generator_popup_data
                                     .as_mut()
-                                    .filter(|data| data.id == obj.id.to_string())
+                                    .filter(|data| &*data.puzzle_id.base == obj.id.to_string())
                                 {
                                     egui::Popup::from_toggle_button_response(&r)
                                         .close_behavior(
@@ -235,8 +232,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 }
                             }
                         }
-
-                        generator_popup_data_stored.set(generator_popup_data);
                     }
                 });
             });
@@ -245,20 +240,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     stored_search_query_string.set(Some(search_query_string.clone()));
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 struct PuzzleGeneratorPopupData {
-    id: String,
-    params: Vec<GeneratorParamValue>,
+    puzzle_id: CatalogId,
 }
 impl PuzzleGeneratorPopupData {
     fn new(puzzle_generator: &PuzzleGenerator) -> Self {
         Self {
-            id: puzzle_generator.meta.id.to_string(),
-            params: puzzle_generator
-                .params
-                .iter()
-                .map(|param| param.default.clone())
-                .collect(),
+            puzzle_id: puzzle_generator.default_id(),
         }
     }
 }
@@ -270,39 +259,17 @@ fn show_puzzle_generator_ui(
     popup_data: &mut PuzzleGeneratorPopupData,
 ) {
     ui.strong(&puzzle_generator.meta.name);
+    ui.separator();
 
-    for (param, value) in std::iter::zip(&puzzle_generator.params, &mut popup_data.params) {
-        match param.ty {
-            GeneratorParamType::Int { min, max } => {
-                if let GeneratorParamValue::Int(i) = value {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().slider_width = GENERATOR_SLIDER_WIDTH;
-                        ui.add(egui::Slider::new(i, min..=max).logarithmic(true));
-                        ui.label(&param.name);
-                    });
-                };
-            }
-            GeneratorParamType::Puzzle => {
-                ui.colored_label(
-                    ui.visuals().error_fg_color,
-                    "puzzle parameter is not yet supported",
-                );
-            }
-        }
-    }
+    ui.add(PuzzleGeneratorUi {
+        puzzle_id: &mut popup_data.puzzle_id,
+    });
 
     if ui.button(L.catalog.generate_puzzle).clicked()
         || ui.input(|input| input.key_pressed(egui::Key::Enter))
     {
         ui.close();
-        if let Some(puzzle_id) = CatalogId::new(
-            &*puzzle_generator.meta.id.base,
-            popup_data.params.iter().map(|value| value.clone().into()),
-        ) {
-            app.load_puzzle(&puzzle_id.to_string());
-        } else {
-            log::warn!("invalid generated puzzle ID")
-        }
+        app.load_puzzle(&popup_data.puzzle_id.to_string());
     };
 }
 
