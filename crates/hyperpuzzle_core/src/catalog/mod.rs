@@ -1,7 +1,8 @@
 //! Catalog of puzzles and related objects, along with functionality for loading
 //! them.
 
-use std::collections::{HashMap, hash_map};
+use std::any::TypeId;
+use std::collections::{HashMap, HashSet, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use serde::Serialize;
 mod builder;
 mod entry;
 mod generator;
+mod menu;
 mod metadata;
 mod object;
 mod params;
@@ -23,6 +25,7 @@ pub use builder::CatalogBuilder;
 pub use entry::*;
 pub use generator::*;
 pub use hyperspeedcube_cli_types::catalog_id::*;
+pub use menu::*;
 pub use metadata::*;
 pub use object::*;
 pub use params::*;
@@ -279,6 +282,8 @@ pub struct CatalogData {
 
     /// Puzzle list.
     pub puzzle_list: Vec<Arc<CatalogMetadata>>,
+    /// Menus, indexed by type ID.
+    pub menus: HashMap<TypeId, Menu>,
 
     /// Alphabetized list of all puzzle definition authors.
     pub authors: Vec<String>,

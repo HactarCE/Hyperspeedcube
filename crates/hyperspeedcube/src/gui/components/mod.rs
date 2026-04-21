@@ -1,6 +1,7 @@
 #[macro_use]
 mod combo_boxes;
 mod ariadne;
+mod catalog_menu;
 mod color_widgets;
 mod filter_checkbox;
 mod hint;
@@ -16,6 +17,7 @@ mod text_edit_popup;
 mod yaml_editor;
 
 pub use ariadne::*;
+pub use catalog_menu::*;
 pub use color_widgets::*;
 pub use combo_boxes::*;
 pub use filter_checkbox::*;

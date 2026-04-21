@@ -59,13 +59,13 @@ pub fn catalog() -> Catalog {
 
 /// Reloads all puzzle backends into the global catalog and clears the cache.
 pub fn load_global_catalog() {
-    let mut new_catalog = CatalogBuilder::default();
-    load_catalog(&mut new_catalog).expect("error loading catalog");
+    let new_catalog = CatalogBuilder::default();
+    load_catalog(&new_catalog).expect("error loading catalog");
     *CATALOG.lock() = new_catalog.build().expect("error building catalog");
 }
 
 /// Loads all puzzle backends into a catalog.
-pub fn load_catalog(catalog: &mut CatalogBuilder) -> eyre::Result<()> {
+pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     let mut rt = hyperpuzzlescript::Runtime::new();
 
     let logger = catalog.logger()?;
@@ -107,6 +107,11 @@ pub fn load_catalog(catalog: &mut CatalogBuilder) -> eyre::Result<()> {
     rt.with_builtins(hyperpuzzle_impl_nd_euclid::hps::define_in)
         .expect("error defining HPS euclid built-ins");
 
+    rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))
+        .expect("error defining HPS symmetric built-ins");
+    hyperpuzzle_impl_symmetric::add_puzzles_to_catalog(catalog)
+        .expect("error adding symmetric puzzles to catalog");
+
     // Load user files.
     rt.modules.add_default_files();
     rt.exec_all_files();
@@ -115,9 +120,6 @@ pub fn load_catalog(catalog: &mut CatalogBuilder) -> eyre::Result<()> {
             eval_request(&mut rt);
         }
     });
-
-    hyperpuzzle_impl_symmetric::add_puzzles_to_catalog(catalog)
-        .expect("error adding puzzles to catalog");
 
     Ok(())
 }

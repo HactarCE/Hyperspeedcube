@@ -2930,6 +2930,7 @@ dependencies = [
  "hypermath",
  "hyperpuzzle_core",
  "hyperpuzzle_impl_nd_euclid",
+ "hyperpuzzlescript",
  "hypershape",
  "hypuz_notation",
  "hypuz_util",

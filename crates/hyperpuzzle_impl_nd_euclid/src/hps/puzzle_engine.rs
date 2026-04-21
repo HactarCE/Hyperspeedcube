@@ -62,7 +62,8 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                     let colors = build_ctx
                         .catalog
                         .build_blocking(
-                            &CatalogId::from_str(color_system_id).map_err(|e| eyre!("{e}"))?,
+                            &CatalogId::from_str(color_system_id)
+                                .map_err(|e| eyre!("error parsing color system ID string: {e}"))?,
                         )
                         .map_err(|e| clone_eyre(&e))
                         .wrap_err("error building color system")?;
@@ -75,7 +76,8 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                     let twists = build_ctx
                         .catalog
                         .build_blocking(
-                            &CatalogId::from_str(twist_system_id).map_err(|e| eyre!("{e}"))?,
+                            &CatalogId::from_str(twist_system_id)
+                                .map_err(|e| eyre!("error parsing twist system ID string: {e}"))?,
                         )
                         .map_err(|e| clone_eyre(&e))
                         .wrap_err("error building twist system")?;

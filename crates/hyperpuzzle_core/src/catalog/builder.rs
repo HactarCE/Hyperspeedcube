@@ -1,12 +1,12 @@
-use std::collections::HashSet;
-
 use super::*;
 
 /// Builder for a [`Catalog`].
 ///
 /// This type is reference-counted and thus cheap to clone. Clones will
-/// reference the same catalog builder, and attempts to add objects or
-/// generators will return errors after the catalog has been constructed.
+/// reference the same catalog builder.
+///
+/// After the catalog has been constructed, attempts to add objects or
+/// generators will return an error.
 #[derive(Clone)]
 pub struct CatalogBuilder {
     catalog_data: Arc<Mutex<Option<CatalogData>>>,
@@ -68,6 +68,44 @@ impl CatalogBuilder {
         Ok(())
     }
 
+    /// Creates a menu.
+    ///
+    /// Menus can be populated using [`Self::add_menu_node()`].
+    ///
+    /// Returns an error if the menu already exists.
+    pub fn add_menu(&self, menu_id: TypeId, menu_name: String) -> Result<()> {
+        match self.lock_db()?.menus.entry(menu_id) {
+            hash_map::Entry::Occupied(e) => {
+                bail!("menu already exists with name {:?}", e.get().name);
+            }
+            hash_map::Entry::Vacant(e) => {
+                e.insert(Menu::new(menu_name));
+                Ok(())
+            }
+        }
+    }
+
+    /// Adds a node to a menu.
+    ///
+    /// Returns an error if such a node already exists or if the menu does not
+    /// exist.
+    pub fn add_menu_node(
+        &self,
+        menu_id: TypeId,
+        path: String,
+        content: MenuContent,
+        priority: i64,
+        default: bool,
+    ) -> Result<()> {
+        self.lock_db()?
+            .menus
+            .get_mut(&menu_id)
+            .ok_or_eyre(
+                "menu must be created using `CatalogBuilder::add_menu()` before it is populated",
+            )?
+            .add_node(path, content, priority, default)
+    }
+
     /// Constructs the catalog.
     pub fn build(self) -> Result<Catalog> {
         let mut catalog_data = self
@@ -87,6 +125,16 @@ impl CatalogBuilder {
             .cloned()
             .sorted() // alphabetize
             .collect();
+
+        // Check for menu orphans.
+        for (_, menu) in &catalog_data.menus {
+            for orphan in menu.orphans() {
+                catalog_data.logger.warn(format!(
+                    "menu {:?} contains orphan at {:?}",
+                    menu.name, orphan,
+                ));
+            }
+        }
 
         Ok(Catalog(Arc::new(catalog_data)))
     }

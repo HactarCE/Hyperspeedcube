@@ -79,6 +79,18 @@ impl<T: CatalogObject> Generator<T> {
             }),
         }
     }
+
+    /// Returns the ID of the default for this generator.
+    pub fn default_id(&self) -> CatalogId {
+        CatalogId {
+            base: self.meta.id.base.clone(),
+            args: self
+                .params
+                .iter()
+                .map(|p| p.default.clone().into())
+                .collect(),
+        }
+    }
 }
 
 /// Type of [`Generator::generate`].

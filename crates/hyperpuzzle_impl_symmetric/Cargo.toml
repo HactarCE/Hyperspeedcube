@@ -20,7 +20,7 @@ hypergroup.workspace = true
 hypermath.workspace = true
 hyperpuzzle_core.workspace = true
 hyperpuzzle_impl_nd_euclid.workspace = true
-# hyperpuzzlescript.workspace = true
+hyperpuzzlescript.workspace = true
 hypuz_notation.workspace = true
 hypuz_util.workspace = true
 

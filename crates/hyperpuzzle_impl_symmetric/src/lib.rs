@@ -8,11 +8,12 @@ use eyre::{OptionExt, Result};
 use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{TAGS, prelude::*};
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
 
 mod builder;
 mod geometry;
+pub mod hps;
 mod names;
 mod pseudo_axis;
 mod spec;
@@ -34,7 +35,51 @@ fn product_id(factor_ids: &[CatalogId]) -> CatalogId {
     .expect("product ID is invalid")
 }
 
-pub fn add_puzzles_to_catalog(catalog: &mut hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+    let mut product_tags = TagSet::new();
+    product_tags.insert_named("type/generator", true.into())?;
+    product_tags.insert_named("algebraic/doctrinaire", true.into())?;
+
+    // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
+    //     meta: Arc::new(CatalogMetadata {
+    //         id: CatalogId {
+    //             base: "product".into(),
+    //             args: vec![],
+    //         },
+    //         version: Version {
+    //             major: 1,
+    //             minor: 0,
+    //             patch: 0,
+    //         },
+    //         name: "Puzzle Product".into(),
+    //         aliases: vec![],
+    //         tags: product_tags.clone(),
+    //     }),
+    //     params: vec![GeneratorParam],
+    //     generate_meta: todo!(),
+    //     generate: todo!(),
+    // }));
+
+    // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
+    //     meta: Arc::new(CatalogMetadata {
+    //         id: CatalogId {
+    //             base: "refleproduct".into(),
+    //             args: vec![],
+    //         },
+    //         version: Version {
+    //             major: 1,
+    //             minor: 0,
+    //             patch: 0,
+    //         },
+    //         name: "Reflection Puzzle Product",
+    //         aliases: (),
+    //         tags: (),
+    //     }),
+    //     params: todo!(),
+    //     generate_meta: todo!(),
+    //     generate: todo!(),
+    // }));
+
     catalog.add_puzzle_generator(Arc::new(PuzzleGenerator::new_lazy_constant(
         Arc::new(CatalogMetadata {
             id: CatalogId::new("symmetric_puzzle_test", vec![]).unwrap(),
