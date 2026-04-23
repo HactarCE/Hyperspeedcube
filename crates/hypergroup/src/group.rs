@@ -382,6 +382,11 @@ impl Group {
 
     /// Returns the inverse of `element`.
     pub fn inverse(&self, element: GroupElementId) -> GroupElementId {
+        // optimization
+        if element == GroupElementId::IDENTITY {
+            return GroupElementId::IDENTITY;
+        }
+
         self.element_from_factors(
             std::iter::zip(
                 self.inner.factors.iter_values(),
@@ -396,6 +401,11 @@ impl Group {
     /// This is an optimized equivalent to `group.compose(e,
     /// group.generators()[g])`.
     pub fn compose_elem_generator(&self, e: GroupElementId, g: GeneratorId) -> GroupElementId {
+        // optimization
+        if e == GroupElementId::IDENTITY {
+            return self.generators()[g];
+        }
+
         let (factor, g_in_factor) = self.inner.generators_within_factors[g];
         self.replace_factor_element(e, factor, |e_in_factor| {
             self.inner.factors[factor].compose_elem_generator(e_in_factor, g_in_factor)
@@ -404,6 +414,14 @@ impl Group {
 
     /// Returns the composition `a * b`.
     pub fn compose(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        // optimization
+        if a == GroupElementId::IDENTITY {
+            return b;
+        }
+        if b == GroupElementId::IDENTITY {
+            return a;
+        }
+
         self.element_from_factors(
             itertools::izip!(
                 self.inner.factors.iter_values(),
@@ -416,6 +434,11 @@ impl Group {
 
     /// Returns the conjugation `a * b * a^-1`
     pub fn conjugate(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        // optimization
+        if a == GroupElementId::IDENTITY || b == GroupElementId::IDENTITY {
+            return b;
+        }
+
         self.element_from_factors(
             itertools::izip!(
                 self.inner.factors.iter_values(),
@@ -428,6 +451,11 @@ impl Group {
 
     /// Returns the `i`th power of an element `e`.
     pub fn powi(&self, e: GroupElementId, i: i32) -> GroupElementId {
+        // optimization
+        if e == GroupElementId::IDENTITY {
+            return GroupElementId::IDENTITY;
+        }
+
         // By repeated squaring
         if i == 0 {
             GroupElementId::IDENTITY

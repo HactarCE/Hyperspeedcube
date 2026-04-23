@@ -67,6 +67,11 @@ impl<P: TypedIndex> AbstractGroupActionLut<P> {
 
     /// Applies the action of a group element to a point.
     pub fn act(&self, element: GroupElementId, point: P) -> P {
+        // optimization
+        if element == GroupElementId::IDENTITY {
+            return point;
+        }
+
         self.group
             .factorization(element)
             .iter()

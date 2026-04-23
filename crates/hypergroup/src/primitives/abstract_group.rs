@@ -128,6 +128,14 @@ impl AbstractGroupLut {
 
     /// Composes two elements of the group.
     pub fn compose(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
+        // optimization
+        if a == GroupElementId::IDENTITY {
+            return b;
+        }
+        if b == GroupElementId::IDENTITY {
+            return a;
+        }
+
         let mut ret = a;
         for &generator in self.factorization(b) {
             ret = self.compose_elem_generator(ret, generator);
