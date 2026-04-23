@@ -1,19 +1,14 @@
 use hypermath::{Point, Vector, point};
-use hypuz_util::ti::TiVec;
 use itertools::Itertools;
+use rand::seq::IndexedRandom;
 use rand::{Rng, RngExt, SeedableRng};
 
 use super::*;
+use crate::tests::PerTestPoint;
 use crate::{
     ConjugateCoset, CoxeterMatrix, GenSeq, GeneratorId, GroupAction, GroupElementId, IsometryGroup,
-    PerGenerator, orbit_geometric_with_gen_seq,
+    PerGenerator, SubgroupAction, orbit_geometric_with_gen_seq,
 };
-
-hypuz_util::typed_index_struct! {
-    struct TestPoint(u16);
-}
-
-type PerTestPoint<T> = TiVec<TestPoint, T>;
 
 /// Tests the constraint solver on Coxeter group H3 (dodecahedral symmetry)
 #[test]
@@ -311,6 +306,103 @@ fn test_product_constraint_solver() -> eyre::Result<()> {
 
     let constraint_set = ConstraintSet::from([[bA, cA]]);
     assert!(solver.solve(&constraint_set).is_none());
+
+    Ok(())
+}
+
+#[test]
+fn test_subgroup_constraint_solver() -> eyre::Result<()> {
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0xABCD);
+
+    let group = CoxeterMatrix::B(4)?.isometry_group()?;
+    let points: PerTestPoint<Point> = itertools::iproduct!(0..4, [1.0, -1.0])
+        .map(|(ax, sign)| Point(Vector::unit(ax) * sign))
+        .collect();
+    let action = group.action_on_points(&points)?;
+    let mut solver = ConstraintSolver::new(action.clone());
+    for p in points.iter_keys() {
+        // Construct the subgroup `stab(p)`
+        let subgroup_action =
+            SubgroupAction::from_subgroup_predicate(&action, |e| action.act(e, p) == p)?;
+        let mut subgroup_solver = SubgroupConstraintSolver::new(subgroup_action);
+        for q in points.iter_keys() {
+            // Construct the conjugate subgroup `x * stab(p) * x^-1 = stab(q)`
+            let conjugating_element = *solver
+                .solve(&ConstraintSet::from([[p, q]]))
+                .unwrap()
+                .elements()
+                .choose(&mut rng)
+                .unwrap();
+            assert_eq!(q, action.act(conjugating_element, p));
+            let mut conjugate_subgroup_solver =
+                ConjugateSubgroupConstraintSolver::new(conjugating_element, &mut subgroup_solver);
+
+            // Test `select()` with no constraints
+            let (mut random_constraints, random_elem) = conjugate_subgroup_solver
+                .select(ConstraintSet::EMPTY, |n| rng.random_range(0..n))
+                .unwrap();
+            assert_eq!(q, action.act(random_elem, q));
+            assert_elem_satisfies_constraints(&action, random_elem, &random_constraints);
+
+            // Test `select()` with constraints
+            random_constraints.constraints.truncate(1);
+            let (selected_constraints, selected_elem) = conjugate_subgroup_solver
+                .select(random_constraints.clone(), |n| rng.random_range(0..n))
+                .unwrap();
+            assert_elem_satisfies_constraints(&action, selected_elem, &selected_constraints);
+            assert_elem_satisfies_constraints(&action, selected_elem, &random_constraints);
+
+            let full_constraints = selected_constraints;
+            let mut full_constraints_with_q_fixed = full_constraints.clone();
+            full_constraints_with_q_fixed
+                .constraints
+                .push(Constraint::fix(q));
+
+            let partial_constraints = random_constraints;
+            let mut partial_constraints_with_q_fixed = partial_constraints.clone();
+            partial_constraints_with_q_fixed
+                .constraints
+                .push(Constraint::fix(q));
+
+            // Test `solve()` (fully constrained)
+            let expected = solver.solve(&full_constraints_with_q_fixed).unwrap();
+            let actual = conjugate_subgroup_solver.solve(full_constraints).unwrap();
+            assert_coset_satisfies_constraints(&action, &actual, &full_constraints_with_q_fixed);
+            let mut expected_elems = expected.elements();
+            let mut actual_elems = actual.elements();
+            expected_elems.sort_unstable();
+            actual_elems.sort_unstable();
+            assert_eq!(expected_elems, actual_elems);
+
+            // Test `solve()` (partially constrained)
+            let mut expected = solver
+                .solve(&partial_constraints_with_q_fixed)
+                .unwrap()
+                .elements();
+            let mut actual = conjugate_subgroup_solver
+                .solve(partial_constraints.clone())
+                .unwrap()
+                .elements();
+            expected.sort_unstable();
+            actual.sort_unstable();
+            assert_eq!(expected, actual);
+
+            // Test `constraints_for_element()`
+            let new_constraints = conjugate_subgroup_solver
+                .constraints_for_element(partial_constraints.clone(), random_elem)
+                .unwrap();
+            assert_eq!(
+                vec![random_elem],
+                conjugate_subgroup_solver
+                    .solve(ConstraintSet::from_iter(std::iter::chain(
+                        new_constraints,
+                        partial_constraints,
+                    )))
+                    .unwrap()
+                    .elements()
+            );
+        }
+    }
 
     Ok(())
 }

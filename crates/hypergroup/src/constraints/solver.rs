@@ -159,7 +159,7 @@ impl<P: TypedIndex> ConstraintSolver<P> {
     /// that precisely specifies it.
     ///
     /// `random_index` must return a deterministic random integer in the range
-    /// `0..n`. The range will never be empty.
+    /// `0..n`. It will never be called with `n == 0`.
     pub fn select(
         &mut self,
         constraint_set: &ConstraintSet<P>,
@@ -380,7 +380,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
     /// Selects a random element deterministically and uniformly from the group.
     ///
     /// `random_index` must return a deterministic random integer in the range
-    /// `0..n`. The range will never be empty.
+    /// `0..n`. It will never be called with `n == 0`.
     pub fn select(
         &mut self,
         mut constraint_set: ConstraintSet<P>,

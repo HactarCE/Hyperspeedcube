@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
+use hypuz_util::ti::TiVec;
 use itertools::Itertools;
 use rand::seq::IndexedRandom;
 use rand::{RngExt, SeedableRng};
 
 use super::*;
+
+hypuz_util::typed_index_struct! {
+    pub(crate)struct TestPoint(pub u16);
+}
+
+pub(crate) type PerTestPoint<T> = TiVec<TestPoint, T>;
 
 /// By running the product replacement algorithm on the generators for a
 /// group before generating the group, we can get much shorter words for the

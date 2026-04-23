@@ -11,10 +11,14 @@ mod gen_seq;
 mod geometry;
 mod group;
 mod primitives;
+mod subgroup_action;
 
 pub use action::GroupAction;
 pub use common::*;
-pub use constraints::{Constraint, ConstraintSet, ConstraintSolver};
+pub use constraints::{
+    ConjugateSubgroupConstraintSolver, Constraint, ConstraintSet, ConstraintSolver,
+    SubgroupConstraintSolver,
+};
 pub use coset::{ConjugateCoset, LeftCoset, RightCoset, Subgroup};
 pub use coxeter::{CoxeterMatrix, DynkinNotationError, dynkin_char, parse_dynkin_notation};
 pub use errors::{GroupError, GroupResult};
@@ -25,6 +29,7 @@ pub use group::Group;
 use primitives::{
     AbstractGroupActionLut, AbstractGroupLut, AbstractGroupLutBuilder, AbstractSubgroup, EggTable,
 };
+pub use subgroup_action::SubgroupAction;
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.

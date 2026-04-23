@@ -1,11 +1,15 @@
 use hypuz_util::ti::TypedIndex;
 use smallvec::SmallVec;
 
+mod conjugate_subgroup_solver;
 mod orbits;
 mod solver;
+mod subgroup_solver;
 
+pub use conjugate_subgroup_solver::ConjugateSubgroupConstraintSolver;
 use orbits::SubgroupOrbits;
 pub use solver::ConstraintSolver;
+pub use subgroup_solver::SubgroupConstraintSolver;
 
 /// Constraint on a group element based on how it acts on a point.
 ///
