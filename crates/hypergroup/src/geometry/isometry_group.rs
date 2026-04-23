@@ -164,79 +164,26 @@ impl IsometryGroup {
     }
 
     /// Flattens the group using [`IsometryGroup::flatten()`] and constructs a
-    /// group action from a set of initial points that are then orbited to
-    /// produce the complete set.
-    ///
-    /// When possible, prefer constructing the direct product of group actions
-    /// instead of the group action of a direct product to avoid flattening
-    /// large groups.
-    ///
-    /// TODO: revamp this method
-    pub fn action_on_initial_points<P: TypedIndex>(
-        &self,
-        points: &[Point],
-    ) -> GroupResult<GroupAction<P>> {
-        // TODO: be smart. return a direct product group action
-
-        let mut ref_point_to_point = TiVec::<P, Point>::new();
-        let mut point_to_ref_point = ApproxHashMap::new(APPROX);
-        for initial_point in points {
-            let init = ref_point_to_point.push(initial_point.clone())?;
-            point_to_ref_point.insert(initial_point.clone(), init);
-            crate::orbit(init, &self.generator_motors, |&p, m| {
-                let new_point = m.transform(&ref_point_to_point[p]);
-                match point_to_ref_point.entry(new_point) {
-                    Entry::Occupied(_) => None,
-                    Entry::Vacant(entry) => {
-                        let new_id = ref_point_to_point.push(entry.key().clone()).ok()?; // TODO: handle overflow
-                        entry.insert(new_id);
-                        Some(new_id)
-                    }
-                }
-            });
-        }
-
-        if ref_point_to_point.len() != point_to_ref_point.len() {
-            return Err(GroupError::DuplicatePoints);
-        }
-
-        // TODO: optimize this. remember results. don't multiply points extra.
-
-        self.group.action(ref_point_to_point.len(), |g, p| {
-            let get_transformed_point =
-                || self.generator_motors[g].transform(&ref_point_to_point[p]);
-            point_to_ref_point
-                .get(get_transformed_point())
-                .copied()
-                .ok_or_else(|| GroupError::MissingPoint(get_transformed_point().to_string()))
-        })
-    }
-
-    /// Flattens the group using [`IsometryGroup::flatten()`] and constructs a
     /// group action from a set of points.
     ///
     /// When possible, prefer constructing the direct product of group actions
     /// instead of the group action of a direct product to avoid flattening
     /// large groups.
-    ///
-    /// TODO: revamp this method
     pub fn action_on_points<P: TypedIndex>(
         &self,
-        ref_point_to_point: &TiVec<P, Point>,
+        points: &TiVec<P, Point>,
     ) -> GroupResult<GroupAction<P>> {
-        let point_to_ref_point = ApproxHashMap::from_iter(
-            APPROX,
-            ref_point_to_point.iter().map(|(i, p)| (p.clone(), i)),
-        );
+        let point_from_id = points;
+        let id_from_point =
+            ApproxHashMap::from_iter(APPROX, point_from_id.iter().map(|(i, p)| (p.clone(), i)));
 
-        if ref_point_to_point.len() != point_to_ref_point.len() {
+        if point_from_id.len() != id_from_point.len() {
             return Err(GroupError::DuplicatePoints);
         }
 
-        self.group.action(ref_point_to_point.len(), |g, p| {
-            let get_transformed_point =
-                || self.generator_motors[g].transform(&ref_point_to_point[p]);
-            point_to_ref_point
+        self.group.action(point_from_id.len(), |g, p| {
+            let get_transformed_point = || self.generator_motors[g].transform(&point_from_id[p]);
+            id_from_point
                 .get(get_transformed_point())
                 .copied()
                 .ok_or_else(|| GroupError::MissingPoint(get_transformed_point().to_string()))
