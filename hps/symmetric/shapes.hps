@@ -1,0 +1,63 @@
+add_menu_entry(
+    path = "",
+    next_column = "Space",
+)
+
+for ndim in 1..=7 {
+    add_menu_entry(
+        path = "${ndim}D",
+        next_column = "Shape",
+        build = fn() {
+            export ndim
+        },
+    )
+}
+
+export fn add_menu_entry_for_shape(path: Str, priority: Int, shape: Map) {
+    add_menu_entry(
+        path = "${path}|${shape.name}",
+        priority = priority,
+        next_column = "Axes",
+    )
+    add_menu_entry(
+        path = "${path}|${shape.name}|None",
+        priority = 1000,
+        id = shape.id,
+        build = fn(*, shape = shape) { // capture `id`
+            #puz.shape = shape.new()
+            #puz.colors = #puz.shape.id
+            element = ["vertex", "edge", "face"][#puz.ndim] ?? "facet"
+            carve(shape["${element}_pole"], shape["${element}_names"])
+        },
+    )
+}
+
+add_menu_entry(path = "3D|Platonic", priority = 1000, section = true)
+add_menu_entry_for_shape("3D|Platonic", -4, @shapes/a/tetrahedron)
+add_menu_entry_for_shape("3D|Platonic", -6, @shapes/bc/cube)
+add_menu_entry_for_shape("3D|Platonic", -8, @shapes/bc/octahedron)
+add_menu_entry_for_shape("3D|Platonic", -12, @shapes/h/dodecahedron)
+add_menu_entry_for_shape("3D|Platonic", -20, @shapes/h/icosahedron)
+
+add_menu_entry(path = "4D|Platonic", priority = 1000, section = true)
+add_menu_entry_for_shape("4D|Platonic", -5, @shapes/a/4_simplex)
+add_menu_entry_for_shape("4D|Platonic", -8, @shapes/bc/hypercube)
+// add_menu_entry_for_shape("4D|Platonic", -16, @shapes/bc/16_cell)
+// add_menu_entry_for_shape("4D|Platonic", -24, @shapes/f/24_cell)
+add_menu_entry_for_shape("4D|Platonic", -120, @shapes/h/120_cell)
+// add_menu_entry_for_shape("4D|Platonic", -600, @shapes/h/600_cell)
+
+add_menu_entry(path = "5D|Platonic", priority = 1000, section = true)
+// add_menu_entry_for_shape("5D|Platonic", -6, @shapes/a/5_simplex)
+add_menu_entry_for_shape("5D|Platonic", -10, @shapes/bc/5_cube)
+// add_menu_entry_for_shape("5D|Platonic", -32, @shapes/bc/5_orthoplex)
+
+add_menu_entry(path = "6D|Platonic", priority = 1000, section = true)
+// add_menu_entry_for_shape("6D|Platonic", -7, @shapes/a/6_simplex)
+// add_menu_entry_for_shape("6D|Platonic", -12, @shapes/bc/6_cube)
+// add_menu_entry_for_shape("6D|Platonic", -64, @shapes/bc/6_orthoplex)
+
+add_menu_entry(path = "7D|Platonic", priority = 1000, section = true)
+// add_menu_entry_for_shape("7D|Platonic", -8, @shapes/a/7_simplex)
+// add_menu_entry_for_shape("7D|Platonic", -14, @shapes/bc/7_cube)
+// add_menu_entry_for_shape("7D|Platonic", -128, @shapes/bc/7_orthoplex)

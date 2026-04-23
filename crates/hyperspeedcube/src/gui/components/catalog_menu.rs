@@ -141,13 +141,14 @@ fn show_menu_column<'a>(
 
     ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
         if !is_final {
-            let min_ui_width = ui_elements
+            let max_text_width = ui_elements
                 .iter()
                 .map(|elem| elem.min_width(ui))
                 .max_float()
-                .unwrap_or(0.0)
+                .unwrap_or(0.0);
+            let ui_width = (max_text_width + ui.spacing().scroll.allocated_width())
                 .at_least(text_width(ui, egui::RichText::new(heading).heading()));
-            ui.set_width(min_ui_width);
+            ui.set_width(ui_width);
         }
         ui.heading(heading);
         ui.separator();

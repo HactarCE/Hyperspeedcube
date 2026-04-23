@@ -1,0 +1,96 @@
+// - **Shape**
+// - *Platonic*
+// - Tetrahedron
+// - Cube
+// - Octahedron
+// - Dodecahedron
+// - Icosahedron
+// - *Other*
+// - Cuboid
+
+layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
+
+
+fn carve_polyhedron(shape: Map) {
+    #puz.shape = shape
+    #puz.colors = shape.id
+    carve(shape.face_pole, shape.face_names)
+}
+
+fn cut_ft_polyhedron(shape: Map, cut_distances: List[Num]) {
+    ax = add_axis(shape.face_pole, shape.face_names, cut_distances)
+    // TODO: edge & vertex pseudo-axes
+    add_axis_pair(ax, sym.thru(2).transform(ax))
+}
+
+add_menu_entry(path = "3D|Platonic|Cube|ET", priority = 51, id = "todo")
+add_menu_entry(path = "3D|Platonic|Cube|VT", priority = 50, id = "todo")
+add_menu_entry(path = "3D|Platonic|Cube|Tetrahedral", priority = -4, id = "todo")
+add_menu_entry(path = "3D|Platonic|Cube|Dodecahedral", priority = -12, id = "todo")
+
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT", priority = 52, default = true, next_inline = "Depth")
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Megaminx", id = "megaminx", default = true, priority = 15, params = [layers_param])
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Megaminx Crystal", id = "megaminx_crystal", priority = 14)
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Pyraminx Crystal", id = "pyraminx_crystal", priority = 13)
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Curvy Starminx", id = "curvy_starminx", priority = 12, params = [layers_param])
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Starminx", id = "starminx", priority = 11)
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Pentultimate", id = "pentultimate", priority = 10, params = [layers_param])
+
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT", priority = 52, default = true, next_inline = "Depth (Radiolarian Number)")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|1", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|1.5", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|2", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|3", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|4", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|5", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|6", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|7", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|8", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|9", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|10", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|11", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|12", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|13", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|14", id = "todo")
+add_menu_entry(path = "3D|Platonic|Icosahedron|FT|15", id = "todo")
+
+for id in ["megaminx", "curvy_starminx", "pentultimate"] {
+    add_puzzle_generator(
+        id = id,
+        version = "0.1.0",
+        engine = "euclid",
+        ndim = 3,
+        params = [layers_param],
+        gen = fn(layers) {
+            export fn build() {
+                with #sym = cd([5,3]) {
+                    carve(plane(#sym.oox))
+                    ax = add_axis(#sym.oox)
+                    // ax.add_twist()
+                }
+            }
+        },
+    )
+}
+for id in ["megaminx_crystal", "pyraminx_crystal", "starminx"] {
+    add_puzzle(
+        id = id,
+        version = "0.1.0",
+        engine = "euclid",
+        ndim = 3,
+        build = fn() {},
+    )
+}
+
+add_menu_entry(
+    path = "3D|Platonic|Cube|FT",
+    priority = 52,
+    default = true,
+    id = "ft_cube",
+    params = [layers_param],
+    build = fn(layers) {
+        carve_polyhedron(@shapes/bc/cube.new())
+        // TODO: realistic proportions
+        cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
+    }
+)

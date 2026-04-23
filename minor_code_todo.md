@@ -1,0 +1,3 @@
+- Replace `ui.ctx()` with `ui`
+- Replace old `EguiTempValue` and `EguiTempFlag` with new ones
+- Unstash old stash before clippying

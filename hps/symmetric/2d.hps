@@ -1,0 +1,71 @@
+layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
+edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 49 }
+
+fn carve_polygon(n: Nat) -> Map {
+    #puz.shape = @shapes/i/polygon.new(n)
+    #puz.colors = "ngon(${n})"
+    carve(shape.edge_pole, shape.edge_names)
+}
+
+fn cut_ft_polygon(shape: Map, cut_distances: List[Num]) {
+    ax = add_axis(shape.edge_pole, shape.edge_names, cut_distances)
+    add_pseudo_axis(shape.vertex_pole.unit, shape.vertex_names)
+    add_axis_pair(ax, sym.thru(0).transform(ax))
+}
+
+add_menu_entry(
+    path = "2D|Triangle",
+    priority = -3,
+    next_inline = "Depth",
+)
+
+add_menu_entry(
+    path = "2D|Triangle|Shallow",
+    id = "ft_triangle",
+    params = [layers_param],
+    build = fn(layers) { "ngon(3, ${layers})" },
+)
+
+add_menu_entry(
+    path = "2D|Triangle|Triminx",
+    id = "triminx",
+    params = [layers_param],
+    build = fn(layers) {
+        export * from carve_polygon(3)
+        export * from cut_ft_polygon(#puz.shape, #puz.shape.full_cut_depths(layers))
+    },
+)
+
+add_menu_entry(
+    path = "2D|Square",
+    priority = -4,
+    id = "square",
+    params = [layers_param],
+    build = fn() { "ngon(4, ${layers})" },
+)
+
+add_menu_entry(
+    path = "2D|Polygon",
+    priority = -5,
+    default = true,
+    id = "ngon",
+    params = [
+        #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
+        edge_divisions_param,
+    ],
+    build = fn(n, layers) {
+        export * from carve_polygon(n)
+        export * from cut_ft_polygon(#puz.shape, #puz.shape.shallow_cut_depths(layers))
+    },
+)
+
+export fn ngon_colors(n, *, prefix = "", seq = "Rainbow") -> List[Map] {
+    (0..n).map(fn(i) {
+        #{
+            name = "${prefix}${nth_uppercase(i)}",
+            default = "${seq} [${i}/${n}]",
+        }
+    })
+}
+
+add_colors_override("ngon(?)", ngon_colors)

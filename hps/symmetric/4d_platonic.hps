@@ -1,0 +1,122 @@
+// - **Shape**
+// - *Platonic*
+// - Simplex
+//   - **Axes**
+//   - FVT
+// - Hypercube
+//   - **Axes**
+//   - FT
+//   - RT
+//   - ET
+//   - VT
+//   - FT+VT
+//   - 48-Cell
+// - 16-Cell
+//   - **Axes**
+//   - FT
+//   - RT
+//   - ET
+//   - 48-Cell
+// - 24-Cell
+//   - **Axes**
+//   - FT
+//   - 48-Cell
+// - 120-Cell
+//   - **Axes**
+//   - FT
+//     - **Depth**
+//     - Shallow
+//     - Evil
+//     - Half
+// - 600-Cell
+//   - **Axes**
+//   - FT
+
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT", priority = 1, default = true, next_inline = "Depth")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|A", id = "ft_4_simplex_a")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|B", id = "ft_4_simplex_b")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|C", id = "ft_4_simplex_c")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|D", id = "ft_4_simplex_d")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|Pyraminx", id = "ft_4_simplex_pyraminx")
+add_menu_entry(path = "4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "ft_hypercube")
+add_menu_entry(path = "4D|Platonic|Hypercube|RT", priority = 3, id = "todo")
+add_menu_entry(path = "4D|Platonic|Hypercube|ET", priority = 2, id = "todo")
+add_menu_entry(path = "4D|Platonic|Hypercube|VT", priority = 1, id = "todo")
+add_menu_entry(path = "4D|Platonic|16-Cell|FT", priority = 4, default = true, id = "todo")
+add_menu_entry(path = "4D|Platonic|24-Cell|FT", priority = 4, default = true, id = "todo")
+
+add_menu_entry(
+    path = "4D|Platonic|16-Cell",
+    priority = -16,
+    next_column = "Axes",
+)
+
+add_menu_entry(
+    path = "4D|Platonic|24-Cell",
+    priority = -24,
+    next_column = "Axes",
+)
+
+add_menu_entry(
+    path = "4D|Platonic|600-Cell",
+    priority = -600,
+    next_column = "Axes",
+)
+
+add_menu_entry(
+    path = "4D|Catalan",
+    section = true,
+)
+add_menu_entry(
+    path = "4D|Catalan|48-Cell",
+    next_column = "Axes",
+)
+add_menu_entry(
+    path = "4D|Catalan|48-Cell|None",
+    priority = 1000,
+    id = "48cell",
+)
+
+
+
+add_menu_entry(
+    path = "4D|Catalan|48-Cell|FT",
+    id = "ft_48cell",
+    default = true,
+)
+add_menu_entry(
+    path = "4D|Platonic|16-Cell|48-Cell",
+    id = "ft_48cell",
+)
+add_menu_entry(
+    path = "4D|Platonic|24-Cell|48-Cell",
+    id = "ft_48cell",
+)
+add_menu_entry(
+    path = "4D|Platonic|Hypercube|48-Cell",
+    id = "ft_48cell",
+)
+
+
+// add_menu_entry(
+//     path = "4D|Catalan|48-Cell|FT",
+//     default = true,
+//     id = "ft_48cell",
+// )
+// add_menu_entry(
+//     path = "4D|Catalan|48-Cell|FT",
+//     default = true,
+//     priority = 1000,
+// )
+// add_menu_entry(
+//     path = "4D|Catalan|48-Cell|FT|16-Cell",
+//     id = "ft_48cell",
+// )
+// add_menu_entry(
+//     path = "4D|Catalan|48-Cell|FT|24-Cell",
+//     id = "ft_48cell",
+// )
+// add_menu_entry(
+//     path = "4D|Catalan|48-Cell|FT|Hypercube",
+//     id = "ft_48cell",
+// )

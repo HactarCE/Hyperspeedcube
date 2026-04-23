@@ -1,0 +1,36 @@
+// - **Shape**
+// - *Truncations*
+// - Simplex
+//   - **Truncation**
+//   - Bitruncated
+//   - Bitruncated Dual
+//   - Cantellated
+//   - Cantitruncated
+//   - Omnitruncated
+//   - Rectified
+//   - Rucinated
+//   - Runcitruncated
+//   - Truncated
+// - Hypercube/16-Cell
+//   - **Truncation**
+//   - Bitruncated Hypercube
+//   - Cantellated Hypercube
+//   - Cantitruncated Hypercube
+//   - Omnitruncated Hypercube
+//   - Rectified Hypercube
+//   - Rucinated Hypercube
+//   - Runcitruncated Hypercube
+//   - Truncated Hypercube
+//   - Truncated 16-Cell
+// - 24-Cell
+//   - **Truncation**
+//   - Cantellated
+//   - Omnitruncated
+//   - Omnitruncated dual
+//   - Rectified
+//   - Rucinated
+//   - Runcitruncated
+//   - Truncated
+// - 120-Cell
+//   - **Truncation**
+//   - Bitruncated

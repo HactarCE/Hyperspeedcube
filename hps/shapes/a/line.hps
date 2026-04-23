@@ -1,0 +1,23 @@
+use * from euclid
+
+export id = "line"
+export name = "Line"
+export adjective = "Linear"
+export aliases = []
+export facet_colors = id
+export ndim = 1
+export shape_tag = "1d/line"
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
+    export sym = t.transform(cd(a1))
+
+    export vertex_pole = sym.x.unit
+    export vertex_names = sym.name(point(vertex_pole), #{
+        A = [],
+        B = [0, "A"]
+    })
+}

@@ -1,0 +1,21 @@
+layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
+
+add_menu_entry(
+    path = "1D|Line",
+    default = true,
+    id = "line",
+    params = [layers_param],
+    build = fn(layers) {
+        export shape = @shapes/a/line.new()
+        export colors = "line"
+        carve(shape.vertex_pole, shape.vertex_names)
+        add_axis(shape.vertex_pole, shape.vertex_names, @util/layers.inclusive(layers))
+    },
+)
+
+add_colors_override("line", fn() {
+    [
+        #{ name = "A", default = "Red" },
+        #{ name = "B", default = "Blue" },
+    ]
+})
