@@ -36,8 +36,8 @@ export fn new(n: Nat, t: Transform) -> Map {
     export side_pole = polygon.edge_pole
     export side_names = "a${polygon.edge_names}"
 
-    export opposite_side_pole = polygon.opposite_edge_pole
-    export opposite_side_names = "a${polygon.opposite_edge_names}"
+    export side_opposite_pole = polygon.edge_opposite_pole
+    export side_opposite_names = "a${polygon.edge_opposite_names}"
 }
 
 export fn facet_colors_list(n: Nat) -> List[Map] {

@@ -1,7 +1,7 @@
-use std::io::Write;
+use std::{io::Write, sync::Arc};
 
 use eyre::Result;
-use hyperpuzzle_core::{Puzzle, PuzzleLintOutput};
+use hyperpuzzle_core::{Catalog, CatalogMetadata, Puzzle, PuzzleLintOutput};
 
 use super::{load_new_catalog, time_it};
 
@@ -17,13 +17,13 @@ fn lint_all_puzzle_definitions() -> Result<(), String> {
 
     let mut out = String::new();
 
-    for entry in &*catalog.puzzle_list {
+    for entry in puzzles_in_list(&catalog) {
         if !LINT_EXPERIMENTAL && entry.tags.is_experimental() {
             continue;
         }
 
         let puzzle_lint_output = time_it(format!("Linting puzzle {}", entry.id), || {
-            PuzzleLintOutput::from_meta(entry)
+            PuzzleLintOutput::from_meta(&entry)
         })
         .0;
 
@@ -68,14 +68,14 @@ fn build_all_puzzles() -> Result<(), String> {
     let mut failed = vec![];
     let mut times = vec![];
     let t1 = std::time::Instant::now();
-    for entry in &*catalog.puzzle_list {
+    for entry in puzzles_in_list(&catalog) {
         if entry.tags.has_present("big") {
-            println!("Skipping big puzzle {} ({})", entry.name, entry.id,);
+            println!("Skipping big puzzle {} ({})", entry.name, entry.id);
             continue;
         }
 
         if entry.tags.is_experimental() {
-            println!("Skipping experimental puzzle {} ({})", entry.name, entry.id,);
+            println!("Skipping experimental puzzle {} ({})", entry.name, entry.id);
             continue;
         }
 
@@ -126,4 +126,22 @@ fn build_7x7x7x7() {
     });
     result.expect("failed to build puzzle");
     println!("Done in {time:?}");
+}
+
+fn puzzles_in_list(catalog: &Catalog) -> Vec<Arc<CatalogMetadata>> {
+    catalog
+        .puzzle_list
+        .iter()
+        .map(|entry| {
+            if let Some(g) = &catalog.puzzles.generators.get(&entry.id.to_string())
+                && !g.params.is_empty()
+                && let Ok(default_generated_meta) =
+                    catalog.get_puzzle_metadata_blocking(&g.default_id())
+            {
+                default_generated_meta
+            } else {
+                Arc::clone(entry)
+            }
+        })
+        .collect()
 }
