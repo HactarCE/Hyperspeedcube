@@ -140,7 +140,7 @@ impl Menu {
         self.contents
             .keys()
             .filter_map(|s| MenuPath::from_str(s))
-            .filter(|path| path.parent().is_some_and(|parent| self.contains(parent)))
+            .filter(|path| path.parent().is_some_and(|parent| !self.contains(parent)))
     }
 }
 
