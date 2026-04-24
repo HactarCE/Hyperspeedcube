@@ -265,9 +265,22 @@ impl SymmetricTwistSystemEngineData {
             }
         };
 
-        Some(self.constraints_to_notation(
-            solver.constraints_for_element(hypergroup::ConstraintSet::EMPTY, random_rotation)?,
-        ))
+        let mut constraints =
+            solver.constraints_for_element(hypergroup::ConstraintSet::EMPTY, random_rotation)?;
+
+        // Try removing the last constraint, since it is often unnecessary for
+        // chiral puzzles. This isn't perfect but it covers the vast majority of
+        // cases.
+        let mut constraints_minus_one = constraints.clone();
+        constraints_minus_one.constraints.pop();
+        if solver
+            .solve(constraints_minus_one)
+            .is_some_and(|coset| self.count_rotations_in_coset(&coset) == 1)
+        {
+            constraints.constraints.pop();
+        }
+
+        Some(self.constraints_to_notation(constraints))
     }
 
     /// Returns the number of rotations in a coset without enumerating the
