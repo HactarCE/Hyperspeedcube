@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, eyre};
-use hypergroup::GroupError;
+use hypergroup::{GroupElementId, GroupError, SubgroupAction, SubgroupConstraintSolver};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
@@ -25,7 +25,7 @@ use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceD
 
 use crate::{
     FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, StabilizerFamily,
-    SymmetricTwistSystemEngineData,
+    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemEngineData,
 };
 
 #[derive(Debug)]
@@ -93,16 +93,16 @@ impl ProductPuzzleBuilder {
             spec.coxeter_matrix.clone(),
             group.clone(),
             &spec.axis_orbits,
-            &spec.pseudo_axis_orbits,
-            &spec.axis_pairs,
+            &spec.named_point_orbits,
+            &spec.named_point_set_orbits,
             warn_fn,
         )?;
 
         // Slice axes
-        for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
+        for (orbit, axis_orbit_spec) in std::iter::zip(&axes.axis_orbits, &spec.axis_orbits) {
             for axis in orbit.axes() {
                 for &cut_distance in &axis_orbit_spec.cut_distances {
-                    let plane = Hyperplane::new(&axes.vectors[axis], cut_distance)
+                    let plane = Hyperplane::new(&axes.axis_vectors[axis], cut_distance)
                         .ok_or_eyre("bad axis vector")?;
                     shape_builder.slice(plane)?;
                 }
@@ -114,10 +114,10 @@ impl ProductPuzzleBuilder {
         // Add grip signatures
         for (_, piece_data) in &mut shape.pieces {
             piece_data.grip_signature = PerAxis::new_with_len(axes.len());
-            for (orbit, axis_orbit_spec) in std::iter::zip(&axes.orbits, &spec.axis_orbits) {
+            for (orbit, axis_orbit_spec) in std::iter::zip(&axes.axis_orbits, &spec.axis_orbits) {
                 for axis in orbit.axes() {
                     if let Some((min_height, max_height)) =
-                        piece_data.polytope.height_on_axis(&axes.vectors[axis])
+                        piece_data.polytope.height_on_axis(&axes.axis_vectors[axis])
                     {
                         piece_data.grip_signature[axis] =
                             axis_orbit_spec.layer_range_for_distance_range(max_height, min_height);
@@ -171,25 +171,27 @@ impl ProductPuzzleBuilder {
             self.shape.build_piece_types(warn_fn)?;
 
         let axes = Arc::new(self.axes.build_axis_system()?);
-        let mut axis_constraint_solver =
-            hypergroup::ConstraintSolver::new(self.axes.action.clone());
         let mut twists = TwistSystem::new_empty(&axes);
-        let axis_unit_twists = self
+        let axis_undeorbiters = self.axes.build_axis_undeorbiters();
+
+        let named_point_names = self.axes.build_named_point_names()?;
+
+        let axis_orbits = self
             .axes
-            .build_3d_unit_twists(&mut axis_constraint_solver, warn_fn);
-        let stabilizer_twists = self
-            .axes
-            .build_4d_unit_twists(&mut axis_constraint_solver, warn_fn);
+            .build_axis_orbits(&axes.names, &named_point_names, warn_fn)?;
+
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
-            axis_vectors: Arc::clone(&self.axes.vectors),
+            axis_vectors: Arc::clone(&self.axes.axis_vectors),
             group: self.axes.group.clone(),
-            group_action: self.axes.action.clone(),
-            constraint_solver: Arc::new(Mutex::new(axis_constraint_solver)),
+            axis_action: self.axes.axis_action.clone(),
 
-            axis_unit_twists: Arc::new(axis_unit_twists),
+            axis_undeorbiters: Arc::new(axis_undeorbiters),
+            axis_orbits: Arc::new(axis_orbits),
 
-            stabilizer_twists: Arc::new(stabilizer_twists),
+            named_point_action: self.axes.named_point_action.clone(),
+            named_point_names: Arc::new(named_point_names),
+            named_point_vectors: Arc::clone(&self.axes.named_point_vectors),
         });
         twists.engine_data = (*twist_system_engine_data).clone().into();
         let twists = Arc::new(twists);
@@ -200,7 +202,7 @@ impl ProductPuzzleBuilder {
 
         let axes_with_twists: Vec<Axis> = self
             .axes
-            .orbits
+            .axis_orbits
             .iter()
             .filter(|orbit| {
                 orbit.max_layer > 0 && twist_system_engine_data.axis_has_twists(orbit.first())
@@ -212,14 +214,18 @@ impl ProductPuzzleBuilder {
 
         let mut gizmo_twists = PerGizmoFace::new();
         if ndim == 3 {
-            gizmos::build_3d_gizmo(&mut mesh, &mut gizmo_twists, &self.axes, &twists.axes.names)?;
+            gizmos::build_3d_gizmo(
+                &mut mesh,
+                &mut gizmo_twists,
+                &self.axes,
+                &twist_system_engine_data,
+            )?;
         } else if ndim == 4 {
             gizmos::build_4d_gizmo(
                 &mut mesh,
                 &mut gizmo_twists,
-                &mut twist_system_engine_data.constraint_solver.lock(),
                 &self.axes,
-                &twists.axes.names,
+                &twist_system_engine_data,
                 warn_fn,
             )?;
         }
@@ -239,8 +245,8 @@ impl ProductPuzzleBuilder {
 
             mesh,
 
-            axis_vectors: Arc::new(PerAxis::new()), // TODO: is this needed?
-            axis_layer_depths: PerAxis::new(),      // TODO: is this needed?
+            axis_vectors: Arc::clone(&self.axes.axis_vectors),
+            axis_layer_depths: PerAxis::new(), // TODO: is this needed?
             twist_transforms: Arc::new(PerTwist::new()),
 
             gizmo_twists,
@@ -256,8 +262,8 @@ impl ProductPuzzleBuilder {
                 let layers =
                     hyperpuzzle_core::util::random_layer_mask(rng, axis_layers[axis].max_layer)?;
                 let family = &twist_system_engine_data.axes.names[axis];
-                if let Some(unit_twist) = twist_system_engine_data.axis_unit_twists[axis] {
-                    let order = unit_twist.order.get();
+                if let Some(unit_twist_order) = twist_system_engine_data.unit_twist_order(axis) {
+                    let order = unit_twist_order.get();
                     let mut multiplier = rng.random_range(1..order); // guaranteed nonempty
                     if multiplier * 2 > order {
                         multiplier -= order;

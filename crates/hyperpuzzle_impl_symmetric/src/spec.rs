@@ -30,10 +30,10 @@ pub struct FactorPuzzleSpec {
     pub facet_orbits: Vec<FacetOrbitSpec>,
     /// Orbits of twist axes.
     pub axis_orbits: Vec<AxisOrbitSpec>,
-    /// Orbits of pseudo-axes, each with a gizmo pole distance.
-    pub pseudo_axis_orbits: Vec<(Vec<Str>, f64)>,
-    /// Orbits of axis pairs, each with a gizmo pole distance.
-    pub axis_pairs: Vec<(Str, Vec<Str>, f64)>,
+    /// Orbits of named points.
+    pub named_point_orbits: Vec<NamedPointOrbitSpec>,
+    /// Orbits of named point sets, each with a gizmo pole distance.
+    pub named_point_set_orbits: Vec<(Vec<Str>, f64)>,
 }
 
 impl FactorPuzzleSpec {
@@ -43,8 +43,8 @@ impl FactorPuzzleSpec {
         shape_id: CatalogId,
         coxeter_matrix: CoxeterMatrix,
         axis_orbits: Vec<AxisOrbitSpec>,
-        pseudo_axis_orbits: Vec<(Vec<Str>, f64)>,
-        axis_pairs: Vec<(Str, Vec<Str>, f64)>,
+        named_point_orbits: Vec<NamedPointOrbitSpec>,
+        named_point_set_orbits: Vec<(Vec<Str>, f64)>,
     ) -> Self {
         let facet_orbits = axis_orbits
             .iter()
@@ -58,8 +58,8 @@ impl FactorPuzzleSpec {
             coxeter_matrix,
             facet_orbits,
             axis_orbits,
-            pseudo_axis_orbits,
-            axis_pairs,
+            named_point_orbits,
+            named_point_set_orbits,
         }
     }
 }
@@ -81,17 +81,75 @@ impl FacetOrbitSpec {
     }
 
     /// Returns the axis orbit for a facet-turning puzzle.
-    pub fn ft_axes(&self, cut_distances: Vec<Float>) -> AxisOrbitSpec {
+    pub fn ft_axes(
+        &self,
+        cut_distances: Vec<Float>,
+        adjacent_sets: Vec<(Vec<Str>, Float)>,
+    ) -> AxisOrbitSpec {
         AxisOrbitSpec {
             initial_vector: self.initial_facet_pole.clone(),
             cut_distances,
             names: self.names.clone(),
+            stabilizer_sets: adjacent_sets,
         }
     }
 }
 
+/// Specification for an orbit of named points in a [`FactorPuzzleSpec`].
+#[derive(Debug, Clone)]
+pub struct NamedPointOrbitSpec {
+    /// Vector for the first named point in the orbit.
+    pub initial_vector: Vector,
+    /// Names for the named points, with associated generator sequences.
+    pub names: Vec<(AbbrGenSeq, String)>,
+}
+
+impl NamedPointOrbitSpec {
+    /// Constructs an orbit of named points.
+    pub fn new(initial_vector: Vector, names: Vec<(AbbrGenSeq, String)>) -> Self {
+        Self {
+            initial_vector,
+            names,
+        }
+    }
+
+    /// Converts an orbit of named points into an orbit of axes.
+    pub fn to_axes(
+        &self,
+        cut_distances: Vec<Float>,
+        adjacent_sets: Vec<(Vec<Str>, Float)>,
+    ) -> AxisOrbitSpec {
+        let Self {
+            initial_vector,
+            names,
+        } = self.clone();
+
+        AxisOrbitSpec {
+            initial_vector,
+            cut_distances,
+            names,
+            stabilizer_sets: adjacent_sets,
+        }
+    }
+
+    /// Returns the number of named points in the orbit.
+    #[allow(clippy::len_without_is_empty)] // should never be empty
+    pub fn len(&self) -> usize {
+        self.names.len()
+    }
+
+    /// Returns the generator sequence, vector, and name for each named point.
+    pub fn named_point_vectors<'a>(
+        &'a self,
+        generators: &'a PerGenerator<Motor>,
+        warn_fn: impl FnOnce(String),
+    ) -> Vec<(Vector, &'a String)> {
+        named_vectors(&self.initial_vector, generators, &self.names, warn_fn)
+    }
+}
+
 /// Specification for an orbit of axes in a [`FactorPuzzleSpec`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AxisOrbitSpec {
     /// Vector for the first axis in the orbit.
     pub initial_vector: Vector,
@@ -100,6 +158,8 @@ pub struct AxisOrbitSpec {
     pub cut_distances: Vec<Float>,
     /// Names for the axes, with associated generator sequences.
     pub names: Vec<(AbbrGenSeq, String)>,
+    /// Named points that can be stabilized to produce twists on the first axis.
+    pub stabilizer_sets: Vec<(Vec<Str>, Float)>,
 }
 
 impl AxisOrbitSpec {

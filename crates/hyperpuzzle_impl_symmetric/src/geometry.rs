@@ -23,7 +23,7 @@ fn direct_product_vector_lists(a: &FlatVectorList, b: &FlatVectorList) -> FlatVe
     )
 }
 
-/// Vertices, edges, and triangles of a polytope.
+/// Vertices, edges, and faces (polygons) of a polytope.
 ///
 /// Higher-dimension elements are not stored because they are never actually
 /// displayed.
@@ -260,12 +260,15 @@ impl PolytopeGeometry {
         if self.polygon_sizes.is_empty() {
             let polygon_id = mesh.next_polygon_id()?; // dummy polygon ID
             let vertex_offset = mesh.vertex_count() as u32;
-            for point in self.verts.iter_rows().map(Point::from) {
+            for (point, sticker_shrink_vector) in std::iter::zip(
+                self.verts.iter_rows().map(Point::from),
+                self.shrink_vectors.iter_rows(),
+            ) {
                 mesh.add_puzzle_vertex(MeshVertexData {
                     position: &point,
                     u_tangent: &Vector::EMPTY,
                     v_tangent: &Vector::EMPTY,
-                    sticker_shrink_vector: &Vector::EMPTY, // TODO sticker shrink
+                    sticker_shrink_vector,
                     piece_id,
                     surface_id,
                     polygon_id,

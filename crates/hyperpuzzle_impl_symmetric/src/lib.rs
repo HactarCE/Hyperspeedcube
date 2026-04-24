@@ -14,16 +14,20 @@ use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRen
 mod builder;
 mod geometry;
 pub mod hps;
+mod named_point;
 mod names;
-mod pseudo_axis;
 mod spec;
+mod stabilizer_family;
 mod twist_system;
 
 use builder::ProductPuzzleBuilder;
 use itertools::Itertools;
-pub use pseudo_axis::{StabilizableAxisSet, StabilizerFamily};
-pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, ProductPuzzleSpec};
-pub use twist_system::{SymmetricTwistSystemEngineData, UniqueMinimalClockwiseGenerator};
+pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
+pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, NamedPointOrbitSpec, ProductPuzzleSpec};
+pub use stabilizer_family::StabilizerFamily;
+pub use twist_system::{
+    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemEngineData, UniqueMinimalClockwiseGenerator,
+};
 
 const PRODUCT_ID: &str = "product";
 
@@ -95,16 +99,18 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
         Box::new(|build_ctx| {
             // IIFE to mimic try_block
             (|| -> Result<_> {
-                let mut warn_fn = |e| eprintln!("{e}");
+                let mut warn_fn = |e| eprintln!("{e:#}");
                 let t = std::time::Instant::now();
                 let ret = ProductPuzzleBuilder::new(
                     &ProductPuzzleSpec {
                         factors: vec![
                             // ft_cube(4)?,
                             megaminx()?,
-                            shallow_line()?,
                             // shallow_polygon(20)?,
                             // shallow_polygon(7)?,
+                            shallow_line()?,
+                            // shallow_line()?,
+                            // shallow_line()?,
                             // shallow_polygon(4)?,
                             // shallow_ft_simplex(3)?,
                             // ft_120_cell_shallow()?,
@@ -121,15 +127,6 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
         }),
     )))?;
     Ok(())
-}
-
-pub fn direct_product_vectors(
-    a_ndim: u8,
-    b_ndim: u8,
-    a: impl VectorRef,
-    b: impl VectorRef,
-) -> Vector {
-    std::iter::chain(a.iter_ndim(a_ndim), b.iter_ndim(b_ndim)).collect()
 }
 
 #[derive(Debug, Clone)]
@@ -255,7 +252,7 @@ impl ProductPuzzleState {
     fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> Option<LayerRange> {
         let attitude = self.piece_attitudes[piece];
         let inverse_attitude = self.twists.group.inverse(attitude);
-        self.piece_grip_signatures[piece][self.twists.group_action.act(inverse_attitude, axis)]
+        self.piece_grip_signatures[piece][self.twists.axis_action.act(inverse_attitude, axis)]
     }
 }
 
@@ -286,7 +283,7 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
         unimplemented!();
     }
 
-    let names = vec![
+    let facet_names = vec![
         (5, "A", 5),
         (4, "O", 4),
         (3, "F", 3),
@@ -316,33 +313,34 @@ fn ft_cube(ndim: u8) -> Result<FactorPuzzleSpec> {
     let corner_pole_distance = (1.0 + 2.0 * GIZMO_EDGE_FACTOR) / 3.0_f64.sqrt();
     let s = hypuz_notation::Str::from_static_str;
 
-    let mut pseudo_axis_orbits = vec![];
+    let mut named_point_set_orbits = vec![];
     if (2..=4).contains(&ndim) {
-        pseudo_axis_orbits.push((vec![s("R"), s("U")], edge_pole_distance));
+        named_point_set_orbits.push((vec![s("R"), s("U")], edge_pole_distance));
     }
     if (3..=4).contains(&ndim) {
-        pseudo_axis_orbits.push((vec![s("R"), s("U"), s("F")], edge_pole_distance));
+        named_point_set_orbits.push((vec![s("R"), s("U"), s("F")], edge_pole_distance));
     }
+
+    let facet_points = NamedPointOrbitSpec::new(Vector::unit(ndim - 1), facet_names);
 
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("ft_cube", vec![(ndim as i64).into()]).unwrap(),
         CatalogId::new("cube", vec![(ndim as i64).into()]).unwrap(),
         CoxeterMatrix::B(ndim)?,
-        vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(ndim - 1),
-            cut_distances: vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
-            names,
-        }],
-        pseudo_axis_orbits,
-        if ndim == 4 {
-            vec![
-                (s("I"), vec![s("R")], 1.0),
-                (s("I"), vec![s("R"), s("U")], edge_pole_distance),
-                (s("I"), vec![s("R"), s("U"), s("F")], corner_pole_distance),
-            ]
-        } else {
-            vec![]
-        },
+        vec![facet_points.to_axes(
+            vec![INF, 1.0 / 3.0, -1.0 / 3.0, -INF],
+            if ndim == 4 {
+                vec![
+                    (vec![s("R")], 1.0),
+                    (vec![s("R"), s("U")], edge_pole_distance),
+                    (vec![s("R"), s("U"), s("F")], corner_pole_distance),
+                ]
+            } else {
+                vec![]
+            },
+        )],
+        vec![facet_points],
+        named_point_set_orbits,
     ))
 }
 
@@ -369,20 +367,21 @@ fn shallow_polygon(n: u16) -> Result<FactorPuzzleSpec> {
     const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
     let s = hypuz_notation::Str::from_static_str;
 
+    let edge_points = NamedPointOrbitSpec::new(Vector::unit(1) / half_edge_length, names);
+
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("shallow_polygon", vec![(n as i64).into()]).unwrap(),
         CatalogId::new("polygon", vec![(n as i64).into()]).unwrap(),
         CoxeterMatrix::I(n)?,
-        vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(1) / half_edge_length,
-            cut_distances: vec![INF, cut_depth / half_edge_length],
-            names,
-        }],
+        vec![edge_points.to_axes(
+            vec![INF, cut_depth / half_edge_length],
+            vec![(vec![s("B")], 1.0)],
+        )],
+        vec![edge_points],
         vec![(
             vec![s("A"), s("B")],
             hypermath::util::lerp(circumradius, 1.0, FACET_GIZMO_EDGE_FACTOR) / half_edge_length,
         )],
-        vec![(s("A"), vec![s("B")], 1.0)],
     ))
 }
 
@@ -402,16 +401,14 @@ fn line(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
 
     let layer_count = cut_distances.len().saturating_sub(1);
 
+    let vertex_points = NamedPointOrbitSpec::new(Vector::unit(0), names);
+
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("line", vec![(layer_count as i64).into()]).unwrap(),
         CatalogId::new("line", vec![]).unwrap(),
         CoxeterMatrix::A(1)?,
-        vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(0),
-            cut_distances,
-            names,
-        }],
-        vec![],
+        vec![vertex_points.to_axes(cut_distances, vec![])],
+        vec![vertex_points],
         vec![],
     ))
 }
@@ -443,18 +440,35 @@ fn megaminx() -> Result<FactorPuzzleSpec> {
     const FACET_GIZMO_EDGE_FACTOR: f64 = 2.0 / 3.0;
     let s = hypuz_notation::Str::from_static_str;
 
+    let facet_points = NamedPointOrbitSpec::new(Vector::unit(2), names);
+
+    // let mul = (40.0 / (25.0 + 11.0 * 5.0_f64.sqrt())).sqrt();
+    let inradius = ((25.0 + 11.0 * 5.0_f64.sqrt()) / 40.0).sqrt();
+    let edge_radius = (3.0 + 5.0_f64.sqrt()) / 4.0;
+    let circumradius = (3.0_f64.sqrt() + 15.0_f64.sqrt()) / 4.0;
+
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("ft_dodecahedron", vec![(1_i64).into()]).unwrap(),
         CatalogId::new("dodecahedron", vec![]).unwrap(),
         CoxeterMatrix::H3(),
-        vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(2),
-            cut_distances: vec![INF, cut_distance],
-            names,
-        }],
-        // vec![(vec![s("F"), s("U")], 1.0)],
-        vec![],
-        vec![(s("F"), vec![s("U")], std::f64::consts::GOLDEN_RATIO.recip())], // TODO: prove this number
+        vec![facet_points.to_axes(
+            vec![INF, cut_distance],
+            vec![
+                (vec![s("U")], std::f64::consts::GOLDEN_RATIO.recip()), // TODO: prove this number
+                (vec![s("U"), s("R")], 0.65),                           // TODO: tweak number
+            ],
+        )],
+        vec![facet_points],
+        vec![
+            (
+                vec![s("F"), s("U")],
+                (edge_radius / inradius) * 0.94, // TODO: what is maximum value?
+            ),
+            (
+                vec![s("F"), s("U"), s("R")],
+                (circumradius / inradius) * 0.92, // TODO: what is maximum value?
+            ),
+        ],
     ))
 }
 
@@ -484,26 +498,27 @@ fn ft_120_cell(cut_distances: Vec<Float>) -> Result<FactorPuzzleSpec> {
     let gizmo_facet_size = (std::f64::consts::PI / 10.0).tan();
     let s = hypuz_notation::Str::from_static_str;
 
+    let facet_points = NamedPointOrbitSpec::new(axis_vector, names);
+
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("ft_120cell", vec![(layer_count as i64).into()]).unwrap(),
         CatalogId::new("120cell", vec![]).unwrap(),
         coxeter_matrix,
-        vec![AxisOrbitSpec {
-            initial_vector: axis_vector,
+        vec![facet_points.to_axes(
             cut_distances,
-            names,
-        }],
+            vec![
+                // TODO: this is definitely wrong lmao
+                (vec![s("B")], gizmo_facet_size),
+                // (vec![s("R"), s("U")], edge_pole_distance),
+                // (vec![s("R"), s("U"), s("F")], corner_pole_distance),
+            ],
+        )],
+        vec![facet_points],
         // vec![
         //     (vec![s("R"), s("U")], edge_pole_distance),
         //     (vec![s("R"), s("U"), s("F")], edge_pole_distance),
         // ],
         vec![],
-        vec![
-            // TODO: this is definitely wrong lmao
-            (s("A"), vec![s("B")], gizmo_facet_size),
-            //     (s("I"), vec![s("R"), s("U")], edge_pole_distance),
-            //     (s("I"), vec![s("R"), s("U"), s("F")], corner_pole_distance),
-        ],
     ))
 }
 
@@ -518,17 +533,15 @@ fn shallow_ft_simplex(ndim: u8) -> Result<FactorPuzzleSpec> {
     let name_strings = (0..=ndim as u32).map(hypuz_notation::family::SequentialUppercaseName);
     let names = gen_seqs.zip(name_strings.map(|n| n.to_string())).collect();
 
+    let facet_points = NamedPointOrbitSpec::new(Vector::unit(ndim - 1), names);
+
     Ok(FactorPuzzleSpec::new_ft(
         CatalogId::new("ft_simplex", vec![(ndim as i64).into()]).unwrap(),
         CatalogId::new("simplex", vec![(ndim as i64).into()]).unwrap(),
         CoxeterMatrix::A(ndim)?,
         // TODO: vertex axes
-        vec![AxisOrbitSpec {
-            initial_vector: Vector::unit(ndim - 1),
-            cut_distances: vec![INF, 0.0, -INF],
-            names,
-        }],
-        vec![], // TODO
+        vec![facet_points.to_axes(vec![INF, 0.0, -INF], vec![])], // TODO
+        vec![facet_points],
         vec![], // TODO
     ))
 }

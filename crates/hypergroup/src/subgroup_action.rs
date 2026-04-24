@@ -266,7 +266,6 @@ mod tests {
         fixed_point_in_product: TestPoint,
     ) {
         for e in product_action.group().elements() {
-            dbg!(e, product_action.act(e, fixed_point_in_product));
             if product_action.act(e, fixed_point_in_product) == fixed_point_in_product {
                 let e_in_subgroup = product_subgroup_action.overgroup_to_subgroup(e).unwrap();
                 assert_eq!(

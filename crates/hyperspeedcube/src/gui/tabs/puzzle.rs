@@ -579,7 +579,7 @@ impl PuzzleWidget {
                 {
                     crate::gui::components::show_ariadne_error_in_egui(ui, &e.ansi_string);
                 } else {
-                    ui.monospace(format!("{error:?}"));
+                    crate::gui::components::show_ariadne_error_in_egui(ui, &format!("{error:?}"));
                 }
             });
         }
