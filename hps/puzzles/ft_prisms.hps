@@ -3,7 +3,7 @@ use * from euclid
 export FACET_GIZMO_EDGE_FACTOR = 2/3
 export RIDGE_GIZMO_FACTOR = 1/2
 
-param_polygon_size = @shapes/i/polygon.param_size
+param_polygon_size = @shapes/2d/polygon.param_size
 fn param_polygon_width(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 fn param_line_height(name) { #{ name = name, type = Int, default = 3, min = 1, max = 10 } }
 
@@ -12,31 +12,31 @@ fn n_by_m_if_not_3(width: Nat, height: Nat) -> Str {
 }
 
 export fn ft_polygonal_prism_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
-    "FT ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type}${n_by_m_if_not_3(width, height)})"
+    "FT ${@shapes/3d/polygonal_prism.name(n)} (${cut_type}${n_by_m_if_not_3(width, height)})"
 }
 export fn ft_polygonal_prism_long_name(n: Nat, width: Nat, height: Nat, cut_type: Str) -> Str {
-    "Facet-Turning ${@shapes/prisms/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
+    "Facet-Turning ${@shapes/3d/polygonal_prism.name(n)} (${cut_type} ${width}x${height})"
 }
 export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
-    "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${cut_type}${n_by_m_if_not_3(n_layers, m_layers)})"
+    "FT ${@shapes/4d/polygonal_duoprism.name(n, m)} (${cut_type}${n_by_m_if_not_3(n_layers, m_layers)})"
 }
 export fn ft_duoprism_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
     if n_cut_type == m_cut_type {
         ft_duoprism_name(n, m, n_layers, m_layers, n_cut_type)
     } else if n_layers == 3 and m_layers == 3 {
-        "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} x ${m_cut_type})"
+        "FT ${@shapes/4d/polygonal_duoprism.name(n, m)} (${n_cut_type} x ${m_cut_type})"
     } else {
-        "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
+        "FT ${@shapes/4d/polygonal_duoprism.name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
     }
 }
 export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, cut_type: Str) -> Str {
-    "Facet-Turning ${@shapes/prisms/polygonal_duoprism.long_name(n, m)} (${cut_type} ${n_layers}x${m_layers})"
+    "Facet-Turning ${@shapes/4d/polygonal_duoprism.long_name(n, m)} (${cut_type} ${n_layers}x${m_layers})"
 }
 export fn ft_duoprism_long_name(n: Nat, m: Nat, n_layers: Nat, m_layers: Nat, n_cut_type: Str?, m_cut_type: Str?) -> Str {
     if n_cut_type == m_cut_type {
         ft_duoprism_long_name(n, m, n_layers, m_layers, n_cut_type)
     } else {
-        "Facet-Turning ${@shapes/prisms/polygonal_duoprism.long_name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
+        "Facet-Turning ${@shapes/4d/polygonal_duoprism.long_name(n, m)} (${n_cut_type} ${n_layers} x ${m_cut_type} ${m_layers})"
     }
 }
 
@@ -60,15 +60,15 @@ add_puzzle_generator(
             twists = "ft_polygonal_prismatic(${n})",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
-                    polygon = @shapes/i/polygon.new(n),
-                    line = @shapes/line.new(),
+                    polygon = @shapes/2d/polygon.new(n),
+                    line = @shapes/1d/line.new(),
                 })
                 h = polygon.edge_length / 2
 
                 with #sym = sym {
                     // Carve shape
                     carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
-                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
+                    carve(plane(line.vertex * h), "b${line.vertex_names}")
 
                     // Slice layers
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
@@ -125,15 +125,15 @@ add_puzzle_generator(
             twists = "ft_polygonal_prismatic(3)",
             build = fn() {
                 use sym, polygon, line from @shapes/product(#{
-                    polygon = @shapes/i/polygon.new(3),
-                    line = @shapes/line.new(),
+                    polygon = @shapes/2d/polygon.new(3),
+                    line = @shapes/1d/line.new(),
                 })
                 h = polygon.edge_length / 2
 
                 with #sym = sym {
                     // Carve shape
                     carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
-                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
+                    carve(plane(line.vertex * h), "b${line.vertex_names}")
 
                     // Slice layers
                     add_layers(#twists.base_axis, @util/layers.inclusive(h, -h, height))
@@ -176,9 +176,9 @@ add_twist_system_generator(
     ndim = 3,
     gen = fn(n) {
         return #{
-            name = "FT ${@shapes/prisms/polygonal_prism.name(n)}",
+            name = "FT ${@shapes/3d/polygonal_prism.name(n)}",
             build = fn() {
-                shape = @shapes/prisms/polygonal_prism.new(n)
+                shape = @shapes/3d/polygonal_prism.new(n)
 
                 // Add axes and twists
                 with #sym = shape.sym {
@@ -265,7 +265,7 @@ add_puzzle_generator(
     id = "ft_polygonal_duoprism",
     version = "2.0.0",
     name = "FT Polygonal Duoprism (Shallow)",
-    params = @shapes/prisms/polygonal_duoprism.params ++ [
+    params = @shapes/4d/polygonal_duoprism.params ++ [
         param_polygon_width("Layers A"),
         param_polygon_width("Layers B"),
     ],
@@ -287,7 +287,7 @@ add_puzzle_generator(
             colors = "polygonal_duoprism(${n},${m})",
             twists = "ft_polygonal_duoprism(${n},${m})",
             build = fn() {
-                shape = @shapes/prisms/polygonal_duoprism.new(n, m)
+                shape = @shapes/4d/polygonal_duoprism.new(n, m)
                 a_depths = shape.a.shallow_cut_depths(n_layers)
                 b_depths = shape.b.shallow_cut_depths(m_layers)
                 build_ft_polygonal_duoprism(shape, a_depths, b_depths)
@@ -345,7 +345,7 @@ add_puzzle_generator(
     version = "2.0.0",
     name = "FT Polygonal Duoprism (Shallow, Triminx)",
     params = [
-        @shapes/prisms/polygonal_duoprism.params[0],
+        @shapes/4d/polygonal_duoprism.params[0],
         param_polygon_width("Layers A"),
         param_polygon_width("Layers (3)"),
     ],
@@ -358,7 +358,7 @@ add_puzzle_generator(
             colors = "polygonal_duoprism(${n},3)",
             twists = "ft_polygonal_duoprism(${n},3)",
             build = fn() {
-                shape = @shapes/prisms/polygonal_duoprism.new(n, 3)
+                shape = @shapes/4d/polygonal_duoprism.new(n, 3)
                 a_depths = shape.a.shallow_cut_depths(n_layers)
                 b_depths = shape.b.full_cut_depths(m_layers)
                 build_ft_polygonal_duoprism(shape, a_depths, b_depths)
@@ -416,7 +416,7 @@ add_puzzle_generator(
             colors = "polygonal_duoprism(3,3)",
             twists = "ft_polygonal_duoprism(3,3)",
             build = fn() {
-                shape = @shapes/prisms/polygonal_duoprism.new(3, 3)
+                shape = @shapes/4d/polygonal_duoprism.new(3, 3)
                 a_depths = shape.a.full_cut_depths(n_layers)
                 b_depths = shape.b.full_cut_depths(m_layers)
                 build_ft_polygonal_duoprism(shape, a_depths, b_depths)
@@ -458,9 +458,9 @@ add_twist_system_generator(
     ndim = 4,
     gen = fn(n, m) {
         return #{
-            name = "FT ${@shapes/prisms/polygonal_duoprism.name(n, m)}",
+            name = "FT ${@shapes/4d/polygonal_duoprism.name(n, m)}",
             build = fn() {
-                shape = @shapes/prisms/polygonal_duoprism.new(n, m)
+                shape = @shapes/4d/polygonal_duoprism.new(n, m)
 
                 // Gizmo pole distances
                 gizmo_base_a = shape.a.edge_length / 2

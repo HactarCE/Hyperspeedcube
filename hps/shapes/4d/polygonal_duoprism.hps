@@ -9,8 +9,8 @@ export ndim = 4
 export shape_tag = "4d/duoprism"
 
 export params = [
-    @shapes/i/polygon.param_size("Polygon A"),
-    @shapes/i/polygon.param_size("Polygon B"),
+    @shapes/2d/polygon.param_size("Polygon A"),
+    @shapes/2d/polygon.param_size("Polygon B"),
 ]
 
 export fn new(n: Nat, m: Nat) -> Map { new(n, m, ident()) }
@@ -24,8 +24,8 @@ export fn new(n: Nat, m: Nat, t: Transform) -> Map {
     export ndim, shape_tag
 
     product = @shapes/product(#{
-        a = @shapes/i/polygon.new(n),
-        b = @shapes/i/polygon.new(m),
+        a = @shapes/2d/polygon.new(n),
+        b = @shapes/2d/polygon.new(m),
     }).transform_by(t)
     use sym, a, b from product
     export sym, a, b

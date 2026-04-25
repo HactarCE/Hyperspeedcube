@@ -8,7 +8,7 @@ add_puzzle(
     ndim = 3,
     colors = "vt_octahedron",
     build = fn() {
-        octa = @shapes/bc/octahedron.new()
+        octa = @shapes/3d/octahedron.new()
         with #sym = octa.sym {
             hex_face_pole = octa.facet_pole
             square_face_pole = octa.vertex_pole * 2/3

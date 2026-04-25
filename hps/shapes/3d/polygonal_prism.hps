@@ -1,10 +1,10 @@
 use * from euclid
 
 export fn name(n: Nat) -> Str {
-    "${@shapes/i/polygon.adjective(n)} Prism"
+    "${@shapes/2d/polygon.adjective(n)} Prism"
 }
 export fn aliases(n: Nat) -> List[Str] {
-    @shapes/i/polygon.aliases(n).map(fn(s) { "${s} Prism" })
+    @shapes/2d/polygon.aliases(n).map(fn(s) { "${s} Prism" })
 }
 export fn adjective(n: Nat) -> Str { name(n) }
 export fn facet_colors(n: Nat) -> Str { "polygonal_prism(${n})" }
@@ -22,16 +22,16 @@ export fn new(n: Nat, t: Transform) -> Map {
     export ndim, shape_tag
 
     product = @shapes/product(#{
-        polygon = @shapes/i/polygon.new(n),
-        line = @shapes/line.new(),
+        polygon = @shapes/2d/polygon.new(n),
+        line = @shapes/1d/line.new(),
     }).transform_by(t)
     use sym, polygon, line from product
     export sym, polygon, line
 
     export h = product.polygon.edge_length / 2
 
-    export base_pole = line.endpoint * h
-    export base_names = "b${line.endpoint_names}"
+    export base_pole = line.vertex * h
+    export base_names = "b${line.vertex_names}"
 
     export side_pole = polygon.edge_pole
     export side_names = "a${polygon.edge_names}"
@@ -54,7 +54,7 @@ export fn facet_colors_list(n: Nat) -> List[Map] {
 add_color_system_generator(
     id = "polygonal_prism",
     name = "Polygonal Prism",
-    params = [@shapes/i/polygon.param_size("Polygon size")],
+    params = [@shapes/2d/polygon.param_size("Polygon size")],
     gen = fn(n) { #{name = name(n), colors = facet_colors_list(n)} },
 )
 
@@ -62,7 +62,7 @@ add_puzzle_generator(
     id = "polygonal_prism",
     version = "2.0.0",
     name = "Polygonal Prism",
-    params = [@shapes/i/polygon.param_size("Polygon size")],
+    params = [@shapes/2d/polygon.param_size("Polygon size")],
     engine = "euclid",
     gen = fn(n) {
         return #{
@@ -73,7 +73,7 @@ add_puzzle_generator(
                 use sym, polygon, line, h from new(n)
                 with #sym = sym {
                     carve(plane(polygon.edge_pole), "a${polygon.edge_names}")
-                    carve(plane(line.endpoint * h), "b${line.endpoint_names}")
+                    carve(plane(line.vertex * h), "b${line.vertex_names}")
                 }
             },
         }

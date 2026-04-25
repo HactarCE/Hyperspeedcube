@@ -6,7 +6,7 @@ add_menu_entry(
     id = "line",
     params = [layers_param],
     build = fn(layers) {
-        export shape = @shapes/a/line.new()
+        export shape = @shapes/1d/line.new()
         export colors = "line"
         carve(shape.vertex_pole, shape.vertex_names)
         add_axis(shape.vertex_pole, shape.vertex_names, @util/layers.inclusive(layers))

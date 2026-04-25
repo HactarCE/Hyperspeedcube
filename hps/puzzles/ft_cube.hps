@@ -44,7 +44,7 @@ add_puzzle_generator(
             name = "${n}x${n}x${n}",
             aliases = ["${n}^3"],
             build = fn() {
-                cube = @shapes/bc/cube.new()
+                cube = @shapes/3d/cube.new()
                 with #sym = cube.sym {
                     // Carve cube
                     carve(plane(cube.facet_pole), cube.facet_names)
@@ -126,7 +126,7 @@ add_puzzle_generator(
             name = "Super Real ${n}x${n}x${n}",
             aliases = ["Super Real ${n}^3"],
             build = fn() {
-                cube = @shapes/bc/cube.new()
+                cube = @shapes/3d/cube.new()
                 with #sym = cube.sym {
                     // Carve shape
                     carve(plane(cube.facet_pole), cube.facet_names)
@@ -169,7 +169,7 @@ add_twist_system(
     engine = "euclid",
     ndim = 3,
     build = fn() {
-        cube = @shapes/bc/cube.new()
+        cube = @shapes/3d/cube.new()
 
         // Add axes and twists
         with #sym = cube.sym {
@@ -235,7 +235,7 @@ add_puzzle_generator(
             name = "${n}^4",
             aliases = ["${n}x${n}x${n}x${n}"],
             build = fn() {
-                hypercube = @shapes/bc/hypercube.new()
+                hypercube = @shapes/4d/hypercube.new()
 
                 with #sym = hypercube.sym {
                     // Carve shape
@@ -289,7 +289,7 @@ add_twist_system(
     engine = "euclid",
     ndim = 4,
     build = fn() {
-        hypercube = @shapes/bc/hypercube.new()
+        hypercube = @shapes/4d/hypercube.new()
 
         // Add axes and twists
         with #sym = hypercube.sym {

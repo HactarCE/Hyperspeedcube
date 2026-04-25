@@ -30,7 +30,7 @@ fn build_vt_4_simplex(vertex_internal_cut_depths) {
     vertex_cuts = [∞, *vertex_internal_cut_depths, -∞]
     facet_cuts = @util/layers.opposite_depths(vertex_cuts)
 
-    simplex = @shapes/a/4_simplex.new()
+    simplex = @shapes/4d/4_simplex.new()
     with #sym = simplex.sym {
         // Carve simplex
         carve(plane(simplex.facet_pole), simplex.facet_names)
@@ -127,7 +127,7 @@ add_twist_system(
     engine = "euclid",
     ndim = 4,
     build = fn() {
-        simplex = @shapes/a/4_simplex.new()
+        simplex = @shapes/4d/4_simplex.new()
 
         // Add axes and twists
         with #sym = simplex.sym {
