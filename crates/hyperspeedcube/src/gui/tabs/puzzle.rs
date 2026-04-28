@@ -575,12 +575,24 @@ impl PuzzleWidget {
 
         if let PuzzleWidgetContents::Err { error, .. } = &self.contents {
             ui.scope_builder(egui::UiBuilder::new().max_rect(r.rect), |ui| {
-                if let Some(e) = error.downcast_ref::<hyperpuzzlescript::FormattedFullDiagnostic>()
-                {
-                    crate::gui::components::show_ariadne_error_in_egui(ui, &e.ansi_string);
-                } else {
-                    crate::gui::components::show_ariadne_error_in_egui(ui, &format!("{error:?}"));
-                }
+                egui::Frame::new()
+                    .fill(ui.visuals().extreme_bg_color)
+                    .stroke(ui.visuals().window_stroke)
+                    .outer_margin(8.0)
+                    .inner_margin(8.0)
+                    .corner_radius(4.0)
+                    .show(ui, |ui| {
+                        egui::CollapsingHeader::new("Error")
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                egui::ScrollArea::both().show(ui, |ui| {
+                                    crate::gui::components::show_ariadne_error_in_egui(
+                                        ui,
+                                        &format!("{error:?}"),
+                                    );
+                                });
+                            });
+                    });
             });
         }
     }

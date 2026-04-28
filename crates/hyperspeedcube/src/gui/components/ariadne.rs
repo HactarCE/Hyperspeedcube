@@ -31,27 +31,64 @@ pub fn show_ariadne_error_in_egui(ui: &mut egui::Ui, ansi_str: &str) -> egui::Re
             .find("m")
             .map(|i| i + 1)
             .unwrap_or(remaining.len());
-        let escape_code = &remaining[2..escape_end - 1];
-        match escape_code {
+        let escape_code_str = &remaining[2..escape_end - 1];
+        match escape_code_str {
             "0" => format = default_format.clone(),
-            "31" => format.color = ui.visuals().error_fg_color,
-            "33" => format.color = ui.visuals().warn_fg_color,
-            _ => {
-                if let Some(color_index_str) = escape_code.strip_prefix("38;5;") {
-                    match color_index_str.parse() {
-                        Ok(color_index) => format.color = themed(term_color_256(color_index)),
-                        Err(e) => log::warn!("Unknown color code {e:?}"),
-                    }
-                } else {
-                    log::warn!("Unknown escape code {escape_code:?}");
+
+            _ if let Ok(i) = escape_code_str.parse::<u8>()
+                && (30..=37).contains(&i) =>
+            {
+                format.color = term_color_16(i - 30);
+            }
+
+            _ if let Ok(i) = escape_code_str.parse::<u8>()
+                && (90..=97).contains(&i) =>
+            {
+                format.color = term_color_16(i - 90 + 8);
+            }
+
+            _ if let Some(color_index_str) = escape_code_str.strip_prefix("38;5;") => {
+                match color_index_str.parse::<u8>() {
+                    Ok(color_index) => format.color = themed(term_color_256(color_index)),
+                    Err(e) => log::warn!("Unknown color code {e:?}"),
                 }
             }
+
+            _ => log::warn!("Unknown escape code {escape_code_str:?}"),
         }
 
         remaining = &remaining[escape_end..];
     }
 
-    ui.label(text_job)
+    ui.add(egui::Label::new(text_job).wrap_mode(egui::TextWrapMode::Extend))
+}
+
+fn term_color_16(i: u8) -> egui::Color32 {
+    // Base16 3024
+    let color = [
+        egui::hex_color!("#282a2e"),
+        egui::hex_color!("#a54242"),
+        egui::hex_color!("#8c9440"),
+        egui::hex_color!("#de935f"),
+        egui::hex_color!("#5f819d"),
+        egui::hex_color!("#85678f"),
+        egui::hex_color!("#5e8d87"),
+        egui::hex_color!("#707880"),
+        egui::hex_color!("#373b41"),
+        egui::hex_color!("#cc6666"),
+        egui::hex_color!("#b5bd68"),
+        egui::hex_color!("#f0c674"),
+        egui::hex_color!("#81a2be"),
+        egui::hex_color!("#b294bb"),
+        egui::hex_color!("#8abeb7"),
+        egui::hex_color!("#c5c8c6"),
+    ][i as usize % 16];
+
+    if i < 8 {
+        color.gamma_multiply_u8(240) // very slightly transparent
+    } else {
+        color
+    }
 }
 
 fn term_color_256(i: u8) -> egui::Color32 {
