@@ -10,7 +10,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::{
-    NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
+    NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
     components::{NdEuclidAxisVectors, NdEuclidTwistsList},
 };
 
@@ -97,26 +97,6 @@ impl VantageGroupBuilder {
 
             axis_vectors,
             twists_list,
-        })
-    }
-
-    /// "Unbuilds" a vantage group.
-    pub fn unbuild(vantage_group: &BoxDynVantageGroup) -> Result<Self> {
-        let NdEuclidVantageGroup {
-            symmetry,
-            reference_vectors,
-            reference_vector_names,
-            preferred_reference_vectors,
-            ..
-        } = vantage_group
-            .downcast_ref()
-            .ok_or_eyre("expected NdEuclid vantage group")?;
-
-        Ok(Self {
-            symmetry: symmetry.clone(),
-            reference_vectors: reference_vectors.clone(),
-            reference_vector_names: reference_vector_names.clone().into(),
-            preferred_reference_vectors: preferred_reference_vectors.clone(),
         })
     }
 }

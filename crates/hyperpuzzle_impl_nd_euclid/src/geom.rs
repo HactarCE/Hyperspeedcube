@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hypermath::{Float, Hyperplane, Point, VectorRef, pga};
 use hyperpuzzle_core::notation::{InvertError, Transform};
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{Component, prelude::*};
 
 use crate::PuzzleLayerDepths;
 use crate::components::NdEuclidAxisVectors;
@@ -51,6 +51,8 @@ pub struct NdEuclidPuzzleGeometry {
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<GizmoTwist>,
 }
+
+impl Component<Puzzle> for NdEuclidPuzzleGeometry {}
 
 impl NdEuclidPuzzleGeometry {
     /// Returns an empty 3D puzzle geometry.

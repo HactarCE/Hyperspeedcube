@@ -1,17 +1,5 @@
 use std::any::Any;
 
-/// Marker trait for types that may be stored in [`crate::Puzzle::ui_data`].
-///
-/// Because [`Any`] is defined with a `'static` bound, implementors of this
-/// trait cannot borrow from the puzzle state.
-pub trait PuzzleUiData: Any + Send + Sync {}
-box_dyn_wrapper_struct! {
-    /// Wrapper around `Box<dyn PuzzleTypeGpuData>` that can be downcast to a
-    /// concrete GPU data type.
-    pub struct BoxDynPuzzleUiData(Box<dyn PuzzleUiData>);
-}
-impl PuzzleUiData for () {}
-
 /// Marker trait for types that may be returned from
 /// [`crate::PuzzleState::render_data()`].
 ///

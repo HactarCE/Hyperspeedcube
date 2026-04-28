@@ -11,7 +11,7 @@ use itertools::Itertools;
 use pga::Blade;
 
 use crate::{
-    GizmoTwist, NdEuclidTwistSystemEngineData,
+    GizmoTwist,
     components::{NdEuclidAxisVectors, NdEuclidTwistsList},
 };
 

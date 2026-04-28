@@ -9,9 +9,9 @@ use hypergroup::{
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzle_core::Component;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::{Component, TwistSystemEngineData};
 use hypuz_notation::{Str, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
@@ -31,7 +31,7 @@ impl AxisConstraintSolver {}
 ///
 /// This type is relatively cheap to clone.
 #[derive(Debug, Clone)]
-pub struct SymmetricTwistSystemEngineData {
+pub struct SymmetricTwistSystemComponent {
     /// Axis system.
     pub axes: Arc<AxisSystem>,
     /// Physical location of each axis, for constructing simple direct rotations
@@ -68,11 +68,9 @@ pub struct SymmetricTwistSystemEngineData {
     pub named_point_vectors: Arc<PerNamedPoint<Vector>>,
 }
 
-impl Component<TwistSystem> for SymmetricTwistSystemEngineData {}
+impl Component<TwistSystem> for SymmetricTwistSystemComponent {}
 
-impl TwistSystemEngineData for SymmetricTwistSystemEngineData {}
-
-impl SymmetricTwistSystemEngineData {
+impl SymmetricTwistSystemComponent {
     /// Returns the number of dimensions of the space containing the puzzle.
     pub fn ndim(&self) -> u8 {
         self.group.ndim()

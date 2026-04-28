@@ -8,7 +8,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::{
-    NdEuclidTwistSystemEngineData, TwistKey,
+    TwistKey,
     components::{NdEuclidAxisVectors, NdEuclidTwistsList},
 };
 

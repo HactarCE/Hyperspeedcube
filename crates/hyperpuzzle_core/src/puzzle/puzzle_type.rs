@@ -7,7 +7,7 @@ use rand::Rng;
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, CatalogMetadata, ComponentList, Move};
+use crate::{BoxDynPuzzleState, CatalogMetadata, ComponentList, Move};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -45,9 +45,6 @@ pub struct Puzzle {
     /// Twist system.
     pub twists: Arc<TwistSystem>,
 
-    /// Data for rendering and interacting with the puzzle.
-    pub ui_data: BoxDynPuzzleUiData,
-
     /// Constructor for a solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Self>) -> BoxDynPuzzleState>,
 
@@ -55,6 +52,9 @@ pub struct Puzzle {
     /// depend only on the state of the RNG. It must return `None` if and only
     /// if the puzzle has no twists.
     pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<Move>>,
+
+    /// Extra components.
+    pub components: ComponentList<Self>,
 }
 
 impl fmt::Debug for Puzzle {

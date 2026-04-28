@@ -8,8 +8,8 @@ use eyre::{OptionExt, Result, eyre};
 use hypergroup::{GroupElementId, GroupError, SubgroupAction, SubgroupConstraintSolver};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
-use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleGeometry, NdEuclidPuzzleUiData};
+use hyperpuzzle_core::{ComponentList, prelude::*};
+use hyperpuzzle_impl_nd_euclid::NdEuclidPuzzleGeometry;
 
 mod axes;
 mod from_space;
@@ -25,7 +25,7 @@ use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceD
 
 use crate::{
     FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, StabilizerFamily,
-    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemEngineData,
+    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent,
 };
 
 #[derive(Debug)]
@@ -178,7 +178,7 @@ impl ProductPuzzleBuilder {
             .axes
             .build_axis_orbits(&axes.names, &named_point_names, warn_fn)?;
 
-        let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
+        let symmetric_twist_system_component = Arc::new(SymmetricTwistSystemComponent {
             axes,
             axis_vectors: self.axes.axis_vectors.clone(),
             group: self.axes.group.clone(),
@@ -193,7 +193,7 @@ impl ProductPuzzleBuilder {
         });
         twists
             .components
-            .insert(Arc::clone(&twist_system_engine_data));
+            .insert(Arc::clone(&symmetric_twist_system_component));
         let twists = Arc::new(twists);
 
         let axis_layers: PerAxis<AxisLayersInfo> = self.axes.build_axis_layers();
@@ -205,7 +205,8 @@ impl ProductPuzzleBuilder {
             .axis_orbits
             .iter()
             .filter(|orbit| {
-                orbit.max_layer > 0 && twist_system_engine_data.axis_has_twists(orbit.first())
+                orbit.max_layer > 0
+                    && symmetric_twist_system_component.axis_has_twists(orbit.first())
             })
             .flat_map(|orbit| orbit.axes())
             .collect();
@@ -218,14 +219,14 @@ impl ProductPuzzleBuilder {
                 &mut mesh,
                 &mut gizmo_twists,
                 &self.axes,
-                &twist_system_engine_data,
+                &symmetric_twist_system_component,
             )?;
         } else if ndim == 4 {
             gizmos::build_4d_gizmo(
                 &mut mesh,
                 &mut gizmo_twists,
                 &self.axes,
-                &twist_system_engine_data,
+                &symmetric_twist_system_component,
                 warn_fn,
             )?;
         }
@@ -251,18 +252,19 @@ impl ProductPuzzleBuilder {
 
             gizmo_twists,
         });
-        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
 
         let random_move = Box::new({
-            let twist_system_engine_data = Arc::clone(&twist_system_engine_data);
+            let symmetric_twist_system_component = Arc::clone(&symmetric_twist_system_component);
             let axis_layers = Arc::new(axis_layers.clone());
             move |rng: &mut dyn rand::Rng| {
                 let axis = *axes_with_twists.choose(rng)?;
                 // TODO: avoid total layer mask when that covers all pieces
                 let layers =
                     hyperpuzzle_core::util::random_layer_mask(rng, axis_layers[axis].max_layer)?;
-                let family = &twist_system_engine_data.axes.names[axis];
-                if let Some(unit_twist_order) = twist_system_engine_data.unit_twist_order(axis) {
+                let family = &symmetric_twist_system_component.axes.names[axis];
+                if let Some(unit_twist_order) =
+                    symmetric_twist_system_component.unit_twist_order(axis)
+                {
                     let order = unit_twist_order.get();
                     let mut multiplier = rng.random_range(1..order); // guaranteed nonempty
                     if multiplier * 2 > order {
@@ -270,13 +272,17 @@ impl ProductPuzzleBuilder {
                     }
                     Some(Move::new(layers, family, None, multiplier))
                 } else {
-                    let constraints =
-                        Some(twist_system_engine_data.random_constraints_on_axis(rng, axis)?)
-                            .filter(|c| !c.constraints.is_empty());
+                    let constraints = Some(
+                        symmetric_twist_system_component.random_constraints_on_axis(rng, axis)?,
+                    )
+                    .filter(|c| !c.constraints.is_empty());
                     Some(Move::new(layers, family, constraints, 1))
                 }
             }
         });
+
+        let mut components = ComponentList::new();
+        components.insert(geom);
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -305,12 +311,11 @@ impl ProductPuzzleBuilder {
             full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
             axis_layers,
             twists,
-            ui_data,
             new: Box::new({
                 move |ty| {
                     ProductPuzzleState {
                         ty,
-                        twists: Arc::clone(&twist_system_engine_data),
+                        twists: Arc::clone(&symmetric_twist_system_component),
                         piece_grip_signatures: Arc::clone(&grip_signatures),
                         piece_attitudes: PerPiece::new_with_len(piece_count),
                     }
@@ -318,6 +323,7 @@ impl ProductPuzzleBuilder {
                 }
             }),
             random_move,
+            components,
         }))
     }
 }

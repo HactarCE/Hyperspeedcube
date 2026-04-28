@@ -14,10 +14,10 @@ impl NdEuclidSimState {
     ///
     /// Returns `None` if `puzzle` is not an N-dimensional Euclidean puzzle.
     pub fn new(puzzle: &Arc<Puzzle>) -> Option<Self> {
-        let ui_data = puzzle.ui_data.downcast_ref::<NdEuclidPuzzleUiData>()?;
+        let geom = puzzle.components.get::<NdEuclidPuzzleGeometry>().ok()?;
 
         Some(Self {
-            geom: ui_data.geom(),
+            geom: Arc::clone(geom),
             partial_twist_drag_state: None,
         })
     }

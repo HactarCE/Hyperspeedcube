@@ -171,10 +171,7 @@ impl NdEuclidPuzzleRenderer {
     ///
     /// Returns `None` if `puzzle` is not an N-dimensional Euclidean puzzle.
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Option<Self> {
-        let geom = puzzle
-            .ui_data
-            .downcast_ref::<NdEuclidPuzzleUiData>()?
-            .geom();
+        let geom = puzzle.components.get::<NdEuclidPuzzleGeometry>().ok()?;
 
         let is_empty_model = geom.mesh.is_empty() || puzzle.pieces.is_empty();
 

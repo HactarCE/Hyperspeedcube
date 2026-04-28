@@ -16,13 +16,13 @@ use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 
 use super::ProductPuzzleAxes;
-use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemEngineData};
+use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 
 pub fn build_3d_gizmo<'a>(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<GizmoTwist>,
     axes: &ProductPuzzleAxes,
-    twists: &SymmetricTwistSystemEngineData,
+    twists: &SymmetricTwistSystemComponent,
 ) -> Result<()> {
     let axis_from_vector = ApproxHashMap::from_iter(
         APPROX,
@@ -70,7 +70,7 @@ pub fn build_4d_gizmo<'a>(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<GizmoTwist>,
     axes: &ProductPuzzleAxes,
-    twists: &SymmetricTwistSystemEngineData,
+    twists: &SymmetricTwistSystemComponent,
     mut warn_fn: impl FnMut(eyre::Report),
 ) -> Result<()> {
     let axis_from_vector = ApproxHashMap::from_iter(

@@ -1,5 +1,5 @@
 use hyperpuzzle::notation::Invert;
-use hyperpuzzle::symmetric::SymmetricTwistSystemEngineData;
+use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
 use hyperpuzzle::{LayerMask, Move};
 use hyperpuzzle_view::ReplayEvent;
 use itertools::Itertools;
@@ -70,7 +70,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     .puzzle()
                     .twists
                     .components
-                    .get::<SymmetricTwistSystemEngineData>()
+                    .get::<SymmetricTwistSystemComponent>()
                     && let Some(e) = node_list.iter().find_map(|node| {
                         symmetric
                             .resolve_twist_transform(&node.as_move()?.transform)

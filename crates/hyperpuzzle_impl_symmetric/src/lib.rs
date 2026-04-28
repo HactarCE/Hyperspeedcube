@@ -26,7 +26,7 @@ pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
 pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, NamedPointOrbitSpec, ProductPuzzleSpec};
 pub use stabilizer_family::StabilizerFamily;
 pub use twist_system::{
-    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemEngineData, UniqueMinimalClockwiseGenerator,
+    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
 const PRODUCT_ID: &str = "product";
@@ -133,7 +133,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
 #[derive(Debug, Clone)]
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,
-    twists: Arc<SymmetricTwistSystemEngineData>,
+    twists: Arc<SymmetricTwistSystemComponent>,
     piece_grip_signatures: Arc<PerPiece<PerAxis<Option<LayerRange>>>>,
     piece_attitudes: PerPiece<GroupElementId>, // TODO: consider storing inverse
 }

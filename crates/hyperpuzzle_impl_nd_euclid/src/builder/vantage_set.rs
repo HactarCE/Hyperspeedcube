@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use eyre::{OptionExt, Result, WrapErr, bail, eyre};
 use hypermath::pga;
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{ComponentList, prelude::*};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
     NdEuclidRelativeAxis, NdEuclidRelativeTwist, NdEuclidVantageGroup, NdEuclidVantageGroupElement,
-    NdEuclidVantageSetEngineData,
+    NdEuclidViewOffset,
 };
 
 /// Vantage set during puzzle construction.
@@ -67,9 +69,10 @@ impl VantageSetBuilder {
             })
             .try_collect()?;
 
-        let engine_data = NdEuclidVantageSetEngineData {
+        let mut components = ComponentList::new();
+        components.insert(Arc::new(NdEuclidViewOffset {
             view_offset: self.view_offset.clone(),
-        };
+        }));
 
         Ok(VantageSet {
             name: self.name.clone(),
@@ -79,54 +82,7 @@ impl VantageSetBuilder {
             transform_map,
             axis_map,
 
-            engine_data: engine_data.into(),
-        })
-    }
-
-    /// "Unbuilds" a vantage set.
-    pub fn unbuild(
-        vantage_set: &VantageSet,
-        groups: &IndexMap<String, NdEuclidVantageGroup>,
-    ) -> Result<Self> {
-        let VantageSet {
-            name,
-            group: group_name,
-            transform_map,
-            axis_map,
-            engine_data,
-        } = vantage_set;
-
-        let group = groups
-            .get(group_name)
-            .ok_or_else(|| eyre!("no vantage group with name {group_name:?}"))?;
-
-        let NdEuclidVantageSetEngineData { view_offset } = engine_data
-            .downcast_ref()
-            .ok_or_eyre("expected NdEuclid vantage set")?;
-
-        let transforms = transform_map
-            .iter()
-            .map(|(name, transform)| {
-                let motor = try_motor_from_element(group, &transform.transform)?;
-                eyre::Ok((name.clone(), motor.clone()))
-            })
-            .try_collect()?;
-
-        let axes = axis_map
-            .iter()
-            .map(|(name, axis, direction_map)| {
-                let relative_axis_builder =
-                    RelativeAxisBuilder::unbuild(axis, direction_map, group)?;
-                eyre::Ok((name.clone(), relative_axis_builder))
-            })
-            .try_collect()?;
-
-        Ok(Self {
-            name: name.clone(),
-            group: group_name.clone(),
-            view_offset: view_offset.clone(),
-            transforms,
-            axes,
+            components,
         })
     }
 }
@@ -169,25 +125,6 @@ impl AxisDirectionMapBuilder {
             },
         })
     }
-
-    /// "Unbuilds" an axis direction map.
-    pub fn unbuild(direction_map: &AxisDirectionMap, group: &NdEuclidVantageGroup) -> Result<Self> {
-        Ok(AxisDirectionMapBuilder {
-            directions: direction_map
-                .directions
-                .iter()
-                .map(|(name, relative_twist)| {
-                    let relative_twist_builder =
-                        RelativeTwistBuilder::unbuild(relative_twist, group)?;
-                    eyre::Ok((name.clone(), relative_twist_builder))
-                })
-                .try_collect()?,
-            inherit: match &direction_map.inherit {
-                Some(inherit) => Some(try_motor_from_element(group, inherit)?.clone()),
-                None => None,
-            },
-        })
-    }
 }
 
 /// Relative axis during puzzle construction.
@@ -223,26 +160,6 @@ impl RelativeAxisBuilder {
         let direction_map = self.direction_map.build(group)?;
         Ok((relative_axis, direction_map))
     }
-
-    /// "Unbuilds" a relative axis.
-    fn unbuild(
-        axis: &BoxDynRelativeAxis,
-        direction_map: &AxisDirectionMap,
-        group: &NdEuclidVantageGroup,
-    ) -> Result<Self> {
-        let NdEuclidRelativeAxis {
-            absolute_axis,
-            transform,
-        } = *axis
-            .downcast_ref()
-            .ok_or_eyre("expected NdEuclid relative axis")?;
-
-        Ok(Self {
-            absolute_axis,
-            transform: group.group_element_motor(transform).clone(),
-            direction_map: AxisDirectionMapBuilder::unbuild(direction_map, group)?,
-        })
-    }
 }
 
 /// Relative twist during puzzle construction.
@@ -271,21 +188,6 @@ impl RelativeTwistBuilder {
             .ok_or_eyre("error constructing relative twist")
             .map(BoxDynRelativeTwist::new)
     }
-
-    /// "Unbuilds" a relative twist.
-    fn unbuild(twist: &BoxDynRelativeTwist, group: &NdEuclidVantageGroup) -> Result<Self> {
-        let NdEuclidRelativeTwist {
-            absolute_twist,
-            transform,
-        } = *twist
-            .downcast_ref()
-            .ok_or_eyre("expected NdEuclid relative twist")?;
-
-        Ok(Self {
-            absolute_twist,
-            transform: group.group_element_motor(transform).clone(),
-        })
-    }
 }
 
 fn try_element_from_motor(
@@ -297,15 +199,4 @@ fn try_element_from_motor(
         .element_from_motor(motor)
         .ok_or_eyre("no matching group element")
         .map(NdEuclidVantageGroupElement)
-}
-
-fn try_motor_from_element(
-    group: &NdEuclidVantageGroup,
-    element: &BoxDynVantageGroupElement,
-) -> Result<pga::Motor> {
-    Ok(group.group_element_motor(
-        *element
-            .downcast_ref()
-            .ok_or_eyre("expected NdEuclid vantage group element")?,
-    ))
 }

@@ -8,7 +8,7 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle::symmetric::SymmetricTwistSystemEngineData;
+use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
 use hyperpuzzle_log::{LogEvent, Scramble};
 use hypuz_notation::Invert;
 use itertools::Itertools;
@@ -680,7 +680,7 @@ impl PuzzleSimulation {
                 } else if let Ok(symmetric) = puzzle
                     .twists
                     .components
-                    .get::<SymmetricTwistSystemEngineData>()
+                    .get::<SymmetricTwistSystemComponent>()
                     && let Ok(m) = symmetric.twist_motor(twist)
                 {
                     self.twist_anim.push(AnimationFromState {

@@ -1,5 +1,3 @@
-#![deprecated] // TODO: remove this whole module
-
 /// Defines a wrapper struct around `Box<dyn Trait>` that allows downcasting to
 /// anything that implements the trait.
 #[macro_export]
@@ -58,19 +56,14 @@ macro_rules! impl_dyn_clone {
     };
 }
 
-mod engine_data;
 mod state;
 mod ui_data;
-mod vantage_set_data;
 mod vantages;
 
-pub use engine_data::{BoxDynTwistSystemEngineData, TwistSystemEngineData};
 pub use state::{BoxDynPuzzleState, PuzzleState};
 pub use ui_data::{
-    BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, BoxDynPuzzleUiData, PuzzleAnimation,
-    PuzzleStateRenderData, PuzzleUiData,
+    BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, PuzzleAnimation, PuzzleStateRenderData,
 };
-pub use vantage_set_data::{BoxDynVantageSetEngineData, VantageSetEngineData};
 pub use vantages::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynVantageGroup, BoxDynVantageGroupElement,
     RelativeAxis, RelativeTwist, SimpleRelativeAxis, SimpleRelativeTwist, SimpleVantageGroup,

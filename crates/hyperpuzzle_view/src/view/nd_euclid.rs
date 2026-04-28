@@ -46,10 +46,7 @@ impl NdEuclidViewState {
         prefs: &mut Preferences,
         puzzle: &Arc<Puzzle>,
     ) -> Option<Self> {
-        let geom = puzzle
-            .ui_data
-            .downcast_ref::<NdEuclidPuzzleUiData>()?
-            .geom();
+        let geom = puzzle.components.get::<NdEuclidPuzzleGeometry>().ok()?;
         let renderer = NdEuclidPuzzleRenderer::new(gfx, puzzle)?;
 
         let view_preset = prefs
@@ -60,7 +57,7 @@ impl NdEuclidViewState {
             renderer,
             camera: NdEuclidCamera::new(geom.ndim(), view_preset),
 
-            geom,
+            geom: Arc::clone(geom),
 
             cursor_pos: None,
             drag_state: None,

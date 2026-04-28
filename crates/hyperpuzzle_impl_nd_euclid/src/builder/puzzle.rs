@@ -3,10 +3,10 @@ use std::sync::{Arc, Weak};
 
 use eyre::{OptionExt, Result, ensure};
 use hypermath::prelude::*;
-use hyperpuzzle_core::Move;
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzle_core::{ComponentList, Move};
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -17,7 +17,6 @@ use tinyset::Set64;
 
 use super::shape::ShapeBuildOutput;
 use super::{AdHocTwistSystemBuilder, AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
-use crate::NdEuclidTwistSystemEngineData;
 use crate::components::NdEuclidTwistsList;
 use crate::prelude::*;
 
@@ -236,7 +235,6 @@ impl PuzzleBuilder {
 
             gizmo_twists,
         });
-        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
 
         let mut scramble_twists = twists
             .twists
@@ -273,6 +271,9 @@ impl PuzzleBuilder {
             }
         });
 
+        let mut components = ComponentList::new();
+        components.insert(Arc::clone(&geom));
+
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: self.meta.clone(),
@@ -295,11 +296,11 @@ impl PuzzleBuilder {
             axis_layers,
             twists,
 
-            ui_data,
-
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
 
             random_move,
+
+            components,
         }))
     }
 }

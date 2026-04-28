@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use hypermath::pga;
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{ComponentList, prelude::*};
 
 mod anim;
 pub mod builder;
@@ -23,8 +23,7 @@ mod vantage_group;
 
 pub use anim::NdEuclidPuzzleAnimation;
 pub use components::{
-    NamedTwistsList, NdEuclidAxisVectors, NdEuclidTwistSystemEngineData, NdEuclidTwistsList,
-    NdEuclidVantageSetEngineData,
+    NamedTwistsList, NdEuclidAxisVectors, NdEuclidTwistsList, NdEuclidViewOffset,
 };
 pub use geom::{GizmoTwist, NdEuclidPuzzleGeometry};
 pub use layers::{LayerDepths, PuzzleLayerDepths};
@@ -50,7 +49,7 @@ const MAX_TWIST_REPEAT: usize = 1000;
 pub mod prelude {
     pub use crate::{
         NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleState,
-        NdEuclidPuzzleStateRenderData, NdEuclidPuzzleUiData,
+        NdEuclidPuzzleStateRenderData,
     };
 }
 
@@ -59,29 +58,17 @@ pub struct NdEuclidPuzzleStateRenderData {
     /// Transform for each piece.
     pub piece_transforms: PerPiece<pga::Motor>,
 }
-impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
-/// UI rendering & interaction data for an N-dimensional Euclidean puzzle.
-pub struct NdEuclidPuzzleUiData(Arc<NdEuclidPuzzleGeometry>);
-impl PuzzleUiData for NdEuclidPuzzleUiData {}
-impl NdEuclidPuzzleUiData {
-    /// Wraps an `Arc<NdEuclidPuzzleGeometry>` to form a [`BoxDynPuzzleUiData`].
-    pub fn new_dyn(geom: &Arc<NdEuclidPuzzleGeometry>) -> BoxDynPuzzleUiData {
-        Self(Arc::clone(geom)).into()
-    }
-    /// Returns the underlying [`NdEuclidPuzzleGeometry`].
-    pub fn geom(&self) -> Arc<NdEuclidPuzzleGeometry> {
-        Arc::clone(&self.0)
-    }
-}
+impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
 lazy_static! {
     /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
     pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = {
         let axes = Arc::new(AxisSystem::new_empty());
         let twists = Arc::new(TwistSystem::new_empty(&axes));
+        let mut components = ComponentList::new();
         let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
-        let ui_data = NdEuclidPuzzleUiData::new_dyn(&geom);
+        components.insert(Arc::clone(&geom));
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: Arc::new(CatalogMetadata {
@@ -102,9 +89,9 @@ lazy_static! {
             full_scramble_length: 0,
             axis_layers: PerAxis::new(),
             twists,
-            ui_data,
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
             random_move: Box::new(move |_rng| None),
+            components,
         })
     };
 }

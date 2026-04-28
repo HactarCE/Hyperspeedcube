@@ -6,9 +6,8 @@ use smallvec::SmallVec;
 
 use super::*;
 use crate::{
-    BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
-    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogMetadata, ComponentList,
-    NameSpecBiMap, VantageGroup, VantageGroupElement,
+    BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynVantageGroup, BoxDynVantageGroupElement,
+    CatalogMetadata, ComponentList, NameSpecBiMap, VantageGroup, VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
@@ -94,8 +93,8 @@ pub struct VantageSet {
     /// Map from name spec to relative axis.
     pub axis_map: Vec<(String, BoxDynRelativeAxis, AxisDirectionMap)>,
 
-    /// Extra data associated with the vantage set.
-    pub engine_data: BoxDynVantageSetEngineData,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 }
 
 /// Map from twist direction name to relative twist for a single relative axis.

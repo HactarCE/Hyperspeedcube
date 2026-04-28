@@ -116,10 +116,9 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         info_line(ui, "Backface?", hov.backface);
         info_line(ui, "Z", format!("{:.3}", hov.z));
         let geom = puz
-            .ui_data
-            .downcast_ref::<NdEuclidPuzzleUiData>()
-            .expect("expected NdEuclidPuzzleGeometry")
-            .geom();
+            .components
+            .get::<NdEuclidPuzzleGeometry>()
+            .expect("expected NdEuclidPuzzleGeometry");
         let &GizmoTwist {
             axis,
             ref transform,
