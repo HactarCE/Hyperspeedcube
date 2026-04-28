@@ -1,3 +1,5 @@
+use crate::ComponentList;
+
 use super::*;
 
 /// Puzzle generator.
@@ -14,14 +16,60 @@ pub struct BuildCtx {
     pub catalog: Catalog,
     /// Progress output.
     pub progress: Arc<Mutex<Progress>>,
+    /// ID of the object being built.
+    pub id: CatalogId,
 }
 
 impl BuildCtx {
-    pub(super) fn new(catalog: &Catalog, progress: &Arc<Mutex<Progress>>) -> Self {
+    pub(super) fn new(catalog: &Catalog, progress: &Arc<Mutex<Progress>>, id: CatalogId) -> Self {
         Self {
             catalog: catalog.clone(),
             progress: Arc::clone(progress),
+            id,
         }
+    }
+
+    /// Builds a catalog object by ID.
+    ///
+    /// This is a wrapper around [`Catalog::build_blocking()`] that sets
+    /// [`Progress::task`] temporarily.
+    pub fn build_blocking<T: CatalogObject>(&self, id: &CatalogId) -> Result<Arc<T>> {
+        let type_name = T::CATALOG_TYPE_NAME;
+        let old_task = std::mem::replace(
+            &mut self.progress.lock().task,
+            BuildTask::Building(type_name),
+        );
+        let result = self
+            .catalog
+            .build_blocking(id)
+            .map_err(|e| eyre!("{e:?}")) // include backtrace
+            .wrap_err_with(|| format!("error building {type_name}"));
+        self.progress.lock().task = old_task;
+        result
+    }
+
+    /// Parses an ID string and builds the corresponding catalog object.
+    ///
+    /// This is a wrapper around [`Catalog::build_blocking()`] that parses an ID
+    /// from a string and sets [`Progress::task`] temporarily.
+    pub fn build_str_blocking<T: CatalogObject>(&self, id_str: &str) -> Result<Arc<T>> {
+        let type_name = T::CATALOG_TYPE_NAME;
+        self.build_blocking(
+            &id_str
+                .parse()
+                .map_err(|e| eyre!("error parsing {type_name} ID string {id_str:?}: {e}"))?,
+        )
+    }
+
+    /// Sets the current task to
+    /// [`BuildTask::Building`]`(T::CATALOG_TYPE_NAME)`.
+    pub fn set_building<T: CatalogObject>(&self) {
+        self.set_task(BuildTask::Building(T::CATALOG_TYPE_NAME));
+    }
+
+    /// Sets the current task.
+    pub fn set_task(&self, new_task: BuildTask) {
+        self.progress.lock().task = new_task;
     }
 }
 
@@ -39,6 +87,8 @@ pub struct Generator<T> {
     ///
     /// **This may be expensive. Do not call it from UI thread.**
     pub generate: GenerateFn<T>,
+    /// Optional backend-specific data.
+    pub components: ComponentList<Self>,
 }
 
 impl<T> fmt::Debug for Generator<T> {
@@ -53,10 +103,12 @@ impl<T> fmt::Debug for Generator<T> {
 impl<T: CatalogObject> Generator<T> {
     /// Constructs a generator that takes no parameters and has a constant
     /// output.
-    pub fn new_constant(object: Arc<T>) -> Self {
-        Self::new_lazy_constant(Arc::clone(object.meta()), move |_| {
-            Ok(Redirectable::Direct(Arc::clone(&object)))
-        })
+    pub fn new_constant(object: Arc<T>, components: ComponentList<Generator<T>>) -> Self {
+        Self::new_lazy_constant(
+            Arc::clone(object.meta()),
+            move |_| Ok(Redirectable::Direct(Arc::clone(&object))),
+            components,
+        )
     }
 
     /// Constructs a generator that takes no parameters and has a constant
@@ -64,6 +116,7 @@ impl<T: CatalogObject> Generator<T> {
     pub fn new_lazy_constant(
         meta: Arc<CatalogMetadata>,
         f: impl 'static + Send + Sync + Fn(BuildCtx) -> Result<Redirectable<Arc<T>>>,
+        components: ComponentList<Generator<T>>,
     ) -> Self {
         let meta2 = Arc::clone(&meta);
         Self {
@@ -77,6 +130,7 @@ impl<T: CatalogObject> Generator<T> {
                 ensure!(args.is_empty(), "{} is not a generator", meta2.id);
                 f(build_ctx)
             }),
+            components,
         }
     }
 
@@ -108,10 +162,13 @@ pub enum Redirectable<T> {
 
 impl<T> Redirectable<T> {
     /// Applies a function to the contained `T`.
-    pub fn try_map<U, E>(self, f: impl FnOnce(T) -> Result<U, E>) -> Result<Redirectable<U>, E> {
-        Ok(match self {
-            Redirectable::Direct(inner) => Redirectable::Direct(f(inner)?),
-            Redirectable::Redirect(id) => Redirectable::Redirect(id),
-        })
+    pub fn and_then<U, E>(
+        self,
+        f: impl FnOnce(T) -> Result<Redirectable<U>, E>,
+    ) -> Result<Redirectable<U>, E> {
+        match self {
+            Redirectable::Direct(inner) => f(inner),
+            Redirectable::Redirect(id) => Ok(Redirectable::Redirect(id)),
+        }
     }
 }

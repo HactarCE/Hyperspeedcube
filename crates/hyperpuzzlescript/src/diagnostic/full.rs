@@ -54,8 +54,8 @@ impl FullDiagnostic {
     }
 
     /// Returns the error as a string with ANSI escape codes.
-    pub fn formatted(&self, mut files: impl ariadne::Cache<FileId>) -> FormattedFullDiagnostic {
-        let ansi_string = match &self.msg {
+    pub fn formatted(&self, mut files: impl ariadne::Cache<FileId>) -> String {
+        match &self.msg {
             Diagnostic::Error(error) => error.report(ReportBuilder::new(
                 ariadne::ReportKind::Error,
                 error,
@@ -83,12 +83,7 @@ impl FullDiagnostic {
             }
             s
         }))
-        .into_string_with_ansi_escapes(files);
-
-        FormattedFullDiagnostic {
-            msg: self.msg.to_string(),
-            ansi_string,
-        }
+        .into_string_with_ansi_escapes(files)
     }
 
     /// Sets the `expected` type of [`Error::TypeError`]; other error types are
@@ -100,21 +95,6 @@ impl FullDiagnostic {
         }
         self
     }
-}
-
-/// [`FullDiagnostic`] with source code information.
-///
-/// When displayed using [`std::fmt::Display`], only `msg` is shown. Use
-/// `.ansi_string` to get the full error with source code snippets and
-/// traceback, using ANSI escape codes for coloring.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("{msg}")]
-pub struct FormattedFullDiagnostic {
-    /// Short message describing the error.
-    pub msg: String,
-    /// String showing the error in context with source code snippets and
-    /// traceback, using ANSI escape codes for coloring.
-    pub ansi_string: String,
 }
 
 #[derive(Debug, Clone)]

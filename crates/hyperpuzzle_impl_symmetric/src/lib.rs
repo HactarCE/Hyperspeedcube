@@ -8,7 +8,7 @@ use eyre::{OptionExt, Result};
 use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
-use hyperpuzzle_core::{TAGS, prelude::*};
+use hyperpuzzle_core::{ComponentList, TAGS, prelude::*};
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
 
 mod builder;
@@ -96,7 +96,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
             aliases: vec![],
             tags: TagSet::new(),
         }),
-        Box::new(|build_ctx| {
+        |build_ctx| {
             // IIFE to mimic try_block
             (|| -> Result<_> {
                 let mut warn_fn = |e| eprintln!("{e:#}");
@@ -120,11 +120,12 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
                     },
                     &mut warn_fn,
                 )?
-                .build(Some(&build_ctx), &mut warn_fn); // TODO: better warn function
+                .build(&build_ctx, &mut warn_fn); // TODO: better warn function
                 ret
             })()
             .map(Redirectable::Direct)
-        }),
+        },
+        ComponentList::new(),
     )))?;
     Ok(())
 }

@@ -10,28 +10,30 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use pga::Blade;
 
-use crate::{GizmoTwist, NdEuclidTwistSystemEngineData};
+use crate::{
+    GizmoTwist, NdEuclidTwistSystemEngineData,
+    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
+};
 
 pub(super) fn build_twist_gizmos(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
-    engine_data: &NdEuclidTwistSystemEngineData,
     warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<PerGizmoFace<GizmoTwist>> {
-    let NdEuclidTwistSystemEngineData {
-        axis_vectors,
-        twist_transforms,
-        gizmo_pole_distances,
-        ..
-    } = engine_data;
+    let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
+    let twists_list = twists.components.get::<NdEuclidTwistsList>()?;
+    let Some(twist_gizmo_pole_distances) = &twists_list.gizmo_pole_distances else {
+        return Ok(PerGizmoFace::new());
+    };
 
     // Assemble a list of gizmo pole vectors and their associated twists.
     let mut gizmo_poles: PerAxis<Vec<(Vector, Twist)>> = PerAxis::new_with_len(twists.axes.len());
-    for (twist, twist_info) in &twists.twists {
-        if let Ok(&Some(pole_distance)) = gizmo_pole_distances.get(twist) {
+    for twist in twists_list.iter() {
+        if let Some(pole_distance) = twist_gizmo_pole_distances[twist] {
+            let axis = twists_list.twist_axes[twist];
             // The axis vector is fixed by the twist.
-            let axis_vector = &axis_vectors[twist_info.axis];
+            let axis_vector = &axis_vectors.vectors_by_id[axis];
 
             let face_normal = if space.ndim() == 4 {
                 // Compute the other vector fixed by the twist.
@@ -39,7 +41,7 @@ pub(super) fn build_twist_gizmos(
                     let axis_vector = Blade::from_vector(axis_vector);
                     let origin = Blade::origin();
                     Blade::wedge(
-                        &twist_transforms[twist].grade_project(2),
+                        &twists_list.twist_transforms[twist].grade_project(2),
                         &Blade::wedge(&origin, &axis_vector)?,
                     )?
                     .antidual(4)?
@@ -52,7 +54,7 @@ pub(super) fn build_twist_gizmos(
             };
 
             let gizmo_pole = face_normal * pole_distance as _;
-            gizmo_poles[twist_info.axis].push((gizmo_pole, twist));
+            gizmo_poles[axis].push((gizmo_pole, twist));
         };
     }
 
@@ -60,8 +62,7 @@ pub(super) fn build_twist_gizmos(
     let mut gizmo_face_twists = PerGizmoFace::new();
     if space.ndim() == 3 {
         let gizmo_poles = gizmo_poles.iter_values().flatten().cloned().collect_vec();
-        let resulting_gizmo_faces =
-            build_3d_gizmo(space, mesh, twists, engine_data, &gizmo_poles, warn_fn)?;
+        let resulting_gizmo_faces = build_3d_gizmos(space, mesh, twists, &gizmo_poles, warn_fn)?;
         for (_gizmo_face, twist) in resulting_gizmo_faces {
             gizmo_face_twists.push(GizmoTwist {
                 axis: twists.twists[twist].axis,
@@ -71,15 +72,8 @@ pub(super) fn build_twist_gizmos(
         }
     } else if space.ndim() == 4 {
         for (axis, axis_gizmo_poles) in gizmo_poles {
-            let resulting_gizmo_faces = build_4d_gizmo(
-                space,
-                mesh,
-                twists,
-                engine_data,
-                axis,
-                axis_gizmo_poles,
-                warn_fn,
-            )?;
+            let resulting_gizmo_faces =
+                build_4d_gizmos(space, mesh, twists, axis, axis_gizmo_poles, warn_fn)?;
             for (_gizmo_face, twist) in resulting_gizmo_faces {
                 gizmo_face_twists.push(GizmoTwist {
                     axis: twists.twists[twist].axis,
@@ -96,11 +90,10 @@ pub(super) fn build_twist_gizmos(
     Ok(gizmo_face_twists)
 }
 
-fn build_3d_gizmo(
+fn build_3d_gizmos(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
-    engine_data: &NdEuclidTwistSystemEngineData,
     gizmo_poles: &[(Vector, Twist)],
     warn_fn: &mut impl FnMut(eyre::Report),
 ) -> Result<Vec<(GizmoFace, Twist)>> {
@@ -108,17 +101,19 @@ fn build_3d_gizmo(
         return Ok(vec![]);
     }
 
+    let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
+
     let primordial_cube = space.primordial_cube();
 
     let mut gizmo_surfaces = HashMap::new();
     for (_, twist_info) in &twists.twists {
         let axis = twist_info.axis;
         if let hash_map::Entry::Vacant(e) = gizmo_surfaces.entry(axis) {
-            e.insert(mesh.add_gizmo_surface(&engine_data.axis_vectors[axis])?);
+            e.insert(mesh.add_gizmo_surface(&axis_vectors.vectors_by_id[axis])?);
         }
     }
 
-    build_gizmo(
+    build_gizmos(
         space,
         mesh,
         twists,
@@ -131,11 +126,10 @@ fn build_3d_gizmo(
     )
 }
 
-fn build_4d_gizmo(
+fn build_4d_gizmos(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
-    engine_data: &NdEuclidTwistSystemEngineData,
     axis: Axis,
     gimzo_poles: Vec<(Vector, Twist)>,
     warn_fn: &mut impl FnMut(eyre::Report),
@@ -146,7 +140,8 @@ fn build_4d_gizmo(
         return Ok(vec![]);
     }
 
-    let axis_vector = &engine_data.axis_vectors[axis];
+    let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
+    let axis_vector = &axis_vectors.vectors_by_id[axis];
     let axis_name = &twists.axes.names[axis];
 
     // Cut a primordial polyhedron at the axis.
@@ -168,7 +163,7 @@ fn build_4d_gizmo(
 
     let gizmo_surface = mesh.add_gizmo_surface(axis_vector)?;
 
-    build_gizmo(
+    build_gizmos(
         space,
         mesh,
         twists,
@@ -181,7 +176,7 @@ fn build_4d_gizmo(
     )
 }
 
-fn build_gizmo(
+fn build_gizmos(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,

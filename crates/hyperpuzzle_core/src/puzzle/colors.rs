@@ -5,7 +5,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use super::*;
-use crate::{CatalogMetadata, NameSpecBiMap};
+use crate::{CatalogMetadata, ComponentList, NameSpecBiMap};
 
 /// System of sticker colors for a puzzle.
 #[derive(Debug)]
@@ -24,7 +24,10 @@ pub struct ColorSystem {
     pub default_scheme: String,
 
     /// Orbits used to generate colors.
-    pub orbits: Vec<Orbit<Color>>,
+    pub orbits: Vec<Orbit<Color>>, // TODO: move this to components
+
+    /// Extra components.
+    pub components: ComponentList<Self>,
 }
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
@@ -63,6 +66,7 @@ impl ColorSystem {
             schemes: IndexMap::new(),
             default_scheme: String::new(),
             orbits: vec![],
+            components: ComponentList::new(),
         }
     }
 

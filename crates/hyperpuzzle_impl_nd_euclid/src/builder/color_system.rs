@@ -2,18 +2,49 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
-use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::catalog::BuildCtx;
+use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
+use hyperpuzzle_core::{ComponentList, preferred_name_from_name_spec, prelude::*};
 use indexmap::IndexMap;
 
-/// Sticker color during shape construction.
-#[derive(Debug, Clone)]
-pub struct ColorBuilder {}
-impl ColorBuilder {}
+#[derive(Debug)]
+pub struct ColorSystemBuilder(pub MaybeAdHoc<ColorSystem, AdHocColorSystemBuilder>);
+impl ColorSystemBuilder {
+    pub fn as_ad_hoc_mut(&mut self) -> Result<&mut AdHocColorSystemBuilder, ExpectedAdHoc> {
+        self.0.as_ad_hoc_mut()
+    }
+
+    /// Returns the ID for the color with the given name, adding it to the color
+    /// system if it does not already exist.
+    ///
+    /// Returns an error if the color system is not ad-hoc and the color does
+    /// not already exist.
+    pub fn get_or_add_with_name_spec(
+        &mut self,
+        name_spec: String,
+        warn_fn: &mut impl FnMut(BadName),
+    ) -> Result<Color> {
+        match &mut self.0 {
+            MaybeAdHoc::Fixed(f) => f
+                .names
+                .id_from_name(&preferred_name_from_name_spec(&name_spec))
+                .ok_or_else(|| eyre!("no color with name {name_spec:?}")),
+            MaybeAdHoc::AdHoc(a) => a.get_or_add_with_name_spec(name_spec, warn_fn),
+        }
+    }
+
+    /// Returns the number of colors in the color system.
+    pub fn len(&self) -> usize {
+        match &self.0 {
+            MaybeAdHoc::Fixed(f) => f.len(),
+            MaybeAdHoc::AdHoc(a) => a.len(),
+        }
+    }
+}
 
 /// Set of all sticker colors during shape construction.
 #[derive(Debug)]
-pub struct ColorSystemBuilder {
+pub struct AdHocColorSystemBuilder {
     /// Color system ID.
     pub id: CatalogId,
     /// Name of the color system.
@@ -35,25 +66,10 @@ pub struct ColorSystemBuilder {
 
     /// Orbits used to generate colors, tracked for puzzle dev purposes.
     pub orbits: Vec<Orbit<Color>>,
-
-    /// Whether the color system has been modified.
-    pub is_modified: bool,
-    /// Whether the color system is shared (as opposed to ad-hoc defined for a
-    /// single puzzle).
-    pub is_shared: bool,
 }
-impl ColorSystemBuilder {
-    /// Constructs a new shared color system.
-    pub fn new_shared(id: CatalogId) -> Self {
-        Self::new(id, true)
-    }
-
-    /// Constructs a new empty ad-hoc color system.
-    pub fn new_ad_hoc(puzzle_id: &CatalogId) -> Self {
-        Self::new(crate::ad_hoc_id(puzzle_id.clone()), false)
-    }
-
-    fn new(id: CatalogId, is_shared: bool) -> Self {
+impl AdHocColorSystemBuilder {
+    /// Constructs a new color system builder.
+    pub fn new(id: CatalogId) -> Self {
         Self {
             id,
             name: None,
@@ -64,8 +80,6 @@ impl ColorSystemBuilder {
             schemes: IndexMap::new(),
             default_scheme: None,
             orbits: vec![],
-            is_modified: false,
-            is_shared,
         }
     }
 
@@ -92,8 +106,6 @@ impl ColorSystemBuilder {
         name_spec: Option<String>,
         warn_fn: impl FnOnce(BadName),
     ) -> Result<Color> {
-        self.is_modified = true;
-
         let id = self.by_id.push(ColorBuilder {})?;
 
         self.names
@@ -104,8 +116,6 @@ impl ColorSystemBuilder {
 
     /// Adds a new color scheme.
     pub fn add_scheme(&mut self, name: String, mapping: PerColor<Option<PaletteColor>>) {
-        self.is_modified = true;
-
         match self.schemes.entry(name) {
             indexmap::map::Entry::Occupied(mut e) => {
                 for (id, c) in mapping {
@@ -130,8 +140,6 @@ impl ColorSystemBuilder {
 
     /// Sets the palette color assignment for a single puzzle color.
     pub fn set_color_assignment(&mut self, id: Color, default_color: Option<PaletteColor>) {
-        self.is_modified = true;
-
         let scheme = self
             .schemes
             .entry(self.default_scheme_name().to_owned())
@@ -157,8 +165,6 @@ impl ColorSystemBuilder {
     /// Returns a mutable reference to a color by ID, or an error if the ID is
     /// out of range.
     pub fn get_mut(&mut self, id: Color) -> Result<&mut ColorBuilder, IndexOutOfRange> {
-        self.is_modified = true;
-
         self.by_id.get_mut(id)
     }
 
@@ -187,28 +193,14 @@ impl ColorSystemBuilder {
     pub fn build(
         &self,
         build_ctx: Option<&BuildCtx>,
-        puzzle_id: Option<&CatalogId>,
         warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<ColorSystem> {
+    ) -> Result<Arc<ColorSystem>> {
         if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingColors;
+            build_ctx.set_building::<ColorSystem>();
         }
 
-        let mut id = self.id.clone();
-        if self.is_shared {
-            if self.is_modified {
-                warn_fn(eyre!("shared color system cannot be modified"));
-                if let Some(puzzle_id) = puzzle_id {
-                    id = crate::ad_hoc_id(puzzle_id.clone());
-                };
-            }
-            if self.name.is_none() {
-                warn_fn(eyre!("color system has no name"));
-            }
-        } else {
-            warn_fn(eyre!("using ad-hoc color system"));
-        }
         let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
+        let meta = Arc::new(CatalogMetadata::simple(self.id.clone(), name));
 
         let names = self.names.clone();
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
@@ -247,53 +239,23 @@ impl ColorSystemBuilder {
 
         let orbits = self.orbits.clone();
 
-        let color_system = ColorSystem {
-            meta: Arc::new(CatalogMetadata::simple(id, name)),
-
-            names,
-            display_names,
-
-            schemes,
-            default_scheme,
-
-            orbits,
-        };
-        Ok(color_system)
-    }
-
-    /// "Unbuilds" a color system.
-    ///
-    /// If the resulting color system builder is modified, then it will emit a
-    /// warning and change its ID.
-    pub fn unbuild(color_system: &ColorSystem) -> Result<Self> {
-        let ColorSystem {
+        Ok(Arc::new(ColorSystem {
             meta,
+
             names,
             display_names,
+
             schemes,
             default_scheme,
+
             orbits,
-        } = color_system;
 
-        Ok(ColorSystemBuilder {
-            id: meta.id.clone(),
-            name: Some(meta.name.clone()),
-
-            by_id: (0..color_system.len()).map(|_| ColorBuilder {}).collect(),
-            names: names.clone().into(),
-            display_names: display_names.map_ref(|_, display| Some(display.clone())),
-            autonames: AutoNames::default(),
-
-            schemes: schemes
-                .iter()
-                .map(|(k, v)| (k.clone(), v.map_ref(|_, default| Some(default.clone()))))
-                .collect(),
-            default_scheme: Some(default_scheme.clone()),
-
-            orbits: orbits.clone(),
-
-            is_modified: false,
-            is_shared: true,
-        })
+            components: ComponentList::new(),
+        }))
     }
 }
+
+/// Sticker color during shape construction.
+#[derive(Debug, Clone)]
+pub struct ColorBuilder {}
+impl ColorBuilder {}

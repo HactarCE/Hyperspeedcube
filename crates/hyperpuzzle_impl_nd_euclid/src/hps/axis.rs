@@ -2,13 +2,13 @@ use std::fmt;
 
 use hypermath::Vector;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{Axis, IndexOutOfRange, NameSpec};
+use hyperpuzzle_core::{Axis, NameSpec, util::MaybeAdHoc};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Value, ValueData, impl_simple_custom_type,
 };
 
 use super::{HpsAxisSystem, HpsEuclidError, HpsLayerMask, HpsPuzzle};
-use crate::builder::AxisSystemBuilder;
+use crate::components::NdEuclidAxisVectors;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsAxis {
@@ -44,11 +44,19 @@ impl HpsAxis {
         Ok(puzzle.layer_regions(ctx, self.id, layer_mask)?.into())
     }
 
-    pub fn vector(&self) -> Result<Vector, IndexOutOfRange> {
-        Ok(self.axes.lock().get(self.id)?.vector().clone())
+    pub fn vector(&self) -> eyre::Result<Vector> {
+        Ok(self
+            .axes
+            .lock_vectors()?
+            .vectors_by_id
+            .get(self.id)?
+            .clone())
     }
     pub fn name(&self) -> Option<NameSpec> {
-        Some(self.axes.lock().names.get(self.id)?.clone())
+        match &self.axes.0.0 {
+            MaybeAdHoc::Fixed(f) => Some(f.axes.names.get(self.id).ok()?.clone()),
+            MaybeAdHoc::AdHoc(a) => Some(a.lock().axes.names.get(self.id)?.clone()),
+        }
     }
 }
 impl fmt::Debug for HpsAxis {
@@ -68,30 +76,22 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 pub(super) fn axis_from_vector(
-    axes: &AxisSystemBuilder,
+    axes: &NdEuclidAxisVectors,
     vector: &Vector,
 ) -> Result<Axis, HpsEuclidError> {
-    axes.vector_to_id(vector)
-        .ok_or_else(|| HpsEuclidError::NoAxis(vector.clone()))
+    Ok(*axes
+        .ids_by_vector
+        .get(vector.clone())
+        .ok_or_else(|| HpsEuclidError::NoAxis(vector.clone()))?)
 }
 
 pub(super) fn transform_axis(
     span: Span,
-    axes: &AxisSystemBuilder,
+    axes: &NdEuclidAxisVectors,
     t: &Motor,
     (axis, axis_span): Spanned<Axis>,
-) -> Result<Axis> {
-    let old_vector = axes.get(axis).at(axis_span)?.vector();
+) -> Result<(Axis, Vector)> {
+    let old_vector = axes.vectors_by_id.get(axis).at(axis_span)?;
     let new_vector = t.transform(old_vector);
-    axis_from_vector(axes, &new_vector).at(span)
-}
-
-pub(super) fn axis_name(span: Span, axes: &AxisSystemBuilder, axis: Axis) -> Result<&NameSpec> {
-    match axes.names.get(axis) {
-        Some(name) => Ok(name),
-        None => {
-            let axis_vector = axes.get(axis).at(span)?.vector().clone();
-            Err(HpsEuclidError::UnnamedAxis(axis, axis_vector)).at(span)
-        }
-    }
+    Ok((axis_from_vector(axes, &new_vector).at(span)?, new_vector))
 }

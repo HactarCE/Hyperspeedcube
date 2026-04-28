@@ -1,6 +1,4 @@
-use std::fmt;
-
-use crate::{CatalogArgValue, CatalogId};
+use super::*;
 
 /// Parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq)]

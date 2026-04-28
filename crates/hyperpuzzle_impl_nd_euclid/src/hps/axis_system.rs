@@ -1,21 +1,24 @@
 use std::fmt;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use hypergroup::AbbrGenSeq;
 use hypermath::Vector;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::Orbit;
+use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
+use hyperpuzzle_core::{Axis, CatalogId, IndexOutOfRange, MissingComponent, NameSpec, Orbit};
 use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use super::{HpsAxis, HpsPuzzle, HpsSymmetry, HpsTwistSystem, Names};
-use crate::builder::AxisSystemBuilder;
+use crate::builder::{AdHocAxisSystemBuilder, TwistSystemBuilder};
+use crate::components::NdEuclidAxisVectors;
 use crate::hps::orbit_names::HpsOrbitNames;
 
 /// HPS axis system builder.
-#[derive(Clone, PartialEq, Eq)]
-pub(super) struct HpsAxisSystem(pub HpsTwistSystem);
+#[derive(Clone)]
+pub(super) struct HpsAxisSystem(pub TwistSystemBuilder);
 impl_simple_custom_type!(
     HpsAxisSystem = "euclid.AxisSystem",
     field_get = Self::impl_field_get,
@@ -28,16 +31,26 @@ impl fmt::Debug for HpsAxisSystem {
 }
 impl fmt::Display for HpsAxisSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}(id = {:?})", self.type_name(), self.0.lock().id)
+        write!(f, "{}(id = {:?})", self.type_name(), self.id())
     }
 }
+impl PartialEq for HpsAxisSystem {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0.0, &other.0.0) {
+            (MaybeAdHoc::Fixed(f1), MaybeAdHoc::Fixed(f2)) => f1.meta.id == f2.meta.id,
+            (MaybeAdHoc::AdHoc(a1), MaybeAdHoc::AdHoc(a2)) => Arc::ptr_eq(a1, a2),
+            _ => false,
+        }
+    }
+}
+impl Eq for HpsAxisSystem {}
 impl HpsAxisSystem {
     fn impl_field_get(
         &self,
         _span: Span,
         (field, _field_span): Spanned<&str>,
     ) -> Result<Option<ValueData>> {
-        Ok(self.axis_from_name(field)?.map(|v| v.into()))
+        Ok(self.axis_from_name(field).map(|v| v.into()))
     }
     fn impl_index_get(
         &self,
@@ -45,18 +58,22 @@ impl HpsAxisSystem {
         _span: Span,
         index: Value,
     ) -> Result<ValueData> {
-        // TODO: allow indexing by numeric ID
-        Ok(self.axis_from_name(index.as_ref::<str>()?)?.into())
+        Ok(self.axis_from_name(index.as_ref::<str>()?).into())
     }
 
-    fn axis_from_name(&self, name: &str) -> Result<Option<HpsAxis>> {
-        match self.lock().names.id_from_string(name) {
-            Some(id) => {
-                let axes = self.clone();
-                Ok(Some(HpsAxis { id, axes }))
-            }
-            None => Ok(None),
+    pub fn axis_name(&self, axis: Axis) -> Result<Option<NameSpec>, IndexOutOfRange> {
+        match &self.0.0 {
+            MaybeAdHoc::Fixed(f) => Ok(Some(f.axes.names.get(axis)?.clone())),
+            MaybeAdHoc::AdHoc(a) => Ok(a.lock().axes.names.get(axis).cloned()),
         }
+    }
+    fn axis_from_name(&self, name: &str) -> Option<HpsAxis> {
+        let id = match &self.0.0 {
+            MaybeAdHoc::Fixed(f) => f.axes.names.id_from_name(name)?,
+            MaybeAdHoc::AdHoc(a) => a.lock().axes.names.id_from_string(name)?,
+        };
+        let axes = self.clone();
+        Some(HpsAxis { id, axes })
     }
 }
 
@@ -101,8 +118,32 @@ impl HpsAxisSystem {
         ctx.scope.special.axes.as_ref()
     }
 
-    pub fn lock(&self) -> MappedMutexGuard<'_, AxisSystemBuilder> {
-        MutexGuard::map(self.0.lock(), |twists| &mut twists.axes)
+    pub fn lock_ad_hoc(
+        &self,
+    ) -> Result<MappedMutexGuard<'_, AdHocAxisSystemBuilder>, ExpectedAdHoc> {
+        Ok(MutexGuard::map(self.0.lock_ad_hoc()?, |twists| {
+            &mut twists.axes
+        }))
+    }
+
+    pub fn id(&self) -> CatalogId {
+        match &self.0.0 {
+            MaybeAdHoc::Fixed(f) => f.meta.id.clone(),
+            MaybeAdHoc::AdHoc(a) => a.lock().id.clone(),
+        }
+    }
+
+    pub fn lock_vectors(
+        &self,
+    ) -> Result<RefOrMutexGuard<'_, NdEuclidAxisVectors>, MissingComponent> {
+        match &self.0.0 {
+            MaybeAdHoc::Fixed(f) => Ok(RefOrMutexGuard::Ref(
+                f.axes.components.get::<NdEuclidAxisVectors>()?,
+            )),
+            MaybeAdHoc::AdHoc(a) => Ok(RefOrMutexGuard::MappedMutexGuard(
+                MutexGuard::map(a.lock(), |twists| &mut twists.axes.vectors).into(),
+            )),
+        }
     }
 
     /// Adds a symmetric set of axes.
@@ -112,22 +153,21 @@ impl HpsAxisSystem {
         vector: Vector,
         names: Option<Names>,
     ) -> Result<Option<HpsAxis>> {
-        let span = ctx.caller_span;
         let ctx_symmetry = HpsSymmetry::get(ctx)?;
-        let mut this = self.lock();
+        let mut this = self.lock_ad_hoc().at(ctx.caller_span)?;
 
         let (gen_seqs, transforms, vectors) = match ctx_symmetry {
             Some(sym) => sym.orbit(vector).into_iter().multiunzip(),
             None => (
                 vec![AbbrGenSeq::INIT],
-                vec![Motor::ident(this.ndim)],
+                vec![Motor::ident(this.ndim())],
                 vec![vector],
             ),
         };
 
         let names = match &names {
-            Some(names) => names.0.to_strings(ctx, &transforms, span)?,
-            None => const { &HpsOrbitNames::EMPTY }.to_strings(ctx, &[], span)?,
+            Some(names) => names.0.to_strings(ctx, &transforms)?,
+            None => const { &HpsOrbitNames::EMPTY }.to_strings(ctx, &[])?,
         }
         .chain(std::iter::repeat(None));
 
@@ -136,7 +176,7 @@ impl HpsAxisSystem {
         for (transformed_vector, name) in std::iter::zip(&vectors, names) {
             let new_axis = this
                 .add(transformed_vector.clone(), name, ctx.warnf())
-                .at(span)?;
+                .at(ctx.caller_span)?;
             axes_list.push(Some(new_axis));
         }
         let first_axis = axes_list.first().copied().flatten();
@@ -152,5 +192,30 @@ impl HpsAxisSystem {
             let axes = self.clone();
             HpsAxis { id, axes }
         }))
+    }
+}
+
+pub enum RefOrMutexGuard<'a, T> {
+    Ref(&'a T),
+    MappedMutexGuard(MappedMutexGuard<'a, T>),
+}
+impl<'a, T> Deref for RefOrMutexGuard<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RefOrMutexGuard::Ref(r) => r,
+            RefOrMutexGuard::MappedMutexGuard(g) => g,
+        }
+    }
+}
+impl<'a, T> From<&'a T> for RefOrMutexGuard<'a, T> {
+    fn from(value: &'a T) -> Self {
+        Self::Ref(value)
+    }
+}
+impl<'a, T> From<MappedMutexGuard<'a, T>> for RefOrMutexGuard<'a, T> {
+    fn from(value: MappedMutexGuard<'a, T>) -> Self {
+        Self::MappedMutexGuard(value)
     }
 }

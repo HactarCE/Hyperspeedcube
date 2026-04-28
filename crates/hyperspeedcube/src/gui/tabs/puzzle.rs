@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
@@ -16,7 +17,6 @@ use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
 };
-use hyperpuzzlescript::FormattedFullDiagnostic;
 use parking_lot::Mutex;
 
 use crate::L;
@@ -336,7 +336,7 @@ impl PuzzleWidget {
             self.show_puzzle_view(ui, prefs, animation);
         });
 
-        let mut loading_header = None;
+        let mut loading_header: Option<Cow<'_, str>> = None;
         let mut loading_progress = None;
         if let Some(loading) = self.loading.take() {
             crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
@@ -353,12 +353,12 @@ impl PuzzleWidget {
                             None => Default::default(),
                         };
                         loading_header = Some(match task {
-                            BuildTask::Initializing => L.puzzle_view.initializing,
-                            BuildTask::GeneratingSpec => L.puzzle_view.generating_spec,
-                            BuildTask::BuildingColors => L.puzzle_view.building_colors,
-                            BuildTask::BuildingTwists => L.puzzle_view.building_twists,
-                            BuildTask::BuildingPuzzle => L.puzzle_view.building_puzzle,
-                            BuildTask::Finalizing => L.puzzle_view.finalizing,
+                            BuildTask::Initializing => L.puzzle_view.initializing.into(),
+                            BuildTask::GeneratingSpec => L.puzzle_view.generating_spec.into(),
+                            BuildTask::Building(obj_type_name) => {
+                                L.puzzle_view.building.with(obj_type_name).into()
+                            }
+                            BuildTask::Finalizing => L.puzzle_view.finalizing.into(),
                         });
                         self.load(puzzle_id, solve_to_load, prefs);
                         ui.ctx().request_repaint_after_secs(0.2); // try again soon
@@ -367,7 +367,7 @@ impl PuzzleWidget {
                         puzzle_id,
                         thread_handle,
                     } => {
-                        loading_header = Some(L.puzzle_view.loading_log);
+                        loading_header = Some(L.puzzle_view.loading_log.into());
                         match thread_handle.is_finished() {
                             true => match thread_handle.join() {
                                 Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
@@ -388,7 +388,7 @@ impl PuzzleWidget {
             });
         } else if let Some(scramble_progress) = scramble_progress {
             let (done, total) = scramble_progress.fraction();
-            loading_header = Some(L.puzzle_view.scrambling);
+            loading_header = Some(L.puzzle_view.scrambling.into());
             loading_progress = Some(done as f32 / total as f32);
             ui.ctx().request_repaint();
         } else if let Some((scramble_type, scramble_error)) = scramble_error {

@@ -6,6 +6,8 @@ use crate::{
     Error, EvalCtx, FromValue, FromValueRef, Result, Span, Spanned, Type, TypeOf, Value, ValueData,
 };
 
+// TODO: add example for `impl_simple_custom_type`
+
 /// Implements a custom type
 #[macro_export]
 macro_rules! impl_simple_custom_type {

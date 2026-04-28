@@ -14,7 +14,9 @@ pub use file_store::Modules;
 pub use scope::{Builtins, ParentScope, Scope};
 pub use special::SpecialVariables;
 
-use crate::{FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, Warning, ast, engines};
+use crate::{
+    FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, Warning, ast, engine_callback,
+};
 
 /// Script runtime.
 pub struct Runtime {
@@ -23,9 +25,9 @@ pub struct Runtime {
     /// Built-ins to be imported into every file.
     pub builtins: Arc<Scope>,
     /// Registered puzzle engines.
-    pub puzzle_engines: HashMap<String, engines::PuzzleEngineCallback>,
+    pub puzzle_engines: HashMap<String, engine_callback::PuzzleEngineCallback>,
     /// Registered twist system engines.
-    pub twist_system_engines: HashMap<String, engines::TwistSystemEngineCallback>,
+    pub twist_system_engines: HashMap<String, engine_callback::TwistSystemEngineCallback>,
 
     /// Function to call on print.
     pub on_print: Box<dyn Send + Sync + FnMut(String)>,
@@ -51,7 +53,7 @@ impl Default for Runtime {
             twist_system_engines: HashMap::new(),
 
             on_print: Box::new(|s| println!("[INFO] {s}")),
-            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.formatted(files).ansi_string)),
+            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.formatted(files))),
             diagnostic_count: 0,
         }
     }
@@ -212,11 +214,14 @@ impl Runtime {
     }
 
     /// Registers a puzzle engine for the runtime.
-    pub fn register_puzzle_engine(&mut self, callback: engines::PuzzleEngineCallback) {
+    pub fn register_puzzle_engine(&mut self, callback: engine_callback::PuzzleEngineCallback) {
         self.puzzle_engines.insert(callback.name(), callback);
     }
     /// Registers a twist system engine for the runtime.
-    pub fn register_twist_system_engine(&mut self, callback: engines::TwistSystemEngineCallback) {
+    pub fn register_twist_system_engine(
+        &mut self,
+        callback: engine_callback::TwistSystemEngineCallback,
+    ) {
         self.twist_system_engines.insert(callback.name(), callback);
     }
 }

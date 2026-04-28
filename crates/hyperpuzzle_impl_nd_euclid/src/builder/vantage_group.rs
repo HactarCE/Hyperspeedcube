@@ -11,6 +11,7 @@ use smallvec::SmallVec;
 
 use crate::{
     NdEuclidTwistSystemEngineData, NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
+    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
 };
 
 /// Vantage group during puzzle construction.
@@ -34,8 +35,8 @@ impl VantageGroupBuilder {
         &self,
         axis_names: Arc<NameSpecBiMap<Axis>>,
         twist_names: Arc<NameSpecBiMap<Twist>>,
-        twist_axes: Arc<PerTwist<Axis>>,
-        twist_system_engine_data: NdEuclidTwistSystemEngineData,
+        axis_vectors: Arc<NdEuclidAxisVectors>,
+        twists_list: Arc<NdEuclidTwistsList>,
     ) -> Result<NdEuclidVantageGroup> {
         let reference_vectors_by_vector = ApproxHashMap::<Vector, ReferenceVector>::from_iter(
             APPROX,
@@ -94,8 +95,8 @@ impl VantageGroupBuilder {
             axis_names,
             twist_names,
 
-            twist_axes,
-            twist_system_engine_data,
+            axis_vectors,
+            twists_list,
         })
     }
 

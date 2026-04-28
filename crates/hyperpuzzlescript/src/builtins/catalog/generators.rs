@@ -18,19 +18,36 @@ use crate::{
     Type, Value, ValueData,
 };
 
+/// Generator for a catalog object that calls a Hyperpuzzlescript function to
+/// generate a [`Map`] that specifies how to construct an object. The map may
+/// contain any keys.
 #[derive(Debug, Clone)]
-pub(super) struct HpsGenerator {
+pub struct HpsGenerator {
+    /// Span of the generator definition in user code.
     pub def_span: Span,
+
+    /// Catalog ID of the generator.
     pub id: CatalogId,
+    /// Span of `id` in user code.
     pub id_span: Span,
+
+    /// List of parameters expected by `gen_fn`.
     pub params: Vec<GeneratorParam>,
+    /// Span of `params` in user code.
     pub params_span: Span,
+
+    /// Function to call to generate the specification.
     pub gen_fn: Arc<FnValue>,
+    /// Span of `gen_fn` in user code.
     pub gen_span: Span,
+
+    /// Extra entries to add to the map returned by `gen_fn`, unless those keys
+    /// are already present.
     pub extra: Arc<Map>,
 }
 impl HpsGenerator {
-    pub(super) fn generated_id(&self, param_values: Vec<CatalogArgValue>) -> Result<EcoString> {
+    /// Returns the generated ID, given parameter values.
+    pub fn generated_id(&self, param_values: Vec<CatalogArgValue>) -> Result<EcoString> {
         let id = CatalogId::new(&*self.id.base, param_values.clone())
             .ok_or_else(|| "invalid generator ID".at(self.id_span))?;
         Ok(eco_format!("{id}"))
@@ -44,8 +61,9 @@ impl HpsGenerator {
     ///
     /// In the case of an ID redirect, `map_fn` is not called.
     ///
-    /// **Note: This method blocks waiting on a result from the HPS thread.**
-    pub(super) fn generate_on_hps_thread_with_examples<T: 'static + Send + Sync>(
+    /// **Note: This method blocks waiting on a result from the HPS thread.
+    /// Calling this from within the HPS thread will deadlock.**
+    pub fn generate_on_hps_thread_with_examples<T: 'static + Send + Sync>(
         &self,
         tx: &EvalRequestTx,
         param_values: Vec<CatalogArgValue>,
@@ -66,8 +84,9 @@ impl HpsGenerator {
     ///
     /// In the case of an ID redirect, `map_fn` is not called.
     ///
-    /// **Note: This method blocks waiting on a result from the HPS thread.**
-    pub(super) fn generate_on_hps_thread<T: 'static + Send>(
+    /// **Note: This method blocks waiting on a result from the HPS thread.
+    /// Calling this from within the HPS thread will deadlock.**
+    pub fn generate_on_hps_thread<T: 'static + Send>(
         &self,
         tx: &EvalRequestTx,
         param_values: Vec<CatalogArgValue>,
@@ -81,7 +100,7 @@ impl HpsGenerator {
     /// them with an HPS evaluation context and returns the result.
     ///
     /// In the case of an ID redirect, `map_fn` is not called.
-    pub(super) fn generate<T: 'static + Send>(
+    pub fn generate<T: 'static + Send>(
         &self,
         runtime: &mut Runtime,
         param_values: Vec<CatalogArgValue>,
@@ -138,9 +157,10 @@ impl HpsGenerator {
                     }
                     Ok(Redirectable::Direct(map_fn(&mut ctx, map)?))
                 }
-                _ => Err("return value of `gen` function must be string (ID \
-                          redirect), list (ID redirect to generator), or map"
-                    .at(ctx.caller_span)),
+                _ => Err(
+                    "return value of `gen` function must be string (ID redirect) or map"
+                        .at(ctx.caller_span),
+                ),
             }
         })()
         .map_err(|e| runtime.report_and_convert_to_eyre(e))

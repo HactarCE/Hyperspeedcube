@@ -12,9 +12,10 @@ use hypergroup::{
 };
 use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef, num::Euclid};
 use hyperpuzzle_core::{
-    Axis, AxisSystem, IndexOverflow, NameSpecBiMap, NameSpecBiMapBuilder, Orbit, PerAxis, TiMask,
-    TypedIndex, TypedIndexIter,
+    Axis, AxisSystem, ComponentList, IndexOverflow, NameSpecBiMap, NameSpecBiMapBuilder, Orbit,
+    PerAxis, TiMask, TypedIndex, TypedIndexIter,
 };
+use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypuz_notation::{AxisLayersInfo, Str};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
@@ -49,7 +50,7 @@ pub(super) struct ProductPuzzleAxes {
     /// placement of twist gizmos in 3D and 4D. For a facet-turning puzzle, each
     /// axis vector will typically be scaled to match the distance of its
     /// corresponding facet.
-    pub axis_vectors: Arc<PerAxis<Vector>>,
+    pub axis_vectors: PerAxis<Vector>,
     /// Axis orbits.
     pub axis_orbits: Vec<AxisOrbit>,
 
@@ -83,7 +84,7 @@ impl ProductPuzzleAxes {
             named_point_orbits: vec![],
 
             axis_action: GroupAction::trivial(),
-            axis_vectors: Arc::new(PerAxis::new()),
+            axis_vectors: PerAxis::new(),
             axis_orbits: vec![],
 
             named_point_set_orbits: vec![],
@@ -221,7 +222,7 @@ impl ProductPuzzleAxes {
             named_point_orbits: new_named_point_orbits,
 
             axis_action,
-            axis_vectors: Arc::new(axis_vectors),
+            axis_vectors,
             axis_orbits: new_axis_orbits,
 
             named_point_set_orbits,
@@ -311,7 +312,7 @@ impl ProductPuzzleAxes {
             named_point_orbits,
 
             axis_action,
-            axis_vectors: Arc::new(axis_vectors),
+            axis_vectors,
             axis_orbits,
 
             named_point_set_orbits,
@@ -354,7 +355,17 @@ impl ProductPuzzleAxes {
             })
             .collect();
 
-        Ok(AxisSystem { names, orbits })
+        let mut components = ComponentList::new();
+        components.insert(Arc::new(NdEuclidAxisVectors::from_vectors(
+            self.ndim(),
+            self.axis_vectors.clone(),
+        )));
+
+        Ok(AxisSystem {
+            names,
+            orbits,
+            components,
+        })
     }
 
     pub fn build_axis_undeorbiters(&self) -> PerAxis<(GroupElementId, usize)> {

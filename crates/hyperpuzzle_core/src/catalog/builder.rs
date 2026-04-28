@@ -1,3 +1,5 @@
+use crate::ComponentList;
+
 use super::*;
 
 /// Builder for a [`Catalog`].
@@ -41,8 +43,14 @@ impl CatalogBuilder {
     }
 
     /// Adds an object to the catalog.
-    pub fn add<T: CatalogObject>(&self, object: Arc<T>) -> Result<()> {
-        self.add_generator(Arc::new(Generator::new_constant(object)))?;
+    ///
+    /// `extra` is stored in the [`Generator::extra`] field.
+    pub fn add<T: CatalogObject>(
+        &self,
+        object: Arc<T>,
+        components: ComponentList<Generator<T>>,
+    ) -> Result<()> {
+        self.add_generator(Arc::new(Generator::new_constant(object, components)))?;
         Ok(())
     }
 

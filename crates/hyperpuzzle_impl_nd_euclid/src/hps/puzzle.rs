@@ -1,15 +1,17 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use hypermath::{Float, Hyperplane, Vector};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzlescript::*;
 use itertools::Itertools;
+use parking_lot::{Mutex, MutexGuard};
 
-use super::{ArcMut, HpsAxis, HpsRegion, HpsSymmetry, Names};
-use crate::builder::*;
+use super::{HpsAxis, HpsRegion, HpsSymmetry, Names};
+use crate::{builder::*, hps::HpsAxisSystem};
 
 /// HPS puzzle builder.
-pub(super) type HpsPuzzle = ArcMut<PuzzleBuilder>;
+#[derive(Clone)]
+pub(super) struct HpsPuzzle(pub Arc<Mutex<PuzzleBuilder>>);
 impl_simple_custom_type!(
     HpsPuzzle = "euclid.Puzzle",
     field_get = Self::impl_field_get,
@@ -22,6 +24,17 @@ impl fmt::Debug for HpsPuzzle {
 impl fmt::Display for HpsPuzzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}(id = {:?})", self.type_name(), self.lock().meta.id)
+    }
+}
+impl PartialEq for HpsPuzzle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for HpsPuzzle {}
+impl HpsPuzzle {
+    pub fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
+        self.0.lock()
     }
 }
 
@@ -91,17 +104,16 @@ impl HpsPuzzle {
             None => vec![axis_vector],
         };
 
-        let mut self_guard = self.lock();
-        let this = &mut *self_guard;
-        let twists = this.twists.lock();
+        let axes = self.twists().axes();
+        let mut this = self.lock();
         let axes: Vec<Axis> = axis_vectors
             .iter()
-            .map(|v| super::axis_from_vector(&twists.axes, v))
+            .map(|v| eyre::Ok(super::axis_from_vector(&*axes.lock_vectors()?, v)?))
             .try_collect()
             .at(span)?;
 
         // Add layers.
-        this.axis_layers.resize(twists.axes.len()).at(span)?;
+        this.axis_layers.resize(axes.len()).at(span)?;
         for axis in axes {
             let axis_layers = &mut this.axis_layers[axis].0;
             for (&top, &bottom) in layers.iter().tuple_windows() {
@@ -134,11 +146,17 @@ impl HpsPuzzle {
         layer_mask: LayerMask,
     ) -> Result<HpsRegion> {
         let span = ctx.caller_span;
+        let axis_vector = self
+            .axes()
+            .lock_vectors()
+            .at(span)?
+            .vectors_by_id
+            .get(axis)
+            .at(span)?
+            .clone();
         let this = self.lock();
-        let twists = this.twists.lock();
-        let axis_vector = twists.axes.get(axis).at(span)?.vector();
 
-        match this.plane_bounded_regions(axis, axis_vector, layer_mask) {
+        match this.plane_bounded_regions(axis, &axis_vector, layer_mask) {
             Ok(plane_bounded_regions) => Ok(HpsRegion::Or(
                 plane_bounded_regions
                     .into_iter()

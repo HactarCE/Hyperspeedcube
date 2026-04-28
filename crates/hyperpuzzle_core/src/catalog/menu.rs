@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use super::*;
 
 /// Nested menu structure containing puzzles.

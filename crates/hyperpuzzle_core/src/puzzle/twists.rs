@@ -7,8 +7,8 @@ use smallvec::SmallVec;
 use super::*;
 use crate::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynTwistSystemEngineData, BoxDynVantageGroup,
-    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogMetadata, NameSpecBiMap,
-    VantageGroup, VantageGroupElement,
+    BoxDynVantageGroupElement, BoxDynVantageSetEngineData, CatalogMetadata, ComponentList,
+    NameSpecBiMap, VantageGroup, VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
@@ -21,9 +21,11 @@ pub struct TwistSystem {
     pub axes: Arc<AxisSystem>,
 
     /// Twist names.
-    pub names: Arc<NameSpecBiMap<Twist>>,
+    #[deprecated]
+    pub names: Arc<NameSpecBiMap<Twist>>, // TODO: remove this. can't enumerate all twists!
     /// List of twists, indexed by ID.
-    pub twists: PerTwist<TwistInfo>,
+    #[deprecated]
+    pub twists: PerTwist<TwistInfo>, // TODO: remove this. can't enumerate all twists!
     /// Twist directions accessible in all vantage sets.
     pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
@@ -32,8 +34,8 @@ pub struct TwistSystem {
     /// Built-in vantage sets.
     pub vantage_sets: Vec<VantageSet>,
 
-    /// Engine-specific data.
-    pub engine_data: BoxDynTwistSystemEngineData,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 }
 impl TwistSystem {
     /// Returns an empty twist system.
@@ -46,7 +48,7 @@ impl TwistSystem {
             directions: IndexMap::new(),
             vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
             vantage_sets: vec![],
-            engine_data: ().into(),
+            components: ComponentList::new(),
         }
     }
 

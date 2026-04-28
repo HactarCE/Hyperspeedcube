@@ -16,12 +16,11 @@ mod vantage_group;
 mod vantage_set;
 
 pub use axis_layers::{AxisLayerBuilder, AxisLayersBuilder};
-use axis_system::AxisSystemBuildOutput;
-pub use axis_system::{AxisBuilder, AxisSystemBuilder};
-pub use color_system::{ColorBuilder, ColorSystemBuilder};
+pub use axis_system::{AxisBuilder, AdHocAxisSystemBuilder};
+pub use color_system::{AdHocColorSystemBuilder, ColorBuilder, ColorSystemBuilder};
 pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;
-pub use twist_system::{TwistBuilder, TwistSystemBuilder};
+pub use twist_system::{AdHocTwistSystemBuilder, TwistBuilder, TwistSystemBuilder};
 pub use vantage_group::VantageGroupBuilder;
 pub use vantage_set::{
     AxisDirectionMapBuilder, RelativeAxisBuilder, RelativeTwistBuilder, VantageSetBuilder,

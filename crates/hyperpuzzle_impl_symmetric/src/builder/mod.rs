@@ -151,12 +151,10 @@ impl ProductPuzzleBuilder {
     /// Constructs the final puzzle.
     pub fn build(
         &self,
-        build_ctx: Option<&BuildCtx>,
+        build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<Puzzle>> {
-        if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
-        }
+        build_ctx.set_building::<Puzzle>();
 
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
@@ -165,7 +163,7 @@ impl ProductPuzzleBuilder {
 
         let (pieces, stickers) = self.shape.build_piece_and_stickers()?;
 
-        let colors = Arc::new(self.shape.build_colors(warn_fn)?);
+        let colors = self.shape.build_colors(warn_fn)?;
 
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
             self.shape.build_piece_types(warn_fn)?;
@@ -182,7 +180,7 @@ impl ProductPuzzleBuilder {
 
         let twist_system_engine_data = Arc::new(SymmetricTwistSystemEngineData {
             axes,
-            axis_vectors: Arc::clone(&self.axes.axis_vectors),
+            axis_vectors: self.axes.axis_vectors.clone(),
             group: self.axes.group.clone(),
             axis_action: self.axes.axis_action.clone(),
 
@@ -193,7 +191,9 @@ impl ProductPuzzleBuilder {
             named_point_names: Arc::new(named_point_names),
             named_point_vectors: Arc::clone(&self.axes.named_point_vectors),
         });
-        twists.engine_data = (*twist_system_engine_data).clone().into();
+        twists
+            .components
+            .insert(Arc::clone(&twist_system_engine_data));
         let twists = Arc::new(twists);
 
         let axis_layers: PerAxis<AxisLayersInfo> = self.axes.build_axis_layers();
@@ -245,7 +245,7 @@ impl ProductPuzzleBuilder {
 
             mesh,
 
-            axis_vectors: Arc::clone(&self.axes.axis_vectors),
+            axis_vectors: Arc::clone(twists.axes.components.get()?),
             axis_layer_depths: PerAxis::new(), // TODO: is this needed?
             twist_transforms: Arc::new(PerTwist::new()),
 

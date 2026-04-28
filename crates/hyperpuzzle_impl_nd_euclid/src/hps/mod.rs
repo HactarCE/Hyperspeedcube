@@ -27,7 +27,7 @@ mod twist;
 mod twist_system;
 mod twist_system_engine;
 
-use axis::{HpsAxis, axis_from_vector, axis_name, transform_axis};
+use axis::{HpsAxis, axis_from_vector, transform_axis};
 use axis_system::HpsAxisSystem;
 use color::HpsColor;
 use layer_mask::HpsLayerMask;
@@ -36,7 +36,7 @@ use puzzle::HpsPuzzle;
 use region::HpsRegion;
 use shape::HpsShape;
 use symmetry::HpsSymmetry;
-use twist::{HpsTwist, transform_twist, twist_name};
+use twist::HpsTwist;
 use twist_system::{GeometricTwistKey, HpsTwistSystem};
 
 /// Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
@@ -65,23 +65,11 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
     builtins.set_fns(hps_fns![
         fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsAxis) -> HpsAxis {
             let span = ctx.caller_span;
-            let axes = object.axes.lock();
-            let id = transform_axis(span, &axes, &transform, (object.id, object_span))?;
+            let axis_vectors = object.axes.lock_vectors().at(object_span)?;
+            let (id, _) =
+                transform_axis(span, &axis_vectors, &transform, (object.id, object_span))?;
             let axes = object.axes.clone();
             HpsAxis { id, axes }
-        }
-        fn transform(ctx: EvalCtx, transform: Motor, (object, object_span): HpsTwist) -> HpsTwist {
-            let span = ctx.caller_span;
-            let twists = object.twists.lock();
-            // TODO: handle mirrors (inverse twist)
-            let id = transform_twist(span, &twists, &transform, (object.id, object_span))?;
-            drop(twists);
-            let twists = object.twists;
-            HpsTwist {
-                id,
-                multiplier: object.multiplier,
-                twists,
-            }
         }
         fn transform(transform: Motor, object: HpsRegion) -> HpsRegion {
             transform.transform(&object)
@@ -113,12 +101,12 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             sym: HpsSymmetry,
             (object, object_span): HpsAxis,
         ) -> Vec<Spanned<Option<HpsAxis>>> {
+            object.axes.lock_vectors().at(ctx.caller_span)?; // error if vector data is missing
             let vectors = sym.orbit(object.vector().at(object_span)?);
-            let axes = object.axes.lock();
             vectors
                 .into_iter()
                 .map(|(_, _, v)| {
-                    let id = axes.vector_to_id(&v)?;
+                    let id = *object.axes.lock_vectors().ok()?.ids_by_vector.get(v)?;
                     let axes = object.axes.clone();
                     Some(HpsAxis { id, axes })
                 })
@@ -134,14 +122,20 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
                 axis_vector: object.axis().at(object_span)?.vector().at(object_span)?,
                 transform: object.transform().at(object_span)?,
             };
-            let twists = object.twists.lock();
+            let axes = object.twists.axes();
+            axes.lock_vectors().at(ctx.caller_span)?; // error if vector data is missing
             sym.orbit(init_key)
                 .iter()
                 .map(|(_, _, key)| {
-                    let id = twists.key_to_id(TwistKey::new(
-                        twists.axes.vector_to_id(&key.axis_vector)?,
-                        &key.transform,
-                    )?)?;
+                    let axis = *axes
+                        .lock_vectors()
+                        .ok()?
+                        .ids_by_vector
+                        .get(key.axis_vector.clone())?;
+                    let id = object
+                        .twists
+                        .key_to_id(TwistKey::new(axis, &key.transform)?)
+                        .ok()??;
                     let twists = object.twists.clone();
                     Some(HpsTwist {
                         id,
@@ -194,48 +188,20 @@ impl ApproxHash for CanonicalMotor {
     }
 }
 
-/// Shared mutable wrapper for HPS builder types.
-#[derive(Default)]
-struct ArcMut<T>(Arc<Mutex<T>>);
-impl<T> PartialEq for ArcMut<T> {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl<T> Eq for ArcMut<T> {}
-impl<T> Clone for ArcMut<T> {
-    fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
-    }
-}
-impl<T> From<Arc<Mutex<T>>> for ArcMut<T> {
-    fn from(value: Arc<Mutex<T>>) -> Self {
-        Self(value)
-    }
-}
-impl<T> ArcMut<T> {
-    fn new(inner: T) -> Self {
-        Self(Arc::new(Mutex::new(inner)))
-    }
-    fn lock(&self) -> MutexGuard<'_, T> {
-        self.0.lock()
-    }
-}
-
 impl HpsPuzzle {
     fn shape(&self) -> HpsShape {
-        ArcMut(Arc::clone(&self.lock().shape))
+        HpsShape(Arc::clone(&self.lock().shape))
     }
     fn twists(&self) -> HpsTwistSystem {
-        ArcMut(Arc::clone(&self.lock().twists))
+        HpsTwistSystem(self.lock().twists.clone())
     }
     fn axes(&self) -> HpsAxisSystem {
-        HpsAxisSystem(ArcMut(Arc::clone(&self.lock().twists)))
+        HpsAxisSystem(self.lock().twists.clone())
     }
 }
 impl HpsTwistSystem {
     fn axes(&self) -> HpsAxisSystem {
-        HpsAxisSystem(self.clone())
+        HpsAxisSystem(self.0.clone())
     }
 }
 

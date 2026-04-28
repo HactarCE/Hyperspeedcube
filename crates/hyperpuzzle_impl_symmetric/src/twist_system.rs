@@ -9,9 +9,9 @@ use hypergroup::{
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::TwistSystemEngineData;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{Component, TwistSystemEngineData};
 use hypuz_notation::{Str, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
@@ -36,7 +36,8 @@ pub struct SymmetricTwistSystemEngineData {
     pub axes: Arc<AxisSystem>,
     /// Physical location of each axis, for constructing simple direct rotations
     /// from one axis to another.
-    pub axis_vectors: Arc<PerAxis<Vector>>,
+    #[deprecated]
+    pub axis_vectors: PerAxis<Vector>, // TODO: remove, probably
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
     /// Action of the grip group on the axes.
@@ -66,6 +67,8 @@ pub struct SymmetricTwistSystemEngineData {
     /// rotations from one named point to another.
     pub named_point_vectors: Arc<PerNamedPoint<Vector>>,
 }
+
+impl Component<TwistSystem> for SymmetricTwistSystemEngineData {}
 
 impl TwistSystemEngineData for SymmetricTwistSystemEngineData {}
 

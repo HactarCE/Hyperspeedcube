@@ -4,8 +4,9 @@ use std::sync::{Arc, Weak};
 use eyre::{OptionExt, Result, ensure};
 use hypermath::prelude::*;
 use hyperpuzzle_core::Move;
-use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
+use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::util::MaybeAdHoc;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -15,8 +16,9 @@ use smallvec::{SmallVec, smallvec};
 use tinyset::Set64;
 
 use super::shape::ShapeBuildOutput;
-use super::{AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
+use super::{AdHocTwistSystemBuilder, AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
 use crate::NdEuclidTwistSystemEngineData;
+use crate::components::NdEuclidTwistsList;
 use crate::prelude::*;
 
 /// Puzzle being constructed.
@@ -30,7 +32,7 @@ pub struct PuzzleBuilder {
     /// Shape of the puzzle.
     pub shape: Arc<Mutex<ShapeBuilder>>,
     /// Twist system of the puzzle.
-    pub twists: Arc<Mutex<TwistSystemBuilder>>,
+    pub twists: TwistSystemBuilder,
 
     /// Layer data for each layer on the axis, in order from outermost to
     /// innermost.
@@ -49,13 +51,13 @@ impl PuzzleBuilder {
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
         let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, ndim)?;
-        let twists = TwistSystemBuilder::new_ad_hoc(&meta.id, ndim);
+        let twists = AdHocTwistSystemBuilder::new(meta.id.clone(), None, ndim);
         Ok(Self {
             meta,
 
             ndim,
             shape: Arc::new(Mutex::new(shape)),
-            twists: Arc::new(Mutex::new(twists)),
+            twists: TwistSystemBuilder(MaybeAdHoc::AdHoc(Arc::new(Mutex::new(twists)))),
 
             axis_layers: PerAxis::new(),
 
@@ -121,19 +123,23 @@ impl PuzzleBuilder {
         build_ctx: Option<&BuildCtx>,
         warn_fn: &mut impl FnMut(eyre::Error),
     ) -> Result<Arc<Puzzle>> {
-        let opt_id = Some(&self.meta.id);
-
         let mut shape_builder = self.shape.lock();
-        let twists_builder = self.twists.lock();
+        let colors_builder = &shape_builder.colors;
 
-        // Build color system. TODO: cache this if unmodified
-        let colors = Arc::new(shape_builder.colors.build(build_ctx, opt_id, warn_fn)?);
+        // Build color system.
+        let colors = match &colors_builder.0 {
+            MaybeAdHoc::Fixed(f) => Arc::clone(f),
+            MaybeAdHoc::AdHoc(a) => a.build(build_ctx, warn_fn)?,
+        };
 
-        // Build twist system. TODO: cache this if unmodified
-        let twists = Arc::new(twists_builder.build(build_ctx, opt_id, warn_fn)?);
+        // Build twist system.
+        let twists = match &self.twists.0 {
+            MaybeAdHoc::Fixed(f) => Arc::clone(f),
+            MaybeAdHoc::AdHoc(a) => a.lock().build(build_ctx, warn_fn)?,
+        };
 
         if let Some(build_ctx) = build_ctx {
-            build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+            build_ctx.set_building::<Puzzle>();
         }
 
         // Build shape.
@@ -152,19 +158,8 @@ impl PuzzleBuilder {
         let space = &mut shape_builder.space;
         let ndim = space.ndim();
 
-        let engine_data = twists
-            .engine_data
-            .downcast_ref::<NdEuclidTwistSystemEngineData>()
-            .ok_or_eyre("expected NdEuclid twist system")?;
-        let NdEuclidTwistSystemEngineData {
-            axis_vectors,
-            twist_transforms,
-            ..
-        } = engine_data;
-
         // Build twist gizmos.
-        let gizmo_twists =
-            super::gizmos::build_twist_gizmos(space, &mut mesh, &twists, engine_data, warn_fn)?;
+        let gizmo_twists = super::gizmos::build_twist_gizmos(space, &mut mesh, &twists, warn_fn)?;
 
         // Build vertex sets.
         let mut vertex_count = 0;
@@ -229,9 +224,15 @@ impl PuzzleBuilder {
 
             mesh,
 
-            axis_vectors: Arc::clone(axis_vectors),
+            axis_vectors: Arc::clone(twists.axes.components.get()?),
             axis_layer_depths,
-            twist_transforms: Arc::clone(twist_transforms),
+            twist_transforms: Arc::new(
+                twists
+                    .components
+                    .get::<NdEuclidTwistsList>()?
+                    .twist_transforms
+                    .clone(),
+            ),
 
             gizmo_twists,
         });

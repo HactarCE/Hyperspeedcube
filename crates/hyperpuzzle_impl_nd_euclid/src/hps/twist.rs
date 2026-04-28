@@ -9,7 +9,7 @@ use hyperpuzzlescript::{
 
 use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
 use crate::TwistKey;
-use crate::builder::TwistSystemBuilder;
+use crate::builder::AdHocTwistSystemBuilder;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsTwist {
@@ -28,22 +28,22 @@ impl HpsTwist {
             "id" => Some((self.id.0 as u64).into()),
             "axis" => Some(self.axis().at(span)?.into()),
             "transform" => Some(self.transform().at(span)?.into()),
-            "name" => Some(self.name().map(|name| name.preferred).into()),
+            "name" => Some(self.name().at(span)?.map(|name| name.preferred).into()),
             _ => None,
         })
     }
 
-    pub fn axis(&self) -> Result<HpsAxis, IndexOutOfRange> {
+    pub fn axis(&self) -> eyre::Result<HpsAxis> {
         Ok(HpsAxis {
-            id: self.twists.lock().get(self.id)?.axis,
+            id: self.twists.twist_axis(self.id)?,
             axes: self.twists.axes(),
         })
     }
-    pub fn transform(&self) -> Result<Motor, IndexOutOfRange> {
-        Ok(self.twists.lock().get(self.id)?.transform.clone())
+    pub fn transform(&self) -> eyre::Result<Motor> {
+        Ok(self.twists.twist_transform(self.id)?)
     }
-    pub fn name(&self) -> Option<NameSpec> {
-        Some(self.twists.lock().names.get(self.id)?.clone())
+    pub fn name(&self) -> eyre::Result<Option<NameSpec>> {
+        self.twists.twist_name(self.id)
     }
 }
 impl fmt::Debug for HpsTwist {
@@ -53,7 +53,7 @@ impl fmt::Debug for HpsTwist {
 }
 impl fmt::Display for HpsTwist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        super::fmt_puzzle_element(f, "twists", self.name(), self.id)
+        super::fmt_puzzle_element(f, "twists", self.name().unwrap_or(None), self.id)
     }
 }
 
@@ -79,37 +79,4 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 .call(fn_value.span, ctx, args, Map::new())?
         }
     ])
-}
-
-pub(super) fn transform_twist(
-    span: Span,
-    twists: &TwistSystemBuilder,
-    t: &Motor,
-    (twist, twist_span): Spanned<Twist>,
-) -> Result<Twist> {
-    let old_twist_info = twists.get(twist).at(twist_span)?;
-    let new_twist_axis =
-        super::transform_axis(span, &twists.axes, t, (old_twist_info.axis, twist_span))?;
-    let new_twist_transform = t.transform(&old_twist_info.transform);
-    let new_twist_key = TwistKey::new(new_twist_axis, &new_twist_transform)
-        .ok_or(HpsEuclidError::BadTwistTransform)
-        .at(span)?;
-    twists
-        .key_to_id(new_twist_key.clone())
-        .ok_or(HpsEuclidError::NoTwist(new_twist_key))
-        .at(span)
-}
-
-pub(super) fn twist_name(
-    span: Span,
-    twists: &TwistSystemBuilder,
-    twist: Twist,
-) -> Result<&NameSpec> {
-    match twists.names.get(twist) {
-        Some(name) => Ok(name),
-        None => {
-            let twist_key = twists.get(twist).at(span)?.key().at(span)?;
-            Err(HpsEuclidError::UnnamedTwist(twist, twist_key)).at(span)
-        }
-    }
 }

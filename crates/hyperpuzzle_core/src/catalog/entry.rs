@@ -99,12 +99,10 @@ pub enum BuildTask {
     Initializing,
     /// Generating the specification from a generator.
     GeneratingSpec,
-    /// Building color system.
-    BuildingColors,
-    /// Building twist system.
-    BuildingTwists,
-    /// Building puzzle.
-    BuildingPuzzle,
+    /// Building a catalog object.
+    ///
+    /// The contained string is from [`CatalogObject::CATALOG_TYPE_NAME`].
+    Building(&'static str),
     /// Finalizing the object.
     Finalizing,
 }

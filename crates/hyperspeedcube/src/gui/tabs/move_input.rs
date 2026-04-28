@@ -66,11 +66,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 ui.colored_label(ui.visuals().error_fg_color, e);
             }
             Ok(node_list) => {
-                if let Some(symmetric) = view
+                if let Ok(symmetric) = view
                     .puzzle()
                     .twists
-                    .engine_data
-                    .downcast_ref::<SymmetricTwistSystemEngineData>()
+                    .components
+                    .get::<SymmetricTwistSystemEngineData>()
                     && let Some(e) = node_list.iter().find_map(|node| {
                         symmetric
                             .resolve_twist_transform(&node.as_move()?.transform)

@@ -7,6 +7,7 @@ extern crate lazy_static;
 use criterion as _; // Suppress unused crate warning (it's used in a benchmark)
 
 pub mod catalog;
+mod components;
 mod lint;
 mod logging;
 mod names;
@@ -20,6 +21,7 @@ mod version;
 
 /// Re-export of `chrono`.
 pub use chrono;
+pub use components::{Component, ComponentList, MissingComponent};
 /// Re-export of `hypergroup`
 pub use hypergroup as group;
 /// Re-export of `hypershape`.

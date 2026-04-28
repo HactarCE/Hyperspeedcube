@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use hypermath::{Float, Hyperplane, Point, Vector, VectorRef, pga};
+use hypermath::{Float, Hyperplane, Point, VectorRef, pga};
 use hyperpuzzle_core::notation::{InvertError, Transform};
 use hyperpuzzle_core::prelude::*;
 
 use crate::PuzzleLayerDepths;
+use crate::components::NdEuclidAxisVectors;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
 #[derive(Debug)]
@@ -39,12 +40,13 @@ pub struct NdEuclidPuzzleGeometry {
     /// The axis vector is perpendicular to all layer boundaries on the axis and
     /// is fixed by all turns on the axis.
     ///
-    /// This vector is **not** necessarily unit.
-    pub axis_vectors: Arc<PerAxis<Vector>>,
+    /// This vector is **not** necessarily a unit vector.
+    pub axis_vectors: Arc<NdEuclidAxisVectors>,
     /// Top and bottom depths for each layer on each axis.
     pub axis_layer_depths: PerAxis<PuzzleLayerDepths>,
     /// Transforation to apply to pieces for each twist.
-    pub twist_transforms: Arc<PerTwist<pga::Motor>>,
+    #[deprecated]
+    pub twist_transforms: Arc<PerTwist<pga::Motor>>, // TODO: remove this
 
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<GizmoTwist>,
@@ -62,7 +64,7 @@ impl NdEuclidPuzzleGeometry {
             sticker_planes: PerSticker::new(),
 
             mesh: Mesh::new_empty(3),
-            axis_vectors: Arc::new(PerAxis::new()),
+            axis_vectors: Arc::new(NdEuclidAxisVectors::new(3)),
             axis_layer_depths: PerAxis::new(),
             twist_transforms: Arc::new(PerTwist::new()),
             gizmo_twists: PerGizmoFace::new(),

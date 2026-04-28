@@ -2,14 +2,16 @@ use std::collections::{HashMap, hash_map};
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{preferred_name_from_name_spec, prelude::*, util::MaybeAdHoc};
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use regex::Regex;
 use smallvec::smallvec;
 
-use super::{ColorSystemBuilder, PieceBuilder, PieceTypeBuilder};
+use crate::builder::color_system::ColorSystemBuilder;
+
+use super::{AdHocColorSystemBuilder, PieceBuilder, PieceTypeBuilder};
 
 // TODO: build color system separately and statically?
 
@@ -59,7 +61,9 @@ impl ShapeBuilder {
             piece_type_display_names: IndexMap::new(),
             overwritten_piece_types: vec![],
 
-            colors: ColorSystemBuilder::new_ad_hoc(puzzle_id),
+            colors: ColorSystemBuilder(MaybeAdHoc::AdHoc(AdHocColorSystemBuilder::new(
+                crate::ad_hoc_id(puzzle_id.clone()),
+            ))),
         })
     }
 

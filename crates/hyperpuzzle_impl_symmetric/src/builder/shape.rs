@@ -1,12 +1,12 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::builder::ColorSystemBuilder;
+use hyperpuzzle_impl_nd_euclid::builder::AdHocColorSystemBuilder;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -117,14 +117,14 @@ impl ProductPuzzleShape {
         Ok((pieces, stickers))
     }
 
-    pub fn build_colors(&self, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<ColorSystem> {
+    pub fn build_colors(&self, warn_fn: &mut impl FnMut(eyre::Report)) -> Result<Arc<ColorSystem>> {
         let id = crate::product_id(&self.factor_ids);
-        let mut colors = ColorSystemBuilder::new_shared(id);
+        let mut colors = AdHocColorSystemBuilder::new(id);
         for (_, (i, name)) in &self.colors {
             let prefix = hypuz_notation::family::SequentialLowercaseName(*i as _);
             colors.add(Some(format!("{prefix}{name}")), |e| warn_fn(eyre!(e)))?;
         }
-        colors.build(None, None, warn_fn)
+        colors.build(None, warn_fn)
     }
 
     pub fn build_piece_types(

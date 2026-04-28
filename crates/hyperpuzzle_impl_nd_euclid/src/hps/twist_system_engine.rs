@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::prelude::*;
-use hyperpuzzlescript::*;
+use hyperpuzzle_core::{ComponentList, catalog::Generator, prelude::*, util::MaybeAdHoc};
+use hyperpuzzlescript::{builtins::catalog::HpsExports, *};
+use parking_lot::Mutex;
 
-use super::{ArcMut, HpsNdEuclid};
-use crate::builder::*;
+use super::HpsNdEuclid;
+use crate::{
+    builder::*,
+    hps::{HpsAxisSystem, HpsTwistSystem},
+};
 
 impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
     fn name(&self) -> String {
@@ -17,27 +21,31 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
         meta: CatalogMetadata,
         kwargs: Map,
         eval_tx: EvalRequestTx,
-    ) -> Result<LazyCatalogConstructor<TwistSystem>> {
+    ) -> Result<Generator<TwistSystem>> {
         let caller_span = ctx.caller_span;
 
         unpack_kwargs!(kwargs, ndim: u8, (build, build_span): Arc<FnValue>);
 
         let meta = Arc::new(meta);
 
-        Ok(LazyCatalogConstructor {
-            meta: Arc::clone(&meta),
-            build: Box::new(move |build_ctx| {
+        Ok(Generator::new_lazy_constant(
+            Arc::clone(&meta),
+            move |build_ctx| {
                 let id = meta.id.clone();
-                let builder = ArcMut::new(TwistSystemBuilder::new_shared(
+                let builder = Arc::new(Mutex::new(AdHocTwistSystemBuilder::new(
                     id.clone(),
                     Some(meta.name.clone()),
                     ndim,
-                ));
+                )));
 
                 let mut scope = Scope::default();
                 scope.special.ndim = Some(ndim);
-                scope.special.twists = builder.clone().at(BUILTIN_SPAN);
-                scope.special.axes = builder.axes().at(BUILTIN_SPAN);
+                scope.special.twists =
+                    HpsTwistSystem(TwistSystemBuilder(MaybeAdHoc::AdHoc(builder.clone())))
+                        .at(BUILTIN_SPAN);
+                scope.special.axes =
+                    HpsAxisSystem(TwistSystemBuilder(MaybeAdHoc::AdHoc(builder.clone())))
+                        .at(BUILTIN_SPAN);
                 scope.special.id = Some(id.to_string().into());
                 let scope = Arc::new(scope);
 
@@ -61,15 +69,14 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
 
                     let mut b = builder.lock();
                     if let Ok(exports_map) = exports.to::<Arc<Map>>() {
-                        b.hps_exports = exports_map;
+                        b.hps_exports = HpsExports((*exports_map).clone());
                     }
-                    b.is_modified = false;
 
-                    let puzzle_id = None;
-                    b.build(Some(&build_ctx), puzzle_id, &mut ctx.warnf())
-                        .map(Arc::new)
+                    b.build(Some(&build_ctx), &mut ctx.warnf())
+                        .map(Redirectable::Direct)
                 })
-            }),
-        })
+            },
+            ComponentList::new(),
+        ))
     }
 }

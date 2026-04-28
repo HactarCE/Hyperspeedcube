@@ -7,7 +7,7 @@ use rand::Rng;
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 
 use super::*;
-use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, CatalogMetadata, Move};
+use crate::{BoxDynPuzzleState, BoxDynPuzzleUiData, CatalogMetadata, ComponentList, Move};
 
 /// Puzzle type info.
 pub struct Puzzle {

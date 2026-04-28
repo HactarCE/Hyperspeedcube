@@ -151,6 +151,7 @@ impl NdEuclidViewState {
                             sim.nd_euclid()?
                                 .geom
                                 .axis_vectors
+                                .vectors_by_id
                                 .iter()
                                 .filter_map(|(axis, axis_vector)| {
                                     // TODO: canoncalize axis based on layer mask
@@ -182,7 +183,7 @@ impl NdEuclidViewState {
                         let hov = self.puzzle_hover_state()?;
                         let mut parallel_drag_delta = self.parallel_drag_delta()?;
                         let axis = nd_euclid?.partial_twist_drag_state.as_ref()?.axis;
-                        let axis_vector = &nd_euclid?.geom.axis_vectors[axis];
+                        let axis_vector = &nd_euclid?.geom.axis_vectors.vectors_by_id[axis];
                         let drag_origin = Point::ORIGIN; // TODO: change for multi-origin puzzles
                         if prefs.interaction.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
@@ -375,7 +376,7 @@ impl NdEuclidViewState {
             && let Some(hov) = self.gizmo_hover_state
             && let Ok(mv) = self.geom.gizmo_twists.get(hov.gizmo_face)
             && let Some(axis) = puzzle.twists.axis_from_move_family(&mv.transform.family)
-            && let Ok(axis_vector) = self.geom.axis_vectors.get(axis)
+            && let Ok(axis_vector) = self.geom.axis_vectors.vectors_by_id.get(axis)
         {
             axis_vector.clone()
         } else if piece

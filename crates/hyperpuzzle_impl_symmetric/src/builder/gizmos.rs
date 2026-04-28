@@ -9,7 +9,7 @@ use hypermath::{
     pga::Motor,
 };
 use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace, TiMask};
-use hyperpuzzle_impl_nd_euclid::{GizmoTwist, builder::AxisSystemBuilder};
+use hyperpuzzle_impl_nd_euclid::{GizmoTwist, builder::AdHocAxisSystemBuilder};
 use hypershape::{Cut, ElementCutOutput, ElementId, ElementIdConvert, FaceId, FacetId, Space};
 use hypuz_notation::{Multiplier, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use hyperpuzzle_core::{Color, NameSpec};
+use hyperpuzzle_core::{Color, NameSpec, util::MaybeAdHoc};
 use hyperpuzzlescript::{Builtins, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::HpsShape;
@@ -25,7 +25,10 @@ impl HpsColor {
     }
 
     pub fn name(&self) -> Option<NameSpec> {
-        Some(self.shape.lock().colors.names.get(self.id)?.clone())
+        Some(match &self.shape.lock().colors.0 {
+            MaybeAdHoc::Fixed(f) => f.names.get(self.id).ok()?.clone(),
+            MaybeAdHoc::AdHoc(a) => a.names.get(self.id)?.clone(),
+        })
     }
 }
 impl fmt::Debug for HpsColor {

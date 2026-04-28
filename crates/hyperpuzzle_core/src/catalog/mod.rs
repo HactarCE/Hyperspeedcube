@@ -1,7 +1,9 @@
 //! Catalog of puzzles and related objects, along with functionality for loading
 //! them.
 
+use eyre::Context;
 use std::any::TypeId;
+use std::collections::BTreeSet;
 use std::collections::{HashMap, HashSet, hash_map};
 use std::fmt;
 use std::ops::Deref;
@@ -172,7 +174,7 @@ impl Catalog {
                 // Unlock the mutex before expensive object generation.
                 log::trace!("Building {type_str} {id:?}");
                 let cache_entry_value = MutexGuard::unlocked(&mut cache_entry_guard, || {
-                    let build_ctx = BuildCtx::new(self, &progress);
+                    let build_ctx = BuildCtx::new(self, &progress, id.clone());
                     CacheEntry::from((generator.generate)(build_ctx, id.args.clone()))
                 });
                 // Handle cancellation.
@@ -256,7 +258,7 @@ impl Catalog {
             })?;
 
             let progress = Arc::new(Mutex::new(Progress::default()));
-            let build_ctx = BuildCtx::new(self, &progress);
+            let build_ctx = BuildCtx::new(self, &progress, id.clone());
             match (generator.generate_meta)(build_ctx, id.args) {
                 Ok(Redirectable::Direct(output)) => return Ok(output),
                 Ok(Redirectable::Redirect(new_id)) => {

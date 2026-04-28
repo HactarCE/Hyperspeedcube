@@ -814,9 +814,7 @@ puzzle_view {
 
   initializing "Initializing"
   generating_spec "Generating specification"
-  building_colors "Building color system"
-  building_twists "Building twist system"
-  building_puzzle "Building puzzle"
+  building "Building {{object_type}}"
   finalizing "Finalizing puzzle"
 
   loading_log "Loading log file"

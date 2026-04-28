@@ -332,7 +332,7 @@ impl NdEuclidPuzzleState {
 
         let mut cached_transforms = self.cached_transforms.lock();
         let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
-            .reverse_transform_axis_vector(axis, &geom.axis_vectors[axis]);
+            .reverse_transform_axis_vector(axis, &geom.axis_vectors.vectors_by_id[axis]);
 
         geom.piece_min_max_on_axis(piece, transformed_axis_vector)
             .ok_or_eyre("piece has no vertices")

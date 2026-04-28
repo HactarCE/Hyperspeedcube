@@ -9,7 +9,7 @@ pub mod builtins;
 pub mod codegen;
 mod custom_value;
 mod diagnostic;
-mod engines;
+mod engine_callback;
 mod parse;
 mod request;
 mod runtime;
@@ -20,12 +20,10 @@ pub use ast::SpecialVar;
 pub use custom_value::{BoxDynValue, CustomValue, TryEq};
 use diagnostic::LoopControlFlow;
 pub use diagnostic::{
-    AstSyntaxError, Diagnostic, Error, ErrorExt, FormattedFullDiagnostic, FullDiagnostic,
-    ImmutReason, TracebackLine, Warning,
+    AstSyntaxError, Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine,
+    Warning,
 };
-pub use engines::{
-    EngineCallback, LazyCatalogConstructor, PuzzleEngineCallback, TwistSystemEngineCallback,
-};
+pub use engine_callback::{EngineCallback, PuzzleEngineCallback, TwistSystemEngineCallback};
 pub use request::EvalRequestTx;
 pub use runtime::{Builtins, EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};

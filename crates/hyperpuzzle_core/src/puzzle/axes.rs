@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::NameSpecBiMap;
+use crate::{ComponentList, NameSpecBiMap};
 
 /// System of axes for a puzzle.
 #[derive(Debug)]
 pub struct AxisSystem {
     /// Axis names.
     pub names: Arc<NameSpecBiMap<Axis>>,
-
     /// Orbits used to generate axes.
     pub orbits: Vec<Orbit<Axis>>,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 }
 impl AxisSystem {
     /// Returns an empty axis system.
@@ -18,6 +19,7 @@ impl AxisSystem {
         Self {
             names: Arc::new(NameSpecBiMap::new()),
             orbits: vec![],
+            components: ComponentList::new(),
         }
     }
 

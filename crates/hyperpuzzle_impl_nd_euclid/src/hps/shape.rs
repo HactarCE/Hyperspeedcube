@@ -4,17 +4,19 @@ use std::sync::Arc;
 use hypergroup::AbbrGenSeq;
 use hypermath::Hyperplane;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{Color, Orbit};
+use hyperpuzzle_core::{Color, Orbit, util::MaybeAdHoc};
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, Result, hps_fns, impl_simple_custom_type,
 };
 use itertools::Itertools;
+use parking_lot::{Mutex, MutexGuard};
 
-use super::{ArcMut, HpsColor, HpsRegion, HpsSymmetry, Names};
+use super::{HpsColor, HpsRegion, HpsSymmetry, Names};
 use crate::builder::ShapeBuilder;
 
 /// HPS shape builder.
-pub(super) type HpsShape = ArcMut<ShapeBuilder>;
+#[derive(Clone)]
+pub(super) struct HpsShape(pub Arc<Mutex<ShapeBuilder>>);
 impl_simple_custom_type!(HpsShape = "euclid.Shape");
 impl fmt::Debug for HpsShape {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -24,6 +26,17 @@ impl fmt::Debug for HpsShape {
 impl fmt::Display for HpsShape {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}(ndim = {:?})", self.type_name(), self.lock().ndim())
+    }
+}
+impl PartialEq for HpsShape {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for HpsShape {}
+impl HpsShape {
+    pub fn lock(&self) -> MutexGuard<'_, ShapeBuilder> {
+        self.0.lock()
     }
 }
 
@@ -156,9 +169,10 @@ impl HpsShape {
         let mut color_list: Option<Vec<Option<Color>>> = None;
         match args.stickers {
             StickerMode::NewColor => {
+                let ad_hoc_colors = this.colors.as_ad_hoc_mut().at(span)?;
                 color_list = Some(
                     (0..cut_planes.len())
-                        .map(|_| this.colors.add(None, ctx.warnf()).map(Some))
+                        .map(|_| ad_hoc_colors.add(None, ctx.warnf()).map(Some))
                         .try_collect()
                         .at(span)?,
                 );
@@ -166,7 +180,7 @@ impl HpsShape {
             StickerMode::None => fixed_color = None,
             StickerMode::FixedColor(c) => fixed_color = Some(c.id),
             StickerMode::FromNames(names) => {
-                let color_names = names.0.to_strings(ctx, &transforms, span)?;
+                let color_names = names.0.to_strings(ctx, &transforms)?;
                 color_list = Some(
                     color_names
                         .into_iter()
@@ -182,20 +196,22 @@ impl HpsShape {
         };
 
         Ok(match color_list {
-            Some(colors) => {
-                if ctx_symmetry.is_some() {
-                    this.colors.orbits.push(Orbit {
-                        elements: Arc::new(colors.clone()),
+            Some(colors_to_assign) => {
+                if ctx_symmetry.is_some()
+                    && let Ok(ad_hoc_color_system_builder) = this.colors.as_ad_hoc_mut()
+                {
+                    ad_hoc_color_system_builder.orbits.push(Orbit {
+                        elements: Arc::new(colors_to_assign.clone()),
                         generator_sequences: Arc::new(gen_seqs),
                     });
                 }
                 drop(this);
-                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors_to_assign))
             }
             None => {
-                let colors = std::iter::repeat(fixed_color);
+                let colors_to_assign = std::iter::repeat(fixed_color);
                 drop(this);
-                self.cut_all(args.mode, std::iter::zip(cut_planes, colors))
+                self.cut_all(args.mode, std::iter::zip(cut_planes, colors_to_assign))
             }
         }
         .at(span)?

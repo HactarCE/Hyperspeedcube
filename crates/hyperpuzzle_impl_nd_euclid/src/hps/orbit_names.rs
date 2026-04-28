@@ -14,7 +14,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{HpsAxis, HpsEuclidError, HpsSymmetry, HpsTwist};
+use super::{HpsAxis, HpsEuclidError, HpsSymmetry};
 
 #[derive(Debug, Clone)]
 pub struct Names(pub HpsOrbitNames);
@@ -104,9 +104,6 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("$", |ctx, axis: HpsAxis| -> HpsOrbitNames {
             HpsOrbitNames::from((axis.into(), ctx.caller_span))
         }),
-        ("$", |ctx, twist: HpsTwist| -> HpsOrbitNames {
-            HpsOrbitNames::from((twist.into(), ctx.caller_span))
-        }),
         ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames {
             orbit_names
         }),
@@ -165,8 +162,8 @@ impl HpsOrbitNames {
         &self,
         ctx: &mut EvalCtx<'_>,
         transforms: &[Motor],
-        span: Span,
     ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
+        let span = ctx.caller_span;
         let mut strings = vec![String::new(); transforms.len()];
         for &(ref offset, (ref component, component_span)) in &self.components {
             let strings_and_transforms = std::iter::zip(
@@ -183,23 +180,23 @@ impl HpsOrbitNames {
                     }
                 }
                 HpsOrbitNamesComponent::Axis(axis) => {
-                    let axes = axis.axes.lock();
+                    let axes = &axis.axes;
                     for (s, t) in strings_and_transforms {
-                        let transformed_axis =
-                            super::transform_axis(span, &axes, &t, (axis.id, component_span))?;
-                        let transformed_axis_name =
-                            super::axis_name(span, &axes, transformed_axis)?;
+                        let (transformed_axis, transformed_axis_vector) = super::transform_axis(
+                            span,
+                            &*axes.lock_vectors().at(span)?,
+                            &t,
+                            (axis.id, component_span),
+                        )?;
+                        let transformed_axis_name = axes
+                            .axis_name(transformed_axis)
+                            .at(span)?
+                            .ok_or(HpsEuclidError::UnnamedAxis(
+                                transformed_axis,
+                                transformed_axis_vector,
+                            ))
+                            .at(span)?;
                         s.push_str(&transformed_axis_name.spec);
-                    }
-                }
-                HpsOrbitNamesComponent::Twist(twist) => {
-                    let twists = twist.twists.lock();
-                    for (s, t) in strings_and_transforms {
-                        let transformed_twist =
-                            super::transform_twist(span, &twists, &t, (twist.id, component_span))?;
-                        let transformed_twist_name =
-                            super::twist_name(span, &twists, transformed_twist)?;
-                        s.push_str(&transformed_twist_name.spec);
                     }
                 }
                 HpsOrbitNamesComponent::Cosets(lazy_coset_map) => {
@@ -235,7 +232,6 @@ impl HpsOrbitNames {
 pub(super) enum HpsOrbitNamesComponent {
     Str(Str),
     Axis(HpsAxis),
-    Twist(HpsTwist),
     Cosets(Arc<Mutex<LazyCosetMap>>),
     Fn(Arc<FnValue>),
 }
@@ -247,11 +243,6 @@ impl From<Str> for HpsOrbitNamesComponent {
 impl From<HpsAxis> for HpsOrbitNamesComponent {
     fn from(value: HpsAxis) -> Self {
         Self::Axis(value)
-    }
-}
-impl From<HpsTwist> for HpsOrbitNamesComponent {
-    fn from(value: HpsTwist) -> Self {
-        Self::Twist(value)
     }
 }
 impl From<Arc<FnValue>> for HpsOrbitNamesComponent {

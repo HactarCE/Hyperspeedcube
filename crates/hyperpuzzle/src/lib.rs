@@ -85,7 +85,7 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
                 hyperpuzzlescript::Diagnostic::Warning(_) => Level::Warn,
             },
             msg: diagnostic.msg.to_string(),
-            full: Some(diagnostic.formatted(modules).ansi_string),
+            full: Some(diagnostic.formatted(modules)),
         });
     });
 

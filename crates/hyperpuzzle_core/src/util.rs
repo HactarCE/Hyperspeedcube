@@ -3,10 +3,14 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
+use std::sync::Arc;
 
+use eyre::{Result, bail};
 use itertools::Itertools;
 use rand::SeedableRng;
 use sha2::Digest;
+
+use crate::catalog::CatalogObject;
 
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
@@ -130,6 +134,57 @@ pub fn vantage_name<'a>(axis_pairs: impl IntoIterator<Item = (&'a str, &'a str)>
 /// The first reference in each pair is typically fixed.
 pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
     name.split(',').map(|s| s.split_once(':')).collect()
+}
+
+#[derive(Debug)]
+pub enum MaybeAdHoc<F, A> {
+    Fixed(Arc<F>),
+    AdHoc(A),
+}
+
+impl<F, A: Clone> Clone for MaybeAdHoc<F, A> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Fixed(f) => Self::Fixed(Arc::clone(f)),
+            Self::AdHoc(a) => Self::AdHoc(a.clone()),
+        }
+    }
+}
+
+impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
+    pub fn as_ad_hoc(&self) -> Result<&A, ExpectedAdHoc>
+    where
+        F: CatalogObject,
+    {
+        match self {
+            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<F>()),
+            MaybeAdHoc::AdHoc(a) => Ok(a),
+        }
+    }
+
+    pub fn as_ad_hoc_mut(&mut self) -> Result<&mut A, ExpectedAdHoc>
+    where
+        F: CatalogObject,
+    {
+        match self {
+            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<F>()),
+            MaybeAdHoc::AdHoc(a) => Ok(a),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("cannot modify fixed {type_name}")]
+pub struct ExpectedAdHoc {
+    type_name: &'static str,
+}
+
+impl ExpectedAdHoc {
+    fn new<O: CatalogObject>() -> Self {
+        Self {
+            type_name: O::CATALOG_TYPE_NAME,
+        }
+    }
 }
 
 #[cfg(test)]

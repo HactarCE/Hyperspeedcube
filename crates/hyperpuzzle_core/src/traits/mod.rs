@@ -1,3 +1,5 @@
+#![deprecated] // TODO: remove this whole module
+
 /// Defines a wrapper struct around `Box<dyn Trait>` that allows downcasting to
 /// anything that implements the trait.
 #[macro_export]

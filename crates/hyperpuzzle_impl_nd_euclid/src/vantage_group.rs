@@ -7,7 +7,10 @@ use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{NdEuclidTwistSystemEngineData, TwistKey};
+use crate::{
+    NdEuclidTwistSystemEngineData, TwistKey,
+    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
+};
 
 hyperpuzzle_core::typed_index_struct! {
     /// ID of a reference vector in a vantage group.
@@ -32,13 +35,11 @@ pub struct NdEuclidVantageGroup {
     pub(crate) axis_names: Arc<NameSpecBiMap<Axis>>,
     pub(crate) twist_names: Arc<NameSpecBiMap<Twist>>,
 
-    /// Map from twist to twist axis.
-    ///
-    /// This information exists in the twist system too, but we don't really
+    // This information exists in the twist system too, but we don't really
     /// want to hold a reference to the twist system because that would be a
     /// circular reference which is slightly awkward to construct.
-    pub(crate) twist_axes: Arc<PerTwist<Axis>>,
-    pub(crate) twist_system_engine_data: NdEuclidTwistSystemEngineData,
+    pub(crate) axis_vectors: Arc<NdEuclidAxisVectors>,
+    pub(crate) twists_list: Arc<NdEuclidTwistsList>,
 }
 
 impl NdEuclidVantageGroup {
@@ -110,13 +111,13 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             Some(axis.absolute_axis) // optimization
         } else {
             let axis_vector = self
-                .twist_system_engine_data
                 .axis_vectors
+                .vectors_by_id
                 .get(axis.absolute_axis)
                 .ok()?;
             let new_axis_vector = self.vantage_motor(vantage).transform(axis_vector);
-            self.twist_system_engine_data
-                .axis_from_vector
+            self.axis_vectors
+                .ids_by_vector
                 .get(new_axis_vector)
                 .copied()
         }
@@ -131,19 +132,19 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
             Some(twist.absolute_twist) // optimization
         } else {
             let twist_axis = NdEuclidRelativeAxis {
-                absolute_axis: self.twist_axes[twist.absolute_twist],
+                absolute_axis: self.twists_list.twist_axes[twist.absolute_twist],
                 transform: twist.transform,
             };
             let new_twist_axis = self.resolve_axis_concrete(vantage, twist_axis)?;
 
             let twist_transform = self
-                .twist_system_engine_data
+                .twists_list
                 .twist_transforms
                 .get(twist.absolute_twist)
                 .ok()?;
             let new_twist_transform = self.vantage_motor(vantage).transform(twist_transform);
 
-            self.twist_system_engine_data
+            self.twists_list
                 .twist_from_transform
                 .get(TwistKey::new(new_twist_axis, &new_twist_transform)?)
                 .copied()

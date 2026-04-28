@@ -1,12 +1,14 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
-use eyre::{Context, eyre};
-use hyperpuzzle_core::catalog::BuildTask;
-use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzle_core::{ComponentList, prelude::*};
 use hyperpuzzlescript::*;
+use parking_lot::Mutex;
 
-use super::{ArcMut, HpsNdEuclid};
+use super::HpsNdEuclid;
 use crate::builder::*;
+use crate::hps::{HpsAxisSystem, HpsPuzzle, HpsShape, HpsTwistSystem};
 
 impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
     fn name(&self) -> String {
@@ -17,9 +19,9 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
         &self,
         ctx: &mut EvalCtx<'_>,
         mut meta: CatalogMetadata,
-        kwargs: Map,
+        mut kwargs: Map,
         eval_tx: EvalRequestTx,
-    ) -> Result<LazyCatalogConstructor<Puzzle>> {
+    ) -> Result<Generator<Puzzle>> {
         let caller_span = ctx.caller_span;
 
         unpack_kwargs!(
@@ -32,17 +34,8 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
             scramble: Option<u32>,
         );
 
-        if let Some(color_system_id) = colors.clone() {
-            meta.tags
-                .insert_named("colors/system", TagValue::Str(color_system_id))
-                .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
-        }
-
-        if let Some(twist_system_id) = twists.clone() {
-            meta.tags
-                .insert_named("twists/system", TagValue::Str(twist_system_id))
-                .map_err(|e| Error::User(e.to_string().into()).at(caller_span))?;
-        }
+        meta.tags.set_opt_color_system(colors.as_deref());
+        meta.tags.set_opt_twist_system(twists.as_deref());
 
         if let Err(e) = meta.tags.insert_named("ndim", TagValue::Int(ndim as i64)) {
             ctx.warn(e.to_string());
@@ -50,44 +43,35 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
 
         let meta = Arc::new(meta);
 
-        Ok(LazyCatalogConstructor {
-            meta: Arc::clone(&meta),
-            build: Box::new(move |build_ctx| {
-                let builder = ArcMut::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?);
-                let id = meta.id.clone();
+        Ok(Generator::new_lazy_constant(
+            Arc::clone(&meta),
+            move |build_ctx| {
+                let logger = &build_ctx.catalog.logger;
+                let builder = Arc::new(Mutex::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?));
+                let id = &meta.id;
 
                 // Build color system.
-                if let Some(color_system_id) = &colors {
-                    build_ctx.progress.lock().task = BuildTask::BuildingColors;
-                    let colors = build_ctx
-                        .catalog
-                        .build_blocking(
-                            &CatalogId::from_str(color_system_id)
-                                .map_err(|e| eyre!("error parsing color system ID string: {e}"))?,
-                        )
-                        .map_err(|e| clone_eyre(&e))
-                        .wrap_err("error building color system")?;
-                    builder.shape().lock().colors = ColorSystemBuilder::unbuild(&colors)?;
+                if let Some(colors_id) = &colors {
+                    builder.lock().shape.lock().colors = ColorSystemBuilder(MaybeAdHoc::Fixed(
+                        build_ctx.build_str_blocking(colors_id)?,
+                    ));
+                } else {
+                    logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
                 }
 
                 // Build twist system.
-                if let Some(twist_system_id) = &twists {
-                    build_ctx.progress.lock().task = BuildTask::BuildingTwists;
-                    let twists = build_ctx
-                        .catalog
-                        .build_blocking(
-                            &CatalogId::from_str(twist_system_id)
-                                .map_err(|e| eyre!("error parsing twist system ID string: {e}"))?,
-                        )
-                        .map_err(|e| clone_eyre(&e))
-                        .wrap_err("error building twist system")?;
-                    *builder.twists().lock() = TwistSystemBuilder::unbuild(&twists)?;
+                if let Some(twists_id) = &twists {
+                    builder.lock().twists = TwistSystemBuilder(MaybeAdHoc::Fixed(
+                        build_ctx.build_str_blocking(twists_id)?,
+                    ));
+                } else {
+                    logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
                 }
 
-                build_ctx.progress.lock().task = BuildTask::BuildingPuzzle;
+                build_ctx.set_building::<Puzzle>();
 
                 if let Some(remove_internals) = remove_internals {
-                    builder.shape().lock().remove_internals = remove_internals;
+                    builder.lock().shape.lock().remove_internals = remove_internals;
                 }
                 if let Some(full_scramble_length) = scramble {
                     builder.lock().full_scramble_length = full_scramble_length;
@@ -95,48 +79,43 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
 
                 let mut scope = Scope::default();
                 scope.special.ndim = Some(ndim);
-                scope.special.puz = builder.clone().at(BUILTIN_SPAN);
-                scope.special.shape = builder.shape().at(BUILTIN_SPAN);
-                scope.special.twists = builder.twists().at(BUILTIN_SPAN);
-                scope.special.axes = builder.axes().at(BUILTIN_SPAN);
+                scope.special.puz = HpsPuzzle(builder.clone()).at(BUILTIN_SPAN);
+                scope.special.shape = HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN);
+                scope.special.twists =
+                    HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN);
+                scope.special.axes = HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN);
                 scope.special.id = Some(id.to_string().into());
                 let scope = Arc::new(scope);
 
                 let build_fn = Arc::clone(&build);
 
-                eval_tx.eval_blocking(move |runtime| {
-                    let mut ctx = EvalCtx {
-                        scope: &scope,
-                        runtime,
-                        caller_span,
-                        exports: &mut None,
-                        stack_depth: 0,
-                    };
-                    build_fn
-                        .call(build_span, &mut ctx, vec![], Map::new())
-                        .map_err(|e| {
-                            ctx.runtime
-                                .report_and_convert_to_eyre(e)
-                                .wrap_err("error building puzzle")
-                        })?;
+                eval_tx
+                    .eval_blocking(move |runtime| {
+                        let mut ctx = EvalCtx {
+                            scope: &scope,
+                            runtime,
+                            caller_span,
+                            exports: &mut None,
+                            stack_depth: 0,
+                        };
+                        build_fn
+                            .call(build_span, &mut ctx, vec![], Map::new())
+                            .map_err(|e| {
+                                ctx.runtime
+                                    .report_and_convert_to_eyre(e)
+                                    .wrap_err("error building puzzle")
+                            })?;
 
-                    let b = builder.lock();
+                        let b = builder.lock();
 
-                    // Assign default piece type to remaining pieces.
-                    b.shape.lock().mark_untyped_pieces()?;
+                        // Assign default piece type to remaining pieces.
+                        b.shape.lock().mark_untyped_pieces()?;
 
-                    b.build(Some(&build_ctx), &mut ctx.warnf())
-                })
-            }),
-        })
-    }
-}
-
-#[track_caller]
-fn clone_eyre(e: &eyre::Report) -> eyre::Report {
-    if let Some(e) = e.downcast_ref::<FormattedFullDiagnostic>().cloned() {
-        eyre!(e)
-    } else {
-        eyre!("{e}") // cursed reformatting of eyre::Report
+                        b.build(Some(&build_ctx), &mut ctx.warnf())
+                    })
+                    .map(Redirectable::Direct)
+            },
+            ComponentList::new(),
+        ))
     }
 }

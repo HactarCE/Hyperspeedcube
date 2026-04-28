@@ -1,14 +1,17 @@
 //! Hyperpuzzle catalog functions.
 
+use std::ops::{Deref, DerefMut};
+
 use ecow::eco_format;
-use hyperpuzzle_core::{CatalogBuilder, Version};
+use hyperpuzzle_core::{CatalogBuilder, Component, Version};
 
 mod color_systems;
 mod generators;
 mod puzzles;
 mod twist_systems;
 
-use crate::{Builtins, EvalCtx, EvalRequestTx, Result};
+use crate::{Builtins, EvalCtx, EvalRequestTx, Map, Result};
+pub use generators::HpsGenerator;
 
 /// Adds the built-in functions.
 pub fn define_in(
@@ -55,5 +58,30 @@ fn parse_version(ctx: &mut EvalCtx<'_>, thing: &str, s: Option<&str>) -> Result<
             ctx.warn(eco_format!("error parsing version string: {e}"));
             Ok(Version::default())
         }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HpsExports(pub Map);
+
+impl<E> Component<E> for HpsExports {}
+
+impl Deref for HpsExports {
+    type Target = Map;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for HpsExports {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl HpsExports {
+    pub fn new() -> Self {
+        Self(Map::new())
     }
 }

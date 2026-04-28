@@ -12,16 +12,20 @@ use hyperpuzzle_core::prelude::*;
 
 mod anim;
 pub mod builder;
-mod engine;
+mod components;
 mod geom;
 pub mod hps;
 mod layers;
 mod state;
+
 mod twist_key;
 mod vantage_group;
 
 pub use anim::NdEuclidPuzzleAnimation;
-pub use engine::{NdEuclidTwistSystemEngineData, NdEuclidVantageSetEngineData};
+pub use components::{
+    NamedTwistsList, NdEuclidAxisVectors, NdEuclidTwistSystemEngineData, NdEuclidTwistsList,
+    NdEuclidVantageSetEngineData,
+};
 pub use geom::{GizmoTwist, NdEuclidPuzzleGeometry};
 pub use layers::{LayerDepths, PuzzleLayerDepths};
 pub use state::NdEuclidPuzzleState;

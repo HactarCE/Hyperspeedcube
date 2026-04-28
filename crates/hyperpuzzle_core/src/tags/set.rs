@@ -106,6 +106,28 @@ impl TagSet {
         }
         Ok(())
     }
+    /// Sets the `colors/system` tag.
+    pub fn set_color_system(&mut self, id: &str) {
+        self.insert_named("colors/system", TagValue::Str(id.to_string()))
+            .expect("color system tag does not exist");
+    }
+    /// Sets the `twists/system` tag.
+    pub fn set_twist_system(&mut self, id: &str) {
+        self.insert_named("twists/system", TagValue::Str(id.to_string()))
+            .expect("twist system tag does not exist");
+    }
+    /// Sets the `colors/system` tag if `opt_id` is `Some`.
+    pub fn set_opt_color_system(&mut self, opt_id: Option<&str>) {
+        if let Some(id) = opt_id {
+            self.set_color_system(id);
+        }
+    }
+    /// Sets the `twists/system` tag if `opt_id` is `Some`.
+    pub fn set_opt_twist_system(&mut self, opt_id: Option<&str>) {
+        if let Some(id) = opt_id {
+            self.set_twist_system(id);
+        }
+    }
 
     /// Returns an entry in the map.
     pub fn entry(&mut self, tag: &TagData) -> hash_map::Entry<'_, Arc<str>, TagValue> {

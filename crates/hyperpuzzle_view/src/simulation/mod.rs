@@ -677,10 +677,10 @@ impl PuzzleSimulation {
                         }
                         .into(),
                     });
-                } else if let Some(symmetric) = &puzzle
+                } else if let Ok(symmetric) = puzzle
                     .twists
-                    .engine_data
-                    .downcast_ref::<SymmetricTwistSystemEngineData>()
+                    .components
+                    .get::<SymmetricTwistSystemEngineData>()
                     && let Ok(m) = symmetric.twist_motor(twist)
                 {
                     self.twist_anim.push(AnimationFromState {
@@ -805,7 +805,8 @@ impl PuzzleSimulation {
         };
 
         if let Some(partial) = &mut nd_euclid.partial_twist_drag_state {
-            let Ok(axis_vector) = nd_euclid.geom.axis_vectors.get(partial.axis) else {
+            let Ok(axis_vector) = nd_euclid.geom.axis_vectors.vectors_by_id.get(partial.axis)
+            else {
                 return;
             };
             let Some(v1) = surface_normal.cross_product_3d(axis_vector).normalize() else {
