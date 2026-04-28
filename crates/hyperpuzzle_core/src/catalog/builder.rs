@@ -1,6 +1,5 @@
-use crate::ComponentList;
-
 use super::*;
+use crate::ComponentList;
 
 /// Builder for a [`Catalog`].
 ///

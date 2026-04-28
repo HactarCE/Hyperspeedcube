@@ -190,7 +190,8 @@ impl AxisOrbitSpec {
         max_distance: Float,
         min_distance: Float,
     ) -> Option<LayerRange> {
-        // TODO: `None` should represent "not in any layer". blocking the axis completely is currently unrepresentable
+        // TODO: `None` should represent "not in any layer". blocking the axis
+        //       completely is currently unrepresentable
         let (max_layer, _) = self
             .layer_outside_distances()
             .take_while(|(_, d)| APPROX.gt_eq(d, &max_distance))

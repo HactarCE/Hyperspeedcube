@@ -1,8 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    num::NonZeroI32,
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::num::NonZeroI32;
+use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::{
@@ -10,7 +8,8 @@ use hypergroup::{
     GroupElementId, GroupError, IsometryGroup, PerGenerator, PerGroupElement, SubgroupAction,
     SubgroupConstraintSolver,
 };
-use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef, num::Euclid};
+use hypermath::num::Euclid;
+use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef};
 use hyperpuzzle_core::{
     Axis, AxisSystem, ComponentList, IndexOverflow, NameSpecBiMap, NameSpecBiMapBuilder, Orbit,
     PerAxis, TiMask, TypedIndex, TypedIndexIter,
@@ -22,9 +21,10 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::{SmallVec, smallvec};
 
+use crate::names::NameBiMap;
 use crate::{
     AxisOrbitSpec, NamedPoint, NamedPointOrbitSpec, NamedPointSet, PerNamedPoint, StabilizerFamily,
-    SymmetricTwistSystemAxisOrbit, UniqueMinimalClockwiseGenerator, names::NameBiMap,
+    SymmetricTwistSystemAxisOrbit, UniqueMinimalClockwiseGenerator,
 };
 
 /// Axis system of a puzzle under construction.
@@ -162,7 +162,8 @@ impl ProductPuzzleAxes {
                         .collect(),
                 ),
                 names: Arc::new(names),
-                stabilizer_action: SubgroupAction::trivial(), // easier to add once we have `axis_action`
+                // `stabilizer_action` is easier to add later once we have `axis_action`
+                stabilizer_action: SubgroupAction::trivial(),
                 stabilizer_twists: orbit
                     .stabilizer_sets
                     .iter()
@@ -378,11 +379,13 @@ impl ProductPuzzleAxes {
                 self.group.generators(),
                 |&(ax, undeorbiter), &g| {
                     let new_ax = self.axis_action.act(g, ax);
-                    (new_ax != orbit.first() && ret[new_ax].0 == GroupElementId::IDENTITY).then(|| {
-                        let new_undeorbiter = self.group.compose(g, undeorbiter);
-                        ret[new_ax] = (new_undeorbiter, orbit_index);
-                        (new_ax, new_undeorbiter)
-                    })
+                    (new_ax != orbit.first() && ret[new_ax].0 == GroupElementId::IDENTITY).then(
+                        || {
+                            let new_undeorbiter = self.group.compose(g, undeorbiter);
+                            ret[new_ax] = (new_undeorbiter, orbit_index);
+                            (new_ax, new_undeorbiter)
+                        },
+                    )
                 },
             );
 
@@ -439,7 +442,8 @@ impl ProductPuzzleAxes {
                 );
 
                 let stabilizer_twist_families = match self.group.ndim() {
-                    3 => &[(NamedPointSet::EMPTY, 0.0)], // gizmo pole distance doesn't matter for 3D
+                    3 => &[(NamedPointSet::EMPTY, 0.0)], /* gizmo pole distance doesn't matter */
+                    // for 3D
                     4 => &*orbit.stabilizer_twists,
                     _ => &[],
                 };
@@ -681,7 +685,8 @@ impl AxisOrbit {
         mut self,
         rhs: &ProductPuzzleAxes,
         total_ndim: u8,
-        new_named_point_set_orbits: &[(NamedPointSet, Float)], // must use named point IDs for product
+        new_named_point_set_orbits: &[(NamedPointSet, Float)], /* must use named point IDs for
+                                                                * product */
     ) -> Result<Self> {
         self.stabilizer_action =
             SubgroupAction::direct_product_right(self.stabilizer_action, &rhs.named_point_action)?;

@@ -1,6 +1,5 @@
-use crate::ComponentList;
-
 use super::*;
+use crate::ComponentList;
 
 /// Puzzle generator.
 pub type PuzzleGenerator = Generator<Puzzle>;

@@ -7,8 +7,9 @@ use std::sync::{Arc, Weak};
 use eyre::{OptionExt, Result, eyre};
 use hypergroup::{GroupElementId, GroupError, SubgroupAction, SubgroupConstraintSolver};
 use hypermath::prelude::*;
+use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
-use hyperpuzzle_core::{ComponentList, prelude::*};
+use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_impl_nd_euclid::NdEuclidPuzzleGeometry;
 
 mod axes;

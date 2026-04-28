@@ -1,4 +1,5 @@
-use std::{fmt, sync::Arc};
+use std::fmt;
+use std::sync::Arc;
 
 use hypermath::{Float, Hyperplane, Vector};
 use hyperpuzzle_core::prelude::*;

@@ -2,7 +2,8 @@ use std::fmt;
 
 use hypermath::Vector;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{Axis, NameSpec, util::MaybeAdHoc};
+use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzle_core::{Axis, NameSpec};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, EvalCtx, Result, Span, Spanned, Value, ValueData, impl_simple_custom_type,
 };

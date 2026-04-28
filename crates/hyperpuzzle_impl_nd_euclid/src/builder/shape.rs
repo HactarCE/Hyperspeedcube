@@ -2,16 +2,16 @@ use std::collections::{HashMap, hash_map};
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{prelude::*, util::MaybeAdHoc};
+use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::util::MaybeAdHoc;
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use regex::Regex;
 use smallvec::smallvec;
 
-use crate::builder::color_system::ColorSystemBuilder;
-
 use super::{AdHocColorSystemBuilder, PieceBuilder, PieceTypeBuilder};
+use crate::builder::color_system::ColorSystemBuilder;
 
 // TODO: build color system separately and statically?
 

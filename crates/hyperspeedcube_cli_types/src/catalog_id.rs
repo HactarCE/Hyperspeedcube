@@ -1,6 +1,7 @@
 //! ID string for an object in a catalog.
 
-use std::{fmt, str::FromStr};
+use std::fmt;
+use std::str::FromStr;
 
 use chumsky::prelude::*;
 use serde::{Deserialize, Serialize, de};

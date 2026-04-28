@@ -1,27 +1,19 @@
-use std::{
-    any::{Any, TypeId},
-    cmp::Reverse,
-    collections::HashMap,
-    i32,
-    ops::{Deref, DerefMut, Range, RangeInclusive},
-};
+use std::any::{Any, TypeId};
+use std::cmp::Reverse;
+use std::collections::HashMap;
+use std::i32;
+use std::ops::{Deref, DerefMut, Range, RangeInclusive};
 
 use egui::{NumExt, TextBuffer};
-use hyperpuzzle::{
-    CatalogId, FloatMinMaxIteratorExt,
-    catalog::{Menu, MenuContent, MenuPath},
-    symmetric::hps::HpsSymmetric,
-};
+use hyperpuzzle::catalog::{Menu, MenuContent, MenuPath};
+use hyperpuzzle::symmetric::hps::HpsSymmetric;
+use hyperpuzzle::{CatalogId, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 
-use crate::{
-    app::App,
-    gui::{
-        EguiValue,
-        components::PuzzleGeneratorUi,
-        util::{EguiTempValue, text_width},
-    },
-};
+use crate::app::App;
+use crate::gui::EguiValue;
+use crate::gui::components::PuzzleGeneratorUi;
+use crate::gui::util::{EguiTempValue, text_width};
 
 const SECTION_TEXT_SIZE: f32 = 15.0;
 const PARAMETERS_HEADING: &str = "Parameters";

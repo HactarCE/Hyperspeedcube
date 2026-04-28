@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::{ComponentList, catalog::Generator, prelude::*, util::MaybeAdHoc};
-use hyperpuzzlescript::{builtins::catalog::HpsExports, *};
+use hyperpuzzle_core::ComponentList;
+use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzlescript::builtins::catalog::HpsExports;
+use hyperpuzzlescript::*;
 use parking_lot::Mutex;
 
 use super::HpsNdEuclid;
-use crate::{
-    builder::*,
-    hps::{HpsAxisSystem, HpsTwistSystem},
-};
+use crate::builder::*;
+use crate::hps::{HpsAxisSystem, HpsTwistSystem};
 
 impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
     fn name(&self) -> String {

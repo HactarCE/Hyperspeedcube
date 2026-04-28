@@ -1,13 +1,15 @@
 //! Hyperpuzzlescript interface for the symmetric puzzle engine.
 
+use std::any::TypeId;
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
+
 use eyre::{Context, eyre};
-use hyperpuzzle_core::{
-    CatalogBuilder,
-    catalog::{Menu, MenuContent},
-};
+use hyperpuzzle_core::CatalogBuilder;
+use hyperpuzzle_core::catalog::{Menu, MenuContent};
 use hyperpuzzlescript::{Builtins, ErrorExt, FnValue, ListOf, Map, Spanned, Str, hps_fns};
 use parking_lot::Mutex;
-use std::{any::TypeId, collections::HashMap, fmt, sync::Arc};
 
 /// Hyperpuzzlescript interface for the symmetric puzzle engine.
 pub struct HpsSymmetric;

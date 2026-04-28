@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
 use hyperpuzzle_core::catalog::BuildCtx;
+use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
-use hyperpuzzle_core::{ComponentList, preferred_name_from_name_spec, prelude::*};
+use hyperpuzzle_core::{ComponentList, preferred_name_from_name_spec};
 use indexmap::IndexMap;
 
 #[derive(Debug)]

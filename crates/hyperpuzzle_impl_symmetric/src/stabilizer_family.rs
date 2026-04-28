@@ -2,7 +2,8 @@ use std::ops::Deref;
 
 use eyre::{OptionExt, Result, bail, eyre};
 use hypergroup::{GroupAction, GroupElementId};
-use hypermath::{Vector, VectorRef, approx_collections::pool::IntoIter};
+use hypermath::approx_collections::pool::IntoIter;
+use hypermath::{Vector, VectorRef};
 use hyperpuzzle_core::{Axis, NameSpecBiMap, PerAxis, TiVec};
 use itertools::Itertools;
 use smallvec::SmallVec;

@@ -1,6 +1,7 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;

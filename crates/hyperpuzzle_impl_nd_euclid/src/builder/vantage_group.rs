@@ -3,16 +3,12 @@ use std::sync::Arc;
 use eyre::{OptionExt, Result, bail};
 use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector};
-use hyperpuzzle_core::{
-    Axis, NameSpecBiMap, NameSpecBiMapBuilder, PerVantage, Twist,
-};
+use hyperpuzzle_core::{Axis, NameSpecBiMap, NameSpecBiMapBuilder, PerVantage, Twist};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{
-    NdEuclidVantageGroup, PerReferenceVector, ReferenceVector,
-    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
-};
+use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
+use crate::{NdEuclidVantageGroup, PerReferenceVector, ReferenceVector};
 
 /// Vantage group during puzzle construction.
 #[derive(Debug, Default)]

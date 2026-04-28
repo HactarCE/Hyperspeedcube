@@ -16,7 +16,7 @@ mod vantage_group;
 mod vantage_set;
 
 pub use axis_layers::{AxisLayerBuilder, AxisLayersBuilder};
-pub use axis_system::{AxisBuilder, AdHocAxisSystemBuilder};
+pub use axis_system::{AdHocAxisSystemBuilder, AxisBuilder};
 pub use color_system::{AdHocColorSystemBuilder, ColorBuilder, ColorSystemBuilder};
 pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;

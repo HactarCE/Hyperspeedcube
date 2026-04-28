@@ -1,6 +1,7 @@
 use std::fmt;
 
-use hyperpuzzle_core::{Color, NameSpec, util::MaybeAdHoc};
+use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzle_core::{Color, NameSpec};
 use hyperpuzzlescript::{Builtins, Result, Span, Spanned, ValueData, impl_simple_custom_type};
 
 use super::HpsShape;

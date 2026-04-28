@@ -8,7 +8,8 @@ use eyre::{OptionExt, Result};
 use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
-use hyperpuzzle_core::{ComponentList, TAGS, prelude::*};
+use hyperpuzzle_core::prelude::*;
+use hyperpuzzle_core::{ComponentList, TAGS};
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
 
 mod builder;

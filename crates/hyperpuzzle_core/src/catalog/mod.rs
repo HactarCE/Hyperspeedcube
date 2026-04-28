@@ -1,15 +1,13 @@
 //! Catalog of puzzles and related objects, along with functionality for loading
 //! them.
 
-use eyre::Context;
 use std::any::TypeId;
-use std::collections::BTreeSet;
-use std::collections::{HashMap, HashSet, hash_map};
+use std::collections::{BTreeSet, HashMap, HashSet, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use eyre::{OptionExt, Result, bail, ensure, eyre};
+use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use itertools::Itertools;
 use parking_lot::{Condvar, MappedMutexGuard, Mutex, MutexGuard};
 use serde::Serialize;
@@ -210,7 +208,8 @@ impl Catalog {
                     id = new_id.parse().map_err(|e| Arc::new(eyre!("{e}")))?;
                 }
                 CacheEntry::Ok(Redirectable::Direct(output)) => return Ok(Arc::clone(output)),
-                CacheEntry::Err(e) => return Err(Arc::clone(e)), // This is why our error needs to be wrapped in `Arc`.
+                CacheEntry::Err(e) => return Err(Arc::clone(e)), /* This is why our error needs
+                                                                   * to be wrapped in `Arc`. */
 
                 // The object has already been built or is being built.
                 CacheEntry::Building { .. } => {

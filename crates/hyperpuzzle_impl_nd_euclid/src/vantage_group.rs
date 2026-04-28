@@ -7,10 +7,8 @@ use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{
-    TwistKey,
-    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
-};
+use crate::TwistKey;
+use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
 
 hyperpuzzle_core::typed_index_struct! {
     /// ID of a reference vector in a vantage group.

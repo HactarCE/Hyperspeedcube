@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::MaybeAdHoc;
-use hyperpuzzle_core::{ComponentList, prelude::*};
 use hyperpuzzlescript::*;
 use parking_lot::Mutex;
 

@@ -10,10 +10,8 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use pga::Blade;
 
-use crate::{
-    GizmoTwist,
-    components::{NdEuclidAxisVectors, NdEuclidTwistsList},
-};
+use crate::GizmoTwist;
+use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
 
 pub(super) fn build_twist_gizmos(
     space: &mut Space,

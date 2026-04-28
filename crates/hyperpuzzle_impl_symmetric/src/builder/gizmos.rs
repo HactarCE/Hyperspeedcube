@@ -4,12 +4,13 @@ use eyre::{OptionExt, Result, eyre};
 use hypergroup::{
     ConstraintSet, ConstraintSolver, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup,
 };
+use hypermath::pga::Motor;
 use hypermath::{
     APPROX, ApproxHashMap, Float, Hyperplane, Point, Vector, VectorRef, approx_collections,
-    pga::Motor,
 };
 use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace, TiMask};
-use hyperpuzzle_impl_nd_euclid::{GizmoTwist, builder::AdHocAxisSystemBuilder};
+use hyperpuzzle_impl_nd_euclid::GizmoTwist;
+use hyperpuzzle_impl_nd_euclid::builder::AdHocAxisSystemBuilder;
 use hypershape::{Cut, ElementCutOutput, ElementId, ElementIdConvert, FaceId, FacetId, Space};
 use hypuz_notation::{Multiplier, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};

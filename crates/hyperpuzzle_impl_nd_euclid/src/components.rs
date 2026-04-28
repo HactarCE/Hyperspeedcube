@@ -1,6 +1,7 @@
 use eyre::{Result, bail};
 use hypermath::{APPROX, ApproxHashMap, Vector, approx_collections, pga};
-use hyperpuzzle_core::{Component, prelude::*};
+use hyperpuzzle_core::Component;
+use hyperpuzzle_core::prelude::*;
 
 use crate::TwistKey;
 
@@ -22,7 +23,7 @@ pub struct NdEuclidAxisVectors {
     /// Map from vector to axis.
     pub ids_by_vector: ApproxHashMap<Vector, Axis>,
     /// Gizmo pole distance for each axis, for 4D twist gizmos.
-    pub gizmo_pole_distances: Option<PerAxis<f32>>, // TODO: maybe this should be a different thing?
+    pub gizmo_pole_distances: Option<PerAxis<f32>>, // TODO: maybe this should live elsewhere?
 }
 
 impl Component<AxisSystem> for NdEuclidAxisVectors {}

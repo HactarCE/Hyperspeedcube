@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use hypermath::pga;
-use hyperpuzzle_core::{ComponentList, prelude::*};
+use hyperpuzzle_core::ComponentList;
+use hyperpuzzle_core::prelude::*;
 
 mod anim;
 pub mod builder;

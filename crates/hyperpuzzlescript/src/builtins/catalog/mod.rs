@@ -10,8 +10,9 @@ mod generators;
 mod puzzles;
 mod twist_systems;
 
-use crate::{Builtins, EvalCtx, EvalRequestTx, Map, Result};
 pub use generators::HpsGenerator;
+
+use crate::{Builtins, EvalCtx, EvalRequestTx, Map, Result};
 
 /// Adds the built-in functions.
 pub fn define_in(

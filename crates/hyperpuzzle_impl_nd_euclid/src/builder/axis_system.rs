@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{ComponentList, prelude::*};
+use hyperpuzzle_core::ComponentList;
+use hyperpuzzle_core::prelude::*;
 
 use crate::components::NdEuclidAxisVectors;
 

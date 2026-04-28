@@ -1,5 +1,6 @@
+use std::io::Read;
+use std::str::FromStr;
 use std::sync::Arc;
-use std::{io::Read, str::FromStr};
 
 use eyre::{Context, Result, eyre};
 use hyperpuzzle::{CatalogId, Puzzle};

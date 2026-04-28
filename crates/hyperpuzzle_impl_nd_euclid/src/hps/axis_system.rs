@@ -140,9 +140,10 @@ impl HpsAxisSystem {
             MaybeAdHoc::Fixed(f) => Ok(RefOrMutexGuard::Ref(
                 f.axes.components.get::<NdEuclidAxisVectors>()?,
             )),
-            MaybeAdHoc::AdHoc(a) => Ok(RefOrMutexGuard::MappedMutexGuard(
-                MutexGuard::map(a.lock(), |twists| &mut twists.axes.vectors),
-            )),
+            MaybeAdHoc::AdHoc(a) => Ok(RefOrMutexGuard::MappedMutexGuard(MutexGuard::map(
+                a.lock(),
+                |twists| &mut twists.axes.vectors,
+            ))),
         }
     }
 

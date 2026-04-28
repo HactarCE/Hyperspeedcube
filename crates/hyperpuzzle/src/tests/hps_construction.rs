@@ -1,4 +1,5 @@
-use std::{io::Write, sync::Arc};
+use std::io::Write;
+use std::sync::Arc;
 
 use eyre::Result;
 use hyperpuzzle_core::{Catalog, CatalogMetadata, Puzzle, PuzzleLintOutput};

@@ -181,10 +181,9 @@ fn unfactor_indices(indices: (u32, u32, u32), factor_stride: u32, factor_elem_co
 mod tests {
     use hypermath::point;
 
+    use super::*;
     use crate::CoxeterMatrix;
     use crate::tests::{PerTestPoint, TestPoint};
-
-    use super::*;
 
     #[test]
     fn test_factor_indices() {

@@ -4,19 +4,16 @@ use std::sync::Arc;
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::util::ExpectedAdHoc;
-use hyperpuzzle_core::util::MaybeAdHoc;
+use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
 use hyperpuzzlescript::builtins::catalog::HpsExports;
 use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::MutexGuard;
 
 use super::{HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist, Names};
-use crate::PerReferenceVector;
-use crate::TwistKey;
 use crate::builder::*;
-use crate::components::NamedTwistsList;
-use crate::components::NdEuclidTwistsList;
+use crate::components::{NamedTwistsList, NdEuclidTwistsList};
+use crate::{PerReferenceVector, TwistKey};
 
 /// HPS twist system builder.
 #[derive(Clone)]

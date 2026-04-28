@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use hypermath::{Float, Hyperplane, Point, VectorRef, pga};
+use hyperpuzzle_core::Component;
 use hyperpuzzle_core::notation::{InvertError, Transform};
-use hyperpuzzle_core::{Component, prelude::*};
+use hyperpuzzle_core::prelude::*;
 
 use crate::PuzzleLayerDepths;
 use crate::components::NdEuclidAxisVectors;

@@ -84,14 +84,16 @@ pub struct ConjugateCoset {
 }
 
 impl ConjugateCoset {
-    /// Converts the conjugate coset `l S r` to the left coset `(l r) (r^-1 S r)`.
+    /// Converts the conjugate coset `l S r` to the left coset `(l r) (r^-1 S
+    /// r)`.
     pub fn to_left_coset(&self) -> LeftCoset {
         LeftCoset {
             subgroup: self.subgroup.conjugate_inv(self.rhs),
             lhs: self.subgroup.overgroup.compose(self.lhs, self.rhs),
         }
     }
-    /// Converts the conjugate coset `l S r` to the right coset `(l S l^-1) (l r)`.
+    /// Converts the conjugate coset `l S r` to the right coset `(l S l^-1) (l
+    /// r)`.
     pub fn to_right_coset(&self) -> RightCoset {
         RightCoset {
             subgroup: self.subgroup.conjugate(self.lhs),
