@@ -135,7 +135,7 @@ impl CatalogBuilder {
             .collect();
 
         // Check for menu orphans.
-        for (_, menu) in &catalog_data.menus {
+        for menu in catalog_data.menus.values() {
             for orphan in menu.orphans() {
                 catalog_data.logger.warn(format!(
                     "menu {:?} contains orphan at {:?}",

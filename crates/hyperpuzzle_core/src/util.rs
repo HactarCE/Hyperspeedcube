@@ -5,7 +5,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use eyre::{Result, bail};
+use eyre::Result;
 use itertools::Itertools;
 use rand::SeedableRng;
 use sha2::Digest;
@@ -15,7 +15,7 @@ use crate::catalog::CatalogObject;
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
     let mut sha256 = sha2::Sha256::new();
-    sha256.update(&seed.len().to_le_bytes()); // native endianness on x86 and Apple Silicon
+    sha256.update(seed.len().to_le_bytes()); // native endianness on x86 and Apple Silicon
     sha256.update(seed.as_bytes());
     let digest = sha256.finalize();
     chacha20::ChaCha12Rng::from_seed(

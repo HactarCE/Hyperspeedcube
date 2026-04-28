@@ -54,7 +54,7 @@ impl Deref for Catalog {
     type Target = CatalogData;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
@@ -186,7 +186,7 @@ impl Catalog {
                 }
                 // Store the result.
                 log::trace!("Storing {type_str} {id:?}");
-                *cache_entry_guard = CacheEntry::from(cache_entry_value);
+                *cache_entry_guard = cache_entry_value;
             } else if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
                 // If another thread is building the object, then wait for that.
                 log::trace!("Waiting for another thread to build {type_str} {id:?}");
@@ -210,7 +210,7 @@ impl Catalog {
                     id = new_id.parse().map_err(|e| Arc::new(eyre!("{e}")))?;
                 }
                 CacheEntry::Ok(Redirectable::Direct(output)) => return Ok(Arc::clone(output)),
-                CacheEntry::Err(e) => return Err(Arc::clone(&e)), // This is why our error needs to be wrapped in `Arc`.
+                CacheEntry::Err(e) => return Err(Arc::clone(e)), // This is why our error needs to be wrapped in `Arc`.
 
                 // The object has already been built or is being built.
                 CacheEntry::Building { .. } => {

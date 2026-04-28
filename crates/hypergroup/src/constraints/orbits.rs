@@ -49,9 +49,9 @@ impl<P: TypedIndex> SubgroupOrbits<P> {
         debug_assert!(Arc::ptr_eq(action.group(), subgroup.overgroup()));
 
         // Compute deorbiters.
+        let mut points_seen = TiMask::<P>::new_empty(action.point_count());
         let mut orbit_representatives = TiVec::<P, P>::from_iter(action.points());
         let mut deorbiters = TiVec::<P, GroupElementId>::new_with_len(action.point_count());
-        let mut points_seen = TiMask::<P>::new_empty(action.point_count());
         for init in action.points() {
             if !points_seen.contains(init) {
                 // `init` is the first point visited in its orbit, so it is the

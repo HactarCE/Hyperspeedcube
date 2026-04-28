@@ -200,10 +200,6 @@ impl AdHocTwistSystemBuilder {
             gizmo_pole_distances.push(twist.gizmo_pole_distance)?;
         }
 
-        let twist_from_transform = self.data_to_id.clone();
-
-        let twist_axes = Arc::new(twists.map_ref(|_, twist_info| twist_info.axis));
-
         let twists_list = Arc::new(NdEuclidTwistsList {
             ndim: self.ndim(),
             twist_axes: self.by_id.map_ref(|_, twist_info| twist_info.axis),
@@ -231,7 +227,7 @@ impl AdHocTwistSystemBuilder {
                 let vantage_group = vantage_group_builder.build(
                     Arc::clone(&axes.names),
                     Arc::clone(&arc_names),
-                    Arc::clone(&axis_vectors),
+                    Arc::clone(axis_vectors),
                     Arc::clone(&twists_list),
                 )?;
                 eyre::Ok((id.clone(), vantage_group))

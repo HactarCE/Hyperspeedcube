@@ -7,7 +7,7 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::{HpsAxis, HpsRegion, HpsSymmetry, Names};
-use crate::{builder::*, hps::HpsAxisSystem};
+use crate::builder::*;
 
 /// HPS puzzle builder.
 #[derive(Clone)]

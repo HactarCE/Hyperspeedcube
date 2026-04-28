@@ -4,7 +4,7 @@ use eyre::{OptionExt, Result, bail};
 use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector};
 use hyperpuzzle_core::{
-    Axis, BoxDynVantageGroup, NameSpecBiMap, NameSpecBiMapBuilder, PerTwist, PerVantage, Twist,
+    Axis, NameSpecBiMap, NameSpecBiMapBuilder, PerVantage, Twist,
 };
 use itertools::Itertools;
 use smallvec::SmallVec;

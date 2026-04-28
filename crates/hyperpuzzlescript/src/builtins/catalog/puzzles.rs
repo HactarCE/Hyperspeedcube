@@ -129,19 +129,16 @@ pub fn define_in(
 
                 let tx2 = tx.clone();
                 let tags2 = tags.clone();
-                let lazy_puzzle_result = hps_gen.generate(
-                    ctx.runtime,
-                    generator_param_values,
-                    move |mut ctx, kwargs| {
+                let lazy_puzzle_result =
+                    hps_gen.generate(ctx.runtime, generator_param_values, move |ctx, kwargs| {
                         lazy_puzzle_from_kwargs(
-                            &mut ctx,
+                            ctx,
                             kwargs,
                             &tx2,
                             Some(tags2),
                             Some((example, example_span)),
                         )
-                    },
-                );
+                    });
 
                 match lazy_puzzle_result {
                     Ok(Redirectable::Direct(lazy_puzzle)) => {

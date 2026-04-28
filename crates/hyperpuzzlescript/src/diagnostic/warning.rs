@@ -16,7 +16,7 @@ pub enum Warning {
     ShadowedVariable(Spanned<Key>, bool),
     #[error("export is shadowed")]
     ShadowedExport(Spanned<Key>),
-    #[error("unable to load {0} due to error loading submodule")]
+    #[error("unable to load module {0:?} due to error loading submodule")]
     ErrorInSubmodule(Substr),
 }
 

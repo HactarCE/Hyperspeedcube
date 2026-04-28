@@ -233,10 +233,7 @@ pub fn build_4d_gizmo<'a>(
     Ok(())
 }
 
-fn gizmo_facets<'a, 'b>(
-    space: &'a mut Space,
-    axes: &ProductPuzzleAxes,
-) -> Result<Vec<hypershape::FacetId>> {
+fn gizmo_facets(space: &mut Space, axes: &ProductPuzzleAxes) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = axes
         .coxeter_matrix
         .mirrors()?
@@ -274,14 +271,12 @@ fn orbit_axes_with_representatives(
         axes.group.generators(),
         |_, (ax, e, m), &g| {
             let new_axis = axes.axis_action.act(g, *ax);
-            if !seen.contains(new_axis) {
+            (!seen.contains(new_axis)).then(|| {
                 seen.insert(new_axis);
                 let new_elem = axes.group.compose(g, *e);
                 let new_motor = axes.group.motor(g) * m;
-                Some((new_axis, new_elem, new_motor))
-            } else {
-                None
-            }
+                (new_axis, new_elem, new_motor)
+            })
         },
     )
 }

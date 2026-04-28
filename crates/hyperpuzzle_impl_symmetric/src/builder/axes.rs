@@ -378,13 +378,11 @@ impl ProductPuzzleAxes {
                 self.group.generators(),
                 |&(ax, undeorbiter), &g| {
                     let new_ax = self.axis_action.act(g, ax);
-                    if new_ax != orbit.first() && ret[new_ax].0 == GroupElementId::IDENTITY {
+                    (new_ax != orbit.first() && ret[new_ax].0 == GroupElementId::IDENTITY).then(|| {
                         let new_undeorbiter = self.group.compose(g, undeorbiter);
                         ret[new_ax] = (new_undeorbiter, orbit_index);
-                        Some((new_ax, new_undeorbiter))
-                    } else {
-                        None
-                    }
+                        (new_ax, new_undeorbiter)
+                    })
                 },
             );
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use hypergroup::AbbrGenSeq;
 use hypermath::Hyperplane;
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{Color, Orbit, util::MaybeAdHoc};
+use hyperpuzzle_core::{Color, Orbit};
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, Result, hps_fns, impl_simple_custom_type,
 };

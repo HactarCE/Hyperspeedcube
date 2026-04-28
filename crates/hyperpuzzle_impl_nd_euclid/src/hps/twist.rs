@@ -1,15 +1,13 @@
 use std::fmt;
 
 use hypermath::pga::Motor;
-use hyperpuzzle_core::{IndexOutOfRange, Multiplier, NameSpec, Twist};
+use hyperpuzzle_core::{Multiplier, NameSpec, Twist};
 use hyperpuzzlescript::{
     Builtins, ErrorExt, FnValue, Map, Result, Span, Spanned, Value, ValueData, hps_fns,
     impl_simple_custom_type,
 };
 
-use super::{HpsAxis, HpsEuclidError, HpsTwistSystem};
-use crate::TwistKey;
-use crate::builder::AdHocTwistSystemBuilder;
+use super::{HpsAxis, HpsTwistSystem};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HpsTwist {
@@ -40,7 +38,7 @@ impl HpsTwist {
         })
     }
     pub fn transform(&self) -> eyre::Result<Motor> {
-        Ok(self.twists.twist_transform(self.id)?)
+        self.twists.twist_transform(self.id)
     }
     pub fn name(&self) -> eyre::Result<Option<NameSpec>> {
         self.twists.twist_name(self.id)

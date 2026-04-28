@@ -213,12 +213,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             } else {
                                 if r.clicked() {
                                     *generator_popup_data =
-                                        Some(PuzzleGeneratorPopupData::new(&generator));
+                                        Some(PuzzleGeneratorPopupData::new(generator));
                                 }
 
                                 if let Some(popup_data) = generator_popup_data
                                     .as_mut()
-                                    .filter(|data| &*data.puzzle_id.base == obj.id.to_string())
+                                    .filter(|data| *data.puzzle_id.base == obj.id.to_string())
                                 {
                                     egui::Popup::from_toggle_button_response(&r)
                                         .close_behavior(
@@ -226,7 +226,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                         )
                                         .show(|ui| {
                                             show_puzzle_generator_ui(
-                                                ui, app, &generator, popup_data,
+                                                ui, app, generator, popup_data,
                                             );
                                         });
                                 }

@@ -19,7 +19,7 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
         &self,
         ctx: &mut EvalCtx<'_>,
         mut meta: CatalogMetadata,
-        mut kwargs: Map,
+        kwargs: Map,
         eval_tx: EvalRequestTx,
     ) -> Result<Generator<Puzzle>> {
         let caller_span = ctx.caller_span;

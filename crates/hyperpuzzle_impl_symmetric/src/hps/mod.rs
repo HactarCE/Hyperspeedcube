@@ -59,10 +59,11 @@ pub fn define_in(
                         .map_err(|e| eyre!("error parsing puzzle ID: {e}"))
                         .at(id_span)?,
                 },
-                _ => return Err(format!(
+                _ => return Err(
                     "`next_column`, `next_inline`, `section`, and `id` are all mutually exclusive"
-                )
-                .at(ctx.caller_span)),
+                        .to_string()
+                        .at(ctx.caller_span),
+                ),
             };
 
             if params.is_some() {

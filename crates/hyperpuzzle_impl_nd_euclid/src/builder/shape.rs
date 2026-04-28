@@ -2,7 +2,7 @@ use std::collections::{HashMap, hash_map};
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
-use hyperpuzzle_core::{preferred_name_from_name_spec, prelude::*, util::MaybeAdHoc};
+use hyperpuzzle_core::{prelude::*, util::MaybeAdHoc};
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;

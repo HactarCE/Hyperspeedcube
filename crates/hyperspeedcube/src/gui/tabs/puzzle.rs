@@ -240,7 +240,7 @@ impl PuzzleWidget {
                         PuzzleView::new(gfx, &sim, prefs)
                     }),
                     is_placeholder,
-                    error: Arc::clone(&e),
+                    error: Arc::clone(e),
                 };
             }
         }

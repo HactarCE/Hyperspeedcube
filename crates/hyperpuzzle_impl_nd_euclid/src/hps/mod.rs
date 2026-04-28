@@ -9,7 +9,6 @@ use hypermath::{
 };
 use hyperpuzzle_core::{Axis, NameSpec, Twist, TypedIndex};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
-use parking_lot::{Mutex, MutexGuard};
 
 use crate::TwistKey;
 

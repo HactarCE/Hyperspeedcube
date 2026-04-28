@@ -11,7 +11,7 @@ use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
-use super::{HpsAxis, HpsPuzzle, HpsSymmetry, HpsTwistSystem, Names};
+use super::{HpsAxis, HpsPuzzle, HpsSymmetry, Names};
 use crate::builder::{AdHocAxisSystemBuilder, TwistSystemBuilder};
 use crate::components::NdEuclidAxisVectors;
 use crate::hps::orbit_names::HpsOrbitNames;
@@ -141,7 +141,7 @@ impl HpsAxisSystem {
                 f.axes.components.get::<NdEuclidAxisVectors>()?,
             )),
             MaybeAdHoc::AdHoc(a) => Ok(RefOrMutexGuard::MappedMutexGuard(
-                MutexGuard::map(a.lock(), |twists| &mut twists.axes.vectors).into(),
+                MutexGuard::map(a.lock(), |twists| &mut twists.axes.vectors),
             )),
         }
     }

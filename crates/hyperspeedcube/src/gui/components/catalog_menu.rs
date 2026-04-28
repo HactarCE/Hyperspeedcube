@@ -153,7 +153,7 @@ fn show_menu_column<'a>(
         ui.heading(heading);
         ui.separator();
         egui::ScrollArea::vertical()
-            .id_salt(&selected_path.truncate(index))
+            .id_salt(selected_path.truncate(index))
             .show(ui, |ui| {
                 for elem in ui_elements {
                     elem.show(ui, menu, selected_path, puzzle_id);

@@ -1,8 +1,6 @@
 use std::fmt;
-use std::ops::Deref;
 use std::sync::Arc;
 
-use eyre::bail;
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
@@ -11,7 +9,6 @@ use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzlescript::builtins::catalog::HpsExports;
 use hyperpuzzlescript::*;
 use itertools::Itertools;
-use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 
 use super::{HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist, Names};
@@ -523,7 +520,7 @@ impl HpsTwistSystem {
 
         match ctx_symmetry {
             Some(sym) => {
-                let mut twists = self.lock_ad_hoc().at(span)?;
+                let twists = self.lock_ad_hoc().at(span)?;
                 let axis_vector = twists
                     .axes
                     .vectors
