@@ -1,8 +1,8 @@
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 
 use crate::L;
-use crate::gui::components::{PrefsUi, PresetsUi};
-use crate::gui::{App, AppUi};
+use crate::gui::components::PrefsUi;
+use crate::gui::App;
 
 pub fn build_quick_settings_ui(ui: &mut egui::Ui, app: &mut App) {
     egui::containers::menu::MenuButton::new(mdi!(ui, COG))
@@ -35,7 +35,7 @@ pub fn build_quick_settings_ui(ui: &mut egui::Ui, app: &mut App) {
                 if let Some(camera) = v.nd_euclid_camera_mut() {
                     match view_prefs_set {
                         Some(hyperpuzzle::PuzzleViewPreferencesSet::Perspective(dim)) => {
-                            let mut presets = app.prefs.perspective_view_presets_mut(dim);
+                            let presets = app.prefs.perspective_view_presets_mut(dim);
                             compact_presets_selector_ui(
                                 ui,
                                 L.tabs.view.menu,

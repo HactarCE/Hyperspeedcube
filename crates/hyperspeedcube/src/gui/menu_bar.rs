@@ -1,4 +1,3 @@
-use egui::containers::menu::{MenuButton, MenuConfig, SubMenuButton};
 use hyperpuzzle::ScrambleType;
 
 use super::AppUi;
@@ -6,7 +5,7 @@ use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{MDI_SMALL, hyperlink_to, menu_button_that_stays_open};
+use crate::gui::util::{MDI_SMALL, menu_button_that_stays_open};
 use crate::{L, open_dir};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {

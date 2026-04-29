@@ -36,6 +36,13 @@ impl ColorSystemBuilder {
         }
     }
 
+    /// Returns whether there are no colors in the color system.
+    pub fn is_empty(&self) -> bool {
+        match &self.0 {
+            MaybeAdHoc::Fixed(f) => f.is_empty(),
+            MaybeAdHoc::AdHoc(a) => a.is_empty(),
+        }
+    }
     /// Returns the number of colors in the color system.
     pub fn len(&self) -> usize {
         match &self.0 {

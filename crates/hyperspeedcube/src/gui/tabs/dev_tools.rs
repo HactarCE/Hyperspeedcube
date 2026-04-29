@@ -121,7 +121,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         let mv = &geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
-        ui.strong(format!("Gizmo twist"));
+        ui.strong("Gizmo twist");
         info_line(ui, "Move", mv);
         if let Some(axis) = (puz.twists.axis_from_family)(&mv.transform.family) {
             if let Ok(name) = puz.axes().names.get(axis) {

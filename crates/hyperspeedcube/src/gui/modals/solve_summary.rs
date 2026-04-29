@@ -117,7 +117,9 @@ impl SolveSummaryModal {
 
         if new_pbs.first {
             stats.record_first_solve(&verification);
-            hyperstats::save(stats);
+            if let Err(e) = hyperstats::save(stats) {
+                log::warn!("Error saving stats file: {e}");
+            }
             sim_guard.start_special_anim();
         }
 

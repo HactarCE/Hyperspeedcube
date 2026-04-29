@@ -1,4 +1,4 @@
-use hyperpuzzle::{CatalogArgValue, CatalogId, GeneratorParamType, GeneratorParamValue};
+use hyperpuzzle::{CatalogId, GeneratorParamType};
 
 const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
 

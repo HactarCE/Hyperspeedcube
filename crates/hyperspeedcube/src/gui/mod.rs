@@ -28,7 +28,7 @@ mod temp_value;
 
 use parking_lot::Mutex;
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
-pub use temp_value::{EguiFlag, EguiOptionValue, EguiValue};
+pub use temp_value::{EguiOptionValue, EguiValue};
 use util::EguiTempFlag;
 
 use crate::L;
@@ -380,7 +380,7 @@ impl AppUi {
                 self.dock_state.remove_tab(tab_path);
             } else {
                 // Open but not visible, so focus the tab
-                leaf.set_active_tab(tab_path.tab);
+                let _ = leaf.set_active_tab(tab_path.tab);
                 self.dock_state
                     .set_focused_node_and_surface(tab_path.node_path());
             }
@@ -392,7 +392,7 @@ impl AppUi {
 
     pub fn activate_docked_utility(&mut self, tab: UtilityTab) {
         if let Some(tab_path) = self.find_docked_utility(tab) {
-            self.dock_state.set_active_tab(tab_path);
+            let _ = self.dock_state.set_active_tab(tab_path);
             self.dock_state
                 .set_focused_node_and_surface(tab_path.node_path());
         } else {

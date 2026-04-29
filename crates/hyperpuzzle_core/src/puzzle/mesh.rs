@@ -203,7 +203,7 @@ impl Mesh {
     }
 
     /// Adds a gizmo polygon to the mesh and returns its range.
-    pub fn add_gizmo_polygon<'a, P: MeshVector>(
+    pub fn add_gizmo_polygon<P: MeshVector>(
         &mut self,
         vertex_positions: impl IntoIterator<Item = P>,
         surface_id: u32,

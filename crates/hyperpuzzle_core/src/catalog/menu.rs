@@ -228,6 +228,7 @@ impl<'a> MenuPath<'a> {
     };
 
     /// Returns a menu path from a string, or `None` if the path is invalid.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(str_repr: &'a str) -> Option<Self> {
         Self::is_valid(str_repr).then(|| {
             let len = if str_repr.is_empty() {
@@ -251,7 +252,7 @@ impl<'a> MenuPath<'a> {
     }
 
     /// Returns whether the path is empty.
-    pub fn is_root(self) -> bool {
+    pub fn is_empty(self) -> bool {
         self.str_repr.is_empty()
     }
 
@@ -299,7 +300,7 @@ impl<'a> MenuPath<'a> {
                 str_repr: parent,
                 len: self.len.strict_sub(1),
             }),
-            None if self.is_root() => None,
+            None if self.is_empty() => None,
             None => Some(Self::ROOT),
         }
     }

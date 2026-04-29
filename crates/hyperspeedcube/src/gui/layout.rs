@@ -240,7 +240,7 @@ impl UiLayoutNode {
                         .collect()
                 });
                 if *active_tab < tabs.len() {
-                    tree.set_active_tab(node_index, *active_tab);
+                    let _ = tree.set_active_tab(node_index, *active_tab);
                 }
             }
             Self::SplitV {

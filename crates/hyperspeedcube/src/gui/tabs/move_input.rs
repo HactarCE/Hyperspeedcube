@@ -1,10 +1,7 @@
 use hyperpuzzle::notation::Invert;
 use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
-use hyperpuzzle::{LayerMask, Move};
 use hyperpuzzle_view::ReplayEvent;
 use itertools::Itertools;
-use rand::SeedableRng;
-use smallvec::{SmallVec, smallvec};
 
 use crate::L;
 use crate::app::App;
@@ -18,7 +15,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         };
 
         ui.group(|ui| {
-            let mut changed = false;
             let mut prefs_ui = crate::gui::components::PrefsUi {
                 ui,
                 current: &mut app.animation_prefs.value,
@@ -31,7 +27,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
         });
 
-        let mut move_input_value = EguiTempValue::new(ui);
+        let move_input_value = EguiTempValue::new(ui);
         let mut s: String = move_input_value.get().unwrap_or_default();
         ui.text_edit_multiline(&mut s);
         let parsed =
@@ -82,7 +78,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
         }
 
-        let mut seed_value = EguiTempValue::new(ui);
+        let seed_value = EguiTempValue::new(ui);
         let mut s: String = seed_value.get().unwrap_or_default();
         ui.separator();
         ui.horizontal(|ui| {

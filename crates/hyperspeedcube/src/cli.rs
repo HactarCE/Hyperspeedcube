@@ -1,9 +1,8 @@
 use std::io::Read;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use eyre::{Context, Result, eyre};
-use hyperpuzzle::{CatalogId, Puzzle};
+use hyperpuzzle::CatalogId;
 use itertools::Itertools;
 use serde::Serialize;
 

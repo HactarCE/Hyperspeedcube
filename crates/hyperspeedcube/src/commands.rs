@@ -1,12 +1,8 @@
 //! Commands to grip and manipulate parts of the puzzle.
 
-use std::fmt;
-use std::str::FromStr;
-
 use hyperpuzzle::notation::LayerPrefix;
 use hyperpuzzle::prelude::*;
-use itertools::Itertools;
-use serde::{Deserialize, Serialize, de};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

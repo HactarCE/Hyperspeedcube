@@ -181,14 +181,12 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
                             }
                         }
                         comrak::nodes::ListType::Ordered => {
-                            let mut i = list.start;
-                            for list_item in node.children() {
+                            for (i, list_item) in (list.start..).zip(node.children()) {
                                 // TODO: align numbered lists properly
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(format!("{i}."));
                                     ui.scope(|ui| render_block(ui, list_item));
                                 });
-                                i += 1;
                             }
                         }
                     }

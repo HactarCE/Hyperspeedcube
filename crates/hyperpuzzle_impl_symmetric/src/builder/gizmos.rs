@@ -18,7 +18,7 @@ use itertools::Itertools;
 use super::ProductPuzzleAxes;
 use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 
-pub fn build_3d_gizmo<'a>(
+pub fn build_3d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
     axes: &ProductPuzzleAxes,
@@ -62,7 +62,7 @@ pub fn build_3d_gizmo<'a>(
     Ok(())
 }
 
-pub fn build_4d_gizmo<'a>(
+pub fn build_4d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
     axes: &ProductPuzzleAxes,

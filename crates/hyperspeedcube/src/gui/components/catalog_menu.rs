@@ -1,19 +1,12 @@
-use std::any::{Any, TypeId};
-use std::cmp::Reverse;
-use std::collections::HashMap;
-use std::i32;
-use std::ops::{Deref, DerefMut, Range, RangeInclusive};
+use std::any::TypeId;
 
-use egui::{NumExt, TextBuffer};
+use egui::NumExt;
 use hyperpuzzle::catalog::{Menu, MenuContent, MenuPath};
-use hyperpuzzle::symmetric::hps::HpsSymmetric;
 use hyperpuzzle::{CatalogId, FloatMinMaxIteratorExt};
-use itertools::Itertools;
 
-use crate::app::App;
 use crate::gui::EguiValue;
 use crate::gui::components::PuzzleGeneratorUi;
-use crate::gui::util::{EguiTempValue, text_width};
+use crate::gui::util::text_width;
 
 const SECTION_TEXT_SIZE: f32 = 15.0;
 const PARAMETERS_HEADING: &str = "Parameters";
@@ -30,7 +23,6 @@ struct PuzzleCatalogMenuState {
 
 #[derive(Debug)]
 pub struct PuzzleCatalogMenu {
-    ctx: egui::Context,
     id: egui::Id,
     menu_id: TypeId,
     state: EguiValue<PuzzleCatalogMenuState>,
@@ -39,7 +31,6 @@ pub struct PuzzleCatalogMenu {
 impl PuzzleCatalogMenu {
     pub fn new(ctx: &egui::Context, id: egui::Id, menu_id: TypeId) -> Self {
         Self {
-            ctx: ctx.clone(),
             id,
             menu_id,
             state: EguiValue::load_or_default(ctx, id),
@@ -123,7 +114,7 @@ fn show_menu_column<'a>(
     index: usize,
     puzzle_id: &mut String,
 ) -> bool {
-    let Some((heading, ui_elements)) = layout_menu_column(ui, menu, selected_path, index) else {
+    let Some((heading, ui_elements)) = layout_menu_column(menu, selected_path, index) else {
         return false; // skip
     };
 
@@ -191,7 +182,6 @@ fn menu_path_button<'a>(
 }
 
 fn layout_menu_column<'a>(
-    ui: &mut egui::Ui,
     menu: &'a Menu,
     selected_path: &mut MenuPath<'a>,
     mut index: usize,
@@ -282,8 +272,8 @@ impl<'a> MenuUiElement<'a> {
             MenuUiElement::PathComponent(path) => {
                 text_width(ui, path.last_component()) + ui.spacing().button_padding.x * 2.0
             }
-            MenuUiElement::Inline { label, options } => ui.available_width(),
-            MenuUiElement::End { id } => ui.available_width(),
+            MenuUiElement::Inline { .. } => ui.available_width(),
+            MenuUiElement::End { .. } => ui.available_width(),
             MenuUiElement::Error(_) => ui.available_width(),
         }
     }

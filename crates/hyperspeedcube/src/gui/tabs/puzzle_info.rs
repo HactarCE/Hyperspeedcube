@@ -1,5 +1,4 @@
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
 use crate::L;
