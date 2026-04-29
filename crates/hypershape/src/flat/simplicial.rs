@@ -154,7 +154,7 @@ impl SimplexBlob {
         let vertex_set: Set64<VertexId> = facet_simplices.flat_map(|s| s.0.iter()).collect();
 
         // Optimization: if the number of simplices equals the facet dimension
-        // plus 2 equals the nubmer of vertices, then the result is a single
+        // plus 2 equals the number of vertices, then the result is a single
         // simplex.
         let number_of_simplices = facets.iter().map(|f| f.0.len()).sum::<usize>();
         let is_single_simplex = number_of_simplices == facet_ndim as usize + 2

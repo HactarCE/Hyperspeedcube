@@ -8,9 +8,11 @@ use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
 use hyperpuzzle_core::{ComponentList, preferred_name_from_name_spec};
 use indexmap::IndexMap;
 
+/// [`ColorSystem`] during puzzle construction.
 #[derive(Debug)]
 pub struct ColorSystemBuilder(pub MaybeAdHoc<ColorSystem, AdHocColorSystemBuilder>);
 impl ColorSystemBuilder {
+    /// Returns the ad-hoc builder if it is one, or an error otherwise.
     pub fn as_ad_hoc_mut(&mut self) -> Result<&mut AdHocColorSystemBuilder, ExpectedAdHoc> {
         self.0.as_ad_hoc_mut()
     }

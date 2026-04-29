@@ -181,7 +181,6 @@ impl ProductPuzzleBuilder {
 
         let symmetric_twist_system_component = Arc::new(SymmetricTwistSystemComponent {
             axes,
-            axis_vectors: self.axes.axis_vectors.clone(),
             group: self.axes.group.clone(),
             axis_action: self.axes.axis_action.clone(),
 
@@ -249,7 +248,6 @@ impl ProductPuzzleBuilder {
 
             axis_vectors: Arc::clone(twists.axes.components.get()?),
             axis_layer_depths: PerAxis::new(), // TODO: is this needed?
-            twist_transforms: Arc::new(PerTwist::new()),
 
             gizmo_twists,
         });

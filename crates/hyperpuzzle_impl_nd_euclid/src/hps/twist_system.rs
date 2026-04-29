@@ -326,6 +326,7 @@ fn unpack_value_with_optional_transform<T: FromValue + CustomValue>(
 }
 
 impl HpsTwistSystem {
+    /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
     pub fn lock_ad_hoc(&self) -> Result<MutexGuard<'_, AdHocTwistSystemBuilder>, ExpectedAdHoc> {
         Ok(self.0.0.as_ad_hoc()?.lock())
     }

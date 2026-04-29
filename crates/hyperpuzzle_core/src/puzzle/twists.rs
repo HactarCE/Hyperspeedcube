@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use eyre::{Result, bail};
 use indexmap::IndexMap;
@@ -7,24 +7,21 @@ use smallvec::SmallVec;
 use super::*;
 use crate::{
     BoxDynRelativeAxis, BoxDynRelativeTwist, BoxDynVantageGroup, BoxDynVantageGroupElement,
-    CatalogMetadata, ComponentList, NameSpecBiMap, VantageGroup, VantageGroupElement,
+    CatalogMetadata, ComponentList, VantageGroup, VantageGroupElement,
 };
 
 /// System of axes, twists, and vantages for a puzzle.
-#[derive(Debug)]
 pub struct TwistSystem {
     /// Metadata.
     pub meta: Arc<CatalogMetadata>,
 
     /// Axis system.
     pub axes: Arc<AxisSystem>,
+    /// Function to return the axis of a twist family.
+    ///
+    /// For example, on 3^4, the twist family `IUR` is on axis `I`.
+    pub axis_from_family: Box<dyn Send + Sync + Fn(&str) -> Option<Axis>>,
 
-    /// Twist names.
-    #[deprecated]
-    pub names: Arc<NameSpecBiMap<Twist>>, // TODO: remove this. can't enumerate all twists!
-    /// List of twists, indexed by ID.
-    #[deprecated]
-    pub twists: PerTwist<TwistInfo>, // TODO: remove this. can't enumerate all twists!
     /// Twist directions accessible in all vantage sets.
     pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
@@ -36,45 +33,27 @@ pub struct TwistSystem {
     /// Extra components.
     pub components: ComponentList<Self>,
 }
+
+impl fmt::Debug for TwistSystem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TwistSystem")
+            .field("meta", &self.meta)
+            .field("axes", &self.axes)
+            .finish()
+    }
+}
+
 impl TwistSystem {
     /// Returns an empty twist system.
     pub fn new_empty(axes: &Arc<AxisSystem>) -> Self {
         Self {
             meta: Arc::new(CatalogMetadata::dummy()),
             axes: Arc::clone(axes),
-            names: Arc::new(NameSpecBiMap::new()),
-            twists: PerTwist::new(),
+            axis_from_family: Box::new(|_| None),
             directions: IndexMap::new(),
             vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
             vantage_sets: vec![],
             components: ComponentList::new(),
-        }
-    }
-
-    /// Returns whether the twist system has no twists.
-    pub fn is_empty(&self) -> bool {
-        self.twists.is_empty()
-    }
-
-    /// Returns the number of twists.
-    pub fn len(&self) -> usize {
-        self.twists.len()
-    }
-
-    /// Returns the axis of a twist from its family name.
-    ///
-    /// For example, on 3^4, the twist family `IUR` is on axis `I`.
-    pub fn axis_from_move_family(&self, family: &str) -> Option<Axis> {
-        if let Some(twist) = self.names.id_from_name(family) {
-            Some(self.twists[twist].axis)
-        } else if let Some(axis) = self.axes.names.id_from_name(family) {
-            Some(axis)
-        } else if let Some((prefix, _)) = family.split_once('_') // TODO: correct separator
-            && let Some(axis) = self.axes.names.id_from_name(prefix)
-        {
-            Some(axis)
-        } else {
-            None
         }
     }
 }

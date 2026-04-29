@@ -13,7 +13,9 @@ use parking_lot::{Mutex, MutexGuard};
 use smallvec::SmallVec;
 
 use super::{AdHocAxisSystemBuilder, VantageGroupBuilder, VantageSetBuilder};
-use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
+use crate::components::{
+    NdEuclidAxisVectors, NdEuclidTwistsList, PgaMotorToNearestTwist, TwistToPgaMotor,
+};
 use crate::{NamedTwistsList, NdEuclidVantageGroup, TwistKey};
 
 /// Twist system, either fixed (taken from the catalog) or ad-hoc (currently
@@ -21,6 +23,7 @@ use crate::{NamedTwistsList, NdEuclidVantageGroup, TwistKey};
 #[derive(Debug, Clone)]
 pub struct TwistSystemBuilder(pub MaybeAdHoc<TwistSystem, Arc<Mutex<AdHocTwistSystemBuilder>>>);
 impl TwistSystemBuilder {
+    /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
     pub fn lock_ad_hoc(&self) -> Result<MutexGuard<'_, AdHocTwistSystemBuilder>, ExpectedAdHoc> {
         Ok(self.0.as_ad_hoc()?.lock())
     }
@@ -54,6 +57,7 @@ pub struct AdHocTwistSystemBuilder {
     /// Global twist directions.
     pub directions: IndexMap<String, PerAxis<Option<SmallVec<[Twist; 4]>>>>,
 
+    /// Values exported by the Hyperpuzzlescript construction code.
     pub hps_exports: HpsExports,
 }
 impl AdHocTwistSystemBuilder {
@@ -83,6 +87,8 @@ impl AdHocTwistSystemBuilder {
         self.by_id.len()
     }
 
+    /// Returns the number of dimensions of the underlying space the puzzle is
+    /// built in.
     pub fn ndim(&self) -> u8 {
         self.axes.ndim()
     }
@@ -173,45 +179,35 @@ impl AdHocTwistSystemBuilder {
         let axis_vectors = axes.components.get::<NdEuclidAxisVectors>()?;
 
         // Autoname twists.
-        let names = self
-            .names
-            .clone()
-            .build(self.len())
-            .ok_or_eyre("missing twist names")?;
-        let arc_names = Arc::new(names.clone()); // TODO: avoid this clone
+        let twist_names = Arc::new(
+            self.names
+                .clone()
+                .build(self.len())
+                .ok_or_eyre("missing twist names")?,
+        );
 
         // Assemble list of twists.
-        let mut twists: PerTwist<TwistInfo> = PerTwist::new();
-        let mut twist_transforms: PerTwist<pga::Motor> = PerTwist::new();
-        let mut gizmo_pole_distances: PerTwist<Option<f32>> = PerTwist::new();
-        for (id, twist) in &self.by_id {
-            let axis = twist.axis;
-            let axis_vector = &self.axes.vectors.vectors_by_id[axis];
-
-            if APPROX.ne(&twist.transform.transform(axis_vector), axis_vector) {
-                warn_fn(eyre!("twist {:?} does not fix axis vector", &names[id]));
-            }
-
-            twists.push(TwistInfo {
-                axis,
-                scramble_max_multiplier: twist.scramble_max_multiplier,
-            })?;
-            twist_transforms.push(twist.transform.clone())?;
-            gizmo_pole_distances.push(twist.gizmo_pole_distance)?;
-        }
-
         let twists_list = Arc::new(NdEuclidTwistsList {
             ndim: self.ndim(),
-            twist_axes: self.by_id.map_ref(|_, twist_info| twist_info.axis),
-            twist_transforms: self
-                .by_id
-                .map_ref(|_, twist_info| twist_info.transform.clone()),
+            twist_axes: self.by_id.map_ref(|_, info| info.axis),
+            twist_transforms: self.by_id.map_ref(|_, info| info.transform.clone()),
             twist_from_transform: self.data_to_id.clone(),
-            gizmo_pole_distances: Some(
-                self.by_id
-                    .map_ref(|_, twist_info| twist_info.gizmo_pole_distance),
-            ),
+            gizmo_pole_distances: Some(self.by_id.map_ref(|_, info| info.gizmo_pole_distance)),
+            scramble_max_multipliers: self.by_id.map_ref(|_, info| info.scramble_max_multiplier),
         });
+
+        // Check that each transform stabilizes its axis.
+        for twist_id in twists_list.iter() {
+            let axis = twists_list.twist_axes[twist_id];
+            let axis_vector = &axis_vectors.vectors_by_id[axis];
+            let transform = &twists_list.twist_transforms[twist_id];
+            if APPROX.ne(&transform.transform(axis_vector), axis_vector) {
+                warn_fn(eyre!(
+                    "twist {:?} does not fix axis vector",
+                    &twist_names[twist_id]
+                ));
+            }
+        }
 
         let default_vantage_group_name = DEFAULT_VANTAGE_GROUP_NAME.to_string();
         let default_vantage_group = VantageGroupBuilder::default();
@@ -226,7 +222,7 @@ impl AdHocTwistSystemBuilder {
             .map(|(id, vantage_group_builder)| {
                 let vantage_group = vantage_group_builder.build(
                     Arc::clone(&axes.names),
-                    Arc::clone(&arc_names),
+                    Arc::clone(&twist_names),
                     Arc::clone(axis_vectors),
                     Arc::clone(&twists_list),
                 )?;
@@ -246,19 +242,38 @@ impl AdHocTwistSystemBuilder {
             .collect();
 
         let mut components = ComponentList::new();
-        components.insert(twists_list);
+        components.insert(Arc::clone(&twists_list));
         components.insert(Arc::new(NamedTwistsList {
-            names: names.clone(),
+            names: Arc::clone(&twist_names),
         }));
+        components.insert({
+            let twist_names = Arc::clone(&twist_names);
+            let twists_list = Arc::clone(&twists_list);
+            TwistToPgaMotor::new(move |transform| {
+                let twist_id = twist_names.id_from_name(&transform.family)?;
+                Some(twists_list.twist_transforms[twist_id].clone())
+            })
+        });
+        components.insert(PgaMotorToNearestTwist::from_transforms_and_multipliers(
+            axes.len(),
+            twists_list.iter().map(|twist| {
+                let axis = twists_list.twist_axes[twist];
+                let motor = twists_list.twist_transforms[twist].clone();
+                let mv = Move::new((), &twist_names[twist], None, Multiplier(1));
+                (axis, motor, mv)
+            }),
+        ));
         components.insert(Arc::new(self.hps_exports.clone()));
 
         Ok(Arc::new(TwistSystem {
             meta,
 
             axes: Arc::new(axes),
+            axis_from_family: Box::new(move |family_str| {
+                let twist_id = twist_names.id_from_name(family_str)?;
+                Some(twists_list.twist_axes[twist_id])
+            }),
 
-            names: arc_names,
-            twists,
             directions: self.directions.clone(),
 
             vantage_groups,

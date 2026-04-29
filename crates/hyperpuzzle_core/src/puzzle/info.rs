@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use hypuz_notation::{Layer, Multiplier};
+use hypuz_notation::Layer;
 use hypuz_util::ti::{TiMask, TiVec, TypedIndex};
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -122,15 +122,6 @@ pub struct StickerInfo {
     pub piece: Piece,
     /// Color of the sticker.
     pub color: Color,
-}
-
-/// Twist info.
-#[derive(Debug, Clone)]
-pub struct TwistInfo {
-    /// Twist axis to use to determine which pieces are moved by the twist.
-    pub axis: Axis,
-    /// Maximum possible multiplier for use in scrambles.
-    pub scramble_max_multiplier: Option<Multiplier>,
 }
 
 /// Piece type info.

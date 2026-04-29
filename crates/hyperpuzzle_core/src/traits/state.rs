@@ -25,12 +25,18 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
 
     /// Applies a twist and returns the new puzzle state or an error containing
     /// the set of pieces that prevented the twist.
+    ///
+    /// If the twist is not valid for a reason other than blocked pieces,
+    /// returns `Err(vec![])`.
     fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>>
     where
         Self: Sized;
 
     /// Applies a twist and returns the new puzzle state or an error containing
     /// the set of pieces that prevented the twist.
+    ///
+    /// If the twist is not valid for a reason other than blocked pieces,
+    /// returns `Err(vec![])`.
     fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, Vec<Piece>>;
 
     /// Returns whether the puzzle is in a solved state.

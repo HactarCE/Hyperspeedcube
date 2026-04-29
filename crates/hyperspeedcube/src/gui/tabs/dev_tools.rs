@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
 use hyperprefs::Preferences;
-use hyperpuzzle::nd_euclid::GizmoTwist;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
@@ -119,23 +118,19 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
             .components
             .get::<NdEuclidPuzzleGeometry>()
             .expect("expected NdEuclidPuzzleGeometry");
-        let &GizmoTwist {
-            axis,
-            ref transform,
-            multiplier,
-        } = &geom.gizmo_twists[hov.gizmo_face];
+        let mv = &geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
-        ui.strong(format!("Axis {axis}"));
-        if let Ok(name) = puz.axes().names.get(axis) {
-            name_spec_info_lines(ui, "Axis", name);
+        ui.strong(format!("Gizmo twist"));
+        info_line(ui, "Move", mv);
+        if let Some(axis) = (puz.twists.axis_from_family)(&mv.transform.family) {
+            if let Ok(name) = puz.axes().names.get(axis) {
+                name_spec_info_lines(ui, "Axis", name);
+            }
+            let layers_info = &puz.axis_layers[axis];
+            info_line(ui, "Max layer", layers_info.max_layer);
+            info_line(ui, "Allow negatives?", layers_info.allow_negatives);
         }
-        let layers_info = &puz.axis_layers[axis];
-        info_line(ui, "Max layer", layers_info.max_layer);
-        info_line(ui, "Allow negatives?", layers_info.allow_negatives);
-        ui.label("");
-        info_line(ui, "Twist transform", transform);
-        info_line(ui, "Twist multiplier", multiplier.0);
     }
 }
 

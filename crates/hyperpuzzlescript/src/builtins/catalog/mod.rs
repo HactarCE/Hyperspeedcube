@@ -62,6 +62,7 @@ fn parse_version(ctx: &mut EvalCtx<'_>, thing: &str, s: Option<&str>) -> Result<
     }
 }
 
+/// Values exported by the Hyperpuzzlescript construction code.
 #[derive(Debug, Default, Clone)]
 pub struct HpsExports(pub Map);
 
@@ -82,6 +83,7 @@ impl DerefMut for HpsExports {
 }
 
 impl HpsExports {
+    /// Constructs an empty exports map.
     pub fn new() -> Self {
         Self(Map::new())
     }

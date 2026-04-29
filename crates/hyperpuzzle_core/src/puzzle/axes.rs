@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use hypuz_util::ti::TypedIndexIter;
+
 use super::*;
 use crate::{ComponentList, NameSpecBiMap};
 
@@ -30,5 +32,10 @@ impl AxisSystem {
     /// Returns the number of axes in the axis system.
     pub fn len(&self) -> usize {
         self.names.len()
+    }
+
+    /// Returns an iterator over all the axes.
+    pub fn iter(&self) -> TypedIndexIter<Axis> {
+        self.names.iter_keys()
     }
 }

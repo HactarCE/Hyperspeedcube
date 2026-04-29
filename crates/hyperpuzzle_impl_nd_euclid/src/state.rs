@@ -7,7 +7,10 @@ use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleStateRenderData};
+use crate::{
+    NamedTwistsList, NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry,
+    NdEuclidPuzzleStateRenderData, NdEuclidTwistsList,
+};
 
 type PerCachedTransform<T> = TiVec<CachedTransform, T>;
 hyperpuzzle_core::typed_index_struct! {
@@ -36,7 +39,7 @@ impl CachedTransformData {
     }
 }
 
-/// Instance of a puzzle with a particular state.
+/// Instance of an N-dimensional Euclidean puzzle with a particular state.
 #[derive(Clone)]
 pub struct NdEuclidPuzzleState {
     /// Immutable puzzle type info.
@@ -69,18 +72,27 @@ impl PuzzleState for NdEuclidPuzzleState {
     }
 
     fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>> {
-        let Some(twist_id) = self
+        let twists = &self
             .puzzle_type
             .twists
+            .components
+            .get::<NdEuclidTwistsList>()
+            .map_err(|_| vec![])?;
+
+        let twist_id = self
+            .puzzle_type
+            .twists
+            .components
+            .get::<NamedTwistsList>()
+            .map_err(|_| vec![])?
             .names
             .id_from_name(&twist.transform.family)
-        else {
-            return Err(vec![]); // twist is invalid
-        };
-        let twist_info = &self.puzzle_type.twists.twists[twist_id];
-        let twist_transform = &self.geom.twist_transforms[twist_id].powi(twist.multiplier.into());
-        let layers_info = self.puzzle_type.axis_layers[twist_info.axis];
-        let grip = self.compute_grip(twist_info.axis, &twist.layers.to_layer_mask(layers_info));
+            .ok_or(vec![])?;
+
+        let axis = twists.twist_axes[twist_id];
+        let twist_transform = &twists.twist_transforms[twist_id].powi(twist.multiplier.into());
+        let layers_info = self.puzzle_type.axis_layers[axis];
+        let grip = self.compute_grip(axis, &twist.layers.to_layer_mask(layers_info));
 
         // Check for split pieces, which prevent the turn.
         let split_pieces = grip

@@ -131,6 +131,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
     Ok(())
 }
 
+/// Instance of a product puzzle with a particular state.
 #[derive(Debug, Clone)]
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,

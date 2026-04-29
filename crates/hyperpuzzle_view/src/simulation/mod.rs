@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
-use float_ord::FloatOrd;
 use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
+use hyperpuzzle::nd_euclid::{PgaMotorToNearestTwist, TwistToPgaMotor};
 use hyperpuzzle::prelude::*;
 use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
 use hyperpuzzle_log::{LogEvent, Scramble};
@@ -477,12 +477,10 @@ impl PuzzleSimulation {
             let puz = self.puzzle_type();
             // TODO: don't filter here; filter as we apply moves
             twists.retain(|twist| {
-                puz.twists
-                    .axis_from_move_family(&twist.transform.family)
-                    .is_some_and(|axis| {
-                        let layers_info = puz.axis_layers[axis];
-                        !twist.layers.to_layer_mask(layers_info).is_empty()
-                    })
+                (puz.twists.axis_from_family)(&twist.transform.family).is_some_and(|axis| {
+                    let layers_info = puz.axis_layers[axis];
+                    !twist.layers.to_layer_mask(layers_info).is_empty()
+                })
             });
             if twists.is_empty() {
                 if let Some(replay) = &mut self.replay {
@@ -626,7 +624,7 @@ impl PuzzleSimulation {
     /// instead if that's desired.
     fn do_twist(&mut self, twist: &Move) -> bool {
         let puzzle = Arc::clone(self.puzzle_type());
-        let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family) else {
+        let Some(axis) = (puzzle.twists.axis_from_family)(&twist.transform.family) else {
             return false;
         };
         let layers_info = puzzle.axis_layers[axis];
@@ -648,8 +646,7 @@ impl PuzzleSimulation {
 
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
-                let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family)
-                else {
+                let Some(axis) = (puzzle.twists.axis_from_family)(&twist.transform.family) else {
                     return false;
                 };
                 let layers_info = puzzle.axis_layers[axis];
@@ -661,19 +658,19 @@ impl PuzzleSimulation {
 
                 self.blocking_anim.clear();
 
-                if let Some(nd_euclid) = &self.nd_euclid
-                    && let Some(twist_id) =
-                        puzzle.twists.names.id_from_name(&twist.transform.family)
+                if let Ok(twist_to_motor) = puzzle.twists.components.get::<TwistToPgaMotor>()
+                    && let Some(twist_motor) = (twist_to_motor.twist_to_pga_motor)(&twist.transform)
+                    && let Some(final_transform) = twist_motor
+                        .powi(twist.multiplier.into())
+                        .canonicalize_up_to_180()
                 {
-                    let geom = &nd_euclid.geom;
                     self.twist_anim.push(AnimationFromState {
                         state,
                         anim: NdEuclidPuzzleAnimation {
                             pieces: grip,
                             initial_transform: nd_euclid_initial_transform
-                                .unwrap_or_else(|| Motor::ident(geom.ndim())),
-                            final_transform: geom.twist_transforms[twist_id]
-                                .powi(twist.multiplier.into()),
+                                .unwrap_or_else(|| Motor::ident(final_transform.ndim())),
+                            final_transform,
                         }
                         .into(),
                     });
@@ -857,43 +854,24 @@ impl PuzzleSimulation {
         if let Some(nd_euclid) = &mut self.nd_euclid
             && let Some(partial) = &nd_euclid.partial_twist_drag_state
         {
-            let puzzle = self.latest_state.ty();
-
-            let closest_twist = nd_euclid
-                .geom
-                .twist_transforms
-                .iter()
-                .filter(|&(twist, _)| puzzle.twists.twists[twist].axis == partial.axis)
-                .flat_map(|(twist, twist_transform)| {
-                    let max_multiplier = puzzle.twists.twists[twist].scramble_max_multiplier;
-                    std::iter::successors(Some(twist_transform.clone()), move |t| {
-                        Some(t * twist_transform)
-                    })
-                    .take(max_multiplier.unwrap_or(Multiplier(1)).0 as usize)
-                    .enumerate()
-                    .map(move |(i, twist_transform)| {
-                        let notation_transform =
-                            notation::Transform::new(&puzzle.twists.names[twist], None);
-                        let mv = Move {
-                            layers: LayerPrefix::DEFAULT,
-                            transform: notation_transform,
-                            multiplier: Multiplier((i + 1) as _),
-                        };
-                        (mv, twist_transform)
-                    })
-                })
-                .max_by_key(|(_, twist_transform)| {
-                    FloatOrd(Motor::dot(&partial.transform, twist_transform).abs())
-                });
-            if let Some((mut mv, twist_transform)) = closest_twist {
-                let dot_with_twist = Motor::dot(&partial.transform, &twist_transform).abs();
+            let ty = self.latest_state.ty();
+            if let Ok(nearest_twist_fn) = ty.twists.components.get::<PgaMotorToNearestTwist>()
+                && let Ok(twist_to_motor) = ty.twists.components.get::<TwistToPgaMotor>()
+                && let Some(closest_move) = (nearest_twist_fn.get_nearest_twist)(
+                    partial.axis,
+                    &partial.layers,
+                    &partial.transform,
+                )
+                && let Some(twist_motor) =
+                    (twist_to_motor.twist_to_pga_motor)(&closest_move.transform)
+            {
+                let dot_with_twist = Motor::dot(&partial.transform, &twist_motor).abs();
                 let dot_with_identity = partial.transform.get(hypermath::pga::Axes::SCALAR).abs();
                 if dot_with_twist > dot_with_identity {
-                    mv.layers = LayerPrefix::from(&partial.layers);
                     let axis = partial.axis;
                     let time = Some(Timestamp::now());
                     self.do_event(ReplayEvent::DragTwist { time, axis });
-                    self.do_event(ReplayEvent::Twists(smallvec![mv]));
+                    self.do_event(ReplayEvent::Twists(smallvec![closest_move]));
                 } else {
                     // The identity twist is closer.
                     self.cancel_partial_twist();

@@ -63,6 +63,8 @@ impl PuzzleShapeFactorBuilder {
         })
     }
 
+    /// Returns the number of dimensions of the underlying space the puzzle is
+    /// built in.
     pub fn ndim(&self) -> u8 {
         self.space.ndim()
     }

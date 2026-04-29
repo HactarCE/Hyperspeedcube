@@ -9,10 +9,9 @@ use hypermath::{
     APPROX, ApproxHashMap, Float, Hyperplane, Point, Vector, VectorRef, approx_collections,
 };
 use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace, TiMask};
-use hyperpuzzle_impl_nd_euclid::GizmoTwist;
 use hyperpuzzle_impl_nd_euclid::builder::AdHocAxisSystemBuilder;
 use hypershape::{Cut, ElementCutOutput, ElementId, ElementIdConvert, FaceId, FacetId, Space};
-use hypuz_notation::{Multiplier, Transform};
+use hypuz_notation::{Move, Multiplier, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 
@@ -21,7 +20,7 @@ use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 
 pub fn build_3d_gizmo<'a>(
     mesh: &mut Mesh,
-    gizmo_twists: &mut PerGizmoFace<GizmoTwist>,
+    gizmo_twists: &mut PerGizmoFace<Move>,
     axes: &ProductPuzzleAxes,
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<()> {
@@ -56,11 +55,7 @@ pub fn build_3d_gizmo<'a>(
             let surface_id = mesh.add_gizmo_surface(&axes.axis_vectors[axis])?;
             let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
             mesh.add_gizmo_face(range)?;
-            gizmo_twists.push(GizmoTwist {
-                axis,
-                transform: Transform::new(&twists.axes.names[axis], None),
-                multiplier: Multiplier(1),
-            })?;
+            gizmo_twists.push(Transform::new(&twists.axes.names[axis], None).into())?;
         }
     }
 
@@ -69,7 +64,7 @@ pub fn build_3d_gizmo<'a>(
 
 pub fn build_4d_gizmo<'a>(
     mesh: &mut Mesh,
-    gizmo_twists: &mut PerGizmoFace<GizmoTwist>,
+    gizmo_twists: &mut PerGizmoFace<Move>,
     axes: &ProductPuzzleAxes,
     twists: &SymmetricTwistSystemComponent,
     mut warn_fn: impl FnMut(eyre::Report),
@@ -106,7 +101,7 @@ pub fn build_4d_gizmo<'a>(
             let init_vector = (|| {
                 init_secondary
                     .vector(&twists.named_point_vectors)
-                    .rejected_from(&twists.axis_vectors[init_axis])?
+                    .rejected_from(&axes.axis_vectors[init_axis])?
                     .normalize_to(*gizmo_pole_distance)
             })()
             .ok_or_eyre("gizmo pole distance cannot be zero")?;
@@ -214,7 +209,7 @@ pub fn build_4d_gizmo<'a>(
                 let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
                 let transformed_secondary =
                     secondary.transform_by_group_element(&twists.named_point_action, e);
-                let surface_id = mesh.add_gizmo_surface(&twists.axis_vectors[axis])?;
+                let surface_id = mesh.add_gizmo_surface(&axes.axis_vectors[axis])?;
                 let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
                 mesh.add_gizmo_face(range)?;
                 let family_str = StabilizerFamily {
@@ -222,11 +217,7 @@ pub fn build_4d_gizmo<'a>(
                     secondary: transformed_secondary,
                 }
                 .name(&twists.axes.names, &twists.named_point_names);
-                gizmo_twists.push(GizmoTwist {
-                    axis,
-                    transform: Transform::new(family_str, None),
-                    multiplier: Multiplier(1),
-                })?;
+                gizmo_twists.push(Transform::new(family_str, None).into())?;
             }
         }
     }

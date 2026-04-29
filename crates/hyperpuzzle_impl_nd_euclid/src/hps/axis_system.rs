@@ -118,6 +118,7 @@ impl HpsAxisSystem {
         ctx.scope.special.axes.as_ref()
     }
 
+    /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
     pub fn lock_ad_hoc(
         &self,
     ) -> Result<MappedMutexGuard<'_, AdHocAxisSystemBuilder>, ExpectedAdHoc> {

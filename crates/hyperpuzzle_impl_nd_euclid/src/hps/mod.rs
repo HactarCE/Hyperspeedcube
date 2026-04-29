@@ -7,7 +7,7 @@ use hypermath::pga::Motor;
 use hypermath::{
     ApproxEq, ApproxHash, ApproxInternable, Ndim, Point, Precision, TransformByMotor, Vector,
 };
-use hyperpuzzle_core::{Axis, NameSpec, Twist, TypedIndex};
+use hyperpuzzle_core::{Axis, NameSpec, TypedIndex};
 use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
 
 use crate::TwistKey;
@@ -229,12 +229,6 @@ enum HpsEuclidError {
     NoAxis(Vector),
     #[error("axis {0} with vector {1} has no name")]
     UnnamedAxis(Axis, Vector),
-    #[error("no {0}")]
-    NoTwist(TwistKey),
-    #[error("{0} has no name")]
-    UnnamedTwist(Twist, TwistKey),
-    #[error("bad twist transform")]
-    BadTwistTransform,
     #[error("missing coset {0}")]
     MissingCoset(Point),
 }

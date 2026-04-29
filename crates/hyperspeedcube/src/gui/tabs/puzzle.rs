@@ -638,9 +638,9 @@ fn show_gizmo_face(
     let fill = weak_color;
 
     let twist = &geom.gizmo_twists[gizmo_face];
-    let axis = puzzle.twists.axis_from_move_family(&twist.transform.family);
+    let axis = (puzzle.twists.axis_from_family)(&twist.transform.family);
     let other_faces_on_same_gizmo = geom.gizmo_twists.iter_filter(|_gizmo_face, twist| {
-        puzzle.twists.axis_from_move_family(&twist.transform.family) == axis
+        (puzzle.twists.axis_from_family)(&twist.transform.family) == axis
     });
 
     if show_other_faces_on_same_gizmo {
@@ -979,7 +979,7 @@ fn show_nd_euclid_puzzle_view(
     if let Some(gizmo_vertex_3d_positions) = nd_euclid.renderer.gizmo_vertex_3d_positions.get() {
         if let Some(axis) = temp_gizmo_highlight {
             for (gizmo_face, twist) in &geom.gizmo_twists {
-                if puzzle.twists.axis_from_move_family(&twist.transform.family) == Some(axis) {
+                if (puzzle.twists.axis_from_family)(&twist.transform.family) == Some(axis) {
                     show_gizmo_face(
                         &puzzle,
                         &geom,

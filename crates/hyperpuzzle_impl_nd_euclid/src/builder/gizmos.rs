@@ -10,7 +10,7 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use pga::Blade;
 
-use crate::GizmoTwist;
+use crate::NamedTwistsList;
 use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
 
 pub(super) fn build_twist_gizmos(
@@ -18,17 +18,19 @@ pub(super) fn build_twist_gizmos(
     mesh: &mut Mesh,
     twists: &TwistSystem,
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<PerGizmoFace<GizmoTwist>> {
+) -> Result<PerGizmoFace<Move>> {
     let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
     let twists_list = twists.components.get::<NdEuclidTwistsList>()?;
+    let named_twists = twists.components.get::<NamedTwistsList>()?;
     let Some(twist_gizmo_pole_distances) = &twists_list.gizmo_pole_distances else {
         return Ok(PerGizmoFace::new());
     };
 
     // Assemble a list of gizmo pole vectors and their associated twists.
-    let mut gizmo_poles: PerAxis<Vec<(Vector, Twist)>> = PerAxis::new_with_len(twists.axes.len());
+    let mut gizmo_poles: PerAxis<Vec<(Vector, Move)>> = PerAxis::new_with_len(twists.axes.len());
     for twist in twists_list.iter() {
         if let Some(pole_distance) = twist_gizmo_pole_distances[twist] {
+            let mv = Move::new((), &named_twists.names.get(twist)?.preferred, None, 1);
             let axis = twists_list.twist_axes[twist];
             // The axis vector is fixed by the twist.
             let axis_vector = &axis_vectors.vectors_by_id[axis];
@@ -52,7 +54,7 @@ pub(super) fn build_twist_gizmos(
             };
 
             let gizmo_pole = face_normal * pole_distance as _;
-            gizmo_poles[axis].push((gizmo_pole, twist));
+            gizmo_poles[axis].push((gizmo_pole, mv));
         };
     }
 
@@ -61,23 +63,15 @@ pub(super) fn build_twist_gizmos(
     if space.ndim() == 3 {
         let gizmo_poles = gizmo_poles.iter_values().flatten().cloned().collect_vec();
         let resulting_gizmo_faces = build_3d_gizmos(space, mesh, twists, &gizmo_poles, warn_fn)?;
-        for (_gizmo_face, twist) in resulting_gizmo_faces {
-            gizmo_face_twists.push(GizmoTwist {
-                axis: twists.twists[twist].axis,
-                transform: notation::Transform::new(&twists.names[twist], None),
-                multiplier: Multiplier(1),
-            })?;
+        for (_gizmo_face, mv) in resulting_gizmo_faces {
+            gizmo_face_twists.push(mv)?;
         }
     } else if space.ndim() == 4 {
         for (axis, axis_gizmo_poles) in gizmo_poles {
             let resulting_gizmo_faces =
-                build_4d_gizmos(space, mesh, twists, axis, axis_gizmo_poles, warn_fn)?;
-            for (_gizmo_face, twist) in resulting_gizmo_faces {
-                gizmo_face_twists.push(GizmoTwist {
-                    axis: twists.twists[twist].axis,
-                    transform: notation::Transform::new(&twists.names[twist], None),
-                    multiplier: Multiplier(1),
-                })?;
+                build_4d_gizmos_for_axis(space, mesh, twists, axis, axis_gizmo_poles, warn_fn)?;
+            for (_gizmo_face, mv) in resulting_gizmo_faces {
+                gizmo_face_twists.push(mv)?;
             }
         }
     }
@@ -92,9 +86,9 @@ fn build_3d_gizmos(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
-    gizmo_poles: &[(Vector, Twist)],
+    gizmo_poles: &[(Vector, Move)],
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<Vec<(GizmoFace, Twist)>> {
+) -> Result<Vec<(GizmoFace, Move)>> {
     if gizmo_poles.is_empty() {
         return Ok(vec![]);
     }
@@ -104,8 +98,7 @@ fn build_3d_gizmos(
     let primordial_cube = space.primordial_cube();
 
     let mut gizmo_surfaces = HashMap::new();
-    for (_, twist_info) in &twists.twists {
-        let axis = twist_info.axis;
+    for axis in twists.axes.iter() {
         if let hash_map::Entry::Vacant(e) = gizmo_surfaces.entry(axis) {
             e.insert(mesh.add_gizmo_surface(&axis_vectors.vectors_by_id[axis])?);
         }
@@ -119,19 +112,19 @@ fn build_3d_gizmos(
         hypershape::PRIMORDIAL_CUBE_RADIUS,
         gizmo_poles,
         "twist gizmo",
-        |twist| gizmo_surfaces[&twists.twists[twist].axis],
+        |ax| gizmo_surfaces[&ax],
         warn_fn,
     )
 }
 
-fn build_4d_gizmos(
+fn build_4d_gizmos_for_axis(
     space: &mut Space,
     mesh: &mut Mesh,
     twists: &TwistSystem,
     axis: Axis,
-    gimzo_poles: Vec<(Vector, Twist)>,
+    gimzo_poles: Vec<(Vector, Move)>,
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<Vec<(GizmoFace, Twist)>> {
+) -> Result<Vec<(GizmoFace, Move)>> {
     use hypershape::flat::*;
 
     if gimzo_poles.is_empty() {
@@ -180,11 +173,11 @@ fn build_gizmos(
     twists: &TwistSystem,
     mut base_polyhedron: ElementId,
     min_radius: Float,
-    gizmo_poles: &[(Vector, Twist)],
+    gizmo_poles: &[(Vector, Move)],
     gizmo_name: &str,
-    mut get_gizmo_surface: impl FnMut(Twist) -> u32,
+    mut get_gizmo_surface: impl FnMut(Axis) -> u32,
     warn_fn: &mut impl FnMut(eyre::Report),
-) -> Result<Vec<(GizmoFace, Twist)>> {
+) -> Result<Vec<(GizmoFace, Move)>> {
     use hypershape::flat::*;
 
     // Cut a primordial cube for the twist gizmo.
@@ -206,13 +199,10 @@ fn build_gizmos(
     }
 
     // Cut a face for each twist.
-    let mut face_polygons: Vec<(ElementId, Twist)> = vec![];
-    for (new_pole, new_twist) in gizmo_poles {
+    let mut face_polygons: Vec<(ElementId, Move)> = vec![];
+    for (new_pole, new_mv) in gizmo_poles {
         let Some(cut_plane) = Hyperplane::from_pole(new_pole) else {
-            let new_twist_name = &twists.names[*new_twist];
-            warn_fn(eyre!(
-                "bad facet pole for twist {new_twist_name:?} on twist gizmo",
-            ));
+            warn_fn(eyre!("bad facet pole for twist {new_mv:?} on twist gizmo",));
             continue;
         };
         let mut cut = Cut::carve(cut_plane);
@@ -220,24 +210,18 @@ fn build_gizmos(
         let mut new_face_polygons = vec![];
 
         // Cut each existing facet.
-        for (f, twist) in face_polygons {
+        for (f, mv) in face_polygons {
             match cut.cut(space, f)? {
                 hypershape::ElementCutOutput::Flush => {
-                    let twist_name = &twists.names[twist];
-                    let new_twist_name = &twists.names[*new_twist];
-                    warn_fn(eyre!(
-                        "twists {twist_name:?} and {new_twist_name:?} overlap on twist gizmo",
-                    ));
+                    warn_fn(eyre!("twists {mv:?} and {new_mv:?} overlap on twist gizmo"));
                 }
                 hypershape::ElementCutOutput::NonFlush {
                     inside: Some(new_f),
                     ..
-                } => new_face_polygons.push((new_f, twist)),
+                } => new_face_polygons.push((new_f, mv)),
                 _ => {
-                    let twist_name = &twists.names[twist];
-                    let new_twist_name = &twists.names[*new_twist];
                     warn_fn(eyre!(
-                        "twist {twist_name:?} is eclipsed by {new_twist_name:?} on twist gizmo",
+                        "twist {mv:?} is eclipsed by {new_mv:?} on twist gizmo",
                     ));
                 }
             }
@@ -257,10 +241,9 @@ fn build_gizmos(
 
                 // Add the new facet.
                 match intersection {
-                    Some(new_facet) => new_face_polygons.push((new_facet, *new_twist)),
+                    Some(new_facet) => new_face_polygons.push((new_facet, new_mv.clone())),
                     None => {
-                        let new_twist_name = &twists.names[*new_twist];
-                        warn_fn(eyre!("twist {new_twist_name:?} is eclipsed on twist gizmo"));
+                        warn_fn(eyre!("twist {new_mv:?} is eclipsed on twist gizmo"));
                     }
                 }
             }
@@ -280,11 +263,15 @@ fn build_gizmos(
     // to vertex IDs in `mesh`.
     let vertex_map: HashMap<(VertexId, u32), u32> = face_polygons
         .iter()
-        .flat_map(|&(polygon, twist)| {
-            let surface = get_gizmo_surface(twist);
-            space.get(polygon).vertex_set().map(move |v| (v, surface))
+        .map(|(polygon, mv)| {
+            let axis =
+                (twists.axis_from_family)(&mv.transform.family).ok_or_eyre("move has no axis")?;
+            let surface = get_gizmo_surface(axis);
+            eyre::Ok(space.get(*polygon).vertex_set().map(move |v| (v, surface)))
         })
-        .map(|(vertex, surface)| {
+        .flatten_ok()
+        .map(|result| {
+            let (vertex, surface) = result?;
             let old_id = vertex.id();
             let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
             eyre::Ok(((old_id, surface), new_id))
@@ -294,8 +281,10 @@ fn build_gizmos(
     let mut resulting_gizmo_faces = vec![];
 
     // Generate mesh for face polygons and edges.
-    for (face_polygon, twist) in face_polygons {
-        let surface = get_gizmo_surface(twist);
+    for (face_polygon, mv) in face_polygons {
+        let axis =
+            (twists.axis_from_family)(&mv.transform.family).ok_or_eyre("move has no axis")?;
+        let surface = get_gizmo_surface(axis);
 
         let face_polygon = space.get(face_polygon).as_face()?;
 
@@ -312,7 +301,7 @@ fn build_gizmos(
         let end = mesh.counts();
 
         let new_gizmo_face = mesh.add_gizmo_face(start..end)?;
-        resulting_gizmo_faces.push((new_gizmo_face, twist));
+        resulting_gizmo_faces.push((new_gizmo_face, mv));
     }
 
     Ok(resulting_gizmo_faces)

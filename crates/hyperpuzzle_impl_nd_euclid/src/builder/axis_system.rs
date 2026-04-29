@@ -46,7 +46,7 @@ impl AdHocAxisSystemBuilder {
     }
 
     /// Returns whether there are no axes in the axis system.
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.vectors.vectors_by_id.is_empty()
     }
     /// Returns the number of axes in the axis system.
@@ -54,6 +54,8 @@ impl AdHocAxisSystemBuilder {
         self.vectors.vectors_by_id.len()
     }
 
+    /// Returns the number of dimensions of the underlying space the puzzle is
+    /// built in.
     pub fn ndim(&self) -> u8 {
         self.vectors.ndim
     }

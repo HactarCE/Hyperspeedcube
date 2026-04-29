@@ -7,7 +7,7 @@ use crate::{Axis, LayerMask, Move};
 pub fn count_stm(puzzle: &Puzzle, twists: impl IntoIterator<Item = Move>) -> u64 {
     let mut counter = StmCounter::new();
     for twist in twists {
-        if let Some(axis) = puzzle.twists.axis_from_move_family(&twist.transform.family) {
+        if let Some(axis) = (puzzle.twists.axis_from_family)(&twist.transform.family) {
             let layer_mask = twist.layers.to_layer_mask(puzzle.axis_layers[axis]);
             counter.count_twist(axis, layer_mask);
         }

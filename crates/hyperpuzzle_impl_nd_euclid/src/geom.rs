@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use hypermath::{Float, Hyperplane, Point, VectorRef, pga};
+use hypermath::{Float, Hyperplane, Point, VectorRef};
 use hyperpuzzle_core::Component;
-use hyperpuzzle_core::notation::{InvertError, Transform};
 use hyperpuzzle_core::prelude::*;
 
 use crate::PuzzleLayerDepths;
@@ -45,12 +44,9 @@ pub struct NdEuclidPuzzleGeometry {
     pub axis_vectors: Arc<NdEuclidAxisVectors>,
     /// Top and bottom depths for each layer on each axis.
     pub axis_layer_depths: PerAxis<PuzzleLayerDepths>,
-    /// Transforation to apply to pieces for each twist.
-    #[deprecated]
-    pub twist_transforms: Arc<PerTwist<pga::Motor>>, // TODO: remove this
 
     /// Twist for each face of a twist gizmo.
-    pub gizmo_twists: PerGizmoFace<GizmoTwist>,
+    pub gizmo_twists: PerGizmoFace<Move>,
 }
 
 impl Component<Puzzle> for NdEuclidPuzzleGeometry {}
@@ -69,7 +65,6 @@ impl NdEuclidPuzzleGeometry {
             mesh: Mesh::new_empty(3),
             axis_vectors: Arc::new(NdEuclidAxisVectors::new(3)),
             axis_layer_depths: PerAxis::new(),
-            twist_transforms: Arc::new(PerTwist::new()),
             gizmo_twists: PerGizmoFace::new(),
         }
     }
@@ -103,39 +98,5 @@ impl NdEuclidPuzzleGeometry {
         let vertex_distances_along_axis =
             vertex_coordinates.map(|vertex| normalized_axis_vector.dot(vertex));
         hypermath::util::min_max(vertex_distances_along_axis)
-    }
-}
-
-/// Clockwise twist on a twist gizmo.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct GizmoTwist {
-    /// Axis that the gizmo belongs to.
-    ///
-    /// This can be derived from `transform` but is convenient to access it
-    /// directly.
-    pub axis: Axis,
-    /// Transform of the clockwise twist of the gizmo.
-    pub transform: Transform,
-    /// Multiplier for the clockwise twist of the gizmo.
-    ///
-    /// This is almost always `Multiplier(1)`.
-    pub multiplier: Multiplier,
-}
-
-impl GizmoTwist {
-    /// Constructs a move for the gizmo.
-    pub fn to_move(
-        &self,
-        layers: impl Into<LayerPrefix>,
-        direction: hypermath::Sign,
-    ) -> Result<Move, InvertError> {
-        Ok(Move {
-            layers: layers.into(),
-            transform: self.transform.clone(),
-            multiplier: match direction {
-                hypermath::Sign::Pos => self.multiplier,
-                hypermath::Sign::Neg => self.multiplier.inv()?,
-            },
-        })
     }
 }

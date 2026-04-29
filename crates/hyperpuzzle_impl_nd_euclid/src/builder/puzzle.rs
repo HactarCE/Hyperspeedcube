@@ -18,9 +18,9 @@ use tinyset::Set64;
 use super::shape::ShapeBuildOutput;
 use super::{AdHocTwistSystemBuilder, AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
 use crate::components::NdEuclidTwistsList;
-use crate::prelude::*;
+use crate::{NamedTwistsList, prelude::*};
 
-/// Puzzle being constructed.
+/// [`Puzzle`] under construction.
 #[derive(Debug)]
 pub struct PuzzleBuilder {
     /// Puzzle metadata.
@@ -64,7 +64,7 @@ impl PuzzleBuilder {
         })
     }
 
-    /// Returns the nubmer of dimensions of the underlying space the puzzle is
+    /// Returns the number of dimensions of the underlying space the puzzle is
     /// built in.
     pub fn ndim(&self) -> u8 {
         self.ndim
@@ -225,47 +225,43 @@ impl PuzzleBuilder {
 
             axis_vectors: Arc::clone(twists.axes.components.get()?),
             axis_layer_depths,
-            twist_transforms: Arc::new(
-                twists
-                    .components
-                    .get::<NdEuclidTwistsList>()?
-                    .twist_transforms
-                    .clone(),
-            ),
 
             gizmo_twists,
         });
 
-        let mut scramble_twists = twists
-            .twists
-            .iter_filter(|_, twist_info| {
-                twist_info.scramble_max_multiplier.is_some()
-                    && axis_layers[twist_info.axis].max_layer > 0
+        let twists_list = Arc::clone(twists.components.get::<NdEuclidTwistsList>()?);
+        let twist_names = Arc::clone(twists.components.get::<NamedTwistsList>()?);
+
+        let mut scramble_twists = twists_list
+            .iter()
+            .filter(|&twist| {
+                twists_list.scramble_max_multipliers[twist].is_some()
+                    && axis_layers[twists_list.twist_axes[twist]].max_layer > 0
             })
             .collect_vec();
-        scramble_twists.sort_by_cached_key(|&twist| match twists.names.get(twist) {
+        scramble_twists.sort_by_cached_key(|&twist| match twist_names.names.get(twist) {
             Ok(name) => &name.canonical,
             Err(_) => "",
         });
         let can_scramble = !scramble_twists.is_empty();
 
         let random_move = Box::new({
-            let twists = Arc::clone(&twists);
             let axis_layers_info = axis_layers.clone();
             move |rng: &mut dyn Rng| {
                 let random_twist = *scramble_twists.choose(rng)?;
-                let twist_info = &twists.twists[random_twist];
+                let axis = twists_list.twist_axes[random_twist];
 
-                let layer_count = axis_layers_info[twist_info.axis].max_layer;
+                let layer_count = axis_layers_info[axis].max_layer;
                 let random_layer_mask =
                     hyperpuzzle_core::util::random_layer_mask(rng, layer_count)?;
 
-                let max_multiplier = twist_info.scramble_max_multiplier.unwrap_or_default();
+                let max_multiplier =
+                    twists_list.scramble_max_multipliers[random_twist].unwrap_or_default();
                 let random_multiplier = rng.random_range(1..=max_multiplier.0);
 
                 Some(Move {
                     layers: random_layer_mask.into(),
-                    transform: notation::Transform::new(&twists.names[random_twist], None),
+                    transform: notation::Transform::new(&twist_names.names[random_twist], None),
                     multiplier: Multiplier(random_multiplier),
                 })
             }

@@ -34,10 +34,6 @@ impl AxisConstraintSolver {}
 pub struct SymmetricTwistSystemComponent {
     /// Axis system.
     pub axes: Arc<AxisSystem>,
-    /// Physical location of each axis, for constructing simple direct rotations
-    /// from one axis to another.
-    #[deprecated]
-    pub axis_vectors: PerAxis<Vector>, // TODO: remove, probably
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
     /// Action of the grip group on the axes.

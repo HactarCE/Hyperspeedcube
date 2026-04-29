@@ -136,9 +136,13 @@ pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
     name.split(',').map(|s| s.split_once(':')).collect()
 }
 
+/// Either a fixed object `Arc<F>` from the catalog, or an ad-hoc builder `A`
+/// that will be used to construct a catalog object.
 #[derive(Debug)]
 pub enum MaybeAdHoc<F, A> {
+    /// Fixed object from the catalog.
     Fixed(Arc<F>),
+    /// Ad-hoc builder that will be used to construct a catalog object.
     AdHoc(A),
 }
 
@@ -152,6 +156,7 @@ impl<F, A: Clone> Clone for MaybeAdHoc<F, A> {
 }
 
 impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
+    /// Returns the ad-hoc builder if it is one, or an error otherwise.
     pub fn as_ad_hoc(&self) -> Result<&A, ExpectedAdHoc>
     where
         F: CatalogObject,
@@ -162,6 +167,8 @@ impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
         }
     }
 
+    /// Returns a mutable reference to the ad-hoc builder if it is one, or an
+    /// error otherwise.
     pub fn as_ad_hoc_mut(&mut self) -> Result<&mut A, ExpectedAdHoc>
     where
         F: CatalogObject,
@@ -173,6 +180,8 @@ impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
     }
 }
 
+/// Error returned by methods on [`MaybeAdHoc`] when an ad-hoc builder is
+/// expected but there is a fixed catalog object instead.
 #[derive(thiserror::Error, Debug)]
 #[error("cannot modify fixed {type_name}")]
 pub struct ExpectedAdHoc {

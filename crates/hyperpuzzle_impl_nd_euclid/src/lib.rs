@@ -25,8 +25,9 @@ mod vantage_group;
 pub use anim::NdEuclidPuzzleAnimation;
 pub use components::{
     NamedTwistsList, NdEuclidAxisVectors, NdEuclidTwistsList, NdEuclidViewOffset,
+    PgaMotorToNearestTwist, TwistToPgaMotor,
 };
-pub use geom::{GizmoTwist, NdEuclidPuzzleGeometry};
+pub use geom::NdEuclidPuzzleGeometry;
 pub use layers::{LayerDepths, PuzzleLayerDepths};
 pub use state::NdEuclidPuzzleState;
 pub use twist_key::TwistKey;
