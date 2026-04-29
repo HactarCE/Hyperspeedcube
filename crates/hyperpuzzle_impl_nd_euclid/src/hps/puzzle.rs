@@ -106,16 +106,17 @@ impl HpsPuzzle {
         };
 
         let axes = self.twists().axes();
-        let mut this = self.lock();
-        let axes: Vec<Axis> = axis_vectors
+        let axes_to_add_layers_to: Vec<Axis> = axis_vectors
             .iter()
             .map(|v| eyre::Ok(super::axis_from_vector(&*axes.lock_vectors()?, v)?))
             .try_collect()
             .at(span)?;
 
+        let mut this = self.lock();
+
         // Add layers.
-        this.axis_layers.resize(axes.len()).at(span)?;
-        for axis in axes {
+        for axis in axes_to_add_layers_to {
+            this.axis_layers.extend_to_contain(axis);
             let axis_layers = &mut this.axis_layers[axis].0;
             for (&top, &bottom) in layers.iter().tuple_windows() {
                 axis_layers

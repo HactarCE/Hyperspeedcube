@@ -66,11 +66,10 @@ impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 lazy_static! {
     /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
     pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = {
-        let axes = Arc::new(AxisSystem::new_empty());
-        let twists = Arc::new(TwistSystem::new_empty(&axes));
         let mut components = ComponentList::new();
         let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
         components.insert(Arc::clone(&geom));
+
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             meta: Arc::new(CatalogMetadata {
@@ -90,7 +89,7 @@ lazy_static! {
             can_scramble: false,
             full_scramble_length: 0,
             axis_layers: PerAxis::new(),
-            twists,
+            twists: Arc::new(TwistSystem::new_empty()),
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
             random_move: Box::new(move |_rng| None),
             components,

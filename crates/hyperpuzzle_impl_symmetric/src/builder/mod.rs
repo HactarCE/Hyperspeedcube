@@ -10,7 +10,7 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::{BuildCtx, BuildTask};
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::NdEuclidPuzzleGeometry;
+use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleGeometry, ad_hoc_id};
 
 mod axes;
 mod from_space;
@@ -170,7 +170,25 @@ impl ProductPuzzleBuilder {
             self.shape.build_piece_types(warn_fn)?;
 
         let axes = Arc::new(self.axes.build_axis_system()?);
-        let mut twists = TwistSystem::new_empty(&axes);
+        let mut twists = TwistSystem {
+            meta: Arc::new(CatalogMetadata::simple(
+                ad_hoc_id(id.clone()),
+                format!("{id} (ad-hoc)"),
+            )),
+            axes: Arc::clone(&axes),
+            axis_from_family: Box::new({
+                let axes = axes.clone();
+                move |family_str| {
+                    // TODO: correct number of underscores
+                    let axis_name = match family_str.split_once('_') {
+                        Some((first, _)) => first,
+                        None => family_str,
+                    };
+                    axes.names.id_from_name(axis_name)
+                }
+            }),
+            ..TwistSystem::new_empty()
+        };
         let axis_undeorbiters = self.axes.build_axis_undeorbiters();
 
         let named_point_names = self.axes.build_named_point_names()?;

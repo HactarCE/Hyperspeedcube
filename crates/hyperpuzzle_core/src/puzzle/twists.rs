@@ -45,10 +45,10 @@ impl fmt::Debug for TwistSystem {
 
 impl TwistSystem {
     /// Returns an empty twist system.
-    pub fn new_empty(axes: &Arc<AxisSystem>) -> Self {
+    pub fn new_empty() -> Self {
         Self {
             meta: Arc::new(CatalogMetadata::dummy()),
-            axes: Arc::clone(axes),
+            axes: Arc::new(AxisSystem::new_empty()),
             axis_from_family: Box::new(|_| None),
             directions: IndexMap::new(),
             vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
