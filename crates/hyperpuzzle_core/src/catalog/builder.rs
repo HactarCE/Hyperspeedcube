@@ -80,7 +80,7 @@ impl CatalogBuilder {
     /// Menus can be populated using [`Self::add_menu_node()`].
     ///
     /// Returns an error if the menu already exists.
-    pub fn add_menu(&self, menu_id: TypeId, menu_name: String) -> Result<()> {
+    pub fn add_menu(&self, menu_id: &'static str, menu_name: String) -> Result<()> {
         match self.lock_db()?.menus.entry(menu_id) {
             hash_map::Entry::Occupied(e) => {
                 bail!("menu already exists with name {:?}", e.get().name);
@@ -98,7 +98,7 @@ impl CatalogBuilder {
     /// exist.
     pub fn add_menu_node(
         &self,
-        menu_id: TypeId,
+        menu_id: &str,
         path: String,
         content: MenuContent,
         priority: i64,
@@ -106,7 +106,7 @@ impl CatalogBuilder {
     ) -> Result<()> {
         self.lock_db()?
             .menus
-            .get_mut(&menu_id)
+            .get_mut(menu_id)
             .ok_or_eyre(
                 "menu must be created using `CatalogBuilder::add_menu()` before it is populated",
             )?

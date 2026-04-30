@@ -7,9 +7,6 @@ for ndim in 1..=7 {
     add_menu_entry(
         path = "${ndim}D",
         next_column = "Shape",
-        build = fn() {
-            export ndim
-        },
     )
 }
 
@@ -23,12 +20,12 @@ export fn add_menu_entry_for_shape(path: Str, priority: Int, shape: Map) {
         path = "${path}|${shape.name}|None",
         priority = 1000,
         id = shape.id,
-        build = fn(*, shape = shape) { // capture `id`
-            #puz.shape = shape.new()
-            #puz.colors = #puz.shape.id
-            element = ["vertex", "edge", "face"][#puz.ndim] ?? "facet"
-            carve(shape["${element}_pole"], shape["${element}_names"])
-        },
+        // build = fn(*, shape = shape) { // capture `id`
+        //     #puz.shape = shape.new()
+        //     #puz.colors = #puz.shape.id
+        //     element = ["vertex", "edge", "face"][#puz.ndim] ?? "facet"
+        //     carve(shape["${element}_pole"], shape["${element}_names"])
+        // },
     )
 }
 

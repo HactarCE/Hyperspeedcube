@@ -22,41 +22,41 @@ add_menu_entry(
 add_menu_entry(
     path = "2D|Triangle|Shallow",
     id = "ft_triangle",
-    params = [layers_param],
-    build = fn(layers) { "ngon(3, ${layers})" },
+    // params = [layers_param],
+    // build = fn(layers) { "ngon(3, ${layers})" },
 )
 
 add_menu_entry(
     path = "2D|Triangle|Triminx",
     id = "triminx",
-    params = [layers_param],
-    build = fn(layers) {
-        export * from carve_polygon(3)
-        export * from cut_ft_polygon(#puz.shape, #puz.shape.full_cut_depths(layers))
-    },
+    // params = [layers_param],
+    // build = fn(layers) {
+    //     export * from carve_polygon(3)
+    //     export * from cut_ft_polygon(#puz.shape, #puz.shape.full_cut_depths(layers))
+    // },
 )
 
 add_menu_entry(
     path = "2D|Square",
     priority = -4,
     id = "square",
-    params = [layers_param],
-    build = fn() { "ngon(4, ${layers})" },
+    // params = [layers_param],
+    // build = fn() { "ngon(4, ${layers})" },
 )
 
 add_menu_entry(
     path = "2D|Polygon",
     priority = -5,
     default = true,
-    id = "ngon",
-    params = [
-        #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
-        edge_divisions_param,
-    ],
-    build = fn(n, layers) {
-        export * from carve_polygon(n)
-        export * from cut_ft_polygon(#puz.shape, #puz.shape.shallow_cut_depths(layers))
-    },
+    id = "ft_ngon",
+    // params = [
+    //     #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
+    //     edge_divisions_param,
+    // ],
+    // build = fn(n, layers) {
+    //     export * from carve_polygon(n)
+    //     export * from cut_ft_polygon(#puz.shape, #puz.shape.shallow_cut_depths(layers))
+    // },
 )
 
 export fn ngon_colors(n, *, prefix = "", seq = "Rainbow") -> List[Map] {

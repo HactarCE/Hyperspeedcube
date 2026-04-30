@@ -45,25 +45,35 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
     product_tags.insert_named("type/generator", true.into())?;
     product_tags.insert_named("algebraic/doctrinaire", true.into())?;
 
-    // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
-    //     meta: Arc::new(CatalogMetadata {
-    //         id: CatalogId {
-    //             base: "product".into(),
-    //             args: vec![],
-    //         },
-    //         version: Version {
-    //             major: 1,
-    //             minor: 0,
-    //             patch: 0,
-    //         },
-    //         name: "Puzzle Product".into(),
-    //         aliases: vec![],
-    //         tags: product_tags.clone(),
-    //     }),
-    //     params: vec![GeneratorParam],
-    //     generate_meta: todo!(),
-    //     generate: todo!(),
-    // }));
+    catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
+        meta: Arc::new(CatalogMetadata {
+            id: CatalogId {
+                base: "product".into(),
+                args: vec![],
+            },
+            version: Version {
+                major: 1,
+                minor: 0,
+                patch: 0,
+            },
+            name: "Puzzle Product".into(),
+            aliases: vec![],
+            tags: product_tags.clone(),
+        }),
+        params: vec![GeneratorParam {
+            name: "Factors".to_string(),
+            ty: GeneratorParamType::List(Box::new(GeneratorParamType::Puzzle {
+                menu: "symmetric".to_string(),
+            })),
+            default: CatalogIdValue::List(vec![
+                "ft_ngon(5)".parse().unwrap(),
+                "ft_ngon(5)".parse().unwrap(),
+            ]),
+        }],
+        generate_meta: Box::new(|_, _| eyre::bail!("todo")),
+        generate: Box::new(|_, _| eyre::bail!("todo")),
+        components: ComponentList::new(),
+    }));
 
     // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
     //     meta: Arc::new(CatalogMetadata {

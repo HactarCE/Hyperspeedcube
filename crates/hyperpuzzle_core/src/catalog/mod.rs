@@ -1,7 +1,6 @@
 //! Catalog of puzzles and related objects, along with functionality for loading
 //! them.
 
-use std::any::TypeId;
 use std::collections::{BTreeSet, HashMap, HashSet, hash_map};
 use std::fmt;
 use std::ops::Deref;
@@ -283,8 +282,8 @@ pub struct CatalogData {
 
     /// Puzzle list.
     pub puzzle_list: Vec<Arc<CatalogMetadata>>,
-    /// Menus, indexed by type ID.
-    pub menus: HashMap<TypeId, Menu>,
+    /// Menus, indexed by string ID.
+    pub menus: HashMap<&'static str, Menu>,
 
     /// Alphabetized list of all puzzle definition authors.
     pub authors: Vec<String>,

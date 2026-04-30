@@ -19,3 +19,26 @@ add_colors_override("line", fn() {
         #{ name = "B", default = "Blue" },
     ]
 })
+
+add_puzzle(
+    id = "line",
+    version = "1.0.0",
+    engine = "symmetric",
+    ndim = 1,
+    twists = "line",
+    colors = "line",
+    build = fn() {
+
+    },
+)
+
+add_twist_system(
+    id = "line",
+    name = "Line",
+    engine = "line",
+    ndim = 1,
+    build = fn() {
+        #twists.shape = @shapes/1d/line.new()
+        #axes.vertex = add_axis(#twists.shape.vertex_pole, #twists.shape.vertex_names)
+    },
+)

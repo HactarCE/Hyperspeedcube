@@ -6,9 +6,6 @@ use std::str::FromStr;
 use chumsky::prelude::*;
 use serde::{Deserialize, Serialize, de};
 
-/// Error produced when parsing a catalog ID.
-pub type CatalogIdParseError = Rich<'static, char, SimpleSpan>;
-
 /// ID string for an object in a catalog.
 ///
 /// ## Examples
@@ -37,7 +34,7 @@ pub struct CatalogId {
     /// Base string.
     pub base: Box<str>,
     /// Argument values, if the base string specifies a generator.
-    pub args: Vec<CatalogArgValue>,
+    pub args: Vec<CatalogIdValue>,
 }
 
 impl fmt::Debug for CatalogId {
@@ -52,13 +49,7 @@ impl fmt::Display for CatalogId {
         write!(f, "{base}")?;
         if !args.is_empty() {
             write!(f, "(")?;
-            let mut is_first = true;
-            for arg in args {
-                if !std::mem::take(&mut is_first) {
-                    write!(f, ",")?;
-                }
-                write!(f, "{arg}")?;
-            }
+            write_comma_sep_list(f, args)?;
             write!(f, ")")?;
         }
         Ok(())
@@ -66,37 +57,10 @@ impl fmt::Display for CatalogId {
 }
 
 impl FromStr for CatalogId {
-    type Err = CatalogIdParseError;
+    type Err = CatalogIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        recursive::<_, _, extra::Err<Rich<'_, char, SimpleSpan>>, _, _>(|id_or_parameter| {
-            let base = any()
-                .filter(|&c| is_id_base_char(c))
-                .repeated()
-                .at_least(1)
-                .to_slice()
-                .map(Box::from);
-            base.then(
-                id_or_parameter
-                    .map(CatalogArgValue)
-                    .separated_by(just(','))
-                    .collect()
-                    .delimited_by(just('('), just(')'))
-                    .or_not()
-                    .map(Option::<Vec<_>>::unwrap_or_default),
-            )
-            .map(|(base, args)| CatalogId { base, args })
-            .boxed()
-        })
-        .parse(s)
-        .into_result()
-        .map_err(|errors| {
-            errors
-                .into_iter()
-                .next()
-                .expect("parse failed with no errors")
-                .into_owned()
-        })
+        CatalogIdValue::from_str(s)?.try_into()
     }
 }
 
@@ -125,14 +89,17 @@ impl CatalogId {
     /// source because it performs validation.
     pub fn new(
         base: impl Into<Box<str>>,
-        args: impl IntoIterator<Item = CatalogArgValue>,
-    ) -> Option<Self> {
+        args: impl IntoIterator<Item = CatalogIdValue>,
+    ) -> Result<Self, CatalogIdError> {
         let base = base.into();
-        if base.is_empty() || base.chars().any(|c| !is_id_base_char(c)) {
-            return None;
+        if base.is_empty() {
+            return Err(CatalogIdError::Empty);
+        }
+        if let Some(c) = base.chars().find(|&c| !is_id_base_char(c)) {
+            return Err(CatalogIdError::BadChar(c));
         }
         let args = args.into_iter().collect();
-        Some(Self { base, args })
+        Ok(Self { base, args })
     }
 
     /// Returns a catalog ID for an unnamed object.
@@ -142,6 +109,221 @@ impl CatalogId {
             args: vec![],
         }
     }
+}
+
+/// Abstract syntax tree node for a [`CatalogId`].
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum CatalogIdValue {
+    /// Identifier, which typically represents a primitive parameter value (such
+    /// as an integer) or a catalog object.
+    Ident(Box<str>),
+    /// Generator invocation.
+    Generator(CatalogId),
+    /// List of parameter values to a generator.
+    List(Vec<CatalogIdValue>),
+    /// Wildcard, which is represented by `*`.
+    Wildcard,
+    /// Error value, which is represented by `!`.
+    #[default]
+    Error,
+}
+
+impl fmt::Display for CatalogIdValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CatalogIdValue::Ident(id) => fmt::Display::fmt(id, f),
+            CatalogIdValue::Generator(id) => fmt::Display::fmt(id, f),
+            CatalogIdValue::List(elems) => {
+                write!(f, "[")?;
+                write_comma_sep_list(f, elems)?;
+                write!(f, "]")?;
+                Ok(())
+            }
+            CatalogIdValue::Wildcard => write!(f, "*"),
+            CatalogIdValue::Error => write!(f, "!"),
+        }
+    }
+}
+
+impl FromStr for CatalogIdValue {
+    type Err = CatalogIdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        recursive::<_, _, extra::Err<Rich<'_, char, SimpleSpan>>, _, _>(|ast_node| {
+            let base = any()
+                .filter(|&c| is_id_base_char(c))
+                .repeated()
+                .at_least(1)
+                .to_slice()
+                .map(Box::from);
+            let id = base
+                .then(
+                    ast_node
+                        .clone()
+                        .separated_by(just(','))
+                        .collect()
+                        .delimited_by(just('('), just(')'))
+                        .or_not(),
+                )
+                .map(|(base, args)| match args {
+                    Some(args) => Self::Generator(CatalogId { base, args }),
+                    None => Self::Ident(base),
+                });
+
+            let list = ast_node
+                .separated_by(just(','))
+                .collect()
+                .delimited_by(just('['), just(']'))
+                .map(Self::List);
+
+            choice((
+                id,
+                list,
+                just('*').to(Self::Wildcard),
+                just('!').to(Self::Error),
+            ))
+            .boxed()
+        })
+        .parse(s)
+        .into_result()
+        .map_err(|errors| {
+            CatalogIdError::ParseError(
+                errors
+                    .into_iter()
+                    .next()
+                    .expect("parse failed with no errors")
+                    .into_owned(),
+            )
+        })
+    }
+}
+
+impl Serialize for CatalogIdValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for CatalogIdValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Self::from_str(&String::deserialize(deserializer)?).map_err(de::Error::custom)
+    }
+}
+
+impl CatalogIdValue {
+    fn expected_got(&self, expected: &'static str) -> CatalogIdError {
+        let got = match self {
+            CatalogIdValue::Ident(_) => "identifier",
+            CatalogIdValue::Generator(_) => "generator",
+            CatalogIdValue::List(_) => "list",
+            CatalogIdValue::Wildcard => "wildcard '*'",
+            CatalogIdValue::Error => "error '!'",
+        };
+        CatalogIdError::ExpectedGot { expected, got }
+    }
+
+    /// Parses the value into a catalog ID.
+    pub fn into_id(self) -> Result<CatalogId, CatalogIdError> {
+        match self {
+            CatalogIdValue::Ident(base) => Ok(CatalogId { base, args: vec![] }),
+            CatalogIdValue::Generator(id) => Ok(id),
+            _ => Err(self.expected_got("id")),
+        }
+    }
+    /// Parses the value into a list.
+    pub fn into_list(self) -> Result<Vec<CatalogIdValue>, CatalogIdError> {
+        match self {
+            CatalogIdValue::List(list) => Ok(list),
+            _ => Err(self.expected_got("list")),
+        }
+    }
+    /// Parses the value into a boolean.
+    pub fn to_bool(&self) -> Result<bool, CatalogIdError> {
+        match self {
+            CatalogIdValue::Ident(base) => Ok(base.parse()?),
+            _ => Err(self.expected_got("boolean")),
+        }
+    }
+    /// Parses the value into an integer.
+    pub fn to_int(&self) -> Result<i64, CatalogIdError> {
+        match self {
+            CatalogIdValue::Ident(base) => Ok(base.parse()?),
+            _ => Err(self.expected_got("integer")),
+        }
+    }
+}
+
+macro_rules! impl_catalog_id_value_convert {
+    ($method:ident -> $type:ty $(, $into_expr:expr)?) => {
+        impl TryFrom<CatalogIdValue> for $type {
+            type Error = CatalogIdError;
+
+            fn try_from(value: CatalogIdValue) -> Result<Self, Self::Error> {
+                value.$method()
+            }
+        }
+
+        $(
+            impl From<$type> for CatalogIdValue {
+                fn from(value: $type) -> Self {
+                    $into_expr(value)
+                }
+            }
+        )?
+    };
+}
+
+impl_catalog_id_value_convert!(into_id -> CatalogId);
+impl_catalog_id_value_convert!(into_list -> Vec<CatalogIdValue>, Self::List);
+impl_catalog_id_value_convert!(to_bool -> bool, |b: bool| Self::Ident(b.to_string().into()));
+impl_catalog_id_value_convert!(to_int -> i64, |i: i64| Self::Ident(i.to_string().into()));
+
+impl From<CatalogId> for CatalogIdValue {
+    fn from(id: CatalogId) -> Self {
+        if id.args.is_empty() {
+            CatalogIdValue::Ident(id.base)
+        } else {
+            CatalogIdValue::Generator(id)
+        }
+    }
+}
+
+/// Error produced when parsing a catalog ID.
+#[derive(thiserror::Error, Debug)]
+#[expect(missing_docs)]
+pub enum CatalogIdError {
+    #[error("catalog ID parse error: {0}")]
+    ParseError(Rich<'static, char, SimpleSpan>),
+    #[error("expected {expected}; got {got}")]
+    ExpectedGot {
+        expected: &'static str,
+        got: &'static str,
+    },
+    #[error("catalog ID cannot contain {0:?}")]
+    BadChar(char),
+    #[error("catalog ID cannot be empty")]
+    Empty,
+    #[error("integer parse error: {0}")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("boolean parse error: {0}")]
+    ParseBoolError(#[from] std::str::ParseBoolError),
+}
+
+fn write_comma_sep_list(f: &mut fmt::Formatter<'_>, elems: &[impl fmt::Display]) -> fmt::Result {
+    let mut is_first = true;
+    for elem in elems {
+        if !std::mem::take(&mut is_first) {
+            write!(f, ",")?;
+        }
+        fmt::Display::fmt(elem, f)?;
+    }
+    Ok(())
 }
 
 fn is_id_base_char(c: char) -> bool {
@@ -157,76 +339,5 @@ mod tests {
         for s in ["product(ft_ngon(7,3),line(3))", "megaminx_crystal"] {
             assert_eq!(s, CatalogId::from_str(s).unwrap().to_string());
         }
-    }
-}
-
-/// Argument to a generator parameter.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[serde(transparent)]
-pub struct CatalogArgValue(CatalogId); // stored as `CatalogId` only to avoid quadratic reparsing ofs nested parens
-
-impl fmt::Debug for CatalogArgValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Display for CatalogArgValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl FromStr for CatalogArgValue {
-    type Err = CatalogIdParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().map(Self)
-    }
-}
-
-impl From<CatalogId> for CatalogArgValue {
-    fn from(value: CatalogId) -> Self {
-        Self(value)
-    }
-}
-
-impl From<i64> for CatalogArgValue {
-    fn from(value: i64) -> Self {
-        Self(CatalogId {
-            base: value.to_string().into(),
-            args: vec![],
-        })
-    }
-}
-
-impl CatalogArgValue {
-    /// Interprets the argument as a boolean, or returns `None` if it is not a
-    /// valid boolean.
-    pub fn to_bool(&self) -> Option<bool> {
-        if self.0.args.is_empty() {
-            match &*self.0.base {
-                "true" => Some(true),
-                "false" => Some(false),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Interprets the argument as a signed integer, or returns `None` if it is
-    /// not a valid signed integer.
-    pub fn to_int(&self) -> Option<i64> {
-        if self.0.args.is_empty() {
-            self.0.base.parse().ok()
-        } else {
-            None
-        }
-    }
-
-    /// Interprets the argument as a catalog ID.
-    pub fn to_id(&self) -> CatalogId {
-        self.0.clone()
     }
 }

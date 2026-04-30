@@ -137,18 +137,14 @@ impl<T: CatalogObject> Generator<T> {
     pub fn default_id(&self) -> CatalogId {
         CatalogId {
             base: self.meta.id.base.clone(),
-            args: self
-                .params
-                .iter()
-                .map(|p| p.default.clone().into())
-                .collect(),
+            args: self.params.iter().map(|p| p.default.clone()).collect(),
         }
     }
 }
 
 /// Type of [`Generator::generate`].
 pub type GenerateFn<T> =
-    Box<dyn Send + Sync + Fn(BuildCtx, Vec<CatalogArgValue>) -> Result<Redirectable<Arc<T>>>>;
+    Box<dyn Send + Sync + Fn(BuildCtx, Vec<CatalogIdValue>) -> Result<Redirectable<Arc<T>>>>;
 
 /// Possible ID redirect.
 #[derive(Debug, Clone)]

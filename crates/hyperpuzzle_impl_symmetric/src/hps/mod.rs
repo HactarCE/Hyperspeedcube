@@ -16,7 +16,7 @@ pub struct HpsSymmetric;
 
 impl HpsSymmetric {
     /// ID for the symmetric puzzle [`Menu`].
-    pub const MENU_ID: TypeId = TypeId::of::<Self>();
+    pub const MENU_ID: &'static str = "symmetric";
 }
 
 impl fmt::Display for HpsSymmetric {
@@ -43,8 +43,6 @@ pub fn define_in(
             next_inline: Option<Str>,
             section: Option<bool>,
             (id, id_span): Option<Str>,
-            params: Option<Vec<Spanned<Arc<Map>>>>,
-            build: Option<Arc<FnValue>>,
         )]
         fn add_menu_entry(ctx: EvalCtx) -> () {
             let next = match (next_column, next_inline, section.unwrap_or(false), id) {
@@ -67,13 +65,6 @@ pub fn define_in(
                         .at(ctx.caller_span),
                 ),
             };
-
-            if params.is_some() {
-                ctx.warn("unhandled `params`");
-            }
-            if build.is_some() {
-                ctx.warn("unhandled `build`");
-            }
 
             cat.add_menu_node(
                 HpsSymmetric::MENU_ID,

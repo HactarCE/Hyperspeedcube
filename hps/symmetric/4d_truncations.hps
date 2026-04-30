@@ -34,3 +34,8 @@
 // - 120-Cell
 //   - **Truncation**
 //   - Bitruncated
+
+add_menu_entry(path = "4D|Truncations", section = true)
+add_menu_entry(path = "4D|Truncations|Hypercube/16-Cell", next_column = "Truncation")
+add_menu_entry(path = "4D|Truncations|Hypercube/16-Cell|Runcitruncated Hypercube", next_column = "Axes")
+add_menu_entry(path = "4D|Truncations|Hypercube/16-Cell|Runcitruncated Hypercube|FT", id = "ft_runcitruncated_hypercube")

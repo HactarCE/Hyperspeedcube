@@ -19,3 +19,4 @@ workspace = true
 chrono.workspace = true
 chumsky.workspace = true
 serde.workspace = true
+thiserror.workspace = true

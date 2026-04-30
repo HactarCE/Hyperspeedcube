@@ -63,7 +63,7 @@ pub fn define_in(
             let tx = tx.clone();
             let hps_gen = super::generators::HpsGenerator {
                 def_span: ctx.caller_span,
-                id: CatalogId::new(id, []).ok_or("invalid ID").at(id_span)?,
+                id: CatalogId::new(id, []).at(id_span)?,
                 id_span,
                 params: super::generators::params_from_array(params)?,
                 params_span,

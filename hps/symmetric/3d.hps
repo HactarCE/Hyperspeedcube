@@ -13,7 +13,6 @@ layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
 
 fn carve_polyhedron(shape: Map) {
     #puz.shape = shape
-    #puz.colors = shape.id
     carve(shape.face_pole, shape.face_names)
 }
 
@@ -82,15 +81,67 @@ for id in ["megaminx_crystal", "pyraminx_crystal", "starminx"] {
     )
 }
 
-add_menu_entry(
-    path = "3D|Platonic|Cube|FT",
-    priority = 52,
-    default = true,
-    id = "ft_cube",
+add_menu_entry(path = "3D|Platonic|Cube|FT", priority = 52, default = true, id = "ft_cube")
+add_puzzle_generator(
+    id = "ft_cube_v2",
+    engine = "symmetric",
     params = [layers_param],
-    build = fn(layers) {
-        carve_polyhedron(@shapes/bc/cube.new())
-        // TODO: realistic proportions
-        cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
-    }
+
+    colors = "cube",
+    twists = "ft_cube",
+    gen = fn(layers) {
+        export ndim = 3
+        export fn build() {
+            carve_polyhedron(@shapes/3d/cube.new())
+            // TODO: realistic proportions
+            cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
+        }
+    },
+)
+
+add_twist_system(
+    id = "ft_cube",
+    name = "FT Cube",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        cube = @shapes/3d/cube.new()
+        export sym = cube.sym
+        export refs = [[cube.facet_pole, cube.facet_names]]
+        export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
+        add_vantage_set(
+            name = "Face-centered",
+            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+            transforms = #{
+                x = "@{F->U}",
+                y = "@{R->F}",
+                z = "@{U->F}",
+            },
+            axes = "*",
+        )
+    },
+)
+
+add_twist_system(
+    id = "ft_hypercube",
+    name = "FT Hypercube",
+    engine = "symmetric",
+    ndim = 4,
+    build = fn() {
+        export sym = cube.sym
+        export refs = [[cube.facet_pole, cube.facet_names]]
+        export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
+        add_vantage_set(
+            name = "Face-centered",
+            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+            transforms = #{
+                x = "@{F->U}",
+                y = "@{R->F}",
+                z = "@{U->F}",
+            },
+            axes = "*",
+        )
+    },
 )

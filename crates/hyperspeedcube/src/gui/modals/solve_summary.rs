@@ -8,7 +8,7 @@ use hypercubing_leaderboards_client::{
 use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
-use hyperpuzzle::{CatalogArgValue, FloatMinMaxIteratorExt, Puzzle, chrono};
+use hyperpuzzle::{CatalogIdValue, FloatMinMaxIteratorExt, Puzzle, chrono};
 use hyperpuzzle_log::verify::SolveVerificationError;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
@@ -697,7 +697,7 @@ impl SolveSummaryModal {
 
         // TODO: make sure that these IDs generalize across dimensions
         if &*self.puzzle.meta.id.base == "ft_hypercube"
-            && self.puzzle.meta.id.args != vec![CatalogArgValue::from(2)]
+            && self.puzzle.meta.id.args != vec![CatalogIdValue::from(2)]
         {
             ui.add_space(20.0);
 

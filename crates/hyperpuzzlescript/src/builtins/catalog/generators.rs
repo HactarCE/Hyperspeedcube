@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use ecow::{EcoString, eco_format};
 use hyperpuzzle_core::{
-    CatalogArgValue, CatalogId, GeneratorParam, GeneratorParamType, GeneratorParamValue,
-    Redirectable,
+    CatalogId, CatalogIdValue, GeneratorParam, GeneratorParamType, Redirectable,
+    TypedCatalogIdValue,
 };
 use itertools::Itertools;
 
@@ -47,9 +47,8 @@ pub struct HpsGenerator {
 }
 impl HpsGenerator {
     /// Returns the generated ID, given parameter values.
-    pub fn generated_id(&self, param_values: Vec<CatalogArgValue>) -> Result<EcoString> {
-        let id = CatalogId::new(&*self.id.base, param_values.clone())
-            .ok_or_else(|| "invalid generator ID".at(self.id_span))?;
+    pub fn generated_id(&self, param_values: Vec<CatalogIdValue>) -> Result<EcoString> {
+        let id = CatalogId::new(&*self.id.base, param_values.clone()).at(self.id_span)?;
         Ok(eco_format!("{id}"))
     }
 
@@ -66,7 +65,7 @@ impl HpsGenerator {
     pub fn generate_on_hps_thread_with_examples<T: 'static + Send + Sync>(
         &self,
         tx: &EvalRequestTx,
-        param_values: Vec<CatalogArgValue>,
+        param_values: Vec<CatalogIdValue>,
         examples_by_id: &HashMap<String, Arc<T>>,
         map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<Arc<T>>,
     ) -> eyre::Result<Redirectable<Arc<T>>> {
@@ -89,7 +88,7 @@ impl HpsGenerator {
     pub fn generate_on_hps_thread<T: 'static + Send>(
         &self,
         tx: &EvalRequestTx,
-        param_values: Vec<CatalogArgValue>,
+        param_values: Vec<CatalogIdValue>,
         map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<T>,
     ) -> eyre::Result<Redirectable<T>> {
         let this = self.clone();
@@ -103,7 +102,7 @@ impl HpsGenerator {
     pub fn generate<T: 'static + Send>(
         &self,
         runtime: &mut Runtime,
-        param_values: Vec<CatalogArgValue>,
+        param_values: Vec<CatalogIdValue>,
         map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<T>,
     ) -> eyre::Result<Redirectable<T>> {
         // IIFE to mimic try_block
@@ -125,16 +124,13 @@ impl HpsGenerator {
             if expected != got {
                 let generator_id = &self.id;
                 return Err(format!(
-                    "generator {generator_id} expects {expected} params; got {got}"
+                    "generator {generator_id} expects {expected} params; got {got}",
                 )
                 .at(self.params_span));
             }
 
-            let params = std::iter::zip(&self.params, &param_values)
-                .map(|(p, s)| {
-                    let v = &p.value_from_arg(s).at(ctx.caller_span)?;
-                    Ok(param_value_into_hps(v))
-                })
+            let params = std::iter::zip(&self.params, param_values.iter().cloned())
+                .map(|(p, v)| Ok(param_value_into_hps(&p.typed_value(v).at(ctx.caller_span)?)))
                 .try_collect()?;
 
             let user_gen_fn_output =
@@ -167,10 +163,14 @@ impl HpsGenerator {
     }
 }
 
-pub(super) fn param_value_into_hps(value: &GeneratorParamValue) -> Value {
+pub(super) fn param_value_into_hps(value: &TypedCatalogIdValue) -> Value {
     match value {
-        GeneratorParamValue::Int(i) => ValueData::Num(*i as Num),
-        GeneratorParamValue::PuzzleId(p) => ValueData::Str(p.to_string().into()),
+        TypedCatalogIdValue::Id(id) => ValueData::Str(id.to_string().into()),
+        TypedCatalogIdValue::Bool(b) => ValueData::Bool(*b),
+        TypedCatalogIdValue::Int(i) => ValueData::Num(*i as Num),
+        TypedCatalogIdValue::List(l) => {
+            ValueData::List(Arc::new(l.iter().map(param_value_into_hps).collect()))
+        }
     }
     .at(crate::BUILTIN_SPAN)
 }
@@ -196,7 +196,8 @@ fn param_from_map((map, map_span): Spanned<Arc<Map>>) -> Result<GeneratorParam> 
             .at(ty_span));
         }
     };
-    let default = param_value_from_hps(&ty, &name, pop_map_key(&mut map, map_span, "default")?)?;
+    let default = param_value_from_hps(&ty, &name, pop_map_key(&mut map, map_span, "default")?)?
+        .into_untyped();
     Ok(GeneratorParam { name, ty, default })
 }
 
@@ -204,9 +205,10 @@ fn param_value_from_hps(
     ty: &GeneratorParamType,
     name: &str,
     value: Value,
-) -> Result<GeneratorParamValue> {
+) -> Result<TypedCatalogIdValue> {
     let span = value.span;
     match ty {
+        GeneratorParamType::Bool => Ok(TypedCatalogIdValue::Bool(value.to()?)),
         &GeneratorParamType::Int { min, max } => {
             let i = value.to()?;
             if i > max {
@@ -219,10 +221,17 @@ fn param_value_from_hps(
                     format!("value {i:?} for parameter {name:?} is less than {min}").at(span),
                 );
             }
-            Ok(GeneratorParamValue::Int(i))
+            Ok(TypedCatalogIdValue::Int(i))
         }
-        GeneratorParamType::Puzzle => Ok(GeneratorParamValue::PuzzleId(
+        GeneratorParamType::Puzzle { .. } => Ok(TypedCatalogIdValue::Id(
             value.to::<String>()?.parse().at(span)?,
+        )),
+        GeneratorParamType::List(inner) => Ok(TypedCatalogIdValue::List(
+            value
+                .to::<Vec<_>>()?
+                .into_iter()
+                .map(|e| param_value_from_hps(inner, &format!("list element of {name:?}"), e))
+                .try_collect()?,
         )),
     }
 }

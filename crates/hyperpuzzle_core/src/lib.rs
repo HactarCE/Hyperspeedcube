@@ -45,9 +45,9 @@ pub use crate::timestamp::Timestamp;
 /// Prelude of common imports.
 pub mod prelude {
     pub use crate::catalog::{
-        Catalog, CatalogArgValue, CatalogBuilder, CatalogId, CatalogIdParseError, CatalogMetadata,
+        Catalog, CatalogBuilder, CatalogId, CatalogIdError, CatalogIdValue, CatalogMetadata,
         ColorSystemGenerator, GeneratorParam, GeneratorParamError, GeneratorParamType,
-        GeneratorParamValue, PuzzleGenerator, Redirectable, TwistSystemGenerator,
+        PuzzleGenerator, Redirectable, TwistSystemGenerator, TypedCatalogIdValue,
     };
     pub use crate::lint::PuzzleLintOutput;
     pub use crate::names::{

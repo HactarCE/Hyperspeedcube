@@ -8,32 +8,37 @@ pub struct GeneratorParam {
     /// Parameter type.
     pub ty: GeneratorParamType,
     /// Default value.
-    pub default: GeneratorParamValue,
+    pub default: CatalogIdValue,
 }
 
 impl GeneratorParam {
-    /// Converts a string to a value for this parameter and returns an error if
-    /// it is invalid.
-    pub fn value_from_arg(
+    /// Converts a catalog ID value into a typed value for this parameter, or
+    /// returns an error if it is invalid.
+    pub fn typed_value(
         &self,
-        arg: &CatalogArgValue,
-    ) -> Result<GeneratorParamValue, GeneratorParamError> {
-        let make_error = || GeneratorParamError {
-            expected: self.clone(),
-            got: arg.to_string(),
-        };
-
-        match self.ty {
-            GeneratorParamType::Int { .. } => Ok(GeneratorParamValue::Int(
-                arg.to_int().ok_or_else(make_error)?,
-            )),
-            GeneratorParamType::Puzzle => Ok(GeneratorParamValue::PuzzleId(arg.to_id())),
+        arg: CatalogIdValue,
+    ) -> Result<TypedCatalogIdValue, GeneratorParamError> {
+        match &self.ty {
+            GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
+            GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
+            GeneratorParamType::Puzzle { .. } => arg.into_id().map(TypedCatalogIdValue::Id),
+            GeneratorParamType::List(inner) => arg
+                .into_list()
+                .and_then(|l| l.into_iter().map(|e| inner.typed_value(&e)).try_collect())
+                .map(TypedCatalogIdValue::List),
         }
+        .map_err(|inner| GeneratorParamError {
+            param: self.clone(),
+            inner,
+        })
     }
 }
+
 /// Type of a parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeneratorParamType {
+    /// Boolean.
+    Bool,
     /// Integer.
     Int {
         /// Minimum value (inclusive).
@@ -41,60 +46,113 @@ pub enum GeneratorParamType {
         /// Maximum value (inclusive).
         max: i64,
     },
-    /// Puzzle ID.
-    Puzzle,
+    /// Puzzle ID with a menu name.
+    Puzzle {
+        /// Puzzle menu ID.
+        menu: String,
+    },
+    /// List of parameters.
+    ///
+    /// This must be the last parameter.
+    List(Box<GeneratorParamType>),
 }
 
 impl fmt::Display for GeneratorParamType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GeneratorParamType::Int { min, max } => write!(f, "int ({min} to {max})"),
-            GeneratorParamType::Puzzle => write!(f, "puzzle"),
+            GeneratorParamType::Bool => write!(f, "true or false"),
+            GeneratorParamType::Int { min, max } => write!(f, "integer ({min} to {max})"),
+            GeneratorParamType::Puzzle { menu } => write!(f, "puzzle from {menu:?} menu"),
+            GeneratorParamType::List(inner) => write!(f, "list of {inner}"),
+        }
+    }
+}
+
+impl GeneratorParamType {
+    /// Converts a catalog ID value into a typed value for this parameter, or
+    /// returns an error if it is invalid.
+    pub fn typed_value(&self, arg: &CatalogIdValue) -> Result<TypedCatalogIdValue, CatalogIdError> {
+        match self {
+            GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
+            GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
+            GeneratorParamType::Puzzle { .. } => arg.clone().into_id().map(TypedCatalogIdValue::Id),
+            GeneratorParamType::List(inner) => arg
+                .clone()
+                .into_list()
+                .and_then(|l| l.into_iter().map(|e| inner.typed_value(&e)).try_collect())
+                .map(TypedCatalogIdValue::List),
         }
     }
 }
 
 /// Value of a parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum GeneratorParamValue {
+pub enum TypedCatalogIdValue {
+    /// Catalog ID.
+    Id(CatalogId),
+    /// Boolean.
+    Bool(bool),
     /// Integer.
     Int(i64),
-    /// Puzzle ID.
-    PuzzleId(CatalogId),
+    /// List of values.
+    List(Vec<TypedCatalogIdValue>),
 }
 
-impl fmt::Display for GeneratorParamValue {
+impl fmt::Display for TypedCatalogIdValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GeneratorParamValue::Int(i) => write!(f, "{i}"),
-            GeneratorParamValue::PuzzleId(id) => write!(f, "{id}"),
+            TypedCatalogIdValue::Id(id) => write!(f, "{id}"),
+            TypedCatalogIdValue::Bool(b) => write!(f, "{b}"),
+            TypedCatalogIdValue::Int(i) => write!(f, "{i}"),
+            TypedCatalogIdValue::List(l) => {
+                write!(f, "[")?;
+                let mut is_first = true;
+                for elem in l {
+                    if !std::mem::take(&mut is_first) {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{elem}")?;
+                }
+                write!(f, "]")?;
+                Ok(())
+            }
         }
     }
 }
 
-impl From<GeneratorParamValue> for CatalogArgValue {
-    fn from(value: GeneratorParamValue) -> Self {
-        match value {
-            GeneratorParamValue::Int(i) => i.into(),
-            GeneratorParamValue::PuzzleId(id) => id.into(),
+impl From<TypedCatalogIdValue> for CatalogIdValue {
+    fn from(value: TypedCatalogIdValue) -> Self {
+        value.into_untyped()
+    }
+}
+
+impl TypedCatalogIdValue {
+    /// Converts a [`TypedCatalogIdValue`] to a [`CatalogIdValue`], which loses
+    /// the type information.
+    pub fn into_untyped(self) -> CatalogIdValue {
+        match self {
+            Self::Id(id) => id.into(),
+            Self::Bool(b) => b.into(),
+            Self::Int(i) => i.into(),
+            Self::List(l) => l.into_iter().map(|e| e.into()).collect_vec().into(),
         }
     }
 }
 
 /// Error encountered when parsing a generator parameter.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GeneratorParamError {
     /// Parameter requirements.
-    pub expected: GeneratorParam,
-    /// Value supplied.
-    pub got: String,
+    pub param: GeneratorParam,
+    /// Underlying error.
+    pub inner: CatalogIdError,
 }
 
 impl fmt::Display for GeneratorParamError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { expected, got } = self;
-        let GeneratorParam { name, ty, .. } = expected;
-        write!(f, "bad value {got:?} for param {name:?} (expected {ty})")
+        let Self { param, inner } = self;
+        let GeneratorParam { name, ty, .. } = param;
+        write!(f, "bad value for param {name:?} (expected {ty}): {inner}")
     }
 }
 

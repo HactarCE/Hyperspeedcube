@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
+use egui::NumExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
@@ -15,11 +16,14 @@ use crate::gui::components::{
     IconButton, PuzzleGeneratorUi, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
+use crate::gui::temp_value::EguiFlag;
 use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
 pub const ADDITIONAL_MATCH_INDENT: &str = "    ";
+
+pub const PUZZLE_GENERATOR_POPUP_MIN_WIDTH: f32 = 400.0;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let stored_search_query_string = EguiTempValue::new(ui);
@@ -218,17 +222,56 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                                 if let Some(popup_data) = generator_popup_data
                                     .as_mut()
-                                    .filter(|data| *data.puzzle_id.base == obj.id.to_string())
+                                    .filter(|data| data.widget.generator_id == obj.id.base)
                                 {
-                                    egui::Popup::from_toggle_button_response(&r)
-                                        .close_behavior(
-                                            egui::PopupCloseBehavior::CloseOnClickOutside,
-                                        )
-                                        .show(|ui| {
-                                            show_puzzle_generator_ui(
-                                                ui, app, generator, popup_data,
-                                            );
-                                        });
+                                    let mut is_open = EguiFlag::load(ui, unique_id!());
+                                    let was_open = *is_open;
+                                    modal_with_sizing_pass(
+                                        ui,
+                                        unique_id!(),
+                                        &r,
+                                        &mut is_open,
+                                        |ui| {
+                                            ui.heading(&popup_data.title);
+                                            ui.separator();
+                                            ui.add(&mut popup_data.widget);
+                                            let generated_id = popup_data.widget.generated_id();
+                                            if generated_id.is_none() {
+                                                ui.disable();
+                                            }
+                                            let r = ui
+                                                .with_layout(
+                                                    egui::Layout::top_down_justified(
+                                                        egui::Align::Center,
+                                                    ),
+                                                    |ui| {
+                                                        ui.add(
+                                                            // TODO: factor height into constant (same as BIG_BUTTON_HEIGHT)
+                                                            egui::Button::new(
+                                                                L.catalog.generate_puzzle,
+                                                            )
+                                                            .min_size(egui::vec2(
+                                                                ui.min_size().x,
+                                                                32.0,
+                                                            )),
+                                                        )
+                                                    },
+                                                )
+                                                .inner;
+                                            if (r.clicked()
+                                                || ui.input(|input| {
+                                                    input.key_pressed(egui::Key::Enter)
+                                                }))
+                                                && let Some(generated_id) = generated_id
+                                            {
+                                                ui.close();
+                                                app.load_puzzle(&generated_id.to_string());
+                                            }
+                                        },
+                                    );
+                                    if r.clicked() {
+                                        *is_open = !was_open;
+                                    }
                                 }
                             }
                         }
@@ -240,37 +283,58 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     stored_search_query_string.set(Some(search_query_string.clone()));
 }
 
-#[derive(Debug, Clone, PartialEq)]
+pub fn modal_with_sizing_pass<R>(
+    ctx: &egui::Context,
+    id: egui::Id,
+    r: &egui::Response,
+    is_open: &mut bool,
+    mut add_contents: impl FnMut(&mut egui::Ui) -> R,
+) -> Option<egui::InnerResponse<R>> {
+    if !*is_open {
+        return None;
+    }
+
+    let area = egui::Area::new(id)
+        .kind(egui::UiKind::Modal)
+        .order(egui::Order::Foreground)
+        .interactable(true)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO);
+
+    ctx.memory_mut(|mem| mem.set_modal_layer(area.layer()));
+
+    let frame = egui::Frame::popup(&ctx.global_style());
+
+    let desired_rect = area
+        .clone()
+        .sizing_pass(true)
+        .interactable(false)
+        .show(ctx, |ui| {
+            ui.push_id("sizing_pass", |ui| frame.show(ui, &mut add_contents))
+        })
+        .response
+        .rect;
+
+    let r = egui::Popup::new(id, ctx.clone(), r, r.layer_id)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(add_contents);
+    if let Some(r) = &r {
+        *is_open &= !r.response.should_close();
+    }
+    r
+}
+
+#[derive(Debug, Clone)]
 struct PuzzleGeneratorPopupData {
-    puzzle_id: CatalogId,
+    widget: PuzzleGeneratorUi,
+    title: String,
 }
 impl PuzzleGeneratorPopupData {
     fn new(puzzle_generator: &PuzzleGenerator) -> Self {
         Self {
-            puzzle_id: puzzle_generator.default_id(),
+            widget: PuzzleGeneratorUi::new(puzzle_generator.meta.id.base.clone()),
+            title: puzzle_generator.meta.name.clone(),
         }
     }
-}
-
-fn show_puzzle_generator_ui(
-    ui: &mut egui::Ui,
-    app: &mut App,
-    puzzle_generator: &PuzzleGenerator,
-    popup_data: &mut PuzzleGeneratorPopupData,
-) {
-    ui.strong(&puzzle_generator.meta.name);
-    ui.separator();
-
-    ui.add(PuzzleGeneratorUi {
-        puzzle_id: &mut popup_data.puzzle_id,
-    });
-
-    if ui.button(L.catalog.generate_puzzle).clicked()
-        || ui.input(|input| input.key_pressed(egui::Key::Enter))
-    {
-        ui.close();
-        app.load_puzzle(&popup_data.puzzle_id.to_string());
-    };
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

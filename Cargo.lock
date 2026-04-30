@@ -3092,6 +3092,7 @@ dependencies = [
  "chrono",
  "chumsky",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
