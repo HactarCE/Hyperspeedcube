@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzlescript::builtins::catalog::HpsExports;
@@ -23,16 +23,17 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
         meta: CatalogMetadata,
         kwargs: Map,
         eval_tx: EvalRequestTx,
-    ) -> Result<Generator<TwistSystem>> {
+    ) -> Result<GeneratorOutput<TwistSystem>> {
         let caller_span = ctx.caller_span;
 
         unpack_kwargs!(kwargs, ndim: u8, (build, build_span): Arc<FnValue>);
 
         let meta = Arc::new(meta);
 
-        Ok(Generator::new_lazy_constant(
-            Arc::clone(&meta),
-            move |build_ctx| {
+        Ok(GeneratorOutput {
+            meta: Arc::clone(&meta),
+            components: ComponentList::new(),
+            build: Arc::new(move |build_ctx| {
                 let id = meta.id.clone();
                 let builder = Arc::new(Mutex::new(AdHocTwistSystemBuilder::new(
                     id.clone(),
@@ -75,10 +76,8 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
                     }
 
                     b.build(Some(&build_ctx), &mut ctx.warnf())
-                        .map(Redirectable::Direct)
                 })
-            },
-            ComponentList::new(),
-        ))
+            }),
+        })
     }
 }

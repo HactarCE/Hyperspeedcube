@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::ComponentList;
 
@@ -81,13 +83,7 @@ pub struct Generator<T> {
     /// Function to generate metadata for the object from parameters.
     ///
     /// **This may be expensive. Do not call it from UI thread.**
-    pub generate_meta: GenerateFn<CatalogMetadata>,
-    /// Function to generate the object from parameters.
-    ///
-    /// **This may be expensive. Do not call it from UI thread.**
     pub generate: GenerateFn<T>,
-    /// Optional backend-specific data.
-    pub components: ComponentList<Self>,
 }
 
 impl<T> fmt::Debug for Generator<T> {
@@ -101,35 +97,18 @@ impl<T> fmt::Debug for Generator<T> {
 
 impl<T: CatalogObject> Generator<T> {
     /// Constructs a generator that takes no parameters and has a constant
-    /// output.
-    pub fn new_constant(object: Arc<T>, components: ComponentList<Generator<T>>) -> Self {
-        Self::new_lazy_constant(
-            Arc::clone(object.meta()),
-            move |_| Ok(Redirectable::Direct(Arc::clone(&object))),
-            components,
-        )
-    }
-
-    /// Constructs a generator that takes no parameters and has a constant
-    /// output that is lazily-constructed.
-    pub fn new_lazy_constant(
+    /// output that is lazily constructed.
+    pub fn new_constant(
         meta: Arc<CatalogMetadata>,
-        f: impl 'static + Send + Sync + Fn(BuildCtx) -> Result<Redirectable<Arc<T>>>,
-        components: ComponentList<Generator<T>>,
+        generate: impl 'static + Send + Sync + Fn(BuildCtx) -> Result<Redirectable<GeneratorOutput<T>>>,
     ) -> Self {
-        let meta2 = Arc::clone(&meta);
         Self {
             meta: Arc::clone(&meta),
             params: vec![],
-            generate_meta: Box::new(move |_, args| {
-                ensure!(args.is_empty(), "{} is not a generator", meta.id);
-                Ok(Redirectable::Direct(Arc::clone(&meta)))
-            }),
             generate: Box::new(move |build_ctx, args| {
-                ensure!(args.is_empty(), "{} is not a generator", meta2.id);
-                f(build_ctx)
+                ensure!(args.is_empty(), "{} is not a generator", meta.id);
+                generate(build_ctx)
             }),
-            components,
         }
     }
 
@@ -143,8 +122,12 @@ impl<T: CatalogObject> Generator<T> {
 }
 
 /// Type of [`Generator::generate`].
-pub type GenerateFn<T> =
-    Box<dyn Send + Sync + Fn(BuildCtx, Vec<CatalogIdValue>) -> Result<Redirectable<Arc<T>>>>;
+pub type GenerateFn<T> = Box<
+    dyn Send + Sync + Fn(BuildCtx, Vec<CatalogIdValue>) -> Result<Redirectable<GeneratorOutput<T>>>,
+>;
+
+/// Type of [`GeneratorOutput::build`].
+pub type BuildFn<T> = Arc<dyn Send + Sync + Fn(BuildCtx) -> Result<Arc<T>>>;
 
 /// Possible ID redirect.
 #[derive(Debug, Clone)]
@@ -164,6 +147,53 @@ impl<T> Redirectable<T> {
         match self {
             Redirectable::Direct(inner) => f(inner),
             Redirectable::Redirect(id) => Ok(Redirectable::Redirect(id)),
+        }
+    }
+}
+
+/// Output of a [`Generator`], which includes metadata about the generated
+/// object and a function to actually generate it.
+///
+/// This output is not cached. When possible, as much as work as possible should
+/// be deferred to the `build` function, whose output _is_ cached.
+pub struct GeneratorOutput<T> {
+    /// Metadata.
+    ///
+    /// This should be identical to the metadata of the object returned by
+    /// `build`.
+    pub meta: Arc<CatalogMetadata>,
+    /// Extra components.
+    pub components: ComponentList<GeneratorOutput<T>>,
+    /// Function to build the object.
+    ///
+    /// **This may be expensive. Do not call it from UI thread.**
+    pub build: BuildFn<T>,
+}
+
+impl<T> fmt::Debug for GeneratorOutput<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GeneratorOutput")
+            .field("meta", &self.meta)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<T> Clone for GeneratorOutput<T> {
+    fn clone(&self) -> Self {
+        Self {
+            meta: Arc::clone(&self.meta),
+            components: self.components.clone(),
+            build: Arc::clone(&self.build),
+        }
+    }
+}
+
+impl<T: CatalogObject> From<Arc<T>> for GeneratorOutput<T> {
+    fn from(value: Arc<T>) -> Self {
+        Self {
+            meta: Arc::clone(value.meta()),
+            components: ComponentList::new(),
+            build: Arc::new(move |_| Ok(Arc::clone(&value))),
         }
     }
 }

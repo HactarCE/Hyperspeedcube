@@ -10,7 +10,7 @@ pub enum CacheEntry<T> {
     /// started yet. (It may be waiting on a mutex to unlock, for example.)
     #[default]
     NotStarted,
-    /// The object is currently being build.
+    /// The object is currently being built.
     Building {
         /// Progress on building the object.
         progress: Arc<Mutex<Progress>>,

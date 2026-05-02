@@ -92,9 +92,9 @@ const MAX_ID_REDIRECTS: usize = 5;
 
 /// **This function is deprecated after 2.0.0-zeta.12.**
 ///
-/// Parses the ID of a generated object into its components: the generator ID,
-/// and the parameters. Returns `None` if the ID is not a valid ID for a
-/// generated object.
+/// Parses the ID of a generated object into its constituent parts: the
+/// generator ID, and the parameters. Returns `None` if the ID is not a valid ID
+/// for a generated object.
 #[deprecated = "use `CatalogId` instead"]
 pub fn zeta12_parse_generated_id(id: &str) -> Option<(&str, Vec<&str>)> {
     let (generator_id, args) = id.split_once(':')?;

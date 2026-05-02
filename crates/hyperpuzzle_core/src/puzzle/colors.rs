@@ -12,6 +12,8 @@ use crate::{CatalogMetadata, ComponentList, NameSpecBiMap};
 pub struct ColorSystem {
     /// Metadata.
     pub meta: Arc<CatalogMetadata>,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 
     /// Color names.
     pub names: NameSpecBiMap<Color>,
@@ -25,9 +27,6 @@ pub struct ColorSystem {
 
     /// Orbits used to generate colors.
     pub orbits: Vec<Orbit<Color>>, // TODO: move this to components
-
-    /// Extra components.
-    pub components: ComponentList<Self>,
 }
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
@@ -61,12 +60,12 @@ impl ColorSystem {
     pub fn new_empty() -> Self {
         Self {
             meta: Arc::new(CatalogMetadata::dummy()),
+            components: ComponentList::new(),
             names: NameSpecBiMap::new(),
             display_names: PerColor::new(),
             schemes: IndexMap::new(),
             default_scheme: String::new(),
             orbits: vec![],
-            components: ComponentList::new(),
         }
     }
 

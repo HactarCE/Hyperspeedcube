@@ -1,0 +1,69 @@
+
+product([ft_8c(3),cut_line(3)])
+product([ft_hypercube(3),cut_line(3)])
+
+product([shallow_ngon(3), shallow_ngon(3)])
+
+pow(shallow_ngon(3), 2)
+refle(product([]))
+refle(ft_hypercube(3))
+
+product(?)
+product()
+
+shallow_
+deep_
+halfcut_
+
+cut_line
+
+product(?)
+
+product([megaminx, line])
+
+cuboid([1, 2, 3])
+
+product([ft_12f(3), line(3)])
+
+
+16c
+120c
+600c
+
+
+
+
+tetrahedron
+cube
+dodecahedron
+
+
+
+tetrahedron
+cube
+octahedron
+dodecahedron
+icosahedron
+
+4simplex
+hypercube
+16cell
+24cell
+120cell
+600cell
+
+5simplex
+5cube
+5orthoplex
+
+6simplex
+6cube
+6orthoplex
+
+3simplex -> tetrahedron
+hexahedron -> cube
+3cube -> cube
+5cell -> 4simplex
+8cell -> hypercube
+4cube -> hypercube
+4orthoplex -> 16cell

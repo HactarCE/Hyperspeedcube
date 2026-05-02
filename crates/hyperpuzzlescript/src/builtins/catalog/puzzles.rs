@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::catalog::{BuildTask, Generator};
+use hyperpuzzle_core::catalog::{BuildTask, GeneratorOutput};
 use hyperpuzzle_core::{
-    CatalogBuilder, CatalogId, CatalogMetadata, ComponentList, Puzzle, PuzzleGenerator,
-    Redirectable, TAGS, TagSet, TagType, TagValue,
+    CatalogBuilder, CatalogId, CatalogMetadata, Puzzle, PuzzleGenerator, Redirectable, TAGS,
+    TagSet, TagType, TagValue,
 };
 use itertools::Itertools;
 
@@ -39,8 +39,7 @@ pub fn define_in(
         #[kwargs(kwargs)]
         fn add_puzzle(ctx: EvalCtx) -> () {
             let lazy_puzzle = lazy_puzzle_from_kwargs(ctx, kwargs, &tx, None, None)?;
-            cat.add_puzzle_generator(Arc::new(lazy_puzzle))
-                .at(ctx.caller_span)?;
+            cat.add(lazy_puzzle).at(ctx.caller_span)?;
         }
     ])?;
 
@@ -144,8 +143,7 @@ pub fn define_in(
                     Ok(Redirectable::Direct(lazy_puzzle)) => {
                         cat.add_to_puzzle_list(Arc::clone(&lazy_puzzle.meta))
                             .at(example_span)?;
-                        examples_by_id
-                            .insert(lazy_puzzle.meta.id.to_string(), Arc::new(lazy_puzzle));
+                        examples_by_id.insert(lazy_puzzle.meta.id.to_string(), lazy_puzzle);
                     }
                     Ok(Redirectable::Redirect(other)) => ctx.warn_at(
                         example_span,
@@ -159,10 +157,6 @@ pub fn define_in(
             let mut generator_tags = tags.clone();
             generator_tags.inherit_parent_tags();
 
-            let tx2 = tx.clone();
-            let tags2 = tags.clone();
-            let hps_gen2 = hps_gen.clone();
-            let examples_by_id2 = Arc::clone(&examples_by_id);
             let generator = PuzzleGenerator {
                 meta: Arc::new(CatalogMetadata {
                     id: hps_gen.id.clone(),
@@ -172,42 +166,19 @@ pub fn define_in(
                     tags: generator_tags,
                 }),
                 params: hps_gen.params.clone(),
-                generate_meta: Box::new(move |build_ctx, param_values| {
+                generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.set_task(BuildTask::GeneratingSpec);
                     let tx3 = tx.clone();
                     let tags3 = tags.clone();
-                    hps_gen
-                        .generate_on_hps_thread_with_examples(
-                            &tx,
-                            param_values,
-                            &examples_by_id,
-                            move |ctx, kwargs| {
-                                lazy_puzzle_from_kwargs(ctx, kwargs, &tx3, Some(tags3), None)
-                                    .map(Arc::new)
-                            },
-                        )?
-                        .and_then(|lazy_puzzle| (lazy_puzzle.generate_meta)(build_ctx, vec![]))
+                    hps_gen.generate_on_hps_thread_with_examples(
+                        &tx,
+                        param_values,
+                        &examples_by_id,
+                        move |ctx, kwargs| {
+                            lazy_puzzle_from_kwargs(ctx, kwargs, &tx3, Some(tags3), None)
+                        },
+                    )
                 }),
-                generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.set_task(BuildTask::GeneratingSpec);
-                    let tx4 = tx2.clone();
-                    let tags4 = tags2.clone();
-                    hps_gen2
-                        .generate_on_hps_thread_with_examples(
-                            &tx2,
-                            param_values,
-                            &examples_by_id2,
-                            move |ctx, kwargs| {
-                                lazy_puzzle_from_kwargs(ctx, kwargs, &tx4, Some(tags4), None)
-                                    .map(Arc::new)
-                            },
-                        )?
-                        .and_then(|lazy_puzzle| {
-                            build_ctx.set_building::<Puzzle>();
-                            (lazy_puzzle.generate)(build_ctx, vec![])
-                        })
-                }),
-                components: ComponentList::new(),
             };
 
             cat.add_puzzle_generator(Arc::new(generator))
@@ -222,7 +193,7 @@ fn lazy_puzzle_from_kwargs(
     eval_tx: &EvalRequestTx,
     generator_tags: Option<TagSet>,
     example_data: Option<Spanned<Map>>,
-) -> Result<Generator<Puzzle>> {
+) -> Result<GeneratorOutput<Puzzle>> {
     pop_kwarg!(kwargs, (id, id_span): String);
     pop_kwarg!(kwargs, name: String = {
         ctx.warn(eco_format!("missing `name` for puzzle `{id}`"));

@@ -2,7 +2,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use eyre::{Context, Result, eyre};
-use hyperpuzzle::CatalogId;
+use hyperpuzzle::{CatalogId, Puzzle};
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -79,8 +79,9 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 let catalog_id = CatalogId::from_str(&puzzle_id)
                     .map_err(|e| eyre!("error parsing ID string: {e}"))?;
                 let puzzle_meta = catalog
-                    .get_puzzle_metadata_blocking(&catalog_id)
-                    .wrap_err("error building puzzle")?;
+                    .generate_blocking::<Puzzle>(&catalog_id)
+                    .wrap_err("error building puzzle")?
+                    .meta;
                 requested_puzzles.push(puzzle_meta.to_cli());
             }
             write_json_output(&requested_puzzles)?;

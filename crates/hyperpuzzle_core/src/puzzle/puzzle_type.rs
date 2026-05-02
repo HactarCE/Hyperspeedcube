@@ -16,6 +16,8 @@ pub struct Puzzle {
 
     /// Catalog metadata.
     pub meta: Arc<CatalogMetadata>,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 
     /// Set of view preferences to use for the puzzle.
     pub view_prefs_set: Option<PuzzleViewPreferencesSet>,
@@ -52,9 +54,6 @@ pub struct Puzzle {
     /// depend only on the state of the RNG. It must return `None` if and only
     /// if the puzzle has no twists.
     pub random_move: Box<dyn Send + Sync + Fn(&mut dyn Rng) -> Option<Move>>,
-
-    /// Extra components.
-    pub components: ComponentList<Self>,
 }
 
 impl fmt::Debug for Puzzle {

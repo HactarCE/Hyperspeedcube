@@ -62,17 +62,17 @@ impl HpsGenerator {
     ///
     /// **Note: This method blocks waiting on a result from the HPS thread.
     /// Calling this from within the HPS thread will deadlock.**
-    pub fn generate_on_hps_thread_with_examples<T: 'static + Send + Sync>(
+    pub fn generate_on_hps_thread_with_examples<T: 'static + Send + Clone>(
         &self,
         tx: &EvalRequestTx,
         param_values: Vec<CatalogIdValue>,
-        examples_by_id: &HashMap<String, Arc<T>>,
-        map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<Arc<T>>,
-    ) -> eyre::Result<Redirectable<Arc<T>>> {
+        examples_by_id: &HashMap<String, T>,
+        map_fn: impl 'static + Send + Sync + FnOnce(&mut EvalCtx<'_>, Map) -> Result<T>,
+    ) -> eyre::Result<Redirectable<T>> {
         if let Ok(id) = self.generated_id(param_values.clone())
             && let Some(example_puzzle) = examples_by_id.get(&*id)
         {
-            Ok(Redirectable::Direct(Arc::clone(example_puzzle)))
+            Ok(Redirectable::Direct(example_puzzle.clone()))
         } else {
             self.generate_on_hps_thread(tx, param_values, map_fn)
         }

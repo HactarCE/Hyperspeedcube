@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use ecow::eco_format;
+use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::{
     CatalogBuilder, CatalogId, CatalogMetadata, ColorSystem, ColorSystemGenerator, ComponentList,
     NameSpecBiMapBuilder, PaletteColor, PerColor,
@@ -32,11 +33,8 @@ pub fn define_in(
         /// - `default: Str?`
         #[kwargs(kwargs)]
         fn add_color_system(ctx: EvalCtx) -> () {
-            cat.add(
-                Arc::new(color_system_from_kwargs(ctx, kwargs)?),
-                ComponentList::new(),
-            )
-            .at(ctx.caller_span)?;
+            cat.add(Arc::new(color_system_from_kwargs(ctx, kwargs)?))
+                .at(ctx.caller_span)?;
         }
     ])?;
 
@@ -75,24 +73,16 @@ pub fn define_in(
                 extra: Arc::new(kwargs),
             };
 
-            let tx2 = tx.clone();
-            let hps_gen2 = hps_gen.clone();
             let generator = ColorSystemGenerator {
                 meta: Arc::new(CatalogMetadata::simple(hps_gen.id.clone(), name.clone())),
                 params: hps_gen.params.clone(),
-                generate_meta: Box::new(move |build_ctx, param_values| {
-                    build_ctx.set_building::<ColorSystem>();
-                    hps_gen.generate_on_hps_thread(&tx, param_values, |ctx, mut kwargs| {
-                        pop_color_system_meta_from_kwargs(ctx, &mut kwargs).map(Arc::new)
-                    })
-                }),
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.set_building::<ColorSystem>();
-                    hps_gen2.generate_on_hps_thread(&tx2, param_values, |ctx, kwargs| {
-                        color_system_from_kwargs(ctx, kwargs).map(Arc::new)
+                    hps_gen.generate_on_hps_thread(&tx, param_values, move |ctx, kwargs| {
+                        color_system_from_kwargs(ctx, kwargs)
+                            .map(|color_system| GeneratorOutput::from(Arc::new(color_system)))
                     })
                 }),
-                components: ComponentList::new(),
             };
 
             cat.add_generator(Arc::new(generator)).at(ctx.caller_span)?;
@@ -196,11 +186,11 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<Co
 
     Ok(ColorSystem {
         meta: Arc::new(meta),
+        components: ComponentList::new(),
         names,
         display_names,
         schemes: ret_schemes,
         default_scheme,
         orbits: vec![],
-        components: ComponentList::new(),
     })
 }

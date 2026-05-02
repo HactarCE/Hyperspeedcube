@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzlescript::*;
@@ -22,7 +22,7 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
         mut meta: CatalogMetadata,
         kwargs: Map,
         eval_tx: EvalRequestTx,
-    ) -> Result<Generator<Puzzle>> {
+    ) -> Result<GeneratorOutput<Puzzle>> {
         let caller_span = ctx.caller_span;
 
         unpack_kwargs!(
@@ -44,9 +44,10 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
 
         let meta = Arc::new(meta);
 
-        Ok(Generator::new_lazy_constant(
-            Arc::clone(&meta),
-            move |build_ctx| {
+        Ok(GeneratorOutput {
+            meta: Arc::clone(&meta),
+            components: ComponentList::new(),
+            build: Arc::new(move |build_ctx| {
                 let logger = &build_ctx.catalog.logger;
                 let builder = Arc::new(Mutex::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?));
                 let id = &meta.id;
@@ -90,33 +91,30 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
 
                 let build_fn = Arc::clone(&build);
 
-                eval_tx
-                    .eval_blocking(move |runtime| {
-                        let mut ctx = EvalCtx {
-                            scope: &scope,
-                            runtime,
-                            caller_span,
-                            exports: &mut None,
-                            stack_depth: 0,
-                        };
-                        build_fn
-                            .call(build_span, &mut ctx, vec![], Map::new())
-                            .map_err(|e| {
-                                ctx.runtime
-                                    .report_and_convert_to_eyre(e)
-                                    .wrap_err("error building puzzle")
-                            })?;
+                eval_tx.eval_blocking(move |runtime| {
+                    let mut ctx = EvalCtx {
+                        scope: &scope,
+                        runtime,
+                        caller_span,
+                        exports: &mut None,
+                        stack_depth: 0,
+                    };
+                    build_fn
+                        .call(build_span, &mut ctx, vec![], Map::new())
+                        .map_err(|e| {
+                            ctx.runtime
+                                .report_and_convert_to_eyre(e)
+                                .wrap_err("error building puzzle")
+                        })?;
 
-                        let b = builder.lock();
+                    let b = builder.lock();
 
-                        // Assign default piece type to remaining pieces.
-                        b.shape.lock().mark_untyped_pieces()?;
+                    // Assign default piece type to remaining pieces.
+                    b.shape.lock().mark_untyped_pieces()?;
 
-                        b.build(Some(&build_ctx), &mut ctx.warnf())
-                    })
-                    .map(Redirectable::Direct)
-            },
-            ComponentList::new(),
-        ))
+                    b.build(Some(&build_ctx), &mut ctx.warnf())
+                })
+            }),
+        })
     }
 }

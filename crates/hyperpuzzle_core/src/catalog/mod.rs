@@ -172,7 +172,13 @@ impl Catalog {
                 log::trace!("Building {type_str} {id:?}");
                 let cache_entry_value = MutexGuard::unlocked(&mut cache_entry_guard, || {
                     let build_ctx = BuildCtx::new(self, &progress, id.clone());
-                    CacheEntry::from((generator.generate)(build_ctx, id.args.clone()))
+                    build_ctx.set_task(BuildTask::GeneratingSpec);
+                    // For simplicity, we don't cache generator output.
+                    let generator_output = (generator.generate)(build_ctx.clone(), id.args.clone());
+                    build_ctx.set_task(BuildTask::Building(T::CATALOG_TYPE_NAME));
+                    CacheEntry::from(generator_output.and_then(|redir| {
+                        redir.and_then(|out| (out.build)(build_ctx).map(Redirectable::Direct))
+                    }))
                 });
                 // Handle cancellation.
                 if let CacheEntry::Err(e) = &cache_entry_value
@@ -218,19 +224,19 @@ impl Catalog {
         }
     }
 
-    /// Fetches the metadata for a puzzle and blocks the current thread until it
-    /// is complete.
+    /// Fetches the metadata for an object and blocks the current thread until
+    /// it is complete.
     ///
     /// This is typically fast, but is not guaranteed to be.
     ///
     /// The result is _not_ cached.
-    pub fn get_puzzle_metadata_blocking(
+    pub fn generate_blocking<T: CatalogObject>(
         &self,
         id: &CatalogId,
-    ) -> Result<Arc<CatalogMetadata>, eyre::Report> {
-        let subcatalog = &self.puzzles;
+    ) -> Result<GeneratorOutput<T>, eyre::Report> {
+        let subcatalog = T::get_subcatalog(self);
 
-        let type_str = Puzzle::CATALOG_TYPE_NAME;
+        let type_str = T::CATALOG_TYPE_NAME;
         let mut id = id.clone();
         let mut redirect_sequence = vec![];
 
@@ -250,14 +256,14 @@ impl Catalog {
             let generator = subcatalog.generators.get(&*id.base).ok_or_else(|| {
                 eyre!(
                     "no {ty} or {ty} generator with ID {id:?}",
-                    ty = Puzzle::CATALOG_TYPE_NAME,
+                    ty = T::CATALOG_TYPE_NAME,
                     id = id.base,
                 )
             })?;
 
             let progress = Arc::new(Mutex::new(Progress::default()));
             let build_ctx = BuildCtx::new(self, &progress, id.clone());
-            match (generator.generate_meta)(build_ctx, id.args) {
+            match (generator.generate)(build_ctx, id.args) {
                 Ok(Redirectable::Direct(output)) => return Ok(output),
                 Ok(Redirectable::Redirect(new_id)) => {
                     id = new_id.parse().map_err(|e| eyre!("{e}"))?;

@@ -136,10 +136,9 @@ fn puzzles_in_list(catalog: &Catalog) -> Vec<Arc<CatalogMetadata>> {
         .map(|entry| {
             if let Some(g) = &catalog.puzzles.generators.get(&entry.id.to_string())
                 && !g.params.is_empty()
-                && let Ok(default_generated_meta) =
-                    catalog.get_puzzle_metadata_blocking(&g.default_id())
+                && let Ok(generator_output) = catalog.generate_blocking::<Puzzle>(&g.default_id())
             {
-                default_generated_meta
+                generator_output.meta
             } else {
                 Arc::clone(entry)
             }

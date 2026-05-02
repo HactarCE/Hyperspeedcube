@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::{CatalogMetadata, Puzzle, TwistSystem};
 
 use crate::{EvalCtx, EvalRequestTx, Map, Result};
@@ -18,7 +18,7 @@ pub trait EngineCallback<T>: Send + Sync {
         meta: CatalogMetadata,
         kwargs: Map,
         eval_tx: EvalRequestTx,
-    ) -> Result<Generator<T>>;
+    ) -> Result<GeneratorOutput<T>>;
 }
 
 /// Callback for a puzzle engine.

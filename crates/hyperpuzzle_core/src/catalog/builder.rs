@@ -1,5 +1,4 @@
 use super::*;
-use crate::ComponentList;
 
 /// Builder for a [`Catalog`].
 ///
@@ -44,18 +43,28 @@ impl CatalogBuilder {
     /// Adds an object to the catalog.
     ///
     /// `extra` is stored in the [`Generator::extra`] field.
-    pub fn add<T: CatalogObject>(
-        &self,
-        object: Arc<T>,
-        components: ComponentList<Generator<T>>,
-    ) -> Result<()> {
-        self.add_generator(Arc::new(Generator::new_constant(object, components)))?;
+    pub fn add<T: CatalogObject>(&self, object: impl Into<GeneratorOutput<T>>) -> Result<()> {
+        let object = object.into();
+        let meta = Arc::clone(&object.meta);
+        self.add_generator(Arc::new(Generator::new_constant(
+            Arc::clone(&meta),
+            move |_build_ctx| Ok(Redirectable::Direct(object.clone())),
+        )))?;
         Ok(())
     }
 
     /// Adds a generator to the catalog.
     pub fn add_generator<T: CatalogObject>(&self, generator: Arc<Generator<T>>) -> Result<()> {
         T::get_subcatalog_mut(&mut *self.lock_db()?).add(generator)
+    }
+
+    /// Adds a puzzle to the catalog and to the puzzle list.
+    pub fn add_puzzle(&self, puzzle: impl Into<GeneratorOutput<Puzzle>>) -> Result<()> {
+        let puzzle = puzzle.into();
+        let meta = Arc::clone(&puzzle.meta);
+        self.add(puzzle)?; // this is more likely to fail, so do it first
+        self.add_to_puzzle_list(meta)?;
+        Ok(())
     }
 
     /// Adds a puzzle generator to the catalog and to the puzzle list.

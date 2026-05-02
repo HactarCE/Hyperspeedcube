@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::catalog::Generator;
+use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::{
-    CatalogBuilder, CatalogId, CatalogMetadata, ComponentList, TwistSystem, TwistSystemGenerator,
+    CatalogBuilder, CatalogId, CatalogMetadata, TwistSystem, TwistSystemGenerator,
 };
 use itertools::Itertools;
 
@@ -31,8 +31,7 @@ pub fn define_in(
         #[kwargs(kwargs)]
         fn add_twist_system(ctx: EvalCtx) -> () {
             let lazy_twist_system = twist_system_from_kwargs(ctx, kwargs, &tx)?;
-            cat.add_generator(Arc::new(lazy_twist_system))
-                .at(ctx.caller_span)?;
+            cat.add(lazy_twist_system).at(ctx.caller_span)?;
         }
     ])?;
 
@@ -72,29 +71,16 @@ pub fn define_in(
                 extra: Arc::new(kwargs),
             };
 
-            let tx2 = tx.clone();
-            let hps_gen2 = hps_gen.clone();
             let generator = TwistSystemGenerator {
                 meta: Arc::new(CatalogMetadata::simple(hps_gen.id.clone(), name.clone())),
                 params: hps_gen.params.clone(),
-                generate_meta: Box::new(move |build_ctx, param_values| {
-                    build_ctx.set_building::<TwistSystem>();
-                    hps_gen.generate_on_hps_thread(&tx, param_values, |ctx, mut kwargs| {
-                        pop_twist_system_meta_from_kwargs(ctx, &mut kwargs).map(Arc::new)
-                    })
-                }),
                 generate: Box::new(move |build_ctx, param_values| {
                     build_ctx.set_building::<TwistSystem>();
-                    let tx3 = tx2.clone();
-                    hps_gen2
-                        .generate_on_hps_thread(&tx2, param_values, move |ctx, kwargs| {
-                            twist_system_from_kwargs(ctx, kwargs, &tx3).map(Arc::new)
-                        })?
-                        .and_then(|lazy_twist_system| {
-                            (lazy_twist_system.generate)(build_ctx, vec![])
-                        })
+                    hps_gen.generate_on_hps_thread(&tx, param_values, {
+                        let tx = tx.clone();
+                        move |ctx, kwargs| twist_system_from_kwargs(ctx, kwargs, &tx)
+                    })
                 }),
-                components: ComponentList::new(),
             };
 
             cat.add_generator(Arc::new(generator)).at(ctx.caller_span)?;
@@ -118,7 +104,7 @@ fn twist_system_from_kwargs(
     ctx: &mut EvalCtx<'_>,
     mut kwargs: Map,
     eval_tx: &EvalRequestTx,
-) -> Result<Generator<TwistSystem>> {
+) -> Result<GeneratorOutput<TwistSystem>> {
     let meta = pop_twist_system_meta_from_kwargs(ctx, &mut kwargs)?;
     pop_kwarg!(kwargs, (engine, engine_span): Str);
 

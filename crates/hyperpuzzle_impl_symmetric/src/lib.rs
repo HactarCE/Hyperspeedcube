@@ -70,9 +70,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
                 "ft_ngon(5)".parse().unwrap(),
             ]),
         }],
-        generate_meta: Box::new(|_, _| eyre::bail!("todo")),
         generate: Box::new(|_, _| eyre::bail!("todo")),
-        components: ComponentList::new(),
     }));
 
     // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
@@ -95,49 +93,50 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
     //     generate: todo!(),
     // }));
 
-    catalog.add_puzzle_generator(Arc::new(PuzzleGenerator::new_lazy_constant(
-        Arc::new(CatalogMetadata {
-            id: CatalogId::new("symmetric_puzzle_test", vec![]).unwrap(),
-            version: Version {
-                major: 0,
-                minor: 0,
-                patch: 1,
-            },
-            name: "Symmetric Puzzle Test".to_string(),
-            aliases: vec![],
-            tags: TagSet::new(),
-        }),
-        |build_ctx| {
-            // IIFE to mimic try_block
-            (|| -> Result<_> {
-                let mut warn_fn = |e| eprintln!("{e:#}");
-                let t = std::time::Instant::now();
-                let ret = ProductPuzzleBuilder::new(
-                    &ProductPuzzleSpec {
-                        factors: vec![
-                            // ft_cube(4)?,
-                            megaminx()?,
-                            // shallow_polygon(20)?,
-                            // shallow_polygon(7)?,
-                            shallow_line()?,
-                            // shallow_line()?,
-                            // shallow_line()?,
-                            // shallow_polygon(4)?,
-                            // shallow_ft_simplex(3)?,
-                            // ft_120_cell_shallow()?,
-                            // ft_120_cell_evil()?,
-                            // ft_120_cell(vec![])?,
-                        ],
-                    },
-                    &mut warn_fn,
-                )?
-                .build(&build_ctx, &mut warn_fn); // TODO: better warn function
-                ret
-            })()
-            .map(Redirectable::Direct)
-        },
-        ComponentList::new(),
-    )))?;
+    // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator::new_lazy_constant(
+    //     Arc::new(CatalogMetadata {
+    //         id: CatalogId::new("symmetric_puzzle_test", vec![]).unwrap(),
+    //         version: Version {
+    //             major: 0,
+    //             minor: 0,
+    //             patch: 1,
+    //         },
+    //         name: "Symmetric Puzzle Test".to_string(),
+    //         aliases: vec![],
+    //         tags: TagSet::new(),
+    //     }),
+    //     |build_ctx| {
+    //         // IIFE to mimic try_block
+    //         (|| -> Result<_> {
+    //             let mut warn_fn = |e| eprintln!("{e:#}");
+    //             let t = std::time::Instant::now();
+    //             let ret = ProductPuzzleBuilder::new(
+    //                 &ProductPuzzleSpec {
+    //                     factors: vec![
+    //                         // ft_cube(4)?,
+    //                         megaminx()?,
+    //                         // shallow_polygon(20)?,
+    //                         // shallow_polygon(7)?,
+    //                         shallow_line()?,
+    //                         // shallow_line()?,
+    //                         // shallow_line()?,
+    //                         // shallow_polygon(4)?,
+    //                         // shallow_ft_simplex(3)?,
+    //                         // ft_120_cell_shallow()?,
+    //                         // ft_120_cell_evil()?,
+    //                         // ft_120_cell(vec![])?,
+    //                     ],
+    //                 },
+    //                 &mut warn_fn,
+    //             )?
+    //             .build(&build_ctx, &mut warn_fn); // TODO: better warn function
+    //             ret
+    //         })()
+    //         .map(Redirectable::Direct)
+    //     },
+    //     ComponentList::new(),
+    // )))?;
+
     Ok(())
 }
 

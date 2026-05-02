@@ -20,7 +20,7 @@ pub trait Component<T>: 'static + Send + Sync + Any {}
 ///
 /// Each contained type is wrapped in an [`Arc`].
 pub struct ComponentList<T> {
-    entries: Vec<Box<dyn Send + Sync + Any>>,
+    entries: Vec<Arc<dyn Send + Sync + Any>>,
     _marker: PhantomData<T>,
 }
 
@@ -45,6 +45,15 @@ impl<T: 'static> Debug for ComponentList<T> {
     }
 }
 
+impl<T> Clone for ComponentList<T> {
+    fn clone(&self) -> Self {
+        Self {
+            entries: self.entries.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<T: 'static> ComponentList<T> {
     /// Constructs an empty map.
     pub const fn new() -> Self {
@@ -65,15 +74,10 @@ impl<T: 'static> ComponentList<T> {
     }
 
     /// Adds or overwrites the entry for type `E`.
-    ///
-    /// The old entry for that type, if there was one, is returned.
-    pub fn insert<E: Component<T>>(&mut self, value: Arc<E>) -> Option<Arc<E>> {
-        match self.get_mut::<E>() {
-            Ok(entry) => Some(std::mem::replace(entry, value)),
-            Err(_) => {
-                self.entries.push(Box::new(value));
-                None
-            }
+    pub fn insert<E: Component<T>>(&mut self, value: Arc<E>) {
+        match self.entries.iter().position(|e| (**e).is::<Arc<E>>()) {
+            Some(i) => self.entries[i] = Arc::new(value),
+            None => self.entries.push(value),
         }
     }
 
@@ -82,15 +86,6 @@ impl<T: 'static> ComponentList<T> {
         self.entries
             .iter()
             .find_map(|e| (**e).downcast_ref::<Arc<E>>())
-            .ok_or(MissingComponent::new::<T, E>())
-    }
-
-    /// Returns a mutable reference to the entry for type `E`, or `None` if it
-    /// is not in the map.
-    pub fn get_mut<E: Component<T>>(&mut self) -> Result<&mut Arc<E>, MissingComponent> {
-        self.entries
-            .iter_mut()
-            .find_map(|e| (**e).downcast_mut::<Arc<E>>())
             .ok_or(MissingComponent::new::<T, E>())
     }
 
@@ -140,12 +135,12 @@ mod tests {
         assert_eq!(0, component_list.len());
 
         // Test inserting into blank slot
-        assert!(component_list.insert(Arc::new(TestComponent)).is_none());
+        component_list.insert(Arc::new(TestComponent));
         assert!(component_list.get::<TestComponent>().is_ok());
         assert_eq!(1, component_list.len());
 
         // Test inserting into existing slot
-        assert!(component_list.insert(Arc::new(TestComponent)).is_some());
+        component_list.insert(Arc::new(TestComponent));
         assert!(component_list.get::<TestComponent>().is_ok());
         assert_eq!(1, component_list.len());
     }

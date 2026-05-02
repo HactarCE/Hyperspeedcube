@@ -251,6 +251,7 @@ impl AdHocColorSystemBuilder {
 
         Ok(Arc::new(ColorSystem {
             meta,
+            components: ComponentList::new(),
 
             names,
             display_names,
@@ -259,8 +260,6 @@ impl AdHocColorSystemBuilder {
             default_scheme,
 
             orbits,
-
-            components: ComponentList::new(),
         }))
     }
 }

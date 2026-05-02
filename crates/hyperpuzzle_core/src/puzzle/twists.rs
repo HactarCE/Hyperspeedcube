@@ -14,6 +14,8 @@ use crate::{
 pub struct TwistSystem {
     /// Metadata.
     pub meta: Arc<CatalogMetadata>,
+    /// Extra components.
+    pub components: ComponentList<Self>,
 
     /// Axis system.
     pub axes: Arc<AxisSystem>,
@@ -29,9 +31,6 @@ pub struct TwistSystem {
     pub vantage_groups: IndexMap<String, BoxDynVantageGroup>,
     /// Built-in vantage sets.
     pub vantage_sets: Vec<VantageSet>,
-
-    /// Extra components.
-    pub components: ComponentList<Self>,
 }
 
 impl fmt::Debug for TwistSystem {
@@ -48,12 +47,12 @@ impl TwistSystem {
     pub fn new_empty() -> Self {
         Self {
             meta: Arc::new(CatalogMetadata::dummy()),
+            components: ComponentList::new(),
             axes: Arc::new(AxisSystem::new_empty()),
             axis_from_family: Box::new(|_| None),
             directions: IndexMap::new(),
             vantage_groups: IndexMap::from_iter([("trivial".to_string(), ().into())]),
             vantage_sets: vec![],
-            components: ComponentList::new(),
         }
     }
 }
