@@ -39,7 +39,7 @@ pub fn define_in(
         #[kwargs(kwargs)]
         fn add_puzzle(ctx: EvalCtx) -> () {
             let lazy_puzzle = lazy_puzzle_from_kwargs(ctx, kwargs, &tx, None, None)?;
-            cat.add(lazy_puzzle).at(ctx.caller_span)?;
+            cat.add_puzzle(lazy_puzzle).at(ctx.caller_span)?;
         }
     ])?;
 

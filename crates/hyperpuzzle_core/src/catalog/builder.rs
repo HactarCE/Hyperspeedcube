@@ -43,6 +43,9 @@ impl CatalogBuilder {
     /// Adds an object to the catalog.
     ///
     /// `extra` is stored in the [`Generator::extra`] field.
+    ///
+    /// **Note: If called on a puzzle, it will not be added to the puzzle
+    /// catalog.**
     pub fn add<T: CatalogObject>(&self, object: impl Into<GeneratorOutput<T>>) -> Result<()> {
         let object = object.into();
         let meta = Arc::clone(&object.meta);
@@ -54,6 +57,9 @@ impl CatalogBuilder {
     }
 
     /// Adds a generator to the catalog.
+    ///
+    /// **Note: If called on a puzzle generator, it will not be added to the
+    /// puzzle catalog.**
     pub fn add_generator<T: CatalogObject>(&self, generator: Arc<Generator<T>>) -> Result<()> {
         T::get_subcatalog_mut(&mut *self.lock_db()?).add(generator)
     }
