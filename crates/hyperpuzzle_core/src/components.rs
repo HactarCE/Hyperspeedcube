@@ -20,7 +20,9 @@ pub trait Component<T>: 'static + Send + Sync + Any {}
 ///
 /// Each contained type is wrapped in an [`Arc`].
 pub struct ComponentList<T> {
-    entries: Vec<Arc<dyn Send + Sync + Any>>,
+    /// `&'static str` is a type name for debug purposes; it's not used for
+    /// comparisons.
+    entries: Vec<(&'static str, Arc<dyn Send + Sync + Any>)>,
     _marker: PhantomData<T>,
 }
 
@@ -38,7 +40,7 @@ impl<T: 'static> Debug for ComponentList<T> {
                 &self
                     .entries
                     .iter()
-                    .map(|entry| (**entry).type_id())
+                    .map(|(type_name, _)| type_name)
                     .collect_vec(),
             )
             .finish()
@@ -75,17 +77,32 @@ impl<T: 'static> ComponentList<T> {
 
     /// Adds or overwrites the entry for type `E`.
     pub fn insert<E: Component<T>>(&mut self, value: Arc<E>) {
-        match self.entries.iter().position(|e| (**e).is::<Arc<E>>()) {
-            Some(i) => self.entries[i] = Arc::new(value),
-            None => self.entries.push(value),
+        let new_entry = (
+            std::any::type_name::<E>(),
+            value as Arc<dyn Send + Sync + Any>,
+        );
+        match self.entries.iter().position(|(_, e)| e.is::<E>()) {
+            Some(i) => self.entries[i] = new_entry,
+            None => self.entries.push(new_entry),
         }
     }
 
     /// Returns the entry for type `E`, or `None` if it is not in the map.
-    pub fn get<E: Component<T>>(&self) -> Result<&Arc<E>, MissingComponent> {
+    pub fn get<E: Component<T>>(&self) -> Result<Arc<E>, MissingComponent> {
         self.entries
             .iter()
-            .find_map(|e| (**e).downcast_ref::<Arc<E>>())
+            .filter(|(_, e)| e.is::<E>())
+            .find_map(|(_, e)| Arc::clone(e).downcast().ok()) // should always succeed
+            .ok_or(MissingComponent::new::<T, E>())
+    }
+
+    /// Returns a reference to the entry for type `E`, or `None` if it is not in
+    /// the map.
+    pub fn get_ref<E: Component<T>>(&self) -> Result<&E, MissingComponent> {
+        self.entries
+            .iter()
+            .filter(|(_, e)| e.is::<E>())
+            .find_map(|(_, e)| e.downcast_ref()) // should always succeed
             .ok_or(MissingComponent::new::<T, E>())
     }
 
