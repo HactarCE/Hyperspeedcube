@@ -36,14 +36,6 @@ pub use vantage_group::{
     PerReferenceVector, ReferenceVector,
 };
 
-/// Returns the ID for an ad-hoc color system or twist system.
-pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
-    CatalogId {
-        base: "ad_hoc".into(),
-        args: vec![puzzle_id.into()],
-    }
-}
-
 /// Maximum period of a twist.
 const MAX_TWIST_REPEAT: usize = 1000;
 

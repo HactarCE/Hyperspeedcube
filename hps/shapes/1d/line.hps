@@ -13,11 +13,24 @@ export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
     export id, name, adjective, aliases, facet_colors, ndim, shape_tag
-    export sym = t.transform(cd(a1))
+    export sym = t.transform(cd("a1"))
 
-    export vertex_pole = sym.x.unit
-    export vertex_names = sym.name(point(vertex_pole), #{
-        A = [],
-        B = [0, "A"]
-    })
+    export vertex = #{
+        vector = sym.x.unit,
+        names = sym.names(point(sym.x), #{
+            A = [],
+            B = [0, "A"]
+        }),
+    }
+
+    export facet = vertex
 }
+
+add_color_system(
+    id = "line",
+    name = "Line",
+    colors = [
+        #{ name = "A", default = "Red" },
+        #{ name = "B", default = "Blue" },
+    ],
+)

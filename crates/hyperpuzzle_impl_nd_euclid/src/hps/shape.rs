@@ -142,8 +142,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsShape {
-    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<&'a Self> {
-        ctx.scope.special.shape.as_ref()
+    pub fn get(ctx: &EvalCtx<'_>) -> Result<Self> {
+        ctx.scope.special.shape.lock().as_ref().cloned()
     }
 
     fn cut(
@@ -180,7 +180,7 @@ impl HpsShape {
             StickerMode::None => fixed_color = None,
             StickerMode::FixedColor(c) => fixed_color = Some(c.id),
             StickerMode::FromNames(names) => {
-                let color_names = names.0.to_strings(ctx, &transforms)?;
+                let color_names = names.0.to_opt_strings(ctx, &transforms)?;
                 color_list = Some(
                     color_names
                         .into_iter()

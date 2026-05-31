@@ -62,7 +62,7 @@ impl ShapeBuilder {
             overwritten_piece_types: vec![],
 
             colors: ColorSystemBuilder(MaybeAdHoc::AdHoc(AdHocColorSystemBuilder::new(
-                crate::ad_hoc_id(puzzle_id.clone()),
+                hyperpuzzle_core::ad_hoc_id(puzzle_id.clone()),
             ))),
         })
     }

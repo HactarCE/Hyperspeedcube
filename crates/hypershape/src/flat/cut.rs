@@ -222,8 +222,10 @@ impl Cut {
                         match self.cut(space, b)? {
                             ElementCutOutput::Flush => {
                                 flush_polytopes.push(b);
-                                flush_polytope_portals
-                                    .extend(boundary_portals.portals_for_element(b));
+                                if self.params.portal {
+                                    flush_polytope_portals
+                                        .extend(boundary_portals.portals_for_element(b));
+                                }
                             }
                             ElementCutOutput::NonFlush {
                                 inside,

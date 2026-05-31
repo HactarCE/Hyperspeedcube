@@ -223,7 +223,7 @@ impl AdHocTwistSystemBuilder {
                 let vantage_group = vantage_group_builder.build(
                     Arc::clone(&axes.names),
                     Arc::clone(&twist_names),
-                    Arc::clone(axis_vectors),
+                    Arc::clone(&axis_vectors),
                     Arc::clone(&twists_list),
                 )?;
                 eyre::Ok((id.clone(), vantage_group))

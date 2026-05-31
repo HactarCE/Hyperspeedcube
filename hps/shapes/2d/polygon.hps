@@ -29,7 +29,7 @@ ADJECTIVES = [
 ]
 
 export name_generic = "Polygon"
-export fn name(n: Nat) -> Str { NAMES[n] ?? "${n}-gonal" }
+export fn name(n: Nat) -> Str { NAMES[n] ?? "${n}-gon" }
 export fn aliases(n: Nat) -> List[Str] {
     if NAMES[n] == null { [] } else { ["${n}-gonal"] }
 }
@@ -45,8 +45,7 @@ fn generic_names(n: Nat, m2: Nat, m1: Nat) {
     return names
 }
 
-export fn param_size(name) { param_size(name, 3) }
-export fn param_size(name, min) { #{ name = name, type = Int, default = 5, min = min, max = 24 } }
+export edges_param = #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }
 
 export fn new(n: Nat) -> Map { new(n, ident()) }
 export fn new(n: Nat, t: Transform) -> Map {
@@ -58,36 +57,59 @@ export fn new(n: Nat, t: Transform) -> Map {
     export sym = t.transform(cd([n]))
     export ndim
 
-    export vertex_height = if n.is_even() { 2 } else { 1 + 1 / cos(π/n) }
-    export edge_length = 2 * tan(π/n)
-    export edge_depth = sin(2 * π/n) * edge_length
-    export circumradius = 1 / cos(π/n)
+    export edge_length = 2
 
-    export edge_pole = sym.ox.unit
-    export edge_names = sym.names(point(edge_pole), generic_names(n, 1, 0))
+    export inradius = edge_length / (2 * tan(π/n))
+    export circumradius = edge_length / (2 * sin(π/n))
+    export vertex_height = inradius + if n.is_even() { inradius } else { circumradius }
+    export edge_depth = edge_length * sin(2*π/n)
 
-    export vertex_pole = sym.xo.unit * circumradius
-
-    export edge_opposite_pole = if n.is_odd() { -edge_pole }
-    export edge_opposite_names = if n.is_odd() { "β${edge_names}" }
-
-    export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
-        if n == 3 {
-            return @util/layers.even_odd(1, 0, layer_count) ++ [-∞]
-        } else {
-            max_cut_depth = 1 - edge_depth/2
-            return @util/layers.even_odd(1, max_cut_depth, layer_count)
+    export edge = #{
+        vector = sym.ox.unit * inradius,
+        names = sym.names(point(sym.ox), generic_names(n, 1, 0)),
+    }
+    export vertex = #{
+        vector = sym.xo.unit * circumradius,
+        // TODO: names?
+    }
+    export edge_opposite = if n.is_odd() {
+        #{
+            vector = -edge.vector,
+            names = "β${edge.names}",
         }
     }
 
-    max_full_cut_depth = 1 - edge_depth
+    export facet = edge
+    export ridge = vertex
+
+    export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
+        if n == 3 {
+            return @util/layers.even_odd(inradius, 0, layer_count) ++ [-∞]
+        } else {
+            max_cut_depth = inradius - edge_depth/2
+            return @util/layers.even_odd(inradius, max_cut_depth, layer_count)
+        }
+    }
+
+    max_full_cut_depth = inradius - edge_depth
     export fn full_cut_depths(layer_count: Nat) -> List[Num] {
-        @util/layers.inclusive(1, max_full_cut_depth, layer_count)
+        @util/layers.inclusive(inradius, max_full_cut_depth, layer_count)
+    }
+
+    export fn layered_cut_depths(layer_count: Nat) -> List[Num] {
+        @util/layers.inclusive(inradius, inradius - vertex_height, layer_count)
     }
 
     if n == 3 {
         export fn opposite_full_cut_depths(layer_count: Nat) -> List[Num] {
-            @util/layers.inclusive(-max_cut_depth, -1, layer_count)
+            @util/layers.inclusive(-max_cut_depth, -inradius, layer_count)
         }
     }
 }
+
+add_color_system_generator(
+    id = "ngon",
+    name = "Polygon",
+    params = [edges_param],
+    gen = fn(n) { #{name = name(n), colors = (0..n).map(fn(i) { #{ name = nth_uppercase(i) } }) } },
+)

@@ -41,6 +41,7 @@ impl NamedPointSet {
     }
 
     /// Transforms each named point in a set by a group element.
+    #[must_use]
     pub fn transform_by_group_element(
         &self,
         action: &GroupAction<NamedPoint>,
@@ -50,6 +51,7 @@ impl NamedPointSet {
     }
 
     /// Offsets all named point IDs by some amount.
+    #[must_use]
     pub(crate) fn offset_ids_by(&self, id_offset: usize) -> Self {
         Self(
             self.0

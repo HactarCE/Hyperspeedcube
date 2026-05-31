@@ -10,9 +10,12 @@ use hypergroup::{
 };
 use hypermath::num::Euclid;
 use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef};
+use hyperpuzzle_core::catalog::BuildCtx;
+use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzle_core::{
-    Axis, AxisSystem, ComponentList, IndexOverflow, NameSpecBiMap, NameSpecBiMapBuilder, Orbit,
-    PerAxis, TiMask, TypedIndex, TypedIndexIter,
+    Axis, AxisSystem, CatalogId, CatalogMetadata, Component, ComponentList, IndexOverflow,
+    MissingComponent, NameSpecBiMap, NameSpecBiMapBuilder, Orbit, PerAxis, TiMask, TwistSystem,
+    TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypuz_notation::{AxisLayersInfo, Str};
@@ -24,12 +27,15 @@ use smallvec::{SmallVec, smallvec};
 use crate::names::NameBiMap;
 use crate::{
     AxisOrbitSpec, NamedPoint, NamedPointOrbitSpec, NamedPointSet, PerNamedPoint, StabilizerFamily,
-    SymmetricTwistSystemAxisOrbit, UniqueMinimalClockwiseGenerator,
+    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
 /// Axis system of a puzzle under construction.
-#[derive(Debug)]
-pub(super) struct ProductPuzzleAxes {
+#[derive(Debug, Clone)]
+pub(crate) struct TwistSystemProduct {
+    pub factor_ids: Vec<CatalogId>,
+    pub factor_names: Vec<String>,
+
     /// Grip group.
     pub group: IsometryGroup,
     /// Coxeter matrix for the grip group.
@@ -66,7 +72,9 @@ pub(super) struct ProductPuzzleAxes {
     pub named_point_set_orbits: Vec<(NamedPointSet, Float)>,
 }
 
-impl ProductPuzzleAxes {
+impl Component<TwistSystem> for TwistSystemProduct {}
+
+impl TwistSystemProduct {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
         self.group.ndim()
@@ -76,6 +84,9 @@ impl ProductPuzzleAxes {
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
+            factor_ids: vec![],
+            factor_names: vec![],
+
             group: IsometryGroup::trivial(),
             coxeter_matrix: CoxeterMatrix::trivial(),
 
@@ -91,7 +102,10 @@ impl ProductPuzzleAxes {
         }
     }
 
-    pub fn new(
+    /// Constructs a factor twist system builder.
+    pub fn new_factor(
+        id: CatalogId,
+        name: String,
         coxeter_matrix: CoxeterMatrix,
         group: IsometryGroup,
         axis_orbits: &[AxisOrbitSpec],
@@ -111,9 +125,7 @@ impl ProductPuzzleAxes {
         let mut id_offset = 0;
         for orbit in named_point_orbits {
             let mut names = vec![];
-            for (vector, name) in
-                orbit.named_point_vectors(original_generators, |e| warn_fn(eyre!(e)))
-            {
+            for (vector, name, _gen_seq) in &orbit.named_point_vectors {
                 named_point_vectors.push(vector.clone())?;
                 names.push(name.clone());
                 all_named_point_names.push(name.clone())?;
@@ -142,25 +154,18 @@ impl ProductPuzzleAxes {
         let mut id_offset = 0;
         for orbit in axis_orbits {
             let mut names = vec![];
-            for (vector, name) in
-                orbit.named_axis_vectors(original_generators, |e| warn_fn(eyre!(e)))
-            {
+            let mut generator_sequences = vec![];
+            for (vector, name, gen_seq) in &orbit.named_axis_vectors {
                 axis_vectors.push(vector.clone())?;
                 names.push(name.clone());
                 all_axis_names.push(name.clone())?;
+                generator_sequences.push(gen_seq.clone());
             }
             new_axis_orbits.push(AxisOrbit {
                 len: orbit.len(),
                 prefix: hypuz_notation::family::SequentialLowercaseName(0),
                 id_offset,
-                max_layer: orbit.layer_count().try_into()?,
-                generator_sequences: Arc::new(
-                    orbit
-                        .names
-                        .iter()
-                        .map(|(abbr_gen_seq, _)| abbr_gen_seq.clone())
-                        .collect(),
-                ),
+                generator_sequences: Arc::new(generator_sequences),
                 names: Arc::new(names),
                 // `stabilizer_action` is easier to add later once we have `axis_action`
                 stabilizer_action: SubgroupAction::trivial(),
@@ -192,12 +197,6 @@ impl ProductPuzzleAxes {
                 })?;
         }
 
-        let axis_from_name = |name: &Str| {
-            all_axis_names
-                .name_to_id(name)
-                .ok_or_else(|| eyre!("no axis with name {name:?}"))
-        };
-
         let named_point_set_orbits: Vec<(NamedPointSet, Float)> = std::iter::chain(
             new_named_point_orbits.iter().map(|orbit| {
                 Ok((
@@ -215,6 +214,9 @@ impl ProductPuzzleAxes {
         .try_collect()?;
 
         Ok(Self {
+            factor_ids: vec![id],
+            factor_names: vec![name],
+
             group,
             coxeter_matrix,
 
@@ -305,6 +307,9 @@ impl ProductPuzzleAxes {
         };
 
         Ok(Self {
+            factor_ids: crate::chain_cloned(&a.factor_ids, &b.factor_ids),
+            factor_names: crate::chain_cloned(&a.factor_names, &b.factor_names),
+
             coxeter_matrix: CoxeterMatrix::direct_product(&a.coxeter_matrix, &b.coxeter_matrix)?,
             group,
 
@@ -338,11 +343,73 @@ impl ProductPuzzleAxes {
             .unwrap_or(0)
     }
 
-    pub fn build_axis_system(&self) -> Result<AxisSystem> {
+    pub fn build(
+        &self,
+        build_ctx: &BuildCtx,
+        warn_fn: &mut impl FnMut(eyre::Report),
+    ) -> Result<Arc<TwistSystem>> {
+        build_ctx.set_building::<TwistSystem>();
+
+        let id = crate::product_id(&self.factor_ids);
+        let name = crate::product_name(&self.factor_names);
+
+        let axes = Arc::new(self.build_axis_system()?);
+
+        let mut components = ComponentList::new();
+        components.insert(Arc::new(self.clone())); // TODO: check for redundancy with `SymmetricTwistSystemComponent`
+        components.insert(Arc::new(SymmetricTwistSystemComponent {
+            axes: Arc::clone(&axes),
+            group: self.group.clone(),
+            axis_action: self.axis_action.clone(),
+
+            axis_undeorbiters: Arc::new(self.build_axis_undeorbiters()),
+            axis_orbits: Arc::new(self.build_axis_orbits(
+                &axes.names,
+                &self.build_named_point_names()?,
+                warn_fn,
+            )?),
+
+            named_point_action: self.named_point_action.clone(),
+            named_point_names: Arc::new(self.build_named_point_names()?),
+            named_point_vectors: Arc::clone(&self.named_point_vectors),
+        }));
+
+        // TODO: verify that named points are sufficient to describe
+        //       symmetry group elements
+
+        Ok(Arc::new(TwistSystem {
+            meta: Arc::new(CatalogMetadata::simple(id, name)),
+            components,
+            axes: Arc::clone(&axes),
+            axis_from_family: Box::new(move |family_str| {
+                // TODO: correct number of underscores
+                let axis_name = match family_str.split_once('_') {
+                    Some((first, _)) => first,
+                    None => family_str,
+                };
+                axes.names.id_from_name(axis_name)
+            }),
+            ..TwistSystem::new_empty()
+        }))
+    }
+
+    fn build_axis_system(&self) -> Result<AxisSystem> {
         let mut names = NameSpecBiMapBuilder::new();
+        let needs_prefix = self
+            .axis_orbits
+            .iter()
+            .map(|o| o.prefix.0)
+            .max()
+            .unwrap_or_default()
+            > 0;
         for orbit in &self.axis_orbits {
             for (id, name) in std::iter::zip(orbit.axes(), &*orbit.names) {
-                names.set(id, Some(format!("{}{}", orbit.prefix, name)))?;
+                let prefixed_name = if needs_prefix {
+                    format!("{}{}", orbit.prefix, name)
+                } else {
+                    name.clone()
+                };
+                names.set(id, Some(prefixed_name))?;
             }
         }
         let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis name")?);
@@ -369,7 +436,7 @@ impl ProductPuzzleAxes {
         })
     }
 
-    pub fn build_axis_undeorbiters(&self) -> PerAxis<(GroupElementId, usize)> {
+    fn build_axis_undeorbiters(&self) -> PerAxis<(GroupElementId, usize)> {
         let mut ret = PerAxis::new_with_len(self.len());
 
         for (orbit_index, orbit) in self.axis_orbits.iter().enumerate() {
@@ -400,11 +467,23 @@ impl ProductPuzzleAxes {
         ret
     }
 
-    pub fn build_named_point_names(&self) -> Result<NameSpecBiMap<NamedPoint>> {
+    fn build_named_point_names(&self) -> Result<NameSpecBiMap<NamedPoint>> {
         let mut names = NameSpecBiMapBuilder::new();
+        let needs_prefix = self
+            .named_point_orbits
+            .iter()
+            .map(|o| o.prefix.0)
+            .max()
+            .unwrap_or_default()
+            > 0;
         for orbit in &self.named_point_orbits {
             for (id, name) in std::iter::zip(orbit.named_points(), &*orbit.names) {
-                names.set(id, Some(format!("{}{}", orbit.prefix, name)))?;
+                let prefixed_name = if needs_prefix {
+                    format!("{}{}", orbit.prefix, name)
+                } else {
+                    name.clone()
+                };
+                names.set(id, Some(prefixed_name))?;
             }
         }
         names
@@ -412,19 +491,7 @@ impl ProductPuzzleAxes {
             .ok_or_eyre("missing named point name")
     }
 
-    pub fn build_axis_layers(&self) -> PerAxis<AxisLayersInfo> {
-        self.axis_orbits
-            .iter()
-            .flat_map(|orbit| {
-                orbit.axes().map(|_| AxisLayersInfo {
-                    max_layer: orbit.max_layer,
-                    allow_negatives: false, // TODO: allow negatives on some axes
-                })
-            })
-            .collect()
-    }
-
-    pub fn build_axis_orbits(
+    fn build_axis_orbits(
         &self,
         axis_names: &NameSpecBiMap<Axis>,
         named_point_names: &NameSpecBiMap<NamedPoint>,
@@ -639,9 +706,6 @@ pub struct AxisOrbit {
     /// have multiple sets and so puzzle-facing IDs for axes in this set must
     /// start counting from this offset.
     pub id_offset: usize,
-    /// Number of layers on each axis, which is equivalent to the maximum layer
-    /// number.
-    pub max_layer: u16,
     /// Generator sequence for each axis in the orbit.
     pub generator_sequences: Arc<Vec<hypergroup::AbbrGenSeq>>,
     /// Name for each axis in the orbit, not including its prefix.
@@ -662,7 +726,7 @@ pub struct AxisOrbit {
 }
 
 impl AxisOrbit {
-    fn left_multiply_by(mut self, lhs: &ProductPuzzleAxes, total_ndim: u8) -> Result<Self> {
+    fn left_multiply_by(mut self, lhs: &TwistSystemProduct, total_ndim: u8) -> Result<Self> {
         self.prefix.0 += lhs.prefix_count();
 
         self.id_offset += lhs.len();
@@ -672,7 +736,7 @@ impl AxisOrbit {
             SubgroupAction::direct_product_left(&lhs.named_point_action, self.stabilizer_action)?;
 
         for (named_point_set, _gizmo_pole_distance) in &mut self.stabilizer_twists {
-            named_point_set.offset_ids_by(lhs.named_points_count());
+            *named_point_set = named_point_set.offset_ids_by(lhs.named_points_count());
         }
 
         // Add new stabilizer twists from `lhs` named point sets.
@@ -683,7 +747,7 @@ impl AxisOrbit {
 
     fn right_multiply_by(
         mut self,
-        rhs: &ProductPuzzleAxes,
+        rhs: &TwistSystemProduct,
         total_ndim: u8,
         new_named_point_set_orbits: &[(NamedPointSet, Float)], /* must use named point IDs for
                                                                 * product */

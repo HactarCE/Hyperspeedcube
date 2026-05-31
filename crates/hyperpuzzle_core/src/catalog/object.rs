@@ -1,3 +1,5 @@
+use crate::ComponentList;
+
 use super::*;
 
 /// Object with an ID (such as a puzzle or color system) that can be stored in
@@ -8,6 +10,8 @@ pub trait CatalogObject: 'static + Sized + Send + Sync {
 
     /// Returns the metadata for a catalog object.
     fn meta(&self) -> &Arc<CatalogMetadata>;
+    /// Returns the components for a catalog object.
+    fn components(&self) -> &ComponentList<Self>; // TODO: consider factoring this into `CatalogMetadata`
     /// Returns the subcatalog containing this object type.
     fn get_subcatalog(catalog_data: &CatalogData) -> &SubCatalog<Self>;
     /// Returns a mutable reference to the subcatalog containing this object
@@ -20,6 +24,9 @@ impl CatalogObject for Puzzle {
 
     fn meta(&self) -> &Arc<CatalogMetadata> {
         &self.meta
+    }
+    fn components(&self) -> &ComponentList<Self> {
+        &self.components
     }
     fn get_subcatalog(catalog_data: &CatalogData) -> &SubCatalog<Self> {
         &catalog_data.puzzles
@@ -35,6 +42,9 @@ impl CatalogObject for ColorSystem {
     fn meta(&self) -> &Arc<CatalogMetadata> {
         &self.meta
     }
+    fn components(&self) -> &ComponentList<Self> {
+        &self.components
+    }
     fn get_subcatalog(catalog_data: &CatalogData) -> &SubCatalog<Self> {
         &catalog_data.color_systems
     }
@@ -48,6 +58,9 @@ impl CatalogObject for TwistSystem {
 
     fn meta(&self) -> &Arc<CatalogMetadata> {
         &self.meta
+    }
+    fn components(&self) -> &ComponentList<Self> {
+        &self.components
     }
     fn get_subcatalog(catalog_data: &CatalogData) -> &SubCatalog<Self> {
         &catalog_data.twist_systems

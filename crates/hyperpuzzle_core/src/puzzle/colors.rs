@@ -18,6 +18,8 @@ pub struct ColorSystem {
     /// Color names.
     pub names: NameSpecBiMap<Color>,
     /// Color display names.
+    ///
+    /// TODO: remove this
     pub display_names: PerColor<String>,
 
     /// List of named color schemes.

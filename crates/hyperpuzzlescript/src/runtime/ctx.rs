@@ -28,7 +28,22 @@ pub struct EvalCtx<'a> {
     pub stack_depth: usize,
 }
 
-impl EvalCtx<'_> {
+impl<'a> EvalCtx<'a> {
+    pub fn new(
+        scope: &'a Arc<Scope>,
+        runtime: &'a mut Runtime,
+        caller_span: Span,
+        exports: &'a mut Option<Map>,
+    ) -> Self {
+        Self {
+            scope,
+            runtime,
+            caller_span,
+            exports,
+            stack_depth: 0,
+        }
+    }
+
     fn assign(&mut self, node: &ast::Node, new_value: Value) -> Result<()> {
         match &node.0 {
             ast::NodeContents::Ident(_)
@@ -230,7 +245,17 @@ impl EvalCtx<'_> {
             }
 
             ast::NodeContents::SpecialIdent(special_var) => {
-                Err(Error::CannotAssignToSpecialVar(*special_var).at(span))
+                let arc_mutex = Arc::clone(match special_var {
+                    ast::SpecialVar::Puz => &self.scope.special.puz,
+                    ast::SpecialVar::Shape => &self.scope.special.shape,
+                    ast::SpecialVar::Twists => &self.scope.special.twists,
+                    ast::SpecialVar::Axes => &self.scope.special.axes,
+                    _ => return Err(Error::CannotAssignToSpecialVar(*special_var).at(span)),
+                });
+                let old_value = arc_mutex.lock().clone();
+                let new_value = update_fn(self, span, Some(old_value))?;
+                *arc_mutex.lock() = new_value;
+                Ok(())
             }
             node_contents => Err(Error::CannotAssignToExpr {
                 kind: node_contents.kind_str(),
@@ -671,10 +696,10 @@ impl EvalCtx<'_> {
                 ast::SpecialVar::Ndim => self.ndim_at(span)?.into(),
                 ast::SpecialVar::Sym => self.scope.special.sym.data.clone(),
 
-                ast::SpecialVar::Puz => self.scope.special.puz.data.clone(),
-                ast::SpecialVar::Shape => self.scope.special.shape.data.clone(),
-                ast::SpecialVar::Twists => self.scope.special.twists.data.clone(),
-                ast::SpecialVar::Axes => self.scope.special.axes.data.clone(),
+                ast::SpecialVar::Puz => self.scope.special.puz.lock().data.clone(),
+                ast::SpecialVar::Shape => self.scope.special.shape.lock().data.clone(),
+                ast::SpecialVar::Twists => self.scope.special.twists.lock().data.clone(),
+                ast::SpecialVar::Axes => self.scope.special.axes.lock().data.clone(),
 
                 ast::SpecialVar::Id => self.scope.special.id.clone().into(),
             }),
@@ -1125,7 +1150,7 @@ impl EvalCtx<'_> {
         })
     }
 
-    fn exec_in_child_scope<R>(&mut self, f: impl for<'a> FnOnce(&mut EvalCtx<'a>) -> R) -> R {
+    fn exec_in_child_scope<R>(&mut self, f: impl for<'b> FnOnce(&mut EvalCtx<'b>) -> R) -> R {
         f(&mut EvalCtx {
             scope: &Scope::new_block(Arc::clone(self.scope)),
             runtime: self.runtime,
@@ -1226,11 +1251,11 @@ impl EvalCtx<'_> {
 
     /// Reports a warning at [`Self::caller_span`].
     pub fn warn(&mut self, w: impl Into<Warning>) {
-        self.warn_at(self.caller_span, w);
+        self.runtime.warn_at(self.caller_span, w);
     }
     /// Reports a warning.
     pub fn warn_at(&mut self, span: Span, w: impl Into<Warning>) {
-        self.runtime.report_diagnostic(w.into().at(span));
+        self.runtime.warn_at(span, w);
     }
 
     /// Returns a function that can be used to report warnings.

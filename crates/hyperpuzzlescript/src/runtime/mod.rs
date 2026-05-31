@@ -157,13 +157,8 @@ impl Runtime {
         }
         let ast = self.file_ast(file_id)?;
         let scope = Scope::new_top_level(&self.builtins);
-        let mut ctx = EvalCtx {
-            scope: &scope,
-            runtime: self,
-            caller_span: crate::BUILTIN_SPAN,
-            exports: &mut exports,
-            stack_depth: 0, // TODO: consider spawning a thread here to reset the stack size
-        };
+        // TODO: consider spawning a thread here to reset the stack size
+        let mut ctx = EvalCtx::new(&scope, self, crate::BUILTIN_SPAN, &mut exports);
         let result = ctx
             .eval(&ast)
             .or_else(FullDiagnostic::try_resolve_return_value)
@@ -223,6 +218,16 @@ impl Runtime {
         callback: engine_callback::TwistSystemEngineCallback,
     ) {
         self.twist_system_engines.insert(callback.name(), callback);
+    }
+
+    /// Reports a warning.
+    pub fn warn_at(&mut self, span: Span, w: impl Into<Warning>) {
+        self.report_diagnostic(w.into().at(span));
+    }
+
+    /// Returns a function that can be used to report warnings.
+    pub fn warnf_at<T: ToString>(&mut self, span: Span) -> impl FnMut(T) {
+        move |msg| self.warn_at(span, msg.to_string())
     }
 }
 

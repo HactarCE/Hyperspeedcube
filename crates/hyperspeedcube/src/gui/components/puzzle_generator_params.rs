@@ -55,6 +55,13 @@ impl PuzzleGeneratorUi {
         }
     }
 
+    pub fn from_generated_id(puzzle_id: CatalogId) -> Self {
+        Self {
+            generator_id: puzzle_id.base,
+            param_uis: vec![], // TODO: fill in defaults
+        }
+    }
+
     pub fn generated_id(&self) -> Option<CatalogId> {
         Some(CatalogId {
             base: self.generator_id.clone(),

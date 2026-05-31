@@ -15,15 +15,19 @@ use hypuz_notation::{Move, Multiplier, Transform};
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 
-use super::ProductPuzzleAxes;
+use super::TwistSystemProduct;
 use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 
 pub fn build_3d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
-    axes: &ProductPuzzleAxes,
+    axes: &TwistSystemProduct,
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<()> {
+    if axes.axis_orbits.is_empty() {
+        return Ok(()); // no gizmos
+    }
+
     let axis_from_vector = ApproxHashMap::from_iter(
         APPROX,
         axes.axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)),
@@ -65,7 +69,7 @@ pub fn build_3d_gizmo(
 pub fn build_4d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
-    axes: &ProductPuzzleAxes,
+    axes: &TwistSystemProduct,
     twists: &SymmetricTwistSystemComponent,
     mut warn_fn: impl FnMut(eyre::Report),
 ) -> Result<()> {
@@ -225,7 +229,7 @@ pub fn build_4d_gizmo(
     Ok(())
 }
 
-fn gizmo_facets(space: &mut Space, axes: &ProductPuzzleAxes) -> Result<Vec<hypershape::FacetId>> {
+fn gizmo_facets(space: &mut Space, axes: &TwistSystemProduct) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = axes
         .coxeter_matrix
         .mirrors()?
@@ -251,7 +255,7 @@ fn gizmo_facets(space: &mut Space, axes: &ProductPuzzleAxes) -> Result<Vec<hyper
 
 fn orbit_axes_with_representatives(
     init: Axis,
-    axes: &ProductPuzzleAxes,
+    axes: &TwistSystemProduct,
     seen: &mut TiMask<Axis>,
 ) -> Vec<(Axis, GroupElementId, Motor)> {
     hypergroup::orbit_collect(

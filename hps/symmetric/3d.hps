@@ -28,12 +28,12 @@ add_menu_entry(path = "3D|Platonic|Cube|Tetrahedral", priority = -4, id = "todo"
 add_menu_entry(path = "3D|Platonic|Cube|Dodecahedral", priority = -12, id = "todo")
 
 add_menu_entry(path = "3D|Platonic|Dodecahedron|FT", priority = 52, default = true, next_inline = "Depth")
-add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Megaminx", id = "megaminx", default = true, priority = 15, params = [layers_param])
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Megaminx", id = "megaminx", default = true, priority = 15) // params = [layers_param]
 add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Megaminx Crystal", id = "megaminx_crystal", priority = 14)
 add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Pyraminx Crystal", id = "pyraminx_crystal", priority = 13)
-add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Curvy Starminx", id = "curvy_starminx", priority = 12, params = [layers_param])
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Curvy Starminx", id = "curvy_starminx", priority = 12) // params = [layers_param]
 add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Starminx", id = "starminx", priority = 11)
-add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Pentultimate", id = "pentultimate", priority = 10, params = [layers_param])
+add_menu_entry(path = "3D|Platonic|Dodecahedron|FT|Pentultimate", id = "pentultimate", priority = 10) // params = [layers_param]
 
 add_menu_entry(path = "3D|Platonic|Icosahedron|FT", priority = 52, default = true, next_inline = "Depth (Radiolarian Number)")
 add_menu_entry(path = "3D|Platonic|Icosahedron|FT|1", id = "todo")
@@ -53,95 +53,118 @@ add_menu_entry(path = "3D|Platonic|Icosahedron|FT|13", id = "todo")
 add_menu_entry(path = "3D|Platonic|Icosahedron|FT|14", id = "todo")
 add_menu_entry(path = "3D|Platonic|Icosahedron|FT|15", id = "todo")
 
-for id in ["megaminx", "curvy_starminx", "pentultimate"] {
-    add_puzzle_generator(
-        id = id,
-        version = "0.1.0",
-        engine = "euclid",
-        ndim = 3,
-        params = [layers_param],
-        gen = fn(layers) {
-            export fn build() {
-                with #sym = cd([5,3]) {
-                    carve(plane(#sym.oox))
-                    ax = add_axis(#sym.oox)
-                    // ax.add_twist()
-                }
-            }
-        },
-    )
-}
-for id in ["megaminx_crystal", "pyraminx_crystal", "starminx"] {
-    add_puzzle(
-        id = id,
-        version = "0.1.0",
-        engine = "euclid",
-        ndim = 3,
-        build = fn() {},
-    )
-}
-
-add_menu_entry(path = "3D|Platonic|Cube|FT", priority = 52, default = true, id = "ft_cube")
 add_puzzle_generator(
-    id = "ft_cube_v2",
-    engine = "symmetric",
-    params = [layers_param],
-
-    colors = "cube",
-    twists = "ft_cube",
-    gen = fn(layers) {
-        export ndim = 3
-        export fn build() {
-            carve_polyhedron(@shapes/3d/cube.new())
-            // TODO: realistic proportions
-            cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
-        }
-    },
-)
-
-add_twist_system(
-    id = "ft_cube",
-    name = "FT Cube",
-    engine = "symmetric",
-    ndim = 3,
-    build = fn() {
-        cube = @shapes/3d/cube.new()
-        export sym = cube.sym
-        export refs = [[cube.facet_pole, cube.facet_names]]
-        export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
-        add_vantage_set(
-            name = "Face-centered",
-            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-            transforms = #{
-                x = "@{F->U}",
-                y = "@{R->F}",
-                z = "@{U->F}",
-            },
-            axes = "*",
-        )
-    },
-)
-
-add_twist_system(
-    id = "ft_hypercube",
-    name = "FT Hypercube",
+    id = "test_dodeca_puzzle",
+    name = "TEST 24-CELL PUZZLE",
+    version = "0.1.0",
     engine = "symmetric",
     ndim = 4,
-    build = fn() {
-        export sym = cube.sym
-        export refs = [[cube.facet_pole, cube.facet_names]]
-        export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
-        add_vantage_set(
-            name = "Face-centered",
-            view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-                        * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-            transforms = #{
-                x = "@{F->U}",
-                y = "@{R->F}",
-                z = "@{U->F}",
-            },
-            axes = "*",
-        )
-    },
+    params = [],
+    gen = fn() {
+        export fn build() {
+            s = @shapes/4d/24cell.new()
+            #shape.sym = s.sym
+            #shape.facets ++= [s.facet]
+            #twists.sym = s.sym
+            #twists.points ++= [s.facet]
+            #twists.axes ++= [s.facet]
+            // C = 1.40126
+            // I = 1.11352
+            #twists.layers.A = [∞, 0.5]
+            #twists.stabilizer_twists ++= [[["A", "B"], 0.5]]
+        }
+    }
 )
+
+// for id in ["megaminx", "curvy_starminx", "pentultimate"] {
+//     add_puzzle_generator(
+//         id = id,
+//         version = "0.1.0",
+//         engine = "euclid",
+//         ndim = 3,
+//         params = [layers_param],
+//         gen = fn(layers) {
+//             export fn build() {
+//                 with #sym = cd([5,3]) {
+//                     carve(plane(#sym.oox))
+//                     ax = add_axis(#sym.oox)
+//                     // ax.add_twist()
+//                 }
+//             }
+//         },
+//     )
+// }
+// for id in ["megaminx_crystal", "pyraminx_crystal", "starminx"] {
+//     add_puzzle(
+//         id = id,
+//         version = "0.1.0",
+//         engine = "euclid",
+//         ndim = 3,
+//         build = fn() {},
+//     )
+// }
+
+// add_menu_entry(path = "3D|Platonic|Cube|FT", priority = 52, default = true, id = "ft_cube")
+// add_puzzle_generator(
+//     id = "ft_cube_v2",
+//     engine = "symmetric",
+//     params = [layers_param],
+
+//     colors = "cube",
+//     twists = "ft_cube",
+//     gen = fn(layers) {
+//         export ndim = 3
+//         export fn build() {
+//             carve_polyhedron(@shapes/3d/cube.new())
+//             // TODO: realistic proportions
+//             cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
+//         }
+//     },
+// )
+
+// add_twist_system(
+//     id = "ft_cube",
+//     name = "FT Cube",
+//     engine = "symmetric",
+//     ndim = 3,
+//     build = fn() {
+//         cube = @shapes/3d/cube.new()
+//         export sym = cube.sym
+//         export refs = [[cube.facet_pole, cube.facet_names]]
+//         export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
+//         add_vantage_set(
+//             name = "Face-centered",
+//             view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+//                         * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+//             transforms = #{
+//                 x = "@{F->U}",
+//                 y = "@{R->F}",
+//                 z = "@{U->F}",
+//             },
+//             axes = "*",
+//         )
+//     },
+// )
+
+// add_twist_system(
+//     id = "ft_hypercube",
+//     name = "FT Hypercube",
+//     engine = "symmetric",
+//     ndim = 4,
+//     build = fn() {
+//         export sym = cube.sym
+//         export refs = [[cube.facet_pole, cube.facet_names]]
+//         export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
+//         add_vantage_set(
+//             name = "Face-centered",
+//             view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
+//                         * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
+//             transforms = #{
+//                 x = "@{F->U}",
+//                 y = "@{R->F}",
+//                 z = "@{U->F}",
+//             },
+//             axes = "*",
+//         )
+//     },
+// )

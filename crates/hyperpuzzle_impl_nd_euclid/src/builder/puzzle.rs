@@ -223,14 +223,14 @@ impl PuzzleBuilder {
 
             mesh,
 
-            axis_vectors: Arc::clone(twists.axes.components.get()?),
+            axis_vectors: twists.axes.components.get()?,
             axis_layer_depths,
 
             gizmo_twists,
         });
 
-        let twists_list = Arc::clone(twists.components.get::<NdEuclidTwistsList>()?);
-        let twist_names = Arc::clone(twists.components.get::<NamedTwistsList>()?);
+        let twists_list = twists.components.get::<NdEuclidTwistsList>()?;
+        let twist_names = twists.components.get::<NamedTwistsList>()?;
 
         let mut scramble_twists = twists_list
             .iter()

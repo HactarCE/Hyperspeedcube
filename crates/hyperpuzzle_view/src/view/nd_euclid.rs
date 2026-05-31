@@ -57,7 +57,7 @@ impl NdEuclidViewState {
             renderer,
             camera: NdEuclidCamera::new(geom.ndim(), view_preset),
 
-            geom: Arc::clone(geom),
+            geom,
 
             cursor_pos: None,
             drag_state: None,

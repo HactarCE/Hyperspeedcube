@@ -30,6 +30,11 @@ impl BuildCtx {
         }
     }
 
+    pub fn warn_fn(&self) -> impl Fn(eyre::Report) {
+        let l = self.catalog.logger.clone();
+        move |e| l.warn(format!("{e:?}")) // include backtrace
+    }
+
     /// Builds a catalog object by ID.
     ///
     /// This is a wrapper around [`Catalog::build_blocking()`] that sets

@@ -114,8 +114,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsAxisSystem {
-    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<&'a Self> {
-        ctx.scope.special.axes.as_ref()
+    pub fn get(ctx: &EvalCtx<'_>) -> Result<Self> {
+        ctx.scope.special.axes.lock().as_ref().cloned()
     }
 
     /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
@@ -136,12 +136,12 @@ impl HpsAxisSystem {
 
     pub fn lock_vectors(
         &self,
-    ) -> Result<RefOrMutexGuard<'_, NdEuclidAxisVectors>, MissingComponent> {
+    ) -> Result<ArcOrMutexGuard<'_, NdEuclidAxisVectors>, MissingComponent> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(RefOrMutexGuard::Ref(
+            MaybeAdHoc::Fixed(f) => Ok(ArcOrMutexGuard::Arc(
                 f.axes.components.get::<NdEuclidAxisVectors>()?,
             )),
-            MaybeAdHoc::AdHoc(a) => Ok(RefOrMutexGuard::MappedMutexGuard(MutexGuard::map(
+            MaybeAdHoc::AdHoc(a) => Ok(ArcOrMutexGuard::MappedMutexGuard(MutexGuard::map(
                 a.lock(),
                 |twists| &mut twists.axes.vectors,
             ))),
@@ -168,8 +168,8 @@ impl HpsAxisSystem {
         };
 
         let names = match &names {
-            Some(names) => names.0.to_strings(ctx, &transforms)?,
-            None => const { &HpsOrbitNames::EMPTY }.to_strings(ctx, &[])?,
+            Some(names) => names.0.to_opt_strings(ctx, &transforms)?,
+            None => const { &HpsOrbitNames::EMPTY }.to_opt_strings(ctx, &[])?,
         }
         .chain(std::iter::repeat(None));
 
@@ -197,26 +197,26 @@ impl HpsAxisSystem {
     }
 }
 
-pub enum RefOrMutexGuard<'a, T> {
-    Ref(&'a T),
+pub enum ArcOrMutexGuard<'a, T> {
+    Arc(Arc<T>),
     MappedMutexGuard(MappedMutexGuard<'a, T>),
 }
-impl<'a, T> Deref for RefOrMutexGuard<'a, T> {
+impl<'a, T> Deref for ArcOrMutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            RefOrMutexGuard::Ref(r) => r,
-            RefOrMutexGuard::MappedMutexGuard(g) => g,
+            ArcOrMutexGuard::Arc(r) => r,
+            ArcOrMutexGuard::MappedMutexGuard(g) => g,
         }
     }
 }
-impl<'a, T> From<&'a T> for RefOrMutexGuard<'a, T> {
-    fn from(value: &'a T) -> Self {
-        Self::Ref(value)
+impl<'a, T> From<Arc<T>> for ArcOrMutexGuard<'a, T> {
+    fn from(value: Arc<T>) -> Self {
+        Self::Arc(value)
     }
 }
-impl<'a, T> From<MappedMutexGuard<'a, T>> for RefOrMutexGuard<'a, T> {
+impl<'a, T> From<MappedMutexGuard<'a, T>> for ArcOrMutexGuard<'a, T> {
     fn from(value: MappedMutexGuard<'a, T>) -> Self {
         Self::MappedMutexGuard(value)
     }

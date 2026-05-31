@@ -1,3 +1,7 @@
+//! for testing dimension icons
+
+if true { return }
+
 for d in 2..=7 {
     add_puzzle(
         id = "${d}d_demo",

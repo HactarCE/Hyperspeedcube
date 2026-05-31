@@ -1,0 +1,24 @@
+use * from euclid
+
+add_puzzle_generator(
+    id = "icosa_antiprism",
+    version = "0.1.0",
+    engine = "euclid",
+    ndim = 4,
+    params = [],
+    gen = fn() {
+        export build = fn() {
+            with #sym = cd([4,3]) {
+                carve(plane(vec(0,0,0,1))) // icosahedron
+                carve(plane(vec(1,1,1,0))) // triangular gyroprism
+                carve(plane(vec(36,18,0,9) / 21)) // sphenoid
+                carve(plane(vec(2,0,0,0))) // disphenoid
+
+                // carve(plane(#sym.oox.unit))
+                // carve(plane(vec(0,0,0,-1)))
+                // ax = add_axis(#sym.)
+                // ax.add_twist()
+            }
+        }
+    }
+)

@@ -52,8 +52,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 }
 
 impl HpsPuzzle {
-    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<&'a Self> {
-        ctx.scope.special.puz.as_ref()
+    pub fn get(ctx: &EvalCtx<'_>) -> Result<Self> {
+        ctx.scope.special.puz.lock().as_ref().cloned()
     }
 
     fn impl_field_get(

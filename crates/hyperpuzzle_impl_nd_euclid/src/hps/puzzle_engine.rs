@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eyre::Context;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::prelude::*;
@@ -81,11 +82,17 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
 
                 let mut scope = Scope::default();
                 scope.special.ndim = Some(ndim);
-                scope.special.puz = HpsPuzzle(builder.clone()).at(BUILTIN_SPAN);
-                scope.special.shape = HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN);
-                scope.special.twists =
-                    HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN);
-                scope.special.axes = HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN);
+                scope.special.puz =
+                    Arc::new(Mutex::new(HpsPuzzle(builder.clone()).at(BUILTIN_SPAN)));
+                scope.special.shape = Arc::new(Mutex::new(
+                    HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN),
+                ));
+                scope.special.twists = Arc::new(Mutex::new(
+                    HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+                ));
+                scope.special.axes = Arc::new(Mutex::new(
+                    HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+                ));
                 scope.special.id = Some(id.to_string().into());
                 let scope = Arc::new(scope);
 
@@ -101,11 +108,8 @@ impl hyperpuzzlescript::EngineCallback<Puzzle> for HpsNdEuclid {
                     };
                     build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
-                        .map_err(|e| {
-                            ctx.runtime
-                                .report_and_convert_to_eyre(e)
-                                .wrap_err("error building puzzle")
-                        })?;
+                        .map_err(|e| ctx.runtime.report_and_convert_to_eyre(e))
+                        .wrap_err("error building puzzle")?;
 
                     let b = builder.lock();
 

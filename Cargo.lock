@@ -2934,6 +2934,7 @@ dependencies = [
  "hypershape",
  "hypuz_notation",
  "hypuz_util",
+ "indexmap",
  "itertools 0.14.0",
  "parking_lot",
  "rand 0.10.1",

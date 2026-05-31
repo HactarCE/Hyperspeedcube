@@ -6,10 +6,23 @@ use std::fmt;
 use std::sync::Arc;
 
 use eyre::{Context, eyre};
+use hypergroup::{AbbrGenSeq, GenSeq};
+use hypermath::Vector;
+use hypermath::pga::Motor;
 use hyperpuzzle_core::CatalogBuilder;
 use hyperpuzzle_core::catalog::{Menu, MenuContent};
-use hyperpuzzlescript::{Builtins, ErrorExt, FnValue, ListOf, Map, Spanned, Str, hps_fns};
+use hyperpuzzle_impl_nd_euclid::hps::HpsOrbitNames;
+use hyperpuzzlescript::util::pop_map_key;
+use hyperpuzzlescript::{
+    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, ListOf, Map, Spanned, Str, Value,
+    ValueData, hps_fns,
+};
 use parking_lot::Mutex;
+
+mod puzzle_engine;
+mod twist_system_engine;
+
+pub use puzzle_engine::PuzzleProductBuildFn;
 
 /// Hyperpuzzlescript interface for the symmetric puzzle engine.
 pub struct HpsSymmetric;
@@ -80,4 +93,34 @@ pub fn define_in(
             ctx.warn(format!("adding color override for {id_pattern:?}"));
         }
     ])
+}
+
+fn named_orbit_from_value(
+    ctx: &mut EvalCtx<'_>,
+    generators: &[(GenSeq, Motor)],
+    value: Value,
+) -> hyperpuzzlescript::Result<Vec<(Vector, String, AbbrGenSeq)>> {
+    let mut map = value.as_ref::<Map>()?.clone();
+
+    let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
+    let orbit_names: HpsOrbitNames = pop_map_key(&mut map, value.span, "names")?;
+
+    let mut vectors = vec![];
+    let mut gen_seqs = vec![];
+    let mut transforms = vec![];
+    for (gen_seq, motor, v) in hypergroup::orbit_geometric_with_gen_seq(generators, init_vector) {
+        vectors.push(v);
+        gen_seqs.push(gen_seq);
+        transforms.push(motor);
+    }
+    let names = orbit_names.to_strings(ctx, &transforms)?;
+
+    Ok(itertools::izip!(vectors, names, gen_seqs).collect())
+}
+
+fn new_hps_list() -> Value {
+    ValueData::List(Arc::new(vec![])).at(BUILTIN_SPAN)
+}
+fn new_hps_map() -> Value {
+    ValueData::Map(Arc::new(Map::new())).at(BUILTIN_SPAN)
 }

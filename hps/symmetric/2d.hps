@@ -1,17 +1,150 @@
-layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
-edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 49 }
+GIZMO_VERTEX_FACTOR = 2/3
 
-fn carve_polygon(n: Nat) -> Map {
-    #puz.shape = @shapes/2d/polygon.new(n)
-    #puz.colors = "ngon(${n})"
-    carve(shape.edge_pole, shape.edge_names)
-}
+layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
+edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 50 }
 
-fn cut_ft_polygon(shape: Map, cut_distances: List[Num]) {
-    ax = add_axis(shape.edge_pole, shape.edge_names, cut_distances)
-    add_pseudo_axis(shape.vertex_pole.unit, shape.vertex_names)
-    add_axis_pair(ax, sym.thru(0).transform(ax))
-}
+add_twist_system_generator(
+    id = "ngon_ft",
+    name = "FT Polygon",
+    params = [@shapes/2d/polygon.edges_param],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n) {
+        export name = "FT ${@shapes/2d/polygon.name(n)}"
+        export fn build() {
+            shape = @shapes/2d/polygon.new(n)
+            @util.build_symmetric_ft_twists(shape)
+            #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2]]
+            #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+        }
+    },
+)
+
+add_twist_system_generator(
+    id = "ngon_ft_vt",
+    name = "FT+VT Polygon",
+    params = [@shapes/2d/polygon.edges_param],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n) {
+        export name = "FT+VT ${@shapes/2d/polygon.name(n)}"
+        export fn build() {
+            shape = @shapes/2d/polygon.new(n)
+            @util.build_symmetric_ft_twists(shape)
+            #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2]]
+            #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+        }
+    },
+)
+
+add_puzzle_generator(
+    id = "triangle_shallow",
+    name = "FT Triangle (Shallow)",
+    version = "0.1.0",
+    params = [edge_divisions_param],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(divisions) { "ngon_shallow(3,${divisions})" },
+)
+
+add_puzzle_generator(
+    id = "square_layered",
+    name = "FT Square",
+    version = "0.1.0",
+    params = [layers_param],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(layers) { "ngon_layered(4,${layers})" }
+)
+
+add_puzzle_generator(
+    id = "triangle_layered",
+    name = "FT Triangle (Layered)",
+    version = "0.1.0",
+    params = [layers_param],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(layers) { "ngon_layered(3, ${layers})" },
+)
+
+add_puzzle_generator(
+    id = "ngon",
+    name = "Polygon",
+    version = "0.1.0",
+    params = [#{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n) {
+        export name = "${@shapes/2d/polygon.name(n)}"
+        export colors = "ngon(${n})"
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
+            #twists.sym = #shape.sym
+        }
+    },
+)
+
+add_puzzle_generator(
+    id = "ngon_ft_shallow",
+    name = "FT Polygon (Shallow-Cut)",
+    version = "0.1.0",
+    params = [
+        #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
+        edge_divisions_param,
+    ],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n, divisions) {
+        export name = "{${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" }
+        export colors = "ngon(${n})"
+        export twists = "shallow_ngon(${n})"
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
+            #puz.layers.A = @shapes/2d/polygon.new(n).shallow_cut_depths(divisions)
+        }
+    },
+)
+
+add_puzzle_generator(
+    id = "ngon_ft_deep",
+    name = "FT Polygon (Deep-Cut)",
+    version = "0.1.0",
+    params = [
+        #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
+        layers_param,
+    ],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n, layers) {
+        export name = "Deep {${n}}" ++ if layers == 3 { "" } else { " ${layers}" }
+        export colors = "ngon(${n})"
+        export twists = "shallow_ngon(${n})"
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
+            #puz.layers.A = @shapes/2d/polygon.new(n).full_cut_depths(layers)
+        }
+    },
+)
+
+add_puzzle_generator(
+    id = "ngon_half",
+    name = "FT Polygon (Half-Cut)",
+    version = "0.1.0",
+    params = [
+        #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
+    ],
+    engine = "symmetric",
+    ndim = 2,
+    gen = fn(n) {
+        export name = "Half-Cut {${n}}"
+        export colors = "ngon(${n})"
+        export twists = "shallow_ngon(${n})"
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
+            #puz.layers.A = [∞, 0, -∞]
+        }
+    },
+)
 
 add_menu_entry(
     path = "2D|Triangle",
@@ -21,14 +154,14 @@ add_menu_entry(
 
 add_menu_entry(
     path = "2D|Triangle|Shallow",
-    id = "ft_triangle",
+    id = "triangle_shallow",
     // params = [layers_param],
     // build = fn(layers) { "ngon(3, ${layers})" },
 )
 
 add_menu_entry(
     path = "2D|Triangle|Triminx",
-    id = "triminx",
+    id = "triangle_layered",
     // params = [layers_param],
     // build = fn(layers) {
     //     export * from carve_polygon(3)
@@ -39,7 +172,7 @@ add_menu_entry(
 add_menu_entry(
     path = "2D|Square",
     priority = -4,
-    id = "square",
+    id = "square_layered",
     // params = [layers_param],
     // build = fn() { "ngon(4, ${layers})" },
 )
@@ -48,15 +181,26 @@ add_menu_entry(
     path = "2D|Polygon",
     priority = -5,
     default = true,
-    id = "ft_ngon",
-    // params = [
-    //     #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 },
-    //     edge_divisions_param,
-    // ],
-    // build = fn(n, layers) {
-    //     export * from carve_polygon(n)
-    //     export * from cut_ft_polygon(#puz.shape, #puz.shape.shallow_cut_depths(layers))
-    // },
+    next_inline = "Depth"
+)
+
+add_menu_entry(
+    path = "2D|Polygon|Shallow",
+    priority = 3,
+    default = true,
+    id = "ngon_shallow",
+)
+
+add_menu_entry(
+    path = "2D|Polygon|Deep",
+    priority = 2,
+    id = "ngon_deep",
+)
+
+add_menu_entry(
+    path = "2D|Polygon|Layered",
+    priority = 1,
+    id = "ngon_layered",
 )
 
 export fn ngon_colors(n, *, prefix = "", seq = "Rainbow") -> List[Map] {
@@ -67,5 +211,3 @@ export fn ngon_colors(n, *, prefix = "", seq = "Rainbow") -> List[Map] {
         }
     })
 }
-
-add_colors_override("ngon(?)", ngon_colors)

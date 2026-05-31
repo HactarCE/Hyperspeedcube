@@ -64,6 +64,7 @@ pub fn strip_opposite_axis_prefix(s: &str) -> (Opposite, &str) {
 /// This is `0` for the original axis (represented using an empty string) and
 /// `1` for the opposite axis (represented using `β`). Puzzles with additional
 /// opposites, such as the Klein Quartic, should use higher numbers.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Opposite(pub u32);
 
 impl fmt::Display for Opposite {
@@ -99,7 +100,7 @@ impl FromStr for Opposite {
 /// - ...
 /// - 285 = `Ωz`
 /// - 286 = `ΓΓa`
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SequentialLowercaseName(pub u32);
 
 impl SequentialLowercaseName {
@@ -144,7 +145,7 @@ impl FromStr for SequentialLowercaseName {
 /// - ...
 /// - 285 = `ΩZ`
 /// - 286 = `ΓΓA`
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SequentialUppercaseName(pub u32);
 
 impl SequentialUppercaseName {
@@ -203,7 +204,7 @@ fn parse_sequential_name(
 /// - ...
 /// - 110 = `ΩΩ`
 /// - 111 = `ΓΓΓ`
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct UppercaseGreekPrefix(pub u32);
 
 impl fmt::Display for UppercaseGreekPrefix {

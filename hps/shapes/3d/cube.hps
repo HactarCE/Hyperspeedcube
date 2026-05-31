@@ -15,43 +15,53 @@ export fn new(t: Transform) -> Map {
     export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("bc3"))
 
-    export facet_pole = sym.oox.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        F = [],
-        U = [2, "F"],
-        R = [1, "U"],
-        L = [0, "R"],
-        D = [1, "L"],
-        B = [2, "D"],
-    })
+    export face = #{
+        vector = sym.oox.unit,
+        names = sym.names(point(sym.oox), #{
+            F = [],
+            U = [2, "F"],
+            R = [1, "U"],
+            L = [0, "R"],
+            D = [1, "L"],
+            B = [2, "D"],
+        }),
+    }
 
-    export edge_pole = sym.oxo.unit * √2
-    export edge_names = sym.names(point(edge_pole), #{
-        "{FU}" = [],
-        "{FR}" = [1, "FU"],
-        "{FL}" = [0, "FR"],
-        "{FD}" = [1, "FL"],
-        "{UR}" = [2, "FR"],
-        "{UL}" = [2, "FL"],
-        "{DR}" = [1, "UL"],
-        "{DL}" = [0, "DR"],
-        "{BU}" = [2, "FD"],
-        "{BR}" = [1, "BU"],
-        "{BL}" = [0, "BR"],
-        "{BD}" = [1, "BL"],
-    })
+    export edge = #{
+        vector = sym.oxo.unit * √2,
+        names = sym.names(point(sym.oxo), #{
+            "{FU}" = [],
+            "{FR}" = [1, "FU"],
+            "{FL}" = [0, "FR"],
+            "{FD}" = [1, "FL"],
+            "{UR}" = [2, "FR"],
+            "{UL}" = [2, "FL"],
+            "{DR}" = [1, "UL"],
+            "{DL}" = [0, "DR"],
+            "{BU}" = [2, "FD"],
+            "{BR}" = [1, "BU"],
+            "{BL}" = [0, "BR"],
+            "{BD}" = [1, "BL"],
+        })
+    }
 
-    export vertex_pole = sym.xoo.unit * √3
-    export vertex_names = sym.names(point(vertex_pole), #{
-        "{FUR}" = [],
-        "{FUL}" = [0, "FUR"],
-        "{FDR}" = [1, "FUL"],
-        "{FDL}" = [0, "FDR"],
-        "{BUR}" = [2, "FDR"],
-        "{BUL}" = [2, "FDL"],
-        "{BDR}" = [1, "BUL"],
-        "{BDL}" = [0, "BDR"],
-    })
+    export vertex = #{
+        vector = sym.xoo.unit * √3,
+        names = sym.names(point(sym.xoo), #{
+            "{FUR}" = [],
+            "{FUL}" = [0, "FUR"],
+            "{FDR}" = [1, "FUL"],
+            "{FDL}" = [0, "FDR"],
+            "{BUR}" = [2, "FDR"],
+            "{BUL}" = [2, "FDL"],
+            "{BDR}" = [1, "BUL"],
+            "{BDL}" = [0, "BDR"],
+        })
+    }
+
+    export facet = face
+    export ridge = edge
+    export peak = vertex
 }
 
 export facet_colors_list = [
@@ -62,48 +72,48 @@ export facet_colors_list = [
     #{name = "F", display = "Front"},
     #{name = "B", display = "Back"},
 ]
-add_color_system(
-    id = facet_colors,
-    name = name,
-    colors = facet_colors_list,
+// add_color_system(
+//     id = facet_colors,
+//     name = name,
+//     colors = facet_colors_list,
 
-    schemes = [
-        ["Western", #{
-            R = "Red",
-            L = "Orange",
-            U = "White",
-            D = "Yellow",
-            F = "Green",
-            B = "Blue",
-        }],
-        ["Japanese", #{
-            R = "Red",
-            L = "Orange",
-            U = "White",
-            D = "Blue",
-            F = "Green",
-            B = "Yellow",
-        }],
-    ],
-    default = "Western",
-)
+//     schemes = [
+//         ["Western", #{
+//             R = "Red",
+//             L = "Orange",
+//             U = "White",
+//             D = "Yellow",
+//             F = "Green",
+//             B = "Blue",
+//         }],
+//         ["Japanese", #{
+//             R = "Red",
+//             L = "Orange",
+//             U = "White",
+//             D = "Blue",
+//             F = "Green",
+//             B = "Yellow",
+//         }],
+//     ],
+//     default = "Western",
+// )
 
-add_puzzle(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    colors = facet_colors,
-    engine = "euclid",
-    ndim = ndim,
-    build = fn() {
-        use sym, facet_pole, facet_names from new()
-        with #sym = sym { carve(plane(facet_pole), facet_names) }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = shape_tag,
-    },
-)
+// add_puzzle(
+//     id = id,
+//     version = "1.0.0",
+//     name = name,
+//     aliases = aliases,
+//     colors = facet_colors,
+//     engine = "euclid",
+//     ndim = ndim,
+//     build = fn() {
+//         use sym, facet_pole, facet_names from new()
+//         with #sym = sym { carve(plane(facet_pole), facet_names) }
+//     },
+//     tags = #{
+//         schema = 1,
+//         type = "solid",
+//         stable = "2.0.0",
+//         shape = shape_tag,
+//     },
+// )

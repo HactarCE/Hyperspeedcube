@@ -1,0 +1,70 @@
+use * from euclid
+
+export id = "24cell"
+export name = "24-Cell"
+export adjective = "4-Cellic"
+export aliases = []
+export facet_colors = id
+export ndim = 4
+export shape_tag = "4d/platonic/24cell"
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
+    export sym = t.transform(cd("f4"))
+
+    export facet = #{
+        vector = sym.ooox.unit,
+        names = sym.names(point(sym.ooox), #{
+            A = [],
+            B = [3, "A"],
+            C = [2, "B"],
+            D = [1, "C"],
+            E = [0, "D"],
+            F = [2, "D"],
+            G = [2, "E"],
+            H = [3, "F"],
+            I = [1, "G"],
+            J = [3, "G"],
+            K = [2, "I"],
+            L = [3, "I"],
+            M = [3, "K"],
+            N = [2, "L"],
+            O = [2, "M"],
+            P = [1, "N"],
+            Q = [1, "O"],
+            R = [0, "P"],
+            S = [0, "Q"],
+            T = [2, "Q"],
+            U = [2, "S"],
+            V = [1, "U"],
+            W = [2, "V"],
+            X = [3, "W"],
+        }),
+    }
+}
+
+add_puzzle_generator(
+    id = id,
+    version = "1.0.0",
+    name = name,
+    aliases = aliases,
+    // colors = facet_colors,
+    engine = "euclid",
+    ndim = ndim,
+    params = [],
+    gen = fn() {
+        export build = fn() {
+            use sym, facet from new()
+            with #sym = sym { carve(plane(facet.vector), facet.names) }
+        }
+    },
+    tags = #{
+        schema = 1,
+        type = "solid",
+        stable = "2.0.0",
+        shape = shape_tag,
+    },
+)

@@ -40,6 +40,6 @@ impl EvalRequestTx {
             .expect("error sending request to HPS thread");
         result_rx
             .recv()
-            .expect("error received result from HPS thread")
+            .expect("error receiving result from HPS thread")
     }
 }

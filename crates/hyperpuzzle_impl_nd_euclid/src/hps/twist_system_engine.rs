@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eyre::Context;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::prelude::*;
@@ -43,12 +44,14 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
 
                 let mut scope = Scope::default();
                 scope.special.ndim = Some(ndim);
-                scope.special.twists =
+                scope.special.twists = Arc::new(Mutex::new(
                     HpsTwistSystem(TwistSystemBuilder(MaybeAdHoc::AdHoc(builder.clone())))
-                        .at(BUILTIN_SPAN);
-                scope.special.axes =
+                        .at(BUILTIN_SPAN),
+                ));
+                scope.special.axes = Arc::new(Mutex::new(
                     HpsAxisSystem(TwistSystemBuilder(MaybeAdHoc::AdHoc(builder.clone())))
-                        .at(BUILTIN_SPAN);
+                        .at(BUILTIN_SPAN),
+                ));
                 scope.special.id = Some(id.to_string().into());
                 let scope = Arc::new(scope);
 
@@ -64,11 +67,8 @@ impl hyperpuzzlescript::EngineCallback<TwistSystem> for HpsNdEuclid {
                     };
                     let exports = build_fn
                         .call(build_span, &mut ctx, vec![], Map::new())
-                        .map_err(|e| {
-                            ctx.runtime
-                                .report_and_convert_to_eyre(e)
-                                .wrap_err("error building twist system")
-                        })?;
+                        .map_err(|e| ctx.runtime.report_and_convert_to_eyre(e))
+                        .wrap_err("error building twist system")?;
 
                     let mut b = builder.lock();
                     if let Ok(exports_map) = exports.to::<Arc<Map>>() {

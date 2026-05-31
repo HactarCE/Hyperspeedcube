@@ -17,7 +17,7 @@ impl NdEuclidSimState {
         let geom = puzzle.components.get::<NdEuclidPuzzleGeometry>().ok()?;
 
         Some(Self {
-            geom: Arc::clone(geom),
+            geom,
             partial_twist_drag_state: None,
         })
     }

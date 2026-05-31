@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use ecow::EcoString;
+use parking_lot::Mutex;
 
 use crate::{Result, Value, ast};
 
@@ -12,13 +15,13 @@ pub struct SpecialVariables {
     pub sym: Value,
 
     /// Active puzzle.
-    pub puz: Value,
+    pub puz: Arc<Mutex<Value>>,
     /// Active shape.
-    pub shape: Value,
+    pub shape: Arc<Mutex<Value>>,
     /// Active twist system.
-    pub twists: Value,
+    pub twists: Arc<Mutex<Value>>,
     /// Active axis system.
-    pub axes: Value,
+    pub axes: Arc<Mutex<Value>>,
 
     /// Generator or puzzle ID.
     pub id: Option<EcoString>,
@@ -30,10 +33,10 @@ impl SpecialVariables {
             ast::SpecialVar::Ndim => self.ndim = value.to()?,
             ast::SpecialVar::Sym => self.sym = value,
 
-            ast::SpecialVar::Puz => self.puz = value,
-            ast::SpecialVar::Shape => self.shape = value,
-            ast::SpecialVar::Twists => self.twists = value,
-            ast::SpecialVar::Axes => self.axes = value,
+            ast::SpecialVar::Puz => self.puz = Arc::new(Mutex::new(value)),
+            ast::SpecialVar::Shape => self.shape = Arc::new(Mutex::new(value)),
+            ast::SpecialVar::Twists => self.twists = Arc::new(Mutex::new(value)),
+            ast::SpecialVar::Axes => self.axes = Arc::new(Mutex::new(value)),
 
             ast::SpecialVar::Id => self.id = value.to()?,
         }

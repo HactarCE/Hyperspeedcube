@@ -158,11 +158,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 impl HpsOrbitNames {
     pub const EMPTY: Self = Self { components: vec![] };
 
-    pub fn to_strings(
-        &self,
-        ctx: &mut EvalCtx<'_>,
-        transforms: &[Motor],
-    ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
+    pub fn to_strings(&self, ctx: &mut EvalCtx<'_>, transforms: &[Motor]) -> Result<Vec<String>> {
         let span = ctx.caller_span;
         let mut strings = vec![String::new(); transforms.len()];
         for &(ref offset, (ref component, component_span)) in &self.components {
@@ -224,12 +220,23 @@ impl HpsOrbitNames {
                 }
             }
         }
-        Ok(strings.into_iter().map(|s| (!s.is_empty()).then_some(s)))
+        Ok(strings)
+    }
+
+    pub fn to_opt_strings(
+        &self,
+        ctx: &mut EvalCtx<'_>,
+        transforms: &[Motor],
+    ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
+        Ok(self
+            .to_strings(ctx, transforms)?
+            .into_iter()
+            .map(|s| (!s.is_empty()).then_some(s)))
     }
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum HpsOrbitNamesComponent {
+pub enum HpsOrbitNamesComponent {
     Str(Str),
     Axis(HpsAxis),
     Cosets(Arc<Mutex<LazyCosetMap>>),

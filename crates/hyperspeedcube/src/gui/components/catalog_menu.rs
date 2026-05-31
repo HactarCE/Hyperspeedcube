@@ -49,7 +49,8 @@ impl PuzzleCatalogMenuUi {
 
     fn set_menu_path_from_puzzle_id(&mut self) {
         if let Some(menu) = hyperpuzzle::catalog().menus.get(self.menu_id.as_str())
-            && let Some(menu_path) = menu.puzzle_id_to_path(&self.puzzle_id)
+            && let Ok(puzzle_id) = self.puzzle_id.parse::<CatalogId>()
+            && let Some(menu_path) = menu.puzzle_id_to_path(&puzzle_id.base)
         {
             self.menu_path = menu_path.to_string();
         }

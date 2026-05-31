@@ -66,7 +66,7 @@ pub struct AdHocColorSystemBuilder {
     pub names: NameSpecBiMapBuilder<Color>,
     /// Color display names.
     pub display_names: PerColor<Option<String>>,
-    /// Autoamtic names to use if the user doesn't specify any.
+    /// Automatic names to use if the user doesn't specify any.
     autonames: AutoNames,
 
     /// Color schemes.

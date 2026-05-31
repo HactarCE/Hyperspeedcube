@@ -107,6 +107,8 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     rt.with_builtins(hyperpuzzle_impl_nd_euclid::hps::define_in)
         .expect("error defining HPS euclid built-ins");
 
+    rt.register_puzzle_engine(Arc::new(hyperpuzzle_impl_symmetric::hps::HpsSymmetric));
+    rt.register_twist_system_engine(Arc::new(hyperpuzzle_impl_symmetric::hps::HpsSymmetric));
     rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))
         .expect("error defining HPS symmetric built-ins");
     hyperpuzzle_impl_symmetric::add_puzzles_to_catalog(catalog)

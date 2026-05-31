@@ -15,21 +15,23 @@ export fn new(t: Transform) -> Map {
     export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("h3"))
 
-    export facet_pole = sym.oox.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        F = [],
-        U = [2, "F"],
-        R = [1, "U"],
-        L = [0, "R"],
-        DR = [1, "L"],
-        DL = [0, "DR"],
-        BR = [2, "DR"],
-        BL = [2, "DL"],
-        PR = [1, "BL"],
-        PL = [0, "PR"],
-        PD = [1, "PL"],
-        PB = [2, "PD"],
-    })
+    export facet = #{
+        vector = sym.oox.unit,
+        names = sym.names(point(sym.oox), #{
+            F = [],
+            U = [2, "F"],
+            R = [1, "U"],
+            L = [0, "R"],
+            DR = [1, "L"],
+            DL = [0, "DR"],
+            BR = [2, "DR"],
+            BL = [2, "DL"],
+            PR = [1, "BL"],
+            PL = [0, "PR"],
+            PD = [1, "PL"],
+            PB = [2, "PD"],
+        }),
+    }
 }
 
 export facet_colors_list = [

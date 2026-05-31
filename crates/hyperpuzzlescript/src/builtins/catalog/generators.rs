@@ -111,13 +111,8 @@ impl HpsGenerator {
             scope.special.id = Some(self.generated_id(param_values.clone())?);
             let scope = Arc::new(scope);
 
-            let mut ctx = EvalCtx {
-                scope: &scope,
-                runtime,
-                caller_span: self.def_span,
-                exports: &mut None,
-                stack_depth: 0,
-            };
+            let mut _exports = None;
+            let mut ctx = EvalCtx::new(&scope, runtime, self.def_span, &mut _exports);
 
             let expected = self.params.len();
             let got = param_values.len();

@@ -91,6 +91,12 @@ impl Value {
         }
     }
 
+    /// Takes ownership of the value and returns an array from a List, or an
+    /// error if the value is not an array of the correct length,.
+    pub fn to_array<const N: usize>(self) -> Result<[Value; N]> {
+        self.to()
+    }
+
     /// Returns whether the value is the given type.
     pub fn is<T: ?Sized>(&self) -> bool
     where

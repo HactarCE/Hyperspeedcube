@@ -146,7 +146,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                             .into_iter()
                             .map(|(_gen_seq, motor, vector)| (motor, vector))
                             .unzip();
-                        let names = names.0.to_strings(ctx, &transforms)?;
+                        let names = names.0.to_opt_strings(ctx, &transforms)?;
                         for (vector, name) in std::iter::zip(vectors, names) {
                             let id = reference_vectors.push(vector).at(span)?;
                             reference_vector_names.set(id, name).at(span)?;
@@ -338,8 +338,8 @@ impl HpsTwistSystem {
         }
     }
 
-    pub fn get<'a>(ctx: &EvalCtx<'a>) -> Result<&'a Self> {
-        ctx.scope.special.twists.as_ref()
+    pub fn get(ctx: &EvalCtx<'_>) -> Result<Self> {
+        ctx.scope.special.twists.lock().as_ref().cloned()
     }
 
     fn impl_field_get(
@@ -355,8 +355,7 @@ impl HpsTwistSystem {
                         .components
                         .get::<HpsExports>()
                         .ok()
-                        .and_then(|m| m.get(field))
-                        .cloned(),
+                        .and_then(|m| m.get(field).cloned()),
                     MaybeAdHoc::AdHoc(a) => a.lock().hps_exports.get(field).cloned(),
                 };
                 if let Some(v) = exported_value {
@@ -535,8 +534,8 @@ impl HpsTwistSystem {
                     .map(|(_gen_seq, transform, orbit_element)| (transform, orbit_element))
                     .unzip();
 
-                drop(twists); // unlock mutex before `to_strings()`
-                let names = names.to_strings(ctx, &transforms)?;
+                drop(twists); // unlock mutex before `to_opt_strings()`
+                let names = names.to_opt_strings(ctx, &transforms)?;
                 let mut twists = self.lock_ad_hoc().at(span)?;
 
                 for (key, name) in std::iter::zip(orbit_elements, names) {
@@ -552,7 +551,7 @@ impl HpsTwistSystem {
                 }
             }
             None => {
-                let mut names = names.to_strings(ctx, &[Motor::ident(ctx.ndim()?)])?;
+                let mut names = names.to_opt_strings(ctx, &[Motor::ident(ctx.ndim()?)])?;
                 let mut twists = self.lock_ad_hoc().at(span)?;
                 first_twist = Some(
                     twists

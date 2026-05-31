@@ -126,3 +126,11 @@ pub fn zeta12_generated_id(
 pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     numeric_sort::cmp(a, b)
 }
+
+/// Returns the ID for an ad-hoc color system or twist system.
+pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
+    CatalogId {
+        base: "ad_hoc".into(),
+        args: vec![puzzle_id.into()],
+    }
+}

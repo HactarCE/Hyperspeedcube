@@ -4,41 +4,24 @@ add_menu_entry(
     path = "1D|Line",
     default = true,
     id = "line",
-    params = [layers_param],
-    build = fn(layers) {
-        export shape = @shapes/1d/line.new()
-        export colors = "line"
-        carve(shape.vertex_pole, shape.vertex_names)
-        add_axis(shape.vertex_pole, shape.vertex_names, @util/layers.inclusive(layers))
-    },
 )
 
-add_colors_override("line", fn() {
-    [
-        #{ name = "A", default = "Red" },
-        #{ name = "B", default = "Blue" },
-    ]
-})
+@util.add_symmetric_ft_twist_system(@shapes/1d/line)
 
-add_puzzle(
-    id = "line",
-    version = "1.0.0",
-    engine = "symmetric",
-    ndim = 1,
-    twists = "line",
-    colors = "line",
-    build = fn() {
-
-    },
-)
-
-add_twist_system(
+add_puzzle_generator(
     id = "line",
     name = "Line",
-    engine = "line",
+    version = "0.1.0",
+    params = [layers_param],
+    engine = "symmetric",
     ndim = 1,
-    build = fn() {
-        #twists.shape = @shapes/1d/line.new()
-        #axes.vertex = add_axis(#twists.shape.vertex_pole, #twists.shape.vertex_names)
-    },
+    colors = "line",
+    twists = "line",
+    gen = fn(layers) {
+        export name = "{}" ++ if layers == 3 { "" } else { " ${layers}" }
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/1d/line.new())
+            #puz.layers.A = @util/layers.inclusive(layers)
+        }
+    }
 )

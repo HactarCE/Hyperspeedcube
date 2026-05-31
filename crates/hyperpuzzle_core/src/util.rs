@@ -11,6 +11,7 @@ use rand::SeedableRng;
 use sha2::Digest;
 
 use crate::catalog::CatalogObject;
+use crate::{Component, MissingComponent};
 
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
@@ -175,6 +176,20 @@ impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
     {
         match self {
             MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<F>()),
+            MaybeAdHoc::AdHoc(a) => Ok(a),
+        }
+    }
+
+    /// Returns a reference to the ad-hoc builder if it is one, or the
+    /// corresponding component of the catalog object otherwise.
+    ///
+    /// Returns an error if the component is not present.
+    pub fn as_ad_hoc_or_component(&self) -> Result<&A, MissingComponent>
+    where
+        A: Component<F>,
+    {
+        match self {
+            MaybeAdHoc::Fixed(f) => f.components().get_ref(),
             MaybeAdHoc::AdHoc(a) => Ok(a),
         }
     }

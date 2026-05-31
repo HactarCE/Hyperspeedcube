@@ -20,9 +20,7 @@ impl<I: TypedIndex> NameBiMap<I> {
         let lift_a = |i: I| i;
         let lift_b = |i: I| I::try_from_index(i.to_index() + a.len()).expect("overflow");
         Self {
-            id_to_name: std::iter::chain(a.id_to_name.iter_values(), b.id_to_name.iter_values())
-                .cloned()
-                .collect(),
+            id_to_name: crate::chain_cloned(a.id_to_name.iter_values(), b.id_to_name.iter_values()),
             name_to_id: std::iter::chain(
                 a.name_to_id
                     .iter()

@@ -30,11 +30,11 @@ use axis::{HpsAxis, axis_from_vector, transform_axis};
 use axis_system::HpsAxisSystem;
 use color::HpsColor;
 use layer_mask::HpsLayerMask;
-use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
+pub use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
 use puzzle::HpsPuzzle;
 use region::HpsRegion;
 use shape::HpsShape;
-use symmetry::HpsSymmetry;
+pub use symmetry::HpsSymmetry;
 use twist::HpsTwist;
 use twist_system::{GeometricTwistKey, HpsTwistSystem};
 
