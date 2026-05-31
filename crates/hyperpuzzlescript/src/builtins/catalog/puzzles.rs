@@ -104,6 +104,13 @@ pub fn define_in(
             )
             .at(ctx.caller_span)?;
 
+            // Add `#ndim` tag.
+            if let Some(v) = kwargs.get("ndim")
+                && let Ok(i) = v.ref_to::<u8>()
+            {
+                tags.set_ndim(i as i64);
+            }
+
             let tx = tx.clone();
             let hps_gen = super::generators::HpsGenerator {
                 def_span: ctx.caller_span,

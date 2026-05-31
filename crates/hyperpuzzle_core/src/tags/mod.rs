@@ -64,6 +64,11 @@ impl From<bool> for TagValue {
         }
     }
 }
+impl From<i64> for TagValue {
+    fn from(value: i64) -> Self {
+        Self::Int(value)
+    }
+}
 impl TagValue {
     /// Returns the value if it is an integer, or `None` otherwise.
     pub fn as_int(&self) -> Option<i64> {

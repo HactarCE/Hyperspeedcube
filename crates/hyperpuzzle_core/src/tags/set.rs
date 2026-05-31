@@ -128,6 +128,11 @@ impl TagSet {
             self.set_twist_system(id);
         }
     }
+    /// Sets the `ndim` tag.
+    pub fn set_ndim(&mut self, value: impl Into<TagValue>) {
+        self.insert_named("ndim", value.into())
+            .expect("ndim tag does not exist")
+    }
 
     /// Returns an entry in the map.
     pub fn entry(&mut self, tag: &TagData) -> hash_map::Entry<'_, Arc<str>, TagValue> {
