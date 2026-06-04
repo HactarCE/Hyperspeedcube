@@ -14,17 +14,20 @@ export fn new(t: Transform) -> Map {
     export id, name, adjective, aliases, facet_colors, ndim
     export sym = t.transform(cd("bc4"))
 
-    export facet_pole = sym.ooox.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        O = [],
-        F = [3, "O"],
-        U = [2, "F"],
-        R = [1, "U"],
-        L = [0, "R"],
-        D = [1, "L"],
-        B = [2, "D"],
-        I = [3, "B"],
-    })
+    export facet = #{
+        vector = sym.ooox.unit,
+        names = sym.names(point(sym.ooox.unit), #{
+            O = [],
+            F = [3, "O"],
+            U = [2, "F"],
+            R = [1, "U"],
+            L = [0, "R"],
+            D = [1, "L"],
+            B = [2, "D"],
+            I = [3, "B"],
+        }),
+    }
+    export cell = facet
 }
 
 export facet_colors_list = [

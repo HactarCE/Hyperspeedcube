@@ -62,7 +62,8 @@ export fn new(n: Nat, t: Transform) -> Map {
     export inradius = edge_length / (2 * tan(π/n))
     export circumradius = edge_length / (2 * sin(π/n))
     export vertex_height = inradius + if n.is_even() { inradius } else { circumradius }
-    export edge_depth = edge_length * sin(2*π/n)
+    export ft_edge_depth = edge_length * sin(2*π/n)
+    export vt_edge_depth = edge_length * sin(π/n)
 
     export edge = #{
         vector = sym.ox.unit * inradius,
@@ -70,6 +71,7 @@ export fn new(n: Nat, t: Transform) -> Map {
     }
     export vertex = #{
         vector = sym.xo.unit * circumradius,
+        names = sym.names(point(sym.xo), generic_names(n, 1, 0))
         // TODO: names?
     }
     export edge_opposite = if n.is_odd() {
@@ -86,14 +88,14 @@ export fn new(n: Nat, t: Transform) -> Map {
         if n == 3 {
             return @util/layers.even_odd(inradius, 0, layer_count) ++ [-∞]
         } else {
-            max_cut_depth = inradius - edge_depth/2
+            max_cut_depth = inradius - ft_edge_depth/2
             return @util/layers.even_odd(inradius, max_cut_depth, layer_count)
         }
     }
 
-    max_full_cut_depth = inradius - edge_depth
-    export fn full_cut_depths(layer_count: Nat) -> List[Num] {
-        @util/layers.inclusive(inradius, max_full_cut_depth, layer_count)
+    max_deep_cut_depth = inradius - ft_edge_depth
+    export fn deep_cut_depths(layer_count: Nat) -> List[Num] {
+        @util/layers.inclusive(inradius, max_deep_cut_depth, layer_count)
     }
 
     export fn layered_cut_depths(layer_count: Nat) -> List[Num] {
@@ -104,6 +106,11 @@ export fn new(n: Nat, t: Transform) -> Map {
         export fn opposite_full_cut_depths(layer_count: Nat) -> List[Num] {
             @util/layers.inclusive(-max_cut_depth, -inradius, layer_count)
         }
+    }
+
+    max_adjacent_vt_cut_depth = inradius - ft_edge_depth
+    export fn adjacent_vt_cut_depths(layer_count: Nat) -> List[Num] {
+        @util/layers.inclusive(circumradius, max_adjacent_vt_cut_depth, layer_count)
     }
 }
 

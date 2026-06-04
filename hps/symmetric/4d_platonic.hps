@@ -33,12 +33,12 @@
 //   - FT
 
 add_menu_entry(path = "4D|Platonic|4-Simplex|FVT", priority = 1, default = true, next_inline = "Depth")
-add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|A", id = "ft_4_simplex_a")
-add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|B", id = "ft_4_simplex_b")
-add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|C", id = "ft_4_simplex_c")
-add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|D", id = "ft_4_simplex_d")
-add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|Pyraminx", id = "ft_4_simplex_pyraminx")
-add_menu_entry(path = "4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "ft_hypercube")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|A", id = "4_simplex_a_ft")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|B", id = "4_simplex_b_ft")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|C", id = "4_simplex_c_ft")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|D", id = "4_simplex_d_ft")
+add_menu_entry(path = "4D|Platonic|4-Simplex|FVT|Pyraminx", id = "4_simplex_pyraminx_ft")
+add_menu_entry(path = "4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "hypercube_ft")
 add_menu_entry(path = "4D|Platonic|Hypercube|RT", priority = 3, id = "todo")
 add_menu_entry(path = "4D|Platonic|Hypercube|ET", priority = 2, id = "todo")
 add_menu_entry(path = "4D|Platonic|Hypercube|VT", priority = 1, id = "todo")
@@ -81,42 +81,49 @@ add_menu_entry(
 
 add_menu_entry(
     path = "4D|Catalan|48-Cell|FT",
-    id = "ft_48cell",
+    id = "48cell_ft",
     default = true,
 )
 add_menu_entry(
     path = "4D|Platonic|16-Cell|48-Cell",
-    id = "ft_48cell",
+    id = "48cell_ft",
 )
 add_menu_entry(
     path = "4D|Platonic|24-Cell|48-Cell",
-    id = "ft_48cell",
+    id = "48cell_ft",
 )
 add_menu_entry(
     path = "4D|Platonic|Hypercube|48-Cell",
-    id = "ft_48cell",
+    id = "48cell_ft",
 )
 
+add_twist_system(
+    id = "hypercube_ft",
+    name = "FT Hypercube",
+    engine = "symmetric",
+    ndim = 4,
+    build = fn() {
+        shape = @shapes/4d/hypercube.new()
+        @util.build_symmetric_ft_twists(shape)
+        // #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2]]
+        // #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+    }
+)
 
-// add_menu_entry(
-//     path = "4D|Catalan|48-Cell|FT",
-//     default = true,
-//     id = "ft_48cell",
-// )
-// add_menu_entry(
-//     path = "4D|Catalan|48-Cell|FT",
-//     default = true,
-//     priority = 1000,
-// )
-// add_menu_entry(
-//     path = "4D|Catalan|48-Cell|FT|16-Cell",
-//     id = "ft_48cell",
-// )
-// add_menu_entry(
-//     path = "4D|Catalan|48-Cell|FT|24-Cell",
-//     id = "ft_48cell",
-// )
-// add_menu_entry(
-//     path = "4D|Catalan|48-Cell|FT|Hypercube",
-//     id = "ft_48cell",
-// )
+add_puzzle_generator(
+    id = "hypercube_ft",
+    name = "FT Hypercube",
+    version = "0.1.0",
+    params = [#{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }],
+    engine = "symmetric",
+    ndim = 4,
+    gen = fn(layers) {
+        export name = "${layers}^4"
+        export colors = "hypercube"
+        export twists = "hypercube_ft"
+        export fn build() {
+            @util.build_symmetric_shape(@shapes/4d/hypercube.new())
+            #puz.layers.R = @util.layers.inclusive(layers)
+        }
+    },
+)
