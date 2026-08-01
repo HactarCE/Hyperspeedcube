@@ -37,7 +37,7 @@ pub fn build_3d_gizmo(
     let mut seen_axes = TiMask::new_empty(axes.len());
     for facet_id in gizmo_facets(&mut space, axes)? {
         let init_axis = *axis_from_vector
-            .get(space.get(facet_id).hyperplane()?.pole().into_vector())
+            .get(space.get(facet_id).hyperplane_pole()?.into_vector())
             .ok_or_eyre("unknown axis vector")?;
 
         if seen_axes.contains(init_axis) {
@@ -82,7 +82,7 @@ pub fn build_4d_gizmo(
     let mut seen_axes = TiMask::new_empty(axes.len());
     'facet: for facet_id in gizmo_facets(&mut space, axes)? {
         let init_axis = *axis_from_vector
-            .get(space.get(facet_id).hyperplane()?.pole().into_vector())
+            .get(space.get(facet_id).hyperplane_pole()?.into_vector())
             .ok_or_eyre("unknown axis vector")?;
 
         if seen_axes.contains(init_axis) {

@@ -527,16 +527,9 @@ impl ShapeBuilder {
                 .get(piece.polytope)
                 .facets()
                 .map(|facet_polytope| {
-                    // Select the orientation of the facet hyperplane such that
-                    // the centroid of the piece is on the inside.
-                    let mut plane = facet_polytope.hyperplane()?;
-                    if plane.location_of_point(&piece_centroid) == PointWhichSide::Outside {
-                        plane = plane.flip();
-                    }
-
                     eyre::Ok(TempStickerData {
                         facet: facet_polytope.id(),
-                        plane,
+                        plane: facet_polytope.hyperplane(&piece_centroid)?,
                         color: piece.sticker_color(facet_polytope.id()),
                     })
                 })

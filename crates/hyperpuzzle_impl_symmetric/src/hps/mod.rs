@@ -40,7 +40,8 @@ pub fn define_in(
 ) -> hyperpuzzlescript::Result<()> {
     let cat = catalog.clone();
 
-    cat.add_menu(MENU_ID, "Symmetric Puzzles".to_string());
+    cat.add_menu(MENU_ID, "Symmetric Puzzles".to_string())
+        .at(BUILTIN_SPAN)?;
 
     builtins.set_fns(hps_fns![
         #[kwargs(
@@ -81,7 +82,9 @@ pub fn define_in(
         fn add_colors_override(ctx: EvalCtx, id_pattern: Str, f: Arc<FnValue>) -> () {
             ctx.warn(format!("adding color override for {id_pattern:?}"));
         }
-    ])
+    ])?;
+
+    Ok(())
 }
 
 fn named_orbit_from_value(

@@ -21,6 +21,8 @@ pub struct ColorSystemDisjointUnion {
     ///
     /// Each orbit is assigned a [`SequentialLowercaseName`] prefix.
     pub orbits: Vec<Vec<Option<String>>>,
+
+    pub existing: Option<Arc<ColorSystem>>,
 }
 
 impl ColorSystemDisjointUnion {
@@ -32,6 +34,7 @@ impl ColorSystemDisjointUnion {
             summand_ids: vec![],
             summand_names: vec![],
             orbits: vec![],
+            existing: None,
         }
     }
 
@@ -49,6 +52,11 @@ impl ColorSystemDisjointUnion {
             summand_ids,
             summand_names: crate::chain_cloned(&self.summand_names, &rhs.summand_names),
             orbits: crate::chain_cloned(&self.orbits, &rhs.orbits),
+            existing: match (self.len(), rhs.len()) {
+                (0, _) => rhs.existing.clone(),
+                (_, 0) => self.existing.clone(),
+                _ => None,
+            },
         })
     }
 
@@ -58,7 +66,7 @@ impl ColorSystemDisjointUnion {
     }
 
     /// Constructs a disjoint union color system with exactly one summand.
-    pub fn from_color_system(color_system: &ColorSystem) -> Self {
+    pub fn from_color_system(color_system: Arc<ColorSystem>) -> Self {
         Self {
             id: color_system.id.clone(),
             summand_ids: vec![color_system.id.clone()],
@@ -70,6 +78,7 @@ impl ColorSystemDisjointUnion {
                     .map(|name_spec| Some(name_spec.spec.clone()))
                     .collect(),
             ],
+            existing: Some(color_system),
         }
     }
 
@@ -78,6 +87,10 @@ impl ColorSystemDisjointUnion {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<ColorSystem>> {
+        if let Some(existing) = &self.existing {
+            return Ok(Arc::clone(existing));
+        }
+
         let mut autonames = crate::autonames();
 
         let mut names = NameSpecBiMapBuilder::new();
@@ -98,7 +111,7 @@ impl ColorSystemDisjointUnion {
                     })
                     .or_else(|| autonames.next());
                 names.set(id, prefixed_name.clone())?;
-                display_names.push(prefixed_name.unwrap_or_else(String::new));
+                display_names.push(prefixed_name.unwrap_or_else(String::new))?;
             }
         }
         let names = names

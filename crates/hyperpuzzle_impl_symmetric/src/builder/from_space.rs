@@ -112,11 +112,14 @@ impl PuzzleShapeFactorBuilder {
     /// the puzzle.
     ///
     /// Returns an error if there is not exactly one piece in the whole puzzle.
-    pub fn set_surface_centroids_from_stickers_of_single_piece(
-        &mut self,
-        piece: Piece,
-    ) -> Result<()> {
+    pub fn set_surface_centroids_from_stickers_of_single_piece(&mut self) -> Result<()> {
         ensure!(self.pieces.len() == 1, "expected exactly 1 piece");
+        let piece = Piece(0);
+
+        let point_inside_piece = self
+            .space
+            .get(self.pieces[piece].polytope)
+            .arbitrary_interior_point();
 
         let mut centroids = PerSurface::<Centroid>::new_with_len(self.surface_count());
 
@@ -131,10 +134,12 @@ impl PuzzleShapeFactorBuilder {
             // This could be optimized by first projecting the centroid to the
             // mirror planes touched by sticker polytope and then orbiting
             // *that* centroid.
-            for (h, c) in hypergroup::orbit_geometric(
-                self.group.generator_motors(),
-                (sticker_polytope.as_facet()?.hyperplane()?, center),
-            ) {
+            let hyperplane = sticker_polytope
+                .as_facet()?
+                .hyperplane(&point_inside_piece)?;
+            for (h, c) in
+                hypergroup::orbit_geometric(self.group.generator_motors(), (hyperplane, center))
+            {
                 let s = *self
                     .hyperplane_to_surface
                     .get(h)
@@ -159,11 +164,14 @@ impl PuzzleShapeFactorBuilder {
             .map(|piece| {
                 let unfolded = self.space.unfold(piece.polytope)?;
                 let piece_polytope = self.space.get(unfolded);
+                let point_inside_piece = piece_polytope.arbitrary_interior_point();
                 let sticker_facet_id_list: Vec<hypershape::FacetId> = piece_polytope
                     .boundary()
                     .map(|b| b.as_facet())
                     .filter_ok(|f| {
-                        let Ok(h) = f.hyperplane() else { return false };
+                        let Ok(h) = f.hyperplane(&point_inside_piece) else {
+                            return false;
+                        };
                         self.hyperplane_to_surface.contains_key(h)
                     })
                     .map_ok(|f| f.id())
@@ -181,7 +189,8 @@ impl PuzzleShapeFactorBuilder {
                         .map(|b| {
                             eyre::Ok((
                                 b,
-                                self.hyperplane_to_surface.get(b.as_facet()?.hyperplane()?),
+                                self.hyperplane_to_surface
+                                    .get(b.as_facet()?.hyperplane(&point_inside_piece)?),
                             ))
                         })
                         .filter_ok(|(_, opt_surface)| ndim <= 3 || opt_surface.is_some()) // remove internals in 4D+

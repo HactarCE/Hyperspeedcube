@@ -74,12 +74,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let id = meta.id.clone();
                 let name = meta.name.clone();
 
-                let colors =
-                    build_ctx
-                        .build_str_blocking::<ColorSystem>(&colors)
-                        .map(|color_system| {
-                            Arc::new(ColorSystemDisjointUnion::from_color_system(&color_system))
-                        })?;
+                let colors = Arc::new(ColorSystemDisjointUnion::from_color_system(
+                    build_ctx.build_str_blocking::<ColorSystem>(&colors)?,
+                ));
                 let twists = build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?;
 
                 let mut scope = Scope::default();

@@ -148,7 +148,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
         id: id.clone(),
         params: params.clone(),
         subset_param: Some(subset_param.clone()),
-        validation: GeneratorParamValidation { allow_empty: true },
+        validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             // TODO: redirect nested product calls
             build_ctx

@@ -106,7 +106,7 @@ impl PuzzleProduct {
                 shape_builder.carve(plane, color)?;
             }
         }
-        shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
+        shape_builder.set_surface_centroids_from_stickers_of_single_piece()?;
 
         // Slice axes
         for (orbit, cut_distances) in std::iter::zip(&twists.axis_orbits, axis_orbit_cut_distances)
@@ -174,9 +174,10 @@ impl PuzzleProduct {
     /// `a.ndim() + b.ndim()`, with puzzle `a` occupying the lower dimensions
     /// and puzzle `b` occupying the higher dimensions.
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
+        let factor_ids: Vec<_> = crate::chain_cloned(&self.factor_ids, &rhs.factor_ids);
         Ok(PuzzleProduct {
-            id: crate::product_id(&self.factor_ids),
-            factor_ids: crate::chain_cloned(&self.factor_ids, &rhs.factor_ids),
+            id: crate::product_id(&factor_ids),
+            factor_ids,
             factor_names: crate::chain_cloned(&self.factor_names, &rhs.factor_names),
             shape: self.shape.direct_product(&rhs.shape)?,
             colors: Arc::new(ColorSystemDisjointUnion::disjoint_union(

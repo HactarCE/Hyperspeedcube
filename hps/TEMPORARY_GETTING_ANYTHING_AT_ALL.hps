@@ -27,6 +27,8 @@ add_twist_system(
     ndim = 2,
     build = fn() {
         #twists.sym = cd([5])
+        #twists.axes ++= [#{vector = vec(0,1), names = cd([5]).names(point(0,1), #{A = [], B = [1], C = [0,1], D = [1,0,1], E = [0,1,0,1]})}]
+        #twists.points ++= [#{vector = vec(0,1), names = cd([5]).names(point(0,1), #{A = [], B = [1], C = [0,1], D = [1,0,1], E = [0,1,0,1]})}]
     },
 )
 

@@ -108,12 +108,24 @@ impl<'a, I: ElementIdConvert> SpaceRef<'a, I> {
             .map(|v| space.get(v))
     }
 
-    /// Returns the centroid of the element.
+    /// Returns an arbitrary point that is properly on the interior of the
+    /// element.
+    ///
+    /// This is not cached.
+    pub fn arbitrary_interior_point(self) -> Point {
+        // average of all vertices
+        self.vertex_set()
+            .map(|v| Centroid::new(&v.pos(), 1.0))
+            .sum::<Centroid>()
+            .center()
+    }
+
+    /// Returns the (memoized) centroid of the element.
     pub fn centroid(self) -> Result<Centroid> {
         self.space.centroid(self.as_element().id)
     }
 
-    /// Returns a decomposition of the element into simplices.
+    /// Returns a (memoized) simplicial complex representing the element.
     pub fn simplices(self) -> Result<SimplexBlob> {
         self.space.simplices(self.as_element().id)
     }
@@ -382,8 +394,18 @@ impl<'a> Facet<'a> {
             _ => false,
         }
     }
+    /// Returns the hyperplane of the facet, oriented so that the given point is
+    /// on the "inside."
+    pub fn hyperplane(self, inside_point: &Point) -> Result<Hyperplane> {
+        let h = self.unoriented_hyperplane()?;
+        if h.location_of_point(inside_point) == PointWhichSide::Outside {
+            Ok(h.flip())
+        } else {
+            Ok(h)
+        }
+    }
     /// Returns the unoriented hyperplane of the facet.
-    pub fn hyperplane(self) -> Result<Hyperplane> {
+    pub fn unoriented_hyperplane(self) -> Result<Hyperplane> {
         // TODO: return ID when possible. in 1D, use vertex IDs as hyperplane IDs?
         match self.space.polytopes[self.as_element().id] {
             PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
@@ -396,6 +418,10 @@ impl<'a> Facet<'a> {
             } => Ok(self.space.hyperplanes.get(hyperplane_id)?.clone()),
             _ => bail!("expected hyperplane"),
         }
+    }
+    /// Returns the pole of the hyperplane of the facet.
+    pub fn hyperplane_pole(self) -> Result<Point> {
+        Ok(self.unoriented_hyperplane()?.pole())
     }
 }
 

@@ -15,7 +15,7 @@ impl Space {
         Ok((!ret.is_zero()).then_some(ret))
     }
 
-    /// Returns the centroid of a polytope element.
+    /// Returns the (memoized) centroid of a polytope element.
     pub(super) fn centroid(&self, element: ElementId) -> Result<Centroid> {
         if let Some(result) = self.cached_centroids.lock().get(&element) {
             return Ok(result.clone());
@@ -56,7 +56,7 @@ impl Space {
         Ok(sum)
     }
 
-    /// Returns a simplicial complex representing a polytope element.
+    /// Returns a (memoized) simplicial complex representing a polytope element.
     pub(super) fn simplices(&self, element: ElementId) -> Result<SimplexBlob> {
         if let Some(result) = self.cached_simplices.lock().get(&element) {
             return Ok(result.clone());
