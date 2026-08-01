@@ -8,8 +8,8 @@ use itertools::Itertools;
 
 use super::{Runtime, Scope};
 use crate::{
-    Error, FnOverload, FnType, FnValue, Key, List, LoopControlFlow, Map, Result, Span, Spanned,
-    Str, Type, Value, ValueData, Warning, ast,
+    Error, EvalRequestTx, FnOverload, FnType, FnValue, Key, List, LoopControlFlow, Map, Result,
+    Span, Spanned, Str, Type, Value, ValueData, Warning, ast,
 };
 
 /// Evaluation context.

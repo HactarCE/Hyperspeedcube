@@ -2,7 +2,7 @@ use std::io::Write;
 use std::sync::Arc;
 
 use eyre::Result;
-use hyperpuzzle_core::{Catalog, CatalogMetadata, Puzzle, PuzzleLintOutput};
+use hyperpuzzle_core::{Catalog, Puzzle, PuzzleLintOutput, PuzzleListEntry};
 
 use super::{load_new_catalog, time_it};
 
@@ -129,16 +129,16 @@ fn build_7x7x7x7() {
     println!("Done in {time:?}");
 }
 
-fn puzzles_in_list(catalog: &Catalog) -> Vec<Arc<CatalogMetadata>> {
+fn puzzles_in_list(catalog: &Catalog) -> Vec<Arc<PuzzleListEntry>> {
     catalog
         .puzzle_list
         .iter()
         .map(|entry| {
-            if let Some(g) = &catalog.puzzles.generators.get(&entry.id.to_string())
+            if let Some(g) = catalog.get_generator::<Puzzle>(&entry.id.base)
                 && !g.params.is_empty()
-                && let Ok(generator_output) = catalog.generate_blocking::<Puzzle>(&g.default_id())
+                && let Ok(list_entry) = catalog.build_blocking::<PuzzleListEntry>(&g.default_id())
             {
-                generator_output.meta
+                list_entry
             } else {
                 Arc::clone(entry)
             }

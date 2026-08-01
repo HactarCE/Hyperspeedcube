@@ -44,7 +44,13 @@ pub struct HpsOrbitNames {
 impl_simple_custom_type!(HpsOrbitNames = "euclid.OrbitNames");
 impl fmt::Debug for HpsOrbitNames {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct(self.type_name()).finish_non_exhaustive()
+        if f.alternate() {
+            f.debug_struct(self.type_name())
+                .field("components", &self.components)
+                .finish()
+        } else {
+            f.debug_struct(self.type_name()).finish_non_exhaustive()
+        }
     }
 }
 impl fmt::Display for HpsOrbitNames {

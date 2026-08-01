@@ -13,7 +13,7 @@ use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef};
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzle_core::{
-    Axis, AxisSystem, CatalogId, CatalogMetadata, Component, ComponentList, IndexOverflow,
+    Axis, AxisSystem, CatalogId, CatalogObject, Component, ComponentList, IndexOverflow,
     MissingComponent, NameSpecBiMap, NameSpecBiMapBuilder, Orbit, PerAxis, TiMask, TwistSystem,
     TypedIndex, TypedIndexIter,
 };
@@ -33,8 +33,9 @@ use crate::{
 /// Axis system of a puzzle under construction.
 #[derive(Debug, Clone)]
 pub(crate) struct TwistSystemProduct {
+    /// ID computed from `summand_ids`.
+    pub id: CatalogId,
     pub factor_ids: Vec<CatalogId>,
-    pub factor_names: Vec<String>,
 
     /// Grip group.
     pub group: IsometryGroup,
@@ -72,7 +73,15 @@ pub(crate) struct TwistSystemProduct {
     pub named_point_set_orbits: Vec<(NamedPointSet, Float)>,
 }
 
-impl Component<TwistSystem> for TwistSystemProduct {}
+impl CatalogObject for TwistSystemProduct {
+    fn catalog_type_name() -> &'static str {
+        "twist system product"
+    }
+
+    fn id(&self) -> &CatalogId {
+        &self.id
+    }
+}
 
 impl TwistSystemProduct {
     /// Returns the number of the dimensions of the puzzle.
@@ -84,8 +93,8 @@ impl TwistSystemProduct {
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
+            id: crate::product_id(&[]),
             factor_ids: vec![],
-            factor_names: vec![],
 
             group: IsometryGroup::trivial(),
             coxeter_matrix: CoxeterMatrix::trivial(),
@@ -105,7 +114,6 @@ impl TwistSystemProduct {
     /// Constructs a factor twist system builder.
     pub fn new_factor(
         id: CatalogId,
-        name: String,
         coxeter_matrix: CoxeterMatrix,
         group: IsometryGroup,
         axis_orbits: &[AxisOrbitSpec],
@@ -214,8 +222,8 @@ impl TwistSystemProduct {
         .try_collect()?;
 
         Ok(Self {
+            id: crate::product_id(std::slice::from_ref(&id)),
             factor_ids: vec![id],
-            factor_names: vec![name],
 
             group,
             coxeter_matrix,
@@ -306,9 +314,10 @@ impl TwistSystemProduct {
             vec![]
         };
 
+        let factor_ids: Vec<CatalogId> = crate::chain_cloned(&a.factor_ids, &b.factor_ids);
         Ok(Self {
-            factor_ids: crate::chain_cloned(&a.factor_ids, &b.factor_ids),
-            factor_names: crate::chain_cloned(&a.factor_names, &b.factor_names),
+            id: crate::product_id(&factor_ids),
+            factor_ids,
 
             coxeter_matrix: CoxeterMatrix::direct_product(&a.coxeter_matrix, &b.coxeter_matrix)?,
             group,
@@ -348,15 +357,9 @@ impl TwistSystemProduct {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<TwistSystem>> {
-        build_ctx.set_building::<TwistSystem>();
-
-        let id = crate::product_id(&self.factor_ids);
-        let name = crate::product_name(&self.factor_names);
-
         let axes = Arc::new(self.build_axis_system()?);
 
         let mut components = ComponentList::new();
-        components.insert(Arc::new(self.clone())); // TODO: check for redundancy with `SymmetricTwistSystemComponent`
         components.insert(Arc::new(SymmetricTwistSystemComponent {
             axes: Arc::clone(&axes),
             group: self.group.clone(),
@@ -378,7 +381,7 @@ impl TwistSystemProduct {
         //       symmetry group elements
 
         Ok(Arc::new(TwistSystem {
-            meta: Arc::new(CatalogMetadata::simple(id, name)),
+            id: self.id.clone(),
             components,
             axes: Arc::clone(&axes),
             axis_from_family: Box::new(move |family_str| {

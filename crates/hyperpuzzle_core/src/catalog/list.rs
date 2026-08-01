@@ -1,12 +1,12 @@
 use super::*;
 
-/// Metadata for an object or object generator in a catalog.
+/// Puzzle list entry, which generally corresponds to a puzzle or puzzle generator.
 #[derive(Serialize, Debug, Clone)]
-pub struct CatalogMetadata {
-    /// Internal ID.
+pub struct PuzzleListEntry {
+    /// Catalog ID.
     pub id: CatalogId,
     /// Semantic version.
-    pub version: Version,
+    pub version: Option<Version>, // TODO: should be required!
     /// Human-friendly name.
     pub name: String,
     /// Human-friendly aliases.
@@ -16,56 +16,46 @@ pub struct CatalogMetadata {
 }
 
 /// Compare by catalog ID.
-impl PartialEq for CatalogMetadata {
+impl PartialEq for PuzzleListEntry {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
 /// Compare by catalog ID.
-impl Eq for CatalogMetadata {}
+impl Eq for PuzzleListEntry {}
 
 /// Compare by catalog ID.
-impl PartialOrd for CatalogMetadata {
+impl PartialOrd for PuzzleListEntry {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 /// Compare by catalog ID.
-impl Ord for CatalogMetadata {
+impl Ord for PuzzleListEntry {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         CatalogId::cmp(&self.id, &other.id)
     }
 }
 
-impl CatalogMetadata {
+impl PuzzleListEntry {
     /// Constructs metadata for an object with no version, aliases, or tags.
     pub fn simple(id: CatalogId, name: String) -> Self {
         Self {
             id,
-            version: Version::PLACEHOLDER,
+            version: None,
             name,
             aliases: vec![],
             tags: TagSet::new(),
         }
     }
 
-    /// Returns dummy metadata.
-    pub fn dummy() -> Self {
-        let id = CatalogId {
-            base: "dummy".into(),
-            args: vec![],
-        };
-        let name = String::new();
-        Self::simple(id, name)
-    }
-
     /// Returns the equivalent CLI type.
-    pub fn to_cli(&self) -> hyperspeedcube_cli_types::puzzle_info::PuzzleListMetadata {
-        hyperspeedcube_cli_types::puzzle_info::PuzzleListMetadata {
+    pub fn to_cli(&self) -> hyperspeedcube_cli_types::puzzle_info::PuzzleListEntry {
+        hyperspeedcube_cli_types::puzzle_info::PuzzleListEntry {
             id: self.id.clone(),
-            version: [self.version.major, self.version.minor, self.version.patch],
+            version: self.version.map(|v| [v.major, v.minor, v.patch]),
             name: self.name.clone(),
             aliases: self.aliases.clone(),
             tags: self.tags.to_cli(),

@@ -24,7 +24,7 @@ use crate::{NamedTwistsList, prelude::*};
 #[derive(Debug)]
 pub struct PuzzleBuilder {
     /// Puzzle metadata.
-    pub meta: Arc<CatalogMetadata>,
+    pub meta: Arc<PuzzleListEntry>,
 
     /// Number of dimensions of the underlying space the puzzle is built in.
     pub ndim: u8,
@@ -45,12 +45,12 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(meta: Arc<CatalogMetadata>, ndim: u8) -> Result<Self> {
+    pub fn new(meta: Arc<PuzzleListEntry>, ndim: u8) -> Result<Self> {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
         let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, ndim)?;
-        let twists = AdHocTwistSystemBuilder::new(meta.id.clone(), None, ndim);
+        let twists = AdHocTwistSystemBuilder::new(meta.id.clone(), ndim);
         Ok(Self {
             meta,
 
@@ -119,7 +119,7 @@ impl PuzzleBuilder {
     /// assigning IDs to pieces, stickers, etc.
     pub fn build(
         &self,
-        build_ctx: Option<&BuildCtx>,
+        build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Error),
     ) -> Result<Arc<Puzzle>> {
         let mut shape_builder = self.shape.lock();
@@ -127,19 +127,15 @@ impl PuzzleBuilder {
 
         // Build color system.
         let colors = match &colors_builder.0 {
-            MaybeAdHoc::Fixed(f) => Arc::clone(f),
-            MaybeAdHoc::AdHoc(a) => a.build(build_ctx, warn_fn)?,
+            MaybeAdHoc::Fixed(f) => f.build(build_ctx)?, // TODO: use already-built
+            MaybeAdHoc::AdHoc(a) => a.lock().build(build_ctx)?,
         };
 
         // Build twist system.
         let twists = match &self.twists.0 {
-            MaybeAdHoc::Fixed(f) => Arc::clone(f),
-            MaybeAdHoc::AdHoc(a) => a.lock().build(build_ctx, warn_fn)?,
+            MaybeAdHoc::Fixed(f) => f.build(build_ctx)?, // TODO: use already-built
+            MaybeAdHoc::AdHoc(a) => a.lock().build(build_ctx)?,
         };
-
-        if let Some(build_ctx) = build_ctx {
-            build_ctx.set_building::<Puzzle>();
-        }
 
         // Build shape.
         let ShapeBuildOutput {

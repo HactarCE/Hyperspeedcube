@@ -169,7 +169,7 @@ impl HpsShape {
         let mut color_list: Option<Vec<Option<Color>>> = None;
         match args.stickers {
             StickerMode::NewColor => {
-                let ad_hoc_colors = this.colors.as_ad_hoc_mut().at(span)?;
+                let mut ad_hoc_colors = this.colors.as_ad_hoc_mut().at(span)?;
                 color_list = Some(
                     (0..cut_planes.len())
                         .map(|_| ad_hoc_colors.add(None, ctx.warnf()).map(Some))
@@ -198,7 +198,7 @@ impl HpsShape {
         Ok(match color_list {
             Some(colors_to_assign) => {
                 if ctx_symmetry.is_some()
-                    && let Ok(ad_hoc_color_system_builder) = this.colors.as_ad_hoc_mut()
+                    && let Ok(mut ad_hoc_color_system_builder) = this.colors.as_ad_hoc_mut()
                 {
                     ad_hoc_color_system_builder.orbits.push(Orbit {
                         elements: Arc::new(colors_to_assign.clone()),

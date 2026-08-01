@@ -8,7 +8,7 @@ use hypermath::{
     ApproxEq, ApproxHash, ApproxInternable, Ndim, Point, Precision, TransformByMotor, Vector,
 };
 use hyperpuzzle_core::{Axis, NameSpec, TypedIndex};
-use hyperpuzzlescript::{Builtins, ErrorExt, Spanned, hps_fns};
+use hyperpuzzlescript::{Builtins, ErrorExt, Runtime, Spanned, hps_fns};
 
 use crate::TwistKey;
 
@@ -32,20 +32,17 @@ use color::HpsColor;
 use layer_mask::HpsLayerMask;
 pub use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
 use puzzle::HpsPuzzle;
+use puzzle_engine::NdEuclidPuzzleEngine;
 use region::HpsRegion;
 use shape::HpsShape;
 pub use symmetry::HpsSymmetry;
 use twist::HpsTwist;
 use twist_system::{GeometricTwistKey, HpsTwistSystem};
+use twist_system_engine::NdEuclidTwistSystemEngine;
 
-/// Hyperpuzzlescript interface for the N-dimensional Euclidean puzzle engine.
-///
-/// This implements [`hyperpuzzlescript::EngineCallback`].
-pub struct HpsNdEuclid;
-impl fmt::Display for HpsNdEuclid {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "euclid")
-    }
+pub fn register_hps_engines(rt: &mut Runtime) {
+    rt.register_puzzle_engine("euclid", Arc::new(NdEuclidPuzzleEngine));
+    rt.register_twist_system_engine("euclid", Arc::new(NdEuclidTwistSystemEngine));
 }
 
 /// Adds the built-ins.

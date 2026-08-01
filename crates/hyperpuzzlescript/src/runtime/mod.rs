@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use std::{collections::HashMap, sync::mpsc};
 
 use arcstr::ArcStr;
 
@@ -11,11 +11,13 @@ mod special;
 
 pub use ctx::EvalCtx;
 pub use file_store::Modules;
+use itertools::Itertools;
 pub use scope::{Builtins, ParentScope, Scope};
 pub use special::SpecialVariables;
 
 use crate::{
-    FileId, FullDiagnostic, Map, Result, Span, Value, ValueData, Warning, ast, engine_callback,
+    ErrorExt, EvalRequest, EvalRequestTx, FileId, FullDiagnostic, HpsEngine, Map, Result, Span,
+    Value, ValueData, Warning, ast, engine,
 };
 
 /// Script runtime.
@@ -25,9 +27,9 @@ pub struct Runtime {
     /// Built-ins to be imported into every file.
     pub builtins: Arc<Scope>,
     /// Registered puzzle engines.
-    pub puzzle_engines: HashMap<String, engine_callback::PuzzleEngineCallback>,
+    pub puzzle_engines: HashMap<String, Arc<dyn HpsEngine>>,
     /// Registered twist system engines.
-    pub twist_system_engines: HashMap<String, engine_callback::TwistSystemEngineCallback>,
+    pub twist_system_engines: HashMap<String, Arc<dyn HpsEngine>>,
 
     /// Function to call on print.
     pub on_print: Box<dyn Send + Sync + FnMut(String)>,
@@ -200,7 +202,7 @@ impl Runtime {
     pub fn report_and_convert_to_eyre(&mut self, e: FullDiagnostic) -> eyre::Report {
         let formatted = e.formatted(&*self);
         self.report_diagnostic(e);
-        eyre::eyre!(formatted)
+        eyre::eyre!(formatted) // TODO: include better backtrace info
     }
 
     /// Locks the map of built-ins and executes a closure with it.
@@ -209,15 +211,43 @@ impl Runtime {
     }
 
     /// Registers a puzzle engine for the runtime.
-    pub fn register_puzzle_engine(&mut self, callback: engine_callback::PuzzleEngineCallback) {
-        self.puzzle_engines.insert(callback.name(), callback);
+    pub fn register_puzzle_engine(&mut self, name: &str, engine: Arc<dyn HpsEngine>) {
+        self.puzzle_engines.insert(name.to_string(), engine);
     }
     /// Registers a twist system engine for the runtime.
-    pub fn register_twist_system_engine(
-        &mut self,
-        callback: engine_callback::TwistSystemEngineCallback,
-    ) {
-        self.twist_system_engines.insert(callback.name(), callback);
+    pub fn register_twist_system_engine(&mut self, name: &str, engine: Arc<dyn HpsEngine>) {
+        self.twist_system_engines.insert(name.to_string(), engine);
+    }
+
+    /// Returns a puzzle engine by name, or an error if it does not exist.
+    pub fn puzzle_engine_callback(
+        &self,
+        engine_name: &str,
+        engine_name_span: Span,
+    ) -> Result<Arc<dyn HpsEngine>> {
+        let opt = self.puzzle_engines.get(&*engine_name).cloned();
+        opt.ok_or_else(|| {
+            format!(
+                "unknown puzzle engine {engine_name:?}; supported engines: {:?}",
+                self.puzzle_engines.keys().collect_vec(),
+            )
+            .at(engine_name_span)
+        })
+    }
+    /// Returns a twist system engine by name, or an error if it does not exist.
+    pub fn twist_system_engine_callback(
+        &self,
+        engine_name: &str,
+        engine_name_span: Span,
+    ) -> Result<Arc<dyn HpsEngine>> {
+        let opt = self.twist_system_engines.get(&*engine_name).cloned();
+        opt.ok_or_else(|| {
+            format!(
+                "unknown twist system engine {engine_name:?}; supported engines: {:?}",
+                self.twist_system_engines.keys().collect_vec(),
+            )
+            .at(engine_name_span)
+        })
     }
 
     /// Reports a warning.

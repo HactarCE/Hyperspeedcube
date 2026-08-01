@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,7 @@ pub struct Version {
     /// Patch version number.
     pub patch: u32,
 }
+
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self {
@@ -27,6 +28,7 @@ impl fmt::Display for Version {
         write!(f, "{major}.{minor}.{patch}")
     }
 }
+
 impl Version {
     /// Placeholder version `0.0.0`
     pub const PLACEHOLDER: Version = Version {
@@ -35,3 +37,28 @@ impl Version {
         patch: 0,
     };
 }
+
+impl FromStr for Version {
+    type Err = BadVersion;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // IIFE to mimic try_block
+        (|| {
+            let mut parts = s.split('.');
+            let ret = Version {
+                major: parts.next()?.parse().ok()?,
+                minor: parts.next()?.parse().ok()?,
+                patch: parts.next()?.parse().ok()?,
+            };
+            if parts.next().is_some() {
+                return None;
+            }
+            Some(ret)
+        })()
+        .ok_or(BadVersion)
+    }
+}
+
+#[derive(thiserror::Error, Debug, Default, Copy, Clone)]
+#[error("bad version number")]
+pub struct BadVersion;

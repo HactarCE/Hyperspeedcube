@@ -64,9 +64,9 @@ lazy_static! {
 
         Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            meta: Arc::new(CatalogMetadata {
-                id: CatalogId::new("placeholder",[]).expect("bad placeholder ID"),
-                version: Version::PLACEHOLDER,
+            meta: Arc::new(PuzzleListEntry {
+                id: "placeholder".parse().expect("bad ID"),
+                version: None,
                 name: "🤔".to_string(),
                 aliases: vec![],
                 tags: TagSet::new(),

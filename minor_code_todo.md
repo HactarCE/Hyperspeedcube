@@ -1,3 +1,12 @@
+- Save program name & version in session events, not overall log file
+- Rename `hyperpuzzle_` crates to `hypuz_`
+- Rethink puzzle versions
+  - maybe just major version?
+  - include in puzzle ID? e.g., `product@1(ngon_ft@1(5,3),line@1(3))`
+- Allow spaces in IDs: `product(ngon(5, 3), line(3))`
+- **Include program version in scrambles**
+  - this may be more important than puzzle version
+- Check usages of the words "meta" (some should be "puzzle list entry") and "callback" (some should be "engine")
 - Replace `ui.ctx()` with `ui`
 - Replace old `EguiTempValue` and `EguiTempFlag` with new ones
 - Unstash old stash before clippying

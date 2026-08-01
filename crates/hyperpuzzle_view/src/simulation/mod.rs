@@ -1014,7 +1014,7 @@ impl PuzzleSimulation {
             replay: Some(replay),
             puzzle: hyperpuzzle_log::LogPuzzle {
                 id: puz.meta.id.to_string(),
-                version: puz.meta.version.to_string(),
+                version: puz.meta.version.map(|v| v.to_string()).unwrap_or_default(),
             },
             solved: self
                 .undo_stack

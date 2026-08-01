@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use crate::CatalogMetadata;
+use crate::PuzzleListEntry;
 
 /// List of lint warnings for a puzzle specification.
 #[derive(Debug, Clone)]
 pub struct PuzzleLintOutput {
     /// Puzzle metadata.
-    pub meta: Arc<CatalogMetadata>,
+    pub meta: Arc<PuzzleListEntry>,
     /// Puzzle schema version.
     pub schema: u64,
     /// Tags that should be present or explicitly excluded but aren't.
@@ -15,7 +15,7 @@ pub struct PuzzleLintOutput {
 
 impl PuzzleLintOutput {
     /// Lints a puzzle specification.
-    pub fn from_meta(meta: &Arc<CatalogMetadata>) -> Self {
+    pub fn from_meta(meta: &Arc<PuzzleListEntry>) -> Self {
         let tags = &meta.tags;
         let schema = tags.get("schema").and_then(|v| v.as_int()).unwrap_or(0) as u64;
         let expected_tag_sets = crate::TAGS

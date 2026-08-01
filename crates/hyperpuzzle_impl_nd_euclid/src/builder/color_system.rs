@@ -7,14 +7,15 @@ use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
 use hyperpuzzle_core::{ComponentList, preferred_name_from_name_spec};
 use indexmap::IndexMap;
+use parking_lot::MutexGuard;
 
 /// [`ColorSystem`] during puzzle construction.
 #[derive(Debug)]
-pub struct ColorSystemBuilder(pub MaybeAdHoc<ColorSystem, AdHocColorSystemBuilder>);
+pub struct ColorSystemBuilder(pub MaybeAdHoc<AdHocColorSystemBuilder>);
 impl ColorSystemBuilder {
     /// Returns the ad-hoc builder if it is one, or an error otherwise.
-    pub fn as_ad_hoc_mut(&mut self) -> Result<&mut AdHocColorSystemBuilder, ExpectedAdHoc> {
-        self.0.as_ad_hoc_mut()
+    pub fn as_ad_hoc_mut(&mut self) -> Result<MutexGuard<AdHocColorSystemBuilder>, ExpectedAdHoc> {
+        self.0.lock_mut()
     }
 
     /// Returns the ID for the color with the given name, adding it to the color
@@ -30,9 +31,9 @@ impl ColorSystemBuilder {
         match &mut self.0 {
             MaybeAdHoc::Fixed(f) => f
                 .names
-                .id_from_name(&preferred_name_from_name_spec(&name_spec))
+                .id_from_string(&preferred_name_from_name_spec(&name_spec))
                 .ok_or_else(|| eyre!("no color with name {name_spec:?}")),
-            MaybeAdHoc::AdHoc(a) => a.get_or_add_with_name_spec(name_spec, warn_fn),
+            MaybeAdHoc::AdHoc(a) => a.lock().get_or_add_with_name_spec(name_spec, warn_fn),
         }
     }
 
@@ -40,15 +41,26 @@ impl ColorSystemBuilder {
     pub fn is_empty(&self) -> bool {
         match &self.0 {
             MaybeAdHoc::Fixed(f) => f.is_empty(),
-            MaybeAdHoc::AdHoc(a) => a.is_empty(),
+            MaybeAdHoc::AdHoc(a) => a.lock().is_empty(),
         }
     }
     /// Returns the number of colors in the color system.
     pub fn len(&self) -> usize {
         match &self.0 {
             MaybeAdHoc::Fixed(f) => f.len(),
-            MaybeAdHoc::AdHoc(a) => a.len(),
+            MaybeAdHoc::AdHoc(a) => a.lock().len(),
         }
+    }
+}
+
+// TODO: this impl probably shouldn't exist
+impl CatalogObject for AdHocColorSystemBuilder {
+    fn catalog_type_name() -> &'static str {
+        "ndeuclid color system builder"
+    }
+
+    fn id(&self) -> &CatalogId {
+        &self.id
     }
 }
 
@@ -200,17 +212,8 @@ impl AdHocColorSystemBuilder {
     /// Validates and constructs a color system.
     ///
     /// Also returns a map from old color IDs to new color IDs.
-    pub fn build(
-        &self,
-        build_ctx: Option<&BuildCtx>,
-        warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<Arc<ColorSystem>> {
-        if let Some(build_ctx) = build_ctx {
-            build_ctx.set_building::<ColorSystem>();
-        }
-
+    pub fn build(&self, build_ctx: &BuildCtx) -> Result<Arc<ColorSystem>> {
         let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
-        let meta = Arc::new(CatalogMetadata::simple(self.id.clone(), name));
 
         let names = self.names.clone();
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
@@ -238,7 +241,7 @@ impl AdHocColorSystemBuilder {
 
         let default_scheme = self.default_scheme_name().to_owned();
         if !schemes.contains_key(&default_scheme) {
-            warn_fn(eyre!("missing default color scheme {default_scheme:?}"));
+            build_ctx.warn_fn()(eyre!("missing default color scheme {default_scheme:?}"));
             schemes.insert(default_scheme.clone(), PerColor::new());
         }
 
@@ -250,7 +253,8 @@ impl AdHocColorSystemBuilder {
         let orbits = self.orbits.clone();
 
         Ok(Arc::new(ColorSystem {
-            meta,
+            id: self.id.clone(),
+            name,
             components: ComponentList::new(),
 
             names,

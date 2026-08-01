@@ -197,8 +197,8 @@ macro_rules! unpack_args {
     };
 }
 
-/// Unpacks keyword arguments using [`pop_kwarg!`] and
-/// [`crate::util::expect_end_of_kwargs()`].
+/// Unpacks multiple keyword arguments using [`pop_kwarg!`] for each, and then
+/// calls [`crate::util::expect_end_of_kwargs()`].
 #[macro_export]
 macro_rules! unpack_kwargs {
     ($kwargs:expr, $target:ident $(,)?) => {
@@ -215,8 +215,26 @@ macro_rules! unpack_kwargs {
     };
 }
 
+/// Same as [`unpack_kwargs!`], but takes a [`crate::Runtime`] and returns
+/// [`eyre::Report`] as the error type instead of [`crate::FullDiagnostic`].
+#[macro_export]
+macro_rules! unpack_kwargs_eyre {
+    ($runtime:expr, $kwargs:expr $(, $param:tt: $param_ty:ty $( = $default:expr )?)* $(,)?) => {
+        #[allow(unused_mut)]
+        let mut kwargs = $kwargs;
+        $(
+            $crate::pop_kwarg_eyre!($runtime, kwargs, $param: $param_ty $( = $default )?);
+        )*
+        $crate::util::expect_end_of_kwargs(kwargs, $crate::BUILTIN_SPAN)
+            .map_err(|e| $runtime.report_and_convert_to_eyre(e))?;
+    };
+}
+
 /// Unpacks a keyword argument using [`crate::util::pop_kwarg()`], with support
 /// for an optional parameter.
+///
+/// This macro must be used in a function that returns a [`crate::Result`]. See
+/// [`pop_kwarg_eyre!`] for a variant supporting `eyre::Report`.
 ///
 /// # Examples
 ///
@@ -244,19 +262,35 @@ macro_rules! unpack_kwargs {
 #[macro_export]
 macro_rules! pop_kwarg {
     ($kwargs:expr, $name:tt: $param_ty:ty = $default:expr) => {
-        let $name = $crate::util::pop_kwarg::<Option<$param_ty>>(
-            &mut $kwargs,
-            $crate::fn_arg_name!($name),
-            $crate::BUILTIN_SPAN,
-        )?
-        .unwrap_or_else(|| -> $param_ty { $default });
+        $crate::pop_kwarg!(@[?.unwrap_or_else(|| -> $param_ty { $default })] $kwargs, $name: Option<$param_ty>)
     };
     ($kwargs:expr, $name:tt: $param_ty:ty) => {
+        $crate::pop_kwarg!(@[?] $kwargs, $name: $param_ty)
+    };
+    (@[$($postfix_tokens:tt)*] $kwargs:expr, $name:tt: $param_ty:ty) => {
         let $name = $crate::util::pop_kwarg::<$crate::fn_arg_ty!($name: $param_ty)>(
             &mut $kwargs,
             $crate::fn_arg_name!($name),
             $crate::BUILTIN_SPAN,
-        )?;
+        ) $($postfix_tokens)*;
+    };
+}
+
+/// Same as [`pop_kwarg!`], but takes a reference to a [`crate::Runtime`] and
+/// returns an [`eyre::Report`] instead of [`crate::FullDiagnostic`].
+#[macro_export]
+macro_rules! pop_kwarg_eyre {
+    ($runtime:expr, $kwargs:expr, $name:tt: $param_ty:ty = $default:expr) => {
+        $crate::pop_kwarg!(
+            @[.map_err(|e| $runtime.report_and_convert_to_eyre(e))?.unwrap_or_else(|| -> $param_ty { $default })]
+            $kwargs, $name: Option<$param_ty>
+        )
+    };
+    ($runtime:expr, $kwargs:expr, $name:tt: $param_ty:ty) => {
+        $crate::pop_kwarg!(
+            @[.map_err(|e| $runtime.report_and_convert_to_eyre(e))?]
+            $kwargs, $name: $param_ty
+        )
     };
 }
 

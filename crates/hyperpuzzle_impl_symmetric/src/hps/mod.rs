@@ -11,31 +11,26 @@ use hypermath::Vector;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::CatalogBuilder;
 use hyperpuzzle_core::catalog::{Menu, MenuContent};
-use hyperpuzzle_impl_nd_euclid::hps::HpsOrbitNames;
+use hyperpuzzle_impl_nd_euclid::hps::{HpsOrbitNames, Names};
 use hyperpuzzlescript::util::pop_map_key;
 use hyperpuzzlescript::{
-    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, ListOf, Map, Spanned, Str, Value,
-    ValueData, hps_fns,
+    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, HpsEngine, ListOf, Map, Runtime, Spanned,
+    Str, Value, ValueData, hps_fns,
 };
 use parking_lot::Mutex;
 
 mod puzzle_engine;
 mod twist_system_engine;
 
-pub use puzzle_engine::PuzzleProductBuildFn;
+use puzzle_engine::SymmetricPuzzleEngine;
+use twist_system_engine::SymmetricTwistSystemEngine;
 
-/// Hyperpuzzlescript interface for the symmetric puzzle engine.
-pub struct HpsSymmetric;
+/// ID for the symmetric puzzle [`Menu`].
+pub const MENU_ID: &'static str = "symmetric";
 
-impl HpsSymmetric {
-    /// ID for the symmetric puzzle [`Menu`].
-    pub const MENU_ID: &'static str = "symmetric";
-}
-
-impl fmt::Display for HpsSymmetric {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "symmetric")
-    }
+pub fn register_hps_engines(rt: &mut Runtime) {
+    rt.register_puzzle_engine("symmetric", Arc::new(SymmetricPuzzleEngine));
+    rt.register_twist_system_engine("symmetric", Arc::new(SymmetricTwistSystemEngine));
 }
 
 /// Adds the built-ins.
@@ -45,7 +40,7 @@ pub fn define_in(
 ) -> hyperpuzzlescript::Result<()> {
     let cat = catalog.clone();
 
-    cat.add_menu(HpsSymmetric::MENU_ID, "Symmetric Puzzles".to_string());
+    cat.add_menu(MENU_ID, "Symmetric Puzzles".to_string());
 
     builtins.set_fns(hps_fns![
         #[kwargs(
@@ -79,14 +74,8 @@ pub fn define_in(
                 ),
             };
 
-            cat.add_menu_node(
-                HpsSymmetric::MENU_ID,
-                path.into(),
-                next,
-                priority.unwrap_or(0),
-                default,
-            )
-            .at(ctx.caller_span)?;
+            cat.add_menu_node(MENU_ID, path.into(), next, priority.unwrap_or(0), default)
+                .at(ctx.caller_span)?;
         }
 
         fn add_colors_override(ctx: EvalCtx, id_pattern: Str, f: Arc<FnValue>) -> () {
@@ -103,7 +92,7 @@ fn named_orbit_from_value(
     let mut map = value.as_ref::<Map>()?.clone();
 
     let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
-    let orbit_names: HpsOrbitNames = pop_map_key(&mut map, value.span, "names")?;
+    let Names(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
 
     let mut vectors = vec![];
     let mut gen_seqs = vec![];

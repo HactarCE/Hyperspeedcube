@@ -19,6 +19,12 @@ impl TagSet {
         TagSet::default()
     }
 
+    // TODO: remove this method
+    #[deprecated]
+    pub fn todo() -> Self {
+        Self::new()
+    }
+
     /// Returns the authors list.
     pub fn authors(&self) -> &[String] {
         self.0

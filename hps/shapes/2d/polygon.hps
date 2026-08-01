@@ -114,7 +114,7 @@ export fn new(n: Nat, t: Transform) -> Map {
     }
 }
 
-add_color_system_generator(
+add_color_system(
     id = "ngon",
     name = "Polygon",
     params = [edges_param],

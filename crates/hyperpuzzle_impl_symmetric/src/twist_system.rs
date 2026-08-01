@@ -30,6 +30,7 @@ impl AxisConstraintSolver {}
 /// Simulation data for a symmetric puzzle.
 ///
 /// This type is relatively cheap to clone.
+// TODO: how many of these fields are needed?
 #[derive(Debug, Clone)]
 pub struct SymmetricTwistSystemComponent {
     /// Axis system.
@@ -178,7 +179,7 @@ impl SymmetricTwistSystemComponent {
         let axis_orbit = &self.axis_orbits[orbit_index];
         let mut subgroup_solver = axis_orbit.subgroup_solver.lock();
         let mut solver =
-            ConjugateSubgroupConstraintSolver::new(conjugating_element, &mut subgroup_solver);
+            ConjugateSubgroupConstraintSolver::new(conjugating_element, &mut subgroup_solver); // TODO: seems unused
 
         let transformed_secondary = stabilizer_family.secondary.transform_by_group_element(
             &self.named_point_action,

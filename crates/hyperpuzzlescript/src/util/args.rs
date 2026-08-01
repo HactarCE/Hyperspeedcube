@@ -1,4 +1,4 @@
-use crate::{Error, FromValue, Map, Result, Span, Value};
+use crate::{Error, EvalCtx, FromValue, Map, Result, Span, SpecialVar, Value};
 
 /// Removes and returns the next argument from `args`.
 ///
@@ -50,6 +50,24 @@ pub fn expect_end_of_kwargs(kwargs: Map, caller_span: Span) -> Result<()> {
 pub fn pop_map_key<T: FromValue>(map: &mut Map, map_span: Span, key: &str) -> Result<T> {
     pop_map_key_generic(map, key)
         .unwrap_or_else(|| Err(Error::MissingRequiredMapKey { key: key.into() }.at(map_span)))
+}
+
+/// Same as [`pop_map_key()`], but produces a better error message when the map
+/// does not have a span. The provided span should be the span of the function
+/// that was supposed to add the key to the map.
+pub fn pop_map_key_in_special_var<T: FromValue>(
+    map: &mut Map,
+    fn_span: Span,
+    special_var: SpecialVar,
+    key: &str,
+) -> Result<T> {
+    pop_map_key_generic(map, key).unwrap_or_else(|| {
+        Err(Error::MissingRequiredMapKeyInSpecialVar {
+            key: key.into(),
+            special_var,
+        }
+        .at(fn_span))
+    })
 }
 
 /// Returns an error if there are any more entries.

@@ -1,0 +1,34 @@
+
+            pop_kwarg!(kwargs, (id, id_span): String);
+            pop_kwarg!(kwargs, engine: String);
+
+            cat.add(Arc::new(super::generators::generator_from_kwargs(
+                id.parse().at(id_span)?,
+                kwargs,
+                ctx.caller_span,
+                &tx,
+                twist_system_from_kwargs,
+            )?))
+            .at(ctx.caller_span)?;
+
+
+fn twist_system_from_kwargs(
+    build_ctx: BuildCtx,
+    ctx: &mut EvalCtx<'_>,
+    mut kwargs: Map,
+) -> Result<Arc<TwistSystem>> {
+    let id = build_ctx.id();
+    let span = ctx.caller_span;
+
+    pop_kwarg!(kwargs, name: String = {
+        ctx.warn(eco_format!("missing `name` for twist system `{id}`"));
+        id.to_string()
+    });
+    pop_kwarg!(kwargs, (engine, engine_span): Str);
+
+    let engine_fn = ctx
+        .runtime
+        .twist_system_engine_callback(&engine, engine_span)?
+        .clone();
+    (engine_fn.0)(build_ctx, ctx, name, kwargs).at(span)
+}

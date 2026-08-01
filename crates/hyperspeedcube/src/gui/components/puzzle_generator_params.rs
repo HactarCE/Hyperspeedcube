@@ -1,4 +1,6 @@
-use hyperpuzzle::{CatalogId, CatalogIdValue, GeneratorParamType, TypedCatalogIdValue};
+use hyperpuzzle::{
+    CatalogId, CatalogIdValue, CatalogIdent, GeneratorParamType, Puzzle, TypedCatalogIdValue,
+};
 use itertools::Itertools;
 
 use crate::gui::components::catalog_menu::PuzzleCatalogMenuUi;
@@ -7,14 +9,14 @@ pub const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
 
 #[derive(Debug, Clone)]
 pub struct PuzzleGeneratorUi {
-    pub generator_id: Box<str>,
+    pub generator_id: CatalogIdent,
     pub param_uis: Vec<(Option<String>, GeneratorParamUi)>,
 }
 
 impl egui::Widget for &mut PuzzleGeneratorUi {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let catalog = hyperpuzzle::catalog();
-        let Some(g) = catalog.puzzles.generators.get(&*self.generator_id) else {
+        let Some(g) = catalog.get_generator::<Puzzle>(&self.generator_id) else {
             return ui.colored_label(
                 ui.visuals().error_fg_color,
                 format!("no puzzle or generator with ID {:?}", self.generator_id),
@@ -48,7 +50,7 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
 }
 
 impl PuzzleGeneratorUi {
-    pub fn new(generator_id: Box<str>) -> Self {
+    pub fn new(generator_id: CatalogIdent) -> Self {
         Self {
             generator_id,
             param_uis: vec![],
@@ -70,6 +72,7 @@ impl PuzzleGeneratorUi {
                 .iter()
                 .map(|(_label, param_ui)| param_ui.to_id_value())
                 .collect::<Option<_>>()?,
+            subset: None, // TODO
         })
     }
 }
@@ -113,6 +116,7 @@ impl GeneratorParamUi {
             GeneratorParamType::Puzzle { menu } => Self::Puzzle {
                 menu_ui: PuzzleCatalogMenuUi::new(menu.clone(), default.into_id().ok()),
             },
+            GeneratorParamType::Id { ty } => todo!("ID parameter"),
             GeneratorParamType::List(inner) => Self::List {
                 ty: (**inner).clone(),
                 elements: default

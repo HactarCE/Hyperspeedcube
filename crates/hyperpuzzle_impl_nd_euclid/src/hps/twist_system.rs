@@ -5,14 +5,12 @@ use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::{ExpectedAdHoc, MaybeAdHoc};
-use hyperpuzzlescript::builtins::catalog::HpsExports;
 use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::MutexGuard;
 
 use super::{HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist, Names};
 use crate::builder::*;
-use crate::components::{NamedTwistsList, NdEuclidTwistsList};
 use crate::{PerReferenceVector, TwistKey};
 
 /// HPS twist system builder.
@@ -36,7 +34,7 @@ impl fmt::Display for HpsTwistSystem {
 impl PartialEq for HpsTwistSystem {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0.0, &other.0.0) {
-            (MaybeAdHoc::Fixed(f1), MaybeAdHoc::Fixed(f2)) => f1.meta.id == f2.meta.id,
+            (MaybeAdHoc::Fixed(f1), MaybeAdHoc::Fixed(f2)) => f1.id == f2.id,
             (MaybeAdHoc::AdHoc(a1), MaybeAdHoc::AdHoc(a2)) => Arc::ptr_eq(a1, a2),
             _ => false,
         }
@@ -328,12 +326,12 @@ fn unpack_value_with_optional_transform<T: FromValue + CustomValue>(
 impl HpsTwistSystem {
     /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
     pub fn lock_ad_hoc(&self) -> Result<MutexGuard<'_, AdHocTwistSystemBuilder>, ExpectedAdHoc> {
-        Ok(self.0.0.as_ad_hoc()?.lock())
+        self.0.0.lock_mut()
     }
 
     pub fn id(&self) -> CatalogId {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => f.meta.id.clone(),
+            MaybeAdHoc::Fixed(f) => f.id.clone(),
             MaybeAdHoc::AdHoc(a) => a.lock().id.clone(),
         }
     }
@@ -351,11 +349,12 @@ impl HpsTwistSystem {
             "axes" => Some(self.axes().into()),
             _ => {
                 let exported_value = match &self.0.0 {
-                    MaybeAdHoc::Fixed(f) => f
-                        .components
-                        .get::<HpsExports>()
-                        .ok()
-                        .and_then(|m| m.get(field).cloned()),
+                    // MaybeAdHoc::Fixed(f) => f
+                    //     .components
+                    //     .get::<HpsExports>()
+                    //     .ok()
+                    //     .and_then(|m| m.get(field).cloned()),
+                    MaybeAdHoc::Fixed(_) => todo!(),
                     MaybeAdHoc::AdHoc(a) => a.lock().hps_exports.get(field).cloned(),
                 };
                 if let Some(v) = exported_value {
@@ -390,12 +389,13 @@ impl HpsTwistSystem {
         };
 
         Ok(match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => f
-                .components
-                .get::<NamedTwistsList>()
-                .at(span)?
-                .names
-                .id_from_name(name),
+            // MaybeAdHoc::Fixed(f) => f
+            //     .components
+            //     .get::<NamedTwistsList>()
+            //     .at(span)?
+            //     .names
+            //     .id_from_name(name),
+            MaybeAdHoc::Fixed(_) => todo!(),
             MaybeAdHoc::AdHoc(a) => {
                 let twists = a.lock();
                 twists.names.id_from_string(&family)
@@ -410,46 +410,50 @@ impl HpsTwistSystem {
 
     pub fn twist_axis(&self, twist: Twist) -> eyre::Result<Axis> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(*f
-                .components
-                .get::<NdEuclidTwistsList>()?
-                .twist_axes
-                .get(twist)?),
+            // MaybeAdHoc::Fixed(f) => Ok(*f
+            //     .components
+            //     .get::<NdEuclidTwistsList>()?
+            //     .twist_axes
+            //     .get(twist)?),
+            MaybeAdHoc::Fixed(_) => todo!(),
             MaybeAdHoc::AdHoc(a) => Ok(a.lock().get(twist)?.axis),
         }
     }
     pub fn twist_transform(&self, twist: Twist) -> eyre::Result<Motor> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(f
-                .components
-                .get::<NdEuclidTwistsList>()?
-                .twist_transforms
-                .get(twist)?
-                .clone()),
+            // MaybeAdHoc::Fixed(f) => Ok(f
+            //     .components
+            //     .get::<NdEuclidTwistsList>()?
+            //     .twist_transforms
+            //     .get(twist)?
+            //     .clone()),
+            MaybeAdHoc::Fixed(_) => todo!(),
             MaybeAdHoc::AdHoc(a) => Ok(a.lock().get(twist)?.transform.clone()),
         }
     }
     pub fn twist_name(&self, twist: Twist) -> eyre::Result<Option<NameSpec>> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(Some(
-                f.components
-                    .get::<NamedTwistsList>()?
-                    .names
-                    .get(twist)?
-                    .clone(),
-            )),
+            // MaybeAdHoc::Fixed(f) => Ok(Some(
+            //     f.components
+            //         .get::<NamedTwistsList>()?
+            //         .names
+            //         .get(twist)?
+            //         .clone(),
+            // )),
+            MaybeAdHoc::Fixed(_) => todo!(),
             MaybeAdHoc::AdHoc(a) => Ok(a.lock().names.get(twist).cloned()),
         }
     }
 
     pub fn key_to_id(&self, key: TwistKey) -> eyre::Result<Option<Twist>> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(f
-                .components
-                .get::<NdEuclidTwistsList>()?
-                .twist_from_transform
-                .get(key)
-                .copied()),
+            // MaybeAdHoc::Fixed(f) => Ok(f
+            //     .components
+            //     .get::<NdEuclidTwistsList>()?
+            //     .twist_from_transform
+            //     .get(key)
+            //     .copied()),
+            MaybeAdHoc::Fixed(_) => todo!(),
             MaybeAdHoc::AdHoc(a) => Ok(a.lock().key_to_id(key)),
         }
     }

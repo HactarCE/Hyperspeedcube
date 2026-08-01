@@ -99,35 +99,18 @@ impl TagMenu {
                     if *list {
                         let name = name.as_deref().unwrap_or("");
 
-                        if name == "colors/system" {
-                            hyperpuzzle::catalog()
-                                .color_systems
-                                .generators
-                                .values()
-                                .map(|g| &g.meta)
-                                // Sort by ID (could sort by name instead)
-                                .sorted_unstable_by(|a, b| CatalogId::cmp(&a.id, &b.id))
-                                .map(|color_system| {
-                                    let name = "colors/system";
-                                    let id_str = color_system.id.to_string();
-                                    self.tag_checkbox(ui, name, Some(&id_str), &color_system.name)
-                                })
-                                .reduce(Option::or)
-                                .flatten()
-                        } else {
-                            hyperpuzzle::catalog()
-                                .puzzle_list
-                                .iter()
-                                .filter_map(|meta| meta.tags.get(name))
-                                .flat_map(|tag_value| tag_value.to_strings())
-                                .unique()
-                                .sorted()
-                                .map(|tag_value| {
-                                    self.tag_checkbox(ui, name, Some(tag_value), tag_value)
-                                })
-                                .reduce(Option::or)
-                                .flatten()
-                        }
+                        hyperpuzzle::catalog()
+                            .puzzle_list
+                            .iter()
+                            .filter_map(|meta| meta.tags.get(name))
+                            .flat_map(|tag_value| tag_value.to_strings())
+                            .unique()
+                            .sorted()
+                            .map(|tag_value| {
+                                self.tag_checkbox(ui, name, Some(tag_value), tag_value)
+                            })
+                            .reduce(Option::or)
+                            .flatten()
                     } else {
                         self.show_tag_menu_nodes(ui, subtags)
                     }

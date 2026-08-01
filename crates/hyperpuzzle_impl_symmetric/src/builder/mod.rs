@@ -4,12 +4,12 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
-use eyre::{Context, OptionExt, Result, eyre};
+use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::{
     CoxeterMatrix, GroupElementId, GroupError, SubgroupAction, SubgroupConstraintSolver,
 };
 use hypermath::prelude::*;
-use hyperpuzzle_core::catalog::{BuildCtx, BuildTask, GeneratorOutput};
+use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzle_core::{Component, ComponentList};
@@ -37,20 +37,29 @@ use crate::{
 
 #[derive(Debug)]
 pub struct PuzzleProduct {
+    id: CatalogId,
     factor_ids: Vec<CatalogId>,
     factor_names: Vec<String>,
     shape: ProductPuzzleShape,
-    colors: MaybeAdHoc<ColorSystem, ColorSystemDisjointUnion>,
-    twists: MaybeAdHoc<TwistSystem, TwistSystemProduct>,
+    colors: Arc<ColorSystemDisjointUnion>,
+    twists: Arc<TwistSystemProduct>,
     axis_layers_per_orbit: Vec<AxisLayersInfo>,
+}
+
+impl CatalogObject for PuzzleProduct {
+    fn catalog_type_name() -> &'static str {
+        "factor puzzle"
+    }
+
+    fn id(&self) -> &CatalogId {
+        &self.id
+    }
 }
 
 impl PuzzleProduct {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        if let Ok(ad_hoc_twists) = self.twists.as_ad_hoc() {
-            debug_assert_eq!(self.shape.ndim(), ad_hoc_twists.ndim());
-        }
+        debug_assert_eq!(self.shape.ndim(), self.twists.ndim());
         self.shape.ndim()
     }
 
@@ -58,11 +67,12 @@ impl PuzzleProduct {
     /// product.
     pub fn direct_product_identity() -> Self {
         PuzzleProduct {
+            id: crate::product_id(&[]),
             factor_ids: vec![],
             factor_names: vec![],
             shape: ProductPuzzleShape::direct_product_identity(),
-            colors: MaybeAdHoc::AdHoc(ColorSystemDisjointUnion::disjoint_union_identity()),
-            twists: MaybeAdHoc::AdHoc(TwistSystemProduct::direct_product_identity()),
+            colors: Arc::new(ColorSystemDisjointUnion::disjoint_union_identity()),
+            twists: Arc::new(TwistSystemProduct::direct_product_identity()),
             axis_layers_per_orbit: vec![],
         }
     }
@@ -76,8 +86,8 @@ impl PuzzleProduct {
         name: String,
         coxeter_matrix: CoxeterMatrix,
         facet_orbits: &[FacetOrbitSpec],
-        colors: MaybeAdHoc<ColorSystem, ColorSystemDisjointUnion>,
-        twists: MaybeAdHoc<TwistSystem, TwistSystemProduct>,
+        colors: Arc<ColorSystemDisjointUnion>,
+        twists: Arc<TwistSystemProduct>,
         axis_orbit_cut_distances: &[CutDistances],
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
@@ -98,15 +108,12 @@ impl PuzzleProduct {
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece(Piece(0))?;
 
-        let product_twists = twists.as_ad_hoc_or_component()?;
-
         // Slice axes
-        for (orbit, cut_distances) in
-            std::iter::zip(&product_twists.axis_orbits, axis_orbit_cut_distances)
+        for (orbit, cut_distances) in std::iter::zip(&twists.axis_orbits, axis_orbit_cut_distances)
         {
             for axis in orbit.axes() {
                 for &cut_distance in &cut_distances.0 {
-                    let plane = Hyperplane::new(&product_twists.axis_vectors[axis], cut_distance)
+                    let plane = Hyperplane::new(&twists.axis_vectors[axis], cut_distance)
                         .ok_or_eyre("bad axis vector")?;
                     shape_builder.slice(plane)?;
                 }
@@ -117,15 +124,15 @@ impl PuzzleProduct {
 
         // Add grip signatures
         for (_, piece_data) in &mut shape.pieces {
-            piece_data.grip_signature = PerAxis::new_with_len(product_twists.len());
+            piece_data.grip_signature = PerAxis::new_with_len(twists.len());
             for (orbit, cut_distances) in
-                std::iter::zip(&product_twists.axis_orbits, axis_orbit_cut_distances)
+                std::iter::zip(&twists.axis_orbits, axis_orbit_cut_distances)
             {
-                let recip_mag = product_twists.axis_vectors[orbit.first()].mag().recip();
+                let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
                 for axis in orbit.axes() {
                     if let Some((min_height, max_height)) = piece_data
                         .polytope
-                        .height_on_axis(&product_twists.axis_vectors[axis])
+                        .height_on_axis(&twists.axis_vectors[axis])
                     {
                         piece_data.grip_signature[axis] = cut_distances
                             .layer_range_for_distance_range(
@@ -142,7 +149,16 @@ impl PuzzleProduct {
             .map(|d| d.layers_info())
             .collect();
 
+        if shape.ndim() != twists.ndim() {
+            bail!(
+                "shape has ndim={} but twist system has ndim={}",
+                shape.ndim(),
+                twists.ndim(),
+            );
+        }
+
         Ok(Self {
+            id: crate::product_id(std::slice::from_ref(&id)),
             factor_ids: vec![id],
             factor_names: vec![name],
             shape,
@@ -159,16 +175,17 @@ impl PuzzleProduct {
     /// and puzzle `b` occupying the higher dimensions.
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
         Ok(PuzzleProduct {
+            id: crate::product_id(&self.factor_ids),
             factor_ids: crate::chain_cloned(&self.factor_ids, &rhs.factor_ids),
             factor_names: crate::chain_cloned(&self.factor_names, &rhs.factor_names),
             shape: self.shape.direct_product(&rhs.shape)?,
-            colors: MaybeAdHoc::AdHoc(ColorSystemDisjointUnion::disjoint_union(
-                &ColorSystemDisjointUnion::from_color_system(&self.colors),
-                &ColorSystemDisjointUnion::from_color_system(&rhs.colors),
+            colors: Arc::new(ColorSystemDisjointUnion::disjoint_union(
+                &self.colors,
+                &rhs.colors,
             )?),
-            twists: MaybeAdHoc::AdHoc(TwistSystemProduct::direct_product(
-                self.twists.as_ad_hoc_or_component()?,
-                rhs.twists.as_ad_hoc_or_component()?,
+            twists: Arc::new(TwistSystemProduct::direct_product(
+                &self.twists,
+                &rhs.twists,
             )?),
             axis_layers_per_orbit: crate::chain_cloned(
                 &self.axis_layers_per_orbit,
@@ -183,46 +200,35 @@ impl PuzzleProduct {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<Puzzle>> {
-        let colors = match &self.colors {
-            MaybeAdHoc::Fixed(f) => Arc::clone(f),
-            MaybeAdHoc::AdHoc(a) => a.build(build_ctx, warn_fn)?,
-        };
-
-        let twists = match &self.twists {
-            MaybeAdHoc::Fixed(f) => Arc::clone(&f),
-            MaybeAdHoc::AdHoc(a) => a.build(build_ctx, warn_fn)?,
-        };
-
-        build_ctx.set_building::<Puzzle>();
+        let built_colors = self.colors.build(build_ctx, warn_fn)?;
+        let built_twists = self.twists.build(build_ctx, warn_fn)?;
 
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
-
-        let id = self.id();
-        let name = self.name();
 
         let (pieces, stickers) = self.shape.build_piece_and_stickers()?;
 
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
             self.shape.build_piece_types(warn_fn)?;
 
-        let product_twists = twists.components.get::<TwistSystemProduct>()?;
-        let symmetric_twist_system_component =
-            twists.components.get::<SymmetricTwistSystemComponent>()?;
+        let twists = &self.twists;
+        let symmetric_twist_system_component = built_twists
+            .components
+            .get::<SymmetricTwistSystemComponent>()?;
 
         let grip_signatures = Arc::new(self.shape.build_grip_signatures());
 
         let axis_layers: PerAxis<AxisLayersInfo> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(&product_twists.axis_orbits)
+            .zip(&twists.axis_orbits)
             .flat_map(|(&layers_info, axis_orbit)| std::iter::repeat_n(layers_info, axis_orbit.len))
             .collect();
 
         let axes_with_twists: Vec<Axis> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(&product_twists.axis_orbits)
+            .zip(&twists.axis_orbits)
             .filter(|(layers_info, orbit)| {
                 layers_info.max_layer > 0
                     && symmetric_twist_system_component.axis_has_twists(orbit.first())
@@ -237,14 +243,14 @@ impl PuzzleProduct {
             gizmos::build_3d_gizmo(
                 &mut mesh,
                 &mut gizmo_twists,
-                &product_twists,
+                &twists,
                 &symmetric_twist_system_component,
             )
         } else if ndim == 4 {
             gizmos::build_4d_gizmo(
                 &mut mesh,
                 &mut gizmo_twists,
-                &product_twists,
+                &twists,
                 &symmetric_twist_system_component,
                 warn_fn,
             )
@@ -268,7 +274,7 @@ impl PuzzleProduct {
 
             mesh,
 
-            axis_vectors: twists.axes.components.get()?,
+            axis_vectors: built_twists.axes.components.get()?,
             axis_layer_depths: PerAxis::new(), // TODO: is this needed?
 
             gizmo_twists,
@@ -307,16 +313,17 @@ impl PuzzleProduct {
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            meta: Arc::new(CatalogMetadata {
-                id,
-                version: Version {
-                    major: 0,
+            meta: Arc::new(PuzzleListEntry {
+                id: self.id.clone(),
+                // TODO: somehow capture version info for factor puzzles
+                version: Some(Version {
+                    major: 1,
                     minor: 0,
-                    patch: 1,
-                },
-                name: self.factor_names.iter().join(" × "),
+                    patch: 0,
+                }),
+                name: self.name(),
                 aliases: vec![],
-                tags: TagSet::new(),
+                tags: TagSet::new(), // TODO: tags for products
             }),
             view_prefs_set: Some(PuzzleViewPreferencesSet::Perspective(match ndim {
                 ..=3 => PerspectiveDim::Dim3D,
@@ -327,11 +334,11 @@ impl PuzzleProduct {
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
-            colors,
+            colors: built_colors,
             can_scramble: false,
             full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
             axis_layers,
-            twists,
+            twists: built_twists,
             new: Box::new({
                 move |ty| {
                     ProductPuzzleState {
@@ -348,8 +355,8 @@ impl PuzzleProduct {
         }))
     }
 
-    pub fn id(&self) -> CatalogId {
-        crate::product_id(&self.factor_ids)
+    pub fn id(&self) -> &CatalogId {
+        &self.id
     }
 
     pub fn name(&self) -> String {

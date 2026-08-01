@@ -77,8 +77,8 @@ impl Value {
         }
     }
 
-    /// Returns the map. If the value was `null`, replaces it with a new map. If
-    /// the value was anything else, returns an error.
+    /// Returns the map. If the value was `null`, replaces it with a new map
+    /// from the given span. If the value was anything else, returns an error.
     pub(crate) fn as_map_mut(&mut self, span: Span) -> Result<&mut Map> {
         if self.is_null() {
             *self = ValueData::Map(Arc::new(Map::new())).at(span);

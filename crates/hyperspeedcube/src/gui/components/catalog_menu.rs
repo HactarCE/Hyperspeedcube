@@ -350,7 +350,7 @@ impl<'a> MenuUiElement<'a> {
             MenuUiElement::End { id } => {
                 if id.args.is_empty() {
                     if let Some(g) = generator_ui
-                        && g.generator_id != id.base
+                        && *g.generator_id != *id.base
                     {
                         *generator_ui = None;
                     }

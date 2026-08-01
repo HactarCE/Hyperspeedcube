@@ -3,15 +3,23 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use eyre::Result;
 use itertools::Itertools;
+use parking_lot::{Mutex, MutexGuard};
 use rand::SeedableRng;
 use sha2::Digest;
 
 use crate::catalog::CatalogObject;
-use crate::{Component, MissingComponent};
+
+/// Like `format!()` but returns a `&'static str` that is computed only once.
+macro_rules! static_format {
+    ($($args:tt)*) => {
+        *const { ::std::sync::LazyLock::<&'static str>::new(|| ::std::format!($($args)*).leak()) }
+    };
+}
 
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
@@ -137,60 +145,55 @@ pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
     name.split(',').map(|s| s.split_once(':')).collect()
 }
 
-/// Either a fixed object `Arc<F>` from the catalog, or an ad-hoc builder `A`
+/// Either a fixed object `Arc<T>` from the catalog, or an ad-hoc builder `Arc<Mutex<T>>`
 /// that will be used to construct a catalog object.
 #[derive(Debug)]
-pub enum MaybeAdHoc<F, A> {
+pub enum MaybeAdHoc<T> {
     /// Fixed object from the catalog.
-    Fixed(Arc<F>),
+    Fixed(Arc<T>),
     /// Ad-hoc builder that will be used to construct a catalog object.
-    AdHoc(A),
+    AdHoc(Arc<Mutex<T>>),
 }
 
-impl<F, A: Clone> Clone for MaybeAdHoc<F, A> {
+impl<T> Clone for MaybeAdHoc<T> {
     fn clone(&self) -> Self {
         match self {
             Self::Fixed(f) => Self::Fixed(Arc::clone(f)),
-            Self::AdHoc(a) => Self::AdHoc(a.clone()),
+            Self::AdHoc(a) => Self::AdHoc(Arc::clone(a)),
         }
     }
 }
 
-impl<F: CatalogObject, A> MaybeAdHoc<F, A> {
-    /// Returns the ad-hoc builder if it is one, or an error otherwise.
-    pub fn as_ad_hoc(&self) -> Result<&A, ExpectedAdHoc>
-    where
-        F: CatalogObject,
-    {
+impl<T: CatalogObject> MaybeAdHoc<T> {
+    /// Returns an immutable reference to the contained object, whether fixed or
+    /// ad-hoc.
+    pub fn lock_ref(&self) -> MaybeAdHocRef<'_, T> {
         match self {
-            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<F>()),
-            MaybeAdHoc::AdHoc(a) => Ok(a),
+            MaybeAdHoc::Fixed(f) => MaybeAdHocRef::Fixed(f),
+            MaybeAdHoc::AdHoc(mutex) => MaybeAdHocRef::AdHoc(mutex.lock()),
         }
     }
 
-    /// Returns a mutable reference to the ad-hoc builder if it is one, or an
-    /// error otherwise.
-    pub fn as_ad_hoc_mut(&mut self) -> Result<&mut A, ExpectedAdHoc>
-    where
-        F: CatalogObject,
-    {
+    /// Locks the ad-hoc builder if it is one, or an error otherwise.
+    pub fn lock_mut(&self) -> Result<MutexGuard<'_, T>, ExpectedAdHoc> {
         match self {
-            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<F>()),
-            MaybeAdHoc::AdHoc(a) => Ok(a),
+            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<T>()),
+            MaybeAdHoc::AdHoc(mutex) => Ok(mutex.lock()),
         }
     }
+}
 
-    /// Returns a reference to the ad-hoc builder if it is one, or the
-    /// corresponding component of the catalog object otherwise.
-    ///
-    /// Returns an error if the component is not present.
-    pub fn as_ad_hoc_or_component(&self) -> Result<&A, MissingComponent>
-    where
-        A: Component<F>,
-    {
+pub enum MaybeAdHocRef<'a, T> {
+    Fixed(&'a T),
+    AdHoc(MutexGuard<'a, T>),
+}
+impl<T> Deref for MaybeAdHocRef<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
         match self {
-            MaybeAdHoc::Fixed(f) => f.components().get_ref(),
-            MaybeAdHoc::AdHoc(a) => Ok(a),
+            MaybeAdHocRef::Fixed(f) => f,
+            MaybeAdHocRef::AdHoc(mutex_guard) => mutex_guard,
         }
     }
 }
@@ -206,7 +209,7 @@ pub struct ExpectedAdHoc {
 impl ExpectedAdHoc {
     fn new<O: CatalogObject>() -> Self {
         Self {
-            type_name: O::CATALOG_TYPE_NAME,
+            type_name: O::catalog_type_name(),
         }
     }
 }

@@ -1,11 +1,13 @@
 //! Multidimensional twisty puzzle generator and simulator backend.
 
 #[macro_use]
-extern crate lazy_static;
+extern crate lazy_static; // TODO: replace with std::sync::Lazy
 
 #[cfg(test)]
 use criterion as _; // Suppress unused crate warning (it's used in a benchmark)
 
+#[macro_use]
+pub mod util;
 pub mod catalog;
 mod components;
 mod lint;
@@ -16,7 +18,6 @@ mod rgb;
 pub mod tags;
 mod timestamp;
 mod traits;
-pub mod util;
 mod version;
 
 /// Re-export of `chrono`.
@@ -45,9 +46,10 @@ pub use crate::timestamp::Timestamp;
 /// Prelude of common imports.
 pub mod prelude {
     pub use crate::catalog::{
-        Catalog, CatalogBuilder, CatalogId, CatalogIdError, CatalogIdValue, CatalogMetadata,
-        ColorSystemGenerator, GeneratorParam, GeneratorParamError, GeneratorParamType,
-        PuzzleGenerator, Redirectable, TwistSystemGenerator, TypedCatalogIdValue,
+        BuildCtx, Catalog, CatalogBuilder, CatalogId, CatalogIdError, CatalogIdValue, CatalogIdent,
+        CatalogObject, Generator, GeneratorParam, GeneratorParamError, GeneratorParamType,
+        GeneratorParamValidation, GeneratorSubsetParam, GeneratorSubsetParamValue, PuzzleListEntry,
+        TypedCatalogIdValue,
     };
     pub use crate::lint::PuzzleLintOutput;
     pub use crate::names::{
@@ -88,7 +90,7 @@ pub fn get_drand_chain() -> timecheck::drand::Chain {
 }
 
 /// Maximum number of ID redirects.
-const MAX_ID_REDIRECTS: usize = 5;
+const MAX_ID_REDIRECTS: usize = 15;
 
 /// **This function is deprecated after 2.0.0-zeta.12.**
 ///
@@ -127,10 +129,15 @@ pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
     numeric_sort::cmp(a, b)
 }
 
+const AD_HOC_ID_STR: &str = "ad_hoc";
+const ROT_ID_STR: &str = "rot";
+const REFL_ID_STR: &str = "rot";
+
 /// Returns the ID for an ad-hoc color system or twist system.
 pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
     CatalogId {
-        base: "ad_hoc".into(),
+        base: AD_HOC_ID_STR.parse().expect("bad ID"),
         args: vec![puzzle_id.into()],
+        subset: None,
     }
 }

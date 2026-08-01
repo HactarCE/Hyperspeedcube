@@ -1,0 +1,23 @@
+preprocess(&mut kwargs)
+
+add_tags(&mut Tags, kwargs)
+
+
+callback(&mut PuzzleListEntry, kwargs)
+
+
+tags
+
+PuzzleListEntry
+Puzzle
+
+
+
+5 things:
+- list entry for single puzzle (modify tags based on kwargs)
+- list entry for generator
+- list entry for generated puzzle (modify tags based on kwargs)
+- puzzle for single puzzle (modify tags, then list entry -> puzzle)
+- puzzle for generated puzzle (modify tags, then list entry -> puzzle)
+
+list entry, kwargs -> modify tags + lazy puzzle

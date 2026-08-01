@@ -8,9 +8,8 @@ use hyperpuzzle_core::{CatalogBuilder, Component, Version};
 mod color_systems;
 mod generators;
 mod puzzles;
+pub mod tags;
 mod twist_systems;
-
-pub use generators::HpsGenerator;
 
 use crate::{Builtins, EvalCtx, EvalRequestTx, Map, Result};
 
@@ -28,7 +27,7 @@ pub fn define_in(
 
 fn parse_version(ctx: &mut EvalCtx<'_>, thing: &str, s: Option<&str>) -> Result<Version> {
     let Some(version_string) = s else {
-        ctx.warn(format!("missing `version` for {thing}"));
+        ctx.warn(eco_format!("missing `version` for {thing}"));
         return Ok(Version::PLACEHOLDER);
     };
 

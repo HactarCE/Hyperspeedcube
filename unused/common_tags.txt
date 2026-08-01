@@ -1,0 +1,20 @@
+common_tags = #{
+    solid = true, ndim = 4, doctrinaire = true,
+    author = ["HactarCE"],
+}
+
+// hypercube_ft
+tags = #{
+    solid = true, ndim = 4, doctrinaire = true,
+    author = ["HactarCE"],
+    leaderboard = true,
+    stable = "2.0.0",
+},
+
+tags = #{ **common_tags, stable = "2.0.0", leaderboard = true },
+
+// n_cube_ft
+tags = #{
+    solid = true, ndim = "generic", doctrinaire = true,
+    author = ["HactarCE"], leaderboard = true, stable = "2.0.0"
+}

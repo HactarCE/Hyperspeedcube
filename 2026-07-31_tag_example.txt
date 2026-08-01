@@ -1,0 +1,6 @@
+tags = #{
+    ndim = 4,
+    algebraic = ["doctrinaire", "pseudodoctrinaire"],
+    author = ["Andrew Farkas"],
+    stable = "2.0.0",
+}

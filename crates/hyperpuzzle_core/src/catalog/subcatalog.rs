@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 
 /// Subcatalog for a specific object type (puzzles, color systems, twist
@@ -10,7 +12,7 @@ pub struct SubCatalog<T> {
     pub generators: HashMap<String, Arc<Generator<T>>>,
     /// Cache of objects created from generators, indexed by ID (e.g.,
     /// `ft_cube(3)`).
-    pub cache: Mutex<HashMap<String, Arc<Mutex<CacheEntry<T>>>>>,
+    pub(super) cache: Mutex<HashMap<String, CacheEntry<T>>>,
 }
 
 impl<T> fmt::Debug for SubCatalog<T> {
@@ -21,7 +23,7 @@ impl<T> fmt::Debug for SubCatalog<T> {
     }
 }
 
-impl<T> Default for SubCatalog<T> {
+impl<T: CatalogObject> Default for SubCatalog<T> {
     fn default() -> Self {
         Self {
             generators: HashMap::default(),
@@ -30,13 +32,10 @@ impl<T> Default for SubCatalog<T> {
     }
 }
 
-impl<T> SubCatalog<T> {
+impl<T: CatalogObject> SubCatalog<T> {
     /// Adds a generator to the catalog.
     pub(super) fn add(&mut self, generator: Arc<Generator<T>>) -> Result<()> {
-        if !generator.meta.id.args.is_empty() {
-            bail!("object ID cannot have arguments")
-        }
-        match self.generators.entry(generator.meta.id.to_string()) {
+        match self.generators.entry(generator.id.to_string()) {
             hash_map::Entry::Occupied(occupied_entry) => {
                 bail!("duplicate ID {:?}", occupied_entry.key())
             }
@@ -47,12 +46,77 @@ impl<T> SubCatalog<T> {
         }
     }
 
-    /// Returns the cache entry for an ID.
-    pub(super) fn cache_entry(&self, id: &CatalogId) -> Arc<Mutex<CacheEntry<T>>> {
-        Arc::clone(self.cache.lock().entry(id.to_string()).or_default())
+    pub(super) fn try_get_generator(&self, id_base: &str) -> Result<&Arc<Generator<T>>> {
+        self.generators.get(id_base).ok_or_else(|| {
+            eyre!(
+                "no {ty} or {ty} generator with ID {id_base:?}",
+                ty = T::catalog_type_name(),
+            )
+        })
     }
 
-    pub(super) fn remove_cache_entry(&self, id: &CatalogId) {
-        self.cache.lock().remove(&id.to_string());
+    /// Fetches the cache entry for an ID, creating one if it is missing.
+    /// Returns a request for the object and a boolean indicating whether the
+    /// request is new (and thus the caller is responsible for actually building
+    /// the object).
+    ///
+    /// If the request for the object is dropped while the being built, and
+    /// there are no other requests, then building the object is canceled.
+    pub(super) fn request_cache_entry(
+        &self,
+        catalog: &Catalog,
+        id: CatalogId,
+    ) -> (Request<T>, bool) {
+        if *id.base == *crate::AD_HOC_ID_STR {
+            return (
+                Request::new_error(
+                    &id,
+                    eyre!(
+                        "ad-hoc generator cannot be called directly \
+                         (if you are seeing this, it's probably a bug)"
+                    ),
+                ),
+                false,
+            );
+        }
+
+        let mut cache_guard = self.cache.lock();
+
+        let cache_entry = cache_guard.entry(id.to_string());
+        let is_new = matches!(cache_entry, hash_map::Entry::Vacant(_));
+        let request_inner = match cache_entry {
+            hash_map::Entry::Occupied(e) => match e.get() {
+                CacheEntry::Building { request_data, .. } => RequestInner::Requested {
+                    catalog: catalog.clone(),
+                    generic_request: GenericRequest {
+                        data: Arc::clone(request_data),
+                    },
+                },
+                CacheEntry::Done(result) => RequestInner::Precomputed(result.clone()),
+            },
+            hash_map::Entry::Vacant(e) => {
+                let notify = NotifyWhenDropped::new();
+                let request_data =
+                    GenericRequestData::new::<T>(catalog.clone(), id.clone(), notify.waiter());
+
+                e.insert(CacheEntry::Building {
+                    request_data: Arc::clone(&request_data),
+                    _notify: notify,
+                });
+
+                RequestInner::Requested {
+                    catalog: catalog.clone(),
+                    generic_request: GenericRequest { data: request_data },
+                }
+            }
+        };
+
+        (
+            Request {
+                requested_id: id,
+                inner: request_inner,
+            },
+            is_new,
+        )
     }
 }

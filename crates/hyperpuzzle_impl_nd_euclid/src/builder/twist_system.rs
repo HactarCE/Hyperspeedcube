@@ -21,11 +21,22 @@ use crate::{NamedTwistsList, NdEuclidVantageGroup, TwistKey};
 /// Twist system, either fixed (taken from the catalog) or ad-hoc (currently
 /// being constructed).
 #[derive(Debug, Clone)]
-pub struct TwistSystemBuilder(pub MaybeAdHoc<TwistSystem, Arc<Mutex<AdHocTwistSystemBuilder>>>);
+pub struct TwistSystemBuilder(pub MaybeAdHoc<AdHocTwistSystemBuilder>);
 impl TwistSystemBuilder {
     /// Locks the ad-hoc builder if it is one, or returns an error otherwise.
     pub fn lock_ad_hoc(&self) -> Result<MutexGuard<'_, AdHocTwistSystemBuilder>, ExpectedAdHoc> {
-        Ok(self.0.as_ad_hoc()?.lock())
+        self.0.lock_mut()
+    }
+}
+
+// TODO: this impl probably shouldn't exist
+impl CatalogObject for AdHocTwistSystemBuilder {
+    fn catalog_type_name() -> &'static str {
+        "ndeuclid twist system builder"
+    }
+
+    fn id(&self) -> &CatalogId {
+        &self.id
     }
 }
 
@@ -34,8 +45,6 @@ impl TwistSystemBuilder {
 pub struct AdHocTwistSystemBuilder {
     /// Twist system ID.
     pub id: CatalogId,
-    /// Name of the twist system.
-    pub name: Option<String>,
 
     /// Axis system being constructed.
     pub axes: AdHocAxisSystemBuilder,
@@ -62,10 +71,9 @@ pub struct AdHocTwistSystemBuilder {
 }
 impl AdHocTwistSystemBuilder {
     /// Constructs a new twist system builder.
-    pub fn new(id: CatalogId, name: Option<String>, ndim: u8) -> Self {
+    pub fn new(id: CatalogId, ndim: u8) -> Self {
         Self {
             id,
-            name,
             axes: AdHocAxisSystemBuilder::new(ndim),
             by_id: PerTwist::new(),
             names: NameSpecBiMapBuilder::new(),
@@ -162,18 +170,7 @@ impl AdHocTwistSystemBuilder {
     }
 
     /// Validates and constructs a twist system.
-    pub fn build(
-        &self,
-        build_ctx: Option<&BuildCtx>,
-        warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<Arc<TwistSystem>> {
-        if let Some(build_ctx) = build_ctx {
-            build_ctx.set_building::<TwistSystem>();
-        }
-
-        let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
-        let meta = Arc::new(CatalogMetadata::simple(self.id.clone(), name));
-
+    pub fn build(&self, build_ctx: &BuildCtx) -> Result<Arc<TwistSystem>> {
         // Build axis system.
         let axes = self.axes.build()?;
         let axis_vectors = axes.components.get::<NdEuclidAxisVectors>()?;
@@ -202,7 +199,7 @@ impl AdHocTwistSystemBuilder {
             let axis_vector = &axis_vectors.vectors_by_id[axis];
             let transform = &twists_list.twist_transforms[twist_id];
             if APPROX.ne(&transform.transform(axis_vector), axis_vector) {
-                warn_fn(eyre!(
+                build_ctx.warn_fn()(eyre!(
                     "twist {:?} does not fix axis vector",
                     &twist_names[twist_id]
                 ));
@@ -266,7 +263,8 @@ impl AdHocTwistSystemBuilder {
         components.insert(Arc::new(self.hps_exports.clone()));
 
         Ok(Arc::new(TwistSystem {
-            meta,
+            id: self.id.clone(),
+            components,
 
             axes: Arc::new(axes),
             axis_from_family: Box::new(move |family_str| {
@@ -278,8 +276,6 @@ impl AdHocTwistSystemBuilder {
 
             vantage_groups,
             vantage_sets,
-
-            components,
         }))
     }
 }

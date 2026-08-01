@@ -2,17 +2,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::{
-    CatalogBuilder, CatalogId, CatalogMetadata, ColorSystem, ColorSystemGenerator, ComponentList,
-    NameSpecBiMapBuilder, PaletteColor, PerColor,
+    BuildCtx, CatalogBuilder, ColorSystem, ComponentList, NameSpecBiMapBuilder, PaletteColor,
+    PerColor,
 };
 use indexmap::IndexMap;
 
 use crate::util::pop_map_key;
-use crate::{
-    Builtins, Error, ErrorExt, EvalCtx, EvalRequestTx, FnValue, List, Map, Result, Spanned, Str,
-};
+use crate::{Builtins, ErrorExt, EvalRequestTx, List, Map, Result, Runtime, Span, Spanned, Str};
 
 /// Adds the built-in functions.
 pub fn define_in(
@@ -21,93 +18,67 @@ pub fn define_in(
     eval_tx: &EvalRequestTx,
 ) -> Result<()> {
     let cat = catalog.clone();
-    builtins.set_fns(hps_fns![
-        /// Adds a color system to the catalog.
-        ///
-        /// This function takes the following named arguments:
-        ///
-        /// - `id: Str`
-        /// - `name: Str?`
-        /// - `colors: List[Map]`
-        /// - `schemes: List[List]?`
-        /// - `default: Str?`
-        #[kwargs(kwargs)]
-        fn add_color_system(ctx: EvalCtx) -> () {
-            cat.add(Arc::new(color_system_from_kwargs(ctx, kwargs)?))
-                .at(ctx.caller_span)?;
-        }
-    ])?;
-
-    let cat = catalog.clone();
     let tx = eval_tx.clone();
     builtins.set_fns(hps_fns![
-        /// Adds a color system generator to the catalog.
+        /// Adds a color system or color system generator to the catalog.
         ///
-        /// This function takes the following named arguments:
+        /// ## Single color system
         ///
-        /// - `id: Str`
-        /// - `name: Str?`
-        /// - `params: List[Map]`
-        /// - `gen: Fn(..) -> Map`
+        /// When used to define a single color system, this function takes the
+        /// following named arguments:
         ///
-        /// Other keyword arguments are copied into the output of `gen`.
+        /// - `id: Str` — ID for the color system (e.g., `"cube"`)
+        /// - `name: Str?` — Name for the color system (e.g., `"Cube"`)
+        /// - `colors: List[Map]` — List of colors
+        /// - `schemes: List[List]?` — List of color schemes
+        /// - `default: Str?` — Name of the default color scheme
+        ///
+        /// ## Color system generator
+        ///
+        /// When used to define a color system generator, this function takes
+        /// the following named arguments:
+        ///
+        /// - `id: Str` — ID for the color system generator (e.g., `"ngon"`)
+        /// - `params: List[Map]` — List of generator parameters
+        /// - `gen: Fn(..) -> Map` — Generator function
+        ///
+        /// The map returned by `gen` must have the following keys:
+        ///
+        /// - `name: Str?` — Name for the color system (e.g., `"{5}"`)
+        /// - `colors: List[Map]` — List of colors
+        /// - `schemes: List[List]?` — List of color schemes
+        /// - `default: Str?` — Name of the default color scheme
         #[kwargs(kwargs)]
-        fn add_color_system_generator(ctx: EvalCtx) -> () {
-            pop_kwarg!(kwargs, (id, id_span): String);
-            pop_kwarg!(kwargs, name: String = {
-                ctx.warn(eco_format!("missing `name` for color system generator `{id}`"));
-                id.clone()
-            });
-            pop_kwarg!(kwargs, (params, params_span): Vec<Spanned<Arc<Map>>>);
-            pop_kwarg!(kwargs, (r#gen, gen_span): Arc<FnValue>);
-
-            let tx = tx.clone();
-            let hps_gen = super::generators::HpsGenerator {
-                def_span: ctx.caller_span,
-                id: CatalogId::new(id, []).at(id_span)?,
-                id_span,
-                params: super::generators::params_from_array(params)?,
-                params_span,
-                gen_fn: r#gen,
-                gen_span,
-                extra: Arc::new(kwargs),
-            };
-
-            let generator = ColorSystemGenerator {
-                meta: Arc::new(CatalogMetadata::simple(hps_gen.id.clone(), name.clone())),
-                params: hps_gen.params.clone(),
-                generate: Box::new(move |build_ctx, param_values| {
-                    build_ctx.set_building::<ColorSystem>();
-                    hps_gen.generate_on_hps_thread(&tx, param_values, move |ctx, kwargs| {
-                        color_system_from_kwargs(ctx, kwargs)
-                            .map(|color_system| GeneratorOutput::from(Arc::new(color_system)))
-                    })
-                }),
-            };
-
-            cat.add_generator(Arc::new(generator)).at(ctx.caller_span)?;
+        fn add_color_system(ctx: EvalCtx) -> () {
+            let hps_gen = super::generators::hps_generator_from_kwargs(kwargs)?;
+            let caller_span = ctx.caller_span;
+            cat.add(hps_gen.make_generator(&tx, move |build_ctx, tx, kwargs| {
+                Ok(tx.eval_blocking_raw(move |runtime| {
+                    color_system_from_kwargs(build_ctx, caller_span, runtime, kwargs)
+                })?)
+            }))
+            .at(caller_span)?;
         }
-    ])?;
-
-    Ok(())
+    ])
 }
 
-fn pop_color_system_meta_from_kwargs(
-    ctx: &mut EvalCtx<'_>,
-    kwargs: &mut Map,
-) -> Result<CatalogMetadata> {
-    pop_kwarg!(*kwargs, (id, id_span): String);
-    pop_kwarg!(*kwargs, name: String = {
-        ctx.warn(eco_format!("missing `name` for color system `{id}`"));
-        id.clone()
-    });
-    Ok(CatalogMetadata::simple(id.parse().at(id_span)?, name))
-}
-
-fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<ColorSystem> {
-    let meta = pop_color_system_meta_from_kwargs(ctx, &mut kwargs)?;
+// TODO: doesn't really need runtime. just needs to be able to report warnings
+fn color_system_from_kwargs(
+    build_ctx: BuildCtx,
+    caller_span: Span,
+    runtime: &mut Runtime,
+    kwargs: Map,
+) -> Result<Arc<ColorSystem>> {
+    let id = build_ctx.id();
     unpack_kwargs!(
         kwargs,
+        name: String = {
+            runtime.warn_at(
+                caller_span,
+                eco_format!("missing `name` for color system `{id}`"),
+            );
+            id.to_string()
+        },
         colors: Vec<Spanned<Arc<Map>>>,
         schemes: Option<Vec<Spanned<List>>>,
         default: Option<String>,
@@ -123,7 +94,7 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<Co
     for (map, map_span) in colors {
         let mut map = Arc::unwrap_or_clone(map);
 
-        let id = display_names.next_idx().at(ctx.caller_span)?;
+        let id = display_names.next_idx().at(caller_span)?;
 
         let (name_spec, name_span): Spanned<String> = pop_map_key(&mut map, map_span, "name")?;
         names.set(id, Some(name_spec.clone())).at(name_span)?;
@@ -140,23 +111,26 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<Co
                     PaletteColor::from_str(&s).at(span)?
                 }
             };
-        default_scheme.push(default_color).at(ctx.caller_span)?;
+        default_scheme.push(default_color).at(caller_span)?;
     }
 
     let names = names
         .build(display_names.len())
-        .ok_or_else(|| Error::User("missing color name".into()).at(ctx.caller_span))?;
+        .ok_or_else(|| "missing color name".at(caller_span))?;
 
     // Add color schemes.
     let mut ret_schemes = IndexMap::new();
     if let Some(color_schemes_list) = schemes {
         if any_color_has_default {
-            ctx.warn("per-color `default` is ignored when used with `schemes`");
+            runtime.warn_at(
+                caller_span,
+                "per-color `default` is ignored when used with `schemes`",
+            );
         }
 
         for (mut map, map_span) in color_schemes_list {
             if map.len() != 2 {
-                return Err(Error::User("expected list with 2 elements".into()).at(map_span));
+                return Err("expected list with 2 elements".at(map_span));
             }
             let scheme_name = std::mem::take(&mut map[0]).to::<String>()?;
             let mut scheme_values = PerColor::<PaletteColor>::new_with_len(display_names.len());
@@ -179,18 +153,20 @@ fn color_system_from_kwargs(ctx: &mut EvalCtx<'_>, mut kwargs: Map) -> Result<Co
     let default_scheme =
         default.unwrap_or_else(|| hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME.to_owned());
     if !ret_schemes.contains_key(&default_scheme) {
-        ctx.warn(format!(
-            "default color scheme {default_scheme:?} does not exist"
-        ));
+        runtime.warn_at(
+            caller_span,
+            format!("default color scheme {default_scheme:?} does not exist"),
+        );
     }
 
-    Ok(ColorSystem {
-        meta: Arc::new(meta),
+    Ok(Arc::new(ColorSystem {
+        id: build_ctx.id().clone(),
+        name,
         components: ComponentList::new(),
         names,
         display_names,
         schemes: ret_schemes,
         default_scheme,
         orbits: vec![],
-    })
+    }))
 }

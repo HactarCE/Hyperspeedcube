@@ -7,7 +7,7 @@ use rand::Rng;
 use scramble::{ScrambleProgress, ScrambledPuzzle};
 
 use super::*;
-use crate::{BoxDynPuzzleState, CatalogMetadata, ComponentList, Move};
+use crate::{BoxDynPuzzleState, ComponentList, Move, PuzzleListEntry};
 
 /// Puzzle type info.
 pub struct Puzzle {
@@ -15,7 +15,7 @@ pub struct Puzzle {
     pub this: Weak<Puzzle>,
 
     /// Catalog metadata.
-    pub meta: Arc<CatalogMetadata>,
+    pub meta: Arc<PuzzleListEntry>,
     /// Extra components.
     pub components: ComponentList<Self>,
 

@@ -1,7 +1,7 @@
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
 
 add_menu_entry(
-    path = "1D|Line",
+    path = "Solid|1D|Line",
     default = true,
     id = "line",
 )

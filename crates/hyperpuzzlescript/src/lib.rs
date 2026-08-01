@@ -9,7 +9,7 @@ pub mod builtins;
 pub mod codegen;
 mod custom_value;
 mod diagnostic;
-mod engine_callback;
+pub mod engine;
 mod parse;
 mod request;
 mod runtime;
@@ -23,8 +23,8 @@ pub use diagnostic::{
     AstSyntaxError, Diagnostic, Error, ErrorExt, FullDiagnostic, ImmutReason, TracebackLine,
     Warning,
 };
-pub use engine_callback::{EngineCallback, PuzzleEngineCallback, TwistSystemEngineCallback};
-pub use request::EvalRequestTx;
+pub use engine::HpsEngine;
+pub use request::{EvalRequest, EvalRequestTx};
 pub use runtime::{Builtins, EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};
 pub use util::{FromValue, FromValueRef, TypeOf, hps_ty};

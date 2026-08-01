@@ -7,7 +7,8 @@ use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
 use crate::{
-    FILE_EXTENSION, FnType, INDEX_FILE_NAME, Key, Span, Spanned, Type, Value, ValueData, ast,
+    FILE_EXTENSION, FnType, INDEX_FILE_NAME, Key, Span, Spanned, SpecialVar, Type, Value,
+    ValueData, ast,
 };
 
 /// Error message, without traceback information.
@@ -90,6 +91,8 @@ pub enum Error {
     UnusedMapKeys { keys: Vec<Spanned<Key>> },
     #[error("missing required key")]
     MissingRequiredMapKey { key: Key },
+    #[error("missing required key")]
+    MissingRequiredMapKeyInSpecialVar { key: Key, special_var: SpecialVar },
     #[error("undefined")]
     Undefined,
     #[error("undefined in map")]
@@ -337,8 +340,17 @@ impl Error {
                 )
             }
             Self::MissingRequiredMapKey { key } => {
-                report_builder.main_label(format!("expected \x02this map\x03 to have {key:?}"))
+                report_builder.main_label(format!("expected \x02this map\x03 to have key {key:?}"))
             }
+            Self::MissingRequiredMapKeyInSpecialVar { key, special_var } => report_builder
+                .main_label(format!(
+                    "expected map \x02{special_var}\x03 to have key {key:?}",
+                ))
+                .help(if crate::parse::is_valid_ident(key) {
+                    format!("try assigning to `{special_var}.{key}`")
+                } else {
+                    format!("try assigning to `{special_var}[{key:?}]`")
+                }),
             Self::Undefined => report_builder
                 .main_label("\x02this name\x03 is not defined")
                 .help("it may be defined somewhere, but isn't accessible from here")

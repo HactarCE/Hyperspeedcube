@@ -21,7 +21,9 @@ impl GeneratorParam {
         match &self.ty {
             GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
             GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
-            GeneratorParamType::Puzzle { .. } => arg.into_id().map(TypedCatalogIdValue::Id),
+            GeneratorParamType::Puzzle { .. } | GeneratorParamType::Id { .. } => {
+                arg.into_id().map(TypedCatalogIdValue::Id)
+            }
             GeneratorParamType::List(inner) => arg
                 .into_list()
                 .and_then(|l| l.into_iter().map(|e| inner.typed_value(&e)).try_collect())
@@ -51,6 +53,11 @@ pub enum GeneratorParamType {
         /// Puzzle menu ID.
         menu: String,
     },
+    /// Other ID.
+    Id {
+        /// Type of object specified by the ID.
+        ty: &'static str,
+    },
     /// List of parameters.
     ///
     /// This must be the last parameter.
@@ -63,6 +70,7 @@ impl fmt::Display for GeneratorParamType {
             GeneratorParamType::Bool => write!(f, "true or false"),
             GeneratorParamType::Int { min, max } => write!(f, "integer ({min} to {max})"),
             GeneratorParamType::Puzzle { menu } => write!(f, "puzzle from {menu:?} menu"),
+            GeneratorParamType::Id { ty } => write!(f, "{ty} ID"),
             GeneratorParamType::List(inner) => write!(f, "list of {inner}"),
         }
     }
@@ -75,7 +83,9 @@ impl GeneratorParamType {
         match self {
             GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
             GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
-            GeneratorParamType::Puzzle { .. } => arg.clone().into_id().map(TypedCatalogIdValue::Id),
+            GeneratorParamType::Puzzle { .. } | GeneratorParamType::Id { .. } => {
+                arg.clone().into_id().map(TypedCatalogIdValue::Id)
+            }
             GeneratorParamType::List(inner) => arg
                 .clone()
                 .into_list()

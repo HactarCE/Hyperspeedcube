@@ -1,10 +1,63 @@
 //! ID string for an object in a catalog.
 
-use std::fmt;
 use std::str::FromStr;
+use std::{fmt, ops::Deref};
 
 use chumsky::prelude::*;
 use serde::{Deserialize, Serialize, de};
+
+/// Alphanumeric (with underscores) string, used in [`CatalogId`] and
+/// [`CatalogIdValue`].
+///
+/// This type dereferences to [`str`].
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct CatalogIdent(Box<str>);
+
+impl fmt::Debug for CatalogIdent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Display for CatalogIdent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl FromStr for CatalogIdent {
+    type Err = CatalogIdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Err(CatalogIdError::Empty);
+        }
+        if let Some(c) = s.chars().find(|&c| !is_id_ident_char(c)) {
+            return Err(CatalogIdError::BadChar(c));
+        }
+        Ok(Self(Box::from(s)))
+    }
+}
+
+impl Deref for CatalogIdent {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl From<bool> for CatalogIdent {
+    fn from(value: bool) -> Self {
+        Self(value.to_string().into_boxed_str())
+    }
+}
+
+impl From<i64> for CatalogIdent {
+    fn from(value: i64) -> Self {
+        Self(value.to_string().into_boxed_str())
+    }
+}
 
 /// ID string for an object in a catalog.
 ///
@@ -32,9 +85,11 @@ use serde::{Deserialize, Serialize, de};
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CatalogId {
     /// Base string.
-    pub base: Box<str>,
+    pub base: CatalogIdent,
     /// Argument values, if the base string specifies a generator.
     pub args: Vec<CatalogIdValue>,
+    /// Optional subset.
+    pub subset: Option<CatalogIdent>,
 }
 
 impl fmt::Debug for CatalogId {
@@ -45,12 +100,15 @@ impl fmt::Debug for CatalogId {
 
 impl fmt::Display for CatalogId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { base, args } = self;
+        let Self { base, args, subset } = self;
         write!(f, "{base}")?;
         if !args.is_empty() {
             write!(f, "(")?;
             write_comma_sep_list(f, args)?;
             write!(f, ")")?;
+        }
+        if let Some(s) = subset {
+            write!(f, ".{s}")?;
         }
         Ok(())
     }
@@ -83,30 +141,22 @@ impl<'de> Deserialize<'de> for CatalogId {
 }
 
 impl CatalogId {
-    /// Constructs a new catalog ID. Returns `None` if the ID is invalid.
-    ///
-    /// Prefer [`CatalogId::from_str()`] when parsing an ID from an external
-    /// source because it performs validation.
+    /// Constructs a new catalog ID.
     pub fn new(
-        base: impl Into<Box<str>>,
+        base: CatalogIdent,
         args: impl IntoIterator<Item = CatalogIdValue>,
-    ) -> Result<Self, CatalogIdError> {
-        let base = base.into();
-        if base.is_empty() {
-            return Err(CatalogIdError::Empty);
-        }
-        if let Some(c) = base.chars().find(|&c| !is_id_base_char(c)) {
-            return Err(CatalogIdError::BadChar(c));
-        }
+        subset: Option<CatalogIdent>,
+    ) -> Self {
         let args = args.into_iter().collect();
-        Ok(Self { base, args })
+        Self { base, args, subset }
     }
 
     /// Returns a catalog ID for an unnamed object.
     pub fn unnamed() -> Self {
         Self {
-            base: "unnamed".into(),
+            base: "unnamed".parse().expect("invalid ID"),
             args: vec![],
+            subset: None,
         }
     }
 }
@@ -116,7 +166,7 @@ impl CatalogId {
 pub enum CatalogIdValue {
     /// Identifier, which typically represents a primitive parameter value (such
     /// as an integer) or a catalog object.
-    Ident(Box<str>),
+    Ident(CatalogIdent),
     /// Generator invocation.
     Generator(CatalogId),
     /// List of parameter values to a generator.
@@ -150,13 +200,15 @@ impl FromStr for CatalogIdValue {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         recursive::<_, _, extra::Err<Rich<'_, char, SimpleSpan>>, _, _>(|ast_node| {
-            let base = any()
-                .filter(|&c| is_id_base_char(c))
+            let ident = any()
+                .filter(|&c| is_id_ident_char(c))
                 .repeated()
                 .at_least(1)
                 .to_slice()
-                .map(Box::from);
-            let id = base
+                .map(Box::from)
+                .map(CatalogIdent);
+            let id = ident
+                .clone()
                 .then(
                     ast_node
                         .clone()
@@ -165,9 +217,17 @@ impl FromStr for CatalogIdValue {
                         .delimited_by(just('('), just(')'))
                         .or_not(),
                 )
-                .map(|(base, args)| match args {
-                    Some(args) => Self::Generator(CatalogId { base, args }),
-                    None => Self::Ident(base),
+                .then(just('.').ignore_then(ident).or_not())
+                .map(|((base, args), subset)| {
+                    if args.is_none() && subset.is_none() {
+                        Self::Ident(base)
+                    } else {
+                        Self::Generator(CatalogId {
+                            base,
+                            args: args.unwrap_or_default(),
+                            subset,
+                        })
+                    }
                 });
 
             let list = ast_node
@@ -231,7 +291,11 @@ impl CatalogIdValue {
     /// Parses the value into a catalog ID.
     pub fn into_id(self) -> Result<CatalogId, CatalogIdError> {
         match self {
-            CatalogIdValue::Ident(base) => Ok(CatalogId { base, args: vec![] }),
+            CatalogIdValue::Ident(base) => Ok(CatalogId {
+                base,
+                args: vec![],
+                subset: None,
+            }),
             CatalogIdValue::Generator(id) => Ok(id),
             _ => Err(self.expected_got("id")),
         }
@@ -281,8 +345,8 @@ macro_rules! impl_catalog_id_value_convert {
 
 impl_catalog_id_value_convert!(into_id -> CatalogId);
 impl_catalog_id_value_convert!(into_list -> Vec<CatalogIdValue>, Self::List);
-impl_catalog_id_value_convert!(to_bool -> bool, |b: bool| Self::Ident(b.to_string().into()));
-impl_catalog_id_value_convert!(to_int -> i64, |i: i64| Self::Ident(i.to_string().into()));
+impl_catalog_id_value_convert!(to_bool -> bool, |b: bool| Self::Ident(b.into()));
+impl_catalog_id_value_convert!(to_int -> i64, |i: i64| Self::Ident(i.into()));
 
 impl From<CatalogId> for CatalogIdValue {
     fn from(id: CatalogId) -> Self {
@@ -326,7 +390,8 @@ fn write_comma_sep_list(f: &mut fmt::Formatter<'_>, elems: &[impl fmt::Display])
     Ok(())
 }
 
-fn is_id_base_char(c: char) -> bool {
+fn is_id_ident_char(c: char) -> bool {
+    // allow `-` for negative numbers
     c.is_alphabetic() || c.is_ascii_digit() || c == '_' || c == '-'
 }
 
@@ -336,7 +401,12 @@ mod tests {
 
     #[test]
     fn test_catalog_id_roundtrip() {
-        for s in ["product(ft_ngon(7,3),line(3))", "megaminx_crystal"] {
+        for s in [
+            "product(ngon_ft(7,3).refl,line(3))",
+            "megaminx_crystal",
+            "curvy_copter.rot",
+            "cube_ft(3).refl",
+        ] {
             assert_eq!(s, CatalogId::from_str(s).unwrap().to_string());
         }
     }

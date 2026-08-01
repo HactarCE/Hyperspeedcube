@@ -1,0 +1,26 @@
+HpsLazyPuzzle (contains PuzzleListEntry + build fn)
+
+PuzzleListEntry (exists for no-params)
+Puzzle
+
+
+/// Twist system engine.
+///
+/// See the [module documentation](`self`) for more info.
+pub struct TwistSystemEngine {
+    /// HPS name under which to register the engine.
+    pub name: String,
+    /// Callback for generating a [`TwistSystem`].
+    pub callback: PuzzleEngineCallback,
+}
+
+/// Puzzle engine.
+///
+/// See the [module documentation](`self`) for more info.
+pub struct PuzzleEngine {
+    /// HPS name under which to register the engine.
+    pub name: String,
+    /// Callback for generating a [`PuzzleListEntry`] and lazily generating a
+    /// [`Puzzle`].
+    pub callback: PuzzleEngineCallback,
+}

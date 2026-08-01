@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use eyre::{OptionExt, Result, eyre};
 use hyperpuzzle_core::{
-    CatalogId, CatalogMetadata, Color, ColorSystem, Component, ComponentList, IndexOverflow,
+    CatalogId, CatalogObject, Color, ColorSystem, Component, ComponentList, IndexOverflow,
     NameSpecBiMap, NameSpecBiMapBuilder, PaletteColor, PerColor, TypedIndex, catalog::BuildCtx,
     util::MaybeAdHoc,
 };
@@ -12,6 +12,8 @@ use indexmap::IndexMap;
 /// Disjoint union of color systems.
 #[derive(Debug, Clone)]
 pub struct ColorSystemDisjointUnion {
+    /// ID computed from `summand_ids`.
+    pub id: CatalogId,
     pub summand_ids: Vec<CatalogId>,
     pub summand_names: Vec<String>,
 
@@ -21,13 +23,12 @@ pub struct ColorSystemDisjointUnion {
     pub orbits: Vec<Vec<Option<String>>>,
 }
 
-impl Component<ColorSystem> for ColorSystemDisjointUnion {}
-
 impl ColorSystemDisjointUnion {
     /// Constructs the empty color system, which is the identity of the disjoint
     /// union.
     pub fn disjoint_union_identity() -> Self {
         Self {
+            id: crate::sum_id(&[]),
             summand_ids: vec![],
             summand_names: vec![],
             orbits: vec![],
@@ -42,32 +43,13 @@ impl ColorSystemDisjointUnion {
         if self.len() + rhs.len() >= Color::MAX_INDEX {
             return Err(IndexOverflow::new::<Color>());
         }
+        let summand_ids: Vec<CatalogId> = crate::chain_cloned(&self.summand_ids, &rhs.summand_ids);
         Ok(Self {
-            summand_ids: crate::chain_cloned(&self.summand_ids, &rhs.summand_ids),
+            id: crate::sum_id(&summand_ids),
+            summand_ids,
             summand_names: crate::chain_cloned(&self.summand_names, &rhs.summand_names),
             orbits: crate::chain_cloned(&self.orbits, &rhs.orbits),
         })
-    }
-
-    /// Gets the [`ColorSystemDisjointUnion`] from a color system, or constructs
-    /// a new one consisting of a single factor.
-    pub fn from_color_system(c: &MaybeAdHoc<ColorSystem, Self>) -> Cow<'_, Self> {
-        match c {
-            MaybeAdHoc::Fixed(f) => match f.components.get_ref() {
-                Ok(component) => Cow::Borrowed(component),
-                Err(_) => Cow::Owned(Self {
-                    summand_ids: vec![f.meta.id.clone()],
-                    summand_names: vec![f.meta.name.clone()],
-                    orbits: vec![
-                        f.names
-                            .iter_values()
-                            .map(|s| Some(s.spec.clone()))
-                            .collect(),
-                    ],
-                }),
-            },
-            MaybeAdHoc::AdHoc(a) => Cow::Borrowed(a),
-        }
     }
 
     /// Returns the number of colors.
@@ -75,13 +57,27 @@ impl ColorSystemDisjointUnion {
         self.orbits.iter().map(|orbit| orbit.len()).sum()
     }
 
+    /// Constructs a disjoint union color system with exactly one summand.
+    pub fn from_color_system(color_system: &ColorSystem) -> Self {
+        Self {
+            id: color_system.id.clone(),
+            summand_ids: vec![color_system.id.clone()],
+            summand_names: vec![color_system.name.clone()],
+            orbits: vec![
+                color_system
+                    .names
+                    .iter_values()
+                    .map(|name_spec| Some(name_spec.spec.clone()))
+                    .collect(),
+            ],
+        }
+    }
+
     pub fn build(
         &self,
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<ColorSystem>> {
-        build_ctx.set_building::<ColorSystem>();
-
         let mut autonames = crate::autonames();
 
         let mut names = NameSpecBiMapBuilder::new();
@@ -113,9 +109,6 @@ impl ColorSystemDisjointUnion {
             warn_fn(eyre!("color system is missing at least one name"));
         }
 
-        let mut components = ComponentList::new();
-        components.insert(Arc::new(self.clone()));
-
         let default_scheme = "Automatic".to_string();
         let mut schemes = IndexMap::new();
         schemes.insert(
@@ -132,11 +125,9 @@ impl ColorSystemDisjointUnion {
         );
 
         Ok(Arc::new(ColorSystem {
-            meta: Arc::new(CatalogMetadata::simple(
-                crate::sum_id(&self.summand_ids),
-                crate::product_name(&self.summand_names),
-            )),
-            components,
+            id: self.id.clone(),
+            name: crate::product_name(&self.summand_names),
+            components: ComponentList::new(),
             names,
             display_names,
             schemes,

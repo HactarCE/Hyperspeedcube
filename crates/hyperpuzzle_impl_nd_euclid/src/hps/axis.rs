@@ -55,7 +55,7 @@ impl HpsAxis {
     }
     pub fn name(&self) -> Option<NameSpec> {
         match &self.axes.0.0 {
-            MaybeAdHoc::Fixed(f) => Some(f.axes.names.get(self.id).ok()?.clone()),
+            MaybeAdHoc::Fixed(f) => Some(f.axes.names.get(self.id)?.clone()),
             MaybeAdHoc::AdHoc(a) => Some(a.lock().axes.names.get(self.id)?.clone()),
         }
     }

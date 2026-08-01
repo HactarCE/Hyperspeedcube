@@ -3,299 +3,73 @@ __schema 1 // Bump this version when adding new required tags
 (int)schema "Tag schema" expected=0 hidden=#true
 
 __heading "Type"
-
-type expected=1 inline=#true {
-  solid "Solid"
-  puzzle "Puzzle"
-  generator "Generator" auto=#true
-}
+generator "Generator" auto=#true
 
 __separator
 
-__heading "Shape"
+__heading "Construction"
+solid "Solid"
+tiling "Tiling"
+soup "Soup"
 
-(int)ndim "Dimension" expected=1 {
+__separator
+
+__heading "Space"
+(int)ndim "Dimension" list=#true expected=1 {
   generic "Dimension-generic"
 }
 
-shape expected=1 inline=#true {
-  _2d "2D"
-  _3d "3D" {
-    platonic "Platonic" {
-      cube "Cube"
-      tetrahedron "Tetrahedron"
-      dodecahedron "Dodecahedron"
-      octahedron "Octahedron"
-      icosahedron "Icosahedron"
-    }
-    archimedean "Archimedean" {
-      cuboctahedron "Cuboctahedron"
-      truncated_octahedron "Truncated Octahedron"
-    }
-    catalan "Catalan" {
-      rhombic_dodecahedron "Rhombic dodecahedron"
-    }
-    compound "Compound" {
-      _5tetrahedra "5 tetrahedra"
-    }
-    prism "Prism"
-    other "Other"
-  }
-  _4d "4D" {
-    platonic "Platonic" {
-      hypercube "Hypercube"
-      simplex "4-simplex"
-      _16cell "16-cell"
-      _24cell "24-cell"
-      _120cell "120-cell"
-      _600cell "600-cell"
-    }
-    archimedean "Archimedean" {
-      _48cell "48-cell"
-    }
-    prism "Prism" {
-      dodecahedron "Dodecahedral prism"
-    }
-    duoprism "Duoprism"
-  }
-  _5d "5D" {
-    platonic "Platonic" {
-      simplex "5-simplex"
-      hypercube "5-cube"
-      orthoplex "5-orthoplex"
-    }
-    archimedean "Archimedean" {
-      demicube "5-demicube"
-    }
-  }
-  _6d "6D" {
-    platonic "Platonic" {
-      simplex "6-simplex"
-      hypercube "6-cube"
-      orthoplex "6-orthoplex"
-    }
-  }
-  _7d "7D" {
-    platonic "Platonic" {
-      simplex "7-simplex"
-      hypercube "7-cube"
-      orthoplex "7-orthoplex"
-    }
-  }
-}
-
-colors "Colors" {
-  (str)system "Color system" auto=#true expected=1 list=#true
-  multi_per_facet "Multiple colors per facet" expected=1
-  multi_facet_per "Multiple facets per color" expected=1
-}
-
-shapeshifting "Shapeshifting" expected=1
-
 __separator
 
-__heading "Twists"
+__heading "Properties"
+(str)twists "Twists" list=#true
+(str)colors "Colors" list=#true
+algebraic "Algebraic" include_in_tag=#false {
+  bandaged "Bandaged"
+  doctrinaire "Doctrinaire"
+  jumbling "Jumbling"
 
-axes "Axis system" expected=1 {
-  _1d "1D" {
-    axial "Axial"
-  }
-  _2d "2D" {
-    polygonal "Polygonal"
-  }
-  _3d "3D" {
-    elementary "Elementary" {
-      cubic "Cubic"
-      tetrahedral "Tetrahedral"
-      dodecahedral "Dodecahedral"
-      octahedral "Octahedral"
-      icosahedral "Icosahedral"
-      __separator
-      rhombic_dodecahedral "Rhombic dodecahedral"
-      rhombic_triacontahedral "Rhombic triacontahedral"
-    }
-    archimedean "Archimedean" {
-      snub_cubic "Snub Cubic"
-      snub_dodecahedral "Snub Dodecahedral"
-    }
-    other "Other"
-  }
-  _4d "4D" {
-    elementary "Elementary" {
-      hypercubic "Hypercubic"
-      simplicial "4-simplicial"
-      _16cell "16-cell"
-      _24cell "24-cell"
-      _120cell "120-cell"
-      _600cell "600-cell"
-    }
-  }
-  hybrid "Hybrid" expected=1 {
-    prismatic "Prismatic"
-    duoprismatic "Duoprismatic"
-    trioprismatic "Trioprismatic"
-  }
-  multicore "Multi-core" expected=1
+  pseudobandaged "Pseudobandaged"
+  pseudodoctrinaire "Pseudodoctrinaire"
+  pseudojumbling "Pseudojumbling"
 }
 
-twists "Twists" {
-  (str)system "Twist system" auto=#true expected=1 list=#true
-}
-
-turns_by "Turning element" expected=1 {
-  _2d "2D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    other "Other"
-  }
-  _3d "3D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    rank2 "Face"
-    other "Other"
-  }
-  _4d "4D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    rank2 "Ridge"
-    rank3 "Facet"
-    other "Other"
-  }
-  _5d "5D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    rank2 "Peak"
-    rank3 "Ridge"
-    rank4 "Facet"
-    other "Other"
-  }
-  _6d "6D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    rank2 "Face"
-    rank3 "Peak"
-    rank4 "Ridge"
-    rank5 "Facet"
-    other "Other"
-  }
-  _7d "7D" {
-    rank0 "Vertex"
-    rank1 "Edge"
-    rank2 "Face"
-    rank3 "Cell"
-    rank4 "Peak"
-    rank5 "Ridge"
-    rank6 "Facet"
-    other "Other"
-  }
-}
-
-algebraic "Algebraic properties" {
-  total expected=1 include_in_tag=#false inline=#true {
-    bandaged "Bandaged"
-    doctrinaire "Doctrinaire"
-    jumbling "Jumbling"
-  }
-  pseudo "Pseudo" expected=1 {
-    bandaged "Pseudobandaged"
-    doctrinaire "Pseudodoctrinaire"
-    jumbling "Pseudojumbling"
-  }
-  __separator
-  abelian "Abelian" expected=1
-  fused "Fused" expected=1
-  // `non_faithful_action` means that there are non-identity elements of the
-  // grip group whose action on the grips is identity (e.g., U4 on quaternion
-  // cube)
-  non_faithful_action "Non-faithful action" expected=1
-  // `trivial` means the state space is equivalent to a product of "lines,"
-  // where a "line" is a puzzle with at most two moves available from any
-  // position
-  trivial "Trivial" expected=1
-  weird_orbits "Weird orbits" expected=1
-}
-
-__separator
-
-__heading "Cuts"
-
-cuts inline=#true {
-  canonical "Canonical" expected=1 // only 1 axis type; its cuts are shallowest possible planar cut
-  depth "Cut depth" expected=1 { // tag with all that apply
-    shallow "Shallow"
-    deep "Deep" {
-      to_adjacent "To adjacent"
-      past_adjacent "Past adjacent"
-      past_origin "Past origin"
-    }
-    half "Half-cut" // cut to origin
-  }
-  stored "Stored cuts" expected=1
-  wedge "Wedge cuts" expected=1
-}
-
-pieces "Pieces" {
-  sphenic "Sphenic" // only core, axles, and sphenes, and there is at least one sphene
-}
-
-__separator
-
-__heading "Categories"
-
-family "Family" expected=1 {
-  gap "Gap" {
-    sliding "Sliding gap"
-    rotating "Rotating gap"
-  }
-  multicore "Multicore" {
-    bubbloid "Bubbloid"
-    siamese "Siamese"
-  }
-  bermuda "Bermuda"
-  clock "Clock"
-  cuboid "Cuboid"
-  fenzy "Fenzy"
-  loopover "Loopover"
-  mixup "Mixup"
-  radiolarian "Radiolarian"
-  skewb "Skewb"
-  square_one "Square-1"
-  weirdling "Weirdling"
-}
-
-variant "Variant" expected=1 {
-  (puzzle)bandaging_of "Bandaging"
-  (puzzle)bump_of "Bump"
-  (puzzle)stickermod_of "Stickermod"
-  (puzzle)complex_of "Complex"
-  (puzzle)isomorphic_to "Isomorphic"
-  (puzzle)physical_of "Physical"
-}
-
-meme "Meme" expected=1
+// __separator
+// __heading "Categories"
+// family "Family" expected=1 {
+//   gap "Gap" {
+//     sliding "Sliding gap"
+//     rotating "Rotating gap"
+//   }
+//   multicore "Multicore" {
+//     bubbloid "Bubbloid"
+//     siamese "Siamese"
+//   }
+//   bermuda "Bermuda"
+//   clock "Clock"
+//   cuboid "Cuboid"
+//   fenzy "Fenzy"
+//   loopover "Loopover"
+//   mixup "Mixup"
+//   radiolarian "Radiolarian"
+//   skewb "Skewb"
+//   square_one "Square-1"
+//   weirdling "Weirdling"
+// }
+// meme "Meme" expected=1
 
 __separator
 
 __heading "Attribution"
-
 (str_list)author "Author" expected=1 list=#true
 (str_list)inventor "Inventor" expected=1 list=#true
 
 __separator
 
 __heading "Miscellaneous"
-
-solved "Solved" auto=#true
-generated "Generated" auto=#true
+// solved "Solved" auto=#true
+leaderboard "Leaderboard"
+(str)canonical_id "Canonical ID for record-keeping" hidden=#true
 (str)stable "Stable" hidden=#true expected=1 // program version that first had this puzzle stable
-external "External" {
-  (str)gelatinbrain "Gelatinbrain" expected=1
-  (str)hof "Hall Of Fame" expected=1
-  leaderboard "Leaderboard" expected=1
-  (str_list)link "Link" hidden=#true
-  (int)museum "Twisty Puzzle Museum" expected=1
-  (str)wca "World Cube Association" expected=1
-}
-(str)canonical_id "Canonical ID for record-keeping"
-experimental "Experimental" auto=#true expected=1
+experimental "Experimental" auto=#true
 big "Big (slow to generate)"

@@ -324,8 +324,8 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     use hyperprefs::MODIFIED_SUFFIX;
 
     let id_string_literal =
-        hyperpuzzlescript::codegen::to_str_literal(&color_system.meta.id.to_string());
-    let name_string_literal = format!("{:?}", color_system.meta.name); // escape using double quotes
+        hyperpuzzlescript::codegen::to_str_literal(&color_system.id.to_string());
+    let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
     let mut schemes = color_system.schemes.clone();

@@ -1,33 +1,41 @@
 //! Catalog of puzzles and related objects, along with functionality for loading
 //! them.
 
-use std::collections::{BTreeSet, HashMap, HashSet, hash_map};
+use std::any::{Any, TypeId};
+use std::collections::{BTreeSet, HashMap, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
+use eyre::{Context, OptionExt, Result, bail, eyre};
 use itertools::Itertools;
 use parking_lot::{Condvar, MappedMutexGuard, Mutex, MutexGuard};
 use serde::Serialize;
 
 mod builder;
 mod entry;
+mod error;
 mod generator;
+mod list;
 mod menu;
-mod metadata;
+mod notify;
 mod object;
 mod params;
+mod request;
 mod subcatalog;
 
 pub use builder::CatalogBuilder;
-pub use entry::*;
+use entry::*;
+pub use error::*;
 pub use generator::*;
 pub use hyperspeedcube_cli_types::catalog_id::*;
+pub use list::*;
 pub use menu::*;
-pub use metadata::*;
+pub use notify::{NotifyWhenDropped, Waiter};
 pub use object::*;
 pub use params::*;
+pub use request::*;
 pub use subcatalog::*;
 
 use crate::{ColorSystem, Logger, Puzzle, TagSet, TwistSystem, Version};
@@ -56,221 +64,115 @@ impl Deref for Catalog {
 }
 
 impl Catalog {
-    /// Requests an object to be built if it has not been built already, and
-    /// then immediately returns the cache entry for the object.
+    /// Requests an object to be built if it has not been built already,
+    /// returning a [`Request`] that can be used to check status and recieve
+    /// results.
     ///
     /// It may take time for the object to build. If you want to block the
     /// current thread until the object is built, see
     /// [`Self::build_blocking()`].
     ///
-    /// # Example
+    /// **Note: Do not call this method from within an object generator.** Use
+    /// [`BuildCtx::build_blocking()`] or [`BuildCtx::build_str_blocking()`]
+    /// instead.
     ///
-    /// ```ignore
-    /// let rubiks_cube = catalog.build::<Puzzle>("ft_cube(3)".parse().unwrap());
-    /// println!("Requested Rubik's cube ...");
-    /// loop {
-    ///     let cache_entry_guard = rubiks_cube.lock();
-    ///     match &*cache_entry_guard {
-    ///         CacheEntry::NotStarted => {
-    ///             std::thread::sleep(std::time::Duration::from_secs(1));
-    ///             continue;
-    ///         }
-    ///         CacheEntry::Building { notify, .. } => {
-    ///             let waiter = notify.waiter();
-    ///             drop(cache_entry_guard);
-    ///             waiter.wait();
-    ///             continue;
-    ///         }
-    ///         CacheEntry::Ok(_) => {
-    ///             println!("Success!");
-    ///             break;
-    ///         }
-    ///         CacheEntry::Err(e) => {
-    ///             println!("Error: {e}");
-    ///             break;
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn build<T: CatalogObject>(&self, id: &CatalogId) -> Arc<Mutex<CacheEntry<T>>> {
-        let subcatalog = T::get_subcatalog(self);
-        let mut cache_guard = subcatalog.cache.lock();
-        match cache_guard.entry(id.to_string()) {
-            hash_map::Entry::Occupied(e) => Arc::clone(e.get()),
-            hash_map::Entry::Vacant(e) => {
-                let this = self.clone();
-                let cache_entry =
-                    Arc::clone(e.insert(Arc::new(Mutex::new(CacheEntry::NotStarted))));
-                drop(cache_guard);
-                let id = id.clone();
-                std::thread::spawn(move || {
-                    if let Err(e) = this.build_blocking::<T>(&id) {
-                        log::error!("Error building {id:?}: {e}");
-                    }
-                });
-                cache_entry
-            }
+    /// **Note: The returned object might not have the ID as the request.** When
+    /// this happens, it is called an "ID redirect."
+    pub fn build<T: CatalogObject>(&self, id: &CatalogId) -> Request<T> {
+        let parent_stack = &[];
+        let (request, call_if_new) = self.new_request(id, parent_stack);
+        if let Some(f) = call_if_new {
+            std::thread::spawn(f);
         }
+        request
     }
 
     /// Builds an object and blocks the current thread until it is complete.
     ///
     /// The result is cached.
     ///
-    /// # Example
+    /// This method is equivalent to `catalog.build().get_blocking()` except
+    /// that it avoids spawning a new thread.
     ///
-    /// ```ignore
-    /// let rubiks_cube_result = catalog.build_blocking::<Puzzle>("ft_cube(3)".parse().unwrap());
-    /// match rubiks_cube_result {
-    ///     Ok(_puzzle) => println!("Success!"),
-    ///     Err(e) => println!("Error: {e}"),
-    /// }
-    /// ```
-    pub fn build_blocking<T: CatalogObject>(
-        &self,
-        id: &CatalogId,
-    ) -> Result<Arc<T>, Arc<eyre::Report>> {
-        let subcatalog = T::get_subcatalog(self);
-
-        let type_str = T::CATALOG_TYPE_NAME;
-        let mut id = id.clone();
-        let mut redirect_sequence = vec![];
-
-        loop {
-            log::trace!("Requesting {type_str} {id:?}");
-            if !redirect_sequence.is_empty() {
-                log::trace!("(redirected from {redirect_sequence:?})");
-            }
-
-            redirect_sequence.push(id.clone());
-            if redirect_sequence.len() > crate::MAX_ID_REDIRECTS {
-                let msg = eyre!("too many ID redirects: {redirect_sequence:?}");
-                self.logger.error(&msg);
-                return Err(Arc::new(msg));
-            }
-
-            let generator = subcatalog.generators.get(&*id.base).ok_or_else(|| {
-                eyre!(
-                    "no {ty} or {ty} generator with ID {id:?}",
-                    ty = T::CATALOG_TYPE_NAME,
-                    id = id.base,
-                )
-            })?;
-
-            let cache_entry = subcatalog.cache_entry(&id);
-            let mut cache_entry_guard = cache_entry.lock();
-
-            if let CacheEntry::NotStarted = &*cache_entry_guard {
-                log::trace!("{type_str} {id:?} not yet started");
-                // Mark that this object is being built.
-                let progress = Arc::new(Mutex::new(Progress::default()));
-                *cache_entry_guard = CacheEntry::Building {
-                    progress: Arc::clone(&progress),
-                    notify: NotifyWhenDropped::new(),
-                };
-                // Unlock the mutex before expensive object generation.
-                log::trace!("Building {type_str} {id:?}");
-                let cache_entry_value = MutexGuard::unlocked(&mut cache_entry_guard, || {
-                    let build_ctx = BuildCtx::new(self, &progress, id.clone());
-                    build_ctx.set_task(BuildTask::GeneratingSpec);
-                    // For simplicity, we don't cache generator output.
-                    let generator_output = (generator.generate)(build_ctx.clone(), id.args.clone());
-                    build_ctx.set_task(BuildTask::Building(T::CATALOG_TYPE_NAME));
-                    CacheEntry::from(generator_output.and_then(|redir| {
-                        redir.and_then(|out| (out.build)(build_ctx).map(Redirectable::Direct))
-                    }))
-                });
-                // Handle cancellation.
-                if let CacheEntry::Err(e) = &cache_entry_value
-                    && let Some(&Cancel) = e.downcast_ref()
-                {
-                    subcatalog.remove_cache_entry(&id);
-                    return Err(Arc::clone(e));
-                }
-                // Store the result.
-                log::trace!("Storing {type_str} {id:?}");
-                *cache_entry_guard = cache_entry_value;
-            } else if let CacheEntry::Building { notify, .. } = &mut *cache_entry_guard {
-                // If another thread is building the object, then wait for that.
-                log::trace!("Waiting for another thread to build {type_str} {id:?}");
-                let waiter = notify.waiter();
-                MutexGuard::unlocked(&mut cache_entry_guard, || {
-                    waiter.wait();
-                });
-                log::trace!("Done waiting on {id:?}");
-            }
-
-            match &*cache_entry_guard {
-                // The object was requested but has not started being built.
-                CacheEntry::NotStarted => {
-                    return Err(Arc::new(eyre!(
-                        "internal error: {type_str} {id:?} did not start building"
-                    )));
-                }
-
-                // The object has already been built.
-                CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
-                    id = new_id.parse().map_err(|e| Arc::new(eyre!("{e}")))?;
-                }
-                CacheEntry::Ok(Redirectable::Direct(output)) => return Ok(Arc::clone(output)),
-                CacheEntry::Err(e) => return Err(Arc::clone(e)), /* This is why our error needs
-                                                                   * to be wrapped in `Arc`. */
-
-                // The object has already been built or is being built.
-                CacheEntry::Building { .. } => {
-                    return Err(Arc::new(eyre!("unexpected Building entry".to_owned())));
-                }
-            }
+    /// **Note: Do not call this method from within an object generator.** Use
+    /// [`BuildCtx::build_blocking()`] or [`BuildCtx::build_str_blocking()`]
+    /// instead.
+    ///
+    /// **Note: The returned object might not have the ID as the request.** When
+    /// this happens, it is called an "ID redirect."
+    pub fn build_blocking<T: CatalogObject>(&self, id: &CatalogId) -> CatalogResult<T> {
+        let parent_stack = &[];
+        let (request, call_if_new) = self.new_request(id, parent_stack);
+        if let Some(f) = call_if_new {
+            f();
         }
+        request.get_blocking()
     }
 
-    /// Fetches the metadata for an object and blocks the current thread until
-    /// it is complete.
-    ///
-    /// This is typically fast, but is not guaranteed to be.
-    ///
-    /// The result is _not_ cached.
-    pub fn generate_blocking<T: CatalogObject>(
+    fn new_request<T: CatalogObject>(
         &self,
         id: &CatalogId,
-    ) -> Result<GeneratorOutput<T>, eyre::Report> {
-        let subcatalog = T::get_subcatalog(self);
+        parent_ids: &[String],
+    ) -> (Request<T>, Option<Box<dyn Send + FnOnce()>>) {
+        let type_name = T::catalog_type_name();
 
-        let type_str = T::CATALOG_TYPE_NAME;
-        let mut id = id.clone();
-        let mut redirect_sequence = vec![];
+        let Some(subcatalog) = self.get_subcatalog::<T>() else {
+            let e = eyre!("{type_name} catalog is empty");
+            return (Request::new_error(id, e), None);
+        };
 
-        loop {
-            log::trace!("Requesting metadata for {type_str} {id:?}");
-            if !redirect_sequence.is_empty() {
-                log::trace!("(redirected from {redirect_sequence:?})");
-            }
+        // Make sure the generator exists before creating a cache entry
+        let generator = match subcatalog.try_get_generator(&id.base) {
+            Ok(g) => Arc::clone(&g),
+            Err(e) => return (Request::new_error(id, e), None),
+        };
 
-            redirect_sequence.push(id.clone());
-            if redirect_sequence.len() > crate::MAX_ID_REDIRECTS {
-                let msg = eyre!("too many ID redirects: {redirect_sequence:?}");
-                self.logger.error(&msg);
-                return Err(msg);
-            }
-
-            let generator = subcatalog.generators.get(&*id.base).ok_or_else(|| {
-                eyre!(
-                    "no {ty} or {ty} generator with ID {id:?}",
-                    ty = T::CATALOG_TYPE_NAME,
-                    id = id.base,
-                )
-            })?;
-
-            let progress = Arc::new(Mutex::new(Progress::default()));
-            let build_ctx = BuildCtx::new(self, &progress, id.clone());
-            match (generator.generate)(build_ctx, id.args) {
-                Ok(Redirectable::Direct(output)) => return Ok(output),
-                Ok(Redirectable::Redirect(new_id)) => {
-                    id = new_id.parse().map_err(|e| eyre!("{e}"))?;
-                }
-                Err(e) => return Err(e),
-            }
+        // Validate parameters to avoid cache entries for obvious errors
+        if let Err(e) = generator.validate(id) {
+            return (Request::new_error(id, e), None);
         }
+
+        let (request, is_new) = subcatalog.request_cache_entry(self, id.clone());
+
+        let call_if_new = if is_new {
+            let RequestInner::Requested {
+                generic_request, ..
+            } = &request.inner
+            else {
+                panic!("invalid request contents for new cache entry");
+            };
+            let mut parent_ids = parent_ids.to_vec();
+            parent_ids.push(id.to_string());
+            let build_ctx = BuildCtx(Arc::new(BuildCtxInner {
+                catalog: self.clone(),
+                id: id.clone(),
+                request_state: Arc::clone(&generic_request.data.state),
+                canceled: Arc::clone(&generic_request.data.canceled),
+                parent_ids,
+            }));
+            build_ctx.push_task(format!("Building {type_name} `{id}`"));
+            let id = id.clone();
+            Some(Box::new(move || {
+                let result = match generator.canonicalize(build_ctx.id()) {
+                    Some(canonicalized_id) => build_ctx.build_blocking(&canonicalized_id), // redirect
+                    None => (generator.generate)(build_ctx.clone()),
+                }
+                .map_err(|e| {
+                    Arc::new(CatalogError {
+                        type_name,
+                        id,
+                        task_stack: build_ctx.0.request_state.lock().task_stack.clone(),
+                        cause: e.into(),
+                    })
+                });
+
+                build_ctx.store_result(result);
+            }) as Box<dyn 'static + Send + FnOnce()>)
+        } else {
+            None
+        };
+
+        (request, call_if_new)
     }
 }
 
@@ -279,21 +181,42 @@ impl Catalog {
 /// Prefer interacting with [`Catalog`] directly.
 #[derive(Debug, Default)]
 pub struct CatalogData {
-    /// Puzzles.
-    pub puzzles: SubCatalog<Puzzle>,
-    /// Color systems.
-    pub color_systems: SubCatalog<ColorSystem>,
-    /// Twist systems.
-    pub twist_systems: SubCatalog<TwistSystem>,
+    /// Subcatalog for each type of [`CatalogObject`].
+    pub subcatalogs: HashMap<TypeId, Box<dyn Send + Sync + Any>>,
 
-    /// Puzzle list.
-    pub puzzle_list: Vec<Arc<CatalogMetadata>>,
+    /// Puzzle list to display in the UI.
+    pub puzzle_list: Vec<Arc<PuzzleListEntry>>,
     /// Menus, indexed by string ID.
     pub menus: HashMap<&'static str, Menu>,
 
     /// Alphabetized list of all puzzle definition authors.
-    pub authors: Vec<String>,
+    pub authors: BTreeSet<String>,
 
     /// Logger.
     pub logger: Logger,
 }
+
+impl CatalogData {
+    /// Returns the subcatalog for `T`.
+    pub fn get_subcatalog<T: CatalogObject>(&self) -> Option<&SubCatalog<T>> {
+        self.subcatalogs
+            .get(&TypeId::of::<T>())
+            .map(|any| any.downcast_ref().expect("error downcasting subcatalog"))
+    }
+
+    /// Returns a generator by its ID, if it exists.
+    pub fn get_generator<T: CatalogObject>(&self, id: &str) -> Option<&Arc<Generator<T>>> {
+        self.get_subcatalog()?.generators.get(id)
+    }
+
+    fn get_subcatalog_mut<T: CatalogObject>(&mut self) -> &mut SubCatalog<T> {
+        self.subcatalogs
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(SubCatalog::<T>::default()))
+            .downcast_mut()
+            .expect("error downcasting subcatalog")
+    }
+}
+
+#[cfg(test)]
+mod tests;

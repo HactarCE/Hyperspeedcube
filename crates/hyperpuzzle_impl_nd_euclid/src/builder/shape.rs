@@ -1,4 +1,7 @@
-use std::collections::{HashMap, hash_map};
+use std::{
+    collections::{HashMap, hash_map},
+    sync::Arc,
+};
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
@@ -7,6 +10,7 @@ use hyperpuzzle_core::util::MaybeAdHoc;
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use parking_lot::Mutex;
 use regex::Regex;
 use smallvec::smallvec;
 
@@ -61,9 +65,9 @@ impl ShapeBuilder {
             piece_type_display_names: IndexMap::new(),
             overwritten_piece_types: vec![],
 
-            colors: ColorSystemBuilder(MaybeAdHoc::AdHoc(AdHocColorSystemBuilder::new(
-                hyperpuzzle_core::ad_hoc_id(puzzle_id.clone()),
-            ))),
+            colors: ColorSystemBuilder(MaybeAdHoc::AdHoc(Arc::new(Mutex::new(
+                AdHocColorSystemBuilder::new(hyperpuzzle_core::ad_hoc_id(puzzle_id.clone())),
+            )))),
         })
     }
 

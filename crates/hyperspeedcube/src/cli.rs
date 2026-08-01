@@ -2,7 +2,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use eyre::{Context, Result, eyre};
-use hyperpuzzle::{CatalogId, Puzzle};
+use hyperpuzzle::{CatalogId, Puzzle, PuzzleListEntry};
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -78,11 +78,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             for puzzle_id in ids {
                 let catalog_id = CatalogId::from_str(&puzzle_id)
                     .map_err(|e| eyre!("error parsing ID string: {e}"))?;
-                let puzzle_meta = catalog
-                    .generate_blocking::<Puzzle>(&catalog_id)
-                    .wrap_err("error building puzzle")?
-                    .meta;
-                requested_puzzles.push(puzzle_meta.to_cli());
+                let puzzle_list_entry = catalog.build_blocking::<PuzzleListEntry>(&catalog_id)?;
+                requested_puzzles.push(puzzle_list_entry.to_cli());
             }
             write_json_output(&requested_puzzles)?;
             Ok(())
@@ -106,7 +103,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             // Filter by type
             if !all {
                 entries.retain(|meta| {
-                    let Some(generator) = catalog.puzzles.generators.get(&*meta.id.base) else {
+                    let Some(generator) = catalog.get_generator::<PuzzleListEntry>(&meta.id.base)
+                    else {
                         log::warn!(
                             "puzzle list entry {} has no corresponding generator",
                             meta.id

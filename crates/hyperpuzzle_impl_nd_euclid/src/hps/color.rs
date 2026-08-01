@@ -27,8 +27,8 @@ impl HpsColor {
 
     pub fn name(&self) -> Option<NameSpec> {
         Some(match &self.shape.lock().colors.0 {
-            MaybeAdHoc::Fixed(f) => f.names.get(self.id).ok()?.clone(),
-            MaybeAdHoc::AdHoc(a) => a.names.get(self.id)?.clone(),
+            MaybeAdHoc::Fixed(f) => f.names.get(self.id)?.clone(),
+            MaybeAdHoc::AdHoc(a) => a.lock().names.get(self.id)?.clone(),
         })
     }
 }

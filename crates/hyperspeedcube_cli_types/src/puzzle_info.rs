@@ -10,11 +10,11 @@ use crate::catalog_id::CatalogId;
 ///
 /// This is a particularly useful abstraction for displaying the puzzle list.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PuzzleListMetadata {
+pub struct PuzzleListEntry {
     /// Internal ID.
     pub id: CatalogId,
     /// Semantic version: `[major, minor, patch]`.
-    pub version: [u32; 3],
+    pub version: Option<[u32; 3]>,
     /// Human-friendly name.
     pub name: String,
     /// Human-friendly aliases.

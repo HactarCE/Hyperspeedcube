@@ -201,8 +201,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                         for query_result in query_results {
                             let obj = query_result.object.clone();
-                            let Some(generator) = catalog.puzzles.generators.get(&*obj.id.base)
-                            else {
+                            let Some(generator) = catalog.get_generator(&obj.id.base) else {
                                 ui.colored_label(
                                     ui.visuals().error_fg_color,
                                     format!("Missing generator for {:?}", obj.id),
@@ -217,7 +216,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             } else {
                                 if r.clicked() {
                                     *generator_popup_data =
-                                        Some(PuzzleGeneratorPopupData::new(generator));
+                                        Some(PuzzleGeneratorPopupData::new(&obj.name, generator));
                                 }
 
                                 if let Some(popup_data) = generator_popup_data
@@ -329,10 +328,10 @@ struct PuzzleGeneratorPopupData {
     title: String,
 }
 impl PuzzleGeneratorPopupData {
-    fn new(puzzle_generator: &PuzzleGenerator) -> Self {
+    fn new(name: &str, puzzle_generator: &Generator<Puzzle>) -> Self {
         Self {
-            widget: PuzzleGeneratorUi::new(puzzle_generator.meta.id.base.clone()),
-            title: puzzle_generator.meta.name.clone(),
+            widget: PuzzleGeneratorUi::new(puzzle_generator.id.clone()),
+            title: name.to_string(),
         }
     }
 }
@@ -530,7 +529,7 @@ impl<'a> Query<'a> {
         ui.fonts_mut(|fonts| fonts.layout_job(job))
     }
 
-    pub fn try_match<'b>(&self, object: &'b CatalogMetadata) -> Option<FuzzyQueryMatch<'b>> {
+    pub fn try_match<'b>(&self, object: &'b PuzzleListEntry) -> Option<FuzzyQueryMatch<'b>> {
         let tags = &object.tags;
         let mut include = self.included_tags.iter();
         let mut exclude = self.excluded_tags.iter();
@@ -629,7 +628,7 @@ impl egui::Widget for SubstringQueryMatch<'_> {
 
 pub struct FuzzyQueryMatch<'a> {
     /// Matched object.
-    pub object: &'a CatalogMetadata,
+    pub object: &'a PuzzleListEntry,
     /// Info about the fuzzy match for the display name, or `None` if the text
     /// portion of the query is empty.
     name_match: Option<sublime_fuzzy::Match>,

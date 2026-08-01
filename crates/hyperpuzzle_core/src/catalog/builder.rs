@@ -40,53 +40,29 @@ impl CatalogBuilder {
         Ok(self.lock_db()?.logger.clone())
     }
 
-    /// Adds an object to the catalog.
-    ///
-    /// `extra` is stored in the [`Generator::extra`] field.
-    ///
-    /// **Note: If called on a puzzle, it will not be added to the puzzle
-    /// catalog.**
-    pub fn add<T: CatalogObject>(&self, object: impl Into<GeneratorOutput<T>>) -> Result<()> {
-        let object = object.into();
-        let meta = Arc::clone(&object.meta);
-        self.add_generator(Arc::new(Generator::new_constant(
-            Arc::clone(&meta),
-            move |_build_ctx| Ok(Redirectable::Direct(object.clone())),
-        )))?;
-        Ok(())
-    }
-
     /// Adds a generator to the catalog.
     ///
-    /// **Note: If called on a puzzle generator, it will not be added to the
-    /// puzzle catalog.**
-    pub fn add_generator<T: CatalogObject>(&self, generator: Arc<Generator<T>>) -> Result<()> {
-        T::get_subcatalog_mut(&mut *self.lock_db()?).add(generator)
+    /// **Note: Adding a puzzle generator to the catalog using `add_generator()`
+    /// does not automatically add it to the puzzle list.**
+    pub fn add<T: CatalogObject>(&self, generator: Arc<Generator<T>>) -> Result<()> {
+        self.lock_db()?.get_subcatalog_mut().add(generator)
     }
 
-    /// Adds a puzzle to the catalog and to the puzzle list.
-    pub fn add_puzzle(&self, puzzle: impl Into<GeneratorOutput<Puzzle>>) -> Result<()> {
-        let puzzle = puzzle.into();
-        let meta = Arc::clone(&puzzle.meta);
-        self.add(puzzle)?; // this is more likely to fail, so do it first
-        self.add_to_puzzle_list(meta)?;
-        Ok(())
-    }
-
-    /// Adds a puzzle generator to the catalog and to the puzzle list.
-    pub fn add_puzzle_generator(&self, puzzle_generator: Arc<PuzzleGenerator>) -> Result<()> {
-        let meta = Arc::clone(&puzzle_generator.meta);
-        self.add_generator(puzzle_generator)?; // this is more likely to fail, so do it first
-        self.add_to_puzzle_list(meta)?;
+    /// Adds puzzle definition authors.
+    pub fn add_authors<S: AsRef<str>>(
+        &self,
+        author_names: impl IntoIterator<Item = String>,
+    ) -> Result<()> {
+        self.lock_db()?.authors.extend(author_names);
         Ok(())
     }
 
     /// Adds an entry to the puzzle list.
     ///
-    /// This must be called manually for every individual puzzle, puzzle
-    /// generator, and puzzle generator example.
-    pub fn add_to_puzzle_list(&self, meta: Arc<CatalogMetadata>) -> Result<()> {
-        self.lock_db()?.puzzle_list.push(meta);
+    /// This must be called manually for every individual puzzle and puzzle
+    /// generator that should appear in the puzzle list.
+    pub fn add_to_puzzle_list(&self, puzzle_list_entry: Arc<PuzzleListEntry>) -> Result<()> {
+        self.lock_db()?.puzzle_list.push(puzzle_list_entry);
         Ok(())
     }
 
@@ -130,23 +106,11 @@ impl CatalogBuilder {
 
     /// Constructs the catalog.
     pub fn build(self) -> Result<Catalog> {
-        let mut catalog_data = self
+        let catalog_data = self
             .catalog_data
             .lock()
             .take()
             .ok_or_eyre("catalog has already been constructed")?;
-
-        // Assemble authors list.
-        catalog_data.authors = catalog_data
-            .puzzles
-            .generators
-            .values()
-            .flat_map(|g| g.meta.tags.authors())
-            .collect::<HashSet<&String>>() // deduplicate
-            .into_iter()
-            .cloned()
-            .sorted() // alphabetize
-            .collect();
 
         // Check for menu orphans.
         for menu in catalog_data.menus.values() {
@@ -158,6 +122,23 @@ impl CatalogBuilder {
             }
         }
 
-        Ok(Catalog(Arc::new(catalog_data)))
+        let mut ret = Catalog(Arc::new(catalog_data));
+
+        // Populate puzzle list
+        let mut puzzle_list = vec![];
+        if let Some(subcatalog) = ret.get_subcatalog::<PuzzleListEntry>() {
+            for g in subcatalog.generators.values() {
+                puzzle_list.push(ret.build_blocking::<PuzzleListEntry>(&CatalogId::new(
+                    g.id.clone(),
+                    [],
+                    None,
+                ))?);
+            }
+        }
+        Arc::get_mut(&mut ret.0)
+            .ok_or_eyre("catalog has already been shared")?
+            .puzzle_list = puzzle_list;
+
+        Ok(ret)
     }
 }

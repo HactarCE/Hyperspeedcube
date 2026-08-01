@@ -1,0 +1,43 @@
+use * from euclid
+
+add_twist_system(
+    id = "line",
+    engine = "symmetric",
+    ndim = 1,
+    build = fn() {
+        #twists.sym = cd([])
+    },
+)
+
+add_puzzle(
+    id = "line",
+    engine = "symmetric",
+    ndim = 1,
+    twists = "line",
+    colors = "line",
+    build = fn() {
+        #shape.sym = cd([])
+        #shape.facets ++= [#{vector = vec(1), names = cd([]).names(point(1), #{A = [], B = [0]})}] // TODO: why no B sticker
+    },
+)
+
+add_twist_system(
+    id = "pentagon",
+    engine = "symmetric",
+    ndim = 2,
+    build = fn() {
+        #twists.sym = cd([5])
+    },
+)
+
+add_puzzle(
+    id = "pentagon",
+    engine = "symmetric",
+    ndim = 2,
+    twists = "pentagon",
+    colors = "ngon(5)",
+    build = fn() {
+        #shape.sym = cd([5])
+        #shape.facets ++= [#{vector = vec(0,1), names = cd([5]).names(point(0,1), #{A = [], B = [1], C = [0,1], D = [1,0,1], E = [0,1,0,1]})}]
+    },
+)

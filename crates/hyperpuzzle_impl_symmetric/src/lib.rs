@@ -1,13 +1,12 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
-#![allow(unused)]
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, ensure};
 use hypergroup::{AbbrGenSeq, GeneratorId};
 use hypermath::prelude::*;
-use hyperpuzzle_core::catalog::GeneratorOutput;
 use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::{ComponentList, TAGS};
@@ -33,10 +32,13 @@ pub use twist_system::{
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
-use crate::hps::PuzzleProductBuildFn;
-
 const PRODUCT_ID: &str = "product";
 const SUM_ID: &str = "sum";
+const ROT_ID: &str = "rot";
+const REFLE_ID: &str = "refle";
+
+const ROT_NAME_PREFIX: &str = "Rot ";
+const REFLE_NAME_PREFIX: &str = "Refle ";
 
 const PRODUCT_GENERATOR_VERSION: Version = Version {
     major: 1,
@@ -49,10 +51,11 @@ fn product_id(factor_ids: &[CatalogId]) -> CatalogId {
         return id.clone();
     }
     CatalogId {
-        base: Box::from(PRODUCT_ID),
+        base: PRODUCT_ID.parse().expect("bad catalog ID"),
         args: vec![CatalogIdValue::List(
             factor_ids.iter().map(|id| id.clone().into()).collect(),
         )],
+        subset: None,
     }
 }
 
@@ -61,10 +64,11 @@ fn sum_id(summand_ids: &[CatalogId]) -> CatalogId {
         return id.clone();
     }
     CatalogId {
-        base: Box::from(SUM_ID),
+        base: SUM_ID.parse().expect("bad catalog ID"),
         args: vec![CatalogIdValue::List(
             summand_ids.iter().map(|id| id.clone().into()).collect(),
         )],
+        subset: None,
     }
 }
 
@@ -78,66 +82,98 @@ fn sum_name(summand_names: &[String]) -> String {
 
 pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
     let mut product_tags = TagSet::new();
-    product_tags.insert_named("type/generator", true.into())?;
-    product_tags.insert_named("algebraic/doctrinaire", true.into())?;
-    product_tags.insert_named("ndim/generic", true.into());
+    product_tags.insert_named("generator", true.into())?;
+    product_tags.insert_named("doctrinaire", true.into())?;
+    product_tags.insert_named("ndim/generic", true.into())?;
 
-    catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
-        meta: Arc::new(CatalogMetadata {
-            id: CatalogId {
-                base: "product".into(),
-                args: vec![],
+    let id: CatalogIdent = PRODUCT_ID.parse().expect("bad catalog ID");
+    let params = vec![GeneratorParam {
+        name: "Factors".to_string(),
+        ty: GeneratorParamType::List(Box::new(GeneratorParamType::Puzzle {
+            menu: "symmetric".to_string(),
+        })),
+        default: CatalogIdValue::List(vec![
+            "ngon_ft(5,3)".parse().unwrap(),
+            "line(3)".parse().unwrap(),
+        ]),
+    }];
+    let rot: CatalogIdent = ROT_ID.parse().expect("bad subset ID");
+    let refle: CatalogIdent = REFLE_ID.parse().expect("bad subset ID");
+    let subset_param = GeneratorSubsetParam {
+        options: vec![
+            GeneratorSubsetParamValue {
+                id: rot.clone(),
+                name_prefix: ROT_NAME_PREFIX.to_string(),
             },
-            version: PRODUCT_GENERATOR_VERSION,
-            name: "Puzzle Product".into(),
-            aliases: vec![],
-            tags: product_tags.clone(),
+            GeneratorSubsetParamValue {
+                id: refle.clone(),
+                name_prefix: REFLE_NAME_PREFIX.to_string(),
+            },
+        ],
+        default: Some(rot),
+        maximal: Some(refle),
+    };
+
+    catalog.add::<PuzzleListEntry>(Arc::new(Generator {
+        id: id.clone(),
+        params: params.clone(),
+        subset_param: Some(subset_param.clone()),
+        validation: GeneratorParamValidation { allow_empty: true },
+        generate: Box::new(|build_ctx| {
+            if build_ctx.id().args.is_empty() {
+                Ok(Arc::new(PuzzleListEntry {
+                    id: build_ctx.id().clone(),
+                    version: None,
+                    name: "Product".to_string(),
+                    aliases: vec![],
+                    tags: TagSet::new(), // TODO: product tags
+                }))
+            } else {
+                let factors =
+                    build_ctx.build_list_blocking::<PuzzleListEntry>(&build_ctx.id().args[0])?;
+                Ok(Arc::new(PuzzleListEntry {
+                    id: build_ctx.id().clone(),
+                    version: None,
+                    name: factors.iter().map(|f| &f.name).join(" × "),
+                    aliases: vec![],
+                    tags: TagSet::new(), // TODO: product tags
+                }))
+            }
         }),
-        params: vec![GeneratorParam {
-            name: "Factors".to_string(),
-            ty: GeneratorParamType::List(Box::new(GeneratorParamType::Puzzle {
-                menu: "symmetric".to_string(),
-            })),
-            default: CatalogIdValue::List(vec![
-                "ft_ngon(5,3)".parse().unwrap(),
-                "line(3)".parse().unwrap(),
-            ]),
-        }],
-        generate: Box::new(|build_ctx, params| {
-            ensure!(params.len() == 1, "expected 1 parameter");
-            let factors: Vec<GeneratorOutput<Puzzle>> = params[0]
-                .clone()
-                .into_list()?
+    }))?;
+
+    // TODO: manage default subset for IDs and naming
+
+    catalog.add::<PuzzleProduct>(Arc::new(Generator {
+        id: id.clone(),
+        params: params.clone(),
+        subset_param: Some(subset_param.clone()),
+        validation: GeneratorParamValidation { allow_empty: true },
+        generate: Box::new(|build_ctx| {
+            // TODO: redirect nested product calls
+            build_ctx
+                .build_list_blocking::<PuzzleProduct>(&build_ctx.id().args[0])?
                 .into_iter()
-                .map(|factor_id_value| {
-                    build_ctx
-                        .catalog
-                        .generate_blocking(&factor_id_value.into_id()?)
-                        .wrap_err("generating factor puzzle")
+                .try_fold(PuzzleProduct::direct_product_identity(), |a, b| {
+                    a.direct_product(&b)
                 })
-                .try_collect()?;
-
-            let meta = Arc::new(CatalogMetadata {
-                id: product_id(&factors.iter().map(|f| f.meta.id.clone()).collect_vec()),
-                version: PRODUCT_GENERATOR_VERSION,
-                name: product_name(&factors.iter().map(|f| f.meta.name.clone()).collect_vec()),
-                aliases: vec![], // TODO: cartesian product of aliases? may be too big
-                tags: TagSet::new(), // TODO: at least dimension, ideally more
-            });
-
-            Ok(Redirectable::Direct(
-                Arc::new(PuzzleProductBuildFn(Box::new(move |build_ctx| {
-                    factors
-                        .iter()
-                        .map(|f| f.components.get::<PuzzleProductBuildFn>()?.0(&build_ctx))
-                        .try_fold(PuzzleProduct::direct_product_identity(), |a, b| {
-                            a.direct_product(&b?)
-                        })
-                })))
-                .into_generator_output(meta),
-            ))
+                .map(Arc::new)
         }),
-    }));
+    }))?;
+
+    catalog.add::<Puzzle>(Arc::new(Generator {
+        id,
+        params,
+        subset_param: Some(subset_param.clone()),
+        validation: GeneratorParamValidation { allow_empty: false },
+        generate: Box::new(|build_ctx| {
+            build_ctx
+                .build_blocking::<PuzzleProduct>(build_ctx.id())?
+                .build(&build_ctx, &mut build_ctx.warn_fn())
+        }),
+    }))?;
+
+    // TODO: add twist system product and color system disjoint union generators. do not allow nesting for either.
 
     // catalog.add_puzzle_generator(Arc::new(PuzzleGenerator {
     //     meta: Arc::new(CatalogMetadata {

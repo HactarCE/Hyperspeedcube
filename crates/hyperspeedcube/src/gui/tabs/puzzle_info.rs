@@ -21,7 +21,10 @@ fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {
     // TODO: rework this UI
 
     ui.label(format!("ID: {}", puz.meta.id));
-    ui.label(format!("Version: {}", puz.meta.version));
+    ui.label(format!(
+        "Version: {}",
+        puz.meta.version.map(|v| v.to_string()).unwrap_or_default(),
+    ));
     ui.label(format!("Name: {}", puz.meta.name));
     ui.label(format!("Aliases: {:?}", puz.meta.aliases));
     ui.label(format!("Piece count: {}", puz.pieces.len()));

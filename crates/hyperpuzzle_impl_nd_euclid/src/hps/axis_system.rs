@@ -37,7 +37,7 @@ impl fmt::Display for HpsAxisSystem {
 impl PartialEq for HpsAxisSystem {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0.0, &other.0.0) {
-            (MaybeAdHoc::Fixed(f1), MaybeAdHoc::Fixed(f2)) => f1.meta.id == f2.meta.id,
+            (MaybeAdHoc::Fixed(f1), MaybeAdHoc::Fixed(f2)) => f1.id == f2.id,
             (MaybeAdHoc::AdHoc(a1), MaybeAdHoc::AdHoc(a2)) => Arc::ptr_eq(a1, a2),
             _ => false,
         }
@@ -63,13 +63,19 @@ impl HpsAxisSystem {
 
     pub fn axis_name(&self, axis: Axis) -> Result<Option<NameSpec>, IndexOutOfRange> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(Some(f.axes.names.get(axis)?.clone())),
+            MaybeAdHoc::Fixed(f) => Ok(Some(
+                f.axes
+                    .names
+                    .get(axis)
+                    .ok_or(IndexOutOfRange::new::<Axis>())?
+                    .clone(),
+            )),
             MaybeAdHoc::AdHoc(a) => Ok(a.lock().axes.names.get(axis).cloned()),
         }
     }
     fn axis_from_name(&self, name: &str) -> Option<HpsAxis> {
         let id = match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => f.axes.names.id_from_name(name)?,
+            MaybeAdHoc::Fixed(f) => f.axes.names.id_from_string(name)?,
             MaybeAdHoc::AdHoc(a) => a.lock().axes.names.id_from_string(name)?,
         };
         let axes = self.clone();
@@ -129,7 +135,7 @@ impl HpsAxisSystem {
 
     pub fn id(&self) -> CatalogId {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => f.meta.id.clone(),
+            MaybeAdHoc::Fixed(f) => f.id.clone(),
             MaybeAdHoc::AdHoc(a) => a.lock().id.clone(),
         }
     }
@@ -138,9 +144,10 @@ impl HpsAxisSystem {
         &self,
     ) -> Result<ArcOrMutexGuard<'_, NdEuclidAxisVectors>, MissingComponent> {
         match &self.0.0 {
-            MaybeAdHoc::Fixed(f) => Ok(ArcOrMutexGuard::Arc(
-                f.axes.components.get::<NdEuclidAxisVectors>()?,
-            )),
+            // MaybeAdHoc::Fixed(f) => Ok(ArcOrMutexGuard::Arc(
+            //     f.axes.components.get::<NdEuclidAxisVectors>()?,
+            // )),
+            MaybeAdHoc::Fixed(f) => todo!(),
             MaybeAdHoc::AdHoc(a) => Ok(ArcOrMutexGuard::MappedMutexGuard(MutexGuard::map(
                 a.lock(),
                 |twists| &mut twists.axes.vectors,

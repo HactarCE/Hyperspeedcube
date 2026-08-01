@@ -12,11 +12,13 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::Timestamp;
+use hyperpuzzle::catalog::{CatalogError, Request};
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
 };
+use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::L;
@@ -173,40 +175,22 @@ impl PuzzleWidget {
         self.load(id, Some(solve), prefs);
     }
     fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
-        use hyperpuzzle::catalog::CacheEntry;
-
         let Ok(parsed_puzzle_id) = puzzle_id.parse() else {
             log::warn!("invalid puzzle ID {puzzle_id:?}");
             return;
         };
 
-        let cache_entry = hyperpuzzle::catalog().build::<Puzzle>(&parsed_puzzle_id);
-        let cache_entry_guard = cache_entry.lock();
-        match &*cache_entry_guard {
-            CacheEntry::NotStarted => {
+        // TODO: use existing request if possible
+        let request = hyperpuzzle::catalog().build::<Puzzle>(&parsed_puzzle_id);
+        match request.get() {
+            Err(_) => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                    puzzle_id,
-                    progress: None,
+                    request,
                     solve_to_load: solve,
                 });
             }
-            CacheEntry::Building { progress, .. } => {
-                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                    puzzle_id,
-                    progress: Some(Arc::clone(progress)),
-                    solve_to_load: solve,
-                });
-            }
-            CacheEntry::Ok(Redirectable::Redirect(new_id)) => {
-                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                    puzzle_id: new_id.clone(),
-                    progress: None,
-                    solve_to_load: solve,
-                });
-            }
-            CacheEntry::Ok(Redirectable::Direct(puzzle)) => match solve {
+            Ok(Ok(puzzle)) => match solve {
                 Some(solve) => {
-                    let puzzle = Arc::clone(puzzle);
                     let thread_handle = std::thread::spawn(move || {
                         Ok(PuzzleSimulation::deserialize(&puzzle, &solve))
                     });
@@ -215,9 +199,9 @@ impl PuzzleWidget {
                         thread_handle,
                     });
                 }
-                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))), prefs),
+                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
             },
-            CacheEntry::Err(e) => {
+            Ok(Err(e)) => {
                 let view = match std::mem::take(&mut self.contents) {
                     PuzzleWidgetContents::None => None,
                     PuzzleWidgetContents::Ok(view) => {
@@ -240,7 +224,7 @@ impl PuzzleWidget {
                         PuzzleView::new(gfx, &sim, prefs)
                     }),
                     is_placeholder,
-                    error: Arc::clone(e),
+                    error: e,
                 };
             }
         }
@@ -253,8 +237,10 @@ impl PuzzleWidget {
 
     pub(crate) fn title(&self) -> String {
         match &self.loading {
-            Some(PuzzleWidgetLoading::BuildingPuzzle { puzzle_id, .. })
-            | Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, .. }) => {
+            Some(PuzzleWidgetLoading::BuildingPuzzle { request, .. }) => {
+                L.tabs.puzzle_loading.with(&request.id().to_string())
+            }
+            Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, .. }) => {
                 L.tabs.puzzle_loading.with(puzzle_id)
             }
             None => match &self.contents {
@@ -336,38 +322,32 @@ impl PuzzleWidget {
             self.show_puzzle_view(ui, prefs, animation);
         });
 
-        let mut loading_header: Option<Cow<'_, str>> = None;
+        let mut loading_heading: Option<Cow<'_, str>> = None;
         let mut loading_progress = None;
         if let Some(loading) = self.loading.take() {
             crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 match loading {
                     PuzzleWidgetLoading::BuildingPuzzle {
-                        puzzle_id,
-                        progress: status,
+                        request,
                         solve_to_load,
                     } => {
-                        use hyperpuzzle::catalog::BuildTask;
-
-                        let task = match status {
-                            Some(s) => s.lock().task,
-                            None => Default::default(),
-                        };
-                        loading_header = Some(match task {
-                            BuildTask::Initializing => L.puzzle_view.initializing.into(),
-                            BuildTask::GeneratingSpec => L.puzzle_view.generating_spec.into(),
-                            BuildTask::Building(obj_type_name) => {
-                                L.puzzle_view.building.with(obj_type_name).into()
+                        match request.get() {
+                            Ok(puzzle) => self.load(request.id().to_string(), solve_to_load, prefs), // TODO: consider inlining
+                            Err(task_strings) => {
+                                loading_heading = Some(task_strings.iter().join("\n").into());
+                                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
+                                    request,
+                                    solve_to_load,
+                                });
                             }
-                            BuildTask::Finalizing => L.puzzle_view.finalizing.into(),
-                        });
-                        self.load(puzzle_id, solve_to_load, prefs);
+                        }
                         ui.ctx().request_repaint_after_secs(0.2); // try again soon
                     }
                     PuzzleWidgetLoading::LoadingFile {
                         puzzle_id,
                         thread_handle,
                     } => {
-                        loading_header = Some(L.puzzle_view.loading_log.into());
+                        loading_heading = Some(L.puzzle_view.loading_log.into());
                         match thread_handle.is_finished() {
                             true => match thread_handle.join() {
                                 Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
@@ -388,7 +368,7 @@ impl PuzzleWidget {
             });
         } else if let Some(scramble_progress) = scramble_progress {
             let (done, total) = scramble_progress.fraction();
-            loading_header = Some(L.puzzle_view.scrambling.into());
+            loading_heading = Some(L.puzzle_view.scrambling.into());
             loading_progress = Some(done as f32 / total as f32);
             ui.ctx().request_repaint();
         } else if let Some((scramble_type, scramble_error)) = scramble_error {
@@ -409,11 +389,11 @@ impl PuzzleWidget {
             show_puzzle_load_hint(ui, self, prefs);
         }
 
-        if let Some(header_text) = loading_header {
+        if let Some(heading_text) = loading_heading {
             crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.heading(header_text);
+                    ui.heading(heading_text);
                 });
                 if let Some(progress) = loading_progress {
                     egui::ProgressBar::new(progress)
@@ -588,7 +568,7 @@ impl PuzzleWidget {
                                 egui::ScrollArea::both().show(ui, |ui| {
                                     crate::gui::components::show_ariadne_error_in_egui(
                                         ui,
-                                        &format!("{error:?}"),
+                                        &error.to_string(),
                                     );
                                 });
                             });
@@ -685,7 +665,7 @@ pub enum PuzzleWidgetContents {
         /// Whether `view` contains a placeholder model.
         is_placeholder: bool,
         /// Error message.
-        error: Arc<eyre::Report>,
+        error: Arc<CatalogError>,
     },
 }
 impl PuzzleWidgetContents {
@@ -726,8 +706,7 @@ impl PuzzleWidgetContents {
 pub enum PuzzleWidgetLoading {
     /// Waiting for a puzzle to build.
     BuildingPuzzle {
-        puzzle_id: String,
-        progress: Option<Arc<Mutex<hyperpuzzle::catalog::Progress>>>,
+        request: Request<Puzzle>,
         solve_to_load: Option<Arc<Solve>>,
     },
     /// Waiting for a log file to load.

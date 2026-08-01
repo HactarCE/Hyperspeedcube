@@ -7,7 +7,6 @@ use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::builder::AdHocColorSystemBuilder;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
