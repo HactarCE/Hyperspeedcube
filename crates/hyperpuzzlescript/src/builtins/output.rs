@@ -14,7 +14,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///
         /// If no arguments are given, prints an empty line.
         fn print(ctx: EvalCtx, args: Args) -> () {
-            ctx.runtime.print(args.iter().join(" "));
+            ctx.runtime.print(ctx.caller_span, args.iter().join(" "));
         }
 
         /// Emits a value as a warning message.

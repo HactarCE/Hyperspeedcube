@@ -15,6 +15,12 @@ use parking_lot::{Mutex, MutexGuard};
 pub struct Logger {
     lines: Arc<Mutex<Vec<LogLine>>>,
 }
+impl PartialEq for Logger {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.lines, &other.lines)
+    }
+}
+impl Eq for Logger {}
 impl Logger {
     /// Constructs a new logger.
     pub fn new() -> Self {
@@ -28,28 +34,29 @@ impl Logger {
     fn log_with_level(&self, level: Level, msg: String) {
         self.log(LogLine {
             level,
+            filename: None,
             msg,
             full: None,
         });
     }
 
-    /// Logs a line with [`Level::Error`].
+    /// Logs a line with [`Level::Error`] and no filename.
     pub fn error(&self, msg: impl ToString) {
         self.log_with_level(Level::Error, msg.to_string());
     }
-    /// Logs a line with [`Level::Warn`].
+    /// Logs a line with [`Level::Warn`] and no filename.
     pub fn warn(&self, msg: impl ToString) {
         self.log_with_level(Level::Warn, msg.to_string());
     }
-    /// Logs a line with [`Level::Info`].
+    /// Logs a line with [`Level::Info`] and no filename.
     pub fn info(&self, msg: impl ToString) {
         self.log_with_level(Level::Info, msg.to_string());
     }
-    /// Logs a line with [`Level::Debug`].
+    /// Logs a line with [`Level::Debug`] and no filename.
     pub fn debug(&self, msg: impl ToString) {
         self.log_with_level(Level::Debug, msg.to_string());
     }
-    /// Logs a line with [`Level::Trace`].
+    /// Logs a line with [`Level::Trace`] and no filename.
     pub fn trace(&self, msg: impl ToString) {
         self.log_with_level(Level::Trace, msg.to_string());
     }
@@ -69,6 +76,8 @@ impl Logger {
 pub struct LogLine {
     /// Log level.
     pub level: Level,
+    /// Filename, if any.
+    pub filename: Option<String>,
     /// Brief log message.
     pub msg: String,
     /// Full error message, if any.
@@ -79,6 +88,11 @@ pub struct LogLine {
 impl LogLine {
     /// Returns whether the line matches a filter string entered by the user.
     pub fn matches_filter_string(&self, filter_string: &str) -> bool {
-        filter_string.is_empty() || self.msg.contains(filter_string)
+        filter_string.is_empty()
+            || self
+                .filename
+                .as_ref()
+                .is_some_and(|f| f.contains(filter_string))
+            || self.msg.contains(filter_string)
     }
 }

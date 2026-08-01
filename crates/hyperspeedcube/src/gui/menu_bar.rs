@@ -259,7 +259,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     menu_button_that_stays_open(ui, L.menu.puzzles.title, |ui| {
         show_tab_toggle(ui, app_ui, UtilityTab::Catalog);
         show_tab_toggle(ui, app_ui, UtilityTab::PuzzleInfo);
-        show_tab_toggle(ui, app_ui, UtilityTab::HpsLogs);
+        show_tab_toggle(ui, app_ui, UtilityTab::Logs);
         show_tab_toggle(ui, app_ui, UtilityTab::DevTools);
 
         ui.separator();

@@ -8,11 +8,11 @@ mod catalog;
 mod colors;
 mod debug;
 mod dev_tools;
-mod hps_logs;
 mod image_generator;
 mod interaction;
 mod keybinds;
 mod keybinds_reference;
+mod logs;
 mod macros;
 mod modifier_keys;
 mod mousebinds;
@@ -61,7 +61,7 @@ pub enum UtilityTab {
     Timeline,
     Timer,
 
-    HpsLogs,
+    Logs,
     DevTools,
 
     #[allow(unused)] // only accessible with debug assertions enabled
@@ -93,7 +93,7 @@ impl UtilityTab {
             Self::Timeline => mdi!(tint, CHART_TIMELINE, size),
             Self::Timer => mdi!(tint, TIMER, size),
 
-            Self::HpsLogs => mdi!(tint, FILE_DOCUMENT, size),
+            Self::Logs => mdi!(tint, FILE_DOCUMENT, size),
             Self::DevTools => mdi!(tint, CODE_BLOCK_BRACES, size),
 
             Self::Debug => mdi!(tint, BUG, size),
@@ -125,7 +125,7 @@ impl UtilityTab {
             Self::Timeline => &L.tabs.timeline,
             Self::Timer => &L.tabs.timer,
 
-            Self::HpsLogs => &L.tabs.hps_logs,
+            Self::Logs => &L.tabs.logs,
             Self::DevTools => &L.tabs.dev_tools,
 
             Self::Debug => &L.tabs.debug,
@@ -164,7 +164,7 @@ impl UtilityTab {
             Self::Timeline => timeline::show(ui, app),
             Self::Timer => timer::show(ui, app),
 
-            Self::HpsLogs => hps_logs::show(ui, app),
+            Self::Logs => logs::show(ui, app),
             Self::DevTools => dev_tools::show(ui, app),
 
             Self::Debug => debug::show(ui, app),

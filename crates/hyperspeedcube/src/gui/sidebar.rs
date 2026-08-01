@@ -42,7 +42,7 @@ fn sidebar_items() -> impl Iterator<Item = SidebarItem> {
         SidebarItem::Tab(UtilityTab::ImageGenerator),
         SidebarItem::Separator,
         SidebarItem::Tab(UtilityTab::PuzzleInfo),
-        SidebarItem::Tab(UtilityTab::HpsLogs),
+        SidebarItem::Tab(UtilityTab::Logs),
         SidebarItem::Tab(UtilityTab::DevTools),
         SidebarItem::Separator,
         SidebarItem::Tab(UtilityTab::Debug),

@@ -27,7 +27,7 @@ tabs {
   (Tab)timeline "Timeline" "Timeline"
   (Tab)timer "Timer" "Timer"
 
-  (Tab)hps_logs "HPS logs" "HPS Logs"
+  (Tab)logs "Logs" "Logs"
   (Tab)dev_tools "Developer tools" "Developer Tools"
 
   (Tab)debug "Debug output" "Debug Output"

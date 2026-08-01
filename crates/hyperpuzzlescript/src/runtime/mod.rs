@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use std::{collections::HashMap, sync::mpsc};
 
 use arcstr::ArcStr;
 
@@ -16,8 +16,7 @@ pub use scope::{Builtins, ParentScope, Scope};
 pub use special::SpecialVariables;
 
 use crate::{
-    ErrorExt, EvalRequest, EvalRequestTx, FileId, FullDiagnostic, HpsEngine, Map, Result, Span,
-    Value, ValueData, Warning, ast, engine,
+    ErrorExt, FileId, FullDiagnostic, HpsEngine, Map, Result, Span, Value, ValueData, Warning, ast,
 };
 
 /// Script runtime.
@@ -31,8 +30,9 @@ pub struct Runtime {
     /// Registered twist system engines.
     pub twist_system_engines: HashMap<String, Arc<dyn HpsEngine>>,
 
-    /// Function to call on print.
-    pub on_print: Box<dyn Send + Sync + FnMut(String)>,
+    /// Function to call on print. It takes a filename (`None` if unknown) and a
+    /// message.
+    pub on_print: Box<dyn Send + Sync + FnMut(Option<&str>, String)>,
     /// Function to call on warning or error.
     pub on_diagnostic: Box<dyn Send + Sync + FnMut(&Modules, FullDiagnostic)>,
     /// Number of warnings and errors reported since the last time this counter
@@ -54,8 +54,11 @@ impl Default for Runtime {
             puzzle_engines: HashMap::new(),
             twist_system_engines: HashMap::new(),
 
-            on_print: Box::new(|s| println!("[INFO] {s}")),
-            on_diagnostic: Box::new(|files, e| eprintln!("{}", e.formatted(files))),
+            on_print: Box::new(|filename, s| println!("[{}] [INFO] {s}", filename.unwrap_or(""))),
+            on_diagnostic: Box::new(|files, e| {
+                let filename = files.get_path(e.span.context).unwrap_or("");
+                eprintln!("[{filename}] {}", e.formatted(files));
+            }),
             diagnostic_count: 0,
         }
     }
@@ -177,8 +180,9 @@ impl Runtime {
     }
 
     /// Calls [`Self::on_print`], which by default prints a message to stdout.
-    pub fn print(&mut self, s: impl ToString) {
-        (self.on_print)(s.to_string());
+    pub fn print(&mut self, span: Span, s: impl ToString) {
+        let filename = self.modules.get_path(span.context);
+        (self.on_print)(filename, s.to_string());
     }
     /// Calls [`Self::on_diagnostic`], which by default prints a message to
     /// stderr.

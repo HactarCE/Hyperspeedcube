@@ -69,9 +69,10 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     let mut rt = hyperpuzzlescript::Runtime::new();
 
     let logger = catalog.logger()?;
-    rt.on_print = Box::new(move |msg| {
+    rt.on_print = Box::new(move |filename, msg| {
         logger.log(LogLine {
             level: Level::Info,
+            filename: filename.map(str::to_owned),
             msg,
             full: None,
         });
@@ -84,6 +85,7 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
                 hyperpuzzlescript::Diagnostic::Error(_) => Level::Error,
                 hyperpuzzlescript::Diagnostic::Warning(_) => Level::Warn,
             },
+            filename: modules.get_path(diagnostic.span.context).map(str::to_owned),
             msg: diagnostic.msg.to_string(),
             full: Some(diagnostic.formatted(modules)),
         });

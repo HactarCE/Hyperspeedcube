@@ -117,7 +117,8 @@ impl CatalogBuilder {
             for orphan in menu.orphans() {
                 catalog_data.logger.warn(format!(
                     "menu {:?} contains orphan at {:?}",
-                    menu.name, orphan,
+                    menu.name,
+                    orphan.to_string(),
                 ));
             }
         }
