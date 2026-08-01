@@ -128,11 +128,11 @@ impl CatalogBuilder {
         let mut puzzle_list = vec![];
         if let Some(subcatalog) = ret.get_subcatalog::<PuzzleListEntry>() {
             for g in subcatalog.generators.values() {
-                puzzle_list.push(ret.build_blocking::<PuzzleListEntry>(&CatalogId::new(
-                    g.id.clone(),
-                    [],
-                    None,
-                ))?);
+                match ret.build_blocking::<PuzzleListEntry>(&CatalogId::new(g.id.clone(), [], None))
+                {
+                    Ok(puzzle_list_entry) => puzzle_list.push(puzzle_list_entry),
+                    Err(e) => ret.logger.error(e),
+                }
             }
         }
         Arc::get_mut(&mut ret.0)

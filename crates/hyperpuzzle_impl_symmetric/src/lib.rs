@@ -1,15 +1,13 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use eyre::{Context, OptionExt, Result, bail, ensure};
-use hypergroup::{AbbrGenSeq, GeneratorId};
+use eyre::{OptionExt, Result};
+use hypergroup::AbbrGenSeq;
 use hypermath::prelude::*;
-use hyperpuzzle_core::group::{CoxeterMatrix, GroupElementId};
+use hyperpuzzle_core::group::GroupElementId;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::{ComponentList, TAGS};
 use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
 
 mod builder;
@@ -22,7 +20,7 @@ mod spec;
 mod stabilizer_family;
 mod twist_system;
 
-use builder::{PuzzleProduct, TwistSystemProduct};
+use builder::PuzzleProduct;
 pub use cut_distances::CutDistances;
 use itertools::Itertools;
 pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
@@ -93,7 +91,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
             menu: "symmetric".to_string(),
         })),
         default: CatalogIdValue::List(vec![
-            "ngon_ft(5,3)".parse().unwrap(),
+            "ngon_ft_shallow(5,3)".parse().unwrap(),
             "line(3)".parse().unwrap(),
         ]),
     }];

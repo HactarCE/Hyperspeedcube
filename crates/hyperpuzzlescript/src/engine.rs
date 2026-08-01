@@ -188,17 +188,14 @@ impl HpsGenerator {
     }
 
     /// Constructs a [`Generator`] that calls `generate` when parameter values
-    /// are supplied or no parameters are required, and calls `generate_empty`
-    /// when required parameter values are required but missing.
+    /// are supplied or no parameters are required, and returns `default` when
+    /// required parameter values are required but missing.
     ///
     /// See [`Self::make_generator()`] for details.
     pub fn make_generator_with_empty<T: 'static + Send + Sync>(
         &self,
         eval_tx: &EvalRequestTx,
-        generate_empty: impl 'static
-        + Send
-        + Sync
-        + Fn(BuildCtx, &EvalRequestTx) -> Result<Arc<T>, HpsEngineError>,
+        default: Arc<T>,
         generate: impl 'static
         + Send
         + Sync
@@ -209,7 +206,7 @@ impl HpsGenerator {
             GeneratorParamValidation { allow_empty: true },
             move |build_ctx, tx, kwargs| {
                 if build_ctx.id().args.is_empty() {
-                    generate_empty(build_ctx, tx)
+                    Ok(Arc::clone(&default))
                 } else {
                     generate(build_ctx, tx, kwargs)
                 }

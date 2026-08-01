@@ -1,32 +1,19 @@
 use std::sync::Arc;
 
-use eyre::{Context, bail, eyre};
-use hypergroup::{AbbrGenSeq, CoxeterMatrix, GenSeq, IsometryGroup};
-use hypermath::{Float, Vector, pga::Motor};
-use hyperpuzzle_core::{
-    ColorSystem, Component, ComponentList, Puzzle, PuzzleListEntry, TagSet, TagValue, TwistSystem,
-    catalog::{BuildCtx, Generator},
-    util::MaybeAdHoc,
-};
-use hyperpuzzle_impl_nd_euclid::{
-    builder::{ColorSystemBuilder, PuzzleBuilder, TwistSystemBuilder},
-    hps::{HpsOrbitNames, HpsSymmetry},
-};
+use eyre::eyre;
+use hypergroup::GenSeq;
+use hypermath::Float;
+use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry, TagSet};
+use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
-    BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyList, NonEmptyVec,
-    Result, Scope, Spanned, SpecialVar, Value, ValueData,
-    engine::HpsEngineError,
-    pop_kwarg, unpack_kwargs, unpack_kwargs_eyre,
-    util::{pop_map_key, pop_map_key_in_special_var},
+    BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
+    Value, ValueData, engine::HpsEngineError, pop_kwarg, unpack_kwargs,
+    util::pop_map_key_in_special_var,
 };
-use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{
-    AxisOrbitSpec, CutDistances, FactorPuzzleSpec, NamedPointOrbitSpec, ProductPuzzleSpec,
-    builder::*, spec::FacetOrbitSpec,
-};
+use crate::{CutDistances, builder::*, spec::FacetOrbitSpec};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -36,16 +23,34 @@ impl HpsEngine for SymmetricPuzzleEngine {
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
         ctx: &mut EvalCtx<'_>,
-        hps_gen: hyperpuzzlescript::engine::HpsGenerator,
+        mut hps_gen: hyperpuzzlescript::engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
         let caller_span = ctx.caller_span;
 
-        catalog.add::<PuzzleListEntry>(hps_gen.make_generator(
+        let id = &hps_gen.id;
+        pop_kwarg!(hps_gen.kwargs, name: String = {
+            ctx.warn_at(
+                caller_span,
+                format!("missing `name` for puzzle generator `{id}`"),
+            );
+            id.to_string()
+        });
+
+        let generator_list_entry = Arc::new(PuzzleListEntry {
+            id: CatalogId::new(id.clone(), vec![], None),
+            version: None,
+            name,
+            aliases: vec![], // TODO
+            tags: TagSet::todo(),
+        });
+
+        catalog.add::<PuzzleListEntry>(hps_gen.make_generator_with_empty(
             eval_tx,
+            generator_list_entry,
             move |build_ctx, tx, mut kwargs| {
                 let id = build_ctx.id().clone();
                 pop_kwarg!(kwargs, name: String = {
-                    build_ctx.warn_fn()(eyre!("missing `name` for puzzle generator `{id}`"));
+                    build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
                     id.to_string()
                 });
                 Ok(Arc::new(PuzzleListEntry {
@@ -61,12 +66,18 @@ impl HpsEngine for SymmetricPuzzleEngine {
         catalog.add::<PuzzleProduct>(hps_gen.make_generator(
             eval_tx,
             move |build_ctx, tx, kwargs| {
-                let meta = build_ctx.build_blocking::<PuzzleListEntry>(build_ctx.id())?;
+                let id = build_ctx.id();
+                let meta = build_ctx.build_blocking::<PuzzleListEntry>(id)?;
 
+                // TODO: error message on extra param says "unused function arg" but should say "unused map key"
                 unpack_kwargs!(
                     kwargs,
-                    (twists, twists_span): String,
-                    (colors, colors_span): String,
+                    name: String = {
+                        build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
+                        id.to_string()
+                    },
+                    twists: String,
+                    colors: String,
                     ndim: u8,
                     (build, build_span): Arc<FnValue>,
                 );
