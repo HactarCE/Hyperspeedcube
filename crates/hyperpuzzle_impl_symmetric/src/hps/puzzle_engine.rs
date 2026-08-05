@@ -3,12 +3,12 @@ use std::sync::Arc;
 use eyre::eyre;
 use hypergroup::GenSeq;
 use hypermath::Float;
-use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry, TagSet};
+use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry, TAGS, TagSet};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
-    Value, ValueData, engine::HpsEngineError, pop_kwarg, unpack_kwargs,
-    util::pop_map_key_in_special_var,
+    Value, ValueData, builtins::catalog::tags::tags_from_map, engine::HpsEngineError, pop_kwarg,
+    unpack_kwargs, util::pop_map_key_in_special_var,
 };
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -35,13 +35,27 @@ impl HpsEngine for SymmetricPuzzleEngine {
             );
             id.to_string()
         });
+        pop_kwarg!(hps_gen.kwargs, aliases: Vec<String> = vec![]);
+        pop_kwarg!(hps_gen.kwargs, tags: Option<Arc<Map>>);
+
+        let mut tags = tags.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
+        if hps_gen.gen_fn.is_some() {
+            tags.insert_named("generator", true.into())
+                .map_err(|e| eyre!(e))?;
+        }
+        tags.insert_named("solid", true.into())
+            .map_err(|e| eyre!(e))?;
+        tags.insert_named("doctrinaire", true.into())
+            .map_err(|e| eyre!(e))?;
+        tags.insert_named("pseudodoctrinaire", true.into())
+            .map_err(|e| eyre!(e))?;
 
         let generator_list_entry = Arc::new(PuzzleListEntry {
             id: CatalogId::new(id.clone(), vec![], None),
             version: None,
             name,
-            aliases: vec![], // TODO
-            tags: TagSet::todo(),
+            aliases,
+            tags,
         });
 
         catalog.add::<PuzzleListEntry>(hps_gen.make_generator_with_empty(
@@ -53,12 +67,25 @@ impl HpsEngine for SymmetricPuzzleEngine {
                     build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
                     id.to_string()
                 });
+                pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
+                pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
+
+                let mut tags = tags
+                    .map(|m| tx.eval_blocking(Scope::new(), |ctx| tags_from_map(ctx, m)))
+                    .unwrap_or_default();
+                tags.insert_named("solid", true.into())
+                    .map_err(|e| eyre!(e))?;
+                tags.insert_named("doctrinaire", true.into())
+                    .map_err(|e| eyre!(e))?;
+                tags.insert_named("pseudodoctrinaire", true.into())
+                    .map_err(|e| eyre!(e))?;
+
                 Ok(Arc::new(PuzzleListEntry {
                     id,
                     version: None,
                     name,
-                    aliases: vec![],
-                    tags: TagSet::todo(),
+                    aliases,
+                    tags,
                 }))
             },
         ))?;
@@ -79,6 +106,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                     twists: Option<String>,
                     colors: String,
                     ndim: Option<u8>,
+                    tags: Option<Arc<Map>>,
                     (build, build_span): Arc<FnValue>,
                 );
 

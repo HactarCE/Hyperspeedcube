@@ -48,14 +48,20 @@ impl TagSet {
             self.get("external/wca")?.as_str()?,
         ))
     }
-    /// Returns the filename where the puzzle was defined, or `"<unknown>"` if
-    /// it cannot be found.
+    /// Returns the filename where the puzzle was defined, or `None` if it
+    /// cannot be found.
     pub fn filename(&self) -> Option<&str> {
         self.get("file").and_then(|v| v.as_str())
     }
     /// Returns whether the tag set contains the "experimental" tag.
     pub fn is_experimental(&self) -> bool {
         self.has_present("experimental")
+    }
+
+    /// Returns the number of dimensions, or `None` if
+    /// unknown/unspecified/dimension-generic.
+    pub fn ndim(&self) -> Option<i64> {
+        self.get("ndim").and_then(|i| i.as_int())
     }
 
     /// Returns whether a tag set meets a search criterion. If `value_str` is

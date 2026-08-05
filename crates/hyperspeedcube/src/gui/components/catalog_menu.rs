@@ -1,13 +1,15 @@
 use std::any::TypeId;
+use std::sync::Arc;
 use std::time::Duration;
 
 use egui::NumExt;
 use hyperpuzzle::catalog::{Menu, MenuContent, MenuPath};
 use hyperpuzzle::{CatalogId, FloatMinMaxIteratorExt};
+use parking_lot::Mutex;
 
-use crate::gui::EguiValue;
 use crate::gui::components::{GENERATOR_SLIDER_WIDTH, PuzzleGeneratorUi};
 use crate::gui::util::text_width;
+use crate::gui::{EguiValue, PuzzleWidget};
 
 const SECTION_TEXT_SIZE: f32 = 15.0;
 const PARAMETERS_HEADING: &str = "Parameters";
@@ -23,6 +25,7 @@ pub struct PuzzleCatalogMenuUi {
     menu_path: String,
     is_open: bool,
     generator_ui: Option<PuzzleGeneratorUi>,
+    preview: Option<Arc<Mutex<PuzzleWidget>>>,
 }
 
 impl PuzzleCatalogMenuUi {
@@ -35,6 +38,7 @@ impl PuzzleCatalogMenuUi {
             menu_path: String::new(),
             is_open: false,
             generator_ui: None,
+            preview: None,
         };
         ret.set_menu_path_from_puzzle_id();
         ret

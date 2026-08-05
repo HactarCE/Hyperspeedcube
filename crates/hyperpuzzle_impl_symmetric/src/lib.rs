@@ -80,10 +80,21 @@ fn sum_name(summand_names: &[String]) -> String {
     summand_names.iter().join(" + ")
 }
 
+fn make_puzzle_tag_set(ndim: Option<i64>) -> Result<TagSet> {
+    let mut tags = TagSet::new();
+    tags.insert_named("doctrinaire", true.into())?;
+    tags.insert_named("pseudodoctrinaire", true.into())?;
+    if let Some(ndim) = ndim {
+        tags.insert_named("ndim", ndim.into())?;
+    }
+    Ok(tags)
+}
+
 pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
     let mut product_tags = TagSet::new();
     product_tags.insert_named("generator", true.into())?;
     product_tags.insert_named("doctrinaire", true.into())?;
+    product_tags.insert_named("pseudodoctrinaire", true.into())?;
     product_tags.insert_named("ndim/generic", true.into())?;
 
     let id: CatalogIdent = PRODUCT_ID.parse().expect("bad catalog ID");
@@ -119,24 +130,27 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
         params: params.clone(),
         subset_param: Some(subset_param.clone()),
         validation: GeneratorParamValidation { allow_empty: true },
-        generate: Box::new(|build_ctx| {
+        generate: Box::new(move |build_ctx| {
             if build_ctx.id().args.is_empty() {
                 Ok(Arc::new(PuzzleListEntry {
                     id: build_ctx.id().clone(),
                     version: None,
                     name: "Product".to_string(),
                     aliases: vec![],
-                    tags: TagSet::new(), // TODO: product tags
+                    tags: product_tags.clone(),
                 }))
             } else {
                 let factors =
                     build_ctx.build_list_blocking::<PuzzleListEntry>(&build_ctx.id().args[0])?;
+
                 Ok(Arc::new(PuzzleListEntry {
                     id: build_ctx.id().clone(),
                     version: None,
                     name: factors.iter().map(|f| &f.name).join(" × "),
                     aliases: vec![],
-                    tags: TagSet::new(), // TODO: product tags
+                    tags: make_puzzle_tag_set(
+                        factors.iter().map(|factor| factor.tags.ndim()).sum(),
+                    )?,
                 }))
             }
         }),
@@ -167,6 +181,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
         subset_param: Some(subset_param.clone()),
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
+            // TODO: make sure this gets tags
             build_ctx
                 .build_blocking::<PuzzleProduct>(build_ctx.id())?
                 .build(&build_ctx, &mut build_ctx.warn_fn())
@@ -225,7 +240,7 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
                 &mut build_ctx.warn_fn(),
             )?))
         }),
-    }));
+    }))?;
 
     // TODO: add twist system product and color system disjoint union generators. do not allow nesting for either.
 

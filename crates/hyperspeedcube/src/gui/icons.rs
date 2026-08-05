@@ -148,19 +148,25 @@ impl CatalogIcon {
         });
 
         // Type
-        let is_solid = tags.has_present("type/solid");
-        let is_puzzle = tags.has_present("type/puzzle");
-        let is_generator = tags.has_present("type/generator");
-        let is_generated = tags.has_present("generated");
-        ret.push(match (is_solid, is_puzzle) {
-            (true, _) if is_generator => Self::TYPE_SOLID_GENERATOR,
-            (true, _) if is_generated => Self::TYPE_GENERATED_SOLID,
-            (true, _) => Self::TYPE_SOLID,
-            (_, _) if is_generator => Self::TYPE_PUZZLE_GENERATOR,
-            (_, true) if is_generated => Self::TYPE_GENERATED_PUZZLE,
-            (_, true) => Self::TYPE_PUZZLE,
-            (false, false) => Self::TYPE_UNKNOWN,
+        ret.push(if tags.has_present("generator") {
+            Self::TYPE_PUZZLE_GENERATOR
+        } else {
+            Self::TYPE_PUZZLE
         });
+        // TODO: remove these, probably
+        // let is_solid = tags.has_present("type/solid");
+        // let is_puzzle = tags.has_present("type/puzzle");
+        // let is_generator = tags.has_present("type/generator");
+        // let is_generated = tags.has_present("generated");
+        // ret.push(match (is_solid, is_puzzle) {
+        //     (true, _) if is_generator => Self::TYPE_SOLID_GENERATOR,
+        //     (true, _) if is_generated => Self::TYPE_GENERATED_SOLID,
+        //     (true, _) => Self::TYPE_SOLID,
+        //     (_, _) if is_generator => Self::TYPE_PUZZLE_GENERATOR,
+        //     (_, true) if is_generated => Self::TYPE_GENERATED_PUZZLE,
+        //     (_, true) => Self::TYPE_PUZZLE,
+        //     (false, false) => Self::TYPE_UNKNOWN,
+        // });
 
         // Experimental
         if tags.is_experimental() {
