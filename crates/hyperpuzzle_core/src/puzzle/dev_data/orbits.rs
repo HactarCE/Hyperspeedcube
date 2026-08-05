@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use hypergroup::AbbrGenSeq;
+use hypuz_notation::Str;
 use itertools::Itertools;
 
 use super::*;
@@ -35,12 +36,12 @@ impl AnyOrbit {
     }
     /// Returns the name of the first non-null element in the orbit. Returns
     /// `"<unnamed>"` if no element exists and has a name.
-    pub fn first_name(&self, puz: &Puzzle) -> String {
+    pub fn first_name(&self, puz: &Puzzle) -> Str {
         match self {
             AnyOrbit::Axes(orbit) => orbit.first_name(puz),
             AnyOrbit::Colors(orbit) => orbit.first_name(puz),
         }
-        .unwrap_or_else(|| "<unnamed>".to_string())
+        .unwrap_or_else(|| "<unnamed>".into())
     }
 }
 
@@ -49,20 +50,20 @@ pub trait PuzzleElement: fmt::Debug + Copy + Eq + Hash + Ord {
     /// Human-friendly plural noun for the element.
     const ELEMENT_STRING_PLURAL: &'static str = "axes";
 
-    /// Returns the name specification of the element on the given puzzle.
-    fn name(self, puzzle: &Puzzle) -> Option<&NameSpec>;
+    /// Returns the canonical name of the element on the given puzzle.
+    fn name(self, puzzle: &Puzzle) -> Option<&Str>;
 }
 impl PuzzleElement for Axis {
     const ELEMENT_STRING_PLURAL: &'static str = "axes";
 
-    fn name(self, puzzle: &Puzzle) -> Option<&NameSpec> {
+    fn name(self, puzzle: &Puzzle) -> Option<&Str> {
         puzzle.axes().names.get(self).ok()
     }
 }
 impl PuzzleElement for Color {
     const ELEMENT_STRING_PLURAL: &'static str = "colors";
 
-    fn name(self, puzzle: &Puzzle) -> Option<&NameSpec> {
+    fn name(self, puzzle: &Puzzle) -> Option<&Str> {
         puzzle.colors.names.get(self).ok()
     }
 }
@@ -115,14 +116,14 @@ impl<T: PuzzleElement> Orbit<T> {
             .iter()
             .enumerate()
             .sorted_by_key(|(_, elem)| **elem)
-            .filter_map(|(i, elem)| Some((i, elem.as_ref()?.name(puz)?.spec.clone())))
+            .filter_map(|(i, elem)| Some((i, elem.as_ref()?.name(puz)?.to_string())))
             .collect()
     }
     /// Returns the name of the first non-null element in the orbit.
-    pub fn first_name(&self, puz: &Puzzle) -> Option<String> {
+    pub fn first_name(&self, puz: &Puzzle) -> Option<Str> {
         self.elements
             .iter()
-            .find_map(|elem| Some(elem.as_ref()?.name(puz)?.preferred.clone()))
+            .find_map(|elem| Some(elem.as_ref()?.name(puz)?.clone()))
     }
 
     /// Returns whether the orbit is completely empty. This is only really

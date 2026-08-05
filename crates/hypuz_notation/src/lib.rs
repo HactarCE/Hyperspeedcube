@@ -17,7 +17,7 @@ pub use parse::ParseError;
 pub use unspanned::*;
 
 /// String type.
-pub type Str = lean_string::LeanString;
+pub type Str = ecow::EcoString;
 
 /// Span in a string of puzzle notation.
 pub type Span = chumsky::span::SimpleSpan;

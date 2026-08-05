@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use hyperpuzzle_core::{
-    BuildCtx, CatalogBuilder, ColorSystem, ComponentList, NameSpecBiMapBuilder, PaletteColor,
-    PerColor,
+    BuildCtx, CatalogBuilder, ColorSystem, ComponentList, Names, PaletteColor, PerColor,
 };
 use indexmap::IndexMap;
 
@@ -84,8 +83,7 @@ fn color_system_from_kwargs(
         default: Option<String>,
     );
 
-    let mut names = NameSpecBiMapBuilder::new();
-    let mut display_names = PerColor::new();
+    let mut names = PerColor::new();
 
     let mut any_color_has_default = false;
     let mut default_scheme = PerColor::new();
@@ -94,14 +92,9 @@ fn color_system_from_kwargs(
     for (map, map_span) in colors {
         let mut map = Arc::unwrap_or_clone(map);
 
-        let id = display_names.next_idx().at(caller_span)?;
-
-        let (name_spec, name_span): Spanned<String> = pop_map_key(&mut map, map_span, "name")?;
-        names.set(id, Some(name_spec.clone())).at(name_span)?;
-
-        let display = pop_map_key::<Option<_>>(&mut map, map_span, "display")?
-            .unwrap_or_else(|| hyperpuzzle_core::preferred_name_from_name_spec(&name_spec));
-        display_names.push(display).at(map_span)?;
+        names
+            .push(pop_map_key(&mut map, map_span, "name")?)
+            .at(map_span)?;
 
         let default_color =
             match pop_map_key::<Option<Spanned<Str>>>(&mut map, map_span, "default")? {
@@ -114,9 +107,7 @@ fn color_system_from_kwargs(
         default_scheme.push(default_color).at(caller_span)?;
     }
 
-    let names = names
-        .build(display_names.len())
-        .ok_or_else(|| "missing color name".at(caller_span))?;
+    let names = Names::new_simple(names).at(caller_span)?;
 
     // Add color schemes.
     let mut ret_schemes = IndexMap::new();
@@ -133,10 +124,10 @@ fn color_system_from_kwargs(
                 return Err("expected list with 2 elements".at(map_span));
             }
             let scheme_name = std::mem::take(&mut map[0]).to::<String>()?;
-            let mut scheme_values = PerColor::<PaletteColor>::new_with_len(display_names.len());
+            let mut scheme_values = PerColor::<PaletteColor>::new_with_len(names.len());
             for (k, v) in map[1].as_ref::<Map>()? {
                 let i = names
-                    .id_from_name(k)
+                    .lookup(k)
                     .ok_or_else(|| format!("no color with name {k:?}"))
                     .at(map[1].span)?;
                 scheme_values[i] = v.as_ref::<str>()?.parse().at(v.span)?;
@@ -164,7 +155,6 @@ fn color_system_from_kwargs(
         name,
         components: ComponentList::new(),
         names,
-        display_names,
         schemes: ret_schemes,
         default_scheme,
         orbits: vec![],

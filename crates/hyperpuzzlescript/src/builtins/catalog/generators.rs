@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::engine::{HpsGenerator, HpsGeneratorFn};
 use crate::util::pop_map_key;
-use crate::{ErrorExt, FnValue, Map, Num, Result, Spanned, Type, Value, ValueData};
+use crate::{ErrorExt, FnValue, Map, Result, Spanned, Type, Value};
 
 pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator> {
     pop_kwarg!(kwargs, (id, id_span): String);

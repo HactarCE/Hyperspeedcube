@@ -8,7 +8,7 @@ use std::str::FromStr;
 use chumsky::container::Seq;
 use smallvec::SmallVec;
 
-pub use crate::charsets::{LARGE_LOWERCASE_GREEK, SMALL_LOWERCASE_GREEK, UPPERCASE_GREEK};
+pub use crate::charsets::{SHORT_LOWERCASE_GREEK, TALL_LOWERCASE_GREEK, UPPERCASE_GREEK};
 
 /// Removes a wide-move `w` or full-puzzle `v` suffix from a twist family.
 ///
@@ -51,7 +51,7 @@ pub fn strip_sequential_lowercase_prefix(s: &str) -> Option<(SequentialLowercase
 /// Returns `Opposite(0)` in case of overflow.
 pub fn strip_opposite_axis_prefix(s: &str) -> (Opposite, &str) {
     let i = s
-        .find(|c| !LARGE_LOWERCASE_GREEK.contains(&c))
+        .find(|c| !TALL_LOWERCASE_GREEK.contains(&c))
         .unwrap_or(s.len());
     match s[..i].parse() {
         Ok(opp) => (opp, &s[i..]),
@@ -69,7 +69,7 @@ pub struct Opposite(pub u32);
 
 impl fmt::Display for Opposite {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for digit in bijective_base_digits(&LARGE_LOWERCASE_GREEK, self.0) {
+        for digit in bijective_base_digits(&TALL_LOWERCASE_GREEK, self.0) {
             write!(f, "{digit}")?;
         }
         Ok(())
@@ -80,7 +80,7 @@ impl FromStr for Opposite {
     type Err = ParseSequentialNameError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_bijective_base(&LARGE_LOWERCASE_GREEK, s).map(Self)
+        parse_bijective_base(&TALL_LOWERCASE_GREEK, s).map(Self)
     }
 }
 
@@ -224,11 +224,11 @@ impl FromStr for UppercaseGreekPrefix {
     }
 }
 
-/// Returns the `n`th letter from the small lowercase Greek alphabet series.
+/// Returns the `n`th letter from the short lowercase Greek alphabet series.
 ///
 /// Panics if `n >= 9`.
-pub fn nth_small_lowercase_greek(n: usize) -> char {
-    SMALL_LOWERCASE_GREEK[n]
+pub fn nth_short_lowercase_greek(n: usize) -> char {
+    SHORT_LOWERCASE_GREEK[n]
 }
 
 /// Returns the digits (from most-significant to least-significant)

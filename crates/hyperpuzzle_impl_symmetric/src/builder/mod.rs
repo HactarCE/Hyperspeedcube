@@ -1,19 +1,15 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
-use eyre::{Context, OptionExt, Result, bail, eyre};
-use hypergroup::{
-    CoxeterMatrix, GroupElementId, GroupError, SubgroupAction, SubgroupConstraintSolver,
-};
+use eyre::{Context, OptionExt, Result, bail};
+use hypergroup::CoxeterMatrix;
 use hypermath::prelude::*;
+use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::util::MaybeAdHoc;
-use hyperpuzzle_core::{Component, ComponentList};
-use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, NdEuclidPuzzleGeometry};
+use hyperpuzzle_impl_nd_euclid::NdEuclidPuzzleGeometry;
 
 mod colors;
 mod from_space;
@@ -22,18 +18,13 @@ mod shape;
 mod twists;
 
 pub(crate) use colors::ColorSystemDisjointUnion;
-use itertools::Itertools;
-use parking_lot::Mutex;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
 use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 pub(crate) use twists::TwistSystemProduct;
 
-use crate::spec::FacetOrbitSpec;
-use crate::{
-    CutDistances, FactorPuzzleSpec, ProductPuzzleSpec, ProductPuzzleState, StabilizerFamily,
-    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent,
-};
+use crate::spec::SimpleOrbitSpec;
+use crate::{CutDistances, ProductPuzzleState, SymmetricTwistSystemComponent};
 
 #[derive(Debug)]
 pub struct PuzzleProduct {
@@ -85,31 +76,29 @@ impl PuzzleProduct {
         id: CatalogId,
         name: String,
         coxeter_matrix: CoxeterMatrix,
-        facet_orbits: &[FacetOrbitSpec],
+        facet_orbits: &[SimpleOrbitSpec],
         colors: Arc<ColorSystemDisjointUnion>,
         twists: Arc<TwistSystemProduct>,
         axis_orbit_cut_distances: &[CutDistances],
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
         let group = coxeter_matrix.isometry_group()?;
-        let generators = group.generator_motors();
 
         let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(coxeter_matrix, group)?;
 
-        // TODO: color orbits (dev data)
-
         // Carve facets
         for orbit in facet_orbits {
-            for (pole, name, _gen_seq) in &orbit.named_facet_poles {
-                let plane = Hyperplane::from_pole(pole).ok_or_eyre("bad hyperplane")?;
-                let color = shape_builder.add_color(name.clone())?;
+            for facet in &orbit.orbit_members {
+                // TODO: color orbits (dev data)
+                let plane = Hyperplane::from_pole(&facet.vector).ok_or_eyre("bad hyperplane")?;
+                let color = shape_builder.add_color(facet.name.clone())?;
                 shape_builder.carve(plane, color)?;
             }
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece()?;
 
         // Slice axes
-        for (orbit, cut_distances) in std::iter::zip(&twists.axis_orbits, axis_orbit_cut_distances)
+        for (orbit, cut_distances) in std::iter::zip(twists.axis_orbits(), axis_orbit_cut_distances)
         {
             for axis in orbit.axes() {
                 for &cut_distance in &cut_distances.0 {
@@ -126,7 +115,7 @@ impl PuzzleProduct {
         for (_, piece_data) in &mut shape.pieces {
             piece_data.grip_signature = PerAxis::new_with_len(twists.len());
             for (orbit, cut_distances) in
-                std::iter::zip(&twists.axis_orbits, axis_orbit_cut_distances)
+                std::iter::zip(twists.axis_orbits(), axis_orbit_cut_distances)
             {
                 let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
                 for axis in orbit.axes() {
@@ -222,14 +211,14 @@ impl PuzzleProduct {
         let axis_layers: PerAxis<AxisLayersInfo> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(&twists.axis_orbits)
-            .flat_map(|(&layers_info, axis_orbit)| std::iter::repeat_n(layers_info, axis_orbit.len))
+            .zip(twists.axis_orbits())
+            .flat_map(|(&layers_info, orbit)| std::iter::repeat_n(layers_info, orbit.len))
             .collect();
 
         let axes_with_twists: Vec<Axis> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(&twists.axis_orbits)
+            .zip(twists.axis_orbits())
             .filter(|(layers_info, orbit)| {
                 layers_info.max_layer > 0
                     && symmetric_twist_system_component.axis_has_twists(orbit.first())
@@ -240,25 +229,26 @@ impl PuzzleProduct {
         let mut mesh = self.shape.build_mesh()?;
 
         let mut gizmo_twists = PerGizmoFace::new();
-        if ndim == 3 {
-            gizmos::build_3d_gizmo(
-                &mut mesh,
-                &mut gizmo_twists,
-                &twists,
-                &symmetric_twist_system_component,
-            )
-        } else if ndim == 4 {
-            gizmos::build_4d_gizmo(
-                &mut mesh,
-                &mut gizmo_twists,
-                &twists,
-                &symmetric_twist_system_component,
-                warn_fn,
-            )
-        } else {
-            Ok(())
+        if !twists.axis_vectors.is_empty() {
+            if ndim == 3 {
+                gizmos::build_3d_gizmo(
+                    &mut mesh,
+                    &mut gizmo_twists,
+                    &twists,
+                    &symmetric_twist_system_component,
+                )
+                .wrap_err("error building 3D gizmos")?;
+            } else if ndim == 4 {
+                gizmos::build_4d_gizmo(
+                    &mut mesh,
+                    &mut gizmo_twists,
+                    &twists,
+                    &symmetric_twist_system_component,
+                    warn_fn,
+                )
+                .wrap_err("error building 4D gizmos")?;
+            }
         }
-        .wrap_err("error building gizmos")?;
 
         let (planes, sticker_planes) = self.shape.build_sticker_planes();
 

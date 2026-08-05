@@ -1,12 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
 use hyperpuzzle_core::{
-    CatalogId, CatalogObject, Color, ColorSystem, Component, ComponentList, IndexOverflow,
-    NameSpecBiMap, NameSpecBiMapBuilder, PaletteColor, PerColor, TypedIndex, catalog::BuildCtx,
-    util::MaybeAdHoc,
+    CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, PaletteColor, PerColor,
+    TypedIndex, catalog::BuildCtx,
 };
-use hypuz_notation::family::SequentialLowercaseName;
+use hypuz_notation::{Str, family::SequentialLowercaseName};
 use indexmap::IndexMap;
 
 /// Disjoint union of color systems.
@@ -20,7 +19,7 @@ pub struct ColorSystemDisjointUnion {
     /// List of names for each orbit of colors.
     ///
     /// Each orbit is assigned a [`SequentialLowercaseName`] prefix.
-    pub orbits: Vec<Vec<Option<String>>>,
+    pub orbits: Vec<Vec<Option<Str>>>,
 
     pub existing: Option<Arc<ColorSystem>>,
 }
@@ -74,8 +73,9 @@ impl ColorSystemDisjointUnion {
             orbits: vec![
                 color_system
                     .names
+                    .list()
                     .iter_values()
-                    .map(|name_spec| Some(name_spec.spec.clone()))
+                    .map(|s| Some(s.clone()))
                     .collect(),
             ],
             existing: Some(color_system),
@@ -93,30 +93,25 @@ impl ColorSystemDisjointUnion {
 
         let mut autonames = crate::autonames();
 
-        let mut names = NameSpecBiMapBuilder::new();
-        let mut display_names = PerColor::new();
-        let mut color_id_counter = PerColor::new();
+        let mut names = PerColor::<Str>::new();
         for (i, orbit_names) in self.orbits.iter().enumerate() {
             let prefix = SequentialLowercaseName(i as u32);
             for name in orbit_names {
-                let id = color_id_counter.push(())?;
                 let prefixed_name = name
                     .as_ref()
                     .map(|s| {
                         if self.orbits.len() == 1 {
-                            s.clone()
+                            s.into()
                         } else {
-                            format!("{prefix}{s}")
+                            format!("{prefix}{s}").into()
                         }
                     })
-                    .or_else(|| autonames.next());
-                names.set(id, prefixed_name.clone())?;
-                display_names.push(prefixed_name.unwrap_or_else(String::new))?;
+                    .or_else(|| Some(autonames.next()?.into()))
+                    .ok_or_eyre("missing color name")?; // should be impossible
+                names.push(prefixed_name)?;
             }
         }
-        let names = names
-            .build(color_id_counter.len())
-            .ok_or_eyre("missing name for color")?; // error shouldn't be possible
+        let names = Names::new_simple(names)?;
 
         if autonames.next() != crate::autonames().next() {
             warn_fn(eyre!("color system is missing at least one name"));
@@ -142,7 +137,6 @@ impl ColorSystemDisjointUnion {
             name: crate::product_name(&self.summand_names),
             components: ComponentList::new(),
             names,
-            display_names,
             schemes,
             default_scheme,
             orbits: vec![], // TODO

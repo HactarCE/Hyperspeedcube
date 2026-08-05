@@ -98,8 +98,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.group(|ui| {
             ui.strong("Axis names");
-            for name in view.puzzle().axes().names.iter_values() {
-                ui.label(&name.preferred);
+            for name in view.puzzle().axes().names.list().iter_values() {
+                ui.label(&**name);
             }
         });
 

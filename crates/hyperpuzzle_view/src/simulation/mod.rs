@@ -1076,7 +1076,7 @@ impl PuzzleSimulation {
                 }
                 &LogEvent::DragTwist { time, ref axis } => {
                     // TODO: handle errors
-                    let Some(axis) = puzzle.axes().names.id_from_name(axis) else {
+                    let Some(axis) = puzzle.axes().names.lookup(axis) else {
                         continue;
                     };
                     ret.replay_event(ReplayEvent::DragTwist { time, axis }, true);

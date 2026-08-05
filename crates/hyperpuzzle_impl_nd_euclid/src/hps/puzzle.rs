@@ -7,7 +7,7 @@ use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
-use super::{HpsAxis, HpsRegion, HpsSymmetry, Names};
+use super::{HpsAxis, HpsRegion, HpsSymmetry, ElementNames};
 use crate::builder::*;
 
 /// HPS puzzle builder.
@@ -73,7 +73,7 @@ impl HpsPuzzle {
         &self,
         ctx: &mut EvalCtx<'_>,
         vector: Vector,
-        names: Option<Names>,
+        names: Option<ElementNames>,
         layers: Vec<f64>,
         slice: bool,
     ) -> Result<Option<HpsAxis>> {

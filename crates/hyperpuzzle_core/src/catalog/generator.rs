@@ -304,7 +304,6 @@ impl<T: CatalogObject> Generator<T> {
     }
 
     /// Returns the ID of some default value for this generator.
-    #[cfg(test)]
     pub fn default_id(&self) -> CatalogId {
         CatalogId {
             base: self.id.clone(),

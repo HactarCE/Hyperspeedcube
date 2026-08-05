@@ -17,9 +17,9 @@ use parking_lot::Mutex;
 use super::{HpsAxis, HpsEuclidError, HpsSymmetry};
 
 #[derive(Debug, Clone)]
-pub struct Names(pub HpsOrbitNames);
-impl_ty!(Names = Type::Str | HpsOrbitNames::hps_ty() | Type::Fn);
-impl FromValue for Names {
+pub struct ElementNames(pub HpsOrbitNames);
+impl_ty!(ElementNames = Type::Str | HpsOrbitNames::hps_ty() | Type::Fn);
+impl FromValue for ElementNames {
     fn from_value(value: Value) -> Result<Self> {
         let span = value.span;
         if value.is::<str>() {
@@ -164,9 +164,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 impl HpsOrbitNames {
     pub const EMPTY: Self = Self { components: vec![] };
 
-    pub fn to_strings(&self, ctx: &mut EvalCtx<'_>, transforms: &[Motor]) -> Result<Vec<String>> {
+    pub fn to_strings(&self, ctx: &mut EvalCtx<'_>, transforms: &[Motor]) -> Result<Vec<Str>> {
         let span = ctx.caller_span;
-        let mut strings = vec![String::new(); transforms.len()];
+        let mut strings = vec![Str::new(); transforms.len()];
         for &(ref offset, (ref component, component_span)) in &self.components {
             let strings_and_transforms = std::iter::zip(
                 &mut strings,
@@ -233,7 +233,7 @@ impl HpsOrbitNames {
         &self,
         ctx: &mut EvalCtx<'_>,
         transforms: &[Motor],
-    ) -> Result<impl 'static + Iterator<Item = Option<String>>> {
+    ) -> Result<impl 'static + Iterator<Item = Option<Str>>> {
         Ok(self
             .to_strings(ctx, transforms)?
             .into_iter()

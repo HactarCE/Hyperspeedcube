@@ -1,53 +1,151 @@
-use std::collections::{HashMap, HashSet, VecDeque};
 use std::num::NonZeroI32;
 use std::sync::Arc;
 
-use eyre::{Context, OptionExt, Result, bail, eyre};
+use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypergroup::{
-    ConjugateCoset, Constraint, ConstraintSet, ConstraintSolver, CoxeterMatrix, GroupAction,
-    GroupElementId, GroupError, IsometryGroup, PerGenerator, PerGroupElement, SubgroupAction,
-    SubgroupConstraintSolver,
+    AbbrGenSeq, ConjugateCoset, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup,
+    SubgroupAction, SubgroupConstraintSolver,
 };
-use hypermath::num::Euclid;
-use hypermath::{APPROX, Float, Matrix, Point, Sign, Vector, VectorRef};
+use hypermath::{APPROX, Float, Matrix, Point, Subspace, Vector, VectorRef};
 use hyperpuzzle_core::catalog::BuildCtx;
-use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzle_core::{
-    Axis, AxisSystem, CatalogId, CatalogObject, Component, ComponentList, IndexOverflow,
-    MissingComponent, NameSpecBiMap, NameSpecBiMapBuilder, Orbit, PerAxis, TiMask, TwistSystem,
-    TypedIndex, TypedIndexIter,
+    Axis, AxisSystem, CatalogId, CatalogObject, ComponentList, IndexOverflow, Names, PerAxis,
+    TwistSystem, TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
-use hypuz_notation::{AxisLayersInfo, Str};
+use hypuz_notation::charsets::CharSet;
+use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 use parking_lot::Mutex;
-use smallvec::{SmallVec, smallvec};
+use smallvec::smallvec;
 
-use crate::names::NameBiMap;
+use crate::names::{FactorTwistSystemNames, PrefixFreeBiMap, ProductTwistSystemNames};
 use crate::{
-    AxisOrbitSpec, NamedPoint, NamedPointOrbitSpec, NamedPointSet, PerNamedPoint, StabilizerFamily,
+    FactorTwistSystemSpec, NamedPoint, NamedPointSet, PerNamedPoint, StabilizerFamily,
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
-/// Axis system of a puzzle under construction.
 #[derive(Debug, Clone)]
-pub(crate) struct TwistSystemProduct {
-    /// ID computed from `summand_ids`.
+struct TwistSystemFactor {
+    id: CatalogId,
+    names: FactorTwistSystemNames,
+    axis_orbits: Vec<AxisOrbit>,
+    named_point_orbits: Vec<NamedPointOrbit>,
+}
+
+impl TwistSystemFactor {
+    fn offset_ids_by(
+        &self,
+        axis_id_offset: usize,
+        named_point_id_offset: usize,
+    ) -> Result<Self, IndexOverflow> {
+        Ok(Self {
+            id: self.id.clone(),
+            names: self.names.clone(),
+            axis_orbits: self
+                .axis_orbits
+                .iter()
+                .map(|orbit| orbit.offset_ids_by(axis_id_offset, named_point_id_offset))
+                .try_collect()?,
+            named_point_orbits: self
+                .named_point_orbits
+                .iter()
+                .map(|orbit| orbit.offset_ids_by(named_point_id_offset))
+                .try_collect()?,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AxisOrbit {
+    /// Number of axes in the orbit.
+    pub len: usize,
+    /// ID offset of the axes in the orbit.
+    ///
+    /// IDs within an orbit always count starting from 0, but the puzzle may
+    /// have multiple sets and so puzzle-facing IDs for axes must start counting
+    /// from this offset.
+    pub id_offset: usize,
+    /// Orbits of nontrivial stabilizer twist families, along with their gizmo
+    /// pole distances.
+    ///
+    /// Here, "nontrivial" means that the named point set is nonempty. E.g., the
+    /// named point set is typically empty for twists on rotational 3D puzzles,
+    /// but these do not need to be tracked. But in rotational 4D puzzles, they
+    /// do need to be tracked.
+    ///
+    /// Because they are not used in higher dimensions, this list is made empty
+    /// in 5D+.
+    pub stabilizer_twists: Vec<(NamedPointSet, Float)>,
+}
+
+impl AxisOrbit {
+    pub fn first(&self) -> Axis {
+        Axis(self.id_offset as _) // already checked at construction
+    }
+
+    pub fn axes(&self) -> TypedIndexIter<Axis> {
+        Axis::iter_range(self.id_offset..self.id_offset + self.len) // already checked at constuction
+    }
+
+    fn offset_ids_by(
+        &self,
+        axis_id_offset: usize,
+        named_point_id_offset: usize,
+    ) -> Result<Self, IndexOverflow> {
+        let new_id_offset = axis_id_offset + self.id_offset;
+        Axis::try_iter_range(new_id_offset..new_id_offset + self.len)?; // check for overflow
+        Ok(Self {
+            len: self.len,
+            id_offset: new_id_offset,
+            stabilizer_twists: self
+                .stabilizer_twists
+                .iter()
+                .map(|(set, distance)| Ok((set.offset_ids_by(named_point_id_offset)?, *distance)))
+                .try_collect()?,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct NamedPointOrbit {
+    len: usize,
+    id_offset: usize,
+    abbr_gen_seqs: Vec<AbbrGenSeq>,
+}
+
+impl NamedPointOrbit {
+    fn first(&self) -> Result<NamedPoint, IndexOverflow> {
+        NamedPoint::try_from_index(self.id_offset)
+    }
+
+    fn offset_ids_by(&self, named_point_id_offset: usize) -> Result<Self, IndexOverflow> {
+        let new_id_offset = self.id_offset + named_point_id_offset;
+        Axis::try_iter_range(new_id_offset..new_id_offset + self.len)?; // check for overflow
+        Ok(Self {
+            len: self.len,
+            id_offset: new_id_offset,
+            abbr_gen_seqs: self.abbr_gen_seqs.clone(),
+        })
+    }
+}
+
+/// Twist system of a puzzle under construction.
+#[derive(Debug, Clone)]
+pub struct TwistSystemProduct {
+    /// ID computed from `factor_ids`.
     pub id: CatalogId,
-    pub factor_ids: Vec<CatalogId>,
 
     /// Grip group.
     pub group: IsometryGroup,
-    /// Coxeter matrix for the grip group.
-    pub coxeter_matrix: CoxeterMatrix,
+    /// Mirror planes from the Coxeter matrix for the grip group.
+    pub coxeter_mirrors: Vec<Vector>,
 
     /// Action of the grip group on named points.
     pub named_point_action: GroupAction<NamedPoint>,
     /// Vector for each named point.
-    pub named_point_vectors: Arc<PerNamedPoint<Vector>>,
-    /// Named point orbits.
-    pub named_point_orbits: Vec<NamedPointOrbit>,
+    pub named_point_vectors: PerNamedPoint<Vector>,
 
     /// Action of the grip group on axes.
     pub axis_action: GroupAction<Axis>,
@@ -58,8 +156,8 @@ pub(crate) struct TwistSystemProduct {
     /// axis vector will typically be scaled to match the distance of its
     /// corresponding facet.
     pub axis_vectors: PerAxis<Vector>,
-    /// Axis orbits.
-    pub axis_orbits: Vec<AxisOrbit>,
+
+    pub factors: Vec<TwistSystemFactor>,
 
     /// Nonempty sets of named points, each with a gizmo pole distance. Each
     /// orbit has only one representative in this list.
@@ -75,7 +173,7 @@ pub(crate) struct TwistSystemProduct {
 
 impl CatalogObject for TwistSystemProduct {
     fn catalog_type_name() -> &'static str {
-        "twist system product"
+        "symmetric twist system product"
     }
 
     fn id(&self) -> &CatalogId {
@@ -94,147 +192,185 @@ impl TwistSystemProduct {
     pub fn direct_product_identity() -> Self {
         Self {
             id: crate::product_id(&[]),
-            factor_ids: vec![],
-
             group: IsometryGroup::trivial(),
-            coxeter_matrix: CoxeterMatrix::trivial(),
-
+            coxeter_mirrors: vec![],
             named_point_action: GroupAction::trivial(),
-            named_point_vectors: Arc::new(PerNamedPoint::new()),
-            named_point_orbits: vec![],
-
+            named_point_vectors: PerNamedPoint::new(),
             axis_action: GroupAction::trivial(),
             axis_vectors: PerAxis::new(),
-            axis_orbits: vec![],
-
+            factors: vec![],
             named_point_set_orbits: vec![],
         }
     }
 
-    /// Constructs a factor twist system builder.
+    /// Constructs a product twist system builder with a single factor.
     pub fn new_factor(
         id: CatalogId,
-        coxeter_matrix: CoxeterMatrix,
-        group: IsometryGroup,
-        axis_orbits: &[AxisOrbitSpec],
-        named_point_orbits: &[NamedPointOrbitSpec],
-        named_point_set_orbits: &[(Vec<Str>, Float)],
+        spec: &FactorTwistSystemSpec,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
-        let original_generators = group.generator_motors();
+        let factor_id = id;
 
-        // Shuffling group generators improves average word length, making some
-        // group operations faster.
-        let group = crate::shuffle_group_generators(&group, &mut rand::rng())?;
-
-        let mut all_named_point_names = NameBiMap::<NamedPoint>::new();
-        let mut named_point_vectors = PerNamedPoint::new();
-        let mut new_named_point_orbits = vec![];
-        let mut id_offset = 0;
-        for orbit in named_point_orbits {
-            let mut names = vec![];
-            for (vector, name, _gen_seq) in &orbit.named_point_vectors {
-                named_point_vectors.push(vector.clone())?;
-                names.push(name.clone());
-                all_named_point_names.push(name.clone())?;
+        let coxeter_mirrors;
+        let group;
+        if let Some(coxeter_matrix) = &spec.coxeter_matrix {
+            if coxeter_matrix.generator_count() != spec.ndim {
+                bail!(
+                    "ndim={}, but coxeter_matrix_ndim={}",
+                    spec.ndim,
+                    coxeter_matrix.generator_count(),
+                );
             }
-            new_named_point_orbits.push(NamedPointOrbit {
-                len: orbit.len(),
-                prefix: hypuz_notation::family::SequentialLowercaseName(0),
-                id_offset,
-                names: Arc::new(names),
-            });
-            id_offset += orbit.len();
+            coxeter_mirrors = coxeter_matrix
+                .mirrors()?
+                .cols()
+                .map(|col| col.to_vector())
+                .collect_vec();
+            let unshuffled_group = coxeter_matrix
+                .isometry_group()
+                .wrap_err("error expanding twist symmetries")?;
+            // Shuffle group generators to improve average word length, making some
+            // group operations faster.
+            group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
+                .wrap_err("error shuffling twist symmetry generators")?;
+        } else {
+            coxeter_mirrors = vec![];
+            group = IsometryGroup::trivial_with_ndim(spec.ndim);
         }
 
-        let named_point_points = named_point_vectors.map_ref(|_, v| Point(v.clone()));
-        let named_point_action = group.action_on_points(&named_point_points)?;
+        let mut named_point_vectors = PerNamedPoint::new();
+        let mut named_point_names = PrefixFreeBiMap::new();
+        let mut named_point_orbits = vec![];
+        let mut named_point_id_offset = 0;
+        for orbit in spec
+            .named_point_orbits
+            .iter()
+            .sorted_by_cached_key(|orbit| orbit.min_name())
+        {
+            let mut abbr_gen_seqs = vec![];
+            let sorted_points_in_orbit = orbit
+                .orbit_members
+                .iter()
+                .sorted_by_key(|point| &point.name);
+            for point in sorted_points_in_orbit {
+                // Normalize vector
+                let vector = point
+                    .vector
+                    .normalize()
+                    .ok_or_eyre("named point cannot be zero")?;
 
-        let named_point_from_name = |name: &Str| {
-            all_named_point_names
-                .name_to_id(name)
-                .ok_or_else(|| eyre!("no named point with name {name:?}"))
-        };
+                // Validate name
+                let name = point.name.clone();
+                if let Some(bad_char) = name.chars().find(|c| {
+                    !matches!(
+                        hypuz_notation::charsets::classify(*c),
+                        Some(CharSet::UppercaseLatin | CharSet::UppercaseGreek),
+                    )
+                }) {
+                    bail!("named point {name:?} contains disallowed char {bad_char:?}");
+                }
 
-        let mut all_axis_names = NameBiMap::<Axis>::new();
-        let mut axis_vectors = PerAxis::new();
-        let mut new_axis_orbits = vec![];
-        let mut id_offset = 0;
-        for orbit in axis_orbits {
-            let mut names = vec![];
-            let mut generator_sequences = vec![];
-            for (vector, name, gen_seq) in &orbit.named_axis_vectors {
-                axis_vectors.push(vector.clone())?;
-                names.push(name.clone());
-                all_axis_names.push(name.clone())?;
-                generator_sequences.push(gen_seq.clone());
+                named_point_vectors.push(vector)?;
+                named_point_names.push(name)?;
+                abbr_gen_seqs.push(point.abbr_gen_seq.clone());
             }
-            new_axis_orbits.push(AxisOrbit {
+            named_point_orbits.push(NamedPointOrbit {
                 len: orbit.len(),
-                prefix: hypuz_notation::family::SequentialLowercaseName(0),
-                id_offset,
-                generator_sequences: Arc::new(generator_sequences),
-                names: Arc::new(names),
-                // `stabilizer_action` is easier to add later once we have `axis_action`
-                stabilizer_action: SubgroupAction::trivial(),
-                stabilizer_twists: orbit
-                    .stabilizer_sets
-                    .iter()
-                    .map(|(named_points, distance)| {
-                        let named_point_set = NamedPointSet::new(
-                            named_points
-                                .iter()
-                                .map(named_point_from_name)
-                                .try_collect()?,
-                        )?;
-                        eyre::Ok((named_point_set, *distance))
-                    })
-                    .try_collect()?,
+                id_offset: named_point_id_offset,
+                abbr_gen_seqs,
             });
-            id_offset += orbit.len();
+            named_point_id_offset += orbit.len();
+        }
+
+        let named_point_locations = named_point_vectors.map_ref(|_, v| Point(v.clone()));
+        let named_point_action = group.action_on_points(&named_point_locations)?;
+
+        let mut names = FactorTwistSystemNames::new(Arc::new(named_point_names))?;
+
+        let mut axis_orbits = vec![];
+        let mut axis_undeorbiters = PerAxis::new();
+        let mut axis_which_orbit = PerAxis::new();
+        let mut axis_vectors = PerAxis::new();
+        let mut axis_id_offset = 0;
+        for (orbit_index, orbit) in spec.axis_orbits.iter().enumerate() {
+            let new_axis_names = expand_and_name_axis_orbit(
+                &group,
+                &named_point_locations,
+                &named_point_action,
+                &orbit.vector,
+            )?;
+            axis_orbits.push(AxisOrbit {
+                len: new_axis_names.len(),
+                id_offset: axis_id_offset,
+                stabilizer_twists: vec![], // will be populated later
+            });
+            axis_id_offset += new_axis_names.len();
+            for (undeorbiter, axis_vector, axis_name) in new_axis_names {
+                axis_undeorbiters.push(undeorbiter)?;
+                axis_which_orbit.push(orbit_index)?;
+                axis_vectors.push(axis_vector)?;
+                names.add_axis(&orbit.prefix, axis_name)?;
+            }
         }
 
         let axis_points = axis_vectors.map_ref(|_, v| Point(v.clone()));
         let axis_action = group.action_on_points(&axis_points)?;
 
-        for orbit in &mut new_axis_orbits {
-            let first_axis = orbit.first();
-            orbit.stabilizer_action =
-                SubgroupAction::from_subgroup_predicate(&named_point_action, |e| {
-                    axis_action.act(e, first_axis) == first_axis
-                })?;
+        // Populate stabilizer twists
+        for orbit in &spec.stabilizer_twist_orbits {
+            let axis = names.axis_from_name(&orbit.axis_name)?;
+            let stabilized_points = NamedPointSet::new(
+                orbit
+                    .named_points
+                    .iter()
+                    .map(|s| names.named_point_from_name(s))
+                    .try_collect()?,
+            )?;
+            let axis_orbit_index = axis_which_orbit[axis];
+            axis_orbits[axis_orbit_index]
+                .stabilizer_twists
+                .push((stabilized_points, orbit.gizmo_pole_distance));
         }
 
-        let named_point_set_orbits: Vec<(NamedPointSet, Float)> = std::iter::chain(
-            new_named_point_orbits.iter().map(|orbit| {
-                Ok((
-                    NamedPointSet::new(smallvec![orbit.first()])?,
-                    named_point_vectors[orbit.first()].mag(),
-                ))
-            }),
-            named_point_set_orbits.iter().map(|(names, distance)| {
-                eyre::Ok((
-                    NamedPointSet::new(names.iter().map(named_point_from_name).try_collect()?)?,
-                    *distance,
-                ))
-            }),
-        )
-        .try_collect()?;
+        let mut named_point_set_orbits: Vec<(NamedPointSet, Float)> = vec![];
+        // Add a singleton named point set for each named point.
+        for orbit in &named_point_orbits {
+            named_point_set_orbits.push((
+                NamedPointSet::new(smallvec![orbit.first()?])?,
+                named_point_vectors[orbit.first()?].mag(),
+            ));
+        }
+        // Add non-singleton named point sets.
+        for orbit in &spec.named_point_set_orbits {
+            let points = orbit
+                .named_points
+                .iter()
+                .map(|s| names.named_point_from_name(s))
+                .try_collect()?;
+            named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
+        }
+
+        let id = crate::product_id(std::slice::from_ref(&factor_id));
+        let factor = TwistSystemFactor {
+            id: factor_id,
+            names,
+            axis_orbits,
+            named_point_orbits,
+        };
 
         Ok(Self {
-            id: crate::product_id(std::slice::from_ref(&id)),
-            factor_ids: vec![id],
+            id,
 
             group,
-            coxeter_matrix,
+            coxeter_mirrors,
 
             named_point_action,
-            named_point_vectors: Arc::new(named_point_vectors),
-            named_point_orbits: new_named_point_orbits,
+            named_point_vectors,
 
             axis_action,
             axis_vectors,
-            axis_orbits: new_axis_orbits,
+
+            factors: vec![factor],
 
             named_point_set_orbits,
         })
@@ -257,6 +393,16 @@ impl TwistSystemProduct {
             GroupAction::product([&a.named_point_action, &b.named_point_action])?;
         let axis_action = GroupAction::product([&a.axis_action, &b.axis_action])?;
 
+        let coxeter_mirrors = std::iter::chain(
+            a.coxeter_mirrors
+                .iter()
+                .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
+            b.coxeter_mirrors
+                .iter()
+                .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
+        )
+        .collect();
+
         let named_point_vectors = std::iter::chain(
             a.named_point_vectors
                 .iter_values()
@@ -276,37 +422,15 @@ impl TwistSystemProduct {
         )
         .collect();
 
-        let lift_b_axis = |ax: Axis| Axis(ax.0 + a.len() as u16);
         let lift_b_point_set =
             |points: &NamedPointSet| points.offset_ids_by(a.named_points_count());
 
         let a_new_named_point_set_orbits = a.named_point_set_orbits.iter().cloned();
-        let b_new_named_point_set_orbits = b
+        let b_new_named_point_set_orbits: Vec<_> = b
             .named_point_set_orbits
             .iter()
-            .map(|(set, distance)| (lift_b_point_set(set), *distance))
-            .collect_vec();
-
-        let named_point_orbits = std::iter::chain(
-            a.named_point_orbits.iter().cloned().map(eyre::Ok),
-            b.named_point_orbits.iter().cloned().map(|b_orbit| {
-                Ok(b_orbit
-                    .offset_ids_by(a.len())?
-                    .offset_prefix_by(a.prefix_count()))
-            }),
-        )
-        .try_collect()?;
-        let axis_orbits = std::iter::chain(
-            a.axis_orbits.iter().map(|a_orbit| {
-                a_orbit
-                    .clone()
-                    .right_multiply_by(b, ndim, &b_new_named_point_set_orbits)
-            }),
-            b.axis_orbits
-                .iter()
-                .map(|b_orbit| b_orbit.clone().left_multiply_by(a, ndim)),
-        )
-        .try_collect()?;
+            .map(|(set, distance)| eyre::Ok((lift_b_point_set(set)?, *distance)))
+            .try_collect()?;
 
         let named_point_set_orbits = if ndim <= 4 {
             std::iter::chain(a_new_named_point_set_orbits, b_new_named_point_set_orbits).collect()
@@ -314,21 +438,27 @@ impl TwistSystemProduct {
             vec![]
         };
 
-        let factor_ids: Vec<CatalogId> = crate::chain_cloned(&a.factor_ids, &b.factor_ids);
-        Ok(Self {
-            id: crate::product_id(&factor_ids),
-            factor_ids,
+        let factors: Vec<TwistSystemFactor> = std::iter::chain(
+            self.factors.iter().map(|factor| Ok(factor.clone())),
+            rhs.factors.iter().map(|factor| {
+                factor.offset_ids_by(self.axis_vectors.len(), self.named_point_vectors.len())
+            }),
+        )
+        .try_collect()?;
 
-            coxeter_matrix: CoxeterMatrix::direct_product(&a.coxeter_matrix, &b.coxeter_matrix)?,
+        Ok(Self {
+            id: crate::product_id(&factors.iter().map(|f| f.id.clone()).collect_vec()),
+
+            coxeter_mirrors,
             group,
 
             named_point_action,
-            named_point_vectors: Arc::new(named_point_vectors),
-            named_point_orbits,
+            named_point_vectors,
 
             axis_action,
             axis_vectors,
-            axis_orbits,
+
+            factors,
 
             named_point_set_orbits,
         })
@@ -343,21 +473,28 @@ impl TwistSystemProduct {
         self.named_point_vectors.len()
     }
 
-    /// Returns the number of lowercase prefixes that are in use for axis sets.
-    pub fn prefix_count(&self) -> u32 {
-        self.axis_orbits
-            .iter()
-            .map(|orbit| orbit.prefix.0 + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
     pub fn build(
         &self,
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<TwistSystem>> {
-        let axes = Arc::new(self.build_axis_system()?);
+        let names = ProductTwistSystemNames::product(
+            self.factors.iter().map(|f| f.names.clone()).collect(),
+        );
+
+        let mut components = ComponentList::new();
+        components.insert(Arc::new(NdEuclidAxisVectors::from_vectors(
+            self.ndim(),
+            self.axis_vectors.clone(),
+        )));
+
+        let axes = Arc::new(AxisSystem {
+            names: Arc::new(names.build_axis_names()?),
+            orbits: vec![], // technically exists, but not necessary
+            components,
+        });
+
+        let named_point_names = Arc::new(names.build_named_point_names()?);
 
         let mut components = ComponentList::new();
         components.insert(Arc::new(SymmetricTwistSystemComponent {
@@ -365,16 +502,16 @@ impl TwistSystemProduct {
             group: self.group.clone(),
             axis_action: self.axis_action.clone(),
 
-            axis_undeorbiters: Arc::new(self.build_axis_undeorbiters()),
+            axis_undeorbiters: Arc::new(self.build_axis_undeorbiters()?),
             axis_orbits: Arc::new(self.build_axis_orbits(
                 &axes.names,
-                &self.build_named_point_names()?,
+                &named_point_names,
                 warn_fn,
             )?),
 
             named_point_action: self.named_point_action.clone(),
-            named_point_names: Arc::new(self.build_named_point_names()?),
-            named_point_vectors: Arc::clone(&self.named_point_vectors),
+            named_point_names,
+            named_point_vectors: Arc::new(self.named_point_vectors.clone()),
         }));
 
         // TODO: verify that named points are sufficient to describe
@@ -390,59 +527,42 @@ impl TwistSystemProduct {
                     Some((first, _)) => first,
                     None => family_str,
                 };
-                axes.names.id_from_name(axis_name)
+                axes.names.lookup(axis_name)
             }),
             ..TwistSystem::new_empty()
         }))
     }
 
-    fn build_axis_system(&self) -> Result<AxisSystem> {
-        let mut names = NameSpecBiMapBuilder::new();
-        let needs_prefix = self
-            .axis_orbits
-            .iter()
-            .map(|o| o.prefix.0)
-            .max()
-            .unwrap_or_default()
-            > 0;
-        for orbit in &self.axis_orbits {
-            for (id, name) in std::iter::zip(orbit.axes(), &*orbit.names) {
-                let prefixed_name = if needs_prefix {
-                    format!("{}{}", orbit.prefix, name)
-                } else {
-                    name.clone()
-                };
-                names.set(id, Some(prefixed_name))?;
-            }
-        }
-        let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis name")?);
-
-        let orbits = self
-            .axis_orbits
-            .iter()
-            .map(|orbit| Orbit {
-                elements: Arc::new(orbit.axes().map(Some).collect()),
-                generator_sequences: Arc::clone(&orbit.generator_sequences),
-            })
-            .collect();
-
-        let mut components = ComponentList::new();
-        components.insert(Arc::new(NdEuclidAxisVectors::from_vectors(
-            self.ndim(),
-            self.axis_vectors.clone(),
-        )));
-
-        Ok(AxisSystem {
-            names,
-            orbits,
-            components,
-        })
+    /// Returns an iterator over all axis orbits, each paired with the ID of the
+    /// first axis in that orbit.
+    pub fn axis_orbits(&self) -> impl Iterator<Item = &AxisOrbit> {
+        self.factors.iter().flat_map(|factor| &factor.axis_orbits)
     }
 
-    fn build_axis_undeorbiters(&self) -> PerAxis<(GroupElementId, usize)> {
+    pub fn axis_from_name(&self, axis_name: &str) -> Option<Axis> {
+        let (SequentialLowercaseName(factor_index), rest) = if self.factors.len() == 1 {
+            (SequentialLowercaseName(0), axis_name)
+        } else {
+            hypuz_notation::family::strip_sequential_lowercase_prefix(axis_name)?
+        };
+
+        self.factors
+            .get(factor_index as usize)?
+            .names
+            .axis_from_name(rest)
+            .ok()
+    }
+
+    pub fn orbit_containing_axis(&self, axis: Axis) -> Option<usize> {
+        // This could be faster, but it doesn't need to be
+        self.axis_orbits()
+            .position(|orbit| orbit.axes().contains(&axis))
+    }
+
+    fn build_axis_undeorbiters(&self) -> Result<PerAxis<(GroupElementId, usize)>> {
         let mut ret = PerAxis::new_with_len(self.len());
 
-        for (orbit_index, orbit) in self.axis_orbits.iter().enumerate() {
+        for (orbit_index, orbit) in self.axis_orbits().enumerate() {
             ret[orbit.first()] = (GroupElementId::IDENTITY, orbit_index);
             hypergroup::orbit(
                 (orbit.first(), GroupElementId::IDENTITY),
@@ -461,129 +581,108 @@ impl TwistSystemProduct {
 
             // Sanity check that we didn't miss any
             #[cfg(debug_assertions)]
-            for ax in orbit.axes().skip(1) {
+            let axes_in_orbit =
+                Axis::iter_range(orbit.first().to_index()..orbit.first().to_index() + orbit.len);
+            for ax in axes_in_orbit.skip(1) {
                 assert_ne!(ret[ax].0, GroupElementId::IDENTITY);
                 assert_eq!(ret[ax].1, orbit_index);
             }
         }
 
-        ret
-    }
-
-    fn build_named_point_names(&self) -> Result<NameSpecBiMap<NamedPoint>> {
-        let mut names = NameSpecBiMapBuilder::new();
-        let needs_prefix = self
-            .named_point_orbits
-            .iter()
-            .map(|o| o.prefix.0)
-            .max()
-            .unwrap_or_default()
-            > 0;
-        for orbit in &self.named_point_orbits {
-            for (id, name) in std::iter::zip(orbit.named_points(), &*orbit.names) {
-                let prefixed_name = if needs_prefix {
-                    format!("{}{}", orbit.prefix, name)
-                } else {
-                    name.clone()
-                };
-                names.set(id, Some(prefixed_name))?;
-            }
-        }
-        names
-            .build(self.len())
-            .ok_or_eyre("missing named point name")
+        Ok(ret)
     }
 
     fn build_axis_orbits(
         &self,
-        axis_names: &NameSpecBiMap<Axis>,
-        named_point_names: &NameSpecBiMap<NamedPoint>,
+        axis_names: &Names<Axis>,
+        named_point_names: &Names<NamedPoint>,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Vec<SymmetricTwistSystemAxisOrbit>> {
-        self.axis_orbits
-            .iter()
-            .map(|orbit| {
-                let first_axis_vector = &self.axis_vectors[orbit.first()];
+        let mut ret = vec![];
+        for orbit in self.axis_orbits() {
+            let first_axis_vector = &self.axis_vectors[orbit.first()];
 
-                let mut subgroup_solver = SubgroupConstraintSolver::new(
-                    SubgroupAction::from_subgroup_predicate(&self.named_point_action, |e| {
-                        self.axis_action.act(e, orbit.first()) == orbit.first()
-                    })?,
-                );
+            let mut subgroup_solver = SubgroupConstraintSolver::new(
+                SubgroupAction::from_subgroup_predicate(&self.named_point_action, |e| {
+                    self.axis_action.act(e, orbit.first()) == orbit.first()
+                })?,
+            );
 
-                let stabilizer_twist_families = match self.group.ndim() {
-                    3 => &[(NamedPointSet::EMPTY, 0.0)], /* gizmo pole distance doesn't matter */
-                    // for 3D
-                    4 => &*orbit.stabilizer_twists,
-                    _ => &[],
-                };
+            let stabilizer_twist_families = match self.group.ndim() {
+                // gizmo pole distance doesn't matter
+                3 => &[(NamedPointSet::EMPTY, 0.0)],
+                // for 3D
+                4 => &*orbit.stabilizer_twists,
+                _ => &[],
+            };
 
-                let stabilizer_twists = stabilizer_twist_families
-                    .iter()
-                    .map(|(secondary, distance)| {
-                        let get_twist_name = || {
-                            StabilizerFamily {
-                                primary: orbit.first(),
-                                secondary: secondary.clone(),
-                            }
-                            .name(axis_names, named_point_names)
-                        };
-
-                        if secondary.len() > 3 {
-                            bail!(
-                                "cannot compute stabilizer unit twist transform \
-                                 for more than 3 axes; this is a program limitation",
-                            );
+            let stabilizer_twists = stabilizer_twist_families
+                .iter()
+                .map(|(secondary, distance)| {
+                    let get_twist_name = || {
+                        StabilizerFamily {
+                            primary: orbit.first(),
+                            secondary: secondary.clone(),
                         }
+                        .name(axis_names, named_point_names)
+                    };
 
-                        let coset = subgroup_solver
-                            .solve(&hypergroup::ConstraintSet::from_iter(
-                                secondary
-                                    .iter()
-                                    .circular_tuple_windows()
-                                    .map(|(from, to)| hypergroup::Constraint { from, to }),
-                            ))
-                            .ok_or_else(|| {
-                                eyre!(
-                                    "no unique minimal clockwise generator \
-                                     for stabilizer twist {:?}",
-                                    get_twist_name(),
-                                )
-                            })?;
+                    if secondary.len() > 3 {
+                        bail!(
+                            "cannot compute stabilizer unit twist transform \
+                             for more than 3 axes; this is a program limitation",
+                        );
+                    }
 
-                        let unit_twist_transform = if secondary.is_empty() {
-                            unit_twist_transform(&self.group, &coset, &[first_axis_vector])
-                        } else {
-                            let secondary_vector = secondary.vector(&self.named_point_vectors);
-                            let stabilized_vectors = &[first_axis_vector, &secondary_vector];
-                            unit_twist_transform(&self.group, &coset, stabilized_vectors)
-                        }
-                        .wrap_err_with(|| {
-                            format!(
-                                "error calculating unit twist transform \
+                    let coset = subgroup_solver
+                        .solve(&hypergroup::ConstraintSet::from_iter(
+                            secondary
+                                .iter()
+                                .circular_tuple_windows()
+                                .map(|(from, to)| hypergroup::Constraint { from, to }),
+                        ))
+                        .ok_or_else(|| {
+                            eyre!(
+                                "no unique minimal clockwise generator \
                                  for stabilizer twist {:?}",
                                 get_twist_name(),
                             )
                         })?;
 
-                        Ok((secondary.clone(), unit_twist_transform, *distance))
-                    })
-                    .filter_map(|result| match result {
-                        Ok(ok) => Some(ok),
-                        Err(e) => {
-                            warn_fn(e);
-                            None
-                        }
-                    })
-                    .collect();
+                    let unit_twist_transform = if secondary.is_empty() {
+                        unit_twist_transform(&self.group, &coset, &[first_axis_vector])
+                    } else {
+                        let secondary_vector = secondary.vector(&self.named_point_vectors);
+                        let stabilized_vectors = &[first_axis_vector, &secondary_vector];
+                        unit_twist_transform(&self.group, &coset, stabilized_vectors)
+                    }
+                    .wrap_err_with(|| {
+                        format!(
+                            "error calculating unit twist transform \
+                             for stabilizer twist {:?}",
+                            get_twist_name(),
+                        )
+                    })?;
 
-                Ok(SymmetricTwistSystemAxisOrbit {
-                    first: orbit.first(),
-                    subgroup_solver: Mutex::new(subgroup_solver),
-                    stabilizer_twists,
+                    Ok((secondary.clone(), unit_twist_transform, *distance))
                 })
-            })
-            .try_collect()
+                .filter_map(|result| match result {
+                    Ok(ok) => Some(ok),
+                    Err(e) => {
+                        warn_fn(e);
+                        None
+                    }
+                })
+                .collect();
+
+            ret.push(SymmetricTwistSystemAxisOrbit {
+                first: orbit.first(),
+                subgroup_solver: Mutex::new(subgroup_solver),
+                stabilizer_twists,
+            });
+        }
+
+        Ok(ret)
     }
 }
 
@@ -645,148 +744,116 @@ fn unit_twist_transform(
     })
 }
 
-/// Orbit of named points.
+/// Generates an axis orbit with a canonical name for each axis based on its
+/// nearest named points.
 ///
-/// This type is mostly reference-counted and thus relatively cheap to clone.
-#[derive(Debug, Clone)]
-pub struct NamedPointOrbit {
-    /// Number of named points in the orbit.
-    pub len: usize,
-    /// Sequential lowercase prefix for the orbit.
-    ///
-    /// This may be shared among other orbits.
-    pub prefix: hypuz_notation::family::SequentialLowercaseName,
-    /// ID offset of the named points in the orbit.
-    ///
-    /// IDs within an orbit always count starting from 0, but the puzzle may
-    /// have multiple sets and so puzzle-facing IDs for named points in this set
-    /// must start counting from this offset.
-    pub id_offset: usize,
-    /// Name for each named point in the orbit, not including its prefix.
-    pub names: Arc<Vec<String>>,
-}
+/// The named point locations **must** be normalized.
+fn expand_and_name_axis_orbit(
+    group: &IsometryGroup,
+    named_point_locations: &PerNamedPoint<Point>,
+    named_point_action: &GroupAction<NamedPoint>,
+    axis_vector: &Vector,
+) -> Result<Vec<(GroupElementId, Vector, Vec<Vec<NamedPoint>>)>> {
+    let orbit = group.orbit_geometric(axis_vector.clone());
 
-impl NamedPointOrbit {
-    /// Offsets all named point IDs by an additional amount.
-    pub fn offset_ids_by(mut self, additional_id_offset: usize) -> Result<Self, IndexOverflow> {
-        self.id_offset += additional_id_offset;
-        Axis::try_iter_range(self.id_offset..self.id_offset + self.len)?; // check for overflow
-        Ok(self)
+    let Some(normalized_axis_vector) = axis_vector.normalize() else {
+        // No named points needed! Hopefully the axis orbit has a prefix;
+        // otherwise the axis name will be empty.
+        return Ok(vec![(
+            GroupElementId::IDENTITY,
+            axis_vector.clone(),
+            vec![],
+        )]);
+    };
+    let first_axis_point = Point(normalized_axis_vector.clone());
+
+    if orbit.len() == 1 {
+        // No named points needed! Same as above
+        return Ok(vec![(
+            GroupElementId::IDENTITY,
+            axis_vector.clone(),
+            vec![],
+        )]);
     }
 
-    /// Offsets the named point prefix by an additional amount.
-    pub fn offset_prefix_by(mut self, additional_prefix_offset: u32) -> Self {
-        self.prefix.0 += additional_prefix_offset;
-        self
-    }
+    // Name each axis based on the nearest named points.
+    let mut axis_names: PerAxis<Vec<Vec<NamedPoint>>> = orbit.iter().map(|_| vec![]).collect();
+    let distances: PerNamedPoint<Float> =
+        named_point_locations.map_ref(|_, loc| (&first_axis_point - loc).mag2());
 
-    /// Returns the first named point in the orbit.
-    pub fn first(&self) -> NamedPoint {
-        NamedPoint::try_from_index(self.id_offset)
-            .expect("overflow should have been caught on construction")
-    }
+    let mut last_multiplicity = axis_names.len(); // all names are the same at the start
+    let mut candidates: Vec<NamedPoint> = named_point_locations.iter_keys().collect_vec();
+    let mut subspace = Subspace::new();
+    loop {
+        // Select all the named points that are equally closest to the axis.
+        let Some(min_distance) = candidates
+            .iter()
+            .map(|&p| distances[p])
+            .min_by(|a, b| APPROX.cmp(a, b))
+        else {
+            bail!("named points do not span the space");
+        };
+        let closest_points = candidates
+            .iter()
+            .copied()
+            .filter(|&p| APPROX.eq(distances[p], min_distance))
+            .collect_vec();
 
-    /// Returns an iterator over the named points in the orbit.
-    pub fn named_points(&self) -> TypedIndexIter<NamedPoint> {
-        NamedPoint::iter_range(self.id_offset..self.id_offset + self.len)
-    }
-}
-
-/// Orbit of axes.
-///
-/// This type is mostly reference-counted and thus relatively cheap to clone.
-#[derive(Debug, Clone)]
-pub struct AxisOrbit {
-    /// Number of axes in the orbit.
-    pub len: usize,
-    /// Sequential lowercase prefix for the orbit.
-    ///
-    /// This may be shared among other orbits.
-    pub prefix: hypuz_notation::family::SequentialLowercaseName,
-    /// ID offset of the axes in the orbit.
-    ///
-    /// IDs within an orbit always count starting from 0, but the puzzle may
-    /// have multiple sets and so puzzle-facing IDs for axes in this set must
-    /// start counting from this offset.
-    pub id_offset: usize,
-    /// Generator sequence for each axis in the orbit.
-    pub generator_sequences: Arc<Vec<hypergroup::AbbrGenSeq>>,
-    /// Name for each axis in the orbit, not including its prefix.
-    pub names: Arc<Vec<String>>,
-    /// Action on named points of the stabilizer subgroup with respect to the
-    /// first axis in the orbit.
-    pub stabilizer_action: SubgroupAction<NamedPoint>,
-    /// Nontrivial stabilizer twist families, along with their gizmo pole
-    /// distances.
-    ///
-    /// Here, "nontrivial" means that the named point set is nonempty. The named
-    /// point set is typically empty for 3D twists, but these do not need to be
-    /// tracked.
-    ///
-    /// These are the stabilizer twist families in 4D puzzles. Because they are
-    /// not needed in higher dimensions, this list is made empty in 5D+.
-    pub stabilizer_twists: Vec<(NamedPointSet, Float)>,
-}
-
-impl AxisOrbit {
-    fn left_multiply_by(mut self, lhs: &TwistSystemProduct, total_ndim: u8) -> Result<Self> {
-        self.prefix.0 += lhs.prefix_count();
-
-        self.id_offset += lhs.len();
-        Axis::try_iter_range(self.id_offset..self.id_offset + self.len)?; // check for overflow
-
-        self.stabilizer_action =
-            SubgroupAction::direct_product_left(&lhs.named_point_action, self.stabilizer_action)?;
-
-        for (named_point_set, _gizmo_pole_distance) in &mut self.stabilizer_twists {
-            *named_point_set = named_point_set.offset_ids_by(lhs.named_points_count());
+        // Append that set of named points to the name for each axis.
+        for (&(elem, _), axis_name) in orbit.iter().zip(axis_names.iter_values_mut()) {
+            axis_name.push(
+                closest_points
+                    .iter()
+                    .map(|&p| named_point_action.act(elem, p))
+                    .sorted()
+                    .collect(),
+            );
         }
 
-        // Add new stabilizer twists from `lhs` named point sets.
-        self.update_stabilizer_twists(total_ndim, &lhs.named_point_set_orbits);
-
-        Ok(self)
-    }
-
-    fn right_multiply_by(
-        mut self,
-        rhs: &TwistSystemProduct,
-        total_ndim: u8,
-        new_named_point_set_orbits: &[(NamedPointSet, Float)], /* must use named point IDs for
-                                                                * product */
-    ) -> Result<Self> {
-        self.stabilizer_action =
-            SubgroupAction::direct_product_right(self.stabilizer_action, &rhs.named_point_action)?;
-
-        // Add new stabilizer twists from `rhs` named point sets.
-        self.update_stabilizer_twists(total_ndim, new_named_point_set_orbits);
-
-        Ok(self)
-    }
-
-    fn update_stabilizer_twists(
-        &mut self,
-        total_ndim: u8,
-        new_named_set_orbits: &[(NamedPointSet, Float)],
-    ) {
-        if total_ndim <= 4 {
-            self.stabilizer_twists
-                .extend_from_slice(new_named_set_orbits);
-        } else {
-            self.stabilizer_twists.clear();
+        // Check the "multiplicity" of each name; i.e., how many axes have the
+        // same name. This should be the same for all names.
+        let first_axis_name = &axis_names[Axis(0)];
+        let multiplicity = axis_names
+            .iter_values()
+            .filter(|&name| name == first_axis_name)
+            .count();
+        // Check that all names have the same multiplicity, so we only need to
+        // check the first name.
+        debug_assert!(
+            axis_names
+                .iter_values()
+                .counts()
+                .into_iter()
+                .all(|(_, count)| count == multiplicity)
+        );
+        // If the names are all unique, then we're done!
+        if multiplicity == 1 {
+            // Return the vector and the name. Ignore IDs because the IDs used
+            // in this method are not relevant outside it.
+            return Ok(std::iter::zip(orbit, axis_names)
+                .map(|((elem, vector), (_, name))| (elem, vector, name))
+                .collect());
         }
-    }
-}
+        // If the multiplicity hasn't changed, then this iteration was useless
+        // so undo it. I'm not sure whether this case is possible.
+        if multiplicity == last_multiplicity {
+            for name in axis_names.iter_values_mut() {
+                name.pop();
+            }
+        }
+        last_multiplicity = multiplicity;
 
-impl AxisOrbit {
-    /// Returns the first axis in the orbit.
-    pub fn first(&self) -> Axis {
-        Axis::try_from_index(self.id_offset)
-            .expect("overflow should have been caught on construction")
-    }
-
-    /// Returns an iterator over the axes in the orbit.
-    pub fn axes(&self) -> TypedIndexIter<Axis> {
-        Axis::iter_range(self.id_offset..self.id_offset + self.len)
+        // Remove from consideration all named points within the
+        // subspace, because they will not help us narrow down the axis
+        // name.
+        let old_ndim = subspace.ndim();
+        for p in closest_points {
+            subspace.add(named_point_locations[p].as_vector());
+        }
+        ensure!(
+            subspace.ndim() > old_ndim,
+            "name_axis_orbit() failed to make progress",
+        );
+        candidates.retain(|&p| !subspace.contains(named_point_locations[p].as_vector()));
     }
 }

@@ -76,7 +76,7 @@ impl AdHocAxisSystemBuilder {
     /// Validates and constructs an axis system.
     pub(super) fn build(&self) -> Result<AxisSystem> {
         let names = self.names.clone();
-        let names = Arc::new(names.build(self.len()).ok_or_eyre("missing axis names")?);
+        let names = names.build(self.len()).ok_or_eyre("missing axis names")?;
 
         let orbits = self.orbits.clone();
 
@@ -84,7 +84,7 @@ impl AdHocAxisSystemBuilder {
         components.insert(Arc::new(self.vectors.clone()));
 
         Ok(AxisSystem {
-            names,
+            names: Arc::new(names.into_names()?),
             orbits,
             components,
         })

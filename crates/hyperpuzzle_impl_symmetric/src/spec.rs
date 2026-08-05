@@ -1,8 +1,10 @@
+use eyre::{OptionExt, Result, bail};
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::{CatalogId, TypedIndex};
-use hypuz_notation::{Layer, LayerRange, Str};
+use hyperpuzzle_core::CatalogId;
+use hypuz_notation::Str;
+use hypuz_notation::charsets::CharSet;
 
 /// Specification for a puzzle product, which is defined in terms of puzzle
 /// factors.
@@ -12,8 +14,44 @@ pub struct ProductPuzzleSpec {
     pub factors: Vec<FactorPuzzleSpec>,
 }
 
+/// Specification for a twist system factor.
+pub struct FactorTwistSystemSpec {
+    pub ndim: u8,
+    pub coxeter_matrix: Option<CoxeterMatrix>,
+    pub axis_orbits: Vec<AxisOrbitSpec>,
+    pub named_point_orbits: Vec<SimpleOrbitSpec>,
+    pub named_point_set_orbits: Vec<NamedPointSetOrbitSpec>,
+    pub stabilizer_twist_orbits: Vec<StabilizerTwistOrbitSpec>,
+}
+
+/// Specification for an orbit of named point sets in a
+/// [`FactorTwistSystemSpec`].
+///
+/// This struct only contains info about one named point set in the orbit; the
+/// orbit is generated using the grip group.
+pub struct NamedPointSetOrbitSpec {
+    /// Names of the named points in the set.
+    pub named_points: Vec<Str>,
+    /// Gizmo pole distance for stabilizer twists using the named point set.
+    pub gizmo_pole_distance: Float,
+}
+
+/// Specification for an orbit of twists in a [`FactorTwistSystemSpec`].
+///
+/// This struct only contains info about one twist in the orbit; the orbit is
+/// generated using the grip group.
+pub struct StabilizerTwistOrbitSpec {
+    /// Name of the axis to twist.
+    pub axis_name: Str,
+    /// Names of the named points which remain stabilized by the axis.
+    pub named_points: Vec<Str>,
+    /// Gizmo pole distance for the twist.
+    pub gizmo_pole_distance: Float,
+}
+
 /// Specification for a factor of a [`ProductPuzzleSpec`].
 #[derive(Debug)]
+#[deprecated]
 pub struct FactorPuzzleSpec {
     /// ID for the puzzle.
     pub puzzle_id: CatalogId,
@@ -31,152 +69,76 @@ pub struct FactorPuzzleSpec {
     // TODO: split axes symmetry and facets symmetry (requires expanding shape
     // symmetry before slicing)
     pub coxeter_matrix: CoxeterMatrix,
-    /// Orbits of facets.
+    /// Orbits of facets, identified by their facet pole.
     ///
     /// Each facet is assigned a unique color.
-    pub facet_orbits: Vec<FacetOrbitSpec>,
+    pub facet_orbits: Vec<SimpleOrbitSpec>,
     /// Orbits of twist axes.
     pub axis_orbits: Vec<AxisOrbitSpec>,
     /// Orbits of named points.
-    pub named_point_orbits: Vec<NamedPointOrbitSpec>,
+    pub named_point_orbits: Vec<SimpleOrbitSpec>,
     /// Orbits of named point sets, each with a gizmo pole distance.
     pub named_point_set_orbits: Vec<(Vec<Str>, f64)>,
 }
 
-impl FactorPuzzleSpec {
-    /// Constructs the spec for a facet-turning puzzle.
-    pub fn new_ft(
-        puzzle_name: &str,
-        puzzle_id: CatalogId,
-        shape_id: CatalogId,
-        coxeter_matrix: CoxeterMatrix,
-        axis_orbits: Vec<AxisOrbitSpec>,
-        named_point_orbits: Vec<NamedPointOrbitSpec>,
-        named_point_set_orbits: Vec<(Vec<Str>, f64)>,
-    ) -> Self {
-        let facet_orbits = axis_orbits
-            .iter()
-            .map(|axis_orbit| axis_orbit.facets())
-            .collect();
-
-        Self {
-            puzzle_id: puzzle_id.clone(),
-            shape_id,
-            twists_id: puzzle_id, // TODO
-            puzzle_name: puzzle_name.to_string(),
-            twists_name: puzzle_name.to_string(), // TODO
-
-            coxeter_matrix,
-            facet_orbits,
-            axis_orbits,
-            named_point_orbits,
-            named_point_set_orbits,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FacetOrbitSpec {
-    /// Pole vector, name, and generator sequence for each facet in the orbit.
-    pub named_facet_poles: Vec<(Vector, String, AbbrGenSeq)>,
-}
-
-impl FacetOrbitSpec {
-    pub fn new(
-        generators: &PerGenerator<Motor>,
-        initial_facet_pole: Vector,
-        names: Vec<(AbbrGenSeq, String)>,
-        warn_fn: impl FnOnce(String),
-    ) -> Self {
-        Self {
-            named_facet_poles: named_vectors(&initial_facet_pole, generators, names, warn_fn),
-        }
-    }
-
-    /// Returns the axis orbit for a facet-turning puzzle.
-    pub fn ft_axes(&self, adjacent_sets: Vec<(Vec<Str>, Float)>) -> AxisOrbitSpec {
-        AxisOrbitSpec {
-            named_axis_vectors: self.named_facet_poles.clone(),
-            stabilizer_sets: adjacent_sets,
-        }
-    }
-}
-
-/// Specification for an orbit of named points in a [`FactorPuzzleSpec`].
+/// Specification for an orbit of named points or facets in a
+/// [`FactorPuzzleSpec`].
 #[derive(Debug, Clone)]
-pub struct NamedPointOrbitSpec {
-    /// Vector, name, and generator sequence for each named point in the orbit.
-    pub named_point_vectors: Vec<(Vector, String, AbbrGenSeq)>,
+pub struct SimpleOrbitSpec {
+    /// Vector, name, and generator sequence for each member of the orbit.
+    pub orbit_members: Vec<SimpleOrbitMemberSpec>,
 }
 
-impl NamedPointOrbitSpec {
-    /// Constructs an orbit of named points.
-    pub fn new(
-        generators: &PerGenerator<Motor>,
-        initial_vector: Vector,
-        names: Vec<(AbbrGenSeq, String)>,
-        warn_fn: impl FnOnce(String),
-    ) -> Self {
-        Self {
-            named_point_vectors: named_vectors(&initial_vector, generators, names, warn_fn),
-        }
+impl SimpleOrbitSpec {
+    /// Returns the lexicographically first name in the orbit, or an empty
+    /// string if the orbit is empty.
+    pub fn min_name(&self) -> &str {
+        self.orbit_members
+            .iter()
+            .map(|point| point.name.as_str())
+            .min()
+            .unwrap_or("")
     }
+}
 
-    /// Converts an orbit of named points into an orbit of axes.
-    pub fn to_axes(&self, adjacent_sets: Vec<(Vec<Str>, Float)>) -> AxisOrbitSpec {
-        let Self {
-            named_point_vectors,
-        } = self.clone();
-
-        AxisOrbitSpec {
-            named_axis_vectors: named_point_vectors.clone(),
-            stabilizer_sets: adjacent_sets,
-        }
-    }
-
+impl SimpleOrbitSpec {
     /// Returns the number of named points in the orbit.
     #[allow(clippy::len_without_is_empty)] // should never be empty
     pub fn len(&self) -> usize {
-        self.named_point_vectors.len()
+        self.orbit_members.len()
     }
+}
+
+/// Specification for a member of a [`SimpleOrbitSpec`].
+#[derive(Debug, Clone)]
+pub struct SimpleOrbitMemberSpec {
+    /// Vector corresponding to the member.
+    pub vector: Vector,
+    /// Name of the member.
+    pub name: Str,
+    /// Abbreviated generator sequence, which is used for the HPS code generator
+    /// utility.
+    pub abbr_gen_seq: AbbrGenSeq,
 }
 
 /// Specification for an orbit of axes in a [`FactorPuzzleSpec`].
+///
+/// This does not include the full axis name because those will be automatically
+/// generated based on the nearby named points.
 #[derive(Debug, Clone)]
 pub struct AxisOrbitSpec {
-    /// Vector, name, and generator sequence for each axis in the orbit.
-    pub named_axis_vectors: Vec<(Vector, String, AbbrGenSeq)>,
-    /// Named points that can be stabilized to produce twists on the first axis.
-    pub stabilizer_sets: Vec<(Vec<Str>, Float)>,
+    /// Prefix for the axis orbit.
+    pub prefix: Str,
+    /// Vector for one axis in the orbit.
+    pub vector: Vector,
 }
 
-impl AxisOrbitSpec {
-    /// Returns the number of axes in the orbit.
-    #[allow(clippy::len_without_is_empty)] // should never be empty
-    pub fn len(&self) -> usize {
-        self.named_axis_vectors.len()
-    }
-
-    /// Returns the corresponding facet orbit for a facet-turning puzzle.
-    pub fn facets(&self) -> FacetOrbitSpec {
-        FacetOrbitSpec {
-            named_facet_poles: self.named_axis_vectors.clone(),
-        }
-    }
-
-    pub fn contains_name(&self, name: &str) -> bool {
-        self.named_axis_vectors
-            .iter()
-            .any(|(_, axis_name, _)| axis_name == name)
-    }
-}
-
-fn named_vectors<'a>(
+fn named_vectors<'a, T>(
     initial_vector: &'a Vector,
     generators: &'a PerGenerator<Motor>,
-    names: Vec<(AbbrGenSeq, String)>,
+    names: Vec<(AbbrGenSeq, Str)>,
     warn_fn: impl FnOnce(String),
-) -> Vec<(Vector, String, AbbrGenSeq)> {
+) -> SimpleOrbitSpec {
     let index_to_gen_seq = hyperpuzzle_core::util::lazy_resolve(
         names
             .iter()
@@ -186,7 +148,7 @@ fn named_vectors<'a>(
         warn_fn,
     );
 
-    names
+    let orbit_members = names
         .into_iter()
         .enumerate()
         .map(move |(i, (abbr_gen_seq, name))| {
@@ -195,10 +157,15 @@ fn named_vectors<'a>(
                 .iter()
                 .map(|&g| &generators[g])
                 .fold(Motor::ident(0), |a, b| a * b);
-            let transformed_vector = motor.transform(initial_vector);
-            (transformed_vector, name, abbr_gen_seq)
+            SimpleOrbitMemberSpec {
+                vector: motor.transform(initial_vector),
+                name,
+                abbr_gen_seq,
+            }
         })
-        .collect()
+        .collect();
+
+    SimpleOrbitSpec { orbit_members }
 }
 
 /// Data for a named rotation of the entire polytope.

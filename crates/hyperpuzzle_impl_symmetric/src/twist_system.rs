@@ -1,11 +1,9 @@
-use std::collections::HashMap;
 use std::num::NonZeroI32;
 use std::sync::Arc;
 
-use eyre::{Context, OptionExt, Result, bail, eyre};
+use eyre::Result;
 use hypergroup::{
-    ConjugateCoset, ConjugateSubgroupConstraintSolver, ConstraintSolver, Group, GroupAction,
-    SubgroupAction, SubgroupConstraintSolver,
+    ConjugateCoset, ConjugateSubgroupConstraintSolver, GroupAction, SubgroupConstraintSolver,
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
@@ -13,19 +11,12 @@ use hyperpuzzle_core::Component;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
 use hypuz_notation::{Str, Transform};
-use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{NamedPoint, NamedPointSet, PerNamedPoint, StabilizerFamily};
-
-struct AxisConstraintSolver {
-    deorbiter: GroupElementId,
-    solver: Arc<Mutex<ConstraintSolver<NamedPoint>>>,
-}
-impl AxisConstraintSolver {}
 
 /// Simulation data for a symmetric puzzle.
 ///
@@ -59,7 +50,7 @@ pub struct SymmetricTwistSystemComponent {
     /// Action of the grip group on the named points.
     pub named_point_action: GroupAction<NamedPoint>,
     /// Named point names.
-    pub named_point_names: Arc<NameSpecBiMap<NamedPoint>>,
+    pub named_point_names: Arc<Names<NamedPoint>>,
     /// Physical location of each named point, for constructing simple direct
     /// rotations from one named point to another.
     pub named_point_vectors: Arc<PerNamedPoint<Vector>>,
@@ -91,14 +82,14 @@ impl SymmetricTwistSystemComponent {
         &self,
         transform: &Transform,
     ) -> Result<(Axis, GroupElementId), TwistError> {
-        let Some(axis) = self.axes.names.id_from_name(&transform.family) else {
+        let Some(axis) = self.axes.names.lookup(&transform.family) else {
             let separator = '_'; // TODO: correct number of underscores (maybe none)
             if let Some((primary_axis_str, secondary_axes_str)) =
                 transform.family.split_once(separator)
-                && let Some(primary) = self.axes.names.id_from_name(primary_axis_str)
+                && let Some(primary) = self.axes.names.lookup(primary_axis_str)
                 && let Some(secondary) = secondary_axes_str
                     .split(separator)
-                    .map(|s| self.named_point_names.id_from_name(s))
+                    .map(|s| self.named_point_names.lookup(s))
                     .collect::<Option<_>>()
                     .and_then(|axes| NamedPointSet::new(axes).ok())
                 && let Some(unit_twist) =
@@ -178,8 +169,6 @@ impl SymmetricTwistSystemComponent {
         let (conjugating_element, orbit_index) = self.axis_undeorbiters[stabilizer_family.primary];
         let axis_orbit = &self.axis_orbits[orbit_index];
         let mut subgroup_solver = axis_orbit.subgroup_solver.lock();
-        let mut solver =
-            ConjugateSubgroupConstraintSolver::new(conjugating_element, &mut subgroup_solver); // TODO: seems unused
 
         let transformed_secondary = stabilizer_family.secondary.transform_by_group_element(
             &self.named_point_action,
@@ -348,7 +337,7 @@ impl SymmetricTwistSystemComponent {
     ) -> Result<hypergroup::ConstraintSet<NamedPoint>, TwistError> {
         let name_to_id = |name: &Str| {
             self.named_point_names
-                .id_from_name(name)
+                .lookup(name)
                 .ok_or_else(|| TwistError::UnknownNamedPoint(name.clone()))
         };
         notation_constraint_set
@@ -396,7 +385,8 @@ pub struct SymmetricTwistSystemAxisOrbit {
     /// Constraint solver for the stabilizer subgroup with respect to the axis.
     pub subgroup_solver: Mutex<SubgroupConstraintSolver<NamedPoint>>,
     /// Map from stabilizer twist family to unique minimal clockwise twist and
-    /// gizmo pole distance.
+    /// gizmo pole distance. This only includes twists for the first axis in the
+    /// orbit.
     ///
     /// The gizmo pole distance is only relevant in 4D, and is only needed when
     /// initially building the puzzle.

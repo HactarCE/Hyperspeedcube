@@ -3,23 +3,24 @@ use std::sync::Arc;
 use hypuz_util::ti::TypedIndexIter;
 
 use super::*;
-use crate::{ComponentList, NameSpecBiMap};
+use crate::ComponentList;
 
 /// System of axes for a puzzle.
 #[derive(Debug)]
 pub struct AxisSystem {
     /// Axis names.
-    pub names: Arc<NameSpecBiMap<Axis>>,
+    pub names: Arc<Names<Axis>>,
     /// Orbits used to generate axes.
     pub orbits: Vec<Orbit<Axis>>,
     /// Extra components.
     pub components: ComponentList<Self>,
 }
+
 impl AxisSystem {
     /// Returns an empty axis system.
     pub fn new_empty() -> Self {
         Self {
-            names: Arc::new(NameSpecBiMap::new()),
+            names: Arc::new(Names::new_empty()),
             orbits: vec![],
             components: ComponentList::new(),
         }
@@ -36,6 +37,6 @@ impl AxisSystem {
 
     /// Returns an iterator over all the axes.
     pub fn iter(&self) -> TypedIndexIter<Axis> {
-        self.names.iter_keys()
+        self.names.list().iter_keys()
     }
 }

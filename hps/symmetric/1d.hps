@@ -5,12 +5,12 @@ add_menu_entry(path = "Solid|1D|Line", id = "line", default = true)
 add_twist_system( // Line
     id = "line",
     engine = "symmetric",
-    ndim = 2,
+    ndim = 1,
     build = fn() {
         #twists.shape = @shapes/1d/line.new()
         #twists.sym = #twists.shape.sym
         #twists.points ++= [#twists.shape.facet]
-        #twists.axes ++= [#twists.shape.facet]
+        #twists.axes ++= [#twists.sym.x]
     },
 )
 
@@ -23,7 +23,6 @@ add_puzzle( // Line
             name = "{}" ++ if layers == 3 { "" } else { " ${layers}" },
             colors = "line",
             twists = "line",
-            ndim = 1,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/1d/line.new())
                 #puz.layers.A = @util/layers.inclusive(layers)

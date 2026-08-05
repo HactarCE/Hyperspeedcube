@@ -1,18 +1,10 @@
-use std::collections::HashMap;
-
 use eyre::{OptionExt, Result, eyre};
-use hypergroup::{
-    ConstraintSet, ConstraintSolver, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup,
-};
+use hypergroup::{ConstraintSet, GroupElementId};
 use hypermath::pga::Motor;
-use hypermath::{
-    APPROX, ApproxHashMap, Float, Hyperplane, Point, Vector, VectorRef, approx_collections,
-};
-use hyperpuzzle_core::{Axis, Mesh, NameSpecBiMap, PerAxis, PerGizmoFace, TiMask};
-use hyperpuzzle_impl_nd_euclid::builder::AdHocAxisSystemBuilder;
-use hypershape::{Cut, ElementCutOutput, ElementId, ElementIdConvert, FaceId, FacetId, Space};
-use hypuz_notation::{Move, Multiplier, Transform};
-use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
+use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, VectorRef, approx_collections};
+use hyperpuzzle_core::{Axis, Mesh, PerGizmoFace, TiMask};
+use hypershape::{Cut, Space};
+use hypuz_notation::{Move, Transform};
 use itertools::Itertools;
 
 use super::TwistSystemProduct;
@@ -24,10 +16,6 @@ pub fn build_3d_gizmo(
     axes: &TwistSystemProduct,
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<()> {
-    if axes.axis_orbits.is_empty() {
-        return Ok(()); // no gizmos
-    }
-
     let axis_from_vector = ApproxHashMap::from_iter(
         APPROX,
         axes.axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)),
@@ -90,13 +78,13 @@ pub fn build_4d_gizmo(
         }
         seen_axes.insert(init_axis);
 
-        let mut unfolded_cell_id = space.unfold(facet_id.into())?;
+        let unfolded_cell_id = space.unfold(facet_id.into())?;
 
         let mut vector_to_twist_family = ApproxHashMap::new(APPROX);
 
         let (undeorbiter, orbit_index) = twists.axis_undeorbiters[init_axis];
         let axis_orbit = &twists.axis_orbits[orbit_index];
-        for (secondary, unit_twist, gizmo_pole_distance) in &axis_orbit.stabilizer_twists {
+        for (secondary, _unit_twist, gizmo_pole_distance) in &axis_orbit.stabilizer_twists {
             // Transform `secondary` to be based on `init_axis`.
             let init_secondary =
                 secondary.transform_by_group_element(&twists.named_point_action, undeorbiter);
@@ -231,13 +219,11 @@ pub fn build_4d_gizmo(
 
 fn gizmo_facets(space: &mut Space, axes: &TwistSystemProduct) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = axes
-        .coxeter_matrix
-        .mirrors()?
-        .cols()
+        .coxeter_mirrors
+        .iter()
         .filter_map(|mirror_vector| Hyperplane::new(mirror_vector, 0.0));
     let carve_planes = axes
-        .axis_orbits
-        .iter()
+        .axis_orbits()
         .filter_map(|orbit| Hyperplane::from_pole(&axes.axis_vectors[orbit.first()]));
 
     let gizmo_polyhedron = space.add_folded_shape(mirror_planes, carve_planes)?;

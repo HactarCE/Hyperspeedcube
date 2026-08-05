@@ -1,29 +1,23 @@
 use std::sync::Arc;
 
-use eyre::{Context, bail};
-use hypergroup::{AbbrGenSeq, CoxeterMatrix, GenSeq, IsometryGroup};
-use hypermath::{Float, Vector, pga::Motor};
-use hyperpuzzle_core::{
-    CatalogId, Component, ComponentList, Puzzle, TwistSystem,
-    catalog::{BuildCtx, Generator},
-};
-use hyperpuzzle_impl_nd_euclid::hps::{HpsOrbitNames, HpsSymmetry};
+use eyre::Context;
+use hypergroup::GenSeq;
+use hypermath::Vector;
+use hyperpuzzle_core::{CatalogId, TwistSystem};
+use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
-    BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyList, NonEmptyVec,
-    Result, Scope, Span, Spanned, SpecialVar, Value, ValueData,
+    BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
+    Span, Spanned, SpecialVar, Type, Value, ValueData,
     engine::HpsEngineError,
     unpack_kwargs,
-    util::{pop_map_key, pop_map_key_in_special_var},
+    util::{expect_end_of_map, pop_map_key, pop_map_key_in_special_var},
 };
 use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::builder::*;
-use crate::{
-    AxisOrbitSpec, FactorPuzzleSpec, NamedPointOrbitSpec, ProductPuzzleSpec, builder::*,
-    spec::FacetOrbitSpec,
-};
+use crate::{AxisOrbitSpec, NamedPointSetOrbitSpec, SimpleOrbitSpec};
+use crate::{StabilizerTwistOrbitSpec, builder::*};
 
 pub struct SymmetricTwistSystemEngine;
 
@@ -35,8 +29,6 @@ impl HpsEngine for SymmetricTwistSystemEngine {
         ctx: &mut EvalCtx<'_>,
         hps_gen: hyperpuzzlescript::engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
-        let caller_span = ctx.caller_span;
-
         catalog.add::<TwistSystemProduct>(hps_gen.make_generator(
             eval_tx,
             move |build_ctx, tx, kwargs| {
@@ -59,7 +51,7 @@ impl HpsEngine for SymmetricTwistSystemEngine {
 
         catalog.add::<TwistSystem>(hps_gen.make_generator(
             eval_tx,
-            move |build_ctx, tx, kwargs| {
+            move |build_ctx, _tx, _kwargs| {
                 Ok(build_ctx
                     .build_blocking::<TwistSystemProduct>(build_ctx.id())?
                     .build(&build_ctx, &mut build_ctx.warn_fn())?)
@@ -102,7 +94,7 @@ pub(super) fn twist_system_product_from_hps(
         .at(sym_span)?
         .map(|g, m| (GenSeq::new([g]), m));
 
-    let named_point_orbits: Vec<NamedPointOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
+    let named_point_orbits: Vec<SimpleOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
         &mut twists_map,
         build_span,
         SpecialVar::Twists,
@@ -110,25 +102,33 @@ pub(super) fn twist_system_product_from_hps(
     )?
     .into_iter()
     .map(|value| super::named_orbit_from_value(ctx, &generators, value))
-    .map_ok(|named_point_vectors| NamedPointOrbitSpec {
-        named_point_vectors,
-    })
     .try_collect()?;
 
-    let mut axis_orbits: Vec<AxisOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
+    let axis_orbits: Vec<AxisOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
         &mut twists_map,
         build_span,
         SpecialVar::Twists,
         "axes",
     )?
     .into_iter()
-    .map(|value| super::named_orbit_from_value(ctx, &generators, value))
-    .map_ok(|named_axis_vectors| AxisOrbitSpec {
-        named_axis_vectors,
-        stabilizer_sets: vec![], // will be added later
+    .map(|value| {
+        if value.is::<Vector>() {
+            let vector = value.to::<Vector>()?;
+            let prefix = Str::new();
+            Ok(AxisOrbitSpec { prefix, vector })
+        } else if value.is::<Map>() {
+            let mut map = value.as_ref::<Map>()?.clone();
+            let vector = pop_map_key(&mut map, value.span, "vector")?;
+            let prefix = pop_map_key(&mut map, value.span, "prefix")?;
+            expect_end_of_map(map, value.span)?;
+            Ok(AxisOrbitSpec { prefix, vector })
+        } else {
+            Err(value.type_error(Type::Vec | Type::Map))
+        }
     })
     .try_collect()?;
 
+    let mut stabilizer_twist_orbits = vec![];
     for elem in pop_map_key_in_special_var::<List>(
         &mut twists_map,
         build_span,
@@ -136,18 +136,12 @@ pub(super) fn twist_system_product_from_hps(
         "stabilizer_twists",
     )? {
         let [names_value, gizmo_pole_distance_value] = elem.to_array()?;
-        let NonEmptyVec::<Spanned<String>>(mut names) = names_value.to()?;
-        let (first_name, first_name_span) = names.remove(0); // always succeeds because nonempty
-        let Some(orbit) = axis_orbits
-            .iter_mut()
-            .find(|o| o.contains_name(&first_name))
-        else {
-            ctx.warn_at(first_name_span, format!("no axis named {first_name:?}"));
-            continue;
-        };
-        let names = names.into_iter().map(|(s, _)| s.into()).collect();
-        let gizmo_pole_distance = gizmo_pole_distance_value.to()?;
-        orbit.stabilizer_sets.push((names, gizmo_pole_distance));
+        let NonEmptyVec::<Str>(mut names) = names_value.to()?;
+        stabilizer_twist_orbits.push(StabilizerTwistOrbitSpec {
+            axis_name: names.remove(0), // always succeeds because nonempty
+            named_points: names,
+            gizmo_pole_distance: gizmo_pole_distance_value.to()?,
+        });
     }
 
     let mut named_point_set_orbits = vec![];
@@ -158,10 +152,10 @@ pub(super) fn twist_system_product_from_hps(
         "stabilizer_sets",
     )? {
         let [names_value, gizmo_pole_distance_value] = elem.to_array()?;
-        let NonEmptyVec::<Spanned<String>>(mut names) = names_value.to()?;
-        let names = names.into_iter().map(|(s, _)| s.into()).collect();
-        let gizmo_pole_distance = gizmo_pole_distance_value.to()?;
-        named_point_set_orbits.push((names, gizmo_pole_distance));
+        named_point_set_orbits.push(NamedPointSetOrbitSpec {
+            named_points: names_value.to()?,
+            gizmo_pole_distance: gizmo_pole_distance_value.to()?,
+        });
     }
 
     let group = coxeter_matrix
@@ -176,11 +170,14 @@ pub(super) fn twist_system_product_from_hps(
 
     TwistSystemProduct::new_factor(
         id,
-        coxeter_matrix,
-        shuffled_group,
-        &axis_orbits,
-        &named_point_orbits,
-        &named_point_set_orbits,
+        &crate::FactorTwistSystemSpec {
+            ndim: coxeter_matrix.generator_count(),
+            coxeter_matrix: Some(coxeter_matrix),
+            axis_orbits,
+            named_point_orbits,
+            named_point_set_orbits,
+            stabilizer_twist_orbits,
+        },
         &mut ctx.warnf(),
     )
     .wrap_err("error building symmetric twist system")

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result, eyre};
@@ -14,7 +13,9 @@ use parking_lot::MutexGuard;
 pub struct ColorSystemBuilder(pub MaybeAdHoc<AdHocColorSystemBuilder>);
 impl ColorSystemBuilder {
     /// Returns the ad-hoc builder if it is one, or an error otherwise.
-    pub fn as_ad_hoc_mut(&mut self) -> Result<MutexGuard<AdHocColorSystemBuilder>, ExpectedAdHoc> {
+    pub fn as_ad_hoc_mut(
+        &mut self,
+    ) -> Result<MutexGuard<'_, AdHocColorSystemBuilder>, ExpectedAdHoc> {
         self.0.lock_mut()
     }
 
@@ -76,8 +77,6 @@ pub struct AdHocColorSystemBuilder {
     by_id: PerColor<ColorBuilder>,
     /// Color names.
     pub names: NameSpecBiMapBuilder<Color>,
-    /// Color display names.
-    pub display_names: PerColor<Option<String>>,
     /// Automatic names to use if the user doesn't specify any.
     autonames: AutoNames,
 
@@ -97,19 +96,10 @@ impl AdHocColorSystemBuilder {
             name: None,
             by_id: PerColor::new(),
             names: NameSpecBiMapBuilder::new(),
-            display_names: PerColor::new(),
             autonames: AutoNames::default(),
             schemes: IndexMap::new(),
             default_scheme: None,
             orbits: vec![],
-        }
-    }
-
-    /// Returns the name or the ID of the color system.
-    pub fn display_name(&self) -> Cow<'_, str> {
-        match &self.name {
-            Some(s) => Cow::Borrowed(s),
-            None => Cow::Owned(self.id.to_string()),
         }
     }
 
@@ -218,16 +208,6 @@ impl AdHocColorSystemBuilder {
         let names = self.names.clone();
         let names = names.build(self.len()).ok_or_eyre("missing color names")?;
 
-        let display_names = names
-            .iter()
-            .map(|(id, name)| {
-                self.display_names
-                    .get_opt(id)
-                    .unwrap_or(&name.preferred)
-                    .clone()
-            })
-            .collect();
-
         let mut schemes: IndexMap<String, PerColor<PaletteColor>> = self
             .schemes
             .iter()
@@ -257,8 +237,7 @@ impl AdHocColorSystemBuilder {
             name,
             components: ComponentList::new(),
 
-            names,
-            display_names,
+            names: names.into_names()?,
 
             schemes,
             default_scheme,

@@ -1,3 +1,5 @@
+// TODO: deprecate this whole module
+
 mod auto;
 mod name_spec;
 mod name_spec_bi_map;

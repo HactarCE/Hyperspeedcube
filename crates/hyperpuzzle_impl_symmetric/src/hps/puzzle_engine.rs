@@ -13,7 +13,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{CutDistances, builder::*, spec::FacetOrbitSpec};
+use crate::{CutDistances, builder::*, spec::SimpleOrbitSpec};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -76,9 +76,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
                         id.to_string()
                     },
-                    twists: String,
+                    twists: Option<String>,
                     colors: String,
-                    ndim: u8,
+                    ndim: Option<u8>,
                     (build, build_span): Arc<FnValue>,
                 );
 
@@ -88,11 +88,18 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let colors = Arc::new(ColorSystemDisjointUnion::from_color_system(
                     build_ctx.build_str_blocking::<ColorSystem>(&colors)?,
                 ));
-                let twists = build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?;
+                let twists = match (twists, ndim) {
+                    (Some(twists), None) => {
+                        build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?
+                    }
+                    (None, Some(ndim)) => build_ctx
+                        .build_str_blocking::<TwistSystemProduct>(&format!("empty({ndim})"))?,
+                    _ => Err(eyre!("exactly one of `ndim` and `twists` is required"))?,
+                };
 
                 let mut scope = Scope::default();
                 scope.special.id = Some(id.to_string().into());
-                scope.special.ndim = Some(ndim);
+                scope.special.ndim = Some(twists.ndim());
                 scope.special.shape = Arc::new(Mutex::new({
                     let mut m = Map::new();
                     m.insert("facets".into(), super::new_hps_list());
@@ -122,35 +129,35 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         .at(sym_span)?
                         .map(|g, m| (GenSeq::new([g]), m));
 
-                    let facet_orbits: Vec<FacetOrbitSpec> =
-                        pop_map_key_in_special_var::<Vec<Value>>(
-                            &mut shape_map,
-                            build_span,
-                            SpecialVar::Shape,
-                            "facets",
-                        )?
-                        .into_iter()
-                        .map(|value| super::named_orbit_from_value(ctx, &generators, value))
-                        .map_ok(|named_facet_poles| FacetOrbitSpec { named_facet_poles })
-                        .try_collect()?;
+                    let facet_orbits: Vec<_> = pop_map_key_in_special_var::<Vec<Value>>(
+                        &mut shape_map,
+                        build_span,
+                        SpecialVar::Shape,
+                        "facets",
+                    )?
+                    .into_iter()
+                    .map(|value| super::named_orbit_from_value(ctx, &generators, value))
+                    .try_collect()?;
 
                     let mut puz_map = Arc::unwrap_or_clone(
                         std::mem::take(&mut *ctx.scope.special.puz.lock()).to::<Arc<Map>>()?,
                     );
 
-                    let mut axis_orbit_cut_distances = vec![None; twists.axis_orbits.len()];
+                    let mut axis_orbit_cut_distances = vec![None; twists.axis_orbits().count()];
                     for (k, v) in &*pop_map_key_in_special_var::<Arc<Map>>(
                         &mut puz_map,
                         build_span,
                         SpecialVar::Puz,
                         "layers",
                     )? {
-                        let k = k.to_string();
-                        let Some(i) = twists.axis_orbits.iter().position(|o| o.names.contains(&k))
-                        else {
-                            ctx.warn_at(v.span, format!("no axis named {k:?}"));
-                            continue;
-                        };
+                        let axis = twists
+                            .axis_from_name(k)
+                            .ok_or_else(|| format!("no axis named {k:?}"))
+                            .at(v.span)?;
+                        let i = twists
+                            .orbit_containing_axis(axis)
+                            .ok_or("axis has no orbit")
+                            .at(v.span)?;
                         if axis_orbit_cut_distances[i].is_some() {
                             ctx.warn_at(
                                 v.span,

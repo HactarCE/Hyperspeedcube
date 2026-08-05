@@ -255,6 +255,14 @@ impl<I: TypedIndex, E> TiVec<I, E> {
     pub fn into_vec(self) -> Vec<E> {
         self.values
     }
+
+    /// Adds elements to the vector from an iterator.
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = E>) -> Result<(), IndexOverflow> {
+        for elem in iter {
+            self.push(elem)?;
+        }
+        Ok(())
+    }
 }
 
 impl<I: TypedIndex, E> TiVec<I, Option<E>> {

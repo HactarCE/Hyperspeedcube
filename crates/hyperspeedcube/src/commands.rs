@@ -125,11 +125,11 @@ impl PuzzleCommand {
             PuzzleCommand::Grip { axis, layers } => {
                 // IIFE to mimic try_block
                 (|| {
-                    let axis_id = ty.axes().names.id_from_name(axis.as_ref()?)?;
+                    let axis_id = ty.axes().names.lookup(axis.as_ref()?)?;
                     let layer_mask = layers.to_layer_mask(ty.axis_layers[axis_id]);
                     let axis_name = &ty.axes().names[axis_id];
                     if layer_mask.is_empty() {
-                        Some(axis_name.to_owned())
+                        Some(axis_name.to_string())
                     } else {
                         Some(layer_mask.to_string() + axis_name)
                     }
@@ -143,7 +143,7 @@ impl PuzzleCommand {
             } => todo!("description of twist command"),
             PuzzleCommand::Recenter { axis } => {
                 // IIFE to mimic try_block
-                match (|| ty.axes().names.id_from_name(axis.as_ref()?))() {
+                match (|| ty.axes().names.lookup(axis.as_ref()?))() {
                     Some(_twist_axis) => todo!("description of recenter command"),
                     None => "Recenter".to_string(),
                 }

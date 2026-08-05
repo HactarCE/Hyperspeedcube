@@ -65,15 +65,19 @@ export fn new(n: Nat, t: Transform) -> Map {
     export ft_edge_depth = edge_length * sin(2*π/n)
     export vt_edge_depth = edge_length * sin(π/n)
 
+    export named_points = [#{
+        vector = sym.ox.unit * inradius,
+        names = sym.names(point(sym.ox), generic_names(n, 1, 0)),
+    }]
+
     export edge = #{
         vector = sym.ox.unit * inradius,
         names = sym.names(point(sym.ox), generic_names(n, 1, 0)),
     }
-    export vertex = #{
-        vector = sym.xo.unit * circumradius,
-        names = sym.names(point(sym.xo), generic_names(n, 1, 0))
-        // TODO: names?
-    }
+    // export vertex = #{
+    //     vector = sym.xo.unit * circumradius,
+    //     names = permute([edge.names, sym.thru([1, 0]).transform(edge.names)]),
+    // }
     export edge_opposite = if n.is_odd() {
         #{
             vector = -edge.vector,
@@ -82,7 +86,7 @@ export fn new(n: Nat, t: Transform) -> Map {
     }
 
     export facet = edge
-    export ridge = vertex
+    // export ridge = vertex
 
     export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
         if n == 3 {
@@ -108,7 +112,7 @@ export fn new(n: Nat, t: Transform) -> Map {
         }
     }
 
-    max_adjacent_vt_cut_depth = inradius - ft_edge_depth
+    max_adjacent_vt_cut_depth = ft_edge_depth - inradius
     export fn adjacent_vt_cut_depths(layer_count: Nat) -> List[Num] {
         @util/layers.inclusive(circumradius, max_adjacent_vt_cut_depth, layer_count)
     }

@@ -9,7 +9,7 @@ use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::MutexGuard;
 
-use super::{HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist, Names};
+use super::{ElementNames, HpsAxis, HpsOrbitNames, HpsOrbitNamesComponent, HpsSymmetry, HpsTwist};
 use crate::builder::*;
 use crate::{PerReferenceVector, TwistKey};
 
@@ -57,7 +57,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             ctx: EvalCtx,
             axis: HpsAxis,
             transform: Motor,
-            (name, name_span): Names,
+            (name, name_span): ElementNames,
         ) -> Option<HpsTwist> {
             if let Some(old_value) = kwargs.insert("name".into(), name.0.at(name_span)) {
                 return Err("duplicate `name` argument".at(old_value.span));
@@ -138,7 +138,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                         // TODO: support types other than just vectors
                         // (anything that can be orbited? maybe just blades?)
                         let init_vector: Vector = init.to()?;
-                        let names: Names = names.to()?;
+                        let names: ElementNames = names.to()?;
                         let (transforms, vectors): (Vec<_>, Vec<_>) = symmetry
                             .orbit(init_vector)
                             .into_iter()
@@ -147,7 +147,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                         let names = names.0.to_opt_strings(ctx, &transforms)?;
                         for (vector, name) in std::iter::zip(vectors, names) {
                             let id = reference_vectors.push(vector).at(span)?;
-                            reference_vector_names.set(id, name).at(span)?;
+                            reference_vector_names
+                                .set(id, name.map(|s| s.into()))
+                                .at(span)?;
                         }
                     }
 
@@ -471,11 +473,11 @@ impl HpsTwistSystem {
 
         unpack_kwargs!(
             kwargs,
-            name: Option<Names>,
+            name: Option<ElementNames>,
             gizmo_pole_distance: Option<Num>,
         );
 
-        let name = name.map(|Names(n)| n).unwrap_or_default();
+        let name = name.map(|ElementNames(n)| n).unwrap_or_default();
 
         let gizmo_pole_distance = gizmo_pole_distance.map(|x| x as f32);
 
@@ -547,7 +549,7 @@ impl HpsTwistSystem {
                         super::axis_from_vector(&twists.axes.vectors, &key.axis_vector).at(span)?;
                     builder.transform = key.transform;
                     let new_twist = twists
-                        .add(builder.clone(), name, &mut ctx.warnf())
+                        .add(builder.clone(), name.map(|s| s.into()), &mut ctx.warnf())
                         .at(span)?;
                     if first_twist.is_none() {
                         first_twist = Some(new_twist);
@@ -559,7 +561,11 @@ impl HpsTwistSystem {
                 let mut twists = self.lock_ad_hoc().at(span)?;
                 first_twist = Some(
                     twists
-                        .add(builder, names.next().flatten(), &mut ctx.warnf())
+                        .add(
+                            builder,
+                            names.next().flatten().map(|s| s.into()),
+                            &mut ctx.warnf(),
+                        )
                         .at(span)?,
                 );
             }

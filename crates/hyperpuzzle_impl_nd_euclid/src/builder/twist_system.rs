@@ -9,7 +9,7 @@ use hyperpuzzle_core::{ComponentList, DEFAULT_VANTAGE_GROUP_NAME};
 use hyperpuzzlescript::builtins::catalog::HpsExports;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::MutexGuard;
 use smallvec::SmallVec;
 
 use super::{AdHocAxisSystemBuilder, VantageGroupBuilder, VantageSetBuilder};
@@ -219,7 +219,6 @@ impl AdHocTwistSystemBuilder {
             .map(|(id, vantage_group_builder)| {
                 let vantage_group = vantage_group_builder.build(
                     Arc::clone(&axes.names),
-                    Arc::clone(&twist_names),
                     Arc::clone(&axis_vectors),
                     Arc::clone(&twists_list),
                 )?;

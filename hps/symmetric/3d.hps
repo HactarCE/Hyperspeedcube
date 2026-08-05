@@ -68,6 +68,7 @@ add_puzzle_generator(
             #twists.sym = s.sym
             #twists.points ++= [s.facet]
             #twists.axes ++= [s.facet]
+            #twists.axes ++= [{ vec = s.sym.oox, prefix = "a" }, s.sym.oox]
             // C = 1.40126
             // I = 1.11352
             #twists.layers.A = [∞, 0.5]

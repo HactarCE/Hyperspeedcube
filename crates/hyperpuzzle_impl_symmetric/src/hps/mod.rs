@@ -11,8 +11,8 @@ use hypermath::Vector;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::CatalogBuilder;
 use hyperpuzzle_core::catalog::{Menu, MenuContent};
-use hyperpuzzle_impl_nd_euclid::hps::{HpsOrbitNames, Names};
-use hyperpuzzlescript::util::pop_map_key;
+use hyperpuzzle_impl_nd_euclid::hps::{ElementNames, HpsOrbitNames};
+use hyperpuzzlescript::util::{expect_end_of_map, pop_map_key};
 use hyperpuzzlescript::{
     BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, HpsEngine, ListOf, Map, Runtime, Spanned,
     Str, Value, ValueData, hps_fns,
@@ -24,6 +24,8 @@ mod twist_system_engine;
 
 use puzzle_engine::SymmetricPuzzleEngine;
 use twist_system_engine::SymmetricTwistSystemEngine;
+
+use crate::{SimpleOrbitMemberSpec, SimpleOrbitSpec};
 
 /// ID for the symmetric puzzle [`Menu`].
 pub const MENU_ID: &'static str = "symmetric";
@@ -91,11 +93,11 @@ fn named_orbit_from_value(
     ctx: &mut EvalCtx<'_>,
     generators: &[(GenSeq, Motor)],
     value: Value,
-) -> hyperpuzzlescript::Result<Vec<(Vector, String, AbbrGenSeq)>> {
+) -> hyperpuzzlescript::Result<SimpleOrbitSpec> {
     let mut map = value.as_ref::<Map>()?.clone();
-
     let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
-    let Names(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
+    let ElementNames(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
+    expect_end_of_map(map, value.span);
 
     let mut vectors = vec![];
     let mut gen_seqs = vec![];
@@ -107,7 +109,14 @@ fn named_orbit_from_value(
     }
     let names = orbit_names.to_strings(ctx, &transforms)?;
 
-    Ok(itertools::izip!(vectors, names, gen_seqs).collect())
+    let orbit_members = itertools::izip!(vectors, names, gen_seqs)
+        .map(|(vector, name, abbr_gen_seq)| SimpleOrbitMemberSpec {
+            vector,
+            name,
+            abbr_gen_seq,
+        })
+        .collect();
+    Ok(SimpleOrbitSpec { orbit_members })
 }
 
 fn new_hps_list() -> Value {

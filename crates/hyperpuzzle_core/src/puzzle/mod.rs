@@ -5,6 +5,7 @@ mod colors;
 mod dev_data;
 mod mesh;
 mod metric;
+mod names;
 mod piece_type_hierarchy;
 mod puzzle_type;
 mod scramble;
@@ -17,6 +18,7 @@ pub use dev_data::*;
 pub use info::*;
 pub use mesh::*;
 pub use metric::{StmCounter, count_stm};
+pub use names::{NameError, Names};
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
 #[cfg(feature = "timecheck")]

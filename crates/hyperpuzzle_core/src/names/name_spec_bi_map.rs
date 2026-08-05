@@ -2,6 +2,8 @@ use std::ops::Index;
 
 use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
 
+use crate::{NameError, Names};
+
 use super::*;
 
 /// Immutable bi-directional map between IDs and name specifications.
@@ -56,6 +58,13 @@ impl<I: TypedIndex> NameSpecBiMap<I> {
     /// Returns whether there is any ID associated to a string.
     pub fn contains_name(&self, name: &str) -> bool {
         self.id_from_name(name).is_some()
+    }
+
+    pub fn into_names(self) -> Result<Names<I>, NameError> {
+        let id_to_name = self
+            .id_to_name
+            .map_ref(|_, name_spec| (&name_spec.canonical).into());
+        Names::new(id_to_name, move |name| self.id_from_name(name))
     }
 }
 

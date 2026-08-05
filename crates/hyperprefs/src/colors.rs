@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, HashMap, btree_map};
 use std::hash::Hash;
 
+use hyperpuzzle_core::notation::Str;
 use hyperpuzzle_core::{Color, ColorSystem, PaletteColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{DEFAULT_PREFS_RAW, PresetsList, schema};
 
-pub type ColorScheme = IndexMap<String, PaletteColor>;
+pub type ColorScheme = IndexMap<Str, PaletteColor>;
 
 #[derive(Debug, Default)]
 pub struct ColorSchemePreferences(BTreeMap<String, ColorSystemPreferences>);
@@ -240,22 +241,20 @@ impl GlobalColorPalette {
     ) -> bool {
         let mut changed = false;
 
-        let names_match = itertools::equal(
-            scheme.keys(),
-            color_system.names.iter_values().map(|name| &name.preferred),
-        );
+        let names_match = itertools::equal(scheme.keys(), color_system.names.list().iter_values());
         if !names_match {
             changed = true;
             let mut palette_colors: HashMap<Color, PaletteColor> = std::mem::take(scheme)
                 .into_iter()
-                .filter_map(|(k, v)| Some((color_system.names.id_from_name(&k)?, v)))
+                .filter_map(|(k, v)| Some((color_system.names.lookup(&k)?, v)))
                 .collect();
             *scheme = color_system
                 .names
+                .list()
                 .iter()
                 .map(|(id, name)| {
                     let palette_color = palette_colors.remove(&id).unwrap_or(PaletteColor::Unknown);
-                    (name.preferred.clone(), palette_color)
+                    (name.clone(), palette_color)
                 })
                 .collect();
         }
@@ -337,12 +336,7 @@ fn preset_from_color_scheme(color_system: &ColorSystem, name: &str) -> (String, 
     let value = color_system
         .get_scheme_or_default(name)
         .iter()
-        .filter_map(|(id, color)| {
-            Some((
-                color_system.names.get(id).ok()?.preferred.clone(),
-                color.clone(),
-            ))
-        })
+        .filter_map(|(id, color)| Some((color_system.names.get(id).ok()?.clone(), color.clone())))
         .collect();
     (name.to_string(), value)
 }

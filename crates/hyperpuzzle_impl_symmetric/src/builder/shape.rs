@@ -1,12 +1,12 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
-use eyre::{Result, eyre};
+use eyre::Result;
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
+use hypuz_notation::Str;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -18,7 +18,7 @@ pub(super) struct ProductPuzzleShape {
     /// Symmetry group of the shape.
     pub group: IsometryGroup,
     /// Lowercase index and name for each color.
-    pub colors: PerColor<(usize, String)>, // TODO: do this better
+    pub colors: PerColor<(usize, Str)>, // TODO: do this better
     /// Pieces and stickers.
     pub pieces: PerPiece<PieceData>,
     /// Data for each surface.

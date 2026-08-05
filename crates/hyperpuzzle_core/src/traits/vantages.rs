@@ -1,8 +1,8 @@
-use std::any::Any;
+use std::{any::Any, sync::Arc};
 
 use eyre::OptionExt;
 
-use crate::{Axis, NameSpecBiMap, Twist, Vantage};
+use crate::{Axis, Names, Twist, Vantage};
 
 /// [`VantageGroup`] that uses [`SimpleRelativeAxis`] and
 /// [`SimpleRelativeTwist`]. Except where stated otherwise, they are always
@@ -100,13 +100,14 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
     }
     /// Returns the name of a relative twist.
     fn twist_name_concrete(&self, twist: SimpleRelativeTwist<Self>) -> eyre::Result<String> {
-        let twist_name = &self.twist_names()[twist.absolute_twist];
-        if self.is_identity(&twist.transform) {
-            Ok(twist_name.to_string())
-        } else {
-            let transform_name = self.vantage_group_element_name_concrete(twist.transform)?;
-            Ok(format!("{twist_name}@{transform_name}"))
-        }
+        todo!()
+        // let twist_name = &self.twist_names()[twist.absolute_twist];
+        // if self.is_identity(&twist.transform) {
+        //     Ok(twist_name.to_string())
+        // } else {
+        //     let transform_name = self.vantage_group_element_name_concrete(twist.transform)?;
+        //     Ok(format!("{twist_name}@{transform_name}"))
+        // }
     }
 
     /// Returns the vantage group element with the given name.
@@ -115,38 +116,38 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
     fn vantage_from_name_concrete(&self, name: &str) -> Option<Vantage>;
     /// Returns the relative axis with the given name.
     fn axis_from_name_concrete(&self, name: &str) -> Option<SimpleRelativeAxis<Self>> {
-        match name.split_once('@') {
-            Some((axis_name, elem_name)) => Some(SimpleRelativeAxis {
-                absolute_axis: self.axis_names().id_from_name(axis_name)?,
-                transform: self.vantage_group_element_from_name_concrete(elem_name)?,
-            }),
-            None => Some(SimpleRelativeAxis {
-                absolute_axis: self.axis_names().id_from_name(name)?,
-                transform: self.identity_concrete(),
-            }),
-        }
+        todo!()
+        // match name.split_once('@') {
+        //     Some((axis_name, elem_name)) => Some(SimpleRelativeAxis {
+        //         absolute_axis: self.axis_names().id_from_name(axis_name)?,
+        //         transform: self.vantage_group_element_from_name_concrete(elem_name)?,
+        //     }),
+        //     None => Some(SimpleRelativeAxis {
+        //         absolute_axis: self.axis_names().id_from_name(name)?,
+        //         transform: self.identity_concrete(),
+        //     }),
+        // }
     }
     /// Returns the relative twist with the given name.
     fn twist_from_name_concrete(&self, name: &str) -> Option<SimpleRelativeTwist<Self>> {
-        match name.split_once('@') {
-            Some((twist_name, elem_name)) => Some(SimpleRelativeTwist {
-                absolute_twist: self.twist_names().id_from_name(twist_name)?,
-                transform: self.vantage_group_element_from_name_concrete(elem_name)?,
-            }),
-            None => Some(SimpleRelativeTwist {
-                absolute_twist: self.twist_names().id_from_name(name)?,
-                transform: self.identity_concrete(),
-            }),
-        }
+        todo!()
+        // match name.split_once('@') {
+        //     Some((twist_name, elem_name)) => Some(SimpleRelativeTwist {
+        //         absolute_twist: self.twist_names().id_from_name(twist_name)?,
+        //         transform: self.vantage_group_element_from_name_concrete(elem_name)?,
+        //     }),
+        //     None => Some(SimpleRelativeTwist {
+        //         absolute_twist: self.twist_names().id_from_name(name)?,
+        //         transform: self.identity_concrete(),
+        //     }),
+        // }
     }
 
     /// Returns whether `elem` is equivalent to the identity vantage group
     /// element.
     fn is_identity(&self, elem: &Self::Element) -> bool;
     /// Returns the map of axis names.
-    fn axis_names(&self) -> &NameSpecBiMap<Axis>;
-    /// Returns the map of twist names.
-    fn twist_names(&self) -> &NameSpecBiMap<Twist>;
+    fn axis_names(&self) -> &Arc<Names<Axis>>;
 }
 impl<G: SimpleVantageGroup> VantageGroup for G {
     fn vantage_count(&self) -> usize {

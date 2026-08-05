@@ -5,8 +5,9 @@ use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::{APPROX, ApproxHashMap, Centroid, Hyperplane, Point};
 use hyperpuzzle_core::{
-    CatalogId, Color, IndexOverflow, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
+    Color, IndexOverflow, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
 };
+use hypuz_notation::Str;
 use itertools::Itertools;
 
 use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
@@ -24,7 +25,7 @@ pub(super) struct PuzzleShapeFactorBuilder {
 
     pieces: PerPiece<PieceShapeBuilder>,
     surfaces: PerSurface<SurfaceData>,
-    color_names: PerColor<String>,
+    color_names: PerColor<Str>,
 
     hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface>,
 }
@@ -69,7 +70,7 @@ impl PuzzleShapeFactorBuilder {
         self.surfaces.len()
     }
 
-    pub fn add_color(&mut self, name: String) -> Result<Color, IndexOverflow> {
+    pub fn add_color(&mut self, name: Str) -> Result<Color, IndexOverflow> {
         self.color_names.push(name)
     }
 

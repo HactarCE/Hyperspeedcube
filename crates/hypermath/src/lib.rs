@@ -70,11 +70,13 @@ pub mod ndim;
 pub mod permutations;
 pub mod pga;
 pub mod sign;
+pub mod subspace;
 pub mod util;
 pub mod which_side;
 
 pub use ndim::Ndim;
 pub use sign::Sign;
+pub use subspace::Subspace;
 pub use which_side::PointWhichSide;
 
 /// Approximate comparison tuned for doing geometric puzzle computations.

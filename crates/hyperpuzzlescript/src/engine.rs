@@ -25,13 +25,13 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use hyperpuzzle_core::{
-    BuildCtx, CatalogBuilder, CatalogIdValue, CatalogIdent, Generator, GeneratorParam,
+    BuildCtx, CatalogBuilder, CatalogIdent, CatalogObject, Generator, GeneratorParam,
     GeneratorParamValidation, GeneratorSubsetParam, TypedCatalogIdValue,
 };
 use itertools::Itertools;
 
 use crate::{
-    EvalCtx, EvalRequestTx, FnValue, FullDiagnostic, Map, Num, Scope, Span, Value, ValueData,
+    EvalCtx, EvalRequestTx, FnValue, FullDiagnostic, Map, Num, Scope, Span, Type, Value, ValueData,
 };
 
 #[derive(Debug)]
@@ -135,7 +135,7 @@ impl HpsGenerator {
     /// Constructs a [`Generator`] with custom parameter validation.
     ///
     /// See [`Self::make_generator()`] for details.
-    pub fn make_generator_with_validation<T: 'static + Send + Sync>(
+    pub fn make_generator_with_validation<T: CatalogObject>(
         &self,
         eval_tx: &EvalRequestTx,
         validation: GeneratorParamValidation,
@@ -173,12 +173,20 @@ impl HpsGenerator {
                     tx.eval_blocking(Arc::new(scope), move |ctx| {
                         gen_fn.call(gen_fn_span, ctx, args, Map::new())
                     })
-                    .and_then(|val| val.unwrap_or_clone_arc::<Map>())
                     .map_err(HpsEngineError::Hps)
-                    // `generate` must be called outside of the HPS thread
-                    // because it may request other catalog objects, which may
-                    // want to use the HPS thread.
-                    .and_then(|kwargs| generate(build_ctx, &tx, kwargs))
+                    .and_then(|val| {
+                        // `generate` must be called outside of the HPS thread
+                        // because it may request other catalog objects, which
+                        // may want to use the HPS thread.
+                        if val.is::<str>() {
+                            Ok(build_ctx.build_str_blocking(val.as_ref()?)?)
+                        } else if val.is::<Map>() {
+                            let kwargs = val.unwrap_or_clone_arc::<Map>()?;
+                            Ok(generate(build_ctx, &tx, kwargs)?)
+                        } else {
+                            Err(val.type_error(Type::Str | Type::Map))?
+                        }
+                    })
                 } else {
                     generate(build_ctx, &tx, self_kwargs.clone())
                 }
@@ -192,7 +200,7 @@ impl HpsGenerator {
     /// required parameter values are required but missing.
     ///
     /// See [`Self::make_generator()`] for details.
-    pub fn make_generator_with_empty<T: 'static + Send + Sync>(
+    pub fn make_generator_with_empty<T: CatalogObject>(
         &self,
         eval_tx: &EvalRequestTx,
         default: Arc<T>,
@@ -222,7 +230,7 @@ impl HpsGenerator {
     ///   for convenience
     /// - [`Map`] returned by the user-provided `gen` function, or `self.kwargs`
     ///   if there is no `gen` function.
-    pub fn make_generator<T: 'static + Send + Sync>(
+    pub fn make_generator<T: CatalogObject>(
         &self,
         eval_tx: &EvalRequestTx,
         generate: impl 'static

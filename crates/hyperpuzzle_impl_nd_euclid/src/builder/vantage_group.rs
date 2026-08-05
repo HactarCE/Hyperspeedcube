@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::{OptionExt, Result, bail};
 use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector};
-use hyperpuzzle_core::{Axis, NameSpecBiMap, NameSpecBiMapBuilder, PerVantage, Twist};
+use hyperpuzzle_core::{Axis, NameSpecBiMapBuilder, Names, PerVantage};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -29,8 +29,7 @@ impl VantageGroupBuilder {
     /// Validates and constructs a vantage group.
     pub fn build(
         &self,
-        axis_names: Arc<NameSpecBiMap<Axis>>,
-        twist_names: Arc<NameSpecBiMap<Twist>>,
+        axis_names: Arc<Names<Axis>>,
         axis_vectors: Arc<NdEuclidAxisVectors>,
         twists_list: Arc<NdEuclidTwistsList>,
     ) -> Result<NdEuclidVantageGroup> {
@@ -89,7 +88,6 @@ impl VantageGroupBuilder {
             vantage_names,
 
             axis_names,
-            twist_names,
 
             axis_vectors,
             twists_list,

@@ -46,6 +46,14 @@ impl IsometryGroup {
         TRIVIAL_GROUP.clone()
     }
 
+    /// Returns the trivial isometry group with the given number of dimensions.
+    pub fn trivial_with_ndim(ndim: u8) -> Self {
+        Self {
+            ndim,
+            ..Self::trivial()
+        }
+    }
+
     /// Constructs a group from factors.
     pub(crate) fn from_factors(
         factor_groups: impl IntoIterator<Item = (Arc<AbstractGroupLut>, Arc<FactorGroupIsometries>)>,

@@ -30,7 +30,7 @@ use axis::{HpsAxis, axis_from_vector, transform_axis};
 use axis_system::HpsAxisSystem;
 use color::HpsColor;
 use layer_mask::HpsLayerMask;
-pub use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, Names};
+pub use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, ElementNames};
 use puzzle::HpsPuzzle;
 use puzzle_engine::NdEuclidPuzzleEngine;
 use region::HpsRegion;
@@ -70,7 +70,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         fn transform(transform: Motor, object: HpsRegion) -> HpsRegion {
             transform.transform(&object)
         }
-        fn transform(transform: Motor, object: Names) -> HpsOrbitNames {
+        fn transform(transform: Motor, object: ElementNames) -> HpsOrbitNames {
             object.0.transform_by(&transform)
         }
         fn transform(transform: Motor, object: HpsSymmetry) -> HpsSymmetry {

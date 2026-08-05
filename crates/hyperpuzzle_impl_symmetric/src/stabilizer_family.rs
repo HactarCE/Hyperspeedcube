@@ -1,14 +1,6 @@
-use std::ops::Deref;
+use hyperpuzzle_core::{Axis, Names};
 
-use eyre::{OptionExt, Result, bail, eyre};
-use hypergroup::{GroupAction, GroupElementId};
-use hypermath::approx_collections::pool::IntoIter;
-use hypermath::{Vector, VectorRef};
-use hyperpuzzle_core::{Axis, NameSpecBiMap, PerAxis, TiVec};
-use itertools::Itertools;
-use smallvec::SmallVec;
-
-use crate::{NamedPoint, NamedPointSet, PerNamedPoint};
+use crate::{NamedPoint, NamedPointSet};
 
 /// Twist [family] that consists of an axis to twist (the "primary" axis)
 /// followed by a set of axes (the "secondary" axes) that is setwise-stabilized
@@ -33,11 +25,7 @@ pub struct StabilizerFamily {
 
 impl StabilizerFamily {
     /// Returns the name for the stabilizer family, in human-friendly notation.
-    pub fn name(
-        &self,
-        axis_names: &NameSpecBiMap<Axis>,
-        named_point_names: &NameSpecBiMap<NamedPoint>,
-    ) -> String {
+    pub fn name(&self, axis_names: &Names<Axis>, named_point_names: &Names<NamedPoint>) -> String {
         format!(
             "{}_{}", // TODO: proper separator
             &axis_names[self.primary],

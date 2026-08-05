@@ -30,8 +30,7 @@ pub struct NdEuclidVantageGroup {
 
     pub(crate) vantage_names: PerVantage<SmallVec<[(ReferenceVector, ReferenceVector); 4]>>,
 
-    pub(crate) axis_names: Arc<NameSpecBiMap<Axis>>,
-    pub(crate) twist_names: Arc<NameSpecBiMap<Twist>>,
+    pub(crate) axis_names: Arc<Names<Axis>>,
 
     // This information exists in the twist system too, but we don't really
     /// want to hold a reference to the twist system because that would be a
@@ -206,12 +205,8 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
         elem.0 == GroupElementId::IDENTITY
     }
 
-    fn axis_names(&self) -> &NameSpecBiMap<Axis> {
+    fn axis_names(&self) -> &Arc<Names<Axis>> {
         &self.axis_names
-    }
-
-    fn twist_names(&self) -> &NameSpecBiMap<Twist> {
-        &self.twist_names
     }
 }
 

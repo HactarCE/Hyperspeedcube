@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
 use hyperprefs::Preferences;
+use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
@@ -79,12 +80,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
-    let name_spec_info_lines = |ui: &mut egui::Ui, label: &str, name: &NameSpec| {
-        info_line(ui, &format!("{label} name"), &name.canonical);
-        info_line(ui, &format!("{label} name spec"), &name.spec);
-        info_line(ui, &format!("{label} canonical name"), &name.canonical);
-    };
-
     let puz = view.puzzle();
 
     if let Some(piece) = view.hovered_piece() {
@@ -103,10 +98,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         ui.label("");
         ui.strong(format!("Color {}", sticker_info.color));
         if let Ok(name) = puz.colors.names.get(sticker_info.color) {
-            name_spec_info_lines(ui, "Color", name);
-        }
-        if let Ok(display) = puz.colors.display_names.get(sticker_info.color) {
-            info_line(ui, "Color display", display);
+            info_line(ui, "Color name", name);
         }
     }
 
@@ -125,7 +117,7 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         info_line(ui, "Move", mv);
         if let Some(axis) = (puz.twists.axis_from_family)(&mv.transform.family) {
             if let Ok(name) = puz.axes().names.get(axis) {
-                name_spec_info_lines(ui, "Axis", name);
+                info_line(ui, "Axis name", name);
             }
             let layers_info = &puz.axis_layers[axis];
             info_line(ui, "Max layer", layers_info.max_layer);
@@ -352,16 +344,11 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
 
     let has_default_colors = schemes.len() == 1;
 
-    let color_name_kv_pairs = pad_to_common_length(color_system.names.iter_values().map(|info| {
-        let string_literal = hyperpuzzlescript::codegen::to_str_literal(&info.spec);
-        format!(" name = {string_literal},")
-    }));
-    let color_display_kv_pairs = pad_to_common_length(
-        color_system
-            .display_names
-            .iter_values()
-            .map(|display_name| format!(" display = {display_name:?},")),
-    );
+    let color_name_kv_pairs =
+        pad_to_common_length(color_system.names.list().iter_values().map(|s| {
+            let string_literal = hyperpuzzlescript::codegen::to_str_literal(&s);
+            format!(" name = {string_literal},")
+        }));
     let default_color_kv_pairs =
         schemes
             .get_index(0)
@@ -379,11 +366,10 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     s += "\n    colors = [\n";
     for i in 0..color_system.names.len() {
         s += "        {";
-        s += &color_name_kv_pairs[i];
         if has_default_colors {
-            s += &color_display_kv_pairs[i];
+            s += &color_name_kv_pairs[i];
         } else {
-            s += color_display_kv_pairs[i]
+            s += color_name_kv_pairs[i]
                 .trim_end()
                 .strip_suffix(',')
                 .expect("no trailing comma");
@@ -400,10 +386,9 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         for (name, colors) in &schemes {
             s += &format!("        {{{name:?}, {{\n");
             for (k, v) in colors {
-                let k = hyperpuzzlescript::codegen::to_map_key(match color_system.names.get(k) {
-                    Ok(name) => &name.spec,
-                    Err(_) => "?",
-                });
+                let k = hyperpuzzlescript::codegen::to_map_key(
+                    color_system.names.get(k).map(|s| s.as_str()).unwrap_or("?"),
+                );
                 let v = v.to_string();
                 s += &format!("          {k} = {v:?},\n");
             }

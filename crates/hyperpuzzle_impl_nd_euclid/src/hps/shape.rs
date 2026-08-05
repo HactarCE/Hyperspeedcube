@@ -11,7 +11,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
-use super::{HpsColor, HpsRegion, HpsSymmetry, Names};
+use super::{ElementNames, HpsColor, HpsRegion, HpsSymmetry};
 use crate::builder::ShapeBuilder;
 
 /// HPS shape builder.
@@ -55,7 +55,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
         #[kwargs(region: Option<HpsRegion>)]
-        fn carve(ctx: EvalCtx, plane: Hyperplane, color_names: Names) -> Option<HpsColor> {
+        fn carve(ctx: EvalCtx, plane: Hyperplane, color_names: ElementNames) -> Option<HpsColor> {
             let args = CutArgs::carve(StickerMode::FromNames(color_names), region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
@@ -83,7 +83,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
         #[kwargs(region: Option<HpsRegion>)]
-        fn slice(ctx: EvalCtx, plane: Hyperplane, color_names: Names) -> Option<HpsColor> {
+        fn slice(ctx: EvalCtx, plane: Hyperplane, color_names: ElementNames) -> Option<HpsColor> {
             let args = CutArgs::slice(StickerMode::FromNames(color_names), region);
             HpsShape::get(ctx)?.cut(ctx, plane, args)?
         }
@@ -184,10 +184,12 @@ impl HpsShape {
                 color_list = Some(
                     color_names
                         .into_iter()
-                        .map(|name_spec| {
-                            name_spec
-                                .map(|s| this.colors.get_or_add_with_name_spec(s, &mut ctx.warnf()))
-                                .transpose()
+                        .map(|name| {
+                            name.map(|s| {
+                                this.colors
+                                    .get_or_add_with_name_spec(s.into(), &mut ctx.warnf())
+                            })
+                            .transpose()
                         })
                         .try_collect()
                         .at(span)?,
@@ -291,7 +293,7 @@ enum StickerMode {
     /// Add new stickers using an existing color.
     FixedColor(HpsColor),
     /// Add new stickers using orbit names.
-    FromNames(Names),
+    FromNames(ElementNames),
 }
 
 fn ignore_ctx_symmetry(ctx: &mut EvalCtx<'_>) {

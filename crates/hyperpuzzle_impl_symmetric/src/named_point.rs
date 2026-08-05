@@ -2,9 +2,8 @@ use std::ops::Deref;
 
 use eyre::{OptionExt, Result, bail, eyre};
 use hypergroup::{GroupAction, GroupElementId};
-use hypermath::approx_collections::pool::IntoIter;
 use hypermath::{Vector, VectorRef};
-use hyperpuzzle_core::{Axis, NameSpecBiMap, PerAxis, TiVec};
+use hyperpuzzle_core::{Axis, IndexOverflow, NameSpecBiMap, Names, PerAxis, TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -17,8 +16,8 @@ hypuz_util::typed_index_struct! {
 pub type PerNamedPoint<T> = TiVec<NamedPoint, T>;
 
 /// Small list of named points which are setwise-stabilized by some nontrivial
-/// subgroup of the grip group. This is used to define [`StabilizerFamily`]
-/// twists. This list may be empty (and often is in 3D).
+/// subgroup of the grip group. This is used to define stabilizer twist
+/// families. This list may be empty (and often is in 3D).
 ///
 /// All permutations of the list are assumed to be reachable using the action of
 /// the grip group.
@@ -52,13 +51,13 @@ impl NamedPointSet {
 
     /// Offsets all named point IDs by some amount.
     #[must_use]
-    pub(crate) fn offset_ids_by(&self, id_offset: usize) -> Self {
-        Self(
+    pub(crate) fn offset_ids_by(&self, id_offset: usize) -> Result<Self, IndexOverflow> {
+        Ok(Self(
             self.0
                 .iter()
-                .map(|&p| NamedPoint(p.0 + id_offset as u16))
-                .collect(),
-        )
+                .map(|&p| p.offset_index(id_offset))
+                .try_collect()?,
+        ))
     }
 
     /// Returns the number of named points in the list.
@@ -85,7 +84,7 @@ impl NamedPointSet {
     }
 
     /// Returns the name for the set, in human-friendly notation.
-    pub fn name(&self, named_point_names: &NameSpecBiMap<NamedPoint>) -> String {
+    pub fn name(&self, named_point_names: &Names<NamedPoint>) -> String {
         self.iter().map(|p| &named_point_names[p]).join("_") // TODO: proper separator
     }
 }

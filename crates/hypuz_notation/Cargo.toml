@@ -20,7 +20,7 @@ hypuz_util = { workspace = true, optional = true }
 
 bitvec.workspace = true
 chumsky.workspace = true
-lean_string.workspace = true
+ecow.workspace = true
 serde = { workspace = true, optional = true }
 smallvec.workspace = true
 thiserror.workspace = true
@@ -33,7 +33,7 @@ proptest.workspace = true
 
 [features]
 typed_index = ["dep:hypuz_util"]
-serde = ["dep:hypuz_util", "dep:serde", "hypuz_util/serde", "lean_string/serde"]
+serde = ["dep:hypuz_util", "dep:serde", "hypuz_util/serde", "ecow/serde"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -17,11 +17,7 @@ pub struct ColorSystem {
     pub components: ComponentList<Self>,
 
     /// Color names.
-    pub names: NameSpecBiMap<Color>,
-    /// Color display names.
-    ///
-    /// TODO: remove this
-    pub display_names: PerColor<String>,
+    pub names: Names<Color>,
 
     /// List of named color schemes.
     pub schemes: IndexMap<String, PerColor<PaletteColor>>,
@@ -31,6 +27,7 @@ pub struct ColorSystem {
     /// Orbits used to generate colors.
     pub orbits: Vec<Orbit<Color>>, // TODO: move this to components
 }
+
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
     fn new_rainbow_scheme(len: usize) -> PerColor<PaletteColor> {
@@ -65,8 +62,7 @@ impl ColorSystem {
             id: "empty".parse().expect("bad ID"),
             name: "Empty".to_string(),
             components: ComponentList::new(),
-            names: NameSpecBiMap::new(),
-            display_names: PerColor::new(),
+            names: Names::new_empty(),
             schemes: IndexMap::new(),
             default_scheme: String::new(),
             orbits: vec![],

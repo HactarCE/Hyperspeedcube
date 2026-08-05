@@ -11,7 +11,7 @@ use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
-use super::{HpsAxis, HpsPuzzle, HpsSymmetry, Names};
+use super::{ElementNames, HpsAxis, HpsPuzzle, HpsSymmetry};
 use crate::builder::{AdHocAxisSystemBuilder, TwistSystemBuilder};
 use crate::components::NdEuclidAxisVectors;
 use crate::hps::orbit_names::HpsOrbitNames;
@@ -91,7 +91,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         fn add_axis(ctx: EvalCtx, vector: Vector) -> Option<HpsAxis> {
             HpsAxisSystem::get(ctx)?.add_axes(ctx, vector, None)?
         }
-        fn add_axis(ctx: EvalCtx, vector: Vector, names: Names) -> Option<HpsAxis> {
+        fn add_axis(ctx: EvalCtx, vector: Vector, names: ElementNames) -> Option<HpsAxis> {
             HpsAxisSystem::get(ctx)?.add_axes(ctx, vector, Some(names))?
         }
         #[kwargs(slice: bool = true)]
@@ -102,7 +102,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         fn add_axis(
             ctx: EvalCtx,
             vector: Vector,
-            names: Names,
+            names: ElementNames,
             layers: Vec<Num>,
         ) -> Option<HpsAxis> {
             HpsPuzzle::get(ctx)?.add_layered_axes(ctx, vector, Some(names), layers, slice)?
@@ -110,7 +110,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         #[kwargs(slice: bool = true)]
         fn add_axis(
             ctx: EvalCtx,
-            names: Names,
+            names: ElementNames,
             vector: Vector,
             layers: Vec<Num>,
         ) -> Option<HpsAxis> {
@@ -160,7 +160,7 @@ impl HpsAxisSystem {
         &self,
         ctx: &mut EvalCtx<'_>,
         vector: Vector,
-        names: Option<Names>,
+        names: Option<ElementNames>,
     ) -> Result<Option<HpsAxis>> {
         let ctx_symmetry = HpsSymmetry::get(ctx)?;
         let mut this = self.lock_ad_hoc().at(ctx.caller_span)?;
@@ -184,7 +184,11 @@ impl HpsAxisSystem {
         let mut axes_list = vec![];
         for (transformed_vector, name) in std::iter::zip(&vectors, names) {
             let new_axis = this
-                .add(transformed_vector.clone(), name, ctx.warnf())
+                .add(
+                    transformed_vector.clone(),
+                    name.map(|s| s.into()),
+                    ctx.warnf(),
+                )
                 .at(ctx.caller_span)?;
             axes_list.push(Some(new_axis));
         }

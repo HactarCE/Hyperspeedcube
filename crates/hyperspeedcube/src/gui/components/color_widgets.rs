@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse};
 use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
+use hyperpuzzle::notation::Str;
 use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
@@ -42,13 +43,13 @@ pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String
 #[derive(Debug)]
 pub struct ColorsUi<'a> {
     ctx: egui::Context,
-    palette_color_to_puzzle_color: HashMap<PaletteColor, String>,
+    palette_color_to_puzzle_color: HashMap<PaletteColor, Str>,
     gradient_totals: HashMap<PaletteGradient, usize>,
     palette: &'a GlobalColorPalette,
 
     pub clickable: bool,
     pub show_puzzle_colors: bool,
-    dnd: Option<Dnd<String, (PaletteColor, Option<BeforeOrAfter>)>>,
+    dnd: Option<Dnd<Str, (PaletteColor, Option<BeforeOrAfter>)>>,
 
     hovered_color: Option<PaletteColor>,
     clicked_color: Option<PaletteColor>,
@@ -150,7 +151,7 @@ impl<'a> ColorsUi<'a> {
         &mut self,
         ui: &mut egui::Ui,
         current_colors: Option<(&mut ColorScheme, &ColorSystem)>,
-        puzzle_color_to_modify: Option<String>,
+        puzzle_color_to_modify: Option<Str>,
     ) -> (bool, Option<ColorScheme>) {
         self.palette_color_to_puzzle_color = HashMap::new();
         self.gradient_totals = HashMap::new();
@@ -283,7 +284,7 @@ impl<'a> ColorsUi<'a> {
         &self,
         map: &mut ColorScheme,
         color_system: &ColorSystem,
-        drag: DndMove<String, (PaletteColor, Option<BeforeOrAfter>)>,
+        drag: DndMove<Str, (PaletteColor, Option<BeforeOrAfter>)>,
     ) {
         let payload = drag.payload;
         let (target, before_or_after) = drag.target;
@@ -300,7 +301,7 @@ impl<'a> ColorsUi<'a> {
     fn reorder_color_to(
         &self,
         map: &mut ColorScheme,
-        name: String,
+        name: Str,
         mut new_assignment: PaletteColor,
         before_or_after: BeforeOrAfter,
     ) {
@@ -348,7 +349,7 @@ impl<'a> ColorsUi<'a> {
         // Insert the new color.
         map.insert(name, new_assignment);
     }
-    fn swap_color_to(&self, map: &mut ColorScheme, name: String, new_assignment: PaletteColor) {
+    fn swap_color_to(&self, map: &mut ColorScheme, name: Str, new_assignment: PaletteColor) {
         let old_name = self.palette_color_to_puzzle_color.get(&new_assignment);
         let old_assignment = map.insert(name, new_assignment);
 
@@ -469,7 +470,7 @@ struct ColorButton {
 
     pub color_name: String,
     pub color: ColorOrGradient,
-    pub puzzle_color: Option<String>,
+    pub puzzle_color: Option<Str>,
 }
 impl ColorButton {
     fn show(self, ui: &mut egui::Ui, colors_ui: &mut ColorsUi<'_>) -> egui::Response {
@@ -507,7 +508,7 @@ impl ColorButton {
                     egui::Label::new(label_contents.color(text_color)).selectable(false),
                 );
                 if is_shrunken && (r.hovered() || r.has_focus()) {
-                    r.clone().on_hover_text(&puzzle_color);
+                    r.clone().on_hover_text(&*puzzle_color);
                 }
 
                 (r.clone(), ())
@@ -832,13 +833,12 @@ pub fn color_assignment_popup(
         return;
     };
     let color_name = &puzzle.colors.names[id];
-    let color_display_name = &puzzle.colors.display_names[id];
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     egui::Sides::new().show(
         ui,
         |ui| {
-            ui.heading(L.colors.puzzle_color_popup_title.with(color_display_name));
+            ui.heading(L.colors.puzzle_color_popup_title.with(color_name));
         },
         |ui| {
             let (button_rect, _) = ui.allocate_exact_size(

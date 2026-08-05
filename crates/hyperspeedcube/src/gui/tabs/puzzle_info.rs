@@ -39,36 +39,14 @@ fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {
 
     ui.add_space(10.0);
     ui.heading("Colors");
-    for (name, display) in std::iter::zip(
-        puz.colors.names.iter_values(),
-        puz.colors.display_names.iter_values(),
-    ) {
-        let NameSpec {
-            preferred,
-            spec,
-            canonical,
-        } = name;
-        ui.label(format!(
-            "• spec={spec:?}, \
-                   preferred={preferred:?}, \
-                   canonical={canonical:?}, \
-                   display={display:?}"
-        ));
+    for name in puz.colors.names.list().iter_values() {
+        ui.label(format!("• name={name:?}"));
     }
 
     ui.add_space(10.0);
     ui.heading("Axes");
-    for name in puz.axes().names.iter_values() {
-        let NameSpec {
-            preferred,
-            spec,
-            canonical,
-        } = name;
-        ui.label(format!(
-            "• spec={spec:?}, \
-                   preferred={preferred:?}, \
-                   canonical={canonical:?}"
-        ));
+    for name in puz.axes().names.list().iter_values() {
+        ui.label(format!("• name={name:?}"));
     }
 
     ui.add_space(10.0);

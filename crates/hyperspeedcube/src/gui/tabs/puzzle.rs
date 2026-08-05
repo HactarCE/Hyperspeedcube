@@ -486,7 +486,7 @@ impl PuzzleWidget {
         for (name, palette_color) in color_map {
             // IIFE to mimic try_block
             (|| {
-                let id = puzzle.colors.names.id_from_name(name)?;
+                let id = puzzle.colors.names.lookup(name)?;
                 let rgb = prefs.color_palette.get(palette_color)?;
                 sticker_colors[id.to_index()] = rgb.rgb;
                 Some(())

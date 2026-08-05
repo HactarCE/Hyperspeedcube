@@ -24,11 +24,13 @@ use builder::PuzzleProduct;
 pub use cut_distances::CutDistances;
 use itertools::Itertools;
 pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
-pub use spec::{AxisOrbitSpec, FactorPuzzleSpec, NamedPointOrbitSpec, ProductPuzzleSpec};
+pub use spec::*;
 pub use stabilizer_family::StabilizerFamily;
 pub use twist_system::{
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
+
+use crate::builder::TwistSystemProduct;
 
 const PRODUCT_ID: &str = "product";
 const SUM_ID: &str = "sum";
@@ -160,8 +162,8 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
     }))?;
 
     catalog.add::<Puzzle>(Arc::new(Generator {
-        id,
-        params,
+        id: id.clone(),
+        params: params.clone(),
         subset_param: Some(subset_param.clone()),
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
@@ -170,6 +172,60 @@ pub fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Res
                 .build(&build_ctx, &mut build_ctx.warn_fn())
         }),
     }))?;
+
+    catalog.add::<TwistSystemProduct>(Arc::new(Generator {
+        id: id.clone(),
+        params: params.clone(),
+        subset_param: Some(subset_param.clone()),
+        validation: GeneratorParamValidation { allow_empty: false },
+        generate: Box::new(|build_ctx| {
+            // TODO: redirect nested product calls
+            build_ctx
+                .build_list_blocking::<TwistSystemProduct>(&build_ctx.id().args[0])?
+                .into_iter()
+                .try_fold(TwistSystemProduct::direct_product_identity(), |a, b| {
+                    a.direct_product(&b)
+                })
+                .map(Arc::new)
+        }),
+    }))?;
+
+    catalog.add::<TwistSystem>(Arc::new(Generator {
+        id,
+        params,
+        subset_param: Some(subset_param.clone()),
+        validation: GeneratorParamValidation { allow_empty: false },
+        generate: Box::new(|build_ctx| {
+            build_ctx
+                .build_blocking::<TwistSystemProduct>(build_ctx.id())?
+                .build(&build_ctx, &mut build_ctx.warn_fn())
+        }),
+    }))?;
+
+    catalog.add::<TwistSystemProduct>(Arc::new(Generator {
+        id: "empty".parse().expect("bad catalog ID"),
+        params: vec![GeneratorParam {
+            name: "Dimensions".to_string(),
+            ty: GeneratorParamType::Int { min: 1, max: 8 },
+            default: CatalogIdValue::Ident("1".parse().expect("bad param default")),
+        }],
+        subset_param: None,
+        validation: GeneratorParamValidation { allow_empty: false },
+        generate: Box::new(|build_ctx| {
+            Ok(Arc::new(TwistSystemProduct::new_factor(
+                build_ctx.id().clone(),
+                &FactorTwistSystemSpec {
+                    ndim: build_ctx.id().args[0].to_int()?.try_into()?,
+                    coxeter_matrix: None,
+                    axis_orbits: vec![],
+                    named_point_orbits: vec![],
+                    named_point_set_orbits: vec![],
+                    stabilizer_twist_orbits: vec![],
+                },
+                &mut build_ctx.warn_fn(),
+            )?))
+        }),
+    }));
 
     // TODO: add twist system product and color system disjoint union generators. do not allow nesting for either.
 
