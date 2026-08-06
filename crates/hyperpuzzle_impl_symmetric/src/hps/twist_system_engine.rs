@@ -9,7 +9,7 @@ use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
     Span, Spanned, SpecialVar, Type, Value, ValueData,
     engine::HpsEngineError,
-    unpack_kwargs,
+    pop_kwarg, unpack_kwargs,
     util::{expect_end_of_map, pop_map_key, pop_map_key_in_special_var},
 };
 use hypuz_notation::Str;
@@ -27,7 +27,7 @@ impl HpsEngine for SymmetricTwistSystemEngine {
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
         ctx: &mut EvalCtx<'_>,
-        hps_gen: hyperpuzzlescript::engine::HpsGenerator,
+        mut hps_gen: hyperpuzzlescript::engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
         catalog.add::<TwistSystemProduct>(hps_gen.make_generator(
             eval_tx,

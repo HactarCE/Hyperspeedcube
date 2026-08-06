@@ -20,17 +20,12 @@ edges_param = #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }
 edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 50 }
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
 
-ngon_tags = #{
-    ndim = 2,
-    author = "Andrew Farkas",
-}
-
-add_twist_system(id = "ngon_ft", name = "FT Polygon",
+add_twist_system(id = "ngon_ft",
     engine = "symmetric",
-    params = [@shapes/2d/polygon.edges_param],
+    ndim = 2,
+    params = [edges_param],
     gen = fn(n) {
         return #{
-            ndim = 2,
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
@@ -43,12 +38,12 @@ add_twist_system(id = "ngon_ft", name = "FT Polygon",
     },
 )
 
-add_twist_system(id = "ngon_vt", name = "VT Polygon",
-    params = [@shapes/2d/polygon.edges_param],
+add_twist_system(id = "ngon_vt",
     engine = "symmetric",
+    ndim = 2,
+    params = [edges_param],
     gen = fn(n) {
         return #{
-            ndim = 2,
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
@@ -61,12 +56,12 @@ add_twist_system(id = "ngon_vt", name = "VT Polygon",
     },
 )
 
-add_twist_system(id = "ngon_ft_vt", name = "FT+VT Polygon",
-    params = [@shapes/2d/polygon.edges_param],
+add_twist_system(id = "ngon_ft_vt",
     engine = "symmetric",
+    ndim = 2,
+    params = [edges_param],
     gen = fn(n) {
         return #{
-            ndim = 2,
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
@@ -80,36 +75,39 @@ add_twist_system(id = "ngon_ft_vt", name = "FT+VT Polygon",
 )
 
 add_puzzle(id = "triangle_ft_shallow", name = "FT Triangle (Shallow)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edge_divisions_param],
     gen = fn(divisions) { "ngon_ft_shallow(3,${divisions})" },
 )
 
 add_puzzle(id = "square_ft_layered", name = "FT Square",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [layers_param],
     gen = fn(layers) { "ngon_ft_layered(4,${layers})" },
 )
 
 add_puzzle(id = "triangle_layered", name = "FT Triangle (Layered)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [layers_param],
     gen = fn(layers) { "ngon_ft_layered(3,${layers})" },
 )
 
 add_puzzle(id = "ngon", name = "Polygon",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
-    params = [#{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }],
+    ndim = 2,
+    params = [edges_param],
     gen = fn(n) {
         return #{
             name = "${@shapes/2d/polygon.name(n)}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})", // todo: doesn't need axes
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
             },
@@ -118,15 +116,15 @@ add_puzzle(id = "ngon", name = "Polygon",
 )
 
 add_puzzle(id = "ngon_ft_shallow", name = "FT Polygon (Shallow-Cut)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
             name = "{${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.A = @shapes/2d/polygon.new(n).shallow_cut_depths(divisions)
@@ -136,15 +134,15 @@ add_puzzle(id = "ngon_ft_shallow", name = "FT Polygon (Shallow-Cut)",
 )
 
 add_puzzle(id = "ngon_ft_deep", name = "FT Polygon (Deep-Cut)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
             name = "Deep {${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.A = @shapes/2d/polygon.new(n).deep_cut_depths(divisions)
@@ -154,15 +152,15 @@ add_puzzle(id = "ngon_ft_deep", name = "FT Polygon (Deep-Cut)",
 )
 
 add_puzzle(id = "ngon_ft_half", name = "FT Polygon (Half-Cut)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param],
     gen = fn(n) {
         return #{
             name = "Half-Cut {${n}}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.A = [∞, 0, -∞]
@@ -172,15 +170,15 @@ add_puzzle(id = "ngon_ft_half", name = "FT Polygon (Half-Cut)",
 )
 
 add_puzzle(id = "ngon_ft_layered", name = "FT Polygon (Layered)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param, layers_param],
     gen = fn(n, layers) {
         return #{
             name = "Layered {${n}}" ++ if layers == 3 { "" } else { " ${layers}" },
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.A = @shapes/2d/polygon.new(n).layered_cut_depths(layers)
@@ -190,15 +188,15 @@ add_puzzle(id = "ngon_ft_layered", name = "FT Polygon (Layered)",
 )
 
 add_puzzle(id = "ngon_vt_adj", name = "VT Polygon (Adjacent-Cut)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
             name = "Adjacent-Cut VT {${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
             colors = "ngon(${n})",
             twists = "ngon_vt(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.AB = @shapes/2d/polygon.new(n).adjacent_vt_cut_depths(divisions)
@@ -208,15 +206,15 @@ add_puzzle(id = "ngon_vt_adj", name = "VT Polygon (Adjacent-Cut)",
 )
 
 add_puzzle(id = "ngon_vt_half", name = "VT Polygon (Half-Cut)",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param],
     gen = fn(n) {
         return #{
             name = "Half-Cut VT {${n}}",
             colors = "ngon(${n})",
             twists = "ngon_vt(${n})",
-            tags = ngon_tags,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
                 #puz.layers.AB = [∞, 0, -∞]
@@ -226,15 +224,15 @@ add_puzzle(id = "ngon_vt_half", name = "VT Polygon (Half-Cut)",
 )
 
 add_puzzle(id = "ngon_ft_vt", name = "FT+VT Polygon",
+    tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
-    tags = ngon_tags,
+    ndim = 2,
     params = [edges_param],
     gen = fn(n) {
         return #{
             name = "FT+VT {${n}}",
             colors = "ngon(${n})",
             twists = "ngon_ft_vt(${n})",
-            tags = ngon_tags,
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))

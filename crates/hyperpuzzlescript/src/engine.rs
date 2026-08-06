@@ -114,6 +114,7 @@ pub trait HpsEngine: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct HpsGenerator {
     pub id: CatalogIdent,
+    pub name: Option<String>,
     pub kwargs: Map,
     /// `gen` function and parameters, or `None` if the generator takes no
     /// parameters.
@@ -146,7 +147,7 @@ impl HpsGenerator {
     ) -> Arc<Generator<T>> {
         let g = self.gen_fn.clone();
         let tx = eval_tx.clone();
-        let self_kwargs = self.kwargs.clone();
+        let self_kwargs = Arc::new(self.kwargs.clone());
         let generate = Arc::new(generate);
         Arc::new(Generator {
             id: self.id.clone(),
@@ -167,11 +168,26 @@ impl HpsGenerator {
 
                     let gen_fn = Arc::clone(&g.gen_fn);
                     let gen_fn_span = g.gen_fn_span;
+                    let self_kwargs = Arc::clone(&self_kwargs);
 
                     let mut scope = Scope::default();
                     scope.special.id = Some(build_ctx.id().to_string().into());
                     tx.eval_blocking(Arc::new(scope), move |ctx| {
-                        gen_fn.call(gen_fn_span, ctx, args, Map::new())
+                        let mut return_value = gen_fn.call(gen_fn_span, ctx, args, Map::new())?;
+                        if let Ok(m) = return_value.as_map_mut(gen_fn_span) {
+                            for (k, v) in &*self_kwargs {
+                                match m.entry(k.clone()) {
+                                    indexmap::map::Entry::Occupied(_) => ctx.warn_at(
+                                        v.span,
+                                        format!("map key {k:?} is overwritten by generator output"),
+                                    ),
+                                    indexmap::map::Entry::Vacant(e) => {
+                                        e.insert(v.clone());
+                                    }
+                                }
+                            }
+                        }
+                        Ok(return_value)
                     })
                     .map_err(HpsEngineError::Hps)
                     .and_then(|val| {
@@ -181,14 +197,13 @@ impl HpsGenerator {
                         if val.is::<str>() {
                             Ok(build_ctx.build_str_blocking(val.as_ref()?)?)
                         } else if val.is::<Map>() {
-                            let kwargs = val.unwrap_or_clone_arc::<Map>()?;
-                            Ok(generate(build_ctx, &tx, kwargs)?)
+                            Ok(generate(build_ctx, &tx, val.unwrap_or_clone_arc()?)?)
                         } else {
                             Err(val.type_error(Type::Str | Type::Map))?
                         }
                     })
                 } else {
-                    generate(build_ctx, &tx, self_kwargs.clone())
+                    generate(build_ctx, &tx, (*self_kwargs).clone())
                 }
                 .map_err(|e| e.to_eyre(&tx))
             }),

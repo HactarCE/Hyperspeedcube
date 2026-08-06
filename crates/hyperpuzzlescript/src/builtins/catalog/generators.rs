@@ -13,6 +13,7 @@ use crate::{ErrorExt, FnValue, Map, Result, Spanned, Type, Value};
 
 pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator> {
     pop_kwarg!(kwargs, (id, id_span): String);
+    pop_kwarg!(kwargs, name: Option<String>);
     let id = id.parse().at(id_span)?;
 
     let gen_fn = if kwargs.contains_key("gen") {
@@ -28,7 +29,12 @@ pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator>
         None
     };
 
-    Ok(HpsGenerator { id, kwargs, gen_fn })
+    Ok(HpsGenerator {
+        id,
+        name,
+        kwargs,
+        gen_fn,
+    })
 }
 
 pub(super) fn params_from_array(array: Vec<Spanned<Arc<Map>>>) -> Result<Vec<GeneratorParam>> {

@@ -20,8 +20,6 @@ impl HpsEngine for NdEuclidTwistSystemEngine {
         ctx: &mut EvalCtx<'_>,
         hps_gen: engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
-        let caller_span = ctx.caller_span;
-
         catalog.add::<TwistSystem>(hps_gen.make_generator(
             eval_tx,
             move |build_ctx, tx, kwargs| {

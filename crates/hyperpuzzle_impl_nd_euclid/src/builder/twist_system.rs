@@ -45,6 +45,8 @@ impl CatalogObject for AdHocTwistSystemBuilder {
 pub struct AdHocTwistSystemBuilder {
     /// Twist system ID.
     pub id: CatalogId,
+    /// Name of the twist system.
+    pub name: Option<String>,
 
     /// Axis system being constructed.
     pub axes: AdHocAxisSystemBuilder,
@@ -74,6 +76,7 @@ impl AdHocTwistSystemBuilder {
     pub fn new(id: CatalogId, ndim: u8) -> Self {
         Self {
             id,
+            name: None,
             axes: AdHocAxisSystemBuilder::new(ndim),
             by_id: PerTwist::new(),
             names: NameSpecBiMapBuilder::new(),
@@ -171,6 +174,8 @@ impl AdHocTwistSystemBuilder {
 
     /// Validates and constructs a twist system.
     pub fn build(&self, build_ctx: &BuildCtx) -> Result<Arc<TwistSystem>> {
+        let name = self.name.clone().unwrap_or_else(|| self.id.to_string());
+
         // Build axis system.
         let axes = self.axes.build()?;
         let axis_vectors = axes.components.get::<NdEuclidAxisVectors>()?;
@@ -263,6 +268,7 @@ impl AdHocTwistSystemBuilder {
 
         Ok(Arc::new(TwistSystem {
             id: self.id.clone(),
+            name,
             components,
 
             axes: Arc::new(axes),

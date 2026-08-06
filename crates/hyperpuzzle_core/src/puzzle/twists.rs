@@ -14,6 +14,8 @@ use crate::{
 pub struct TwistSystem {
     /// Catalog ID.
     pub id: CatalogId,
+    /// User-friendly name for the twist system.
+    pub name: String,
     /// Extra components.
     pub components: ComponentList<Self>,
 
@@ -47,6 +49,7 @@ impl TwistSystem {
     pub fn new_empty() -> Self {
         Self {
             id: "empty".parse().expect("bad ID"),
+            name: "Empty".to_string(),
             components: ComponentList::new(),
             axes: Arc::new(AxisSystem::new_empty()),
             axis_from_family: Box::new(|_| None),

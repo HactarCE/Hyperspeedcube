@@ -53,30 +53,6 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|13", id = "todo")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|14", id = "todo")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|15", id = "todo")
 
-add_puzzle_generator(
-    id = "test_dodeca_puzzle",
-    name = "TEST 24-CELL PUZZLE",
-    version = "0.1.0",
-    engine = "symmetric",
-    ndim = 4,
-    params = [],
-    gen = fn() {
-        export fn build() {
-            s = @shapes/4d/24cell.new()
-            #shape.sym = s.sym
-            #shape.facets ++= [s.facet]
-            #twists.sym = s.sym
-            #twists.points ++= [s.facet]
-            #twists.axes ++= [s.facet]
-            #twists.axes ++= [{ vec = s.sym.oox, prefix = "a" }, s.sym.oox]
-            // C = 1.40126
-            // I = 1.11352
-            #twists.layers.A = [∞, 0.5]
-            #twists.stabilizer_twists ++= [[["A", "B"], 0.5]]
-        }
-    }
-)
-
 // for id in ["megaminx", "curvy_starminx", "pentultimate"] {
 //     add_puzzle_generator(
 //         id = id,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::eyre;
 use hypergroup::GenSeq;
 use hypermath::Float;
-use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry, TAGS, TagSet};
+use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
@@ -13,7 +13,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{CutDistances, builder::*, spec::SimpleOrbitSpec};
+use crate::{CutDistances, builder::*};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -28,27 +28,33 @@ impl HpsEngine for SymmetricPuzzleEngine {
         let caller_span = ctx.caller_span;
 
         let id = &hps_gen.id;
-        pop_kwarg!(hps_gen.kwargs, name: String = {
+        let name = hps_gen.name.clone().unwrap_or_else(|| {
             ctx.warn_at(
                 caller_span,
                 format!("missing `name` for puzzle generator `{id}`"),
             );
             id.to_string()
         });
+
         pop_kwarg!(hps_gen.kwargs, aliases: Vec<String> = vec![]);
         pop_kwarg!(hps_gen.kwargs, tags: Option<Arc<Map>>);
 
         let mut tags = tags.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
-        if hps_gen.gen_fn.is_some() {
-            tags.insert_named("generator", true.into())
-                .map_err(|e| eyre!(e))?;
-        }
-        tags.insert_named("solid", true.into())
-            .map_err(|e| eyre!(e))?;
-        tags.insert_named("doctrinaire", true.into())
-            .map_err(|e| eyre!(e))?;
-        tags.insert_named("pseudodoctrinaire", true.into())
-            .map_err(|e| eyre!(e))?;
+        // IIFE to mimic try_block
+        (|| {
+            if hps_gen.gen_fn.is_some() {
+                tags.insert_named("generator", true.into())?;
+            }
+            tags.insert_named("solid", true.into())?;
+            tags.insert_named("doctrinaire", true.into())?;
+            tags.insert_named("pseudodoctrinaire", true.into())?;
+            if let Some(v) = hps_gen.kwargs.get("ndim")
+                && let Ok(ndim) = v.ref_to::<i64>()
+            {
+                tags.insert_named("ndim", ndim.into())?;
+            }
+            eyre::Ok(())
+        })()?;
 
         let generator_list_entry = Arc::new(PuzzleListEntry {
             id: CatalogId::new(id.clone(), vec![], None),
@@ -116,14 +122,22 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let colors = Arc::new(ColorSystemDisjointUnion::from_color_system(
                     build_ctx.build_str_blocking::<ColorSystem>(&colors)?,
                 ));
-                let twists = match (twists, ndim) {
-                    (Some(twists), None) => {
-                        build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?
-                    }
-                    (None, Some(ndim)) => build_ctx
-                        .build_str_blocking::<TwistSystemProduct>(&format!("empty({ndim})"))?,
-                    _ => Err(eyre!("exactly one of `ndim` and `twists` is required"))?,
+                let twists = if let Some(twists) = twists {
+                    build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?
+                } else if let Some(ndim) = ndim {
+                    build_ctx.build_str_blocking::<TwistSystemProduct>(&format!("empty({ndim})"))?
+                } else {
+                    Err(eyre!("at least one of `ndim` and `twists` is required"))?
                 };
+                let twists_ndim = twists.ndim();
+                if let Some(expected_ndim) = ndim
+                    && twists_ndim != expected_ndim
+                {
+                    Err(eyre!(
+                        "twist system has ndim={twists_ndim:?} \
+                         but expected ndim={expected_ndim:?}"
+                    ))?;
+                }
 
                 let mut scope = Scope::default();
                 scope.special.id = Some(id.to_string().into());
