@@ -5,14 +5,14 @@ export fn axis_vec(axis_name: Str) -> Vec {
 export fn build_symmetric_shape(shape: Map) {
     #shape.sym = shape.sym
     #shape.colors = shape.colors
-    #shape.points ++= shape.named_points
-    #shape.facets ++= [shape.facet]
+    #shape.points = shape.points
+    #shape.facets = [shape.facet]
 }
 
 export fn build_symmetric_ft_twists(shape: Map) {
     #twists.sym = shape.sym
-    #twists.points ++= [shape.facet]
-    #twists.axes ++= [shape.facet]
+    #twists.points = shape.points
+    #twists.axes = [shape.facet]
 }
 
 export fn add_symmetric_ft_twist_system(

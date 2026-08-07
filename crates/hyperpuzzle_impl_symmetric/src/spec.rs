@@ -74,8 +74,8 @@ pub struct FactorPuzzleSpec {
     /// Each facet is assigned a unique color.
     pub facet_orbits: Vec<SimpleOrbitSpec>,
 
-    /// ID for the color system.
-    pub colors_id: CatalogId,
+    /// ID for the color system, or `None` to use an ad-hoc color system.
+    pub colors_id: Option<CatalogId>,
     /// Twist system.
     pub twists: Arc<TwistSystemProduct>,
 

@@ -94,6 +94,7 @@ pub(super) fn twist_system_product_from_hps(
         .at(sym_span)?
         .map(|g, m| (GenSeq::new([g]), m));
 
+    let mut autonames = crate::named_point_autonames();
     let named_point_orbits: Vec<NamedPointOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
         &mut twists_map,
         build_span,
@@ -101,7 +102,7 @@ pub(super) fn twist_system_product_from_hps(
         "points",
     )?
     .into_iter()
-    .map(|value| super::named_point_orbit_from_value(ctx, &generators, value))
+    .map(|value| super::named_point_orbit_from_value(ctx, &generators, value, &mut autonames))
     .try_collect()?;
 
     let axis_orbits = super::simple_orbit_from_value(pop_map_key_in_special_var(

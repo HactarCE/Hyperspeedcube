@@ -14,7 +14,7 @@ add_twist_system( // Line
     build = fn() {
         #twists.shape = @shapes/1d/line.new()
         #twists.sym = #twists.shape.sym
-        #twists.points = #twists.shape.named_points
+        #twists.points = #twists.shape.points
         #twists.axes ++= [#twists.sym.x]
     },
 )

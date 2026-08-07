@@ -110,7 +110,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         id.to_string()
                     },
                     twists: Option<String>,
-                    (colors, colors_span): String,
+                    colors: Option<Spanned<String>>,
                     ndim: Option<u8>,
                     tags: Option<Arc<Map>>,
                     (build, build_span): Arc<FnValue>,
@@ -169,6 +169,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         .at(sym_span)?
                         .map(|g, m| (GenSeq::new([g]), m));
 
+                    let mut autonames = crate::named_point_autonames();
                     let named_point_orbits: Vec<NamedPointOrbitSpec> =
                         pop_map_key_in_special_var::<Vec<Value>>(
                             &mut shape_map,
@@ -177,7 +178,14 @@ impl HpsEngine for SymmetricPuzzleEngine {
                             "points",
                         )?
                         .into_iter()
-                        .map(|value| super::named_point_orbit_from_value(ctx, &generators, value))
+                        .map(|value| {
+                            super::named_point_orbit_from_value(
+                                ctx,
+                                &generators,
+                                value,
+                                &mut autonames,
+                            )
+                        })
                         .try_collect()?;
 
                     let facet_orbits: Vec<_> =
@@ -228,7 +236,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                                 coxeter_matrix,
                                 named_point_orbits,
                                 facet_orbits,
-                                colors_id: colors.parse().at(colors_span)?,
+                                colors_id: colors
+                                    .map(|(s, span)| s.parse().at(span))
+                                    .transpose()?,
                                 twists,
                                 axis_orbit_cut_distances,
                             },

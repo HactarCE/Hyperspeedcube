@@ -197,7 +197,10 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
 
 fn build_product_puzzle_impl(build_ctx: BuildCtx) -> Result<Arc<Puzzle>> {
     let puzzle_product = build_ctx.build_blocking::<PuzzleProduct>(build_ctx.id())?;
-    let colors = build_ctx.build_blocking::<ColorSystem>(&puzzle_product.colors_id())?;
+    let colors = match puzzle_product.colors_id() {
+        Some(colors_id) => build_ctx.build_blocking::<ColorSystem>(&colors_id)?,
+        None => puzzle_product.build_ad_hoc_color_system()?,
+    };
     let twists = build_ctx.build_blocking::<TwistSystem>(&puzzle_product.twists_id())?;
     puzzle_product.build(&build_ctx, colors, twists, &mut build_ctx.warn_fn())
 }
@@ -426,10 +429,10 @@ impl ProductPuzzleState {
     }
 }
 
-fn autonames() -> impl Iterator<Item = String> {
+fn named_point_autonames() -> impl Iterator<Item = String> {
     (0..)
         .map(hypuz_notation::family::SequentialUppercaseName)
-        .map(|name| format!("ε{name}"))
+        .map(|name| format!("ZZ{name}"))
 }
 
 fn autoname_orbit(sym: &hypergroup::IsometryGroup, point: Vector) -> Vec<(AbbrGenSeq, String)> {
@@ -442,7 +445,7 @@ fn autoname_orbit(sym: &hypergroup::IsometryGroup, point: Vector) -> Vec<(AbbrGe
     )
     .into_iter()
     .map(|(gen_seq, _, _)| gen_seq)
-    .zip(crate::autonames())
+    .zip(crate::named_point_autonames())
     .collect()
 }
 
@@ -479,6 +482,7 @@ fn shuffle_group_generators(
         return Ok(group.clone());
     }
 
+    // TODO: use motors from original group for better numerical stability
     // TODO: add more generators, especially for polygons
     let mut generators = group.generator_motors().to_vec();
     for _ in 0..SHUFFLE_ITERATIONS {

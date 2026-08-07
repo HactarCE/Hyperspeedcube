@@ -94,30 +94,53 @@ fn named_point_orbit_from_value(
     ctx: &mut EvalCtx<'_>,
     generators: &[(GenSeq, Motor)],
     value: Value,
+    autonames: &mut impl Iterator<Item = String>,
 ) -> hyperpuzzlescript::Result<NamedPointOrbitSpec> {
-    let mut map = value.as_ref::<Map>()?.clone();
-    let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
-    let ElementNames(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
-    expect_end_of_map(map, value.span);
+    if value.is::<Map>() {
+        let mut map = value.as_ref::<Map>()?.clone();
+        let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
+        let ElementNames(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
+        expect_end_of_map(map, value.span)?;
 
-    let mut vectors = vec![];
-    let mut gen_seqs = vec![];
-    let mut transforms = vec![];
-    for (gen_seq, motor, v) in hypergroup::orbit_geometric_with_gen_seq(generators, init_vector) {
-        vectors.push(v);
-        gen_seqs.push(gen_seq);
-        transforms.push(motor);
+        let mut vectors = vec![];
+        let mut gen_seqs = vec![];
+        let mut transforms = vec![];
+        for (gen_seq, motor, v) in hypergroup::orbit_geometric_with_gen_seq(generators, init_vector)
+        {
+            vectors.push(v);
+            gen_seqs.push(gen_seq);
+            transforms.push(motor);
+        }
+        let names = orbit_names.to_strings(ctx, &transforms)?;
+
+        let orbit_members = itertools::izip!(vectors, names, gen_seqs)
+            .map(|(vector, name, abbr_gen_seq)| NamedPointSpec {
+                vector,
+                name,
+                abbr_gen_seq,
+            })
+            .collect();
+        Ok(NamedPointOrbitSpec { orbit_members })
+    } else if value.is::<Vector>() {
+        ctx.warn_at(
+            value.span,
+            "auto-generated named points may not be future-compatible! \
+            use the HPS generator tool to make stable named points",
+        );
+
+        let init_vector = value.to::<Vector>()?;
+        let orbit_members = hypergroup::orbit_geometric_with_gen_seq(generators, init_vector)
+            .into_iter()
+            .map(|(abbr_gen_seq, _, vector)| NamedPointSpec {
+                vector,
+                name: autonames.next().expect("exhausted autonames").into(),
+                abbr_gen_seq,
+            })
+            .collect();
+        Ok(NamedPointOrbitSpec { orbit_members })
+    } else {
+        Err(value.type_error(Type::Map | Type::Vec))
     }
-    let names = orbit_names.to_strings(ctx, &transforms)?;
-
-    let orbit_members = itertools::izip!(vectors, names, gen_seqs)
-        .map(|(vector, name, abbr_gen_seq)| NamedPointSpec {
-            vector,
-            name,
-            abbr_gen_seq,
-        })
-        .collect();
-    Ok(NamedPointOrbitSpec { orbit_members })
 }
 
 fn simple_orbit_from_value(list: Vec<Value>) -> hyperpuzzlescript::Result<Vec<SimpleOrbitSpec>> {

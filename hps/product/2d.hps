@@ -20,7 +20,7 @@ use edges_param from @shapes/2d/polygon
 edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 50 }
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
 
-add_twist_system(id = "ngon_ft",
+add_twist_system(id = "ngon_ft", name = "FT Polygon",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -29,16 +29,16 @@ add_twist_system(id = "ngon_ft",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
-                #twists.points = shape.named_points
-                #twists.axes ++= [shape.facet]
-                #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2]]
-                #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+                #twists.points = shape.points
+                #twists.axes = [shape.facet]
+                #twists.stabilizer_twists = [[["A", "B"], shape.edge_length/2]]
+                #twists.stabilizer_sets = [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
             },
         }
     },
 )
 
-add_twist_system(id = "ngon_vt",
+add_twist_system(id = "ngon_vt", name = "VT Polygon",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -47,16 +47,16 @@ add_twist_system(id = "ngon_vt",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
-                #twists.points = shape.named_points
-                #twists.axes ++= [shape.vertex]
-                #twists.stabilizer_twists ++= [[["AB", "A"], shape.edge_length/2]]
-                #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+                #twists.points = shape.points
+                #twists.axes = [shape.vertex]
+                #twists.stabilizer_twists = [[["AB", "A"], shape.edge_length/2]]
+                #twists.stabilizer_sets = [[["A", "B"], lerp(shape.circumradius, shape.inradius, GIZMO_VERTEX_FACTOR)]]
             },
         }
     },
 )
 
-add_twist_system(id = "ngon_ft_vt",
+add_twist_system(id = "ngon_ft_vt", name = "FT+VT Polygon",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -64,11 +64,19 @@ add_twist_system(id = "ngon_ft_vt",
         return #{
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
+                doubled_polygon = @shapes/2d/polygon.new(2*n)
+                stabilizer_twist_radius = doubled_polygon.edge_length/2 * shape.inradius/doubled_polygon.inradius
                 #twists.sym = shape.sym
-                #twists.points = shape.named_points
-                #twists.axes ++= [shape.facet, shape.vertex]
-                #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2], [["AB", "A"], shape.edge_length/2]]
-                #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+                #twists.points = shape.points
+                #twists.axes = [
+                    shape.facet,
+                    shape.vertex.unit * shape.facet.mag,
+                ]
+                #twists.stabilizer_twists = [
+                    [["A", "B"], stabilizer_twist_radius],
+                    [["AB", "A"], stabilizer_twist_radius],
+                ]
+                #twists.stabilizer_sets = [[["A", "B"], shape.inradius]]
             },
         }
     },

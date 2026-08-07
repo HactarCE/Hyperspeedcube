@@ -1,7 +1,10 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::sync::{Arc, Weak};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+};
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::AbbrGenSeq;
@@ -97,6 +100,7 @@ impl PuzzleProduct {
                 orbit.expand_and_name(&group, &named_point_unit_vectors, &named_point_action)?;
             let mut orbit_elements = vec![];
             let mut orbit_generator_sequences = vec![];
+            let mut gen_seq_to_name = HashMap::new();
             for (elem, facet_pole_vector, named_point_sets) in orbit_members {
                 let plane =
                     Hyperplane::from_pole(facet_pole_vector).ok_or_eyre("bad hyperplane")?;
@@ -113,7 +117,18 @@ impl PuzzleProduct {
                 };
 
                 orbit_elements.push(Some(color.clone()));
-                orbit_generator_sequences.push(AbbrGenSeq::new(group.factorization(elem), None));
+                // This could be done more easily by using
+                // `orbit_geometric_with_gen_seq()` but oh well.
+                let factorization = group.factorization(elem).collect_vec();
+                gen_seq_to_name.insert(factorization.clone(), gen_seq_to_name.len());
+                let abbr_gen_seq = if let Some(tail) = factorization.get(1..)
+                    && let Some(&end) = gen_seq_to_name.get(tail)
+                {
+                    AbbrGenSeq::new([factorization[0]], Some(end))
+                } else {
+                    AbbrGenSeq::new(factorization, None)
+                };
+                orbit_generator_sequences.push(abbr_gen_seq);
 
                 shape_builder.carve(plane, color)?;
             }
@@ -210,8 +225,14 @@ impl PuzzleProduct {
         })
     }
 
-    pub fn colors_id(&self) -> CatalogId {
-        crate::disjoint_union_id(self.factors.iter().map(|f| &f.colors_id))
+    pub fn colors_id(&self) -> Option<CatalogId> {
+        Some(crate::disjoint_union_id(
+            self.factors
+                .iter()
+                .map(|f| f.colors_id.as_ref())
+                .collect::<Option<Vec<_>>>()?
+                .into_iter(),
+        ))
     }
     pub fn twists_id(&self) -> CatalogId {
         crate::product_id(self.factors.iter().map(|f| &f.twists_id))
@@ -377,6 +398,10 @@ impl PuzzleProduct {
         }))
     }
 
+    pub fn build_ad_hoc_color_system(&self) -> Result<Arc<ColorSystem>> {
+        self.shape.build_ad_hoc_color_system(self.id.clone())
+    }
+
     pub fn id(&self) -> &CatalogId {
         &self.id
     }
@@ -390,7 +415,8 @@ impl PuzzleProduct {
 struct PuzzleProductFactor {
     id: CatalogId,
     name: String,
-    colors_id: CatalogId,
+    /// Color system ID, or `None` to use an ad-hoc color system.
+    colors_id: Option<CatalogId>,
     twists_id: CatalogId,
 }
 

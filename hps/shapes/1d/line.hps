@@ -10,7 +10,7 @@ export fn new(t: Transform) -> Map {
     export vertex = sym.x.unit
     export facet = vertex
 
-    export named_points = [#{
+    export points = [#{
         vector = vertex,
         names = sym.names(point(vertex), #{
             A = [],
