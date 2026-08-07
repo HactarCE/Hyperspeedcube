@@ -2,14 +2,18 @@ use std::collections::{BTreeMap, HashMap, HashSet, hash_map};
 use std::ops::Index;
 use std::sync::Arc;
 
-use hyperpuzzle_core::{Axis, IndexOutOfRange, Names};
+use eyre::{OptionExt, bail};
+use hypergroup::{Group, IsometryGroup};
+use hypermath::{APPROX, ApproxHashMap, Point, Vector, VectorRef};
+use hyperpuzzle_core::{IndexOutOfRange, Names};
 use hypuz_notation::charsets::CharSet;
 use hypuz_notation::{Str, family::SequentialLowercaseName};
 use hypuz_util::ti::{IndexOverflow, TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use crate::NamedPoint;
+use super::NamedPointOrbit;
+use crate::{NamedPoint, NamedPointOrbitSpec, PerNamedPoint};
 
 /// Trie of strings, none of which is a prefix of any other.
 ///
@@ -277,14 +281,18 @@ pub enum NameError {
     #[error("{0}")]
     IndexOverflow(#[from] IndexOverflow),
     #[error("named point name cannot be empty")]
-    EmptyNamedPoint,
-    #[error("axis name cannot be empty")]
-    EmptyAxis,
+    EmptyNamedPointName,
+    #[error("{member_type} name cannot be empty")]
+    EmptyMemberName { member_type: &'static str },
     #[error(
-        "conflicting permutation patterns for axes {axis1:?} and {axis2:?}; \
+        "conflicting permutation patterns for {member_type} {name1:?} and {member_type} {name2:?}; \
          try using a distinct prefix for one of them"
     )]
-    ConflictingAxisNamePatterns { axis1: Str, axis2: Str },
+    ConflictingMemberNamePatterns {
+        member_type: &'static str,
+        name1: Str,
+        name2: Str,
+    },
     #[error(
         "named point name {name:?} contains {char:?}; only \
          uppercase Latin and uppercase Greek are allowed"
@@ -296,42 +304,54 @@ pub enum NameError {
     )]
     BadNamedPointEndChar { char: char, name: Str },
     #[error(
-        "axis prefix contains char {0:?}, which
-         is also used in at least one named point"
+        "{member_type} prefix contains char {char:?},
+         which is also used in at least one named point"
     )]
-    AxisPrefixCharConflictsWithNamedPoint(char),
+    MemberPrefixCharConflictsWithNamedPoint {
+        member_type: &'static str,
+        char: char,
+    },
     #[error("{0:?} does not start with a named point")]
     DoesNotStartWithNamedPoint(Str),
-    #[error("no axis with prefix {prefix:?} followed by {len} named points")]
-    UnknownAxisNamePattern { prefix: Str, len: usize },
-    #[error("no axis with name {axis:?} (canonicalized to {canonicalized:?})")]
-    UnknownAxis { axis: Str, canonicalized: Str },
+    #[error("no {member_type} with prefix {prefix:?} followed by {len} named points")]
+    UnknownMemberNamePattern {
+        member_type: &'static str,
+        prefix: Str,
+        len: usize,
+    },
+    #[error("no {member_type} with name {name:?} (canonicalized to {canonicalized:?})")]
+    UnknownMember {
+        member_type: &'static str,
+        name: Str,
+        canonicalized: Str,
+    },
     #[error("no named point with name {named_point:?}")]
     UnknownNamedPoint { named_point: Str },
 }
 
-/// Names for the named points and axes of a product puzzle twist system.
+/// Names for the named points and axes/facets of a product puzzle or product
+/// twist system.
 ///
 /// When there are multiple factors, each is assigned a unique
 /// [`SequentialLowercaseName`].
 #[derive(Debug, Default, Clone)]
-pub struct ProductTwistSystemNames {
-    pub factors: Vec<FactorTwistSystemNames>,
-    /// Axis ID offset for each term.
-    factor_axis_offsets: Vec<usize>,
+pub struct ProductNamedPointBasedNames<I> {
+    pub factors: Vec<FactorNamedPointBasedNames<I>>,
+    /// Member ID offset for each factor.
+    factor_member_offsets: Vec<usize>,
 }
 
-impl ProductTwistSystemNames {
-    pub fn product(factors: Vec<FactorTwistSystemNames>) -> Self {
-        let mut factor_axis_offsets = vec![];
+impl<I: TypedIndex> ProductNamedPointBasedNames<I> {
+    pub fn product(factors: Vec<FactorNamedPointBasedNames<I>>) -> Self {
+        let mut factor_member_offsets = vec![];
         let mut i = 0;
-        for term in &factors {
-            factor_axis_offsets.push(i);
-            i += term.axis_count();
+        for factor in &factors {
+            factor_member_offsets.push(i);
+            i += factor.member_count();
         }
         Self {
             factors,
-            factor_axis_offsets,
+            factor_member_offsets,
         }
     }
 
@@ -339,20 +359,18 @@ impl ProductTwistSystemNames {
         &self,
     ) -> Result<Names<NamedPoint>, hyperpuzzle_core::NameError> {
         Names::new_simple(prefixed_if_needed(
-            self.factors
-                .iter()
-                .map(|term| &term.named_point_names.id_to_str),
+            self.factors.iter().map(|f| &f.named_point_names.id_to_str),
         ))
     }
 
-    pub fn build_axis_names(&self) -> Result<Names<Axis>, hyperpuzzle_core::NameError> {
+    pub fn build_member_names(&self) -> Result<Names<I>, hyperpuzzle_core::NameError> {
         let needs_prefix = self.factors.len() != 1;
 
         Names::new(
             prefixed_if_needed(
                 self.factors
                     .iter()
-                    .map(|term| &term.canonical_axis_names.id_to_name),
+                    .map(|f| &f.canonical_member_names.id_to_name),
             ),
             {
                 let this = self.clone();
@@ -362,9 +380,13 @@ impl ProductTwistSystemNames {
                     } else {
                         (SequentialLowercaseName(0), s)
                     };
-                    let &offset = this.factor_axis_offsets.get(i as usize)?;
-                    let term = this.factors.get(i as usize)?;
-                    term.axis_from_name(rest).ok()?.offset_index(offset).ok()
+                    let &offset = this.factor_member_offsets.get(i as usize)?;
+                    let factor = this.factors.get(i as usize)?;
+                    factor
+                        .member_from_name(rest)
+                        .ok()?
+                        .offset_index(offset)
+                        .ok()
                 }
             },
         )
@@ -389,26 +411,102 @@ fn prefixed_if_needed<'a, I: TypedIndex>(
         .collect()
 }
 
+/// Names for axes or facets ("members") based on named points.
 #[derive(Debug, Default, Clone)]
-pub struct FactorTwistSystemNames {
+pub struct FactorNamedPointBasedNames<I> {
     /// Characters used in name point names.
     named_point_chars: HashSet<char>,
-    /// Named points, which are used to name axes.
+    /// Named points, which are used to name members.
     named_point_names: Arc<PrefixFreeBiMap<NamedPoint>>,
-    /// Axis name patterns.
+    /// Member name patterns.
     ///
-    /// An axis name pattern says which indices of named points in the name must
-    /// be permuted to canonicalize the axis name.
+    /// A member name pattern says which indices of named points in the name
+    /// must be permuted to canonicalize the member name.
     ///
-    /// The axis prefix must only use characters that do not start a named
+    /// The member prefix must only use characters that do not start a named
     /// point. In practice, named points typically use uppercase letters and
-    /// axis prefixes typically use lowercase Latin letters.
-    axis_name_patterns: HashMap<AxisNamePatternKey, AxisNamePatternValue>,
-    /// Map between axes and canonical names.
-    canonical_axis_names: NameBiMap<Axis>,
+    /// member prefixes typically use lowercase Latin letters.
+    member_name_patterns: HashMap<MemberNamePatternKey, MemberNamePatternValue>,
+    /// Map between members and canonical names.
+    canonical_member_names: NameBiMap<I>,
 }
 
-impl FactorTwistSystemNames {
+impl<I: TypedIndex> FactorNamedPointBasedNames<I> {
+    pub fn from_spec(
+        group: &IsometryGroup,
+        orbit_list: &[NamedPointOrbitSpec],
+    ) -> eyre::Result<(
+        PerNamedPoint<Vector>,
+        PerNamedPoint<Vector>,
+        Vec<NamedPointOrbit>,
+        Self,
+    )> {
+        let mut named_point_vectors = PerNamedPoint::new();
+        let mut named_point_unit_vectors = PerNamedPoint::new();
+        let mut named_point_names = PrefixFreeBiMap::new();
+        let mut named_point_orbits = vec![];
+        let mut named_point_id_offset = 0;
+        for orbit in orbit_list
+            .iter()
+            .sorted_by_cached_key(|orbit| orbit.min_name())
+        {
+            let mut abbr_gen_seqs = vec![];
+            let sorted_points_in_orbit = orbit
+                .orbit_members
+                .iter()
+                .sorted_by_key(|point| &point.name);
+            for point in sorted_points_in_orbit {
+                // Validate name
+                let name = point.name.clone();
+                if let Some(bad_char) = name.chars().find(|c| {
+                    !matches!(
+                        hypuz_notation::charsets::classify(*c),
+                        Some(CharSet::UppercaseLatin | CharSet::UppercaseGreek),
+                    )
+                }) {
+                    bail!("named point {name:?} contains disallowed char {bad_char:?}");
+                }
+
+                named_point_vectors.push(point.vector.clone())?;
+                named_point_unit_vectors.push(
+                    point
+                        .vector
+                        .normalize()
+                        .ok_or_eyre("named point cannot be zero")?,
+                )?;
+                named_point_names.push(name)?;
+                abbr_gen_seqs.push(point.abbr_gen_seq.clone());
+            }
+            named_point_orbits.push(NamedPointOrbit {
+                len: orbit.len(),
+                id_offset: named_point_id_offset,
+                abbr_gen_seqs,
+            });
+            named_point_id_offset += orbit.len();
+        }
+
+        // Check that the named points are closed under the group action.
+        let vector_to_named_point = ApproxHashMap::from_iter(
+            APPROX,
+            named_point_vectors.iter_values().map(|v| (v.clone(), ())),
+        );
+        for v in named_point_vectors.iter_values() {
+            for generator_motor in group.generator_motors().iter_values() {
+                let v2 = generator_motor.transform_vector(v);
+                if !vector_to_named_point.contains_key(v2.clone()) {
+                    bail!("missing named point at vector {v2:?}");
+                }
+            }
+        }
+
+        Ok((
+            named_point_vectors,
+            named_point_unit_vectors,
+            named_point_orbits,
+            Self::new(Arc::new(named_point_names))?,
+        ))
+    }
+
     pub fn new(named_point_names: Arc<PrefixFreeBiMap<NamedPoint>>) -> Result<Self, NameError> {
         // Validate named point names
         for (_, name) in &named_point_names.id_to_str {
@@ -425,7 +523,7 @@ impl FactorTwistSystemNames {
             }
 
             let Some(last_char) = name.chars().last() else {
-                return Err(NameError::EmptyNamedPoint);
+                return Err(NameError::EmptyNamedPointName);
             };
             if !hypuz_notation::charsets::is_latin_letter(last_char) {
                 return Err(NameError::BadNamedPointEndChar {
@@ -444,19 +542,23 @@ impl FactorTwistSystemNames {
         Ok(Self {
             named_point_chars,
             named_point_names,
-            axis_name_patterns: HashMap::new(),
-            canonical_axis_names: NameBiMap::new(),
+            member_name_patterns: HashMap::new(),
+            canonical_member_names: NameBiMap::new(),
         })
+    }
+
+    pub fn named_point_names(&self) -> &PrefixFreeBiMap<NamedPoint> {
+        &self.named_point_names
     }
 
     pub fn named_point_count(&self) -> usize {
         self.named_point_names.len()
     }
-    pub fn axis_count(&self) -> usize {
-        self.canonical_axis_names.len()
+    pub fn member_count(&self) -> usize {
+        self.canonical_member_names.len()
     }
 
-    /// Adds an axis.
+    /// Adds a member.
     ///
     /// - `prefix` must not use any characters that start a named point name.
     /// - `named_point_sets` is a list of sets of named points. The named points
@@ -467,22 +569,25 @@ impl FactorTwistSystemNames {
     /// with no separators.
     ///
     /// Returns an error if the canonical name conflicts with
-    pub fn add_axis(
+    pub fn add_member(
         &mut self,
         prefix: &str,
         mut named_point_sets: Vec<Vec<NamedPoint>>,
-    ) -> Result<Axis, NameError> {
-        // Keep axis prefixes maximally distinguishable from named points for
+    ) -> Result<I, NameError> {
+        // Keep member prefixes maximally distinguishable from named points for
         // parsing reasons.
         if let Some(c) = prefix.chars().find(|c| self.named_point_chars.contains(c)) {
-            return Err(NameError::AxisPrefixCharConflictsWithNamedPoint(c));
+            return Err(NameError::MemberPrefixCharConflictsWithNamedPoint {
+                member_type: I::TYPE_NAME,
+                char: c,
+            });
         }
 
-        // Canonicalize axis name
+        // Canonicalize member name
         for set in &mut named_point_sets {
             set.sort();
         }
-        let new_canonical_axis_name = format!(
+        let new_canonical_member_name = format!(
             "{prefix}{}",
             named_point_sets
                 .iter()
@@ -493,28 +598,31 @@ impl FactorTwistSystemNames {
         .into();
 
         let set_sizes = named_point_sets.iter().map(|set| set.len()).collect_vec();
-        let axis_name_pattern_key = AxisNamePatternKey {
+        let member_name_pattern_key = MemberNamePatternKey {
             prefix: prefix.into(),
             len: set_sizes.iter().sum::<usize>(),
         };
-        match self.axis_name_patterns.entry(axis_name_pattern_key) {
+        match self.member_name_patterns.entry(member_name_pattern_key) {
             hash_map::Entry::Occupied(e) => {
                 if e.get().set_sizes != set_sizes {
-                    return Err(NameError::ConflictingAxisNamePatterns {
-                        axis1: e.get().example.clone(),
-                        axis2: new_canonical_axis_name,
+                    return Err(NameError::ConflictingMemberNamePatterns {
+                        member_type: I::TYPE_NAME,
+                        name1: e.get().example.clone(),
+                        name2: new_canonical_member_name,
                     });
                 }
             }
             hash_map::Entry::Vacant(e) => {
-                e.insert(AxisNamePatternValue {
+                e.insert(MemberNamePatternValue {
                     set_sizes,
-                    example: new_canonical_axis_name.clone(),
+                    example: new_canonical_member_name.clone(),
                 });
             }
         }
 
-        Ok(self.canonical_axis_names.push(new_canonical_axis_name)?)
+        Ok(self
+            .canonical_member_names
+            .push(new_canonical_member_name)?)
     }
 
     pub fn named_point_from_name(&self, named_point_name: &str) -> Result<NamedPoint, NameError> {
@@ -525,18 +633,20 @@ impl FactorTwistSystemNames {
             })
     }
 
-    pub fn axis_from_name<'a>(&self, axis_name: &str) -> Result<Axis, NameError> {
-        if axis_name.is_empty() {
-            return Err(NameError::EmptyAxis);
+    pub fn member_from_name<'a>(&self, member_name: &str) -> Result<I, NameError> {
+        if member_name.is_empty() {
+            return Err(NameError::EmptyMemberName {
+                member_type: I::TYPE_NAME,
+            });
         }
 
-        let prefix_len = axis_name
+        let prefix_len = member_name
             .char_indices()
             .find(|(_, c)| self.named_point_names.str_to_id.contains_prefix(*c))
             .map(|(i, _)| i)
-            .unwrap_or(axis_name.len());
+            .unwrap_or(member_name.len());
 
-        let (prefix, mut named_points_str) = axis_name.split_at(prefix_len);
+        let (prefix, mut named_points_str) = member_name.split_at(prefix_len);
 
         let mut named_points: SmallVec<[NamedPoint; 8]> = smallvec![];
         while !named_points_str.is_empty() {
@@ -547,69 +657,72 @@ impl FactorTwistSystemNames {
                 .ok_or_else(|| NameError::DoesNotStartWithNamedPoint(named_points_str.into()))?;
             assert!(
                 rest.len() < named_points_str.len(),
-                "infinite loop while parsing axis name",
+                "infinite loop while parsing {} name",
+                I::TYPE_NAME,
             );
             named_points.push(named_point);
             named_points_str = rest;
         }
 
         let name_pattern = self
-            .axis_name_patterns
-            .get(&AxisNamePatternKey {
+            .member_name_patterns
+            .get(&MemberNamePatternKey {
                 prefix: prefix.into(),
                 len: named_points.len(),
             })
-            .ok_or_else(|| NameError::UnknownAxisNamePattern {
+            .ok_or_else(|| NameError::UnknownMemberNamePattern {
+                member_type: I::TYPE_NAME,
                 prefix: prefix.into(),
                 len: named_points.len(),
             })?;
 
         name_pattern.canonicalize(&mut named_points);
 
-        let mut canonicalized_axis_name: Str = prefix.into();
+        let mut canonicalized_member_name: Str = prefix.into();
         for p in named_points {
-            canonicalized_axis_name += &*self.named_point_names[p];
+            canonicalized_member_name += &*self.named_point_names[p];
         }
 
-        self.canonical_axis_names
-            .name_to_id(&canonicalized_axis_name)
-            .ok_or_else(|| NameError::UnknownAxis {
-                axis: axis_name.into(),
-                canonicalized: canonicalized_axis_name,
+        self.canonical_member_names
+            .name_to_id(&canonicalized_member_name)
+            .ok_or_else(|| NameError::UnknownMember {
+                member_type: I::TYPE_NAME,
+                name: member_name.into(),
+                canonicalized: canonicalized_member_name,
             })
     }
 }
 
-/// Key for an axis name pattern.
+/// Key for a member name pattern.
 ///
-/// This can be discerned simply by parsing the axis name.
+/// This can be discerned simply by parsing the member name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct AxisNamePatternKey {
+struct MemberNamePatternKey {
     /// Prefix before the list of named points.
     ///
     /// The prefix must not conflict with the name of any named point.
     prefix: Str,
-    /// Number of named points in the axis name.
+    /// Number of named points in the member name.
     len: usize,
 }
 
-/// Description of an axis name pattern, along with [`AxisNamePatternKey`].
+/// Description of a member name pattern, along with [`MemberNamePatternKey`].
 ///
-/// After parsing an axis name, this tells how to canonicalize it.
+/// After parsing a member name, this tells how to canonicalize it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct AxisNamePatternValue {
+struct MemberNamePatternValue {
     /// Sizes of sets into which to partition the list of named points.
     ///
-    /// For example, if `set_sizes` is `vec![1, 3, 2]` for an axis named
-    /// `XBCARQ` (where each letter is a distinct named point), then the axis
+    /// For example, if `set_sizes` is `vec![1, 3, 2]` for a member named
+    /// `XBCARQ` (where each letter is a distinct named point), then the member
     /// name would be partitioned into the sets `X`, `BCA`, `RQ`. Sorting each
     /// set individually yields `X`, `ABC`, `QR`. Concatenating them all yields
-    /// `XABCQR`, which is the canonical name for the axis.
+    /// `XABCQR`, which is the canonical name for the member.
     set_sizes: Vec<usize>,
-    /// Example axis using this pattern, for generating error messages.
+    /// Example member name using this pattern, for generating error messages.
     example: Str,
 }
-impl AxisNamePatternValue {
+impl MemberNamePatternValue {
     pub fn canonicalize<T: Clone + Ord>(&self, elems: &mut [T]) {
         let mut i = 0;
         for set_size in &self.set_sizes {

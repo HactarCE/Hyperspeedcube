@@ -16,7 +16,7 @@ add_menu_entry(path = "Solid|2D|Polygon|VT|Adjacent", id = "ngon_vt_adj",       
 add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     id = "ngon_vt_half",      priority = 0)
 add_menu_entry(path = "Solid|2D|Polygon|FT+VT",       id = "ngon_ft_vt",        priority = -1)
 
-edges_param = #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }
+use edges_param from @shapes/2d/polygon
 edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 50 }
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
 
@@ -29,8 +29,8 @@ add_twist_system(id = "ngon_ft",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
-                #twists.points ++= shape.named_points
-                #twists.axes ++= [shape.sym.ox.unit * shape.inradius]
+                #twists.points = shape.named_points
+                #twists.axes ++= [shape.facet]
                 #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2]]
                 #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
             },
@@ -47,8 +47,8 @@ add_twist_system(id = "ngon_vt",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
-                #twists.points ++= shape.named_points
-                #twists.axes ++= [shape.sym.xo.unit * shape.inradius]
+                #twists.points = shape.named_points
+                #twists.axes ++= [shape.vertex]
                 #twists.stabilizer_twists ++= [[["AB", "A"], shape.edge_length/2]]
                 #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
             },
@@ -65,8 +65,8 @@ add_twist_system(id = "ngon_ft_vt",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
-                #twists.points ++= shape.named_points
-                #twists.axes ++= [shape.sym.ox.unit * shape.inradius, shape.sym.xo.unit * shape.inradius]
+                #twists.points = shape.named_points
+                #twists.axes ++= [shape.facet, shape.vertex]
                 #twists.stabilizer_twists ++= [[["A", "B"], shape.edge_length/2], [["AB", "A"], shape.edge_length/2]]
                 #twists.stabilizer_sets ++= [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
             },
@@ -105,7 +105,7 @@ add_puzzle(id = "ngon", name = "Polygon",
     params = [edges_param],
     gen = fn(n) {
         return #{
-            name = "${@shapes/2d/polygon.name(n)}",
+            name = "${n}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})", // todo: doesn't need axes
             build = fn() {
@@ -122,7 +122,7 @@ add_puzzle(id = "ngon_ft_shallow", name = "FT Polygon (Shallow-Cut)",
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
-            name = "{${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
+            name = "{${n}}${divisions}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {
@@ -140,7 +140,7 @@ add_puzzle(id = "ngon_ft_deep", name = "FT Polygon (Deep-Cut)",
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
-            name = "Deep {${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
+            name = "Deep {${n}}${divisions}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {
@@ -176,7 +176,7 @@ add_puzzle(id = "ngon_ft_layered", name = "FT Polygon (Layered)",
     params = [edges_param, layers_param],
     gen = fn(n, layers) {
         return #{
-            name = "Layered {${n}}" ++ if layers == 3 { "" } else { " ${layers}" },
+            name = "Layered {${n}}${divisions}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {
@@ -194,7 +194,7 @@ add_puzzle(id = "ngon_vt_adj", name = "VT Polygon (Adjacent-Cut)",
     params = [edges_param, edge_divisions_param],
     gen = fn(n, divisions) {
         return #{
-            name = "Adjacent-Cut VT {${n}}" ++ if divisions == 3 { "" } else { " ${divisions}" },
+            name = "Adjacent-Cut VT {${n}}${divisions}",
             colors = "ngon(${n})",
             twists = "ngon_vt(${n})",
             build = fn() {

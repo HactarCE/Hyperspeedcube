@@ -3,8 +3,8 @@
 
 use std::sync::{Arc, Weak};
 
-use eyre::{Context, OptionExt, Result, bail};
-use hypergroup::CoxeterMatrix;
+use eyre::{Context, OptionExt, Result, bail, eyre};
+use hypergroup::AbbrGenSeq;
 use hypermath::prelude::*;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::BuildCtx;
@@ -14,12 +14,14 @@ use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, NdEuclidPuzzleGeometry};
 mod colors;
 mod from_space;
 mod gizmos;
+mod names;
 mod shape;
 mod twists;
 
 pub(crate) use colors::ColorSystemDisjointUnion;
 use hypuz_notation::family::SequentialLowercaseName;
 use itertools::Itertools;
+use names::*;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
 use shape::{
@@ -27,8 +29,7 @@ use shape::{
 };
 pub(crate) use twists::TwistSystemProduct;
 
-use crate::spec::SimpleOrbitSpec;
-use crate::{CutDistances, ProductPuzzleState, SymmetricTwistSystemComponent};
+use crate::{FactorPuzzleSpec, NamedPoint, ProductPuzzleState, SymmetricTwistSystemComponent};
 
 #[derive(Debug)]
 pub struct PuzzleProduct {
@@ -70,55 +71,62 @@ impl PuzzleProduct {
     /// Note that `axis_orbit_cut_distances` must be sorted from outermost
     /// (greatest) to innermost (least).
     pub fn new_factor(
-        id: CatalogId,
-        name: String,
-        coxeter_matrix: CoxeterMatrix,
-        facet_orbits: &[SimpleOrbitSpec],
-        colors_id: CatalogId,
-        twists: &TwistSystemProduct,
-        axis_orbit_cut_distances: &[CutDistances],
+        spec: &FactorPuzzleSpec,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
-        let group = coxeter_matrix.isometry_group()?;
+        let group = spec.coxeter_matrix.isometry_group()?;
 
-        let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(coxeter_matrix, group)?;
+        let mut shape_builder =
+            from_space::PuzzleShapeFactorBuilder::new(&spec.coxeter_matrix, group.clone())?;
+
+        let twists = &spec.twists;
+        let twists_factor =
+            twists.factors.iter().exactly_one().map_err(|_| {
+                eyre!("puzzle factor cannot be constructed from product twist system")
+            })?;
+
+        let (named_point_vectors, named_point_unit_vectors, named_point_orbits, mut facet_names) =
+            FactorNamedPointBasedNames::<Axis>::from_spec(&group, &spec.named_point_orbits)?;
+
+        let named_point_points = named_point_vectors.map_ref(|_, v| Point(v.clone()));
+        let named_point_action = group.action_on_points(&named_point_points)?;
 
         // Carve facets
-        for orbit in facet_orbits {
-            for facet in &orbit.orbit_members {
-                let plane = Hyperplane::from_pole(&facet.vector).ok_or_eyre("bad hyperplane")?;
+        for orbit in &spec.facet_orbits {
+            let orbit_members =
+                orbit.expand_and_name(&group, &named_point_unit_vectors, &named_point_action)?;
+            let mut orbit_elements = vec![];
+            let mut orbit_generator_sequences = vec![];
+            for (elem, facet_pole_vector, named_point_sets) in orbit_members {
+                let plane =
+                    Hyperplane::from_pole(facet_pole_vector).ok_or_eyre("bad hyperplane")?;
+
+                // Color names are just 1-to-1 with strings because the
+                // backwards-compat concerns aren't as serious as for axes.
+                let mut facet_name = orbit.prefix.clone();
+                for p in named_point_sets.into_iter().flatten() {
+                    facet_name += &**twists_factor.names.named_point_names().get_name(p)?;
+                }
                 let color = DisjointUnionColorName {
                     prefix: SequentialLowercaseName(0),
-                    name: facet.name.clone(),
+                    name: facet_name,
                 };
+
+                orbit_elements.push(Some(color.clone()));
+                orbit_generator_sequences.push(AbbrGenSeq::new(group.factorization(elem), None));
+
                 shape_builder.carve(plane, color)?;
             }
             shape_builder.color_orbits.push(Orbit {
-                elements: Arc::new(
-                    orbit
-                        .orbit_members
-                        .iter()
-                        .map(|f| {
-                            Some(DisjointUnionColorName {
-                                prefix: SequentialLowercaseName(0),
-                                name: f.name.clone(),
-                            })
-                        })
-                        .collect(),
-                ),
-                generator_sequences: Arc::new(
-                    orbit
-                        .orbit_members
-                        .iter()
-                        .map(|f| f.abbr_gen_seq.clone())
-                        .collect(),
-                ),
+                elements: Arc::new(orbit_elements),
+                generator_sequences: Arc::new(orbit_generator_sequences),
             });
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece()?;
 
         // Slice axes
-        for (orbit, cut_distances) in std::iter::zip(twists.axis_orbits(), axis_orbit_cut_distances)
+        for (orbit, cut_distances) in
+            std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
         {
             for axis in orbit.axes() {
                 for &cut_distance in &cut_distances.0 {
@@ -135,7 +143,7 @@ impl PuzzleProduct {
         for (_, piece_data) in &mut shape.pieces {
             piece_data.grip_signature = PerAxis::new_with_len(twists.len());
             for (orbit, cut_distances) in
-                std::iter::zip(twists.axis_orbits(), axis_orbit_cut_distances)
+                std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
             {
                 let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
                 for axis in orbit.axes() {
@@ -153,7 +161,8 @@ impl PuzzleProduct {
             }
         }
 
-        let axis_layers_per_orbit = axis_orbit_cut_distances
+        let axis_layers_per_orbit = spec
+            .axis_orbit_cut_distances
             .iter()
             .map(|d| d.layers_info())
             .collect();
@@ -167,11 +176,11 @@ impl PuzzleProduct {
         }
 
         Ok(Self {
-            id: crate::product_id([&id].into_iter()),
+            id: crate::product_id([&spec.id].into_iter()),
             factors: vec![PuzzleProductFactor {
-                id,
-                name,
-                colors_id,
+                id: spec.id.clone(),
+                name: spec.name.clone(),
+                colors_id: spec.colors_id.clone(),
                 twists_id: twists.id.clone(),
             }],
             shape,
@@ -383,4 +392,27 @@ struct PuzzleProductFactor {
     name: String,
     colors_id: CatalogId,
     twists_id: CatalogId,
+}
+
+#[derive(Debug, Clone)]
+struct NamedPointOrbit {
+    len: usize,
+    id_offset: usize,
+    abbr_gen_seqs: Vec<AbbrGenSeq>,
+}
+
+impl NamedPointOrbit {
+    fn first(&self) -> Result<NamedPoint, IndexOverflow> {
+        NamedPoint::try_from_index(self.id_offset)
+    }
+
+    fn offset_ids_by(&self, named_point_id_offset: usize) -> Result<Self, IndexOverflow> {
+        let new_id_offset = self.id_offset + named_point_id_offset;
+        Axis::try_iter_range(new_id_offset..new_id_offset + self.len)?; // check for overflow
+        Ok(Self {
+            len: self.len,
+            id_offset: new_id_offset,
+            abbr_gen_seqs: self.abbr_gen_seqs.clone(),
+        })
+    }
 }

@@ -1,37 +1,36 @@
 use std::num::NonZeroI32;
 use std::sync::Arc;
 
-use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
+use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::{
-    AbbrGenSeq, ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
+    ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
     SubgroupConstraintSolver,
 };
-use hypermath::{APPROX, Float, Matrix, Point, Subspace, Vector, VectorRef};
+use hypermath::{Float, Matrix, Point, Vector, VectorRef};
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::{
     Axis, AxisSystem, CatalogId, CatalogObject, ComponentList, IndexOverflow, Names, PerAxis,
     TwistSystem, TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
-use hypuz_notation::charsets::CharSet;
 use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
-use crate::names::{FactorTwistSystemNames, PrefixFreeBiMap, ProductTwistSystemNames};
+use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
 use crate::{
     FactorTwistSystemSpec, NamedPoint, NamedPointSet, PerNamedPoint, StabilizerFamily,
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
 #[derive(Debug, Clone)]
-struct TwistSystemFactor {
-    id: CatalogId,
-    names: FactorTwistSystemNames,
-    axis_orbits: Vec<AxisOrbit>,
-    named_point_orbits: Vec<NamedPointOrbit>,
+pub struct TwistSystemFactor {
+    pub id: CatalogId,
+    pub names: FactorNamedPointBasedNames<Axis>,
+    pub axis_orbits: Vec<AxisOrbit>,
+    pub named_point_orbits: Vec<NamedPointOrbit>,
 }
 
 impl TwistSystemFactor {
@@ -119,29 +118,6 @@ impl AxisOrbit {
     }
 }
 
-#[derive(Debug, Clone)]
-struct NamedPointOrbit {
-    len: usize,
-    id_offset: usize,
-    abbr_gen_seqs: Vec<AbbrGenSeq>,
-}
-
-impl NamedPointOrbit {
-    fn first(&self) -> Result<NamedPoint, IndexOverflow> {
-        NamedPoint::try_from_index(self.id_offset)
-    }
-
-    fn offset_ids_by(&self, named_point_id_offset: usize) -> Result<Self, IndexOverflow> {
-        let new_id_offset = self.id_offset + named_point_id_offset;
-        Axis::try_iter_range(new_id_offset..new_id_offset + self.len)?; // check for overflow
-        Ok(Self {
-            len: self.len,
-            id_offset: new_id_offset,
-            abbr_gen_seqs: self.abbr_gen_seqs.clone(),
-        })
-    }
-}
-
 /// Twist system of a puzzle under construction.
 #[derive(Debug, Clone)]
 pub struct TwistSystemProduct {
@@ -157,6 +133,8 @@ pub struct TwistSystemProduct {
     pub named_point_action: GroupAction<NamedPoint>,
     /// Vector for each named point.
     pub named_point_vectors: PerNamedPoint<Vector>,
+    /// Normalized vector for each named point.
+    pub named_point_unit_vectors: PerNamedPoint<Vector>,
 
     /// Action of the grip group on axes.
     pub axis_action: GroupAction<Axis>,
@@ -207,6 +185,7 @@ impl TwistSystemProduct {
             coxeter_mirrors: vec![],
             named_point_action: GroupAction::trivial(),
             named_point_vectors: PerNamedPoint::new(),
+            named_point_unit_vectors: PerNamedPoint::new(),
             axis_action: GroupAction::trivial(),
             axis_vectors: PerAxis::new(),
             factors: vec![],
@@ -216,12 +195,9 @@ impl TwistSystemProduct {
 
     /// Constructs a product twist system builder with a single factor.
     pub fn new_factor(
-        id: CatalogId,
         spec: &FactorTwistSystemSpec,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
-        let factor_id = id;
-
         let coxeter_mirrors;
         let group;
         if let Some(coxeter_matrix) = &spec.coxeter_matrix {
@@ -249,55 +225,11 @@ impl TwistSystemProduct {
             group = IsometryGroup::trivial_with_ndim(spec.ndim);
         }
 
-        let mut named_point_vectors = PerNamedPoint::new();
-        let mut normalized_named_point_vectors = PerNamedPoint::new();
-        let mut named_point_names = PrefixFreeBiMap::new();
-        let mut named_point_orbits = vec![];
-        let mut named_point_id_offset = 0;
-        for orbit in spec
-            .named_point_orbits
-            .iter()
-            .sorted_by_cached_key(|orbit| orbit.min_name())
-        {
-            let mut abbr_gen_seqs = vec![];
-            let sorted_points_in_orbit = orbit
-                .orbit_members
-                .iter()
-                .sorted_by_key(|point| &point.name);
-            for point in sorted_points_in_orbit {
-                // Validate name
-                let name = point.name.clone();
-                if let Some(bad_char) = name.chars().find(|c| {
-                    !matches!(
-                        hypuz_notation::charsets::classify(*c),
-                        Some(CharSet::UppercaseLatin | CharSet::UppercaseGreek),
-                    )
-                }) {
-                    bail!("named point {name:?} contains disallowed char {bad_char:?}");
-                }
+        let (named_point_vectors, named_point_unit_vectors, named_point_orbits, mut names) =
+            FactorNamedPointBasedNames::<Axis>::from_spec(&group, &spec.named_point_orbits)?;
 
-                named_point_vectors.push(point.vector.clone())?;
-                normalized_named_point_vectors.push(
-                    point
-                        .vector
-                        .normalize()
-                        .ok_or_eyre("named point cannot be zero")?,
-                )?;
-                named_point_names.push(name)?;
-                abbr_gen_seqs.push(point.abbr_gen_seq.clone());
-            }
-            named_point_orbits.push(NamedPointOrbit {
-                len: orbit.len(),
-                id_offset: named_point_id_offset,
-                abbr_gen_seqs,
-            });
-            named_point_id_offset += orbit.len();
-        }
-
-        let points = named_point_vectors.map_ref(|_, v| Point(v.clone()));
-        let named_point_action = group.action_on_points(&points)?;
-
-        let mut names = FactorTwistSystemNames::new(Arc::new(named_point_names))?;
+        let named_point_points = named_point_vectors.map_ref(|_, v| Point(v.clone()));
+        let named_point_action = group.action_on_points(&named_point_points)?;
 
         let mut axis_orbits = vec![];
         let mut axis_undeorbiters = PerAxis::new();
@@ -305,23 +237,19 @@ impl TwistSystemProduct {
         let mut axis_vectors = PerAxis::new();
         let mut axis_id_offset = 0;
         for (orbit_index, orbit) in spec.axis_orbits.iter().enumerate() {
-            let new_axis_names = expand_and_name_axis_orbit(
-                &group,
-                &normalized_named_point_vectors,
-                &named_point_action,
-                &orbit.vector,
-            )?;
+            let orbit_members =
+                orbit.expand_and_name(&group, &named_point_unit_vectors, &named_point_action)?;
             axis_orbits.push(AxisOrbit {
-                len: new_axis_names.len(),
+                len: orbit_members.len(),
                 id_offset: axis_id_offset,
                 stabilizer_twists: vec![], // will be populated later
             });
-            axis_id_offset += new_axis_names.len();
-            for (undeorbiter, axis_vector, axis_name) in new_axis_names {
+            axis_id_offset += orbit_members.len();
+            for (undeorbiter, axis_vector, axis_name) in orbit_members {
                 axis_undeorbiters.push(undeorbiter)?;
                 axis_which_orbit.push(orbit_index)?;
                 axis_vectors.push(axis_vector)?;
-                names.add_axis(&orbit.prefix, axis_name)?;
+                names.add_member(&orbit.prefix, axis_name)?;
             }
         }
 
@@ -330,7 +258,7 @@ impl TwistSystemProduct {
 
         // Populate stabilizer twists
         for orbit in &spec.stabilizer_twist_orbits {
-            let axis = names.axis_from_name(&orbit.axis_name)?;
+            let axis = names.member_from_name(&orbit.axis_name)?;
             let stabilized_points = NamedPointSet::new(
                 orbit
                     .named_points
@@ -362,9 +290,9 @@ impl TwistSystemProduct {
             named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
         }
 
-        let id = crate::product_id([&factor_id].into_iter());
+        let id = crate::product_id([&spec.id].into_iter());
         let factor = TwistSystemFactor {
-            id: factor_id,
+            id: spec.id.clone(),
             names,
             axis_orbits,
             named_point_orbits,
@@ -378,6 +306,7 @@ impl TwistSystemProduct {
 
             named_point_action,
             named_point_vectors,
+            named_point_unit_vectors,
 
             axis_action,
             axis_vectors,
@@ -420,6 +349,15 @@ impl TwistSystemProduct {
                 .iter_values()
                 .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
             b.named_point_vectors
+                .iter_values()
+                .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
+        )
+        .collect();
+        let named_point_unit_vectors = std::iter::chain(
+            a.named_point_unit_vectors
+                .iter_values()
+                .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
+            b.named_point_unit_vectors
                 .iter_values()
                 .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
         )
@@ -475,6 +413,7 @@ impl TwistSystemProduct {
 
             named_point_action,
             named_point_vectors,
+            named_point_unit_vectors,
 
             axis_action,
             axis_vectors,
@@ -499,7 +438,7 @@ impl TwistSystemProduct {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<TwistSystem>> {
-        let names = ProductTwistSystemNames::product(
+        let names = ProductNamedPointBasedNames::product(
             self.factors.iter().map(|f| f.names.clone()).collect(),
         );
 
@@ -510,7 +449,7 @@ impl TwistSystemProduct {
         )));
 
         let axes = Arc::new(AxisSystem {
-            names: Arc::new(names.build_axis_names()?),
+            names: Arc::new(names.build_member_names()?),
             orbits: vec![], // technically exists, but not necessary
             components,
         });
@@ -571,7 +510,7 @@ impl TwistSystemProduct {
         self.factors
             .get(factor_index as usize)?
             .names
-            .axis_from_name(rest)
+            .member_from_name(rest)
             .ok()
     }
 
@@ -765,119 +704,4 @@ fn unit_twist_transform(
         element: min_group_element,
         order,
     })
-}
-
-/// Generates an axis orbit with a canonical name for each axis based on its
-/// nearest named points.
-///
-/// The named point locations **must** be normalized.
-fn expand_and_name_axis_orbit(
-    group: &IsometryGroup,
-    normalized_named_point_locations: &PerNamedPoint<Vector>,
-    named_point_action: &GroupAction<NamedPoint>,
-    axis_vector: &Vector,
-) -> Result<Vec<(GroupElementId, Vector, Vec<Vec<NamedPoint>>)>> {
-    let orbit = group.orbit_geometric(axis_vector.clone());
-
-    let Some(normalized_axis_vector) = axis_vector.normalize() else {
-        // No named points needed! Hopefully the axis orbit has a prefix;
-        // otherwise the axis name will be empty.
-        return Ok(vec![(
-            GroupElementId::IDENTITY,
-            axis_vector.clone(),
-            vec![],
-        )]);
-    };
-    let first_axis_vector = normalized_axis_vector.clone();
-
-    if orbit.len() == 1 {
-        // No named points needed! Same as above
-        return Ok(vec![(
-            GroupElementId::IDENTITY,
-            axis_vector.clone(),
-            vec![],
-        )]);
-    }
-
-    // Name each axis based on the nearest named points.
-    let mut axis_names: PerAxis<Vec<Vec<NamedPoint>>> = orbit.iter().map(|_| vec![]).collect();
-    let distances: PerNamedPoint<Float> =
-        normalized_named_point_locations.map_ref(|_, loc| (&first_axis_vector - loc).mag2());
-
-    let mut last_multiplicity = axis_names.len(); // all names are the same at the start
-    let mut candidates: Vec<NamedPoint> =
-        normalized_named_point_locations.iter_keys().collect_vec();
-    let mut subspace = Subspace::new();
-    loop {
-        // Select all the named points that are equally closest to the axis.
-        let Some(min_distance) = candidates
-            .iter()
-            .map(|&p| distances[p])
-            .min_by(|a, b| APPROX.cmp(a, b))
-        else {
-            bail!("named points do not span the space");
-        };
-        let closest_points = candidates
-            .iter()
-            .copied()
-            .filter(|&p| APPROX.eq(distances[p], min_distance))
-            .collect_vec();
-
-        // Append that set of named points to the name for each axis.
-        for (&(elem, _), axis_name) in orbit.iter().zip(axis_names.iter_values_mut()) {
-            axis_name.push(
-                closest_points
-                    .iter()
-                    .map(|&p| named_point_action.act(elem, p))
-                    .sorted()
-                    .collect(),
-            );
-        }
-
-        // Check the "multiplicity" of each name; i.e., how many axes have the
-        // same name. This should be the same for all names.
-        let first_axis_name = &axis_names[Axis(0)];
-        let multiplicity = axis_names
-            .iter_values()
-            .filter(|&name| name == first_axis_name)
-            .count();
-        // Check that all names have the same multiplicity, so we only need to
-        // check the first name.
-        debug_assert!(
-            axis_names
-                .iter_values()
-                .counts()
-                .into_iter()
-                .all(|(_, count)| count == multiplicity)
-        );
-        // If the names are all unique, then we're done!
-        if multiplicity == 1 {
-            // Return the vector and the name. Ignore IDs because the IDs used
-            // in this method are not relevant outside it.
-            return Ok(std::iter::zip(orbit, axis_names)
-                .map(|((elem, vector), (_, name))| (elem, vector, name))
-                .collect());
-        }
-        // If the multiplicity hasn't changed, then this iteration was useless
-        // so undo it. I'm not sure whether this case is possible.
-        if multiplicity == last_multiplicity {
-            for name in axis_names.iter_values_mut() {
-                name.pop();
-            }
-        }
-        last_multiplicity = multiplicity;
-
-        // Remove from consideration all named points within the
-        // subspace, because they will not help us narrow down the axis
-        // name.
-        let old_ndim = subspace.ndim();
-        for p in closest_points {
-            subspace.add(&normalized_named_point_locations[p]);
-        }
-        ensure!(
-            subspace.ndim() > old_ndim,
-            "name_axis_orbit() failed to make progress",
-        );
-        candidates.retain(|&p| !subspace.contains(&normalized_named_point_locations[p]));
-    }
 }

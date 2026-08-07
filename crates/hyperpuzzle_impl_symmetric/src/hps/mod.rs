@@ -15,8 +15,9 @@ use hyperpuzzle_impl_nd_euclid::hps::{ElementNames, HpsOrbitNames};
 use hyperpuzzlescript::util::{expect_end_of_map, pop_map_key};
 use hyperpuzzlescript::{
     BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, HpsEngine, ListOf, Map, Runtime, Spanned,
-    Str, Value, ValueData, hps_fns,
+    Str, Type, Value, ValueData, hps_fns,
 };
+use itertools::Itertools;
 use parking_lot::Mutex;
 
 mod puzzle_engine;
@@ -25,7 +26,7 @@ mod twist_system_engine;
 use puzzle_engine::SymmetricPuzzleEngine;
 use twist_system_engine::SymmetricTwistSystemEngine;
 
-use crate::{SimpleOrbitMemberSpec, SimpleOrbitSpec};
+use crate::{NamedPointOrbitSpec, NamedPointSpec, SimpleOrbitSpec};
 
 /// ID for the symmetric puzzle [`Menu`].
 pub const MENU_ID: &'static str = "symmetric";
@@ -89,11 +90,11 @@ pub fn define_in(
     Ok(())
 }
 
-fn named_orbit_from_value(
+fn named_point_orbit_from_value(
     ctx: &mut EvalCtx<'_>,
     generators: &[(GenSeq, Motor)],
     value: Value,
-) -> hyperpuzzlescript::Result<SimpleOrbitSpec> {
+) -> hyperpuzzlescript::Result<NamedPointOrbitSpec> {
     let mut map = value.as_ref::<Map>()?.clone();
     let init_vector: Vector = pop_map_key(&mut map, value.span, "vector")?;
     let ElementNames(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
@@ -110,13 +111,33 @@ fn named_orbit_from_value(
     let names = orbit_names.to_strings(ctx, &transforms)?;
 
     let orbit_members = itertools::izip!(vectors, names, gen_seqs)
-        .map(|(vector, name, abbr_gen_seq)| SimpleOrbitMemberSpec {
+        .map(|(vector, name, abbr_gen_seq)| NamedPointSpec {
             vector,
             name,
             abbr_gen_seq,
         })
         .collect();
-    Ok(SimpleOrbitSpec { orbit_members })
+    Ok(NamedPointOrbitSpec { orbit_members })
+}
+
+fn simple_orbit_from_value(list: Vec<Value>) -> hyperpuzzlescript::Result<Vec<SimpleOrbitSpec>> {
+    list.into_iter()
+        .map(|value| {
+            if value.is::<Vector>() {
+                let vector = value.to::<Vector>()?;
+                let prefix = Str::new();
+                Ok(SimpleOrbitSpec { prefix, vector })
+            } else if value.is::<Map>() {
+                let mut map = value.as_ref::<Map>()?.clone();
+                let vector = pop_map_key(&mut map, value.span, "vector")?;
+                let prefix = pop_map_key(&mut map, value.span, "prefix")?;
+                expect_end_of_map(map, value.span)?;
+                Ok(SimpleOrbitSpec { prefix, vector })
+            } else {
+                Err(value.type_error(Type::Vec | Type::Map))
+            }
+        })
+        .collect()
 }
 
 fn new_hps_list() -> Value {

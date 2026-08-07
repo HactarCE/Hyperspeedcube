@@ -16,7 +16,7 @@ use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{AxisOrbitSpec, NamedPointSetOrbitSpec, SimpleOrbitSpec};
+use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec, SimpleOrbitSpec};
 use crate::{StabilizerTwistOrbitSpec, builder::*};
 
 pub struct SymmetricTwistSystemEngine;
@@ -94,39 +94,22 @@ pub(super) fn twist_system_product_from_hps(
         .at(sym_span)?
         .map(|g, m| (GenSeq::new([g]), m));
 
-    let named_point_orbits: Vec<SimpleOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
+    let named_point_orbits: Vec<NamedPointOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
         &mut twists_map,
         build_span,
         SpecialVar::Twists,
         "points",
     )?
     .into_iter()
-    .map(|value| super::named_orbit_from_value(ctx, &generators, value))
+    .map(|value| super::named_point_orbit_from_value(ctx, &generators, value))
     .try_collect()?;
 
-    let axis_orbits: Vec<AxisOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
+    let axis_orbits = super::simple_orbit_from_value(pop_map_key_in_special_var(
         &mut twists_map,
         build_span,
         SpecialVar::Twists,
         "axes",
-    )?
-    .into_iter()
-    .map(|value| {
-        if value.is::<Vector>() {
-            let vector = value.to::<Vector>()?;
-            let prefix = Str::new();
-            Ok(AxisOrbitSpec { prefix, vector })
-        } else if value.is::<Map>() {
-            let mut map = value.as_ref::<Map>()?.clone();
-            let vector = pop_map_key(&mut map, value.span, "vector")?;
-            let prefix = pop_map_key(&mut map, value.span, "prefix")?;
-            expect_end_of_map(map, value.span)?;
-            Ok(AxisOrbitSpec { prefix, vector })
-        } else {
-            Err(value.type_error(Type::Vec | Type::Map))
-        }
-    })
-    .try_collect()?;
+    )?)?;
 
     let mut stabilizer_twist_orbits = vec![];
     for elem in pop_map_key_in_special_var::<List>(
@@ -169,8 +152,8 @@ pub(super) fn twist_system_product_from_hps(
         .at(sym_span)?;
 
     TwistSystemProduct::new_factor(
-        id,
         &crate::FactorTwistSystemSpec {
+            id,
             ndim: coxeter_matrix.generator_count(),
             coxeter_matrix: Some(coxeter_matrix),
             axis_orbits,

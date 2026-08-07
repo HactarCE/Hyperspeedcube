@@ -1,26 +1,31 @@
-use eyre::{OptionExt, Result, bail};
-use hypergroup::{AbbrGenSeq, CoxeterMatrix, PerGenerator};
-use hypermath::pga::Motor;
-use hypermath::prelude::*;
+use std::sync::Arc;
+
+use eyre::{Result, bail, ensure};
+use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
+use hypermath::{Subspace, prelude::*};
 use hyperpuzzle_core::CatalogId;
 use hypuz_notation::Str;
-use hypuz_notation::charsets::CharSet;
+use itertools::Itertools;
 
-/// Specification for a puzzle product, which is defined in terms of puzzle
-/// factors.
-#[derive(Debug)]
-pub struct ProductPuzzleSpec {
-    /// Puzzle factors, which will be combined using direct product.
-    pub factors: Vec<FactorPuzzleSpec>,
-}
+use crate::builder::TwistSystemProduct;
+use crate::{CutDistances, NamedPoint, PerNamedPoint};
 
 /// Specification for a twist system factor.
 pub struct FactorTwistSystemSpec {
+    /// ID for the twist system.
+    pub id: CatalogId,
+    /// Number of dimensions.
     pub ndim: u8,
+    /// Symmetry for the twist system.
     pub coxeter_matrix: Option<CoxeterMatrix>,
-    pub axis_orbits: Vec<AxisOrbitSpec>,
-    pub named_point_orbits: Vec<SimpleOrbitSpec>,
+    /// Orbits of axes.
+    pub axis_orbits: Vec<SimpleOrbitSpec>,
+    /// Orbits of named points, which are used to name axes and twists.
+    pub named_point_orbits: Vec<NamedPointOrbitSpec>,
+    /// Orbits of named point sets, which are used to define stabilizer twists
+    /// in higher dimensions.
     pub named_point_set_orbits: Vec<NamedPointSetOrbitSpec>,
+    /// Orbits of stabilizer twists.
     pub stabilizer_twist_orbits: Vec<StabilizerTwistOrbitSpec>,
 }
 
@@ -51,45 +56,41 @@ pub struct StabilizerTwistOrbitSpec {
 
 /// Specification for a factor of a [`ProductPuzzleSpec`].
 #[derive(Debug)]
-#[deprecated]
 pub struct FactorPuzzleSpec {
     /// ID for the puzzle.
-    pub puzzle_id: CatalogId,
-    /// ID for the shape / color system.
-    pub shape_id: CatalogId,
-    /// ID for the twist system.
-    pub twists_id: CatalogId,
-
+    pub id: CatalogId,
     /// Name for the puzzle.
-    pub puzzle_name: String,
-    /// Name for the twist system.
-    pub twists_name: String,
+    pub name: String,
 
     /// Symmetry for the puzzle factor.
     // TODO: split axes symmetry and facets symmetry (requires expanding shape
     // symmetry before slicing)
     pub coxeter_matrix: CoxeterMatrix,
+
+    /// Named points, which are used to name facets.
+    pub named_point_orbits: Vec<NamedPointOrbitSpec>,
     /// Orbits of facets, identified by their facet pole.
     ///
     /// Each facet is assigned a unique color.
     pub facet_orbits: Vec<SimpleOrbitSpec>,
-    /// Orbits of twist axes.
-    pub axis_orbits: Vec<AxisOrbitSpec>,
-    /// Orbits of named points.
-    pub named_point_orbits: Vec<SimpleOrbitSpec>,
-    /// Orbits of named point sets, each with a gizmo pole distance.
-    pub named_point_set_orbits: Vec<(Vec<Str>, f64)>,
+
+    /// ID for the color system.
+    pub colors_id: CatalogId,
+    /// Twist system.
+    pub twists: Arc<TwistSystemProduct>,
+
+    /// Cut distances for each axis orbit.
+    pub axis_orbit_cut_distances: Vec<CutDistances>,
 }
 
-/// Specification for an orbit of named points or facets in a
-/// [`FactorPuzzleSpec`].
+/// Specification for an orbit of named points in a [`FactorTwistSystemSpec`].
 #[derive(Debug, Clone)]
-pub struct SimpleOrbitSpec {
-    /// Vector, name, and generator sequence for each member of the orbit.
-    pub orbit_members: Vec<SimpleOrbitMemberSpec>,
+pub struct NamedPointOrbitSpec {
+    /// Vector, name, and generator sequence for named point in the orbit.
+    pub orbit_members: Vec<NamedPointSpec>,
 }
 
-impl SimpleOrbitSpec {
+impl NamedPointOrbitSpec {
     /// Returns the lexicographically first name in the orbit, or an empty
     /// string if the orbit is empty.
     pub fn min_name(&self) -> &str {
@@ -101,7 +102,7 @@ impl SimpleOrbitSpec {
     }
 }
 
-impl SimpleOrbitSpec {
+impl NamedPointOrbitSpec {
     /// Returns the number of named points in the orbit.
     #[allow(clippy::len_without_is_empty)] // should never be empty
     pub fn len(&self) -> usize {
@@ -109,9 +110,9 @@ impl SimpleOrbitSpec {
     }
 }
 
-/// Specification for a member of a [`SimpleOrbitSpec`].
+/// Specification for a named point in a [`NamedPointOrbitSpec`].
 #[derive(Debug, Clone)]
-pub struct SimpleOrbitMemberSpec {
+pub struct NamedPointSpec {
     /// Vector corresponding to the member.
     pub vector: Vector,
     /// Name of the member.
@@ -121,68 +122,134 @@ pub struct SimpleOrbitMemberSpec {
     pub abbr_gen_seq: AbbrGenSeq,
 }
 
-/// Specification for an orbit of axes in a [`FactorPuzzleSpec`].
+/// Specification for an orbit of axes or facets in a [`FactorTwistSystemSpec`]
+/// or [`FactorPuzzleSpec`] respectively.
 ///
-/// This does not include the full axis name because those will be automatically
-/// generated based on the nearby named points.
+/// This does not include the full name because those will be automatically
+/// generated based on the vector and its relation to nearby named points.
 #[derive(Debug, Clone)]
-pub struct AxisOrbitSpec {
+pub struct SimpleOrbitSpec {
     /// Prefix for the axis orbit.
     pub prefix: Str,
     /// Vector for one axis in the orbit.
     pub vector: Vector,
 }
 
-fn named_vectors<'a, T>(
-    initial_vector: &'a Vector,
-    generators: &'a PerGenerator<Motor>,
-    names: Vec<(AbbrGenSeq, Str)>,
-    warn_fn: impl FnOnce(String),
-) -> SimpleOrbitSpec {
-    let index_to_gen_seq = hyperpuzzle_core::util::lazy_resolve(
-        names
-            .iter()
-            .map(|(abbr_gen_seq, _)| (abbr_gen_seq.generators.clone(), abbr_gen_seq.end))
-            .enumerate(),
-        |gens1, gens2| std::iter::chain(&gens1.0, &gens2.0).copied().collect(),
-        warn_fn,
-    );
+impl SimpleOrbitSpec {
+    /// Expands the orbit, returning for each element:
+    ///
+    /// - a group element that transforms the first element of the orbit to this
+    ///   one
+    /// - the vector
+    /// - the canonical name, in terms of named points
+    ///
+    /// The named point locations **must** be normalized.
+    pub(crate) fn expand_and_name(
+        &self,
+        group: &IsometryGroup,
+        named_point_unit_vectors: &PerNamedPoint<Vector>,
+        named_point_action: &GroupAction<NamedPoint>,
+    ) -> Result<Vec<(GroupElementId, Vector, Vec<Vec<NamedPoint>>)>> {
+        let orbit = group.orbit_geometric(self.vector.clone());
 
-    let orbit_members = names
-        .into_iter()
-        .enumerate()
-        .map(move |(i, (abbr_gen_seq, name))| {
-            let motor = index_to_gen_seq[&i]
-                .0
+        let Some(unit_init_vector) = self.vector.normalize() else {
+            // No named points needed! Hopefully the orbit has a prefix;
+            // otherwise the name will be empty.
+            return Ok(vec![(
+                GroupElementId::IDENTITY,
+                self.vector.clone(),
+                vec![],
+            )]);
+        };
+        let init_vector = unit_init_vector.clone();
+
+        if orbit.len() == 1 {
+            // No named points needed! Same as above
+            return Ok(vec![(
+                GroupElementId::IDENTITY,
+                self.vector.clone(),
+                vec![],
+            )]);
+        }
+
+        // Name each member based on the nearest named points.
+        let mut member_names: Vec<Vec<Vec<NamedPoint>>> = orbit.iter().map(|_| vec![]).collect();
+        let distances: PerNamedPoint<Float> =
+            named_point_unit_vectors.map_ref(|_, loc| (&init_vector - loc).mag2());
+
+        let mut last_multiplicity = member_names.len(); // all names are the same at the start
+        let mut candidates: Vec<NamedPoint> = named_point_unit_vectors.iter_keys().collect_vec();
+        let mut subspace = Subspace::new();
+        loop {
+            // Select all the named points that are equally closest to the
+            // member.
+            let Some(min_distance) = candidates
                 .iter()
-                .map(|&g| &generators[g])
-                .fold(Motor::ident(0), |a, b| a * b);
-            SimpleOrbitMemberSpec {
-                vector: motor.transform(initial_vector),
-                name,
-                abbr_gen_seq,
+                .map(|&p| distances[p])
+                .min_by(|a, b| APPROX.cmp(a, b))
+            else {
+                bail!("named points do not span the space");
+            };
+            let closest_points = candidates
+                .iter()
+                .copied()
+                .filter(|&p| APPROX.eq(distances[p], min_distance))
+                .collect_vec();
+
+            // Append that set of named points to the name for each member.
+            for (&(elem, _), member_name) in std::iter::zip(&orbit, &mut member_names) {
+                member_name.push(
+                    closest_points
+                        .iter()
+                        .map(|&p| named_point_action.act(elem, p))
+                        .sorted()
+                        .collect(),
+                );
             }
-        })
-        .collect();
 
-    SimpleOrbitSpec { orbit_members }
-}
+            // Check the "multiplicity" of each name; i.e., how many axes have the
+            // same name. This should be the same for all names.
+            let first_member_name = &member_names[0];
+            let multiplicity = member_names
+                .iter()
+                .filter(|&name| name == first_member_name)
+                .count();
+            // Sanity-check that all names have the same multiplicity.
+            if !member_names
+                .iter()
+                .counts()
+                .into_iter()
+                .all(|(_, count)| count == multiplicity)
+            {
+                bail!("names have different multiplicies in expand_and_name()");
+            }
+            // If the names are all unique, then we're done!
+            if multiplicity == 1 {
+                // Return the vector and the name.
+                return Ok(std::iter::zip(orbit, member_names)
+                    .map(|((elem, vector), name)| (elem, vector, name))
+                    .collect());
+            }
+            // If the multiplicity hasn't changed, then this iteration was useless
+            // so undo it. I'm not sure whether this case is possible.
+            if multiplicity == last_multiplicity {
+                for name in &mut member_names {
+                    name.pop();
+                }
+            }
+            last_multiplicity = multiplicity;
 
-/// Data for a named rotation of the entire polytope.
-///
-/// One of these automatically created for each axis orbit.
-struct NamedRotationSpec {
-    /// Set of axes that the rotation is named for.
-    pub axis_names: Vec<Str>,
-    /// Distance from the axis for the 4D twist gizmo.
-    pub gizmo_pole_distance: f64,
-}
-
-impl NamedRotationSpec {
-    pub fn new(axis_names: Vec<Str>, gizmo_pole_distance: f64) -> Self {
-        Self {
-            axis_names,
-            gizmo_pole_distance,
+            // Remove from consideration all named points within the subspace,
+            // because they will not help us narrow down the member name.
+            let old_ndim = subspace.ndim();
+            for p in closest_points {
+                subspace.add(&named_point_unit_vectors[p]);
+            }
+            ensure!(
+                subspace.ndim() > old_ndim,
+                "expand_and_name() failed to make progress",
+            );
+            candidates.retain(|&p| !subspace.contains(&named_point_unit_vectors[p]));
         }
     }
 }

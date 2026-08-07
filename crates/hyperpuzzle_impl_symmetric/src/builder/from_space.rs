@@ -32,7 +32,7 @@ pub(super) struct PuzzleShapeFactorBuilder {
 }
 
 impl PuzzleShapeFactorBuilder {
-    pub fn new(coxeter_matrix: CoxeterMatrix, group: IsometryGroup) -> Result<Self> {
+    pub fn new(coxeter_matrix: &CoxeterMatrix, group: IsometryGroup) -> Result<Self> {
         let mut space = hypershape::Space::new(group.ndim())?;
         let mut initial_piece = space.primordial_cube().into();
         for mirror_vector in coxeter_matrix.mirrors()?.cols() {

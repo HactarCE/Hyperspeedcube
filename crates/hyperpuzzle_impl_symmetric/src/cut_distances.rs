@@ -6,6 +6,7 @@ use hypuz_notation::{AxisLayersInfo, Layer, LayerRange};
 ///
 /// Distances are measured from the origin and must be sorted from outermost
 /// (greatest) to innermost (least).
+#[derive(Debug, Default, Clone)]
 pub struct CutDistances(pub Vec<Float>);
 
 impl CutDistances {

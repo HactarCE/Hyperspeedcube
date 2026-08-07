@@ -5,6 +5,7 @@ export fn axis_vec(axis_name: Str) -> Vec {
 export fn build_symmetric_shape(shape: Map) {
     #shape.sym = shape.sym
     #shape.colors = shape.colors
+    #shape.points ++= shape.named_points
     #shape.facets ++= [shape.facet]
 }
 

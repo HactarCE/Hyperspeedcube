@@ -1,61 +1,13 @@
 use * from euclid
 
-NAMES = [
-    null,
-    "Monogon",
-    "Digon",
-    "Triangle",
-    "Square",
-    "Pentagon",
-    "Hexagon",
-    "Heptagon",
-    "Octagon",
-    "Nonagon",
-    "Decagon",
-]
-
-ADJECTIVES = [
-    null,
-    "Monogonal",
-    "Digonal",
-    "Triangular",
-    "Square",
-    "Pentagonal",
-    "Hexagonal",
-    "Heptagonal",
-    "Octagonal",
-    "Nonagonal",
-    "Decagonal",
-]
-
-export name_generic = "Polygon"
-export fn name(n: Nat) -> Str { NAMES[n] ?? "${n}-gon" }
-export fn aliases(n: Nat) -> List[Str] {
-    if NAMES[n] == null { [] } else { ["${n}-gonal"] }
-}
-export adjective_generic = "Polygonal"
-export fn adjective(n: Nat) -> Str { ADJECTIVES[n] ?? "${n}-gonal" }
-export ndim = 2
-
-fn generic_names(n: Nat, m2: Nat, m1: Nat) {
-    names = #{"${nth_uppercase(0)}" = []}
-    for i in 1..n {
-        names["${nth_uppercase(i)}"] = [m2, m1, "${nth_uppercase(i-1)}"]
-    }
-    return names
-}
-
 export edges_param = #{ name = "Edges", type = Int, default = 5, min = 3, max = 100 }
 
 export fn new(n: Nat) -> Map { new(n, ident()) }
 export fn new(n: Nat, t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(n, t2 * t) }
 
-    export name = name(n)
-    export aliases = aliases(n)
-    export adjective = adjective(n)
+    export ndim = 2
     export sym = t.transform(cd([n]))
-    export ndim
 
     export edge_length = 2
 
@@ -65,28 +17,21 @@ export fn new(n: Nat, t: Transform) -> Map {
     export ft_edge_depth = edge_length * sin(2*π/n)
     export vt_edge_depth = edge_length * sin(π/n)
 
-    export named_points = [#{
-        vector = sym.ox.unit * inradius,
-        names = sym.names(point(sym.ox), generic_names(n, 1, 0)),
-    }]
-
-    export edge = #{
-        vector = sym.ox.unit * inradius,
-        names = sym.names(point(sym.ox), generic_names(n, 1, 0)),
-    }
-    // export vertex = #{
-    //     vector = sym.xo.unit * circumradius,
-    //     names = permute([edge.names, sym.thru([1, 0]).transform(edge.names)]),
-    // }
-    export edge_opposite = if n.is_odd() {
-        #{
-            vector = -edge.vector,
-            names = "β${edge.names}",
-        }
-    }
+    export edge = sym.ox.unit * inradius
+    export vertex = sym.xo.unit * circumradius
 
     export facet = edge
-    // export ridge = vertex
+    export ridge = vertex
+
+    named_point_names = #{}
+    named_point_names[nth_uppercase(0)] = []
+    for i in 1..n {
+        named_point_names[nth_uppercase(i)] = [1, 0, nth_uppercase(i-1)]
+    }
+    export named_points = [#{
+        vector = sym.ox.unit * inradius,
+        names = sym.names(point(facet), named_point_names),
+    }]
 
     export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
         if n == 3 {
@@ -127,6 +72,6 @@ add_color_system(
         for i in 0..n {
             colors[nth_uppercase(i)] = "Rainbow [${i}/${n}]"
         }
-        return #{ name = name(n), colors = colors }
+        return #{ name = "${n}", colors = colors }
     },
 )

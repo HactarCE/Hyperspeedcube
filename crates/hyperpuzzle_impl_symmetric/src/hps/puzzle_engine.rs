@@ -13,7 +13,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{CutDistances, builder::*};
+use crate::{CutDistances, NamedPointOrbitSpec, builder::*};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -141,6 +141,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 scope.special.ndim = Some(twists.ndim());
                 scope.special.shape = Arc::new(Mutex::new({
                     let mut m = Map::new();
+                    m.insert("points".into(), super::new_hps_list());
                     m.insert("facets".into(), super::new_hps_list());
                     ValueData::Map(Arc::new(m)).at(BUILTIN_SPAN)
                 }));
@@ -168,15 +169,24 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         .at(sym_span)?
                         .map(|g, m| (GenSeq::new([g]), m));
 
-                    let facet_orbits: Vec<_> = pop_map_key_in_special_var::<Vec<Value>>(
-                        &mut shape_map,
-                        build_span,
-                        SpecialVar::Shape,
-                        "facets",
-                    )?
-                    .into_iter()
-                    .map(|value| super::named_orbit_from_value(ctx, &generators, value))
-                    .try_collect()?;
+                    let named_point_orbits: Vec<NamedPointOrbitSpec> =
+                        pop_map_key_in_special_var::<Vec<Value>>(
+                            &mut shape_map,
+                            build_span,
+                            SpecialVar::Puz,
+                            "points",
+                        )?
+                        .into_iter()
+                        .map(|value| super::named_point_orbit_from_value(ctx, &generators, value))
+                        .try_collect()?;
+
+                    let facet_orbits: Vec<_> =
+                        super::simple_orbit_from_value(pop_map_key_in_special_var::<Vec<Value>>(
+                            &mut shape_map,
+                            build_span,
+                            SpecialVar::Shape,
+                            "facets",
+                        )?)?;
 
                     let mut puz_map = Arc::unwrap_or_clone(
                         std::mem::take(&mut *ctx.scope.special.puz.lock()).to::<Arc<Map>>()?,
@@ -212,13 +222,16 @@ impl HpsEngine for SymmetricPuzzleEngine {
 
                     Ok(Arc::new(
                         PuzzleProduct::new_factor(
-                            id,
-                            name,
-                            coxeter_matrix,
-                            &facet_orbits,
-                            colors.parse().at(colors_span)?,
-                            &twists,
-                            &axis_orbit_cut_distances,
+                            &crate::FactorPuzzleSpec {
+                                id,
+                                name,
+                                coxeter_matrix,
+                                named_point_orbits,
+                                facet_orbits,
+                                colors_id: colors.parse().at(colors_span)?,
+                                twists,
+                                axis_orbit_cut_distances,
+                            },
                             &mut build_ctx.warn_fn(),
                         )
                         .at(caller_span)?,
@@ -227,7 +240,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
             },
         ))?;
 
-        catalog.add::<Puzzle>(hps_gen.make_generator(eval_tx, |build_ctx, tx, kwargs| {
+        catalog.add::<Puzzle>(hps_gen.make_generator(eval_tx, |build_ctx, _tx, _kwargs| {
             Ok(crate::build_product_puzzle_impl(build_ctx)?)
         }))?;
 
