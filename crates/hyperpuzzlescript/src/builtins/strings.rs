@@ -3,7 +3,7 @@
 use ecow::{EcoString, eco_format};
 use itertools::Itertools;
 
-use crate::{Builtins, Error, ListOf, Num, Result, Span, Str, ValueData};
+use crate::{Builtins, Error, ErrorExt, ListOf, Num, Result, Span, Str, ValueData};
 
 /// Adds the built-in operators and functions.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
@@ -20,6 +20,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("str", |_, arg: ValueData| -> Str { eco_format!("{arg}") }),
         ("repr", |_, arg: ValueData| -> Str {
             eco_format!("{arg:?}")
+        }),
+        ("parse_int", |_, (s, s_span): Str| -> Num {
+            s.parse::<i64>().map(|i| i as Num).at(s_span)?
         }),
         // Case conversion
         ("upper", |_, s: Str| -> Str { s.to_uppercase() }),

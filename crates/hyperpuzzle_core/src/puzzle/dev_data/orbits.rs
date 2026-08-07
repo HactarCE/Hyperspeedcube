@@ -7,7 +7,6 @@ use hypuz_notation::Str;
 use itertools::Itertools;
 
 use super::*;
-use crate::NameSpec;
 
 /// Orbit used to generate element of the puzzle, exposed to end users to help
 /// with puzzle development.
@@ -88,16 +87,29 @@ impl<T> Default for Orbit<T> {
         }
     }
 }
-impl<T: PuzzleElement> Orbit<T> {
+impl<T> Orbit<T> {
+    /// Returns the number of elements in the orbit.
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+    /// Returns whether the orbit is completely empty.
+    ///
+    /// An empty orbit should generally only occur when using
+    /// `DevOrbit::default()` to stand in for an empty value.
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
+    }
+
     /// Applies a function to every element in the orbit.
     #[must_use]
-    pub fn map<U>(&self, mut f: impl FnMut(T) -> Option<U>) -> Orbit<U> {
+    pub fn map<U>(&self, mut f: impl FnMut(&T) -> Option<U>) -> Orbit<U> {
         Orbit {
-            elements: Arc::new(self.elements.iter().map(|&t| f(t?)).collect()),
+            elements: Arc::new(self.elements.iter().map(|t| f(t.as_ref()?)).collect()),
             generator_sequences: self.generator_sequences.clone(),
         }
     }
-
+}
+impl<T: PuzzleElement> Orbit<T> {
     /// Returns a human-readable description for the orbit.
     pub fn description(&self) -> String {
         let len = self.elements.len();
@@ -124,11 +136,5 @@ impl<T: PuzzleElement> Orbit<T> {
         self.elements
             .iter()
             .find_map(|elem| Some(elem.as_ref()?.name(puz)?.clone()))
-    }
-
-    /// Returns whether the orbit is completely empty. This is only really
-    /// useful when using `DevOrbit::default()` to stand in for an empty value.
-    pub fn is_empty(&self) -> bool {
-        self.elements.is_empty()
     }
 }

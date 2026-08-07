@@ -28,6 +28,8 @@ pub struct SymmetricTwistSystemComponent {
     pub axes: Arc<AxisSystem>,
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
+    /// Coxeter mirrors which generate the grip group.
+    pub coxeter_mirrors: Vec<Vector>,
     /// Action of the grip group on the axes.
     pub axis_action: GroupAction<Axis>,
 
@@ -382,6 +384,8 @@ impl SymmetricTwistSystemComponent {
 pub struct SymmetricTwistSystemAxisOrbit {
     /// First axis in the orbit.
     pub first: Axis,
+    /// Number of axes in the orbit.
+    pub len: usize,
     /// Constraint solver for the stabilizer subgroup with respect to the axis.
     pub subgroup_solver: Mutex<SubgroupConstraintSolver<NamedPoint>>,
     /// Map from stabilizer twist family to unique minimal clockwise twist and
@@ -391,6 +395,14 @@ pub struct SymmetricTwistSystemAxisOrbit {
     /// The gizmo pole distance is only relevant in 4D, and is only needed when
     /// initially building the puzzle.
     pub stabilizer_twists: Vec<(NamedPointSet, UniqueMinimalClockwiseGenerator, Float)>,
+}
+
+impl SymmetricTwistSystemAxisOrbit {
+    /// Returns an iterator over all the axes in the orbit.
+    pub fn axes(&self) -> TypedIndexIter<Axis> {
+        let start = self.first.to_index();
+        Axis::iter_range_clamped(start..start + self.len)
+    }
 }
 
 /// Unique minimal clockwise generator for a cyclic subgroup.

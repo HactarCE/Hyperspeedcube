@@ -5,13 +5,13 @@ use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::{APPROX, ApproxHashMap, Centroid, Hyperplane, Point};
 use hyperpuzzle_core::{
-    Color, IndexOverflow, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
+    Color, IndexOverflow, Orbit, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
 };
 use hypuz_notation::Str;
 use itertools::Itertools;
 
 use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
-use crate::geometry::PolytopeGeometry;
+use crate::{builder::DisjointUnionColorName, geometry::PolytopeGeometry};
 
 /// Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.
@@ -25,7 +25,8 @@ pub(super) struct PuzzleShapeFactorBuilder {
 
     pieces: PerPiece<PieceShapeBuilder>,
     surfaces: PerSurface<SurfaceData>,
-    color_names: PerColor<Str>,
+
+    pub(super) color_orbits: Vec<Orbit<DisjointUnionColorName>>,
 
     hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface>,
 }
@@ -54,7 +55,8 @@ impl PuzzleShapeFactorBuilder {
 
             pieces,
             surfaces: PerSurface::new(),
-            color_names: PerColor::new(),
+
+            color_orbits: vec![],
 
             hyperplane_to_surface: ApproxHashMap::new(APPROX),
         })
@@ -70,11 +72,7 @@ impl PuzzleShapeFactorBuilder {
         self.surfaces.len()
     }
 
-    pub fn add_color(&mut self, name: Str) -> Result<Color, IndexOverflow> {
-        self.color_names.push(name)
-    }
-
-    pub fn carve(&mut self, plane: Hyperplane, color: Color) -> Result<()> {
+    pub fn carve(&mut self, plane: Hyperplane, color: DisjointUnionColorName) -> Result<()> {
         let new_surface = self.surfaces.push(SurfaceData {
             centroid: Point::ORIGIN, // will be computed later
             hyperplane: plane.clone(),
@@ -251,9 +249,10 @@ impl PuzzleShapeFactorBuilder {
 
         Ok(ProductPuzzleShape {
             group: self.group,
-            colors: self.color_names.map(|_, name| (0, name)),
+            factor_count: 1,
             pieces,
             surfaces: self.surfaces,
+            color_orbits: self.color_orbits,
         })
     }
 }

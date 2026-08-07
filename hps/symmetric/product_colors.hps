@@ -1,0 +1,45 @@
+// Polygon x polygon
+add_color_system_hook(
+    "sum([ngon(*),ngon(*)])",
+    0,
+    fn(n, m) {
+        default_scheme = #{}
+        for i in 0..parse_int(n) {
+            default_scheme["a${nth_uppercase(i)}"] = "Dark Rainbow [${i}/${n}]"
+        }
+        for i in 0..parse_int(m) {
+            default_scheme["b${nth_uppercase(i)}"] = "Light Rainbow [${i}/${m}]"
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Polygon x line
+add_color_system_hook(
+    "sum([ngon(*),line])",
+    0,
+    fn(n) {
+        default_scheme = #{}
+        for i in 0..parse_int(n) {
+            default_scheme["a${nth_uppercase(i)}"] = "Rainbow [${i}/${n}]"
+        }
+        default_scheme["bA"] = "White"
+        default_scheme["bB"] = "Gray"
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Line x polygon
+add_color_system_hook(
+    "sum([line,ngon(*)])",
+    0,
+    fn(n) {
+        default_scheme = #{}
+        default_scheme["aA"] = "White"
+        default_scheme["aB"] = "Gray"
+        for i in 0..parse_int(n) {
+            default_scheme["b${nth_uppercase(i)}"] = "Rainbow [${i}/${n}]"
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)

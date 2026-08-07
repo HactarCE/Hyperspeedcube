@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::*;
 
 /// Subcatalog for a specific object type (puzzles, color systems, twist
@@ -10,6 +8,11 @@ pub struct SubCatalog<T> {
     /// This includes non-generated objects, which are equivalent to generators
     /// that take no parameters.
     pub generators: HashMap<String, Arc<Generator<T>>>,
+    /// Hooks, which are called on the output of generators before they are
+    /// cached and returned.
+    ///
+    /// Hooks are sorted by priority.
+    pub hooks: Vec<Arc<CatalogHook<T>>>,
     /// Cache of objects created from generators, indexed by ID (e.g.,
     /// `ft_cube(3)`).
     pub(super) cache: Mutex<HashMap<String, CacheEntry<T>>>,
@@ -27,6 +30,7 @@ impl<T: CatalogObject> Default for SubCatalog<T> {
     fn default() -> Self {
         Self {
             generators: HashMap::default(),
+            hooks: vec![],
             cache: Mutex::default(),
         }
     }
@@ -43,6 +47,22 @@ impl<T: CatalogObject> SubCatalog<T> {
                 vacant_entry.insert(generator);
                 Ok(())
             }
+        }
+    }
+
+    /// Adds a hook to the catalog.
+    pub(super) fn add_hook(&mut self, hook: Arc<CatalogHook<T>>) {
+        self.hooks.push(hook);
+
+        // Sorting every time ends up being O(n^2) with respect to number of
+        // hooks but this is probably fine. Emit a warning if there seems to be
+        // a lot of hooks.
+        self.hooks.sort_by_key(|h| h.priority);
+        if self.hooks.len() == 100 {
+            log::warn!(
+                "{} subcatalog has 100+ hooks! this may cause performance problems",
+                T::catalog_type_name(),
+            )
         }
     }
 

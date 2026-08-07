@@ -51,7 +51,7 @@ fn generic_orbit_hps_code<T: PuzzleElement>(
     new_names_and_order: &[(usize, String)],
     compact: bool,
 ) -> String {
-    let mut new_element_names = vec![None; orbit.elements.len()];
+    let mut new_element_names = vec![None; orbit.len()];
     for (i, new_name) in new_names_and_order {
         if *i < new_element_names.len() {
             new_element_names[*i] = Some(new_name);

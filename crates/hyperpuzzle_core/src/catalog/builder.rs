@@ -48,6 +48,12 @@ impl CatalogBuilder {
         self.lock_db()?.get_subcatalog_mut().add(generator)
     }
 
+    /// Adds a hook to the catalog.
+    pub fn add_hook<T: CatalogObject>(&self, hook: Arc<CatalogHook<T>>) -> Result<()> {
+        self.lock_db()?.get_subcatalog_mut().add_hook(hook);
+        Ok(())
+    }
+
     /// Adds puzzle definition authors.
     pub fn add_authors<S: AsRef<str>>(
         &self,

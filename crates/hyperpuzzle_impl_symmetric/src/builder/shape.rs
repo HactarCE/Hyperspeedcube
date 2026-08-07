@@ -1,12 +1,13 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use eyre::Result;
+use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
-use hypuz_notation::Str;
+use hyperpuzzle_core::{ComponentList, prelude::*};
+use hypuz_notation::{Str, family::SequentialLowercaseName};
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -17,12 +18,14 @@ use crate::geometry::PolytopeGeometry;
 pub(super) struct ProductPuzzleShape {
     /// Symmetry group of the shape.
     pub group: IsometryGroup,
-    /// Lowercase index and name for each color.
-    pub colors: PerColor<(usize, Str)>, // TODO: do this better
+    /// Number of [`SequentialLowercaseName`] prefixes used.
+    pub factor_count: usize,
     /// Pieces and stickers.
     pub pieces: PerPiece<PieceData>,
     /// Data for each surface.
     pub surfaces: PerSurface<SurfaceData>,
+    /// Orbit data for colors.
+    pub color_orbits: Vec<Orbit<DisjointUnionColorName>>,
 }
 
 impl ProductPuzzleShape {
@@ -36,9 +39,10 @@ impl ProductPuzzleShape {
     pub fn direct_product_identity() -> Self {
         Self {
             group: IsometryGroup::trivial(),
-            colors: PerColor::new(),
+            factor_count: 0,
             pieces: PerPiece::from_iter([PieceData::POINT]),
             surfaces: PerSurface::new(),
+            color_orbits: vec![],
         }
     }
 
@@ -60,42 +64,78 @@ impl ProductPuzzleShape {
                 .map(|a_surface| a_surface.lift_by_ndim(0, 0, a.ndim(), b.ndim())),
             b.surfaces
                 .iter_values()
-                .map(|b_surface| b_surface.lift_by_ndim(a.colors.len(), a.ndim(), b.ndim(), 0)),
+                .map(|b_surface| b_surface.lift_by_ndim(a.factor_count, a.ndim(), b.ndim(), 0)),
         )
         .try_collect()?;
 
-        let a_color_sets = a
-            .colors
-            .iter_values()
-            .map(|(set, _)| *set + 1)
-            .max()
-            .unwrap_or(0);
-        let colors = std::iter::chain(
-            a.colors.iter_values().cloned(),
-            b.colors
-                .iter_values()
-                .map(|(set, name)| (a_color_sets + *set, name.clone())),
-        )
-        .collect();
-
         Ok(Self {
             group: IsometryGroup::product([&a.group, &b.group])?,
-            colors,
+            factor_count: a.factor_count + b.factor_count,
             pieces,
             surfaces,
+            color_orbits: std::iter::chain(
+                a.color_orbits.iter().cloned(),
+                b.color_orbits
+                    .iter()
+                    .map(|orbit| orbit.map(|name| Some(name.offset(a.factor_count)))),
+            )
+            .collect(),
         })
+    }
+
+    pub fn build_ad_hoc_color_system(&self, puzzle_id: CatalogId) -> Result<Arc<ColorSystem>> {
+        let id = hyperpuzzle_core::ad_hoc_id(puzzle_id);
+        let name = id.to_string();
+        let needs_prefix = self.factor_count != 1;
+
+        let names = Names::new_simple(
+            self.surfaces
+                .iter_values()
+                .map(|data| data.color.to_str(needs_prefix))
+                .collect::<IndexSet<Str>>()
+                .into_iter()
+                .collect(),
+        )?;
+
+        let scheme_name = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME;
+        let scheme = ColorSystem::new_rainbow_scheme(names.len());
+
+        let orbits = self
+            .color_orbits
+            .iter()
+            .map(|orbit| orbit.map(|s| names.lookup(&s.to_str(needs_prefix))))
+            .collect();
+
+        Ok(Arc::new(ColorSystem {
+            id,
+            name,
+            components: ComponentList::new(),
+            names,
+            schemes: IndexMap::from_iter([(scheme_name.to_string(), scheme)]),
+            default_scheme: scheme_name.to_string(),
+            orbits,
+        }))
     }
 
     pub fn build_piece_and_stickers(
         &self,
+        color_system: &ColorSystem,
     ) -> Result<(PerPiece<PieceInfo>, PerSticker<StickerInfo>)> {
+        let needs_prefix = self.factor_count != 1;
+
         let mut pieces = PerPiece::new();
         let mut stickers = PerSticker::new();
         for (piece, piece_builder) in &self.pieces {
             let mut piece_stickers = SmallVec::with_capacity(piece_builder.sticker_count());
             for facet in piece_builder.facets.iter() {
                 if let Some(sticker_data) = &facet.sticker_data {
-                    let color = self.surfaces[sticker_data.surface].color;
+                    let color_name = self.surfaces[sticker_data.surface]
+                        .color
+                        .to_str(needs_prefix);
+                    let color = color_system
+                        .names
+                        .lookup(&color_name)
+                        .ok_or_else(|| eyre!("no color named {color_name}"))?;
                     let sticker = stickers.push(StickerInfo { piece, color })?;
                     piece_stickers.push(sticker);
                 }
@@ -327,14 +367,14 @@ pub(super) struct SurfaceData {
     /// Hyperplane for the surface, whose normal vector is used to cull 4D
     /// backfaces.
     pub hyperplane: Hyperplane,
-    /// Sticker color for the surface.
-    pub color: Color,
+    /// Name of the sticker color for the surface.
+    pub color: DisjointUnionColorName,
 }
 
 impl SurfaceData {
     pub fn lift_by_ndim(
         &self,
-        color_count_below: usize,
+        color_prefix_offset: usize,
         ndim_below: u8,
         ndim: u8,
         ndim_above: u8,
@@ -348,7 +388,32 @@ impl SurfaceData {
                 ndim,
                 ndim_above,
             )?,
-            color: Color(color_count_below as u16 + self.color.0),
+            color: self.color.offset(color_prefix_offset),
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct DisjointUnionColorName {
+    pub prefix: SequentialLowercaseName,
+    pub name: Str,
+}
+
+impl DisjointUnionColorName {
+    #[must_use]
+    pub fn offset(&self, color_prefix_offset: usize) -> Self {
+        Self {
+            prefix: SequentialLowercaseName(self.prefix.0 + color_prefix_offset as u32),
+            name: self.name.clone(),
+        }
+    }
+
+    pub fn to_str(&self, needs_prefix: bool) -> Str {
+        let Self { prefix, name } = self;
+        if needs_prefix {
+            format!("{prefix}{name}").into()
+        } else {
+            self.name.clone()
+        }
     }
 }

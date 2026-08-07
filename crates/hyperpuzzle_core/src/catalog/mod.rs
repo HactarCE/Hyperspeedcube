@@ -2,7 +2,7 @@
 //! them.
 
 use std::any::{Any, TypeId};
-use std::collections::{BTreeSet, HashMap, hash_map};
+use std::collections::{BTreeMap, BTreeSet, HashMap, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -17,6 +17,7 @@ mod builder;
 mod entry;
 mod error;
 mod generator;
+mod hook;
 mod list;
 mod menu;
 mod notify;
@@ -29,6 +30,7 @@ pub use builder::CatalogBuilder;
 use entry::*;
 pub use error::*;
 pub use generator::*;
+pub use hook::CatalogHook;
 pub use hyperspeedcube_cli_types::catalog_id::*;
 pub use list::*;
 pub use menu::*;
@@ -153,7 +155,8 @@ impl Catalog {
             build_ctx.push_task(format!("Building {type_name} `{id}`"));
             let id = id.clone();
             Some(Box::new(move || {
-                let result = match generator.canonicalize(build_ctx.id()) {
+                // Generate
+                let mut result = match generator.canonicalize(build_ctx.id()) {
                     Some(canonicalized_id) => build_ctx.build_blocking(&canonicalized_id), // redirect
                     None => (generator.generate)(build_ctx.clone()),
                 }
@@ -165,6 +168,28 @@ impl Catalog {
                         cause: e.into(),
                     })
                 });
+
+                // Run hooks
+                if let Ok(obj) = &mut result
+                    && let Some(subcat) = build_ctx.0.catalog.get_subcatalog()
+                {
+                    build_ctx.push_task("Executing matching hooks".to_string());
+                    for hook in &subcat.hooks {
+                        if let Some(wildcard_values) = hook.id_pattern.match_wildcards(obj.id()) {
+                            build_ctx.push_task(format!(
+                                "Executing hook matching `{}`",
+                                hook.id_pattern
+                            ));
+                            if let Err(e) = (hook.callback)(obj, wildcard_values) {
+                                (build_ctx.warn_fn())(
+                                    e.wrap_err(format!("error in hook `{}`", hook.id_pattern)),
+                                )
+                            }
+                            build_ctx.pop_task();
+                        }
+                    }
+                    build_ctx.pop_task();
+                }
 
                 build_ctx.store_result(result);
             }) as Box<dyn 'static + Send + FnOnce()>)

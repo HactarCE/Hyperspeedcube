@@ -29,8 +29,8 @@ export fn new(t: Transform) -> Map {
 add_color_system(
     id = "line",
     name = "Line",
-    colors = [
-        #{ name = "A", default = "Red" },
-        #{ name = "B", default = "Blue" },
-    ],
+    colors = #{
+        A = "Red",
+        B = "Blue",
+    },
 )

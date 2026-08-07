@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, ops::Index};
+use std::{collections::HashMap, fmt, ops::Index, sync::Arc};
 
 use hypuz_notation::Str;
 use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex};
@@ -11,9 +11,10 @@ use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex};
 /// name.
 ///
 /// Names must be nonempty.
+#[derive(Clone)]
 pub struct Names<I> {
     list: TiVec<I, Str>,
-    name_to_id: Box<dyn Send + Sync + Fn(&str) -> Option<I>>,
+    name_to_id: Arc<dyn Send + Sync + Fn(&str) -> Option<I>>,
 }
 
 impl<I: TypedIndex> fmt::Debug for Names<I> {
@@ -43,7 +44,7 @@ impl<I: TypedIndex> Names<I> {
     pub fn new_empty() -> Self {
         Self {
             list: TiVec::new(),
-            name_to_id: Box::new(|_| None),
+            name_to_id: Arc::new(|_| None),
         }
     }
 
@@ -74,7 +75,7 @@ impl<I: TypedIndex> Names<I> {
 
         Ok(Self {
             list: names,
-            name_to_id: Box::new(move |s| map_back.get(s).copied()),
+            name_to_id: Arc::new(move |s| map_back.get(s).copied()),
         })
     }
 
@@ -107,7 +108,7 @@ impl<I: TypedIndex> Names<I> {
         }
         Ok(Self {
             list: names,
-            name_to_id: Box::new(name_to_id),
+            name_to_id: Arc::new(name_to_id),
         })
     }
 

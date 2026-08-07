@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::eyre;
 use hypergroup::GenSeq;
 use hypermath::Float;
-use hyperpuzzle_core::{CatalogId, ColorSystem, Puzzle, PuzzleListEntry};
+use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
@@ -110,7 +110,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         id.to_string()
                     },
                     twists: Option<String>,
-                    colors: String,
+                    (colors, colors_span): String,
                     ndim: Option<u8>,
                     tags: Option<Arc<Map>>,
                     (build, build_span): Arc<FnValue>,
@@ -119,9 +119,6 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let id = meta.id.clone();
                 let name = meta.name.clone();
 
-                let colors = Arc::new(ColorSystemDisjointUnion::from_color_system(
-                    build_ctx.build_str_blocking::<ColorSystem>(&colors)?,
-                ));
                 let twists = if let Some(twists) = twists {
                     build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?
                 } else if let Some(ndim) = ndim {
@@ -219,8 +216,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                             name,
                             coxeter_matrix,
                             &facet_orbits,
-                            colors,
-                            twists,
+                            colors.parse().at(colors_span)?,
+                            &twists,
                             &axis_orbit_cut_distances,
                             &mut build_ctx.warn_fn(),
                         )
@@ -231,9 +228,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
         ))?;
 
         catalog.add::<Puzzle>(hps_gen.make_generator(eval_tx, |build_ctx, tx, kwargs| {
-            Ok(build_ctx
-                .build_blocking::<PuzzleProduct>(build_ctx.id())?
-                .build(&build_ctx, &mut build_ctx.warn_fn())?)
+            Ok(crate::build_product_puzzle_impl(build_ctx)?)
         }))?;
 
         Ok(())

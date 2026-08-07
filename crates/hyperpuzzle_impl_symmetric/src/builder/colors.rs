@@ -1,39 +1,33 @@
 use std::sync::Arc;
 
-use eyre::{OptionExt, Result, eyre};
+use eyre::Result;
 use hyperpuzzle_core::{
-    CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, PaletteColor, PerColor,
-    TypedIndex, catalog::BuildCtx,
+    CatalogId, CatalogObject, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit,
+    PaletteColor, TypedIndex, catalog::BuildCtx,
 };
 use hypuz_notation::{Str, family::SequentialLowercaseName};
 use indexmap::IndexMap;
+use itertools::Itertools;
 
 /// Disjoint union of color systems.
 #[derive(Debug, Clone)]
 pub struct ColorSystemDisjointUnion {
     /// ID computed from `summand_ids`.
     pub id: CatalogId,
-    pub summand_ids: Vec<CatalogId>,
-    pub summand_names: Vec<String>,
-
-    /// List of names for each orbit of colors.
-    ///
-    /// Each orbit is assigned a [`SequentialLowercaseName`] prefix.
-    pub orbits: Vec<Vec<Option<Str>>>,
-
-    pub existing: Option<Arc<ColorSystem>>,
+    pub terms: Vec<ColorSystemTerm>,
 }
 
 impl ColorSystemDisjointUnion {
+    pub fn name(&self) -> String {
+        crate::sum_name(self.terms.iter().map(|t| &t.name))
+    }
+
     /// Constructs the empty color system, which is the identity of the disjoint
     /// union.
     pub fn disjoint_union_identity() -> Self {
         Self {
-            id: crate::sum_id(&[]),
-            summand_ids: vec![],
-            summand_names: vec![],
-            orbits: vec![],
-            existing: None,
+            id: crate::disjoint_union_id([].iter()),
+            terms: vec![],
         }
     }
 
@@ -41,44 +35,43 @@ impl ColorSystemDisjointUnion {
     ///
     /// The result has a distinct color for each color in `self` and for each
     /// color in `rhs`.
-    pub fn disjoint_union(&self, rhs: &Self) -> Result<Self, IndexOverflow> {
+    pub fn disjoint_union(&self, rhs: &Self) -> Result<Self> {
         if self.len() + rhs.len() >= Color::MAX_INDEX {
-            return Err(IndexOverflow::new::<Color>());
+            return Err(IndexOverflow::new::<Color>().into());
         }
-        let summand_ids: Vec<CatalogId> = crate::chain_cloned(&self.summand_ids, &rhs.summand_ids);
         Ok(Self {
-            id: crate::sum_id(&summand_ids),
-            summand_ids,
-            summand_names: crate::chain_cloned(&self.summand_names, &rhs.summand_names),
-            orbits: crate::chain_cloned(&self.orbits, &rhs.orbits),
-            existing: match (self.len(), rhs.len()) {
-                (0, _) => rhs.existing.clone(),
-                (_, 0) => self.existing.clone(),
-                _ => None,
-            },
+            id: crate::disjoint_union_id(
+                std::iter::chain(&self.terms, &rhs.terms)
+                    .map(|t| &t.id)
+                    .collect_vec()
+                    .into_iter(),
+            ),
+            terms: crate::chain_cloned(&self.terms, &rhs.terms),
         })
     }
 
     /// Returns the number of colors.
     pub fn len(&self) -> usize {
-        self.orbits.iter().map(|orbit| orbit.len()).sum()
+        self.terms.iter().map(|t| t.len()).sum()
     }
 
     /// Constructs a disjoint union color system with exactly one summand.
-    pub fn from_color_system(color_system: Arc<ColorSystem>) -> Self {
+    pub fn from_factor_color_system(color_system: Arc<ColorSystem>) -> Self {
         Self {
             id: color_system.id.clone(),
-            summand_ids: vec![color_system.id.clone()],
-            summand_names: vec![color_system.name.clone()],
-            orbits: vec![
-                color_system
-                    .names
-                    .list()
-                    .iter_values()
-                    .map(|s| Some(s.clone()))
-                    .collect(),
-            ],
-            existing: Some(color_system),
+            terms: vec![ColorSystemTerm::from(&*color_system)],
+        }
+    }
+
+    pub fn terms_with_prefixes(&self) -> Vec<(Str, &ColorSystemTerm)> {
+        if let [t] = self.terms.as_slice() {
+            vec![(Str::new(), &self.terms[0])]
+        } else {
+            self.terms
+                .iter()
+                .enumerate()
+                .map(|(i, t)| (SequentialLowercaseName(i as u32).to_string().into(), t))
+                .collect()
         }
     }
 
@@ -87,59 +80,74 @@ impl ColorSystemDisjointUnion {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<ColorSystem>> {
-        if let Some(existing) = &self.existing {
-            return Ok(Arc::clone(existing));
-        }
+        let terms = self.terms_with_prefixes();
 
-        let mut autonames = crate::autonames();
+        let names = Names::new_simple(
+            terms
+                .iter()
+                .flat_map(|(prefix, t)| {
+                    t.color_names
+                        .iter()
+                        .map(move |s| format!("{prefix}{s}").into())
+                })
+                .collect(),
+        )?;
 
-        let mut names = PerColor::<Str>::new();
-        for (i, orbit_names) in self.orbits.iter().enumerate() {
-            let prefix = SequentialLowercaseName(i as u32);
-            for name in orbit_names {
-                let prefixed_name = name
-                    .as_ref()
-                    .map(|s| {
-                        if self.orbits.len() == 1 {
-                            s.into()
-                        } else {
-                            format!("{prefix}{s}").into()
-                        }
-                    })
-                    .or_else(|| Some(autonames.next()?.into()))
-                    .ok_or_eyre("missing color name")?; // should be impossible
-                names.push(prefixed_name)?;
-            }
-        }
-        let names = Names::new_simple(names)?;
+        // TODO: implement some fancy thing that distributes colors cleverly?
+        //       e.g., 2x blue -> dark blue + light blue
+        let scheme_name = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME;
+        let scheme = if let [t] = self.terms.as_slice() {
+            t.default_scheme.clone().into()
+        } else {
+            ColorSystem::new_rainbow_scheme(self.len())
+        };
 
-        if autonames.next() != crate::autonames().next() {
-            warn_fn(eyre!("color system is missing at least one name"));
-        }
-
-        let default_scheme = "Automatic".to_string();
-        let mut schemes = IndexMap::new();
-        schemes.insert(
-            default_scheme.clone(),
-            std::iter::repeat_n(
-                PaletteColor::Gradient {
-                    gradient_name: "Rainbow".to_string(),
-                    index: 0,
-                    total: 0,
-                },
-                names.len(),
-            )
-            .collect(),
-        );
+        let orbits = terms
+            .iter()
+            .flat_map(|(prefix, t)| t.orbits.iter().map(move |orbit| (prefix, orbit)))
+            .map(|(prefix, orbit)| orbit.map(|s| names.lookup(&format!("{prefix}{s}"))))
+            .collect();
 
         Ok(Arc::new(ColorSystem {
             id: self.id.clone(),
-            name: crate::product_name(&self.summand_names),
+            name: self.name(),
             components: ComponentList::new(),
             names,
-            schemes,
-            default_scheme,
-            orbits: vec![], // TODO
+            schemes: IndexMap::from_iter([(scheme_name.to_string(), scheme)]),
+            default_scheme: scheme_name.to_ascii_lowercase(),
+            orbits,
         }))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ColorSystemTerm {
+    id: CatalogId,
+    name: String,
+    color_names: Vec<Str>,
+    default_scheme: Vec<PaletteColor>,
+    orbits: Vec<Orbit<Str>>,
+}
+
+impl From<&ColorSystem> for ColorSystemTerm {
+    fn from(color_system: &ColorSystem) -> Self {
+        Self {
+            id: color_system.id.clone(),
+            name: color_system.name.clone(),
+            color_names: color_system.names.list().to_vec(),
+            // TODO: try to keep all color schemes
+            default_scheme: color_system.default_scheme().to_vec(),
+            orbits: color_system
+                .orbits
+                .iter()
+                .map(|orbit| orbit.map(|&color| Some(color_system.names[color].clone())))
+                .collect(),
+        }
+    }
+}
+
+impl ColorSystemTerm {
+    pub fn len(&self) -> usize {
+        self.color_names.len()
     }
 }

@@ -207,9 +207,9 @@ impl fmt::Display for PaletteColor {
             PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index),
             PaletteColor::Gradient {
                 gradient_name,
-                index: numerator,
-                total: denominator,
-            } => write!(f, "{gradient_name} [{numerator}/{denominator}]"),
+                index,
+                total,
+            } => write!(f, "{gradient_name} [{index}/{total}]"),
         }
     }
 }

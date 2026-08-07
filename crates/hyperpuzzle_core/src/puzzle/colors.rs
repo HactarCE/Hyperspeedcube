@@ -7,7 +7,7 @@ use super::*;
 use crate::{CatalogId, ComponentList, NameSpecBiMap};
 
 /// System of sticker colors for a puzzle.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ColorSystem {
     /// Catalog ID.
     pub id: CatalogId,
@@ -30,7 +30,7 @@ pub struct ColorSystem {
 
 impl ColorSystem {
     /// Returns a rainbow color scheme with the given length.
-    fn new_rainbow_scheme(len: usize) -> PerColor<PaletteColor> {
+    pub fn new_rainbow_scheme(len: usize) -> PerColor<PaletteColor> {
         (0..len)
             .map(|i| PaletteColor::Gradient {
                 gradient_name: crate::DEFAULT_COLOR_GRADIENT_NAME.to_string(),

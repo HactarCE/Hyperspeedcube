@@ -122,5 +122,11 @@ add_color_system(
     id = "ngon",
     name = "Polygon",
     params = [edges_param],
-    gen = fn(n) { #{name = name(n), colors = (0..n).map(fn(i) { #{ name = nth_uppercase(i) } }) } },
+    gen = fn(n) {
+        colors = #{}
+        for i in 0..n {
+            colors[nth_uppercase(i)] = "Rainbow [${i}/${n}]"
+        }
+        return #{ name = name(n), colors = colors }
+    },
 )

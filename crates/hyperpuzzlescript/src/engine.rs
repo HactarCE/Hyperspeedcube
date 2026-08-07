@@ -174,7 +174,7 @@ impl HpsGenerator {
                     scope.special.id = Some(build_ctx.id().to_string().into());
                     tx.eval_blocking(Arc::new(scope), move |ctx| {
                         let mut return_value = gen_fn.call(gen_fn_span, ctx, args, Map::new())?;
-                        if let Ok(m) = return_value.as_map_mut(gen_fn_span) {
+                        if let Ok(m) = return_value.as_map_mut(crate::BUILTIN_SPAN) {
                             for (k, v) in &*self_kwargs {
                                 match m.entry(k.clone()) {
                                     indexmap::map::Entry::Occupied(_) => ctx.warn_at(

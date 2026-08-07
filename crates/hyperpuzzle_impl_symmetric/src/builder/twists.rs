@@ -202,7 +202,7 @@ impl TwistSystemProduct {
     /// product.
     pub fn direct_product_identity() -> Self {
         Self {
-            id: crate::product_id(&[]),
+            id: crate::product_id([].into_iter()),
             group: IsometryGroup::trivial(),
             coxeter_mirrors: vec![],
             named_point_action: GroupAction::trivial(),
@@ -362,7 +362,7 @@ impl TwistSystemProduct {
             named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
         }
 
-        let id = crate::product_id(std::slice::from_ref(&factor_id));
+        let id = crate::product_id([&factor_id].into_iter());
         let factor = TwistSystemFactor {
             id: factor_id,
             names,
@@ -468,7 +468,7 @@ impl TwistSystemProduct {
         };
 
         Ok(Self {
-            id: crate::product_id(&factors.iter().map(|f| f.id.clone()).collect_vec()),
+            id: crate::product_id(factors.iter().map(|f| &f.id)),
 
             coxeter_mirrors,
             group,
@@ -521,6 +521,7 @@ impl TwistSystemProduct {
         components.insert(Arc::new(SymmetricTwistSystemComponent {
             axes: Arc::clone(&axes),
             group: self.group.clone(),
+            coxeter_mirrors: self.coxeter_mirrors.clone(),
             axis_action: self.axis_action.clone(),
 
             axis_undeorbiters: Arc::new(self.build_axis_undeorbiters()?),
@@ -698,6 +699,7 @@ impl TwistSystemProduct {
 
             ret.push(SymmetricTwistSystemAxisOrbit {
                 first: orbit.first(),
+                len: orbit.len,
                 subgroup_solver: Mutex::new(subgroup_solver),
                 stabilizer_twists,
             });

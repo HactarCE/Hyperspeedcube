@@ -111,7 +111,7 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     hyperpuzzle_impl_symmetric::hps::register_hps_engines(&mut rt);
     rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))
         .expect("error defining HPS symmetric built-ins");
-    hyperpuzzle_impl_symmetric::add_puzzles_to_catalog(catalog)
+    hyperpuzzle_impl_symmetric::add_catalog_entries(catalog)
         .expect("error adding symmetric puzzles to catalog");
 
     // Load user files.

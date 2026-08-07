@@ -1,8 +1,9 @@
 use eyre::{OptionExt, Result, eyre};
 use hypergroup::{ConstraintSet, GroupElementId};
 use hypermath::pga::Motor;
-use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, VectorRef, approx_collections};
-use hyperpuzzle_core::{Axis, Mesh, PerGizmoFace, TiMask};
+use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, Vector, VectorRef, approx_collections};
+use hyperpuzzle_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
+use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypershape::{Cut, Space};
 use hypuz_notation::{Move, Transform};
 use itertools::Itertools;
@@ -13,17 +14,15 @@ use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 pub fn build_3d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
-    axes: &TwistSystemProduct,
+    axis_vectors: &PerAxis<Vector>,
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<()> {
-    let axis_from_vector = ApproxHashMap::from_iter(
-        APPROX,
-        axes.axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)),
-    );
+    let axis_from_vector =
+        ApproxHashMap::from_iter(APPROX, axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)));
 
     let mut space = Space::new(3)?;
-    let mut seen_axes = TiMask::new_empty(axes.len());
-    for facet_id in gizmo_facets(&mut space, axes)? {
+    let mut seen_axes = TiMask::new_empty(twists.axes.len());
+    for facet_id in gizmo_facets(&mut space, axis_vectors, twists)? {
         let init_axis = *axis_from_vector
             .get(space.get(facet_id).hyperplane_pole()?.into_vector())
             .ok_or_eyre("unknown axis vector")?;
@@ -42,9 +41,9 @@ pub fn build_3d_gizmo(
             .collect_vec();
 
         // Generate mesh for each face
-        for (axis, _, m) in orbit_axes_with_representatives(init_axis, axes, &mut seen_axes) {
+        for (axis, _, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes) {
             let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
-            let surface_id = mesh.add_gizmo_surface(&axes.axis_vectors[axis])?;
+            let surface_id = mesh.add_gizmo_surface(&axis_vectors[axis])?;
             let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
             mesh.add_gizmo_face(range)?;
             gizmo_twists.push(Transform::new(&twists.axes.names[axis], None).into())?;
@@ -57,18 +56,16 @@ pub fn build_3d_gizmo(
 pub fn build_4d_gizmo(
     mesh: &mut Mesh,
     gizmo_twists: &mut PerGizmoFace<Move>,
-    axes: &TwistSystemProduct,
+    axis_vectors: &PerAxis<Vector>,
     twists: &SymmetricTwistSystemComponent,
     mut warn_fn: impl FnMut(eyre::Report),
 ) -> Result<()> {
-    let axis_from_vector = ApproxHashMap::from_iter(
-        APPROX,
-        axes.axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)),
-    );
+    let axis_from_vector =
+        ApproxHashMap::from_iter(APPROX, axis_vectors.iter().map(|(ax, v)| (v.clone(), ax)));
 
     let mut space = Space::new(4)?;
-    let mut seen_axes = TiMask::new_empty(axes.len());
-    'facet: for facet_id in gizmo_facets(&mut space, axes)? {
+    let mut seen_axes = TiMask::new_empty(twists.axes.len());
+    'facet: for facet_id in gizmo_facets(&mut space, axis_vectors, twists)? {
         let init_axis = *axis_from_vector
             .get(space.get(facet_id).hyperplane_pole()?.into_vector())
             .ok_or_eyre("unknown axis vector")?;
@@ -93,7 +90,7 @@ pub fn build_4d_gizmo(
             let init_vector = (|| {
                 init_secondary
                     .vector(&twists.named_point_vectors)
-                    .rejected_from(&axes.axis_vectors[init_axis])?
+                    .rejected_from(&axis_vectors[init_axis])?
                     .normalize_to(*gizmo_pole_distance)
             })()
             .ok_or_eyre("gizmo pole distance cannot be zero")?;
@@ -112,7 +109,7 @@ pub fn build_4d_gizmo(
                 .subgroup
                 .generators
                 .into_iter()
-                .map(|g| (g, axes.group.motor(g)))
+                .map(|g| (g, twists.group.motor(g)))
                 .collect_vec();
             hypergroup::orbit(
                 (init_vector, init_secondary),
@@ -123,7 +120,7 @@ pub fn build_4d_gizmo(
                         vector_to_twist_family.entry_with_mut_key(&mut new_vector)
                     {
                         let new_secondary =
-                            secondary.transform_by_group_element(&axes.named_point_action, *g);
+                            secondary.transform_by_group_element(&twists.named_point_action, *g);
                         entry.insert((new_secondary.clone(), *gizmo_pole_distance));
                         Some((new_vector, new_secondary))
                     } else {
@@ -195,13 +192,13 @@ pub fn build_4d_gizmo(
             .try_collect()?;
 
         // Generate mesh for each cell/axis
-        for (axis, e, m) in orbit_axes_with_representatives(init_axis, axes, &mut seen_axes) {
+        for (axis, e, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes) {
             // Generate mesh for each face
             for (vertex_positions, secondary) in &faces {
                 let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
                 let transformed_secondary =
                     secondary.transform_by_group_element(&twists.named_point_action, e);
-                let surface_id = mesh.add_gizmo_surface(&axes.axis_vectors[axis])?;
+                let surface_id = mesh.add_gizmo_surface(&axis_vectors[axis])?;
                 let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
                 mesh.add_gizmo_face(range)?;
                 let family_str = StabilizerFamily {
@@ -217,14 +214,19 @@ pub fn build_4d_gizmo(
     Ok(())
 }
 
-fn gizmo_facets(space: &mut Space, axes: &TwistSystemProduct) -> Result<Vec<hypershape::FacetId>> {
-    let mirror_planes = axes
+fn gizmo_facets(
+    space: &mut Space,
+    axis_vectors: &PerAxis<Vector>,
+    twists: &SymmetricTwistSystemComponent,
+) -> Result<Vec<hypershape::FacetId>> {
+    let mirror_planes = twists
         .coxeter_mirrors
         .iter()
         .filter_map(|mirror_vector| Hyperplane::new(mirror_vector, 0.0));
-    let carve_planes = axes
-        .axis_orbits()
-        .filter_map(|orbit| Hyperplane::from_pole(&axes.axis_vectors[orbit.first()]));
+    let carve_planes = twists
+        .axis_orbits
+        .iter()
+        .filter_map(|orbit| Hyperplane::from_pole(&axis_vectors[orbit.first]));
 
     let gizmo_polyhedron = space.add_folded_shape(mirror_planes, carve_planes)?;
     let gizmo_polyhedron = space.get(gizmo_polyhedron);
@@ -241,22 +243,18 @@ fn gizmo_facets(space: &mut Space, axes: &TwistSystemProduct) -> Result<Vec<hype
 
 fn orbit_axes_with_representatives(
     init: Axis,
-    axes: &TwistSystemProduct,
+    twists: &SymmetricTwistSystemComponent,
     seen: &mut TiMask<Axis>,
 ) -> Vec<(Axis, GroupElementId, Motor)> {
     hypergroup::orbit_collect(
-        (
-            init,
-            GroupElementId::IDENTITY,
-            Motor::ident(axes.group.ndim()),
-        ),
-        axes.group.generators(),
+        (init, GroupElementId::IDENTITY, Motor::ident(twists.ndim())),
+        twists.group.generators(),
         |_, (ax, e, m), &g| {
-            let new_axis = axes.axis_action.act(g, *ax);
+            let new_axis = twists.axis_action.act(g, *ax);
             (!seen.contains(new_axis)).then(|| {
                 seen.insert(new_axis);
-                let new_elem = axes.group.compose(g, *e);
-                let new_motor = axes.group.motor(g) * m;
+                let new_elem = twists.group.compose(g, *e);
+                let new_motor = twists.group.motor(g) * m;
                 (new_axis, new_elem, new_motor)
             })
         },

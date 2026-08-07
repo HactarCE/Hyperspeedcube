@@ -159,6 +159,23 @@ impl CatalogId {
             subset: None,
         }
     }
+
+    /// If `self` is a pattern that matches `other`, returns the values in
+    /// `other` that fill the wildcards in `self`. Returns `None` if the IDs do
+    /// not match.
+    pub fn match_wildcards(&self, other: &CatalogId) -> Option<Vec<CatalogIdValue>> {
+        let mut buf = vec![];
+        self.match_wildcards_into(other, &mut buf).then_some(buf)
+    }
+
+    #[must_use]
+    fn match_wildcards_into(&self, other: &Self, output_buffer: &mut Vec<CatalogIdValue>) -> bool {
+        self.base == other.base
+            && self.args.len() == other.args.len()
+            && self.subset == other.subset
+            && std::iter::zip(&self.args, &other.args)
+                .all(|(pattern, value)| pattern.match_wildcards_into(value, output_buffer))
+    }
 }
 
 /// Abstract syntax tree node for a [`CatalogId`].
@@ -319,6 +336,31 @@ impl CatalogIdValue {
         match self {
             CatalogIdValue::Ident(base) => Ok(base.parse()?),
             _ => Err(self.expected_got("integer")),
+        }
+    }
+
+    fn match_wildcards_into(&self, other: &Self, output_buffer: &mut Vec<Self>) -> bool {
+        match (self, other) {
+            (CatalogIdValue::Ident(_), _) => self == other,
+
+            (CatalogIdValue::Generator(a), CatalogIdValue::Generator(b)) => {
+                a.match_wildcards_into(b, output_buffer)
+            }
+            (CatalogIdValue::Generator(_), _) => false,
+
+            (CatalogIdValue::List(a), CatalogIdValue::List(b)) => {
+                a.len() == b.len()
+                    && std::iter::zip(a, b)
+                        .all(|(pattern, value)| pattern.match_wildcards_into(value, output_buffer))
+            }
+            (CatalogIdValue::List(_), _) => false,
+
+            (CatalogIdValue::Wildcard, _) => {
+                output_buffer.push(other.clone());
+                true
+            }
+
+            (CatalogIdValue::Error, _) => false,
         }
     }
 }

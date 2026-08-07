@@ -9,7 +9,7 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::NdEuclidPuzzleGeometry;
+use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, NdEuclidPuzzleGeometry};
 
 mod colors;
 mod from_space;
@@ -18,9 +18,13 @@ mod shape;
 mod twists;
 
 pub(crate) use colors::ColorSystemDisjointUnion;
+use hypuz_notation::family::SequentialLowercaseName;
+use itertools::Itertools;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
-use shape::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
+use shape::{
+    DisjointUnionColorName, PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData,
+};
 pub(crate) use twists::TwistSystemProduct;
 
 use crate::spec::SimpleOrbitSpec;
@@ -29,11 +33,8 @@ use crate::{CutDistances, ProductPuzzleState, SymmetricTwistSystemComponent};
 #[derive(Debug)]
 pub struct PuzzleProduct {
     id: CatalogId,
-    factor_ids: Vec<CatalogId>,
-    factor_names: Vec<String>,
+    factors: Vec<PuzzleProductFactor>,
     shape: ProductPuzzleShape,
-    colors: Arc<ColorSystemDisjointUnion>,
-    twists: Arc<TwistSystemProduct>,
     axis_layers_per_orbit: Vec<AxisLayersInfo>,
 }
 
@@ -50,7 +51,6 @@ impl CatalogObject for PuzzleProduct {
 impl PuzzleProduct {
     /// Returns the number of the dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        debug_assert_eq!(self.shape.ndim(), self.twists.ndim());
         self.shape.ndim()
     }
 
@@ -58,12 +58,9 @@ impl PuzzleProduct {
     /// product.
     pub fn direct_product_identity() -> Self {
         PuzzleProduct {
-            id: crate::product_id(&[]),
-            factor_ids: vec![],
-            factor_names: vec![],
+            id: crate::product_id([].into_iter()),
+            factors: vec![],
             shape: ProductPuzzleShape::direct_product_identity(),
-            colors: Arc::new(ColorSystemDisjointUnion::disjoint_union_identity()),
-            twists: Arc::new(TwistSystemProduct::direct_product_identity()),
             axis_layers_per_orbit: vec![],
         }
     }
@@ -77,8 +74,8 @@ impl PuzzleProduct {
         name: String,
         coxeter_matrix: CoxeterMatrix,
         facet_orbits: &[SimpleOrbitSpec],
-        colors: Arc<ColorSystemDisjointUnion>,
-        twists: Arc<TwistSystemProduct>,
+        colors_id: CatalogId,
+        twists: &TwistSystemProduct,
         axis_orbit_cut_distances: &[CutDistances],
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
@@ -89,11 +86,34 @@ impl PuzzleProduct {
         // Carve facets
         for orbit in facet_orbits {
             for facet in &orbit.orbit_members {
-                // TODO: color orbits (dev data)
                 let plane = Hyperplane::from_pole(&facet.vector).ok_or_eyre("bad hyperplane")?;
-                let color = shape_builder.add_color(facet.name.clone())?;
+                let color = DisjointUnionColorName {
+                    prefix: SequentialLowercaseName(0),
+                    name: facet.name.clone(),
+                };
                 shape_builder.carve(plane, color)?;
             }
+            shape_builder.color_orbits.push(Orbit {
+                elements: Arc::new(
+                    orbit
+                        .orbit_members
+                        .iter()
+                        .map(|f| {
+                            Some(DisjointUnionColorName {
+                                prefix: SequentialLowercaseName(0),
+                                name: f.name.clone(),
+                            })
+                        })
+                        .collect(),
+                ),
+                generator_sequences: Arc::new(
+                    orbit
+                        .orbit_members
+                        .iter()
+                        .map(|f| f.abbr_gen_seq.clone())
+                        .collect(),
+                ),
+            });
         }
         shape_builder.set_surface_centroids_from_stickers_of_single_piece()?;
 
@@ -147,12 +167,14 @@ impl PuzzleProduct {
         }
 
         Ok(Self {
-            id: crate::product_id(std::slice::from_ref(&id)),
-            factor_ids: vec![id],
-            factor_names: vec![name],
+            id: crate::product_id([&id].into_iter()),
+            factors: vec![PuzzleProductFactor {
+                id,
+                name,
+                colors_id,
+                twists_id: twists.id.clone(),
+            }],
             shape,
-            colors,
-            twists,
             axis_layers_per_orbit,
         })
     }
@@ -163,20 +185,15 @@ impl PuzzleProduct {
     /// `a.ndim() + b.ndim()`, with puzzle `a` occupying the lower dimensions
     /// and puzzle `b` occupying the higher dimensions.
     pub fn direct_product(&self, rhs: &Self) -> Result<Self> {
-        let factor_ids: Vec<_> = crate::chain_cloned(&self.factor_ids, &rhs.factor_ids);
         Ok(PuzzleProduct {
-            id: crate::product_id(&factor_ids),
-            factor_ids,
-            factor_names: crate::chain_cloned(&self.factor_names, &rhs.factor_names),
+            id: crate::product_id(
+                std::iter::chain(&self.factors, &rhs.factors)
+                    .map(|f| &f.id)
+                    .collect_vec()
+                    .into_iter(),
+            ),
+            factors: crate::chain_cloned(&self.factors, &rhs.factors),
             shape: self.shape.direct_product(&rhs.shape)?,
-            colors: Arc::new(ColorSystemDisjointUnion::disjoint_union(
-                &self.colors,
-                &rhs.colors,
-            )?),
-            twists: Arc::new(TwistSystemProduct::direct_product(
-                &self.twists,
-                &rhs.twists,
-            )?),
             axis_layers_per_orbit: crate::chain_cloned(
                 &self.axis_layers_per_orbit,
                 &rhs.axis_layers_per_orbit,
@@ -184,44 +201,49 @@ impl PuzzleProduct {
         })
     }
 
+    pub fn colors_id(&self) -> CatalogId {
+        crate::disjoint_union_id(self.factors.iter().map(|f| &f.colors_id))
+    }
+    pub fn twists_id(&self) -> CatalogId {
+        crate::product_id(self.factors.iter().map(|f| &f.twists_id))
+    }
+
     /// Constructs the final puzzle.
     pub fn build(
         &self,
         build_ctx: &BuildCtx,
+        colors: Arc<ColorSystem>,
+        twists: Arc<TwistSystem>,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<Puzzle>> {
-        let built_colors = self.colors.build(build_ctx, warn_fn)?;
-        let built_twists = self.twists.build(build_ctx, warn_fn)?;
-
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
 
-        let (pieces, stickers) = self.shape.build_piece_and_stickers()?;
+        let (pieces, stickers) = self.shape.build_piece_and_stickers(&colors)?;
 
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
             self.shape.build_piece_types(warn_fn)?;
 
-        let twists = &self.twists;
-        let symmetric_twist_system_component = built_twists
-            .components
-            .get::<SymmetricTwistSystemComponent>()?;
+        let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
+        let symmetric_twist_system_component =
+            twists.components.get::<SymmetricTwistSystemComponent>()?;
 
         let grip_signatures = Arc::new(self.shape.build_grip_signatures());
 
         let axis_layers: PerAxis<AxisLayersInfo> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(twists.axis_orbits())
+            .zip(&*symmetric_twist_system_component.axis_orbits)
             .flat_map(|(&layers_info, orbit)| std::iter::repeat_n(layers_info, orbit.len))
             .collect();
 
         let axes_with_twists: Vec<Axis> = self
             .axis_layers_per_orbit
             .iter()
-            .zip(twists.axis_orbits())
+            .zip(&*symmetric_twist_system_component.axis_orbits)
             .filter(|(layers_info, orbit)| {
                 layers_info.max_layer > 0
-                    && symmetric_twist_system_component.axis_has_twists(orbit.first())
+                    && symmetric_twist_system_component.axis_has_twists(orbit.first)
             })
             .flat_map(|(_, orbit)| orbit.axes())
             .collect();
@@ -229,12 +251,12 @@ impl PuzzleProduct {
         let mut mesh = self.shape.build_mesh()?;
 
         let mut gizmo_twists = PerGizmoFace::new();
-        if !twists.axis_vectors.is_empty() {
+        if !symmetric_twist_system_component.axes.is_empty() {
             if ndim == 3 {
                 gizmos::build_3d_gizmo(
                     &mut mesh,
                     &mut gizmo_twists,
-                    &twists,
+                    &axis_vectors.vectors_by_id,
                     &symmetric_twist_system_component,
                 )
                 .wrap_err("error building 3D gizmos")?;
@@ -242,7 +264,7 @@ impl PuzzleProduct {
                 gizmos::build_4d_gizmo(
                     &mut mesh,
                     &mut gizmo_twists,
-                    &twists,
+                    &axis_vectors.vectors_by_id,
                     &symmetric_twist_system_component,
                     warn_fn,
                 )
@@ -265,7 +287,7 @@ impl PuzzleProduct {
 
             mesh,
 
-            axis_vectors: built_twists.axes.components.get()?,
+            axis_vectors: twists.axes.components.get()?,
             axis_layer_depths: PerAxis::new(), // TODO: is this needed?
 
             gizmo_twists,
@@ -302,7 +324,7 @@ impl PuzzleProduct {
         let mut components = ComponentList::new();
         components.insert(geom);
 
-        Ok(Arc::new_cyclic(|this| Puzzle {
+        Ok(Arc::new_cyclic(move |this| Puzzle {
             this: Weak::clone(this),
             meta: Arc::new(PuzzleListEntry {
                 id: self.id.clone(),
@@ -325,11 +347,11 @@ impl PuzzleProduct {
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
-            colors: built_colors,
+            colors,
             can_scramble: false,
             full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
             axis_layers,
-            twists: built_twists,
+            twists,
             new: Box::new({
                 move |ty| {
                     ProductPuzzleState {
@@ -351,6 +373,14 @@ impl PuzzleProduct {
     }
 
     pub fn name(&self) -> String {
-        crate::product_name(&self.factor_names)
+        crate::product_name(self.factors.iter().map(|f| &f.name))
     }
+}
+
+#[derive(Debug, Clone)]
+struct PuzzleProductFactor {
+    id: CatalogId,
+    name: String,
+    colors_id: CatalogId,
+    twists_id: CatalogId,
 }

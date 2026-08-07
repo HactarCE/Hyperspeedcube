@@ -21,6 +21,8 @@ fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {
     // TODO: rework this UI
 
     ui.label(format!("ID: {}", puz.meta.id));
+    ui.label(format!("Colors ID: {}", puz.colors.id));
+    ui.label(format!("Twists ID: {}", puz.twists.id));
     ui.label(format!(
         "Version: {}",
         puz.meta.version.map(|v| v.to_string()).unwrap_or_default(),
