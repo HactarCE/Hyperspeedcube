@@ -183,7 +183,7 @@ impl FromStr for PaletteColor {
             let set_name = set_name.trim().to_string();
             if let Some((index, total)) = index.split_once('/') {
                 let gradient_name = set_name;
-                let index = index.trim().parse::<usize>().ok()?.saturating_sub(1); // 1-indexed
+                let index = index.trim().parse::<usize>().ok()?;
                 let total = total.trim().parse::<usize>().ok()?;
                 Some(Self::Gradient {
                     gradient_name,
@@ -191,7 +191,7 @@ impl FromStr for PaletteColor {
                     total,
                 })
             } else {
-                let index = index.trim().parse::<usize>().ok()?.saturating_sub(1); // 1-indexed
+                let index = index.trim().parse::<usize>().ok()?;
                 Some(Self::Set { set_name, index })
             }
         })()
@@ -204,17 +204,12 @@ impl fmt::Display for PaletteColor {
             PaletteColor::Unknown => write!(f, "(unknown)"),
             PaletteColor::HexCode { rgb } => write!(f, "{rgb}"),
             PaletteColor::Single { name } => write!(f, "{name}"),
-            PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), /* 1-indexed */
+            PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index),
             PaletteColor::Gradient {
                 gradient_name,
                 index: numerator,
                 total: denominator,
-            } => write!(
-                f,
-                "{gradient_name} [{}/{}]",
-                numerator.saturating_add(1),
-                denominator,
-            ), /* 1-indexed */
+            } => write!(f, "{gradient_name} [{numerator}/{denominator}]"),
         }
     }
 }
