@@ -192,17 +192,24 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
         generate: Box::new(build_product_puzzle_impl),
     }))?;
 
+    catalog.add_to_puzzle_list(&CatalogId::new(id.clone(), vec![], None));
+
     Ok(())
 }
 
 fn build_product_puzzle_impl(build_ctx: BuildCtx) -> Result<Arc<Puzzle>> {
+    let meta = build_ctx.build_blocking::<PuzzleListEntry>(build_ctx.id())?;
     let puzzle_product = build_ctx.build_blocking::<PuzzleProduct>(build_ctx.id())?;
     let colors = match puzzle_product.colors_id() {
         Some(colors_id) => build_ctx.build_blocking::<ColorSystem>(&colors_id)?,
         None => puzzle_product.build_ad_hoc_color_system()?,
     };
-    let twists = build_ctx.build_blocking::<TwistSystem>(&puzzle_product.twists_id())?;
-    puzzle_product.build(&build_ctx, colors, twists, &mut build_ctx.warn_fn())
+    let twists = match puzzle_product.twists_id() {
+        Some(twists_id) => build_ctx.build_blocking::<TwistSystem>(&twists_id)?,
+        None => TwistSystemProduct::new_empty(puzzle_product.ndim())
+            .build(&build_ctx, &mut build_ctx.warn_fn())?,
+    };
+    puzzle_product.build(&build_ctx, meta, colors, twists, &mut build_ctx.warn_fn())
 }
 
 fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
@@ -256,6 +263,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
             Ok(Arc::new(TwistSystemProduct::new_factor(
                 &FactorTwistSystemSpec {
                     id: build_ctx.id().clone(),
+                    name: "Empty".to_string(),
                     ndim: build_ctx.id().args[0].to_int()?.try_into()?,
                     coxeter_matrix: None,
                     axis_orbits: vec![],

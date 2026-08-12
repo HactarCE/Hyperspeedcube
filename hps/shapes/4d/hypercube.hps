@@ -55,22 +55,22 @@ add_color_system(
     },
 )
 
-add_puzzle(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    colors = facet_colors,
-    engine = "euclid",
-    ndim = 4,
-    build = fn() {
-        use sym, facet_pole, facet_names from new()
-        with #sym = sym { carve(plane(facet_pole), facet_names) }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = "4d/platonic/hypercube",
-    },
-)
+// add_puzzle(
+//     id = id,
+//     version = "1.0.0",
+//     name = name,
+//     aliases = aliases,
+//     colors = facet_colors,
+//     engine = "euclid",
+//     ndim = 4,
+//     build = fn() {
+//         use sym, facet_pole, facet_names from new()
+//         with #sym = sym { carve(plane(facet_pole), facet_names) }
+//     },
+//     tags = #{
+//         schema = 1,
+//         type = "solid",
+//         stable = "2.0.0",
+//         shape = "4d/platonic/hypercube",
+//     },
+// )

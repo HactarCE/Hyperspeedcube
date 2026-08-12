@@ -1,13 +1,9 @@
 use * from euclid
 
-export aliases = ["3-Cube", "Hexahedron", "1x1x1", "1^3"]
-export ndim = 3
-
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export ndim
     export sym = t.transform(cd("bc3"))
 
     export face = sym.oox.unit
@@ -31,15 +27,6 @@ export fn new(t: Transform) -> Map {
     }]
 }
 
-export facet_colors_list = [
-    #{name = "R", display = "Right"},
-    #{name = "L", display = "Left"},
-    #{name = "U", display = "Up"},
-    #{name = "D", display = "Down"},
-    #{name = "F", display = "Front"},
-    #{name = "B", display = "Back"},
-]
-
 western_color_scheme = #{
     R = "Red",
     L = "Orange",
@@ -49,47 +36,21 @@ western_color_scheme = #{
     B = "Blue",
 }
 
-add_color_system(id = "cube", name = "Cube",
+add_color_system(
+    id = "cube",
+    name = "Cube",
     schemes = #{
         Western = western_color_scheme,
         Japanese = #{
+            **western_color_scheme,
             D = "Blue",
             B = "Yellow",
-            **western_color_scheme,
         },
-        // Japanese = #{
-        //     R = "Red",
-        //     L = "Orange",
-        //     U = "White",
-        //     D = "Blue",
-        //     F = "Green",
-        //     B = "Yellow",
-        // },
         OP = #{
+            **western_color_scheme,
             D = "Black",
             L = "Green",
             F = "Yellow",
-            **western_color_scheme
         },
     },
 )
-
-// add_puzzle(
-//     id = id,
-//     version = "1.0.0",
-//     name = name,
-//     aliases = aliases,
-//     colors = facet_colors,
-//     engine = "euclid",
-//     ndim = ndim,
-//     build = fn() {
-//         use sym, facet_pole, facet_names from new()
-//         with #sym = sym { carve(plane(facet_pole), facet_names) }
-//     },
-//     tags = #{
-//         schema = 1,
-//         type = "solid",
-//         stable = "2.0.0",
-//         shape = shape_tag,
-//     },
-// )

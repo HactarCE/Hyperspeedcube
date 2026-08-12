@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use eyre::eyre;
+use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
 use hypermath::Float;
-use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry};
+use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
@@ -36,25 +36,14 @@ impl HpsEngine for SymmetricPuzzleEngine {
             id.to_string()
         });
 
-        pop_kwarg!(hps_gen.kwargs, aliases: Vec<String> = vec![]);
-        pop_kwarg!(hps_gen.kwargs, tags: Option<Arc<Map>>);
-
-        let mut tags = tags.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
-        // IIFE to mimic try_block
-        (|| {
-            if hps_gen.gen_fn.is_some() {
-                tags.insert_named("generator", true.into())?;
-            }
-            tags.insert_named("solid", true.into())?;
-            tags.insert_named("doctrinaire", true.into())?;
-            tags.insert_named("pseudodoctrinaire", true.into())?;
-            if let Some(v) = hps_gen.kwargs.get("ndim")
-                && let Ok(ndim) = v.ref_to::<i64>()
-            {
-                tags.insert_named("ndim", ndim.into())?;
-            }
-            eyre::Ok(())
-        })()?;
+        let aliases = match hps_gen.kwargs.get("aliases") {
+            Some(v) => v.clone().to()?,
+            None => vec![],
+        };
+        if hps_gen.gen_fn.is_some() {
+            hps_gen.kwargs.swap_remove("aliases");
+        }
+        let tags = get_tags(ctx, &mut hps_gen.kwargs, hps_gen.gen_fn.is_some())?;
 
         let generator_list_entry = Arc::new(PuzzleListEntry {
             id: CatalogId::new(id.clone(), vec![], None),
@@ -74,17 +63,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                     id.to_string()
                 });
                 pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
-                pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
-
-                let mut tags = tags
-                    .map(|m| tx.eval_blocking(Scope::new(), |ctx| tags_from_map(ctx, m)))
-                    .unwrap_or_default();
-                tags.insert_named("solid", true.into())
-                    .map_err(|e| eyre!(e))?;
-                tags.insert_named("doctrinaire", true.into())
-                    .map_err(|e| eyre!(e))?;
-                tags.insert_named("pseudodoctrinaire", true.into())
-                    .map_err(|e| eyre!(e))?;
+                let tags =
+                    tx.eval_blocking(Scope::new(), move |ctx| get_tags(ctx, &mut kwargs, false))?;
 
                 Ok(Arc::new(PuzzleListEntry {
                     id,
@@ -105,40 +85,33 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 // TODO: error message on extra param says "unused function arg" but should say "unused map key"
                 unpack_kwargs!(
                     kwargs,
-                    name: String = {
-                        build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
-                        id.to_string()
-                    },
+                    name: Option<String>,
+                    aliases: Option<Vec<String>>,
+                    tags: Option<Arc<Map>>,
                     twists: Option<String>,
                     colors: Option<Spanned<String>>,
                     ndim: Option<u8>,
-                    tags: Option<Arc<Map>>,
                     (build, build_span): Arc<FnValue>,
                 );
+
+                drop((name, aliases, tags)); // already handled by PuzzleListEntry
 
                 let id = meta.id.clone();
                 let name = meta.name.clone();
 
                 let twists = if let Some(twists) = twists {
-                    build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?
-                } else if let Some(ndim) = ndim {
-                    build_ctx.build_str_blocking::<TwistSystemProduct>(&format!("empty({ndim})"))?
+                    Some(build_ctx.build_str_blocking::<TwistSystemProduct>(&twists)?)
                 } else {
-                    Err(eyre!("at least one of `ndim` and `twists` is required"))?
+                    None
                 };
-                let twists_ndim = twists.ndim();
-                if let Some(expected_ndim) = ndim
-                    && twists_ndim != expected_ndim
-                {
-                    Err(eyre!(
-                        "twist system has ndim={twists_ndim:?} \
-                         but expected ndim={expected_ndim:?}"
-                    ))?;
-                }
+
+                let ndim = ndim
+                    .or(twists.as_ref().map(|t| t.ndim()))
+                    .ok_or_eyre("at least one of `ndim` and `twists` is required")?;
 
                 let mut scope = Scope::default();
                 scope.special.id = Some(id.to_string().into());
-                scope.special.ndim = Some(twists.ndim());
+                scope.special.ndim = Some(ndim);
                 scope.special.shape = Arc::new(Mutex::new({
                     let mut m = Map::new();
                     m.insert("points".into(), super::new_hps_list());
@@ -169,12 +142,13 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         .at(sym_span)?
                         .map(|g, m| (GenSeq::new([g]), m));
 
+                    build_ctx.push_task("parsing named points specification");
                     let mut autonames = crate::named_point_autonames();
                     let named_point_orbits: Vec<NamedPointOrbitSpec> =
                         pop_map_key_in_special_var::<Vec<Value>>(
                             &mut shape_map,
                             build_span,
-                            SpecialVar::Puz,
+                            SpecialVar::Shape,
                             "points",
                         )?
                         .into_iter()
@@ -187,7 +161,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                             )
                         })
                         .try_collect()?;
+                    build_ctx.pop_task();
 
+                    build_ctx.push_task("parsing facets specification");
                     let facet_orbits: Vec<_> =
                         super::simple_orbit_from_value(pop_map_key_in_special_var::<Vec<Value>>(
                             &mut shape_map,
@@ -195,41 +171,58 @@ impl HpsEngine for SymmetricPuzzleEngine {
                             SpecialVar::Shape,
                             "facets",
                         )?)?;
+                    build_ctx.pop_task();
 
                     let mut puz_map = Arc::unwrap_or_clone(
                         std::mem::take(&mut *ctx.scope.special.puz.lock()).to::<Arc<Map>>()?,
                     );
 
-                    let mut axis_orbit_cut_distances = vec![None; twists.axis_orbits().count()];
-                    for (k, v) in &*pop_map_key_in_special_var::<Arc<Map>>(
-                        &mut puz_map,
-                        build_span,
-                        SpecialVar::Puz,
-                        "layers",
-                    )? {
-                        let axis = twists
-                            .axis_from_name(k)
-                            .ok_or_else(|| format!("no axis named {k:?}"))
-                            .at(v.span)?;
-                        let i = twists
-                            .orbit_containing_axis(axis)
-                            .ok_or("axis has no orbit")
-                            .at(v.span)?;
-                        if axis_orbit_cut_distances[i].is_some() {
+                    build_ctx.push_task("parsing cut distances specification");
+                    let (layers_spec, layers_spec_span) =
+                        pop_map_key_in_special_var::<Spanned<Arc<Map>>>(
+                            &mut puz_map,
+                            build_span,
+                            SpecialVar::Puz,
+                            "layers",
+                        )?;
+                    let axis_orbit_cut_distances;
+                    if let Some(twists) = &twists {
+                        let mut layer_floats = vec![None; twists.axis_orbits().count()];
+                        for (k, v) in &*layers_spec {
+                            let axis = twists
+                                .axis_from_name(k)
+                                .ok_or_else(|| format!("no axis named {k:?}"))
+                                .at(v.span)?;
+                            let i = twists
+                                .orbit_containing_axis(axis)
+                                .ok_or("axis has no orbit")
+                                .at(v.span)?;
+                            if layer_floats[i].is_some() {
+                                ctx.warn_at(
+                                    v.span,
+                                    format!("duplicate layers for orbit of axis {k:?}"),
+                                );
+                            }
+                            layer_floats[i] = Some(v.ref_to::<Vec<Float>>()?);
+                        }
+                        axis_orbit_cut_distances = layer_floats
+                            .into_iter()
+                            .map(|cut_distances| CutDistances(cut_distances.unwrap_or_default()))
+                            .collect_vec();
+                    } else {
+                        if !layers_spec.is_empty() {
                             ctx.warn_at(
-                                v.span,
-                                format!("duplicate layers for orbit of axis {k:?}"),
+                                layers_spec_span,
+                                "ignoring `layers` because there are no axes",
                             );
                         }
-                        axis_orbit_cut_distances[i] = Some(v.ref_to::<Vec<Float>>()?);
+                        axis_orbit_cut_distances = vec![];
                     }
-                    let axis_orbit_cut_distances = axis_orbit_cut_distances
-                        .into_iter()
-                        .map(|cut_distances| CutDistances(cut_distances.unwrap_or_default()))
-                        .collect_vec();
+                    build_ctx.pop_task();
 
                     Ok(Arc::new(
                         PuzzleProduct::new_factor(
+                            &build_ctx,
                             &crate::FactorPuzzleSpec {
                                 id,
                                 name,
@@ -254,6 +247,35 @@ impl HpsEngine for SymmetricPuzzleEngine {
             Ok(crate::build_product_puzzle_impl(build_ctx)?)
         }))?;
 
+        catalog.add_generator_to_puzzle_list(id);
+
         Ok(())
     }
+}
+
+fn get_tags(
+    ctx: &mut EvalCtx<'_>,
+    mut kwargs: &mut Map,
+    is_generator: bool,
+) -> Result<TagSet, HpsEngineError> {
+    pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
+
+    let mut tags = tags.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
+    // IIFE to mimic try_block
+    (|| {
+        if is_generator {
+            tags.insert_named("generator", true.into())?;
+        }
+        tags.insert_named("solid", true.into())?;
+        tags.insert_named("doctrinaire", true.into())?;
+        tags.insert_named("pseudodoctrinaire", true.into())?;
+        if let Some(v) = kwargs.get("ndim")
+            && let Ok(ndim) = v.ref_to::<i64>()
+        {
+            tags.insert_named("ndim", ndim.into())?;
+        }
+        eyre::Ok(())
+    })()?;
+
+    Ok(tags)
 }

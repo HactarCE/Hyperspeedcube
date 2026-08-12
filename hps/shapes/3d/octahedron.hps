@@ -1,53 +1,38 @@
 use * from euclid
 
-export id = "octahedron"
-export name = "Octahedron"
-export adjective = "Octahedral"
-export aliases = ["4-Orthoplex"]
-export facet_colors = id
-export ndim = 3
-export shape_tag = "3d/platonic/octahedron"
-
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("bc3"))
 
-    export facet_pole = sym.xoo.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        R  = [2, "D"],
-        L  = [0, "F"],
-        U  = [2, "BL"],
-        D  = [1, "L"],
-        F  = [],
-        BR = [1, "U"],
-        BL = [0, "D"],
-        BD = [0, "BR"], // B in standard notation
-    })
+    export face = sym.xoo.unit
+    export edge = sym.oxo.unit * √6/2
+    export vertex = sym.oox.unit * √3
 
-    export vertex_pole = sym.oox.unit * √3
+    export facet = face
+    export ridge = edge
+    export peak = vertex
+
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            U = [],
+            L = [0, "U"],
+            R = [1, "L"],
+            F = [0, "R"],
+            BD = [2, "R"], // B in standard notation
+            BL = [0, "BD"],
+            BR = [1, "BL"],
+            D = [0, "BR"],
+        }),
+    }]
 }
 
-export facet_colors_list = [
-    #{name = "R", display = "Right"},
-    #{name = "L", display = "Left"},
-    #{name = "U", display = "Up"},
-    #{name = "D", display = "Down"},
-    #{name = "F", display = "Front"},
-    #{name = "BR", display = "Back-right"},
-    #{name = "BL", display = "Back-left"},
-    #{name = "BD", display = "Back-down"},
-]
-add_color_system(
-    id = id,
-    name = name,
-
-    colors = facet_colors_list,
-
-    schemes = [
-        ["Lanlan", #{
+add_color_system(id = "octahedron", name = "Octahedron",
+    default_scheme = "Diansheng",
+    schemes = #{
+        "Lanlan" = #{
             R = "Green",
             L = "Purple",
             U = "White",
@@ -56,8 +41,8 @@ add_color_system(
             BR = "Gray",
             BL = "Orange",
             BD = "Blue",
-        }],
-        ["Benpuzzles Classic", #{
+        },
+        "Benpuzzles Classic" = #{
             R = "Yellow",
             L = "Cyan",
             U = "White",
@@ -66,8 +51,8 @@ add_color_system(
             BR = "Red",
             BL = "Blue",
             BD = "Magenta",
-        }],
-        ["Benpuzzles Alt", #{
+        },
+        "Benpuzzles Alt" = #{
             R = "Red",
             L = "Yellow",
             U = "White",
@@ -76,8 +61,8 @@ add_color_system(
             BR = "Purple",
             BL = "Orange",
             BD = "Blue", // lighter
-        }],
-        ["Diansheng", #{
+        },
+        "Diansheng" = #{
             R = "Red",
             L = "Purple",
             U = "White",
@@ -86,8 +71,8 @@ add_color_system(
             BR = "Gray",
             BL = "Orange",
             BD = "Blue",
-        }],
-        ["MF8", #{
+        },
+        "MF8" = #{
             R = "Red",
             L = "Pink",
             U = "White",
@@ -96,27 +81,6 @@ add_color_system(
             BR = "Purple",
             BL = "Orange",
             BD = "Blue", // lighter
-        }],
-    ],
-    default = "Diansheng",
-)
-
-add_puzzle(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    colors = facet_colors,
-    engine = "euclid",
-    ndim = ndim,
-    build = fn() {
-        use sym, facet_pole, facet_names from new()
-        with #sym = sym { carve(plane(facet_pole), facet_names) }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = shape_tag,
+        },
     },
 )

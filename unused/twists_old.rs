@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::num::NonZeroI32;
 use std::sync::Arc;
 
-use eyre::{Context, OptionExt, Result, bail, eyre};
+use eyre::{bail, eyre, Context, OptionExt, Result};
 use hypergroup::{
     ConjugateCoset, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
     SubgroupConstraintSolver,

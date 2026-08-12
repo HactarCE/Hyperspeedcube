@@ -10,12 +10,15 @@ use super::*;
 #[derive(Clone)]
 pub struct CatalogBuilder {
     catalog_data: Arc<Mutex<Option<CatalogData>>>,
+    /// Puzzles and puzzle generators to add to the puzzle list.
+    puzzle_list: Arc<Mutex<Vec<CatalogId>>>,
 }
 
 impl Default for CatalogBuilder {
     fn default() -> Self {
         Self {
             catalog_data: Arc::new(Mutex::new(Some(CatalogData::default()))),
+            puzzle_list: Arc::new(Mutex::new(vec![])),
         }
     }
 }
@@ -67,9 +70,14 @@ impl CatalogBuilder {
     ///
     /// This must be called manually for every individual puzzle and puzzle
     /// generator that should appear in the puzzle list.
-    pub fn add_to_puzzle_list(&self, puzzle_list_entry: Arc<PuzzleListEntry>) -> Result<()> {
-        self.lock_db()?.puzzle_list.push(puzzle_list_entry);
-        Ok(())
+    pub fn add_to_puzzle_list(&self, id: &CatalogId) {
+        self.puzzle_list.lock().push(id.clone())
+    }
+    /// Adds a puzzle generator to the puzzle list.
+    ///
+    /// Wrapper around [`Self::add_to_puzzle_list()`] for convenience.
+    pub fn add_generator_to_puzzle_list(&self, id: &CatalogIdent) {
+        self.add_to_puzzle_list(&CatalogId::new(id.clone(), [], None))
     }
 
     /// Creates a menu.
@@ -133,15 +141,15 @@ impl CatalogBuilder {
 
         // Populate puzzle list
         let mut puzzle_list = vec![];
-        if let Some(subcatalog) = ret.get_subcatalog::<PuzzleListEntry>() {
-            for g in subcatalog.generators.values() {
-                match ret.build_blocking::<PuzzleListEntry>(&CatalogId::new(g.id.clone(), [], None))
-                {
-                    Ok(puzzle_list_entry) => puzzle_list.push(puzzle_list_entry),
-                    Err(e) => ret.logger.error(e),
-                }
+        for id in &*self.puzzle_list.lock() {
+            match ret.build_blocking::<PuzzleListEntry>(id) {
+                Ok(puzzle_list_entry) => puzzle_list.push(puzzle_list_entry),
+                Err(e) => ret.logger.error(e),
             }
         }
+        puzzle_list.sort_by_key(|entry| entry.id.clone());
+        puzzle_list.dedup_by_key(|entry| entry.id.clone());
+
         Arc::get_mut(&mut ret.0)
             .ok_or_eyre("catalog has already been shared")?
             .puzzle_list = puzzle_list;

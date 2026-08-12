@@ -62,8 +62,15 @@ impl BuildCtx {
     ///
     /// Each call to [`BuildCtx::push_task()`] should have a matching call to
     /// [`BuildCtx::pop_task()`].
-    pub fn push_task(&self, description: String) {
-        self.0.request_state.lock().task_stack.push(description);
+    ///
+    /// Prefer a lowercased verb phrase as the description; e.g., `attaching
+    /// knobs` rather than `Attaching knobs`.
+    pub fn push_task(&self, description: impl ToString) {
+        self.0
+            .request_state
+            .lock()
+            .task_stack
+            .push(description.to_string());
     }
     /// Removes a task from the task stack.
     ///

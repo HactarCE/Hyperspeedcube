@@ -1,30 +1,41 @@
 use * from euclid
 
-// - **Shape**
-// - *Platonic*
-// - Tetrahedron
-// - Cube
-// - Octahedron
-// - Dodecahedron
-// - Icosahedron
-// - *Other*
-// - Cuboid
+GIZMO_EDGE_FACTOR = 0.25
 
-layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 49 }
+layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
+cuts_param = #{ name = "Cuts", type = Int, default = 1, min = 1, max = 20 }
 
-add_menu_entry(path = "Solid|3D|Platonic|Cube|FT",            id = "cube_ft", priority = 52)
-add_menu_entry(path = "Solid|3D|Platonic|Cube|ET",            id = "cube_et", priority = 51)
-add_menu_entry(path = "Solid|3D|Platonic|Cube|VT",            id = "cube_vt", priority = 50)
-// add_menu_entry(path = "Solid|3D|Platonic|Cube|Tetrahedral",  id = "todo", priority = -4)
-// add_menu_entry(path = "Solid|3D|Platonic|Cube|Dodecahedral", id = "todo", priority = -12)
+add_menu_entry(path = "Solid|3D", next_column = "Shape")
+add_menu_entry(path = "Solid|3D|Platonic", section = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron",  priority = 5,  next_column = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Cube",         priority = 4,  next_column = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron",   priority = 3,  next_column = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron", priority = 2, next_column = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron",  priority = 1, next_column = "Axes")
 
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT",                  next_inline = "Depth",   priority = 52, default = true)
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx",         id = "megaminx",         priority = 15, default = true) // params = [layers_param]
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx Crystal", id = "megaminx_crystal", priority = 14)
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pyraminx Crystal", id = "pyraminx_crystal", priority = 13)
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Curvy Starminx",   id = "curvy_starminx",   priority = 12) // params = [layers_param]
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Starminx",         id = "starminx",         priority = 11)
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pentultimate",     id = "pentultimate",     priority = 10) // params = [layers_param]
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|None", priority = 1000, id = "tetrahedron")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT", priority = 2, next_inline = "Cuts", default = true)
+
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|A",        id = "tetrahedron_a")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|B",        id = "tetrahedron_b")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|C",        id = "tetrahedron_c", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|Pyraminx", id = "pyraminx")
+
+
+add_menu_entry(path = "Solid|3D|Platonic|Cube|None", priority = 1000, id = "cube")
+add_menu_entry(path = "Solid|3D|Platonic|Cube|FT",   priority = 52,   id = "cube_ft", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Cube|ET",   priority = 51,   id = "cube_et")
+add_menu_entry(path = "Solid|3D|Platonic|Cube|VT",   priority = 50,   id = "cube_vt")
+
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT",                  priority = 52, next_inline = "Depth",   default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx",         priority = 15, id = "megaminx",         default = true) // params = [layers_param]
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx Crystal", priority = 14, id = "megaminx_crystal")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pyraminx Crystal", priority = 13, id = "pyraminx_crystal")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Curvy Starminx",   priority = 12, id = "curvy_starminx") // params = [layers_param]
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Starminx",         priority = 11, id = "starminx")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pentultimate",     priority = 10, id = "pentultimate") // params = [layers_param]
+
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT", id = "octahedron_ft", priority = 52, default = true)
 
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT",     next_inline = "Depth (Radiolarian Number)", priority = 52, default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1",   id = "todo")
@@ -44,8 +55,66 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|13",  id = "todo")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|14",  id = "todo")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|15",  id = "todo")
 
-// cube_points =
-layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
+// ------------ //
+// Basic Shapes //
+//------------- //
+
+add_puzzle(id = "tetrahedron", name = "Tetrahedron",
+    aliases = ["3-Simplex"],
+    engine = "symmetric",
+    ndim = 3,
+    colors = "tetrahedron",
+    build = fn() { @util.build_symmetric_shape(@shapes/3d/tetrahedron.new()) },
+)
+
+add_puzzle(id = "cube", name = "Cube",
+    aliases = ["3-Cube", "Hexahedron", "1x1x1", "1^3"],
+    engine = "symmetric",
+    ndim = 3,
+    colors = "cube",
+    build = fn() { @util.build_symmetric_shape(@shapes/3d/cube.new()) },
+)
+
+add_puzzle(id = "octahedron", name = "Octahedron",
+    aliases = ["3-Orthoplex"],
+    engine = "symmetric",
+    ndim = 3,
+    colors = "octahedron",
+    build = fn() { @util.build_symmetric_shape(@shapes/3d/octahedron.new()) },
+)
+
+add_puzzle(id = "dodecahedron", name = "Dodecahedron",
+    engine = "symmetric",
+    ndim = 3,
+    colors = "dodecahedron",
+    build = fn() { @util.build_symmetric_shape(@shapes/3d/dodecahedron.new()) },
+)
+
+add_puzzle(id = "icosahedron", name = "Icosahedron",
+    engine = "symmetric",
+    ndim = 3,
+    colors = "icosahedron",
+    build = fn() { @util.build_symmetric_shape(@shapes/3d/icosahedron.new()) },
+)
+
+// ------------- //
+// Twist systems //
+//-------------- //
+
+add_twist_system(id = "tetrahedron_ft", name = "FT Tetrahedron",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        shape = @shapes/3d/tetrahedron.new()
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        #twists.stabilizer_twists = [
+            [["R", "F"], √2],
+        ] // TODO
+        #twists.stabilizer_sets = [] // TODO
+    },
+)
 
 add_twist_system(id = "cube_ft", name = "FT Cube",
     engine = "symmetric",
@@ -55,27 +124,215 @@ add_twist_system(id = "cube_ft", name = "FT Cube",
         #twists.sym = shape.sym
         #twists.points = shape.points
         #twists.axes = [shape.facet]
-        // #twists.stabilizer_twists = []
-        #twists.stabilizer_sets = [[["R", "U"], shape.edge.mag * 2/3]]
-        #twists.stabilizer_sets = [[["R", "U", "F"], shape.vertex.mag * 2/3]]
+        #twists.stabilizer_twists = [
+            [["R", "U"], 1],
+            [["R", "U", "F"], lerp(√2, 1/√2, GIZMO_EDGE_FACTOR)],
+        ]
+        #twists.stabilizer_sets = [
+            [["R", "U"], shape.edge.mag * lerp(1, 1/2, GIZMO_EDGE_FACTOR)],
+            [["R", "U", "F"], shape.vertex.mag * lerp(1, 1/3, GIZMO_EDGE_FACTOR)],
+        ]
     },
 )
 
-add_puzzle(id = "cube_ft", name = "FT Cube",
-    aliases = ["FT Hexahedron", "n^3", "N-Layer Rubik's Cube"],
+add_twist_system(id = "octahedron_ft", name = "FT Octahedron",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        shape = @shapes/3d/octahedron.new()
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        #twists.stabilizer_twists = [] // TODO
+        #twists.stabilizer_sets = [] // TODO
+    },
+)
+
+add_twist_system(id = "icosahedron_ft", name = "FT Icosahedron",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        shape = @shapes/3d/icosahedron.new()
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        #twists.stabilizer_twists = [] // TODO
+        #twists.stabilizer_sets = [] // TODO
+    },
+)
+
+// ------- //
+// Puzzles //
+//-------- //
+
+fn n_layer_prefix(n, *, default=3) { if n == default { "" } else { "${n}-Layer " } }
+
+add_puzzle(id = "tetrahedron_a", name = "N-Layer Tetrahedron A",
     tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    colors = "tetrahedron",
+    twists = "tetrahedron_ft",
+    params = [layers_param],
+    gen = fn(cuts) {
+        return #{
+            name = n_layer_prefix(cuts + 2, default = 2) ++ "Tetrahedron A",
+            build = fn() {
+                @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
+                #puz.layers.R = [∞, -2/3, -∞]
+            },
+        }
+    }
+)
+
+add_puzzle_list_entry("tetrahedron_a(1)")
+
+add_puzzle(id = "tetrahedron_c", name = "N-Layer Tetrahedron C",
+    aliases = ["N-Layer FT Tetrahedron"],
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    colors = "tetrahedron",
+    twists = "tetrahedron_ft",
+    params = [cuts_param],
+    gen = fn(cuts) {
+        return #{
+            name = n_layer_prefix(cuts + 1, default = 2) ++ "Tetrahedron C",
+            aliases = if cuts == 1 {
+                ["Jing's Pyraminx", "Halpern-Meier Tetrahedron", "Obieemnaia Logicheskaia Igra"]
+            } else if cuts == 4 {
+                ["Royal Tetrahedron"]
+            },
+            build = fn() {
+                @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
+                #puz.layers.R = @util.ft_tetrahedron_shallow_cut_depths(3, cuts)
+            },
+        }
+    }
+)
+
+add_puzzle_list_entry("tetrahedron_c(1)")
+add_puzzle_list_entry("tetrahedron_c(4)")
+
+add_puzzle(id = "cube_ft", name = "FT Cube",
+    aliases = ["n^3", "N-Layer Rubik's Cube"],
+    tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
     colors = "cube",
     twists = "cube_ft",
     params = [layers_param],
     gen = fn(layers) {
+        extra_aliases = ([
+            [],                  // 0
+            [],                  // 1
+            ["Pocket Cube"],     // 2
+            ["Rubik's Cube"],    // 3
+            ["Rubik's Revenge"], // 4
+            ["Professor Cube"],  // 5
+        ][layers] ?? [])
         return #{
             name = "${layers}^3",
+            aliases = ["${layers}x${layers}x${layers}"] ++ extra_aliases,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/cube.new())
+                #puz.layers.R = @util.ft_cube_cut_depths(3, layers)
+            },
+        }
+    }
+)
+
+add_puzzle_list_entry("cube_ft(3)")
+add_puzzle_list_entry("cube_ft(4)")
+add_puzzle_list_entry("cube_ft(5)")
+add_puzzle_list_entry("cube_ft(6)")
+add_puzzle_list_entry("cube_ft(7)")
+
+add_puzzle(id = "megaminx", name = "FT Dodecahedron",
+    // aliases = ["FT Hexahedron", "n^3", "N-Layer Rubik's Cube"],
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    // colors = "dodecahedron",
+    twists = "dodecahedron_ft",
+    params = [layers_param],
+    gen = fn(layers) {
+        aliases = ["${layers}x${layers}x${layers}"]
+        extra_alias = [null, null, "Pocket Cube", "Rubik's Cube", "Rubik's Revenge", "Professor Cube"][layers]
+        if extra_alias != null {
+            aliases ++= [extra_alias]
+        }
+        return #{
+            name = "${layers}^3",
+            // aliases = aliases,
+            build = fn() {
+                shape = @shapes/3d/dodecahedron.new()
+                sym = shape.sym
+                #shape.sym = shape.sym
+                #shape.points = [sym.oox.unit]
+                #shape.facets = [sym.oox.unit]
                 // TODO: realistic proportions
-                #puz.layers.R = @util/layers.inclusive(1, -1, layers)
+                #puz.layers.ZZA = [1,1/φ+0.1]
+            },
+        }
+    }
+)
+
+add_puzzle(id = "octahedron_ft", name = "FT Octahedron",
+    // aliases = ["FT Hexahedron", "n^3", "N-Layer Rubik's Cube"],
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    // colors = "octahedron",
+    twists = "octahedron_ft",
+    params = [layers_param],
+    gen = fn(layers) {
+        aliases = ["${layers}x${layers}x${layers}"]
+        extra_alias = [null, null, "Pocket Cube", "Rubik's Cube", "Rubik's Revenge", "Professor Cube"][layers]
+        if extra_alias != null {
+            aliases ++= [extra_alias]
+        }
+        return #{
+            name = "${layers}^3",
+            // aliases = aliases,
+            build = fn() {
+                shape = @shapes/3d/octahedron.new()
+                sym = shape.sym
+                #shape.sym = shape.sym
+                #shape.points = [sym.oox.unit]
+                #shape.facets = [sym.xoo.unit]
+                // TODO: realistic proportions
+                #puz.layers.ZZAZZBZZC = [1,1/3]
+            },
+        }
+    }
+)
+
+add_puzzle(id = "icosahedron_ft", name = "FT Icosahedron",
+    // aliases = ["FT Hexahedron", "n^3", "N-Layer Rubik's Cube"],
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    // colors = "icosahedron",
+    twists = "icosahedron_ft",
+    params = [layers_param],
+    gen = fn(layers) {
+        aliases = ["${layers}x${layers}x${layers}"]
+        extra_alias = [null, null, "Pocket Cube", "Rubik's Cube", "Rubik's Revenge", "Professor Cube"][layers]
+        if extra_alias != null {
+            aliases ++= [extra_alias]
+        }
+        return #{
+            name = "${layers}^3",
+            // aliases = aliases,
+            build = fn() {
+                shape = @shapes/3d/icosahedron.new()
+                sym = shape.sym
+                #shape.sym = shape.sym
+                #shape.points = [sym.oox.unit]
+                #shape.facets = [sym.xoo.unit]
+                // TODO: realistic proportions
+                #puz.layers.ZZAZZBZZC = [1,0.8]
             },
         }
     }

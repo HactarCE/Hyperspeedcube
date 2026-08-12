@@ -1,0 +1,8 @@
+add_menu_entry(path = "", next_column = "Construction")
+add_menu_entry(path = "Solid", next_column = "Space")
+// add_menu_entry(path = "Tiling", next_column = "Curvature")
+// add_menu_entry(path = "Tiling|Spherical", next_column = "Tiling")
+// add_menu_entry(path = "Tiling|Euclidean", next_column = "Tiling")
+// add_menu_entry(path = "Tiling|Hyperbolic", next_column = "Tiling")
+
+// More specific menu entries are defined in the same files as the relevant puzzles

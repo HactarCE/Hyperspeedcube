@@ -152,7 +152,6 @@ impl Catalog {
                 canceled: Arc::clone(&generic_request.data.canceled),
                 parent_ids,
             }));
-            build_ctx.push_task(format!("Building {type_name} `{id}`"));
             let id = id.clone();
             Some(Box::new(move || {
                 // Generate
@@ -173,11 +172,11 @@ impl Catalog {
                 if let Ok(obj) = &mut result
                     && let Some(subcat) = build_ctx.0.catalog.get_subcatalog()
                 {
-                    build_ctx.push_task("Executing matching hooks".to_string());
+                    build_ctx.push_task("executing matching hooks".to_string());
                     for hook in &subcat.hooks {
                         if let Some(wildcard_values) = hook.id_pattern.match_wildcards(obj.id()) {
                             build_ctx.push_task(format!(
-                                "Executing hook matching `{}`",
+                                "executing hook matching `{}`",
                                 hook.id_pattern
                             ));
                             if let Err(e) = (hook.callback)(obj, wildcard_values) {

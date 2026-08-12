@@ -334,7 +334,9 @@ impl PuzzleWidget {
                         match request.get() {
                             Ok(puzzle) => self.load(request.id().to_string(), solve_to_load, prefs), // TODO: consider inlining
                             Err(task_strings) => {
-                                loading_heading = Some(task_strings.iter().join("\n").into());
+                                loading_heading = Some(
+                                    task_strings.iter().map(|s| capitalize(s)).join("\n").into(),
+                                );
                                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                                     request,
                                     solve_to_load,
@@ -1185,4 +1187,12 @@ struct PuzzleViewResponse {
     color_to_edit: Option<Color>,
     texture_view: Option<wgpu::TextureView>,
     filter_mode: wgpu::FilterMode,
+}
+
+fn capitalize(s: &str) -> String {
+    let Some((i, _)) = s.char_indices().nth(1) else {
+        return s.to_string();
+    };
+    let (first_char, rest) = s.split_at(i);
+    first_char.to_uppercase() + rest
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::{Result, bail, ensure};
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
 use hypermath::{Subspace, prelude::*};
-use hyperpuzzle_core::CatalogId;
+use hyperpuzzle_core::{CatalogId, PuzzleListEntry};
 use hypuz_notation::Str;
 use itertools::Itertools;
 
@@ -14,6 +14,8 @@ use crate::{CutDistances, NamedPoint, PerNamedPoint};
 pub struct FactorTwistSystemSpec {
     /// ID for the twist system.
     pub id: CatalogId,
+    /// Name for the twist system.
+    pub name: String,
     /// Number of dimensions.
     pub ndim: u8,
     /// Symmetry for the twist system.
@@ -76,8 +78,8 @@ pub struct FactorPuzzleSpec {
 
     /// ID for the color system, or `None` to use an ad-hoc color system.
     pub colors_id: Option<CatalogId>,
-    /// Twist system.
-    pub twists: Arc<TwistSystemProduct>,
+    /// Twist system, or `None` to use no twists.
+    pub twists: Option<Arc<TwistSystemProduct>>,
 
     /// Cut distances for each axis orbit.
     pub axis_orbit_cut_distances: Vec<CutDistances>,

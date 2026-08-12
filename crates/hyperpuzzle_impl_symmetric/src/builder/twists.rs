@@ -28,6 +28,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct TwistSystemFactor {
     pub id: CatalogId,
+    pub name: String,
     pub names: FactorNamedPointBasedNames<Axis>,
     pub axis_orbits: Vec<AxisOrbit>,
     pub named_point_orbits: Vec<NamedPointOrbit>,
@@ -42,6 +43,7 @@ impl TwistSystemFactor {
     ) -> Result<Self, IndexOverflow> {
         Ok(Self {
             id: self.id.clone(),
+            name: self.name.clone(),
             names: self.names.clone(),
             axis_orbits: self
                 .axis_orbits
@@ -193,6 +195,17 @@ impl TwistSystemProduct {
         }
     }
 
+    pub fn new_empty(ndim: u8) -> Self {
+        Self {
+            id: CatalogId::new(
+                "empty".parse().expect("bad Id"),
+                [(ndim as i64).into()],
+                None,
+            ),
+            ..Self::direct_product_identity()
+        }
+    }
+
     /// Constructs a product twist system builder with a single factor.
     pub fn new_factor(
         spec: &FactorTwistSystemSpec,
@@ -216,10 +229,15 @@ impl TwistSystemProduct {
             let unshuffled_group = coxeter_matrix
                 .isometry_group()
                 .wrap_err("error expanding twist symmetries")?;
-            // Shuffle group generators to improve average word length, making some
-            // group operations faster.
-            group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
-                .wrap_err("error shuffling twist symmetry generators")?;
+
+            // TODO: shuffle group generators to improve average word length,
+            //       but make sure to not cause float precision issues
+            group = unshuffled_group;
+
+            // // Shuffle group generators to improve average word length, making some
+            // // group operations faster.
+            // group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
+            //     .wrap_err("error shuffling twist symmetry generators")?;
         } else {
             coxeter_mirrors = vec![];
             group = IsometryGroup::trivial_with_ndim(spec.ndim);
@@ -232,7 +250,7 @@ impl TwistSystemProduct {
         let named_point_action = group.action_on_points(&named_point_points)?;
 
         let mut axis_orbits = vec![];
-        let mut axis_undeorbiters = PerAxis::new();
+        let mut axis_deorbiters = PerAxis::new();
         let mut axis_which_orbit = PerAxis::new();
         let mut axis_vectors = PerAxis::new();
         let mut axis_id_offset = 0;
@@ -246,7 +264,7 @@ impl TwistSystemProduct {
             });
             axis_id_offset += orbit_members.len();
             for (undeorbiter, axis_vector, axis_name) in orbit_members {
-                axis_undeorbiters.push(undeorbiter)?;
+                axis_deorbiters.push(group.inverse(undeorbiter))?;
                 axis_which_orbit.push(orbit_index)?;
                 axis_vectors.push(axis_vector)?;
                 names.add_member(&orbit.prefix, axis_name)?;
@@ -267,9 +285,11 @@ impl TwistSystemProduct {
                     .try_collect()?,
             )?;
             let axis_orbit_index = axis_which_orbit[axis];
-            axis_orbits[axis_orbit_index]
-                .stabilizer_twists
-                .push((stabilized_points, orbit.gizmo_pole_distance));
+            let deorbiter = axis_deorbiters[axis];
+            axis_orbits[axis_orbit_index].stabilizer_twists.push((
+                stabilized_points.transform_by_group_element(&named_point_action, deorbiter),
+                orbit.gizmo_pole_distance,
+            ));
         }
 
         let mut named_point_set_orbits: Vec<(NamedPointSet, Float)> = vec![];
@@ -293,6 +313,7 @@ impl TwistSystemProduct {
         let id = crate::product_id([&spec.id].into_iter());
         let factor = TwistSystemFactor {
             id: spec.id.clone(),
+            name: spec.name.clone(),
             names,
             axis_orbits,
             named_point_orbits,
@@ -480,6 +501,7 @@ impl TwistSystemProduct {
 
         Ok(Arc::new(TwistSystem {
             id: self.id.clone(),
+            name: self.name(),
             components,
             axes: Arc::clone(&axes),
             axis_from_family: Box::new(move |family_str| {
@@ -604,8 +626,7 @@ impl TwistSystemProduct {
                         ))
                         .ok_or_else(|| {
                             eyre!(
-                                "no unique minimal clockwise generator \
-                                 for stabilizer twist {:?}",
+                                "stabilizer twist {:?} imposes unsatisfiable constraints",
                                 get_twist_name(),
                             )
                         })?;
@@ -646,6 +667,10 @@ impl TwistSystemProduct {
 
         Ok(ret)
     }
+
+    pub fn name(&self) -> String {
+        crate::product_name(self.factors.iter().map(|f| &f.name))
+    }
 }
 
 /// Returns the unique minimal clockwise generator for a coset, or `None` if
@@ -680,7 +705,7 @@ fn unit_twist_transform(
             .min_by_float_key(|&i| {
                 stabilized_vectors
                     .iter()
-                    .map(|v| v[i].abs())
+                    .map(|v| v.get(i).abs())
                     .max_float()
                     .unwrap_or(0.0)
             })

@@ -1,6 +1,6 @@
 use hyperpuzzle_core::CatalogBuilder;
 
-use crate::{Builtins, EvalRequestTx, Result};
+use crate::{Builtins, ErrorExt, EvalRequestTx, Result};
 
 /// Adds the built-in functions.
 pub fn define_in(
@@ -62,5 +62,15 @@ pub fn define_in(
                 .add_catalog_entries(&cat, &tx, ctx, hps_gen)
                 .map_err(|e| e.to_full_diagnostic(ctx.caller_span))?;
         }
-    ])
+    ])?;
+
+    let cat = catalog.clone();
+    builtins.set_fns(hps_fns![
+        /// Adds an existing puzzle to the puzzle list.
+        fn add_puzzle_list_entry((id, id_span): String) -> () {
+            cat.add_to_puzzle_list(&id.parse().at(id_span)?);
+        }
+    ])?;
+
+    Ok(())
 }

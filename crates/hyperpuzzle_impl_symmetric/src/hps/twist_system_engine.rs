@@ -1,22 +1,19 @@
 use std::sync::Arc;
 
-use eyre::Context;
+use eyre::{Context, eyre};
 use hypergroup::GenSeq;
-use hypermath::Vector;
 use hyperpuzzle_core::{CatalogId, TwistSystem};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
-    Span, Spanned, SpecialVar, Type, Value, ValueData,
-    engine::HpsEngineError,
-    pop_kwarg, unpack_kwargs,
-    util::{expect_end_of_map, pop_map_key, pop_map_key_in_special_var},
+    Span, Spanned, SpecialVar, Value, ValueData, engine::HpsEngineError, unpack_kwargs,
+    util::pop_map_key_in_special_var,
 };
 use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec, SimpleOrbitSpec};
+use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec};
 use crate::{StabilizerTwistOrbitSpec, builder::*};
 
 pub struct SymmetricTwistSystemEngine;
@@ -27,24 +24,29 @@ impl HpsEngine for SymmetricTwistSystemEngine {
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
         ctx: &mut EvalCtx<'_>,
-        mut hps_gen: hyperpuzzlescript::engine::HpsGenerator,
+        hps_gen: hyperpuzzlescript::engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
         catalog.add::<TwistSystemProduct>(hps_gen.make_generator(
             eval_tx,
             move |build_ctx, tx, kwargs| {
+                let id = build_ctx.id();
                 unpack_kwargs!(
                     kwargs,
                     ndim: u8,
                     (build, build_span): Arc<FnValue>,
+                    name: String = {
+                        build_ctx.warn_fn()(eyre!("missing `name` for twist system `{id}`"));
+                        id.to_string()
+                    },
                 );
 
                 let mut scope = Scope::default();
-                scope.special.id = Some(build_ctx.id().to_string().into());
+                scope.special.id = Some(id.to_string().into());
                 scope.special.ndim = Some(ndim);
                 init_twists_in_hps_scope(&mut scope);
                 Ok(Arc::new(tx.eval_blocking(Arc::new(scope), move |ctx| {
                     build.call(build_span, ctx, vec![], Map::new())?;
-                    twist_system_product_from_hps(ctx, build_span, build_ctx.id().clone())
+                    twist_system_product_from_hps(ctx, build_span, build_ctx.id().clone(), name)
                 })?))
             },
         ))?;
@@ -65,9 +67,9 @@ impl HpsEngine for SymmetricTwistSystemEngine {
 pub(super) fn init_twists_in_hps_scope(scope: &mut Scope) {
     let mut m = Map::new();
     m.insert("points".into(), super::new_hps_list());
-    m.insert("stabilizer_sets".into(), super::new_hps_list());
     m.insert("axes".into(), super::new_hps_list());
     m.insert("stabilizer_twists".into(), super::new_hps_list());
+    m.insert("stabilizer_sets".into(), super::new_hps_list());
     scope.special.twists = Arc::new(Mutex::new(ValueData::Map(Arc::new(m)).at(BUILTIN_SPAN)));
 }
 
@@ -75,6 +77,7 @@ pub(super) fn twist_system_product_from_hps(
     ctx: &mut EvalCtx<'_>,
     build_span: Span,
     id: CatalogId,
+    name: String,
 ) -> Result<TwistSystemProduct> {
     let caller_span = ctx.caller_span;
 
@@ -142,19 +145,10 @@ pub(super) fn twist_system_product_from_hps(
         });
     }
 
-    let group = coxeter_matrix
-        .isometry_group()
-        .wrap_err("error expanding twist symmetries")
-        .at(sym_span)?;
-    // Shuffling group generators improves average word length, making some
-    // group operations faster.
-    let shuffled_group = crate::shuffle_group_generators(&group, &mut rand::rng())
-        .wrap_err("error shuffling twist symmetry generators")
-        .at(sym_span)?;
-
     TwistSystemProduct::new_factor(
         &crate::FactorTwistSystemSpec {
             id,
+            name,
             ndim: coxeter_matrix.generator_count(),
             coxeter_matrix: Some(coxeter_matrix),
             axis_orbits,

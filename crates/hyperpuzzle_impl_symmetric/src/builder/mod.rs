@@ -74,30 +74,37 @@ impl PuzzleProduct {
     /// Note that `axis_orbit_cut_distances` must be sorted from outermost
     /// (greatest) to innermost (least).
     pub fn new_factor(
+        build_ctx: &BuildCtx,
         spec: &FactorPuzzleSpec,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
+        build_ctx.push_task("constructing puzzle isometry group");
         let group = spec.coxeter_matrix.isometry_group()?;
+        build_ctx.pop_task();
 
+        build_ctx.push_task("initializing shape builder");
         let mut shape_builder =
             from_space::PuzzleShapeFactorBuilder::new(&spec.coxeter_matrix, group.clone())?;
+        build_ctx.pop_task();
 
-        let twists = &spec.twists;
-        let twists_factor =
-            twists.factors.iter().exactly_one().map_err(|_| {
-                eyre!("puzzle factor cannot be constructed from product twist system")
-            })?;
-
-        let (named_point_vectors, named_point_unit_vectors, named_point_orbits, mut facet_names) =
+        build_ctx.push_task("naming named points");
+        let (named_point_vectors, named_point_unit_vectors, named_point_orbits, named_point_names) =
             FactorNamedPointBasedNames::<Axis>::from_spec(&group, &spec.named_point_orbits)?;
+        build_ctx.pop_task();
 
+        build_ctx.push_task("constructing named point group action");
         let named_point_points = named_point_vectors.map_ref(|_, v| Point(v.clone()));
         let named_point_action = group.action_on_points(&named_point_points)?;
+        build_ctx.pop_task();
 
         // Carve facets
         for orbit in &spec.facet_orbits {
+            build_ctx.push_task(format!("carving facets with prefix {:?}", orbit.prefix));
+
+            build_ctx.push_task("expanding orbit");
             let orbit_members =
                 orbit.expand_and_name(&group, &named_point_unit_vectors, &named_point_action)?;
+            build_ctx.pop_task();
             let mut orbit_elements = vec![];
             let mut orbit_generator_sequences = vec![];
             let mut gen_seq_to_name = HashMap::new();
@@ -109,7 +116,7 @@ impl PuzzleProduct {
                 // backwards-compat concerns aren't as serious as for axes.
                 let mut facet_name = orbit.prefix.clone();
                 for p in named_point_sets.into_iter().flatten() {
-                    facet_name += &**twists_factor.names.named_point_names().get_name(p)?;
+                    facet_name += &**named_point_names.named_point_names().get_name(p)?;
                 }
                 let color = DisjointUnionColorName {
                     prefix: SequentialLowercaseName(0),
@@ -136,44 +143,60 @@ impl PuzzleProduct {
                 elements: Arc::new(orbit_elements),
                 generator_sequences: Arc::new(orbit_generator_sequences),
             });
+
+            build_ctx.pop_task();
         }
+        build_ctx.push_task("computing surface centroids");
         shape_builder.set_surface_centroids_from_stickers_of_single_piece()?;
+        build_ctx.pop_task();
 
         // Slice axes
-        for (orbit, cut_distances) in
-            std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
-        {
-            for axis in orbit.axes() {
-                for &cut_distance in &cut_distances.0 {
-                    let plane = Hyperplane::new(&twists.axis_vectors[axis], cut_distance)
-                        .ok_or_eyre("bad axis vector")?;
-                    shape_builder.slice(plane)?;
-                }
-            }
-        }
-
-        let mut shape = shape_builder.into_product_puzzle_shape()?;
-
-        // Add grip signatures
-        for (_, piece_data) in &mut shape.pieces {
-            piece_data.grip_signature = PerAxis::new_with_len(twists.len());
+        if let Some(twists) = &spec.twists {
+            build_ctx.push_task("slicing axes");
             for (orbit, cut_distances) in
                 std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
             {
-                let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
                 for axis in orbit.axes() {
-                    if let Some((min_height, max_height)) = piece_data
-                        .polytope
-                        .height_on_axis(&twists.axis_vectors[axis])
-                    {
-                        piece_data.grip_signature[axis] = cut_distances
-                            .layer_range_for_distance_range(
-                                max_height * recip_mag,
-                                min_height * recip_mag,
-                            );
+                    for &cut_distance in &cut_distances.0 {
+                        let plane = Hyperplane::new(&twists.axis_vectors[axis], cut_distance)
+                            .ok_or_eyre("bad axis vector")?;
+                        shape_builder.slice(plane)?;
                     }
                 }
             }
+            build_ctx.pop_task();
+        } else if !spec.axis_orbit_cut_distances.is_empty() {
+            warn_fn(eyre!("ignoring cut distances for empty twist system"));
+        }
+
+        build_ctx.push_task("building shape");
+        let mut shape = shape_builder.into_product_puzzle_shape()?;
+        build_ctx.pop_task();
+
+        // Add grip signatures
+        if let Some(twists) = &spec.twists {
+            build_ctx.push_task("computing grip signatures");
+            for (_, piece_data) in &mut shape.pieces {
+                piece_data.grip_signature = PerAxis::new_with_len(twists.len());
+                for (orbit, cut_distances) in
+                    std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
+                {
+                    let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
+                    for axis in orbit.axes() {
+                        if let Some((min_height, max_height)) = piece_data
+                            .polytope
+                            .height_on_axis(&twists.axis_vectors[axis])
+                        {
+                            piece_data.grip_signature[axis] = cut_distances
+                                .layer_range_for_distance_range(
+                                    max_height * recip_mag,
+                                    min_height * recip_mag,
+                                );
+                        }
+                    }
+                }
+            }
+            build_ctx.pop_task();
         }
 
         let axis_layers_per_orbit = spec
@@ -182,7 +205,9 @@ impl PuzzleProduct {
             .map(|d| d.layers_info())
             .collect();
 
-        if shape.ndim() != twists.ndim() {
+        if let Some(twists) = &spec.twists
+            && shape.ndim() != twists.ndim()
+        {
             bail!(
                 "shape has ndim={} but twist system has ndim={}",
                 shape.ndim(),
@@ -196,7 +221,7 @@ impl PuzzleProduct {
                 id: spec.id.clone(),
                 name: spec.name.clone(),
                 colors_id: spec.colors_id.clone(),
-                twists_id: twists.id.clone(),
+                twists_id: spec.twists.as_ref().map(|t| t.id.clone()),
             }],
             shape,
             axis_layers_per_orbit,
@@ -234,14 +259,21 @@ impl PuzzleProduct {
                 .into_iter(),
         ))
     }
-    pub fn twists_id(&self) -> CatalogId {
-        crate::product_id(self.factors.iter().map(|f| &f.twists_id))
+    pub fn twists_id(&self) -> Option<CatalogId> {
+        Some(crate::product_id(
+            self.factors
+                .iter()
+                .map(|f| f.twists_id.as_ref())
+                .collect::<Option<Vec<_>>>()?
+                .into_iter(),
+        ))
     }
 
     /// Constructs the final puzzle.
     pub fn build(
         &self,
         build_ctx: &BuildCtx,
+        meta: Arc<PuzzleListEntry>,
         colors: Arc<ColorSystem>,
         twists: Arc<TwistSystem>,
         warn_fn: &mut impl FnMut(eyre::Report),
@@ -356,18 +388,7 @@ impl PuzzleProduct {
 
         Ok(Arc::new_cyclic(move |this| Puzzle {
             this: Weak::clone(this),
-            meta: Arc::new(PuzzleListEntry {
-                id: self.id.clone(),
-                // TODO: somehow capture version info for factor puzzles
-                version: Some(Version {
-                    major: 1,
-                    minor: 0,
-                    patch: 0,
-                }),
-                name: self.name(),
-                aliases: vec![],
-                tags: TagSet::new(), // TODO: tags for products
-            }),
+            meta,
             view_prefs_set: Some(PuzzleViewPreferencesSet::Perspective(match ndim {
                 ..=3 => PerspectiveDim::Dim3D,
                 4.. => PerspectiveDim::Dim4D,
@@ -402,10 +423,6 @@ impl PuzzleProduct {
         self.shape.build_ad_hoc_color_system(self.id.clone())
     }
 
-    pub fn id(&self) -> &CatalogId {
-        &self.id
-    }
-
     pub fn name(&self) -> String {
         crate::product_name(self.factors.iter().map(|f| &f.name))
     }
@@ -417,7 +434,8 @@ struct PuzzleProductFactor {
     name: String,
     /// Color system ID, or `None` to use an ad-hoc color system.
     colors_id: Option<CatalogId>,
-    twists_id: CatalogId,
+    /// Twist system ID, or `None` to use no twists.
+    twists_id: Option<CatalogId>,
 }
 
 #[derive(Debug, Clone)]

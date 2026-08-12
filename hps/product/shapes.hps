@@ -1,3 +1,5 @@
+return
+
 add_menu_entry(
     path = "",
     next_column = "Construction",
@@ -56,8 +58,11 @@ export fn add_menu_entry_for_shape(path: Str, priority: Int, shape: Map) {
 
 add_menu_entry(path = "Solid|3D|Platonic", priority = 1000, section = true)
 add_menu_entry_for_shape("Solid|3D|Platonic", -4, @shapes/3d/tetrahedron)
+print(0)
 add_menu_entry_for_shape("Solid|3D|Platonic", -6, @shapes/3d/cube)
+print(1)
 add_menu_entry_for_shape("Solid|3D|Platonic", -8, @shapes/3d/octahedron)
+print(2)
 add_menu_entry_for_shape("Solid|3D|Platonic", -12, @shapes/3d/dodecahedron)
 add_menu_entry_for_shape("Solid|3D|Platonic", -20, @shapes/3d/icosahedron)
 

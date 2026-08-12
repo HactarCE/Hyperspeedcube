@@ -4,8 +4,7 @@ export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export ndim = 1
-    export sym = t.transform(cd("a1"))
+    export sym = t.transform(cd([]))
 
     export vertex = sym.x.unit
     export facet = vertex
@@ -17,7 +16,6 @@ export fn new(t: Transform) -> Map {
             B = [0, "A"]
         }),
     }]
-
 }
 
 add_color_system(

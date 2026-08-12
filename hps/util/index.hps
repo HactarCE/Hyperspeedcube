@@ -35,10 +35,42 @@ export fn add_symmetric_ft_twist_system(
     )
 }
 
-fn subscript(n: Nat) -> Str {
+export fn subscript(n: Nat) -> Str {
     out = ""
     for c in str(n) {
         out ++= "₀₁₂₃₄₅₆₇₈₉"[ord(c) - 48]
     }
     return out
+}
+
+export fn ft_cube_cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
+    REALISITIC_PROPORTIONS = true
+    CORNER_STALK_SIZE = 0.1
+
+    if layers < 2 { return [] }
+
+    aesthetic_limit = 1 - 2/layers
+    mechanical_limit = 0
+    if REALISITIC_PROPORTIONS {
+        mechanical_limit = 1 / √(ndim-1)
+    }
+    outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
+    return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
+}
+
+export fn ft_tetrahedron_shallow_cut_depths(ndim: Nat, layers: Nat) -> List[Num] {
+    REALISITIC_PROPORTIONS = true
+    PADDING = 0.25
+
+    if layers < 1 { return [] }
+
+    if REALISITIC_PROPORTIONS {
+        outer_limit = 1/(ndim - 2/ndim) // f.mag / (((f-v).mag - (f-r).mag) * sin(dihedral_angle) + f.mag)
+    } else {
+        outer_limit = 1
+    }
+    // Even though in 3D it is safe to cut all the way to -1/3, canon-cut puzzle
+    // products require the presence of the core so we cannot cut below the
+    // origin (i.e., 0).
+    return [1] ++ @util/layers.exclusive(outer_limit, 0, layers, padding=PADDING) ++ [-∞]
 }

@@ -59,7 +59,7 @@ export fn inclusive_inf(start: Num, stop: Num, layer_count: Nat) -> List[Num] {
 
 /// Returns evenly-spaced layer depths, excluding both endpoints.
 ///
-/// `padding` is left on either end.
+/// `padding` is left on either end. `padding` is measured in layers.
 ///
 /// Typically, `start > stop`.
 export fn exclusive(start: Num, stop: Num, cut_count: Nat, *, padding=1) -> List[Num] {

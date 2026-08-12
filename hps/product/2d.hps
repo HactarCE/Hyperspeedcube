@@ -1,24 +1,31 @@
 GIZMO_VERTEX_FACTOR = 2/3
 
-add_menu_entry(path = "Solid|2D|Triangle",            next_inline = "Depth",    priority = -3)
-add_menu_entry(path = "Solid|2D|Triangle|Shallow",    id = "triangle_ft_shallow")
-add_menu_entry(path = "Solid|2D|Triangle|Triminx",    id = "triangle_layered")
-add_menu_entry(path = "Solid|2D|Square",              id = "square_ft_layered", priority = -4)
-add_menu_entry(path = "Solid|2D|Polygon",             next_inline = "Axes",     priority = -5,  default = true)
-add_menu_entry(path = "Solid|2D|Polygon|None",        id = "ngon",              priority = 100)
-add_menu_entry(path = "Solid|2D|Polygon|FT",          next_inline = "Depth",    priority = 1,   default = true)
-add_menu_entry(path = "Solid|2D|Polygon|FT|Shallow",  id = "ngon_ft_shallow",   priority = 100, default = true)
-add_menu_entry(path = "Solid|2D|Polygon|FT|Deep",     id = "ngon_ft_deep",      priority = 3)
-add_menu_entry(path = "Solid|2D|Polygon|FT|Half",     id = "ngon_ft_half",      priority = 2)
-add_menu_entry(path = "Solid|2D|Polygon|FT|Layered",  id = "ngon_ft_layered",   priority = 1)
-add_menu_entry(path = "Solid|2D|Polygon|VT",          next_inline = "Depth",    priority = 0)
-add_menu_entry(path = "Solid|2D|Polygon|VT|Adjacent", id = "ngon_vt_adj",       priority = 1)
-add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     id = "ngon_vt_half",      priority = 0)
-add_menu_entry(path = "Solid|2D|Polygon|FT+VT",       id = "ngon_ft_vt",        priority = -1)
-
 use edges_param from @shapes/2d/polygon
 edge_divisions_param = #{ name = "Edge divisions", type = Int, default = 3, min = 1, max = 50 }
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
+
+add_menu_entry(path = "Solid|2D", next_column = "Shape")
+
+add_menu_entry(path = "Solid|2D|Triangle", priority = -3,  next_inline = "Depth")
+add_menu_entry(path = "Solid|2D|Square",   priority = -4,  id = "square_ft_layered")
+add_menu_entry(path = "Solid|2D|Polygon",  priority = -5,  next_inline = "Axes",  default = true)
+
+add_menu_entry(path = "Solid|2D|Triangle|Shallow", id = "triangle_ft_shallow")
+add_menu_entry(path = "Solid|2D|Triangle|Triminx", id = "triangle_layered")
+
+add_menu_entry(path = "Solid|2D|Polygon|None", priority = 100, id = "ngon")
+add_menu_entry(path = "Solid|2D|Polygon|FT",   priority = 1,   next_inline = "Depth",   default = true)
+add_menu_entry(path = "Solid|2D|Polygon|VT",   priority = 0,   next_inline = "Depth")
+
+add_menu_entry(path = "Solid|2D|Polygon|FT|Shallow", priority = 100, id = "ngon_ft_shallow", default = true)
+add_menu_entry(path = "Solid|2D|Polygon|FT|Deep",    priority = 3,   id = "ngon_ft_deep")
+add_menu_entry(path = "Solid|2D|Polygon|FT|Half",    priority = 2,   id = "ngon_ft_half")
+add_menu_entry(path = "Solid|2D|Polygon|FT|Layered", priority = 1,   id = "ngon_ft_layered")
+
+add_menu_entry(path = "Solid|2D|Polygon|VT|Adjacent", priority = 1,   id = "ngon_vt_adj")
+add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     priority = 0,   id = "ngon_vt_half")
+
+add_menu_entry(path = "Solid|2D|Polygon|FT+VT", priority = -1,  id = "ngon_ft_vt")
 
 add_twist_system(id = "ngon_ft", name = "FT Polygon",
     engine = "symmetric",
@@ -32,7 +39,7 @@ add_twist_system(id = "ngon_ft", name = "FT Polygon",
                 #twists.points = shape.points
                 #twists.axes = [shape.facet]
                 #twists.stabilizer_twists = [[["A", "B"], shape.edge_length/2]]
-                #twists.stabilizer_sets = [[["A", "B"], lerp(shape.circumradius, @shapes/2d/polygon.new(n).inradius, GIZMO_VERTEX_FACTOR)]]
+                #twists.stabilizer_sets = [[["A", "B"], lerp(shape.circumradius, shape.inradius, GIZMO_VERTEX_FACTOR)]]
             },
         }
     },
@@ -184,7 +191,7 @@ add_puzzle(id = "ngon_ft_layered", name = "FT Polygon (Layered)",
     params = [edges_param, layers_param],
     gen = fn(n, layers) {
         return #{
-            name = "Layered {${n}}${divisions}",
+            name = "Layered {${n}}${layers}",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {

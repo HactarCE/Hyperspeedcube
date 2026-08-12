@@ -1,89 +1,104 @@
 use * from euclid
 
-export id = "icosahedron"
-export name = "Icosahedron"
-export adjective = "Icosahedral"
-export aliases = []
-export facet_colors = id
-export ndim = 3
-export shape_tag = "3d/platonic/icosahedron"
-
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
-    export sym = t.transform(cd("h3"))
+    dodecahedron = @shapes/3d/dodecahedron.new(t)
 
-    export facet_pole = sym.xoo.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        UR = [],
-        U  = [0, "UR"],
-        R  = [1, "U"],
-        US = [2, "R"],
-        UL = [0, "US"],
-        F  = [0, "R"],
-        FR = [1, "F"],
-        UP = [2, "FR"],
-        BR = [1, "UP"],
-        S  = [2, "BR"],
-        L  = [0, "BR"],
-        FL = [0, "S"],
-        DS = [1, "L"],
-        DL = [0, "DS"],
-        DR = [1, "FL"],
-        BL = [2, "DR"],
-        P  = [2, "DL"],
-        B  = [1, "BL"],
-        D  = [1, "P"],
-        DP = [0, "D"],
-    })
+    export sym = dodecahedron.sym
+
+    // source: https://polytope.miraheze.org/wiki/Icosahedron
+    circumradius = √((5 + √5) / 8)
+    edge_radius = (1 + √5) / 4
+    inradius = (3*√3 + √15) / 12
+
+    export face = sym.xoo.unit
+    export edge = sym.oxo.unit * edge_radius/inradius
+    export vertex = sym.oox.unit * circumradius/inradius
+
+    print((face.unit - edge.unit).mag)
+    print((vertex.unit - edge.unit).mag)
+
+    export facet = face
+    export ridge = edge
+    export peak = vertex
+
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            J = [],
+            M = [0, "J"],
+            G = [1, "M"],
+            Q = [0, "G"],
+            S = [2, "G"],
+            U = [1, "Q"],
+            K = [0, "S"],
+            B = [2, "U"],
+            E = [1, "K"],
+            I = [1, "B"],
+            P = [0, "E"],
+            O = [0, "I"],
+            F = [1, "P"],
+            R = [1, "O"],
+            D = [2, "F"],
+            L = [0, "R"],
+            H = [1, "D"],
+            N = [0, "H"],
+            C = [1, "N"],
+            A = [0, "C"],
+        }),
+    }]
 }
 
-export facet_colors_list = [
-    #{name = "U",  display = "Up"},
-    #{name = "F",  display = "Front"},
-    #{name = "R",  display = "Right"},
-    #{name = "L",  display = "Left"},
-    #{name = "FR", display = "Front-Right"},
-    #{name = "FL", display = "Front-Left"},
-    #{name = "UR", display = "Up-Right"},
-    #{name = "UL", display = "Up-Left"},
-    #{name = "DR", display = "Down-Right"},
-    #{name = "DL", display = "Down-Left"},
-    #{name = "D",  display = "Down"},
-    #{name = "B",  display = "Back"},
-    #{name = "S",  display = "Starboard"},
-    #{name = "P",  display = "Portside"},
-    #{name = "BR", display = "Back-Right"},
-    #{name = "BL", display = "Back-Left"},
-    #{name = "US", display = "Up-Star"},
-    #{name = "UP", display = "Up-Port"},
-    #{name = "DS", display = "Down-Star"},
-    #{name = "DP", display = "Down-Port"},
-]
 add_color_system(
-    id = facet_colors,
-    name = name,
-    colors = facet_colors_list,
-)
-
-add_puzzle(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    colors = facet_colors,
-    engine = "euclid",
-    ndim = ndim,
-    build = fn() {
-        use sym, facet_pole, facet_names from new()
-        with #sym = sym { carve(plane(facet_pole), facet_names) }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = shape_tag,
+    id = "icosahedron",
+    name = "Icosahedron",
+    default_scheme = "FTI Standard",
+    schemes = #{
+        "FTI Standard" = #{
+            U = "Mono Tetrad [1]",
+            D = "Purple Dyad [0]",
+            E = "Purple",
+            O = "Yellow Dyad [0]",
+            F = "Green Triad [2]",
+            B = "Red Dyad [1]",
+            R = "Blue Triad [0]",
+            K = "Mono Tetrad [2]",
+            L = "Magenta Triad [1]",
+            S = "Blue Dyad [0]",
+            N = "Teal",
+            G = "Red Triad [1]",
+            Q = "Blue Dyad [1]",
+            H = "Green Triad [1]",
+            P = "Orange",
+            I = "Mono Tetrad [3]",
+            A = "Mono Tetrad [0]",
+            J = "Yellow",
+            C = "Brown",
+            M = "Magenta Dyad [0]",
+        },
+        Twizzle = #{
+            U = "Mono Tetrad [1]",
+            D = "Mono Tetrad [0]",
+            E = "Mono Tetrad [2]",
+            O = "Mono Tetrad [3]",
+            F = "Green Triad [1]",
+            B = "Green Triad [0]",
+            R = "Yellow Dyad [1]",
+            K = "Yellow Dyad [0]",
+            L = "Purple Dyad [1]",
+            S = "Purple Dyad [0]",
+            N = "Red Dyad [1]",
+            G = "Red Dyad [0]",
+            Q = "Blue Triad [2]",
+            H = "Blue Triad [0]",
+            P = "Orange Dyad [1]",
+            I = "Orange Dyad [0]",
+            A = "Green Triad [2]",
+            J = "Blue Triad [1]",
+            C = "Magenta Dyad [1]",
+            M = "Magenta Dyad [0]",
+        },
     },
 )

@@ -329,7 +329,8 @@ impl Error {
             Self::MissingRequiredNamedParameter { name, ty } => report_builder
                 .main_label(format!("missing required named parameter `\x02{name}\x03`"))
                 .help(format!("add `{name} = ...` at the call site"))
-                .note(format!("expected named parameter with type `{ty}`")),
+                .note(format!("expected named parameter with type `{ty}`"))
+                .help("this error may occur if the key is assigned a null value"),
             Self::PositionalParamAfterNamedParam => report_builder
                 .main_label("positional parameter occurs after named parameter")
                 .note("all positional parameters must come before the first named parameter"),
@@ -339,9 +340,9 @@ impl Error {
                         .map(|(k, span)| (span, format!("unused entry with key {k:?}"))),
                 )
             }
-            Self::MissingRequiredMapKey { key } => {
-                report_builder.main_label(format!("expected \x02this map\x03 to have key {key:?}"))
-            }
+            Self::MissingRequiredMapKey { key } => report_builder
+                .main_label(format!("expected \x02this map\x03 to have key {key:?}"))
+                .help("this error may occur if the key is assigned a null value"),
             Self::MissingRequiredMapKeyInSpecialVar { key, special_var } => report_builder
                 .main_label(format!(
                     "expected map \x02{special_var}\x03 to have key {key:?}",
@@ -350,7 +351,8 @@ impl Error {
                     format!("try assigning to `{special_var}.{key}`")
                 } else {
                     format!("try assigning to `{special_var}[{key:?}]`")
-                }),
+                })
+                .help("this error may occur if the key is assigned a null value"),
             Self::Undefined => report_builder
                 .main_label("\x02this name\x03 is not defined")
                 .help("it may be defined somewhere, but isn't accessible from here")

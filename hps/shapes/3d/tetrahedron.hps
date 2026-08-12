@@ -1,65 +1,49 @@
 use * from euclid
 
-export id = "tetrahedron"
-export name = "Tetrahedron"
-export adjective = "Tetrahedral"
-export aliases = ["Simplex"]
-export facet_colors = id
-export ndim = 3
-export shape_tag = "3d/platonic/tetrahedron"
-
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("a3"))
 
-    export facet_pole = sym.oox.unit
-    export facet_names = sym.names(point(facet_pole), #{
-        D  = [],
-        F  = [2, "D"],
-        BR = [1, "F"],
-        BL = [0, "BR"],
-    })
+    export face = sym.oox.unit
+    export edge = sym.oxo.unit * √3
+    export vertex = sym.xoo.unit * 3
 
-    export vertex_pole = sym.xoo.unit
-    export vertex_names = sym.names(point(vertex_pole), #{
-        R = [],
-        L = [0, "R"],
-        B = [1, "L"],
-        U = [2, "B"],
-    })
+    export facet = face
+    export ridge = edge
+    export peak = vertex
+
+    // Tetrahedron standards are inconsistent. In Twizzle Explorer Alpha:
+    //
+    // - FT/VT tetrahedron uses `F D BR BL` for faces and `R L U B` for vertices
+    // - ET tetrahedron uses `FR LF DF RL` for edges in a way that implies `F D
+    //   R L` for faces
+    //
+    // Since named points must be prefix-free, `BL BR` are not allowed. So we
+    // use the ET naming scheme for faces.
+    //
+    // We could introduce more concise vertex names `U B PR PL`, but this would
+    // make the edge names unreasonable long since each edge is equidistant to
+    // two faces and two vertices.
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            D = [],
+            F = [2, "D"],
+            R = [1, "F"],
+            L = [0, "R"],
+        }),
+    }]
 }
 
-export facet_colors_list = [
-    #{name = "BL", display = "Back-left",  default = "Red"},
-    #{name = "BR", display = "Back-right", default = "Blue"},
-    #{name = "F",  display = "Front",      default = "Green"},
-    #{name = "D",  display = "Down",       default = "Yellow"},
-]
 add_color_system(
-    id = facet_colors,
-    name = name,
-    colors = facet_colors_list,
-)
-
-add_puzzle(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    colors = facet_colors,
-    engine = "euclid",
-    ndim = ndim,
-    build = fn() {
-        use sym, facet_pole, facet_names from new()
-        with #sym = sym { carve(plane(facet_pole), facet_names) }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = shape_tag,
+    id = "tetrahedron",
+    name = "Tetrahedron",
+    colors = #{
+        L = "Red",
+        R = "Blue",
+        F  = "Green",
+        D  = "Yellow",
     },
 )

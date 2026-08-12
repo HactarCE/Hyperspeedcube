@@ -22,10 +22,15 @@ impl fmt::Display for CatalogError {
         let Self {
             type_name,
             id,
-            task_stack: _,
+            task_stack,
             cause,
         } = self;
-        write!(f, "error building {type_name} `{id}`\ncaused by: {cause}")
+        writeln!(f, "error building {type_name} `{id}`")?;
+        for task in task_stack.iter().rev() {
+            writeln!(f, "  while {task}")?;
+        }
+        writeln!(f, "caused by: {cause}")?;
+        Ok(())
     }
 }
 
