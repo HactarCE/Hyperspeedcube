@@ -207,8 +207,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         }
                         axis_orbit_cut_distances = layer_floats
                             .into_iter()
-                            .map(|cut_distances| CutDistances(cut_distances.unwrap_or_default()))
-                            .collect_vec();
+                            .map(Option::unwrap_or_default)
+                            .map(CutDistances::new)
+                            .try_collect()?;
                     } else {
                         if !layers_spec.is_empty() {
                             ctx.warn_at(

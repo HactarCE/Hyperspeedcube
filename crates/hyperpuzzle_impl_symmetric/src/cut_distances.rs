@@ -1,3 +1,4 @@
+use eyre::{Result, bail};
 use hypermath::{APPROX, Float};
 use hyperpuzzle_core::TypedIndex;
 use hypuz_notation::{AxisLayersInfo, Layer, LayerRange};
@@ -7,9 +8,29 @@ use hypuz_notation::{AxisLayersInfo, Layer, LayerRange};
 /// Distances are measured from the origin and must be sorted from outermost
 /// (greatest) to innermost (least).
 #[derive(Debug, Default, Clone)]
-pub struct CutDistances(pub Vec<Float>);
+pub struct CutDistances(Vec<Float>);
 
 impl CutDistances {
+    /// Validates cut distances.
+    pub fn new(cut_distances: Vec<Float>) -> Result<Self> {
+        // infinity is ok! NaN is not.
+        if let Some(bad) = cut_distances.iter().find(|f| f.is_nan()) {
+            bail!("bad cut distance {bad}");
+        }
+        if !cut_distances.iter().is_sorted_by(|&a, &b| a > b) {
+            bail!(
+                "cut distances must be sorted from outermost (greatest) \
+                 to innermost (least); got {cut_distances:?}",
+            );
+        }
+        Ok(Self(cut_distances))
+    }
+
+    /// Returns the cut distances.
+    pub fn distances(&self) -> &[Float] {
+        &self.0
+    }
+
     /// Returns the number of layers on each axis in the orbit.
     pub fn layer_count(&self) -> usize {
         self.0.len().saturating_sub(1)

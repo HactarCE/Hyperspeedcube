@@ -56,7 +56,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|14",  id = "todo")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|15",  id = "todo")
 
 // ------------ //
-// Basic Shapes //
+// Basic shapes //
 //------------- //
 
 add_puzzle(id = "tetrahedron", name = "Tetrahedron",
@@ -161,32 +161,46 @@ add_twist_system(id = "icosahedron_ft", name = "FT Icosahedron",
     },
 )
 
-// ------- //
-// Puzzles //
-//-------- //
+// ------------------- //
+// Tetrahedron puzzles //
+//-------------------- //
 
 fn n_layer_prefix(n, *, default=3) { if n == default { "" } else { "${n}-Layer " } }
 
+add_puzzle_list_entry("tetrahedron_a(1)")
 add_puzzle(id = "tetrahedron_a", name = "N-Layer Tetrahedron A",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
     colors = "tetrahedron",
     twists = "tetrahedron_ft",
-    params = [layers_param],
+    params = [cuts_param],
     gen = fn(cuts) {
         return #{
-            name = n_layer_prefix(cuts + 2, default = 2) ++ "Tetrahedron A",
+            name = n_layer_prefix(cuts + 1, default = 2) ++ "Tetrahedron A",
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
-                #puz.layers.R = [∞, -2/3, -∞]
+                #puz.layers.R = [∞] ++ @util.layers.exclusive(-1/3, -1, cuts, padding=1/2) ++ [-∞]
             },
         }
     }
 )
 
-add_puzzle_list_entry("tetrahedron_a(1)")
+add_puzzle(id = "tetrahedron_b", name = "Tetrahedron B",
+    aliases = ["Tetraminx"],
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 3,
+    colors = "tetrahedron",
+    twists = "tetrahedron_ft",
+    build = fn() {
+        @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
+        #puz.layers.R = [∞, -1/3, -∞]
+    },
+)
 
+add_puzzle_list_entry("tetrahedron_c(1)")
+add_puzzle_list_entry("tetrahedron_c(4)")
 add_puzzle(id = "tetrahedron_c", name = "N-Layer Tetrahedron C",
     aliases = ["N-Layer FT Tetrahedron"],
     tags = #{ author = "Andrew Farkas" },
@@ -211,9 +225,39 @@ add_puzzle(id = "tetrahedron_c", name = "N-Layer Tetrahedron C",
     }
 )
 
-add_puzzle_list_entry("tetrahedron_c(1)")
-add_puzzle_list_entry("tetrahedron_c(4)")
+// add_puzzle(id = "tetrahedron_c", name = "N-Layer Tetrahedron C",
+//     aliases = ["N-Layer FT Tetrahedron"],
+//     tags = #{ author = "Andrew Farkas" },
+//     engine = "symmetric",
+//     ndim = 3,
+//     colors = "tetrahedron",
+//     twists = "tetrahedron_ft",
+//     params = [cuts_param],
+//     gen = fn(cuts) {
+//         return #{
+//             name = n_layer_prefix(cuts + 1, default = 2) ++ "Tetrahedron C",
+//             aliases = if cuts == 1 {
+//                 ["Jing's Pyraminx", "Halpern-Meier Tetrahedron", "Obieemnaia Logicheskaia Igra"]
+//             } else if cuts == 4 {
+//                 ["Royal Tetrahedron"]
+//             },
+//             build = fn() {
+//                 @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
+//                 #puz.layers.R = @util.ft_tetrahedron_shallow_cut_depths(3, cuts)
+//             },
+//         }
+//     }
+// )
 
+// ------------ //
+// Cube puzzles //
+//------------- //
+
+add_puzzle_list_entry("cube_ft(3)")
+add_puzzle_list_entry("cube_ft(4)")
+add_puzzle_list_entry("cube_ft(5)")
+add_puzzle_list_entry("cube_ft(6)")
+add_puzzle_list_entry("cube_ft(7)")
 add_puzzle(id = "cube_ft", name = "FT Cube",
     aliases = ["n^3", "N-Layer Rubik's Cube"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
@@ -241,12 +285,6 @@ add_puzzle(id = "cube_ft", name = "FT Cube",
         }
     }
 )
-
-add_puzzle_list_entry("cube_ft(3)")
-add_puzzle_list_entry("cube_ft(4)")
-add_puzzle_list_entry("cube_ft(5)")
-add_puzzle_list_entry("cube_ft(6)")
-add_puzzle_list_entry("cube_ft(7)")
 
 add_puzzle(id = "megaminx", name = "FT Dodecahedron",
     // aliases = ["FT Hexahedron", "n^3", "N-Layer Rubik's Cube"],

@@ -157,7 +157,7 @@ impl PuzzleProduct {
                 std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
             {
                 for axis in orbit.axes() {
-                    for &cut_distance in &cut_distances.0 {
+                    for &cut_distance in cut_distances.distances() {
                         let plane = Hyperplane::new(&twists.axis_vectors[axis], cut_distance)
                             .ok_or_eyre("bad axis vector")?;
                         shape_builder.slice(plane)?;
