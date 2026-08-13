@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use eyre::{Context, eyre};
 use hypergroup::GenSeq;
-use hyperpuzzle_core::{CatalogId, TwistSystem};
+use hyperpuzzle_core::{BuildCtx, TwistSystem};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
@@ -46,7 +46,7 @@ impl HpsEngine for SymmetricTwistSystemEngine {
                 init_twists_in_hps_scope(&mut scope);
                 Ok(Arc::new(tx.eval_blocking(Arc::new(scope), move |ctx| {
                     build.call(build_span, ctx, vec![], Map::new())?;
-                    twist_system_product_from_hps(ctx, build_span, build_ctx.id().clone(), name)
+                    twist_system_product_from_hps(&build_ctx, ctx, build_span, name)
                 })?))
             },
         ))?;
@@ -74,9 +74,9 @@ pub(super) fn init_twists_in_hps_scope(scope: &mut Scope) {
 }
 
 pub(super) fn twist_system_product_from_hps(
+    build_ctx: &BuildCtx,
     ctx: &mut EvalCtx<'_>,
     build_span: Span,
-    id: CatalogId,
     name: String,
 ) -> Result<TwistSystemProduct> {
     let caller_span = ctx.caller_span;
@@ -145,9 +145,10 @@ pub(super) fn twist_system_product_from_hps(
         });
     }
 
-    TwistSystemProduct::new_factor(
+    build_ctx.push_task("Constructing twist system factor");
+    let result = TwistSystemProduct::new_factor(
         &crate::FactorTwistSystemSpec {
-            id,
+            id: build_ctx.id().clone(),
             name,
             ndim: coxeter_matrix.generator_count(),
             coxeter_matrix: Some(coxeter_matrix),
@@ -159,5 +160,8 @@ pub(super) fn twist_system_product_from_hps(
         &mut ctx.warnf(),
     )
     .wrap_err("error building symmetric twist system")
-    .at(caller_span)
+    .at(caller_span);
+    build_ctx.pop_task();
+
+    result
 }

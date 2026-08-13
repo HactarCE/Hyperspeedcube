@@ -395,7 +395,9 @@ impl PuzzleWidget {
             crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.heading(heading_text);
+                    if !heading_text.is_empty() {
+                        ui.heading(heading_text);
+                    }
                 });
                 if let Some(progress) = loading_progress {
                     egui::ProgressBar::new(progress)

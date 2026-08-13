@@ -157,7 +157,16 @@ impl Catalog {
                 // Generate
                 let mut result = match generator.canonicalize(build_ctx.id()) {
                     Some(canonicalized_id) => build_ctx.build_blocking(&canonicalized_id), // redirect
-                    None => (generator.generate)(build_ctx.clone()),
+                    None => {
+                        build_ctx.push_task(format!(
+                            "generating {} `{}`",
+                            T::catalog_type_name(),
+                            build_ctx.id(),
+                        ));
+                        let result = (generator.generate)(build_ctx.clone());
+                        build_ctx.pop_task();
+                        result
+                    }
                 }
                 .map_err(|e| {
                     Arc::new(CatalogError {
@@ -167,6 +176,7 @@ impl Catalog {
                         cause: e.into(),
                     })
                 });
+                build_ctx.pop_task();
 
                 // Run hooks
                 if let Ok(obj) = &mut result

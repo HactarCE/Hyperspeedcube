@@ -1,4 +1,7 @@
-use std::collections::VecDeque;
+use std::{
+    collections::{HashSet, VecDeque},
+    hash::Hash,
+};
 
 use hypermath::prelude::*;
 
@@ -22,6 +25,25 @@ pub fn orbit<E, G>(
     while let Some(elem) = queue.pop_front() {
         queue.extend(generators.iter().filter_map(|g| apply_generator(&elem, g)));
     }
+}
+
+/// Generates a group or orbit using `orbit`, collecting results in a
+/// [`HashSet`].
+pub fn orbit_hashable<E, G>(
+    init: E,
+    generators: &[G],
+    mut apply_generator: impl FnMut(&E, &G) -> E,
+) -> HashSet<E>
+where
+    E: Clone + Hash + Eq,
+{
+    let mut seen = HashSet::new();
+    seen.insert(init.clone());
+    orbit(init, generators, |e, g| {
+        let new_elem = apply_generator(e, g);
+        seen.insert(new_elem.clone()).then_some(new_elem)
+    });
+    seen
 }
 
 /// Generates a group or orbit by starting from an initial element and applying

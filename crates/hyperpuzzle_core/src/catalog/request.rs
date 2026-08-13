@@ -47,8 +47,8 @@ impl<T: CatalogObject> Request<T> {
     /// Returns the result if the task has completed ([`Ok`]), or a list of
     /// tasks from most general to most specific if it is in progress ([`Err`]).
     ///
-    /// **Note: The returned object might not have the ID as the request.** When
-    /// this happens, it is called an "ID redirect."
+    /// **Note: The returned object might not have the same ID as the request.**
+    /// When this happens, it is called an "ID redirect."
     pub fn get(&self) -> Result<CatalogResult<T>, Vec<String>> {
         match &self.inner {
             RequestInner::Precomputed(result) => Ok(result.clone()),

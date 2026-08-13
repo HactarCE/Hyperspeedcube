@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::num::NonZeroI32;
 use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::{
-    ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
+    ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, Subgroup, SubgroupAction,
     SubgroupConstraintSolver,
 };
 use hypermath::{Float, Matrix, Point, Vector, VectorRef};
@@ -459,9 +460,11 @@ impl TwistSystemProduct {
         build_ctx: &BuildCtx,
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<TwistSystem>> {
+        build_ctx.push_task("naming named points");
         let names = ProductNamedPointBasedNames::product(
             self.factors.iter().map(|f| f.names.clone()).collect(),
         );
+        build_ctx.pop_task();
 
         let mut components = ComponentList::new();
         components.insert(Arc::new(NdEuclidAxisVectors::from_vectors(
@@ -469,32 +472,45 @@ impl TwistSystemProduct {
             self.axis_vectors.clone(),
         )));
 
+        build_ctx.push_task("constructing axis system");
         let axes = Arc::new(AxisSystem {
             names: Arc::new(names.build_member_names()?),
             orbits: vec![], // technically exists, but not necessary
             components,
         });
+        build_ctx.pop_task();
 
+        build_ctx.push_task("building named point names");
         let named_point_names = Arc::new(names.build_named_point_names()?);
+        build_ctx.pop_task();
 
         let mut components = ComponentList::new();
+        build_ctx.push_task("constructing symmetric twist system component");
+        build_ctx.push_task("building axis undeorbiters");
+        let axis_undeorbiters = Arc::new(self.build_axis_undeorbiters()?);
+        build_ctx.pop_task();
+        build_ctx.push_task("building axis orbits");
+        let axis_orbits = Arc::new(self.build_axis_orbits(
+            build_ctx,
+            &axes.names,
+            &named_point_names,
+            warn_fn,
+        )?);
+        build_ctx.pop_task();
         components.insert(Arc::new(SymmetricTwistSystemComponent {
             axes: Arc::clone(&axes),
             group: self.group.clone(),
             coxeter_mirrors: self.coxeter_mirrors.clone(),
             axis_action: self.axis_action.clone(),
 
-            axis_undeorbiters: Arc::new(self.build_axis_undeorbiters()?),
-            axis_orbits: Arc::new(self.build_axis_orbits(
-                &axes.names,
-                &named_point_names,
-                warn_fn,
-            )?),
+            axis_undeorbiters,
+            axis_orbits,
 
             named_point_action: self.named_point_action.clone(),
             named_point_names,
             named_point_vectors: Arc::new(self.named_point_vectors.clone()),
         }));
+        build_ctx.pop_task();
 
         // TODO: verify that named points are sufficient to describe
         //       symmetry group elements
@@ -577,6 +593,7 @@ impl TwistSystemProduct {
 
     fn build_axis_orbits(
         &self,
+        build_ctx: &BuildCtx,
         axis_names: &Names<Axis>,
         named_point_names: &Names<NamedPoint>,
         warn_fn: &mut impl FnMut(eyre::Report),
@@ -585,11 +602,15 @@ impl TwistSystemProduct {
         for orbit in self.axis_orbits() {
             let first_axis_vector = &self.axis_vectors[orbit.first()];
 
+            build_ctx.push_task(format!("building orbit of {}", axis_names[orbit.first()]));
+
+            build_ctx.push_task("constructing subgroup constraint solver");
             let mut subgroup_solver = SubgroupConstraintSolver::new(
                 SubgroupAction::from_subgroup_predicate(&self.named_point_action, |e| {
                     self.axis_action.act(e, orbit.first()) == orbit.first()
                 })?,
             );
+            build_ctx.pop_task();
 
             let stabilizer_twist_families = match self.group.ndim() {
                 // gizmo pole distance doesn't matter
@@ -599,16 +620,17 @@ impl TwistSystemProduct {
                 _ => &[],
             };
 
+            build_ctx.push_task("computing stabilizer twists");
             let stabilizer_twists = stabilizer_twist_families
                 .iter()
                 .map(|(secondary, distance)| {
-                    let get_twist_name = || {
-                        StabilizerFamily {
-                            primary: orbit.first(),
-                            secondary: secondary.clone(),
-                        }
-                        .name(axis_names, named_point_names)
-                    };
+                    let twist_name = StabilizerFamily {
+                        primary: orbit.first(),
+                        secondary: secondary.clone(),
+                    }
+                    .name(axis_names, named_point_names);
+
+                    build_ctx.push_task(format!("computing orbit of {twist_name}"));
 
                     if secondary.len() > 3 {
                         bail!(
@@ -617,6 +639,7 @@ impl TwistSystemProduct {
                         );
                     }
 
+                    build_ctx.push_task("computing stabilized coset");
                     let coset = subgroup_solver
                         .solve(&hypergroup::ConstraintSet::from_iter(
                             secondary
@@ -627,10 +650,12 @@ impl TwistSystemProduct {
                         .ok_or_else(|| {
                             eyre!(
                                 "stabilizer twist {:?} imposes unsatisfiable constraints",
-                                get_twist_name(),
+                                twist_name,
                             )
                         })?;
+                    build_ctx.pop_task();
 
+                    build_ctx.push_task("computing unit twist transform");
                     let unit_twist_transform = if secondary.is_empty() {
                         unit_twist_transform(&self.group, &coset, &[first_axis_vector])
                     } else {
@@ -642,20 +667,17 @@ impl TwistSystemProduct {
                         format!(
                             "error calculating unit twist transform \
                              for stabilizer twist {:?}",
-                            get_twist_name(),
+                            twist_name,
                         )
                     })?;
+                    build_ctx.pop_task();
+
+                    build_ctx.pop_task();
 
                     Ok((secondary.clone(), unit_twist_transform, *distance))
                 })
-                .filter_map(|result| match result {
-                    Ok(ok) => Some(ok),
-                    Err(e) => {
-                        warn_fn(e);
-                        None
-                    }
-                })
-                .collect();
+                .try_collect()?;
+            build_ctx.pop_task();
 
             ret.push(SymmetricTwistSystemAxisOrbit {
                 first: orbit.first(),
@@ -663,6 +685,8 @@ impl TwistSystemProduct {
                 subgroup_solver: Mutex::new(subgroup_solver),
                 stabilizer_twists,
             });
+
+            build_ctx.pop_task();
         }
 
         Ok(ret)
@@ -696,10 +720,19 @@ fn unit_twist_transform(
         NonZeroI32::new(nontrivial_rotations.len() as i32 + 1).ok_or_eyre("math is broken")?;
     // TODO: actually check that min_rotation generates the whole group
     let (mut min_group_element, min_rotation) = nontrivial_rotations
-        .into_iter()
-        .filter_map(|e| Some((e, group.motor(e).normalize()?)))
+        .iter()
+        .filter_map(|&e| Some((e, group.motor(e).normalize()?)))
         .max_by_float_key(|(_e, m)| m.scalar().abs())
         .ok_or_eyre("empty coset")?;
+    let generated_subgroup = Subgroup::from_generators(group.abstract_group(), [min_group_element]);
+    if nontrivial_rotations.len() + 1 != generated_subgroup.element_count {
+        bail!(
+            "rotational subgroup is not generated by a single rotation; \
+             expected {} elements but generated subgroup has {} elements",
+            nontrivial_rotations.len() + 1,
+            generated_subgroup.element_count,
+        );
+    }
     let arbitrary_nonparallel_vector = Vector::unit(
         (0..group.ndim())
             .min_by_float_key(|&i| {

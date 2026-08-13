@@ -18,6 +18,26 @@ pub struct Subgroup {
 }
 
 impl Subgroup {
+    /// Constructs a subgroup from a generating set.
+    ///
+    /// **This is O(_n_) with respect to the number of elements in the
+    /// subgroup** because it enumerates the entire subgroup in order to compute
+    /// the element count.
+    pub fn from_generators(
+        overgroup: &Group,
+        generators: impl IntoIterator<Item = GroupElementId>,
+    ) -> Self {
+        let generators: SmallVec<[GroupElementId; 4]> = generators.into_iter().collect();
+        let elements = crate::orbit_hashable(GroupElementId::IDENTITY, &generators, |&e, &g| {
+            overgroup.compose(e, g)
+        });
+        Self {
+            overgroup: overgroup.clone(),
+            element_count: elements.len(),
+            generators,
+        }
+    }
+
     /// Returns whether the subgroup is trivial (contains only the identity).
     ///
     /// This is equivalent to `subgroup.element_count == 1`.
