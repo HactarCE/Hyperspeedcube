@@ -30,12 +30,6 @@ impl NamedPointSet {
 
     /// Constructs a list of named points.
     pub fn new(named_points: SmallVec<[NamedPoint; 3]>) -> Result<Self> {
-        if named_points.len() > 3 {
-            bail!(
-                "named point sets with more than 3 axes are not supported; \
-                 please contact the developer for more info",
-            );
-        }
         Ok(Self(named_points))
     }
 

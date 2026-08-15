@@ -18,12 +18,12 @@ add_puzzle(id = "line", name = "Line",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 1,
+    colors = "line",
+    twists = "line",
     params = [layers_param],
     gen = fn(layers) {
         return #{
             name = "{}" ++ if layers == 3 { "" } else { " ${layers}" },
-            colors = "line",
-            twists = "line",
             build = fn() {
                 @util.build_symmetric_shape(@shapes/1d/line.new())
                 #puz.layers.A = @util/layers.inclusive(layers)

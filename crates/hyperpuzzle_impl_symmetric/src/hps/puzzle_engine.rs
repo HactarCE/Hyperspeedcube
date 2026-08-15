@@ -7,8 +7,11 @@ use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
-    Value, ValueData, builtins::catalog::tags::tags_from_map, engine::HpsEngineError, pop_kwarg,
-    unpack_kwargs, util::pop_map_key_in_special_var,
+    Value, ValueData,
+    builtins::catalog::tags::tags_from_map,
+    engine::HpsEngineError,
+    pop_kwarg, unpack_kwargs,
+    util::{ListOrVal, pop_map_key_in_special_var},
 };
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -28,29 +31,25 @@ impl HpsEngine for SymmetricPuzzleEngine {
         let caller_span = ctx.caller_span;
 
         let id = &hps_gen.id;
-        let name = hps_gen.name.clone().unwrap_or_else(|| {
+        if hps_gen.names.is_empty() {
             ctx.warn_at(
                 caller_span,
                 format!("missing `name` for puzzle generator `{id}`"),
             );
-            id.to_string()
-        });
-
-        let aliases = match hps_gen.kwargs.get("aliases") {
-            Some(v) => v.clone().to()?,
-            None => vec![],
-        };
-        if hps_gen.gen_fn.is_some() {
-            hps_gen.kwargs.swap_remove("aliases");
+            hps_gen.names.push(id.to_string().into());
         }
-        let tags = get_tags(ctx, &mut hps_gen.kwargs, hps_gen.gen_fn.is_some())?;
+        let name = hps_gen.names[0].clone();
+        let aliases = hps_gen.names[1..].to_vec();
+
+        let is_generator = hps_gen.gen_fn.is_some();
+        let tags = get_tags(ctx, &mut hps_gen.kwargs, is_generator)?;
 
         let generator_list_entry = Arc::new(PuzzleListEntry {
             id: CatalogId::new(id.clone(), vec![], None),
             version: None,
             name,
             aliases,
-            tags,
+            tags: tags.clone(),
         });
 
         catalog.add::<PuzzleListEntry>(hps_gen.make_generator_with_empty(
@@ -58,13 +57,19 @@ impl HpsEngine for SymmetricPuzzleEngine {
             generator_list_entry,
             move |build_ctx, tx, mut kwargs| {
                 let id = build_ctx.id().clone();
-                pop_kwarg!(kwargs, name: String = {
+                pop_kwarg!(kwargs, name: ListOrVal<String>);
+                let tags = if is_generator {
+                    tx.eval_blocking(Scope::new(), move |ctx| get_tags(ctx, &mut kwargs, false))?
+                } else {
+                    tags.clone()
+                };
+
+                let mut aliases = name.0;
+                if aliases.is_empty() {
                     build_ctx.warn_fn()(eyre!("missing `name` for puzzle `{id}`"));
-                    id.to_string()
-                });
-                pop_kwarg!(kwargs, aliases: Vec<String> = vec![]);
-                let tags =
-                    tx.eval_blocking(Scope::new(), move |ctx| get_tags(ctx, &mut kwargs, false))?;
+                    aliases.push(id.to_string());
+                }
+                let name = aliases.remove(0);
 
                 Ok(Arc::new(PuzzleListEntry {
                     id,
@@ -85,8 +90,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 // TODO: error message on extra param says "unused function arg" but should say "unused map key"
                 unpack_kwargs!(
                     kwargs,
-                    name: Option<String>,
-                    aliases: Option<Vec<String>>,
+                    name: ListOrVal<String>,
                     tags: Option<Arc<Map>>,
                     twists: Option<String>,
                     colors: Option<Spanned<String>>,
@@ -94,7 +98,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                     (build, build_span): Arc<FnValue>,
                 );
 
-                drop((name, aliases, tags)); // already handled by PuzzleListEntry
+                drop((name, tags)); // already handled by PuzzleListEntry
 
                 let id = meta.id.clone();
                 let name = meta.name.clone();
@@ -256,12 +260,17 @@ impl HpsEngine for SymmetricPuzzleEngine {
 
 fn get_tags(
     ctx: &mut EvalCtx<'_>,
-    mut kwargs: &mut Map,
+    kwargs: &mut Map,
     is_generator: bool,
 ) -> Result<TagSet, HpsEngineError> {
-    pop_kwarg!(kwargs, tags: Option<Arc<Map>>);
+    let mut tags = match kwargs.get("tags") {
+        Some(v) if !v.is_null() => tags_from_map(ctx, Arc::clone(v.as_ref()?)),
+        _ => TagSet::new(),
+    };
+    if !is_generator {
+        kwargs.swap_remove("tags");
+    }
 
-    let mut tags = tags.map(|m| tags_from_map(ctx, m)).unwrap_or_default();
     // IIFE to mimic try_block
     (|| {
         if is_generator {

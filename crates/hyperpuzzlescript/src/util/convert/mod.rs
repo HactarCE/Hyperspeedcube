@@ -105,3 +105,46 @@ impl Value {
         self.as_ref::<T>().is_ok()
     }
 }
+
+/// Type union of `List[T] | T | Null` stored as `Vec<T>`.
+pub struct ListOrVal<T>(pub Vec<T>);
+
+impl<T: TypeOf> TypeOf for ListOrVal<T> {
+    fn hps_ty() -> Type {
+        Type::List(Some(Box::new(T::hps_ty()))) | T::hps_ty()
+    }
+}
+
+impl<'a, T: FromValueRef<'a>> FromValueRef<'a> for ListOrVal<T> {
+    fn from_value_ref(value: &'a Value) -> Result<Self> {
+        if value.is_null() {
+            Ok(Self(vec![]))
+        } else if let Ok(list) = value.ref_to::<Vec<T>>() {
+            Ok(Self(list))
+        } else if let Ok(v) = value.ref_to() {
+            Ok(Self(vec![v]))
+        } else {
+            Err(value.type_error(Self::hps_ty()))
+        }
+    }
+}
+
+impl<T: FromValue> FromValue for ListOrVal<T> {
+    fn from_value(value: Value) -> Result<Self> {
+        if value.is_null() {
+            Ok(Self(vec![]))
+        } else if value.is::<[_]>() {
+            Ok(Self(value.to()?))
+        } else if let Ok(v) = value.clone().to() {
+            Ok(Self(vec![v]))
+        } else {
+            Err(value.type_error(Self::hps_ty()))
+        }
+    }
+}
+
+impl<T> From<Vec<T>> for ListOrVal<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self(value)
+    }
+}

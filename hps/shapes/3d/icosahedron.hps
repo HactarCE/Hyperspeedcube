@@ -17,9 +17,6 @@ export fn new(t: Transform) -> Map {
     export edge = sym.oxo.unit * edge_radius/inradius
     export vertex = sym.oox.unit * circumradius/inradius
 
-    print((face.unit - edge.unit).mag)
-    print((vertex.unit - edge.unit).mag)
-
     export facet = face
     export ridge = edge
     export peak = vertex

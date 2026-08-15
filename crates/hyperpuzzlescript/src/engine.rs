@@ -114,7 +114,8 @@ pub trait HpsEngine: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct HpsGenerator {
     pub id: CatalogIdent,
-    pub name: Option<String>,
+    /// Name and aliases. This may be empty.
+    pub names: Vec<String>,
     pub kwargs: Map,
     /// `gen` function and parameters, or `None` if the generator takes no
     /// parameters.

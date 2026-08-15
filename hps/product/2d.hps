@@ -122,7 +122,6 @@ add_puzzle(id = "ngon", name = "Polygon",
         return #{
             name = "${n}",
             colors = "ngon(${n})",
-            twists = "ngon_ft(${n})", // todo: doesn't need axes
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
             },

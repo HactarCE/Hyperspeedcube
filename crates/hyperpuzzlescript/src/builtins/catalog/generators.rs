@@ -8,17 +8,18 @@ use hyperpuzzle_core::{GeneratorParam, GeneratorParamType, TypedCatalogIdValue};
 use itertools::Itertools;
 
 use crate::engine::{HpsGenerator, HpsGeneratorFn};
-use crate::util::pop_map_key;
+use crate::util::{ListOrVal, pop_map_key};
 use crate::{ErrorExt, FnValue, Map, Result, Spanned, Type, Value};
 
 pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator> {
     pop_kwarg!(kwargs, (id, id_span): String);
     let id = id.parse().at(id_span)?;
 
-    let name = kwargs
-        .get("name")
-        .map(|v| Ok(v.as_ref::<str>()?.to_owned()))
-        .transpose()?;
+    let names = match kwargs.get("name") {
+        Some(v) => v.ref_to::<ListOrVal<&str>>()?.0,
+        None => vec![],
+    };
+    let names = names.into_iter().map(|s| s.to_owned()).collect();
 
     let gen_fn = if kwargs.contains_key("gen") {
         kwargs.swap_remove("name");
@@ -36,7 +37,7 @@ pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator>
 
     Ok(HpsGenerator {
         id,
-        name,
+        names,
         kwargs,
         gen_fn,
     })
