@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize, de};
 /// [`CatalogIdValue`].
 ///
 /// This type dereferences to [`str`].
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CatalogIdent(Box<str>);
 
 impl fmt::Debug for CatalogIdent {
@@ -44,6 +44,18 @@ impl Deref for CatalogIdent {
 
     fn deref(&self) -> &Self::Target {
         &*self.0
+    }
+}
+
+impl PartialOrd for CatalogIdent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CatalogIdent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        numeric_sort::cmp(self, other)
     }
 }
 

@@ -147,7 +147,7 @@ impl CatalogBuilder {
                 Err(e) => ret.logger.error(e),
             }
         }
-        puzzle_list.sort_by_key(|entry| entry.id.clone());
+        puzzle_list.sort(); // sort by ID
         puzzle_list.dedup_by_key(|entry| entry.id.clone());
 
         Arc::get_mut(&mut ret.0)

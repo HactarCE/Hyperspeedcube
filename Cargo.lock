@@ -2877,7 +2877,6 @@ dependencies = [
  "kdl",
  "lazy_static",
  "log",
- "numeric-sort",
  "oklab",
  "parking_lot",
  "proptest",
@@ -3086,6 +3085,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "chumsky",
+ "numeric-sort",
  "serde",
  "thiserror 2.0.18",
 ]

@@ -158,7 +158,7 @@ impl PartialOrd for MenuNodeChild {
 impl Ord for MenuNodeChild {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (Ord::cmp(&self.priority, &other.priority).reverse())
-            .then_with(|| numeric_sort::cmp(&self.next_path_component, &other.next_path_component))
+            .then_with(|| crate::compare_ids(&self.next_path_component, &other.next_path_component))
     }
 }
 

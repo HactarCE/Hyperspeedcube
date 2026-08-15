@@ -121,14 +121,6 @@ pub fn zeta12_generated_id(
     ret
 }
 
-/// Compares IDs of objects in a [`Catalog`].
-///
-/// Currently this uses [`numeric_sort`], a string comparison algorithm that is
-/// handles numbers in a human-friendly way.
-pub fn compare_ids(a: &str, b: &str) -> std::cmp::Ordering {
-    numeric_sort::cmp(a, b)
-}
-
 const AD_HOC_ID_STR: &str = "ad_hoc";
 const ROT_ID_STR: &str = "rot";
 const REFL_ID_STR: &str = "rot";
