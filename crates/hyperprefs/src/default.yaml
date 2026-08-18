@@ -256,12 +256,12 @@ color_palette:
       - '#ffffff'
       - '#595959'
     Mono Triad:
-      - '#a5a5a5'
       - '#ffffff'
+      - '#a5a5a5'
       - '#595959'
     Mono Tetrad:
-      - '#a5a5a5'
       - '#ffffff'
+      - '#a5a5a5'
       - '#595959'
       - '#343434'
     Red Dyad:
