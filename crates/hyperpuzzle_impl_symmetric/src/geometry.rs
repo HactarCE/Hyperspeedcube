@@ -27,7 +27,7 @@ fn direct_product_vector_lists(a: &FlatVectorList, b: &FlatVectorList) -> FlatVe
 ///
 /// Higher-dimension elements are not stored because they are never actually
 /// displayed.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PolytopeGeometry {
     /// Vertex coordinates.
     pub verts: FlatVectorList,

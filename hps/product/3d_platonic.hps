@@ -8,28 +8,36 @@ cuts_param = #{ name = "Cuts", type = Int, default = 1, min = 1, max = 20 }
 fn n_layer_prefix(n, *, default=3) { if n == default { "" } else { "${n}-Layer " } }
 fn n_cut_prefix(n, *, default=1) { if n == default { "" } else { "${n}-Cut " } }
 
+//--------------//
+// Menu entries //
+//--------------//
+
 add_menu_entry(path = "Solid|3D", next_column = "Shape")
-add_menu_entry(path = "Solid|3D|Platonic", section = true)
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron",  priority = 5,  next_column = "Axes")
-add_menu_entry(path = "Solid|3D|Platonic|Cube",         priority = 4,  next_column = "Axes")
-add_menu_entry(path = "Solid|3D|Platonic|Octahedron",   priority = 3,  next_column = "Axes")
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron", priority = 2, next_column = "Axes")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron",  priority = 1, next_column = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic",              priority = 100, section = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron",  priority = 5, next_inline = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Cube",         priority = 4, next_inline = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron",   priority = 3, next_inline = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron", priority = 2, next_inline = "Axes")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron",  priority = 1, next_inline = "Axes")
 
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|None", priority = 1000, id = "tetrahedron")
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT", priority = 2, next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|None", priority = 100, id = "tetrahedron")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT",                  next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|A",                id = "tetrahedron_a")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|B",                id = "tetrahedron_b")
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|C",                id = "tetrahedron_c", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|Pyraminx",         id = "pyraminx")
 
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|A",        id = "tetrahedron_a")
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|B",        id = "tetrahedron_b")
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|C",        id = "tetrahedron_c", default = true)
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|Pyraminx", id = "pyraminx")
-
-
-add_menu_entry(path = "Solid|3D|Platonic|Cube|None", priority = 1000, id = "cube")
+add_menu_entry(path = "Solid|3D|Platonic|Cube|None", priority = 100, id = "cube")
 add_menu_entry(path = "Solid|3D|Platonic|Cube|FT",   priority = 52,   id = "cube_ft", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Cube|ET",   priority = 51,   id = "cube_et")
 add_menu_entry(path = "Solid|3D|Platonic|Cube|VT",   priority = 50,   id = "cube_vt")
 
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron|None",        priority = 100, id = "octahedron")
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT",          priority = 52, next_inline = "Depth", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT|Shallow",  priority = 11, id = "octahedron_ft_shallow")
+add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT|Adjacent", priority = 10, id = "octahedron_ft_adj", default = true)
+
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|None",                priority = 100, id = "dodecahedron")
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT",                  priority = 52, next_inline = "Depth", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx",         priority = 15, id = "megaminx", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx Crystal", priority = 14, id = "megaminx_crystal")
@@ -38,20 +46,19 @@ add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Curvy Starminx",   prio
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Starminx",         priority = 11, id = "starminx")
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pentultimate",     priority = 10, id = "pentultimate")
 
-add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT",          priority = 52, next_inline = "Depth", default = true)
-add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT|Shallow",  priority = 11, id = "octahedron_ft_shallow")
-add_menu_entry(path = "Solid|3D|Platonic|Octahedron|FT|Adjacent", priority = 10, id = "octahedron_ft_adj", default = true)
-
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|None",   priority = 100, id = "icosahedron")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT",     next_inline = "Depth (Radiolarian Number)", priority = 52, default = true)
 // add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1",   id = "radio_1")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1.5", id = "radio_1_5")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1.5", id = "radio_1_5", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|2",   id = "radio_2")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|3",   id = "radio_3")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|4",   id = "radio_4")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|4.5", id = "radio_4_5")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|5",   id = "radio_5")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|6",   id = "radio_6")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|7",   id = "radio_7")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|8",   id = "radio_8")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|8.5", id = "radio_8_5")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|9",   id = "radio_9")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|10",  id = "radio_10")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|11",  id = "radio_11")
@@ -59,47 +66,29 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|12",  id = "radio_12")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|13",  id = "radio_13")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|14",  id = "radio_14")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|15",  id = "radio_15")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Eitan's Nebula",  id = "eitans_nebula")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Eitan's Galaxy",  id = "eitans_galaxy")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid|Eitan's Nebula (3 + 4)", id = "eitans_nebula")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid|Eitan's Galaxy (3 + 7)", id = "eitans_galaxy")
 
 //--------------//
 // Basic shapes //
 //--------------//
 
-add_puzzle(id = "tetrahedron", name = ["Tetrahedron", "3-Simplex"],
-    engine = "symmetric",
-    ndim = 3,
-    colors = "tetrahedron",
-    build = fn() { @util.build_symmetric_shape(@shapes/3d/tetrahedron.new()) },
-)
+fn add_basic_shape(shape_file, **kwargs) {
+    add_puzzle(
+        engine = "symmetric",
+        ndim = 3,
+        colors = kwargs.id,
+        build = fn() { @util.build_symmetric_shape(shape_file.new()) },
+        **kwargs,
+    )
+}
 
-add_puzzle(id = "cube", name = ["Cube", "3-Cube", "Hexahedron", "1x1x1", "1^3"],
-    engine = "symmetric",
-    ndim = 3,
-    colors = "cube",
-    build = fn() { @util.build_symmetric_shape(@shapes/3d/cube.new()) },
-)
-
-add_puzzle(id = "octahedron", name = ["Octahedron", "3-Orthoplex"],
-    engine = "symmetric",
-    ndim = 3,
-    colors = "octahedron",
-    build = fn() { @util.build_symmetric_shape(@shapes/3d/octahedron.new()) },
-)
-
-add_puzzle(id = "dodecahedron", name = "Dodecahedron",
-    engine = "symmetric",
-    ndim = 3,
-    colors = "dodecahedron",
-    build = fn() { @util.build_symmetric_shape(@shapes/3d/dodecahedron.new()) },
-)
-
-add_puzzle(id = "icosahedron", name = "Icosahedron",
-    engine = "symmetric",
-    ndim = 3,
-    colors = "icosahedron",
-    build = fn() { @util.build_symmetric_shape(@shapes/3d/icosahedron.new()) },
-)
+add_basic_shape(@shapes/3d/tetrahedron,  id = "tetrahedron",  name = ["Tetrahedron", "3-Simplex"])
+add_basic_shape(@shapes/3d/cube,         id = "cube",         name = ["Cube", "3-Cube", "Hexahedron", "1x1x1", "1^3"])
+add_basic_shape(@shapes/3d/octahedron,   id = "octahedron",   name = ["Octahedron", "3-Orthoplex"])
+add_basic_shape(@shapes/3d/dodecahedron, id = "dodecahedron", name = "Dodecahedron")
+add_basic_shape(@shapes/3d/icosahedron,  id = "icosahedron",  name = "Icosahedron")
 
 //---------------//
 // Twist systems //
@@ -316,12 +305,13 @@ add_puzzle(id = "pyraminx", name = "N-Layer Pyraminx",
 // Cube puzzles //
 //--------------//
 
+add_puzzle_list_entry("cube_ft(2)")
 add_puzzle_list_entry("cube_ft(3)")
 add_puzzle_list_entry("cube_ft(4)")
 add_puzzle_list_entry("cube_ft(5)")
 add_puzzle_list_entry("cube_ft(6)")
 add_puzzle_list_entry("cube_ft(7)")
-add_puzzle(id = "cube_ft", name = ["FT Cube", "n^3", "N-Layer Rubik's Cube"],
+add_puzzle(id = "cube_ft", name = ["N-Layer FT Cube", "NxNxN FT Cube", "n^3", "N-Layer Rubik's Cube"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -344,9 +334,9 @@ add_puzzle(id = "cube_ft", name = ["FT Cube", "n^3", "N-Layer Rubik's Cube"],
     }
 )
 
-// ------------------ //
+//--------------------//
 // Octahedron puzzles //
-// ------------------ //
+//--------------------//
 
 add_puzzle_list_entry("octahedron_ft_adj(2)")
 add_puzzle_list_entry("octahedron_ft_adj(3)")
@@ -381,7 +371,7 @@ add_puzzle(id = "octahedron_ft_shallow", name = "N-Layer FT Octahedron (Shallow)
     twists = "octahedron_ft",
     params = [cuts_param],
     gen = fn(cuts) {
-        names = [n_cut_prefix(cuts) ++ "Shallow-Cut FT Octahedron"]
+        names = [n_cut_prefix(cuts) ++ " FT Octahedron (Shallow)"]
         if cuts == 1 { names ++= ["Canon-Cut Octahedron"] }
         return #{
             name = names,
@@ -394,9 +384,9 @@ add_puzzle(id = "octahedron_ft_shallow", name = "N-Layer FT Octahedron (Shallow)
     }
 )
 
-// ----------------------- //
-// FT dodecahedron puzzles //
-// ----------------------- //
+//----------------------//
+// Dodecahedron puzzles //
+//----------------------//
 
 add_puzzle_list_entry("megaminx(1)")
 add_puzzle_list_entry("megaminx(2)")
@@ -525,143 +515,129 @@ add_puzzle(id = "pentultimate", name = "N-Layer Pentultimate",
     }
 )
 
-///////
+//---------------------//
+// Icosahedron puzzles //
+//---------------------//
 
-fn def_ft_icosahedron(id, name, cut_depths: List[Num], *, add_opposite = true) {
+fn def_ft_icosahedron(cut_depths: List[Num], **kwargs) {
     add_puzzle(
-        id = id,
-        name = name,
-        tags = #{ author = "Jason White" },
         engine = "symmetric",
         ndim = 3,
         colors = "icosahedron",
         twists = "icosahedron_ft",
         build = fn() {
             @util.build_symmetric_shape(@shapes/3d/icosahedron.new())
-            if add_opposite {
-                cut_depths ++= @util/layers.opposite(cut_depths)
-            }
-            #puz.layers.A = cut_depths
+            #puz.layers.A = @util/layers.with_opposite([1] ++ cut_depths)
         },
+        **kwargs,
     )
 }
 
-use RADIO_4, RADIO_5, RADIO_7, RADIO_8, RADIO_11, RADIO_12, RADIO_13 from @util/layers/ft
+use RADIO_2, RADIO_3, RADIO_4, RADIO_5, RADIO_7, RADIO_8, RADIO_11, RADIO_12, RADIO_13 from @util/layers/ft
 
 diff = 0.08
-def_ft_icosahedron("eitans_nebula", "Eitan's Nebula", [1, RADIO_4+diff, RADIO_4])
+def_ft_icosahedron(
+    [RADIO_4+diff, RADIO_4],
+    id = "eitans_nebula", name = "Eitan's Nebula",
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
 
 galaxy = √((6/(47 + 21*√5)) + ((3*√3 - √15)/2)^2)
-def_ft_icosahedron("eitans_galaxy", "Eitan's Galaxy", [1, galaxy, RADIO_7])
+def_ft_icosahedron(
+    [galaxy, RADIO_7],
+    id = "eitans_galaxy", name = "Eitan's Galaxy",
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
 
-// def_ft_icosahedron("radio_1", ["Radiolarian 1"], [1, 0.8])
-def_ft_icosahedron("radio_1_5", ["Radiolarian 1.5", "Radio Canon", "FT Icosahedron (Shallow)", "Canon-Cut Icosahedron"], [1, 7/9])
-def_ft_icosahedron("radio_2", ["Radiolarian 2", "Circo-Radiolarian"], [1, 1 - (1-RADIO_4)*2/3])
-def_ft_icosahedron("radio_3", ["Radiolarian 3"], [1, 1 - (1-RADIO_4)*4/5])
-def_ft_icosahedron("radio_4", ["Radiolarian 4", "Eitan's Star", "DeFTI"], [1, RADIO_4])
-def_ft_icosahedron("radio_4_5", ["Radiolarian 4.5"], [1, lerp(RADIO_4, RADIO_5, 3/5)])
-def_ft_icosahedron("radio_5", ["Radiolarian 5", "Cat's Cradle"], [1, RADIO_5])
-def_ft_icosahedron("radio_6", ["Radiolarian 6", "Radio Web"], [1, RADIO_7 + 0.02])
-def_ft_icosahedron("radio_7", ["Radiolarian 7", "Radio Jewel"], [1, RADIO_7])
-def_ft_icosahedron("radio_8", ["Radiolarian 8", "Radio Jam"], [1, RADIO_7 - 0.06])
-def_ft_icosahedron("radio_8_5", ["Radiolarian 8.5"], [1, 1/3 + 0.03])
-def_ft_icosahedron("radio_9", ["Radiolarian 9", "Radio Crystal"], [1, 1/3])
-def_ft_icosahedron("radio_10", ["Radiolarian 10", "Radio Nova"], [1, 1/3 - 0.05])
-def_ft_icosahedron("radio_11", ["Radiolarian 11", "Radio Star"], [1, RADIO_11])
-def_ft_icosahedron("radio_12", ["Radiolarian 12", "Radio Nebula"], [1, RADIO_12])
-def_ft_icosahedron("radio_13", ["Radiolarian 13", "Radio Gem"], [1, RADIO_13])
-def_ft_icosahedron("radio_14", ["Radiolarian 14", "Radio Fathom"], [1, 0.05])
-def_ft_icosahedron("radio_15", ["Radiolarian 15", "Radio Chop"], [1, 0, -1], add_opposite = false)
-
-// for id in ["megaminx", "curvy_starminx", "pentultimate"] {
-//     add_puzzle_generator(
-//         id = id,
-//         version = "0.1.0",
-//         engine = "euclid",
-//         ndim = 3,
-//         params = [layers_param],
-//         gen = fn(layers) {
-//             export fn build() {
-//                 with #sym = cd([5,3]) {
-//                     carve(plane(#sym.oox))
-//                     ax = add_axis(#sym.oox)
-//                     // ax.add_twist()
-//                 }
-//             }
-//         },
-//     )
-// }
-// for id in ["megaminx_crystal", "pyraminx_crystal", "starminx"] {
-//     add_puzzle(
-//         id = id,
-//         version = "0.1.0",
-//         engine = "euclid",
-//         ndim = 3,
-//         build = fn() {},
-//     )
-// }
-
-// add_menu_entry(path = "Solid|3D|Platonic|Cube|FT", priority = 52, default = true, id = "ft_cube")
-// add_puzzle_generator(
-//     id = "ft_cube_v2",
-//     engine = "symmetric",
-//     params = [layers_param],
-
-//     colors = "cube",
-//     twists = "ft_cube",
-//     gen = fn(layers) {
-//         export ndim = 3
-//         export fn build() {
-//             carve_polyhedron(@shapes/3d/cube.new())
-//             // TODO: realistic proportions
-//             cut_ft_polyhedron(#puz.shape, @util/layers.inclusive(layers))
-//         }
-//     },
+// TODO: Radio 1 needs piece deletion
+// def_ft_icosahedron(
+//     0.8,
+//     id = "radio_1", name = ["Radiolarian 1"],
+//     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 // )
-
-// add_twist_system(
-//     id = "ft_cube",
-//     name = "FT Cube",
-//     engine = "symmetric",
-//     ndim = 3,
-//     build = fn() {
-//         cube = @shapes/3d/cube.new()
-//         export sym = cube.sym
-//         export refs = [[cube.facet_pole, cube.facet_names]]
-//         export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
-//         add_vantage_set(
-//             name = "Face-centered",
-//             view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-//                         * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-//             transforms = #{
-//                 x = "@{F->U}",
-//                 y = "@{R->F}",
-//                 z = "@{U->F}",
-//             },
-//             axes = "*",
-//         )
-//     },
-// )
-
-// add_twist_system(
-//     id = "ft_hypercube",
-//     name = "FT Hypercube",
-//     engine = "symmetric",
-//     ndim = 4,
-//     build = fn() {
-//         export sym = cube.sym
-//         export refs = [[cube.facet_pole, cube.facet_names]]
-//         export axes = #{ facet = [cube.facet_pole, cube.facet_names] }
-//         add_vantage_set(
-//             name = "Face-centered",
-//             view_offset = rot(start = vec(x=1), end = vec(z=1), angle = 20°)
-//                         * rot(start = vec(y=1), end = vec(z=1), angle = 35°),
-//             transforms = #{
-//                 x = "@{F->U}",
-//                 y = "@{R->F}",
-//                 z = "@{U->F}",
-//             },
-//             axes = "*",
-//         )
-//     },
-// )
+def_ft_icosahedron(
+    [7/9],
+    id = "radio_1_5", name = ["Radiolarian 1.5", "FT Icosahedron 1.5", "FT Icosahedron (Shallow)", "Radio Canon", "Canon-Cut Icosahedron"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [1 - (1-RADIO_4)*2/3],
+    id = "radio_2", name = ["Radiolarian 2", "FT Icosahedron 2", "FT Icosahedron (Adjacent)", "Circo-Radiolarian"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [1 - (1-RADIO_4)*4/5],
+    id = "radio_3", name = ["Radiolarian 3", "FT Icosahedron 3"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_4],
+    id = "radio_4", name = ["Radiolarian 4", "FT Icosahedron 4", "Eitan's Star", "DeFTI"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [lerp(RADIO_4, RADIO_5, 3/5)],
+    id = "radio_4_5", name = ["Radiolarian 4.5", "FT Icosahedron 4.5"],
+    tags = #{ author = "Andrew Farkas" },
+)
+def_ft_icosahedron(
+    [RADIO_5],
+    id = "radio_5", name = ["Radiolarian 5", "FT Icosahedron 5", "Cat's Cradle"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_7 + 0.02],
+    id = "radio_6", name = ["Radiolarian 6", "FT Icosahedron 6", "Radio Web"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_7],
+    id = "radio_7", name = ["Radiolarian 7", "FT Icosahedron 7", "Radio Jewel"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_7 - 0.06],
+    id = "radio_8", name = ["Radiolarian 8", "FT Icosahedron 8", "Radio Jam"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [1/3 + 0.03],
+    id = "radio_8_5", name = ["Radiolarian 8.5", "FT Icosahedron 8.5"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+    tags = #{ author = "Andrew Farkas" },
+)
+def_ft_icosahedron(
+    [1/3],
+    id = "radio_9", name = ["Radiolarian 9", "FT Icosahedron 9", "Radio Crystal"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [1/3 - 0.05],
+    id = "radio_10", name = ["Radiolarian 10", "FT Icosahedron 10", "Radio Nova"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_11],
+    id = "radio_11", name = ["Radiolarian 11", "FT Icosahedron 11", "Radio Star"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_12],
+    id = "radio_12", name = ["Radiolarian 12", "FT Icosahedron 12", "Radio Nebula"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [RADIO_13],
+    id = "radio_13", name = ["Radiolarian 13", "FT Icosahedron 13", "Radio Gem"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [0.05],
+    id = "radio_14", name = ["Radiolarian 14", "FT Icosahedron 14", "Radio Fathom"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)
+def_ft_icosahedron(
+    [0],
+    id = "radio_15", name = ["Radiolarian 15", "FT Icosahedron 15", "FT Icosahedron (Half)", "Radio Chop"],
+    tags = #{ author = ["Andrew Farkas", "Jason White"] },
+)

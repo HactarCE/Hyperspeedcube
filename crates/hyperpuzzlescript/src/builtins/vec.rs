@@ -77,6 +77,13 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         fn lerp_unbounded(a: Vector, b: Vector, t: Num) -> Vector {
             hypermath::util::lerp(a, b, t)
         }
+
+        /// `projected_to()` projects the first vector onto the second.
+        ///
+        /// It returns `null` if `b` is zero.
+        fn projected_to(a: Vector, b: Vector) -> Option<Vector> {
+            a.projected_to(&b)
+        }
     ])?;
 
     // Operators

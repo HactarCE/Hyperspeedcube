@@ -69,10 +69,10 @@ fn show_puzzle_load_hint(
         ui.heading(L.puzzle_view.select_a_puzzle);
         ui.horizontal(|ui| {
             if ui.button(L.puzzle_view.rubiks_3d).clicked() {
-                puzzle_widget.load_puzzle("ft_cube(3)", prefs);
+                puzzle_widget.load_puzzle("cube_ft(3)", prefs);
             }
             if ui.button(L.puzzle_view.rubiks_4d).clicked() {
-                puzzle_widget.load_puzzle("ft_hypercube(3)", prefs);
+                puzzle_widget.load_puzzle("hypercube_ft(3)", prefs);
             }
         });
         ui.label(L.puzzle_view.more_in_catalog);

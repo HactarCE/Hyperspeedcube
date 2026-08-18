@@ -281,6 +281,12 @@ impl PuzzleProduct {
         let ndim = self.ndim();
         let piece_count = self.shape.pieces.len();
 
+        // TODO: actually measure perf on, e.g., FT 600-Cell
+        let mut shape = self.shape.clone();
+        if ndim > 3 {
+            shape.remove_internals();
+        }
+
         let (pieces, stickers) = self.shape.build_piece_and_stickers(&colors)?;
 
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
@@ -339,10 +345,7 @@ impl PuzzleProduct {
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates: vec![],
             piece_vertex_sets: PerPiece::new_with_len(piece_count),
-            piece_centroids: self
-                .shape
-                .pieces
-                .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center()),
+            piece_centroids: self.shape.build_piece_centroids(),
 
             planes,
             sticker_planes,

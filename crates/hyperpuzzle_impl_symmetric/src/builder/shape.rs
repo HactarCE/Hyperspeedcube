@@ -14,7 +14,7 @@ use smallvec::SmallVec;
 use crate::geometry::PolytopeGeometry;
 
 /// Shape of a puzzle under construction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct ProductPuzzleShape {
     /// Symmetry group of the shape.
     pub group: IsometryGroup,
@@ -149,6 +149,11 @@ impl ProductPuzzleShape {
         Ok((pieces, stickers))
     }
 
+    pub fn build_piece_centroids(&self) -> PerPiece<Point> {
+        self.pieces
+            .map_ref(|_, piece_geometries| piece_geometries.polytope.centroid.center())
+    }
+
     pub fn build_piece_types(
         &self,
         warn_fn: &mut impl FnMut(eyre::Report),
@@ -214,10 +219,19 @@ impl ProductPuzzleShape {
                 .collect(),
         )
     }
+
+    pub fn remove_internals(&mut self) {
+        self.pieces = self
+            .pieces
+            .iter_values()
+            .filter(|p| p.sticker_count() > 0)
+            .cloned()
+            .collect();
+    }
 }
 
 /// Data for a piece in a puzzle under construction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct PieceData {
     /// Polytope of the piece, used to generate new stickers when computing the
     /// direct product of two pieces.
@@ -335,7 +349,7 @@ impl PieceData {
 /// Data for a facet of a piece under construction.
 ///
 /// Facets may or may be stickers.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct PieceFacetData {
     /// Polytope of the facet, used to generate mesh data.
     ///
@@ -350,7 +364,7 @@ pub(super) struct PieceFacetData {
 }
 
 /// Additional data for a sticker facet under construction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct StickerData {
     /// Surface that the sticker is part of.
     ///
@@ -358,7 +372,7 @@ pub(super) struct StickerData {
     pub surface: Surface,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct SurfaceData {
     /// Centroid of the surface, used to compute facet shrink.
     ///

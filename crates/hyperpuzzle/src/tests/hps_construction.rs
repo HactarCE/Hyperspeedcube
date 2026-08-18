@@ -123,7 +123,7 @@ fn build_all_puzzles() -> Result<(), String> {
 fn build_7x7x7x7() {
     let lib = load_new_catalog();
     let (result, time) = time_it("Building puzzle 7x7x7x7", || {
-        lib.build_blocking::<Puzzle>(&"ft_hypercube(7)".parse().unwrap())
+        lib.build_blocking::<Puzzle>(&"hypercube_ft(7)".parse().unwrap())
     });
     result.expect("failed to build puzzle");
     println!("Done in {time:?}");

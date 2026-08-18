@@ -1,8 +1,7 @@
 use * from euclid
 
-add_puzzle_generator(
+add_puzzle(
     id = "icosa_antiprism",
-    version = "0.1.0",
     engine = "euclid",
     ndim = 4,
     params = [],

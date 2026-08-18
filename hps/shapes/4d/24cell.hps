@@ -1,70 +1,111 @@
 use * from euclid
 
-export id = "24cell"
-export name = "24-Cell"
-export adjective = "4-Cellic"
-export aliases = []
-export facet_colors = id
-export ndim = 4
-export shape_tag = "4d/platonic/24cell"
-
 export fn new() -> Map { new(ident()) }
 export fn new(t: Transform) -> Map {
     export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
 
-    export id, name, adjective, aliases, facet_colors, ndim, shape_tag
     export sym = t.transform(cd("f4"))
 
-    export facet = #{
-        vector = sym.ooox.unit,
-        names = sym.names(point(sym.ooox), #{
-            A = [],
-            B = [3, "A"],
-            C = [2, "B"],
-            D = [1, "C"],
-            E = [0, "D"],
-            F = [2, "D"],
-            G = [2, "E"],
-            H = [3, "F"],
-            I = [1, "G"],
-            J = [3, "G"],
-            K = [2, "I"],
-            L = [3, "I"],
-            M = [3, "K"],
-            N = [2, "L"],
-            O = [2, "M"],
-            P = [1, "N"],
-            Q = [1, "O"],
-            R = [0, "P"],
-            S = [0, "Q"],
-            T = [2, "Q"],
-            U = [2, "S"],
-            V = [1, "U"],
-            W = [2, "V"],
-            X = [3, "W"],
+    export cell = sym.ooox.unit
+    export face = sym.ooxo.unit * 2*√6
+    export edge = sym.oxoo.unit * √3/√2
+    export vertex = sym.xooo.unit * √2
+
+    export facet = cell
+    export ridge = face
+    export peak = edge
+
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            // swirl 1
+            A = [3, "B"],
+            B = [2, "N"],
+            C = [2, "V"],
+            D = [],
+            E = [3, "D"],
+            F = [3, "C"],
+            // swirl 2
+            G = [1, "S"],
+            H = [2, "G"],
+            I = [2, "L"],
+            J = [0, "P"],
+            K = [0, "W"],
+            L = [1, "R"],
+            // swirl 3
+            M = [0, "G"],
+            N = [1, "T"],
+            O = [1, "I"],
+            P = [2, "W"],
+            Q = [2, "E"],
+            R = [0, "X"],
+            // swirl 4
+            S = [2, "F"],
+            T = [0, "H"],
+            U = [0, "O"],
+            V = [1, "J"],
+            W = [1, "Q"],
+            X = [3, "P"],
         }),
-    }
+    }]
 }
 
-add_puzzle_generator(
-    id = id,
-    version = "1.0.0",
-    name = name,
-    aliases = aliases,
-    // colors = facet_colors,
-    engine = "euclid",
-    ndim = ndim,
-    params = [],
-    gen = fn() {
-        export build = fn() {
-            use sym, facet from new()
-            with #sym = sym { carve(plane(facet.vector), facet.names) }
-        }
-    },
-    tags = #{
-        schema = 1,
-        type = "solid",
-        stable = "2.0.0",
-        shape = shape_tag,
+add_color_system(
+    id = "24cell",
+    name = "24-Cell",
+    default_scheme = "Swirl",
+    schemes = #{
+        "Swirl" = #{
+            A = "Magenta Triad [0]",
+            B = "Magenta Triad [1]",
+            C = "Magenta Triad [2]",
+            D = "Mono Triad [2]",
+            E = "Mono Triad [1]",
+            F = "Mono Triad [0]",
+            G = "Red Triad [0]",
+            H = "Red Triad [1]",
+            I = "Red Triad [2]",
+            J = "Orange Triad [2]",
+            K = "Orange Triad [1]",
+            L = "Orange Triad [0]",
+            M = "Yellow Triad [0]",
+            N = "Yellow Triad [1]",
+            O = "Yellow Triad [2]",
+            P = "Green Triad [2]",
+            Q = "Green Triad [1]",
+            R = "Green Triad [0]",
+            S = "Blue Triad [0]",
+            T = "Blue Triad [1]",
+            U = "Blue Triad [2]",
+            V = "Purple Triad [2]",
+            W = "Purple Triad [1]",
+            X = "Purple Triad [0]",
+        },
+        "Alternating Swirl" = #{
+            A = "Magenta Triad [0]",
+            B = "Mono Triad [1]",
+            C = "Magenta Triad [2]",
+            D = "Mono Triad [0]",
+            E = "Magenta Triad [1]",
+            F = "Mono Triad [2]",
+            G = "Red Triad [0]",
+            H = "Orange Triad [1]",
+            I = "Red Triad [2]",
+            J = "Orange Triad [0]",
+            K = "Red Triad [1]",
+            L = "Orange Triad [2]",
+            M = "Yellow Triad [0]",
+            N = "Green Triad [1]",
+            O = "Yellow Triad [2]",
+            P = "Green Triad [0]",
+            Q = "Yellow Triad [1]",
+            R = "Green Triad [2]",
+            S = "Blue Triad [0]",
+            T = "Purple Triad [1]",
+            U = "Blue Triad [2]",
+            V = "Purple Triad [0]",
+            W = "Blue Triad [1]",
+            X = "Purple Triad [2]",
+        },
     },
 )

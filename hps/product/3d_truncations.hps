@@ -1,0 +1,161 @@
+use * from euclid
+
+//--------------//
+// Menu entries //
+//--------------//
+
+add_menu_entry(path = "Solid|3D|Truncations", section = true)
+add_menu_entry(path = "Solid|3D|Truncations|Cubic", next_column = "Truncation")
+
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron|None", priority = 100, id = "cuboctahedron")
+for i in 1..=10 {
+    add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron|${i}", id = "cuboctahedron_ft_${i}")
+}
+
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cube", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cube|None", priority = 100, id = "truncated_cube")
+
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Octahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Octahedron|None", priority = 100, id = "truncated_cube")
+
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron|None", priority = 100, id = "rhombicuboctahedron")
+for i in 1..=32 {
+    add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron|${i}", id = "rhombicuboctahedron_ft_${i}")
+}
+
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron|None", priority = 100, id = "truncated_cuboctahedron")
+
+//---------------//
+// Twist systems //
+//---------------//
+
+fn def_truncation_twists(shape_file, vertex_cd_point, **kwargs) {
+    add_twist_system(
+        engine = "symmetric",
+        ndim = 3,
+        build = fn() {
+            shape = shape_file.new()
+            #twists.sym = shape.sym
+            #twists.points = shape.points
+            elements = #{ f = shape.face, e = shape.edge, v = shape.vertex }
+            p = shape.sym.vec(vertex_cd_point)
+            p /= p.projected_to(shape.sym.oox).mag
+            for k in ["f", "e", "v"] {
+                if dot(p.unit, elements[k].unit) != 1 {
+                    #twists.axes ++= [p.projected_to(elements[k])]
+                }
+            }
+        },
+        **kwargs,
+    )
+}
+
+def_truncation_twists(@shapes/3d/cube, "oxo", id = "cube_ft_vt")
+def_truncation_twists(@shapes/3d/cube, "xox", id = "cube_ft_et_vt")
+
+//------- //
+// Shapes //
+//------- //
+
+fn def_truncation(shape_file, vertex_cd_point, *, cuts = null, layers = #{}, **kwargs) {
+    add_puzzle(
+        engine = "symmetric",
+        ndim = 3,
+        build = fn() {
+            shape = shape_file.new()
+            #shape.sym = shape.sym
+            #shape.points = shape.points
+            elements = #{ f = shape.face, e = shape.edge, v = shape.vertex }
+            axes = #{ f = "R", e = "RU", v = "RUF" }
+            p = shape.sym.vec(vertex_cd_point)
+            p /= p.projected_to(shape.sym.oox).mag
+            for k in ["f", "e", "v"] {
+                if dot(p.unit, elements[k].unit) != 1 {
+                    facet_pole = p.projected_to(elements[k])
+                    #shape.facets ++= [facet_pole]
+                    if cuts != null {
+                        #puz.layers[axes[k]] = @util/layers.with_opposite([∞] ++ cuts[k].map(fn(d) { d * facet_pole.mag }))
+                    }
+                }
+            }
+        },
+        tags = #{ author = ["Andrew Farkas", "SuperSnowman16", "Milo Jacquet"] },
+        **kwargs,
+    )
+}
+
+def_truncation(@shapes/3d/cube, "oxo", id = "cuboctahedron", name = "Cuboctahedron")
+def_truncation(@shapes/3d/cube, "xxo", id = "truncated_cube", name = "Truncated Cube")
+def_truncation(@shapes/3d/cube, "oxx", id = "truncated_octahedron", name = "Truncated Octahedron")
+def_truncation(@shapes/3d/cube, "xox", id = "rhombicuboctahedron", name = "Rhombicuboctahedron")
+def_truncation(@shapes/3d/cube, "xxx", id = "truncated_cuboctahedron", name = "Truncated Cuboctahedron")
+
+//---------------------- //
+// Cuboctahedron puzzles //
+//---------------------- //
+
+fn def_cuboctahedron(t, **kwargs) {
+    def_truncation(@shapes/3d/cube, "oxo", twists = "cube_ft_vt", cuts = #{ f = [t], v = [t] }, **kwargs)
+}
+
+// Numbering courtesy of Luna Harran
+def_cuboctahedron(3/4,  id = "cuboctahedron_ft_1",  name = ["FT Cuboctahedron 1", "Canon-Cut Cuboctahedron"])
+def_cuboctahedron(2/3,  id = "cuboctahedron_ft_2",  name = "FT Cuboctahedron 2")
+def_cuboctahedron(3/5,  id = "cuboctahedron_ft_3",  name = "FT Cuboctahedron 3")
+def_cuboctahedron(1/2,  id = "cuboctahedron_ft_4",  name = ["FT Cuboctahedron 4", "Rainbow Cube + 3^3"])
+def_cuboctahedron(2/5,  id = "cuboctahedron_ft_5",  name = "FT Cuboctahedron 5")
+def_cuboctahedron(1/3,  id = "cuboctahedron_ft_6",  name = "FT Cuboctahedron 6")
+def_cuboctahedron(7/24, id = "cuboctahedron_ft_7",  name = "FT Cuboctahedron 7")
+def_cuboctahedron(1/4,  id = "cuboctahedron_ft_8",  name = "FT Cuboctahedron 8")
+def_cuboctahedron(1/6,  id = "cuboctahedron_ft_9",  name = "FT Cuboctahedron 9")
+def_cuboctahedron(0,    id = "cuboctahedron_ft_10", name = ["FT Cuboctahedron 10", "Half-Cut FT Cuboctahedron"])
+
+//---------------------------- //
+// Rhombicuboctahedron puzzles //
+//---------------------------- //
+
+fn def_rhombicuboctahedron(t, **kwargs) {
+    cuts = #{
+        f = [t],
+        e = [lerp(1-1/√2, 1, t)],
+        v = [lerp(2/(3+√2), 1, t)],
+    }
+    def_truncation(@shapes/3d/cube, "xox", twists = "cube_ft_et_vt", cuts = cuts, **kwargs)
+}
+
+// Numbering coutresy of Luna Harran
+def_rhombicuboctahedron((2+√2)/4,         id = "rhombicuboctahedron_1",  name = ["FT Rhombicuboctahedron 1", "Canon-Cut Rhombicuboctahedron"])
+def_rhombicuboctahedron((√2+1)/3,         id = "rhombicuboctahedron_2",  name = "FT Rhombicuboctahedron 2")
+def_rhombicuboctahedron(√2-2/3,           id = "rhombicuboctahedron_3",  name = "FT Rhombicuboctahedron 3")
+def_rhombicuboctahedron(1/√2,             id = "rhombicuboctahedron_4",  name = "FT Rhombicuboctahedron 4")
+def_rhombicuboctahedron(1 + (√2-2)*7/12,  id = "rhombicuboctahedron_5",  name = "FT Rhombicuboctahedron 5")
+def_rhombicuboctahedron(1 + (√2-2)*2/3,   id = "rhombicuboctahedron_6",  name = "FT Rhombicuboctahedron 6")
+def_rhombicuboctahedron(2 - √2,           id = "rhombicuboctahedron_7",  name = "FT Rhombicuboctahedron 7")
+def_rhombicuboctahedron(1 + (√2-2)*23/30, id = "rhombicuboctahedron_8",  name = "FT Rhombicuboctahedron 8")
+def_rhombicuboctahedron(1-√2/3,           id = "rhombicuboctahedron_9",  name = "FT Rhombicuboctahedron 9")
+def_rhombicuboctahedron(1 + (√2-2)*10/12, id = "rhombicuboctahedron_10", name = "FT Rhombicuboctahedron 10")
+def_rhombicuboctahedron(1/2,              id = "rhombicuboctahedron_11", name = "FT Rhombicuboctahedron 11")
+def_rhombicuboctahedron(√2/3,             id = "rhombicuboctahedron_12", name = "FT Rhombicuboctahedron 12")
+def_rhombicuboctahedron((7-4*√2)/3,       id = "rhombicuboctahedron_13", name = "FT Rhombicuboctahedron 13")
+def_rhombicuboctahedron((6-3*√2)/4,       id = "rhombicuboctahedron_14", name = "FT Rhombicuboctahedron 14") // precision issues :(
+def_rhombicuboctahedron(√2-1,             id = "rhombicuboctahedron_15", name = "FT Rhombicuboctahedron 15")
+def_rhombicuboctahedron((√2-1) * 11/12,   id = "rhombicuboctahedron_16", name = "FT Rhombicuboctahedron 16")
+def_rhombicuboctahedron((√2-1) * 5/6,     id = "rhombicuboctahedron_17", name = "FT Rhombicuboctahedron 17")
+def_rhombicuboctahedron(1-1/√2,           id = "rhombicuboctahedron_18", name = "FT Rhombicuboctahedron 18")
+def_rhombicuboctahedron((√2-1) * 7.75/12, id = "rhombicuboctahedron_19", name = "FT Rhombicuboctahedron 19")
+def_rhombicuboctahedron((5-3*√2)/3,       id = "rhombicuboctahedron_20", name = "FT Rhombicuboctahedron 20")
+def_rhombicuboctahedron((√2-1) * 7/12,    id = "rhombicuboctahedron_21", name = "FT Rhombicuboctahedron 21") // precision issues :(
+def_rhombicuboctahedron((8-5*√2)/4,       id = "rhombicuboctahedron_22", name = "FT Rhombicuboctahedron 22")
+def_rhombicuboctahedron((√2-1) * 19/36,   id = "rhombicuboctahedron_23", name = "FT Rhombicuboctahedron 23")
+def_rhombicuboctahedron(3-2*√2,           id = "rhombicuboctahedron_24", name = "FT Rhombicuboctahedron 24")
+def_rhombicuboctahedron((√2-1) * 1/4,     id = "rhombicuboctahedron_25", name = "FT Rhombicuboctahedron 25") // precision issues :(
+def_rhombicuboctahedron((3-2*√2)/2,       id = "rhombicuboctahedron_26", name = "FT Rhombicuboctahedron 26") // precision issues :(
+def_rhombicuboctahedron((√2-1) * 1/6,     id = "rhombicuboctahedron_27", name = "FT Rhombicuboctahedron 27") // precision issues :(
+def_rhombicuboctahedron((3-2*√2)/3,       id = "rhombicuboctahedron_28", name = "FT Rhombicuboctahedron 28") // precision issues :(
+def_rhombicuboctahedron((3-2*√2)/4,       id = "rhombicuboctahedron_29", name = "FT Rhombicuboctahedron 29")
+def_rhombicuboctahedron((3-2*√2)/5,       id = "rhombicuboctahedron_30", name = "FT Rhombicuboctahedron 30")
+def_rhombicuboctahedron((3-2*√2)/8,       id = "rhombicuboctahedron_31", name = "FT Rhombicuboctahedron 31")
+def_rhombicuboctahedron(0,                id = "rhombicuboctahedron_32", name = ["FT Rhombicuboctahedron 32", "Half-Cut FT Rhombicuboctahedron"])

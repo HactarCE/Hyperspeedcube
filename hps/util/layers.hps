@@ -92,3 +92,7 @@ export fn exclusive_centered(center: Num, half_range: Num, cut_count: Nat) -> Li
 export fn opposite(cut_depths: List[Num]) -> List[Num] {
     cut_depths.rev().map(fn(depth) { return -depth })
 }
+
+export fn with_opposite(cut_depths: List[Num]) -> List[Num] {
+    cut_depths ++ opposite(cut_depths.filter(fn(depth) { depth != 0 }))
+}

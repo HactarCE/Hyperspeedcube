@@ -295,7 +295,7 @@ pub enum NameError {
     },
     #[error(
         "named point name {name:?} contains {char:?}; only \
-         uppercase Latin and uppercase Greek are allowed"
+         uppercase Latin, uppercase Greek, and tall lowercase Greek are allowed"
     )]
     BadNamedPointChar { char: char, name: Str },
     #[error(
@@ -461,7 +461,11 @@ impl<I: TypedIndex> FactorNamedPointBasedNames<I> {
                 if let Some(bad_char) = name.chars().find(|c| {
                     !matches!(
                         hypuz_notation::charsets::classify(*c),
-                        Some(CharSet::UppercaseLatin | CharSet::UppercaseGreek),
+                        Some(
+                            CharSet::UppercaseLatin
+                                | CharSet::UppercaseGreek
+                                | CharSet::TallLowercaseGreek
+                        ),
                     )
                 }) {
                     bail!("named point {name:?} contains disallowed char {bad_char:?}");
@@ -513,7 +517,11 @@ impl<I: TypedIndex> FactorNamedPointBasedNames<I> {
             if let Some(char) = name.chars().find(|&c| {
                 !matches!(
                     hypuz_notation::charsets::classify(c),
-                    Some(CharSet::UppercaseGreek | CharSet::UppercaseLatin)
+                    Some(
+                        CharSet::UppercaseGreek
+                            | CharSet::UppercaseLatin
+                            | CharSet::TallLowercaseGreek
+                    )
                 )
             }) {
                 return Err(NameError::BadNamedPointChar {

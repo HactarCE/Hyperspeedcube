@@ -696,7 +696,7 @@ impl SolveSummaryModal {
         }
 
         // TODO: make sure that these IDs generalize across dimensions
-        if &*self.puzzle.meta.id.base == "ft_hypercube"
+        if &*self.puzzle.meta.id.base == "hypercube_ft"
             && self.puzzle.meta.id.args != vec![CatalogIdValue::from(2)]
         {
             ui.add_space(20.0);
@@ -719,13 +719,13 @@ impl SolveSummaryModal {
             self.show_support_request(ui);
 
             return;
-        } else if &*self.puzzle.meta.id.base == "ft_5_cube" {
+        } else if &*self.puzzle.meta.id.base == "5cube_ft" {
             message = Some(L.solve_summary.solved_5d);
-        } else if &*self.puzzle.meta.id.base == "ft_6_cube" {
+        } else if &*self.puzzle.meta.id.base == "6cube_ft" {
             message = Some(L.solve_summary.solved_6d);
-        } else if &*self.puzzle.meta.id.base == "ft_7_cube" {
+        } else if &*self.puzzle.meta.id.base == "7cube_ft" {
             message = Some(L.solve_summary.solved_7d);
-        } else if &*self.puzzle.meta.id.base == "ft_8_cube" {
+        } else if &*self.puzzle.meta.id.base == "8cube_ft" {
             message = Some(L.solve_summary.solved_8d);
         }
 

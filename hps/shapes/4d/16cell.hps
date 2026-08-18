@@ -1,0 +1,42 @@
+use * from euclid
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export sym = t.transform(cd("bc4"))
+
+    export cell = sym.xooo.unit
+    export face = sym.oxoo.unit * 2/√3
+    export edge = sym.ooxo.unit * √2
+    export vertex = sym.ooox.unit * 2
+
+    export facet = cell
+    export ridge = face
+    export peak = edge
+
+    export points = @shapes/4d/hypercube.new().points
+}
+
+add_color_system(
+    id = "16cell",
+    name = "16-Cell",
+    colors = #{
+        FORU = "Mono Dyad [0]",
+        FLOU = "Red Dyad [0]",
+        DFOR = "Orange Dyad [0]",
+        DFLO = "Yellow Dyad [0]",
+        BORU = "Green Dyad [0]",
+        BLOU = "Blue Dyad [0]",
+        BDOR = "Purple Dyad [0]",
+        BDLO = "Magenta Dyad [0]",
+        FIRU = "Mono Dyad [1]",
+        FILU = "Red Dyad [1]",
+        DFIR = "Orange Dyad [1]",
+        DFIL = "Yellow Dyad [1]",
+        BIRU = "Green Dyad [1]",
+        BILU = "Blue Dyad [1]",
+        BDIR = "Purple Dyad [1]",
+        BDIL = "Magenta Dyad [1]",
+    },
+)

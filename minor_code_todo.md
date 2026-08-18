@@ -13,3 +13,4 @@
 - Make sure drag twists work on 3D product puzzles!
 - Make sure 4D twist names are correct!
 - Write tests for log files for various puzzles!
+- Check 4D twist directions (search for "todo" in HPS code)

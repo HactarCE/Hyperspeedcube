@@ -25,6 +25,13 @@ export fn new(t: Transform) -> Map {
             B = [2, "D"],
         }),
     }]
+
+    export fn tetrahedra() -> List[Map] {
+        t = @shapes/3d/tetrahedron.new()
+        t = t.transform_by(rot(start = t.face, end = vertex))
+        t = t.transform_by(rot(fix = vertex, start = t.edge, end = face))
+        return [t, t.transform_by(rot(fix = face, angle = τ/4))]
+    }
 }
 
 western_color_scheme = #{

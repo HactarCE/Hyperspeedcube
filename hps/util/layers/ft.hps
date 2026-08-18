@@ -37,12 +37,12 @@ export fn octahedron_shallow(cuts: Nat) -> List[Num] {
     center = 1/2
     half_range = 1/6
     depths = [1] ++ @util/layers.exclusive_centered(center, half_range, cuts)
-    return depths ++ @util/layers.opposite(depths)
+    return @util/layers.with_opposite(depths)
 }
 
-// ------------ //
+//--------------//
 // Dodecahedron //
-// ------------ //
+//--------------//
 
 export PYRAMINX_CRYSTAL_DEPTH = 1/√5
 export MEGAMINX_DEPTH = 1/φ
@@ -63,7 +63,7 @@ export fn dodecahedron_shallow(cuts: Nat) -> List[Num] {
         outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
         depths ++= @util/layers.inclusive(outermost_cut, MEGAMINX_DEPTH, cuts - 1)
     }
-    return depths ++ @util/layers.opposite(depths)
+    return @util/layers.with_opposite(depths)
 }
 
 export fn curvy_starminx(cuts: Nat) -> List[Num] {
@@ -72,7 +72,7 @@ export fn curvy_starminx(cuts: Nat) -> List[Num] {
     mid_depth = 1/3
     half_range = √5 - 2 - 1/3 + 0.15
     depths = [1] ++ @util/layers.exclusive_centered(mid_depth, half_range, cuts)
-    return depths ++ @util/layers.opposite(depths)
+    return @util/layers.with_opposite(depths)
 }
 
 export fn pentultimate(layers: Nat) -> List[Num] {
@@ -91,10 +91,11 @@ export fn pentultimate(layers: Nat) -> List[Num] {
     return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
 }
 
-// ----------- //
+//-------------//
 // Icosahedron //
-// ----------- //
+//-------------//
 
+// Sweet spots
 export RADIO_4 = 1 / φ
 export RADIO_5 = φ^2 / (2 + φ^2)
 export RADIO_7 = 5 - 2*√5
@@ -102,3 +103,7 @@ export RADIO_8 = 1 / φ^2
 export RADIO_11 = 1 / φ^3
 export RADIO_12 = 1 / φ^4
 export RADIO_13 = 1 / (φ^4 + φ^2)
+
+// Other cut depths (chosen for aesthetics)
+export RADIO_2 = 1 - (1-RADIO_4)*2/3
+export RADIO_3 = 1 - (1-RADIO_4)*4/5

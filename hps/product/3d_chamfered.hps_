@@ -1,0 +1,62 @@
+// TODO: these need (shapeshifting) cubic twists
+
+add_menu_entry(path = "Solid|3D|Chamfered", section = true)
+add_menu_entry(path = "Solid|3D|Chamfered|Chamfered Tetrahedron", next_inline = "Depth")
+add_menu_entry(path = "Solid|3D|Chamfered|Chamfered Tetrahedron|Canon", id = "chamfered_tetrahedron_canon")
+add_menu_entry(path = "Solid|3D|Chamfered|Chamfered Tetrahedron|Horse Cube", id = "horse_cube")
+
+add_twist_system(
+    id = "chamfered_tetrahedron_ft",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        cube = @shapes/3d/cube.new()
+        tetrahedron = cube.tetrahedra()[0]
+        #twists.sym = tetrahedron.sym
+        #twists.points = cube.points
+        #twists.axes = [cube.facet, tetrahedron.facet.unit * 2/√3]
+        #twists.stabilizer_twists = [
+            // [["R", "U"], 1],
+            // [["R", "U", "F"], 2/√3],
+        ]
+        #twists.stabilizer_sets = [
+            // [["R", "U"], cube.edge.mag * lerp(1, 1/2, GIZMO_EDGE_FACTOR)],
+            [["R", "U", "F"], 2/√3],
+            [["L", "U", "F"], 2/√3],
+        ]
+    }
+)
+
+fn def_chamfered_tetrahedron_ft(cube_depth, **kwargs) {
+    add_puzzle(
+        engine = "symmetric",
+        twists = "chamfered_tetrahedron_ft",
+        ndim = 3,
+        build = fn() {
+            cube = @shapes/3d/cube.new()
+            tetrahedron = cube.tetrahedra()[0]
+            r = 2/√3
+            #shape.sym = tetrahedron.sym
+            #shape.points = cube.points
+            #shape.facets = [cube.facet, r * tetrahedron.facet.unit]
+            d = 0.75
+            #puz.layers.U = [1, cube_depth, -cube_depth, -1]
+            #puz.layers.UFR = [∞, (1 - (1-cube_depth)/√2) * 2/√3]
+        },
+        **kwargs,
+    )
+}
+
+def_chamfered_tetrahedron_ft(
+    0.75,
+    id = "chamfered_tetrahedron_canon",
+    name = ["Canon-Cut Chamfered Tetrahedron", "Canon-Cut Chamfered Tetrahedron"],
+    tags = #{ author = ["Andrew Farkas", "SuperSnowman16"] },
+)
+
+def_chamfered_tetrahedron_ft(
+    0.6,
+    id = "horse_cube",
+    name = "Horse Cube",
+    tags = #{ author = ["Andrew Farkas", "SuperSnowman16"], inventor = "Lord of the Cubes" },
+)

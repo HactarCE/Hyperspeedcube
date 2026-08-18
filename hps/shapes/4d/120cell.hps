@@ -1,0 +1,358 @@
+use * from euclid
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export sym = t.transform(cd("h4"))
+
+    export cell = sym.ooox.unit
+    export face = sym.ooxo.unit * ((7*√10 - 15*√2) * √(29*√5 + 65)) / 10
+    export edge = sym.oxoo.unit * (√15-√3)/2
+    export vertex = sym.xooo.unit * (3*√2-√10)
+
+    export facet = cell
+    export ridge = face
+    export peak = edge
+
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            RI = [3, "FU"],
+            RF = [3, "LY"],
+            RU = [3, "FL"],
+            RR = [3, "OPB"],
+            RL = [3, "FBL"],
+            RDR = [3, "OPR"],
+            RDL = [3, "LDL"],
+            RBR = [0, "BPL"],
+            RBL = [0, "BL"],
+            RPR = [3, "OPD"],
+            RPL = [3, "FBR"],
+            RPD = [3, "FX"],
+            RPB = [3, "FR"],
+            RX = [0, "BPD"],
+            RY = [3, "LF"],
+
+            LI = [2, "LPB"],
+            LF = [2, "DL"],
+            LU = [1, "UPL"],
+            LR = [1, "UY"],
+            LL = [2, "OX"],
+            LDR = [2, "DU"],
+            LDL = [2, "DF"],
+            LBR = [1, "FPR"],
+            LBL = [1, "FR"],
+            LPR = [1, "FPB"],
+            LPL = [1, "FU"],
+            LPD = [1, "FBL"],
+            LPB = [1, "FI"],
+            LX = [2, "BF"],
+            LY = [0, "LPL"],
+
+            UI = [2, "BBR"],
+            UF = [2, "RDL"],
+            UU = [2, "RDR"],
+            UR = [3, "UPB"],
+            UL = [2, "RF"],
+            UDR = [3, "UPD"],
+            UDL = [2, "BX"],
+            UBR = [2, "BPB"],
+            UBL = [2, "DY"],
+            UPR = [2, "BI"],
+            UPL = [2, "DPL"],
+            UPD = [2, "BR"],
+            UPB = [2, "BPR"],
+            UX = [3, "ODR"],
+            UY = [2, "DBL"],
+
+            DI = [1, "DPR"],
+            DF = [1, "FL"],
+            DU = [1, "FPL"],
+            DR = [0, "LPB"],
+            DL = [1, "FDL"],
+            DDR = [0, "OX"],
+            DDL = [1, "RX"],
+            DBR = [0, "IY"],
+            DBL = [3, "DU"],
+            DPR = [0, "BDR"],
+            DPL = [3, "DF"],
+            DPD = [0, "BPR"],
+            DPB = [0, "BR"],
+            DX = [0, "LPR"],
+            DY = [3, "OBR"],
+
+            FI = [0, "LU"],
+            FF = [0, "BY"],
+            FU = [2, "DDR"],
+            FR = [2, "DPD"],
+            FL = [0, "LBL"],
+            FDR = [2, "RU"],
+            FDL = [0, "BDL"],
+            FBR = [2, "DI"],
+            FBL = [2, "DR"],
+            FPR = [2, "DPB"],
+            FPL = [0, "LBR"],
+            FPD = [2, "FY"],
+            FPB = [0, "LR"],
+            FX = [2, "DDL"],
+            FY = [3, "FPL"],
+
+            BI = [3, "LBL"],
+            BF = [3, "LBR"],
+            BU = [3, "LI"],
+            BR = [1, "RBL"],
+            BL = [1, "UF"],
+            BDR = [1, "FDR"],
+            BDL = [1, "UL"],
+            BBR = [3, "LPL"],
+            BBL = [3, "LL"],
+            BPR = [1, "RBR"],
+            BPL = [1, "UU"],
+            BPD = [1, "OY"],
+            BPB = [3, "OR"],
+            BX = [3, "LPD"],
+            BY = [1, "UBL"],
+
+            OI = [],
+            OF = [1, "ODL"],
+            OU = [1, "OPL"],
+            OR = [1, "OPD"],
+            OL = [3, "OI"],
+            ODR = [2, "OU"],
+            ODL = [2, "OL"],
+            OBR = [1, "OPB"],
+            OBL = [0, "OU"],
+            OPR = [2, "OBR"],
+            OPL = [0, "OF"],
+            OPD = [2, "OBL"],
+            OPB = [0, "OR"],
+            OX = [1, "FF"],
+            OY = [2, "RR"],
+
+            II = [3, "IL"],
+            IF = [0, "IPL"],
+            IU = [2, "IDR"],
+            IR = [0, "IPB"],
+            IL = [2, "IDL"],
+            IDR = [0, "IPD"],
+            IDL = [1, "IF"],
+            IBR = [2, "IPR"],
+            IBL = [2, "IPD"],
+            IPR = [3, "LDR"],
+            IPL = [1, "IU"],
+            IPD = [1, "IR"],
+            IPB = [1, "IBR"],
+            IX = [3, "FPR"],
+            IY = [1, "FPD"],
+        })
+    }]
+}
+
+add_color_system(
+    id = "120cell",
+    name = "120-Cell",
+    colors = #{
+        RI  = "Rainbow [0/120]",
+        RF  = "Rainbow [1/120]",
+        RU  = "Rainbow [2/120]",
+        RR  = "Rainbow [3/120]",
+        RL  = "Rainbow [4/120]",
+        RDR = "Rainbow [5/120]",
+        RDL = "Rainbow [6/120]",
+        RBR = "Rainbow [7/120]",
+        RBL = "Rainbow [8/120]",
+        RPR = "Rainbow [9/120]",
+        RPL = "Rainbow [10/120]",
+        RPD = "Rainbow [11/120]",
+        RPB = "Rainbow [12/120]",
+        RX  = "Rainbow [13/120]",
+        RY  = "Rainbow [14/120]",
+
+        LI  = "Rainbow [15/120]",
+        LF  = "Rainbow [16/120]",
+        LU  = "Rainbow [17/120]",
+        LR  = "Rainbow [18/120]",
+        LL  = "Rainbow [19/120]",
+        LDR = "Rainbow [20/120]",
+        LDL = "Rainbow [21/120]",
+        LBR = "Rainbow [22/120]",
+        LBL = "Rainbow [23/120]",
+        LPR = "Rainbow [24/120]",
+        LPL = "Rainbow [25/120]",
+        LPD = "Rainbow [26/120]",
+        LPB = "Rainbow [27/120]",
+        LX  = "Rainbow [28/120]",
+        LY  = "Rainbow [29/120]",
+
+        UI  = "Rainbow [30/120]",
+        UF  = "Rainbow [31/120]",
+        UU  = "Rainbow [32/120]",
+        UR  = "Rainbow [33/120]",
+        UL  = "Rainbow [34/120]",
+        UDR = "Rainbow [35/120]",
+        UDL = "Rainbow [36/120]",
+        UBR = "Rainbow [37/120]",
+        UBL = "Rainbow [38/120]",
+        UPR = "Rainbow [39/120]",
+        UPL = "Rainbow [40/120]",
+        UPD = "Rainbow [41/120]",
+        UPB = "Rainbow [42/120]",
+        UX  = "Rainbow [43/120]",
+        UY  = "Rainbow [44/120]",
+
+        DI  = "Rainbow [45/120]",
+        DF  = "Rainbow [46/120]",
+        DU  = "Rainbow [47/120]",
+        DR  = "Rainbow [48/120]",
+        DL  = "Rainbow [49/120]",
+        DDR = "Rainbow [50/120]",
+        DDL = "Rainbow [51/120]",
+        DBR = "Rainbow [52/120]",
+        DBL = "Rainbow [53/120]",
+        DPR = "Rainbow [54/120]",
+        DPL = "Rainbow [55/120]",
+        DPD = "Rainbow [56/120]",
+        DPB = "Rainbow [57/120]",
+        DX  = "Rainbow [58/120]",
+        DY  = "Rainbow [59/120]",
+
+        FI  = "Rainbow [60/120]",
+        FF  = "Rainbow [61/120]",
+        FU  = "Rainbow [62/120]",
+        FR  = "Rainbow [63/120]",
+        FL  = "Rainbow [64/120]",
+        FDR = "Rainbow [65/120]",
+        FDL = "Rainbow [66/120]",
+        FBR = "Rainbow [67/120]",
+        FBL = "Rainbow [68/120]",
+        FPR = "Rainbow [69/120]",
+        FPL = "Rainbow [70/120]",
+        FPD = "Rainbow [71/120]",
+        FPB = "Rainbow [72/120]",
+        FX  = "Rainbow [73/120]",
+        FY  = "Rainbow [74/120]",
+
+        BI  = "Rainbow [75/120]",
+        BF  = "Rainbow [76/120]",
+        BU  = "Rainbow [77/120]",
+        BR  = "Rainbow [78/120]",
+        BL  = "Rainbow [79/120]",
+        BDR = "Rainbow [80/120]",
+        BDL = "Rainbow [81/120]",
+        BBR = "Rainbow [82/120]",
+        BBL = "Rainbow [83/120]",
+        BPR = "Rainbow [84/120]",
+        BPL = "Rainbow [85/120]",
+        BPD = "Rainbow [86/120]",
+        BPB = "Rainbow [87/120]",
+        BX  = "Rainbow [88/120]",
+        BY  = "Rainbow [89/120]",
+
+        OI  = "Rainbow [90/120]",
+        OF  = "Rainbow [91/120]",
+        OU  = "Rainbow [92/120]",
+        OR  = "Rainbow [93/120]",
+        OL  = "Rainbow [94/120]",
+        ODR = "Rainbow [95/120]",
+        ODL = "Rainbow [96/120]",
+        OBR = "Rainbow [97/120]",
+        OBL = "Rainbow [98/120]",
+        OPR = "Rainbow [99/120]",
+        OPL = "Rainbow [100/120]",
+        OPD = "Rainbow [101/120]",
+        OPB = "Rainbow [102/120]",
+        OX  = "Rainbow [103/120]",
+        OY  = "Rainbow [104/120]",
+
+        II  = "Rainbow [105/120]",
+        IF  = "Rainbow [106/120]",
+        IU  = "Rainbow [107/120]",
+        IR  = "Rainbow [108/120]",
+        IL  = "Rainbow [109/120]",
+        IDR = "Rainbow [110/120]",
+        IDL = "Rainbow [111/120]",
+        IBR = "Rainbow [112/120]",
+        IBL = "Rainbow [113/120]",
+        IPR = "Rainbow [114/120]",
+        IPL = "Rainbow [115/120]",
+        IPD = "Rainbow [116/120]",
+        IPB = "Rainbow [117/120]",
+        IX  = "Rainbow [118/120]",
+        IY  = "Rainbow [119/120]",
+    },
+)
+
+// This code was used to generate the 120-cell names, using the old Lua API:
+/*
+local function _gen_120cell_names()
+    local swirl = sym:thru(3,2,1,2,4,1,3,2,1,2,1,3,2,1,2,3,4,3,2,1,2,1,3,2,1,2,4,3,2,1,2,3,2,3).rev
+    local transpose = sym:thru(1,2,4,1,3,2,1,2,1,3,2,1,2,3,4,3,2,1,2,1,3,2,1,2,4,3,2,1,2,3).rev
+
+    local axes = self.axes:add(facet_poles)
+    -- self.axes:autoname()
+    -- self.axes[vec('x')].name = 'RI'
+    -- self.axes[-vec('x')].name = 'LI'
+    -- self.axes[vec('y')].name = 'UI'
+    -- self.axes[-vec('y')].name = 'DI'
+    -- self.axes[vec('z')].name = 'FI'
+    -- self.axes[-vec('z')].name = 'BI'
+    self.axes[sym.ooox].name = 'OI'
+    sym:thru(2, 3, 4):transform(self.axes.OI).name = "OF"
+    sym:thru(2, 1, 2, 3, 4):transform(self.axes.OI).name = "OU"
+
+    local function name_hypercubic_cluster(Ob, beta_name)
+        local Db = swirl:transform(Ob)
+        local Lb = transpose:transform(Ob)
+        local Bb = transpose:transform(Db)
+        local Ib = self.axes[-Ob.vector]
+        local Rb = self.axes[-Lb.vector]
+        local Ub = self.axes[-Db.vector]
+        local Fb = self.axes[-Bb.vector]
+        Rb.name = 'R' .. beta_name
+        Lb.name = 'L' .. beta_name
+        Ub.name = 'U' .. beta_name
+        Db.name = 'D' .. beta_name
+        Fb.name = 'F' .. beta_name
+        Bb.name = 'B' .. beta_name
+        Ib.name = 'I' .. beta_name
+        Ob.name = 'O' .. beta_name
+    end
+
+    local OI = self.axes.OI
+    local OF = self.axes.OF
+    local OU = self.axes.OU
+    local OR = rot{fix = OF.vector ^ OI.vector, angle = pi*2/5}:transform(OU)
+
+    name_hypercubic_cluster(self.axes.OI, 'I')
+
+    local gen1 = refl(self.axes.RI.vector)
+    local gen2 = refl(OU.vector - OR.vector)
+    local gen3 = refl(OU.vector - OF.vector)
+    for t, axis, name in symmetry({gen1, gen2, gen3}):orbit(self.axes.OF):named({
+        F = {},
+        U = {3, 'F'},
+        R = {2, 'U'},
+        L = {1, 'R'},
+        DR = {2, 'L'},
+        DL = {1, 'DR'},
+        BR = {3, 'DR'},
+        BL = {3, 'DL'},
+        PR = {2, 'BL'},
+        PL = {1, 'PR'},
+        PD = {2, 'PL'},
+        PB = {3, 'PD'},
+    }) do
+        name_hypercubic_cluster(axis, name)
+    end
+
+    local OX = sym:thru(2, 1, 2, 3, 4, 2, 1, 2, 3, 1, 2, 1, 2, 3, 4):transform(OI)
+    name_hypercubic_cluster(OX, 'X')
+
+    local OY = (refl() * refl(OI.vector)):transform(OX)
+    name_hypercubic_cluster(OY, 'Y')
+
+    print(OX.vector)
+    print(OY.vector)
+end
+*/

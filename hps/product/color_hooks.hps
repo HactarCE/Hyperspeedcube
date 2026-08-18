@@ -1,4 +1,4 @@
-// Polygon x polygon
+// Polygon x Polygon
 add_color_system_hook(
     "sum([ngon(*),ngon(*)])",
     0,
@@ -14,7 +14,7 @@ add_color_system_hook(
     },
 )
 
-// Polygon x line
+// Polygon x Line
 add_color_system_hook(
     "sum([ngon(*),line])",
     0,
@@ -29,7 +29,7 @@ add_color_system_hook(
     },
 )
 
-// Line x polygon
+// Line x Polygon
 add_color_system_hook(
     "sum([line,ngon(*)])",
     0,
@@ -39,6 +39,122 @@ add_color_system_hook(
         default_scheme["aB"] = "Gray"
         for i in 0..parse_int(n) {
             default_scheme["b${nth_uppercase(i)}"] = "Rainbow [${i}/${n}]"
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Dodecahedron x Line
+add_color_system_hook(
+    "sum([dodecahedron,line])",
+    0,
+    fn() {
+        default_scheme = #{
+            aU = "White",
+            aF = "Green Dyad [1]",
+            aR = "Red",
+            aL = "Purple",
+            aBR = "Blue Dyad [1]",
+            aBL = "Yellow Dyad [1]",
+            aDR = "Yellow Dyad [0]",
+            aDL = "Blue Dyad [0]",
+            aPR = "Pink",
+            aPL = "Orange",
+            aPB = "Green Dyad [0]",
+            aPD = "Gray",
+            bA = "Black",
+            bB = "Brown",
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Line x Dodecahedron
+add_color_system_hook(
+    "sum([line,dodecahedron])",
+    0,
+    fn() {
+        default_scheme = #{
+            aA = "Black",
+            aB = "Brown",
+            bU = "White",
+            bF = "Green Dyad [1]",
+            bR = "Red",
+            bL = "Purple",
+            bBR = "Blue Dyad [1]",
+            bBL = "Yellow Dyad [1]",
+            bDR = "Yellow Dyad [0]",
+            bDL = "Blue Dyad [0]",
+            bPR = "Pink",
+            bPL = "Orange",
+            bPB = "Green Dyad [0]",
+            bPD = "Gray",
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Icosahedron x Line
+add_color_system_hook(
+    "sum([icosahedron,line])",
+    0,
+    fn() {
+        default_scheme = #{
+            aU = "Mono Tetrad [1]",
+            aD = "Mono Tetrad [0]",
+            aE = "Mono Tetrad [2]",
+            aO = "Mono Tetrad [3]",
+            aF = "Green Triad [1]",
+            aB = "Green Triad [0]",
+            aR = "Yellow Dyad [1]",
+            aK = "Yellow Dyad [0]",
+            aL = "Purple Dyad [1]",
+            aS = "Purple Dyad [0]",
+            aN = "Red Dyad [1]",
+            aG = "Red Dyad [0]",
+            aQ = "Blue Triad [2]",
+            aH = "Blue Triad [0]",
+            aP = "Orange Dyad [1]",
+            aI = "Orange Dyad [0]",
+            aA = "Green Triad [2]",
+            aJ = "Blue Triad [1]",
+            aC = "Magenta Dyad [1]",
+            aM = "Magenta Dyad [0]",
+            bA = "Red",
+            bB = "Blue",
+        }
+        return #{ schemes = #{ Main = default_scheme } }
+    },
+)
+
+// Line x Icosahedron
+add_color_system_hook(
+    "sum([line,icosahedron])",
+    0,
+    fn() {
+        default_scheme = #{
+            aA = "Red",
+            aB = "Blue",
+            bU = "Mono Tetrad [1]",
+            bD = "Mono Tetrad [0]",
+            bE = "Mono Tetrad [2]",
+            bO = "Mono Tetrad [3]",
+            bF = "Green Triad [1]",
+            bB = "Green Triad [0]",
+            bR = "Yellow Dyad [1]",
+            bK = "Yellow Dyad [0]",
+            bL = "Purple Dyad [1]",
+            bS = "Purple Dyad [0]",
+            bN = "Red Dyad [1]",
+            bG = "Red Dyad [0]",
+            bQ = "Blue Triad [2]",
+            bH = "Blue Triad [0]",
+            bP = "Orange Dyad [1]",
+            bI = "Orange Dyad [0]",
+            bA = "Green Triad [2]",
+            bJ = "Blue Triad [1]",
+            bC = "Magenta Dyad [1]",
+            bM = "Magenta Dyad [0]",
         }
         return #{ schemes = #{ Main = default_scheme } }
     },

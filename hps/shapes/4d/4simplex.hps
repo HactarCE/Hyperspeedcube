@@ -1,0 +1,52 @@
+use * from euclid
+
+export fn new() -> Map { new(ident()) }
+export fn new(t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(t2 * t) }
+
+    export sym = t.transform(cd("a4"))
+
+    export cell = sym.ooox.unit
+    export face = sym.ooxo.unit * 2
+    export edge = sym.oxoo.unit * 3
+    export vertex = sym.xooo.unit * 4
+
+    export facet = cell
+    export ridge = face
+    export peak = edge
+
+    export points = [
+        #{
+            vector = facet,
+            names = sym.names(point(facet), #{
+                E = [],
+                D = [3, "E"],
+                C = [2, "D"],
+                B = [1, "C"],
+                A = [0, "B"],
+            }),
+        },
+        #{
+            vector = vertex,
+            names = sym.names(point(vertex), #{
+                βA = [],
+                βB = [0, "βA"],
+                βC = [1, "βB"],
+                βD = [2, "βC"],
+                βE = [3, "βD"],
+            }),
+        },
+    ]
+}
+
+add_color_system(
+    id = "4simplex",
+    name = "4-Simplex",
+    colors = #{
+        A = "Red",
+        B = "Blue",
+        C = "Green",
+        D = "Yellow",
+        E = "Purple",
+    },
+)
