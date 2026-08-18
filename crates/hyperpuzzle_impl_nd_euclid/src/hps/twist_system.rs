@@ -141,6 +141,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                         let names: ElementNames = names.to()?;
                         let (transforms, vectors): (Vec<_>, Vec<_>) = symmetry
                             .orbit(init_vector)
+                            .at(ctx.caller_span)?
                             .into_iter()
                             .map(|(_gen_seq, motor, vector)| (motor, vector))
                             .unzip();
@@ -536,6 +537,7 @@ impl HpsTwistSystem {
                         axis_vector,
                         transform: builder.transform.clone(),
                     })
+                    .at(ctx.caller_span)?
                     .into_iter()
                     .map(|(_gen_seq, transform, orbit_element)| (transform, orbit_element))
                     .unzip();

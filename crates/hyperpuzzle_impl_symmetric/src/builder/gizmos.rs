@@ -1,5 +1,5 @@
 use eyre::{OptionExt, Result, eyre};
-use hypergroup::{ConstraintSet, GroupElementId};
+use hypergroup::{ConstraintSet, ExceededOrbitLimit, GroupElementId};
 use hypermath::pga::Motor;
 use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, Vector, VectorRef, approx_collections};
 use hyperpuzzle_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
@@ -41,7 +41,7 @@ pub fn build_3d_gizmo(
             .collect_vec();
 
         // Generate mesh for each face
-        for (axis, _, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes) {
+        for (axis, _, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes)? {
             let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
             let surface_id = mesh.add_gizmo_surface(&axis_vectors[axis])?;
             let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
@@ -111,7 +111,8 @@ pub fn build_4d_gizmo(
                 .into_iter()
                 .map(|g| (g, twists.group.motor(g)))
                 .collect_vec();
-            hypergroup::orbit(
+            hypergroup::orbit_with_limit(
+                hypergroup::ORBIT_LIMIT,
                 (init_vector, init_secondary),
                 &subgroup_generators,
                 |(vector, secondary), (g, m)| {
@@ -127,7 +128,7 @@ pub fn build_4d_gizmo(
                         None
                     }
                 },
-            );
+            )?;
         }
 
         // Carve gizmo faces
@@ -192,7 +193,7 @@ pub fn build_4d_gizmo(
             .try_collect()?;
 
         // Generate mesh for each cell/axis
-        for (axis, e, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes) {
+        for (axis, e, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes)? {
             // Generate mesh for each face
             for (vertex_positions, secondary) in &faces {
                 let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
@@ -245,8 +246,9 @@ fn orbit_axes_with_representatives(
     init: Axis,
     twists: &SymmetricTwistSystemComponent,
     seen: &mut TiMask<Axis>,
-) -> Vec<(Axis, GroupElementId, Motor)> {
-    hypergroup::orbit_collect(
+) -> Result<Vec<(Axis, GroupElementId, Motor)>, ExceededOrbitLimit> {
+    hypergroup::orbit_collect_with_limit(
+        hypergroup::ORBIT_LIMIT,
         (init, GroupElementId::IDENTITY, Motor::ident(twists.ndim())),
         twists.group.generators(),
         |_, (ax, e, m), &g| {

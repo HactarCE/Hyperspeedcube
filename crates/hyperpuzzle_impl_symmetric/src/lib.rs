@@ -4,7 +4,6 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
-use hypergroup::AbbrGenSeq;
 use hypermath::prelude::*;
 use hyperpuzzle_core::group::GroupElementId;
 use hyperpuzzle_core::prelude::*;
@@ -441,20 +440,6 @@ fn named_point_autonames() -> impl Iterator<Item = String> {
     (0..)
         .map(hypuz_notation::family::SequentialUppercaseName)
         .map(|name| format!("ZZ{name}"))
-}
-
-fn autoname_orbit(sym: &hypergroup::IsometryGroup, point: Vector) -> Vec<(AbbrGenSeq, String)> {
-    hypergroup::orbit_geometric_with_gen_seq(
-        &sym.generator_motors()
-            .iter()
-            .map(|(g, m)| (hypergroup::GenSeq::new([g]), m.clone()))
-            .collect_vec(),
-        point,
-    )
-    .into_iter()
-    .map(|(gen_seq, _, _)| gen_seq)
-    .zip(crate::named_point_autonames())
-    .collect()
 }
 
 fn lift_vector_by_ndim<V: FromIterator<Float>>(

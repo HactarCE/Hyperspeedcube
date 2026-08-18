@@ -65,7 +65,12 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
 
             let ctx_symmetry = HpsSymmetry::get(ctx)?;
             let regions = match ctx_symmetry {
-                Some(sym) => sym.orbit(region).into_iter().map(|(_, _, r)| r).collect(),
+                Some(sym) => sym
+                    .orbit(region)
+                    .at(ctx.caller_span)?
+                    .into_iter()
+                    .map(|(_, _, r)| r)
+                    .collect(),
                 None => vec![region],
             };
 
@@ -157,7 +162,11 @@ impl HpsShape {
         let mut this = self.lock();
 
         let (gen_seqs, transforms, cut_planes): (Vec<_>, Vec<_>, Vec<_>) = match ctx_symmetry {
-            Some(sym) => sym.orbit((plane, args.region)).into_iter().multiunzip(),
+            Some(sym) => sym
+                .orbit((plane, args.region))
+                .at(ctx.caller_span)?
+                .into_iter()
+                .multiunzip(),
             None => (
                 vec![AbbrGenSeq::INIT],
                 vec![Motor::ident(this.ndim())],

@@ -166,7 +166,11 @@ impl HpsAxisSystem {
         let mut this = self.lock_ad_hoc().at(ctx.caller_span)?;
 
         let (gen_seqs, transforms, vectors) = match ctx_symmetry {
-            Some(sym) => sym.orbit(vector).into_iter().multiunzip(),
+            Some(sym) => sym
+                .orbit(vector)
+                .at(ctx.caller_span)?
+                .into_iter()
+                .multiunzip(),
             None => (
                 vec![AbbrGenSeq::INIT],
                 vec![Motor::ident(this.ndim())],

@@ -165,13 +165,14 @@ fn test_deterministic_random_group_element() -> eyre::Result<()> {
     let original_group = CoxeterMatrix::H4().isometry_group()?;
     let initial_point = Point(Vector::unit(original_group.ndim() - 1));
     let test_points: PerTestPoint<Point> = orbit_geometric_with_gen_seq(
+        crate::ORBIT_LIMIT,
         &original_group
             .generator_motors()
             .into_iter()
             .map(|(g, m)| (GenSeq::new([g]), m.clone()))
             .collect_vec(),
         initial_point,
-    )
+    )?
     .into_iter()
     .map(|(_, _, p)| p)
     .collect();

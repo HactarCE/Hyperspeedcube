@@ -7,7 +7,7 @@ use hyperpuzzlescript::*;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
-use super::{HpsAxis, HpsRegion, HpsSymmetry, ElementNames};
+use super::{ElementNames, HpsAxis, HpsRegion, HpsSymmetry};
 use crate::builder::*;
 
 /// HPS puzzle builder.
@@ -99,6 +99,7 @@ impl HpsPuzzle {
         let axis_vectors: Vec<Vector> = match ctx_symmetry {
             Some(sym) => sym
                 .orbit(axis_vector)
+                .at(ctx.caller_span)?
                 .into_iter()
                 .map(|(_gen_seq, _transform, v)| v)
                 .collect(),

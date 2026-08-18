@@ -30,7 +30,7 @@ use axis::{HpsAxis, axis_from_vector, transform_axis};
 use axis_system::HpsAxisSystem;
 use color::HpsColor;
 use layer_mask::HpsLayerMask;
-pub use orbit_names::{HpsOrbitNames, HpsOrbitNamesComponent, ElementNames};
+pub use orbit_names::{ElementNames, HpsOrbitNames, HpsOrbitNamesComponent};
 use puzzle::HpsPuzzle;
 use puzzle_engine::NdEuclidPuzzleEngine;
 use region::HpsRegion;
@@ -78,19 +78,19 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
         }
 
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Motor) -> Vec<Spanned<Motor>> {
-            symmetry::orbit_spanned(ctx, sym, CanonicalMotor::new(object))
+            symmetry::orbit_spanned(ctx, sym, CanonicalMotor::new(object))?
                 .into_iter()
                 .map(|(CanonicalMotor(m), span)| (m, span))
                 .collect()
         }
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Vector) -> Vec<Spanned<Vector>> {
-            symmetry::orbit_spanned(ctx, sym, object)
+            symmetry::orbit_spanned(ctx, sym, object)?
         }
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: Point) -> Vec<Spanned<Point>> {
-            symmetry::orbit_spanned(ctx, sym, object)
+            symmetry::orbit_spanned(ctx, sym, object)?
         }
         fn orbit(ctx: EvalCtx, sym: HpsSymmetry, object: HpsRegion) -> Vec<Spanned<HpsRegion>> {
-            symmetry::orbit_spanned(ctx, sym, object)
+            symmetry::orbit_spanned(ctx, sym, object)?
         }
         fn orbit(
             ctx: EvalCtx,
@@ -98,7 +98,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             (object, object_span): HpsAxis,
         ) -> Vec<Spanned<Option<HpsAxis>>> {
             object.axes.lock_vectors().at(ctx.caller_span)?; // error if vector data is missing
-            let vectors = sym.orbit(object.vector().at(object_span)?);
+            let vectors = sym
+                .orbit(object.vector().at(object_span)?)
+                .at(ctx.caller_span)?;
             vectors
                 .into_iter()
                 .map(|(_, _, v)| {
@@ -121,6 +123,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> hyperpuzzlescript::Result<()> {
             let axes = object.twists.axes();
             axes.lock_vectors().at(ctx.caller_span)?; // error if vector data is missing
             sym.orbit(init_key)
+                .at(ctx.caller_span)?
                 .iter()
                 .map(|(_, _, key)| {
                     let axis = *axes

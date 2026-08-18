@@ -579,11 +579,14 @@ impl TwistSystemProduct {
 
             // Sanity check that we didn't miss any
             #[cfg(debug_assertions)]
-            let axes_in_orbit =
-                Axis::iter_range(orbit.first().to_index()..orbit.first().to_index() + orbit.len);
-            for ax in axes_in_orbit.skip(1) {
-                assert_ne!(ret[ax].0, GroupElementId::IDENTITY);
-                assert_eq!(ret[ax].1, orbit_index);
+            {
+                let axes_in_orbit = Axis::iter_range(
+                    orbit.first().to_index()..orbit.first().to_index() + orbit.len,
+                );
+                for ax in axes_in_orbit.skip(1) {
+                    assert_ne!(ret[ax].0, GroupElementId::IDENTITY);
+                    assert_eq!(ret[ax].1, orbit_index);
+                }
             }
         }
 

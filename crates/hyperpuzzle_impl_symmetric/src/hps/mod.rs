@@ -102,11 +102,17 @@ fn named_point_orbit_from_value(
         let ElementNames(orbit_names) = pop_map_key(&mut map, value.span, "names")?;
         expect_end_of_map(map, value.span)?;
 
+        let raw_orbit_members = hypergroup::orbit_geometric_with_gen_seq(
+            hypergroup::ORBIT_LIMIT,
+            generators,
+            init_vector,
+        )
+        .at(ctx.caller_span)?;
+
         let mut vectors = vec![];
         let mut gen_seqs = vec![];
         let mut transforms = vec![];
-        for (gen_seq, motor, v) in hypergroup::orbit_geometric_with_gen_seq(generators, init_vector)
-        {
+        for (gen_seq, motor, v) in raw_orbit_members {
             vectors.push(v);
             gen_seqs.push(gen_seq);
             transforms.push(motor);
@@ -129,14 +135,19 @@ fn named_point_orbit_from_value(
         );
 
         let init_vector = value.to::<Vector>()?;
-        let orbit_members = hypergroup::orbit_geometric_with_gen_seq(generators, init_vector)
-            .into_iter()
-            .map(|(abbr_gen_seq, _, vector)| NamedPointSpec {
-                vector,
-                name: autonames.next().expect("exhausted autonames").into(),
-                abbr_gen_seq,
-            })
-            .collect();
+        let orbit_members = hypergroup::orbit_geometric_with_gen_seq(
+            hypergroup::ORBIT_LIMIT,
+            generators,
+            init_vector,
+        )
+        .at(ctx.caller_span)?
+        .into_iter()
+        .map(|(abbr_gen_seq, _, vector)| NamedPointSpec {
+            vector,
+            name: autonames.next().expect("exhausted autonames").into(),
+            abbr_gen_seq,
+        })
+        .collect();
         Ok(NamedPointOrbitSpec { orbit_members })
     } else {
         Err(value.type_error(Type::Map | Type::Vec))

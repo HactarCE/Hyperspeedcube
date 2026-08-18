@@ -136,9 +136,11 @@ impl PuzzleShapeFactorBuilder {
             let hyperplane = sticker_polytope
                 .as_facet()?
                 .hyperplane(&point_inside_piece)?;
-            for (h, c) in
-                hypergroup::orbit_geometric(self.group.generator_motors(), (hyperplane, center))
-            {
+            for (h, c) in hypergroup::orbit_geometric(
+                hypergroup::ORBIT_LIMIT,
+                self.group.generator_motors(),
+                (hyperplane, center),
+            )? {
                 let s = *self
                     .hyperplane_to_surface
                     .get(h)
@@ -210,7 +212,8 @@ impl PuzzleShapeFactorBuilder {
                 let mut centroids_seen = ApproxHashMap::<Centroid, ()>::new(APPROX);
                 centroids_seen.insert(init_piece_data.polytope.centroid.clone(), ());
 
-                eyre::Ok(hypergroup::orbit_collect(
+                eyre::Ok(hypergroup::orbit_collect_with_limit(
+                    hypergroup::ORBIT_LIMIT,
                     init_piece_data,
                     self.group.generator_motors(),
                     |_, piece_data, g| {
@@ -242,7 +245,7 @@ impl PuzzleShapeFactorBuilder {
                                 }
                             })
                     },
-                ))
+                )?)
             })
             .flatten_ok()
             .try_collect()?;

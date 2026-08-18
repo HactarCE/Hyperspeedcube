@@ -2,7 +2,6 @@
 //! groups.
 
 mod action;
-mod common;
 mod constraints;
 mod coset;
 mod coxeter;
@@ -10,11 +9,11 @@ mod errors;
 mod gen_seq;
 mod geometry;
 mod group;
+mod orbit_helpers;
 mod primitives;
 mod subgroup_action;
 
 pub use action::GroupAction;
-pub use common::*;
 pub use constraints::{
     ConjugateSubgroupConstraintSolver, Constraint, ConstraintSet, ConstraintSolver,
     SubgroupConstraintSolver,
@@ -26,10 +25,14 @@ pub use gen_seq::*;
 use geometry::FactorGroupIsometries;
 pub use geometry::IsometryGroup;
 pub use group::Group;
+pub use orbit_helpers::*;
 use primitives::{
     AbstractGroupActionLut, AbstractGroupLut, AbstractGroupLutBuilder, AbstractSubgroup, EggTable,
 };
 pub use subgroup_action::SubgroupAction;
+
+/// Recommended limit for group construction.
+pub const ORBIT_LIMIT: usize = 1_000_000;
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.

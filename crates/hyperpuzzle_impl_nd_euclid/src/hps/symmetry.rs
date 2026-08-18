@@ -4,7 +4,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypergroup::{
-    AbbrGenSeq, CoxeterMatrix, GenSeq, GeneratorId, GroupError, GroupResult, IsometryGroup,
+    AbbrGenSeq, CoxeterMatrix, ExceededOrbitLimit, GenSeq, GeneratorId, GroupError, GroupResult,
+    IsometryGroup,
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
@@ -99,14 +100,16 @@ pub(super) fn orbit_spanned<T>(
     ctx: &mut EvalCtx<'_>,
     sym: HpsSymmetry,
     object: T,
-) -> Vec<Spanned<T>>
+) -> Result<Vec<Spanned<T>>>
 where
     T: ApproxHash + Clone + Ndim + TransformByMotor,
 {
-    sym.orbit(object)
+    Ok(sym
+        .orbit(object)
+        .at(ctx.caller_span)?
         .into_iter()
         .map(|(_, _, obj)| (obj, ctx.caller_span))
-        .collect()
+        .collect())
 }
 
 impl TryFrom<CoxeterMatrix> for HpsSymmetry {
@@ -331,8 +334,9 @@ impl HpsSymmetry {
     pub fn orbit<T: ApproxHash + Clone + Ndim + TransformByMotor>(
         &self,
         object: T,
-    ) -> Vec<(AbbrGenSeq, Motor, T)> {
+    ) -> Result<Vec<(AbbrGenSeq, Motor, T)>, ExceededOrbitLimit> {
         hypergroup::orbit_geometric_with_gen_seq(
+            hypergroup::ORBIT_LIMIT,
             &self
                 .generators
                 .iter()
