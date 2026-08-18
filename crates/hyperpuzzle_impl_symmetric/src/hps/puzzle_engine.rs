@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
 use hypermath::Float;
-use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet};
+use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
@@ -282,7 +282,17 @@ fn get_tags(
         if let Some(v) = kwargs.get("ndim")
             && let Ok(ndim) = v.ref_to::<i64>()
         {
-            tags.insert_named("ndim", ndim.into())?;
+            tags.insert_named("ndim", TagValue::Int(ndim))?;
+        }
+        if let Some(v) = kwargs.get("twists")
+            && let Ok(twists) = v.as_ref::<str>()
+        {
+            tags.insert_named("twists", TagValue::Str(twists.to_owned()))?;
+        }
+        if let Some(v) = kwargs.get("colors")
+            && let Ok(colors) = v.as_ref::<str>()
+        {
+            tags.insert_named("colors", TagValue::Str(colors.to_owned()))?;
         }
         eyre::Ok(())
     })()?;

@@ -150,8 +150,10 @@ impl CatalogIcon {
         // Type
         ret.push(if tags.has_present("generator") {
             Self::TYPE_PUZZLE_GENERATOR
-        } else {
+        } else if tags.has_present("twists") {
             Self::TYPE_PUZZLE
+        } else {
+            Self::TYPE_SOLID
         });
         // TODO: remove these, probably
         // let is_solid = tags.has_present("type/solid");
