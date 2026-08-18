@@ -24,8 +24,6 @@ pub struct HpsSymmetry {
     generators: Arc<Vec<Motor>>,
     /// Coxeter matrix, if this is one.
     coxeter_group: Option<Arc<CoxeterMatrix>>,
-    /// Offset by which the whole Coxeter group is transformed.
-    coxeter_offset: Motor,
 }
 impl_simple_custom_type!(
     HpsSymmetry = "euclid.Symmetry",
@@ -39,17 +37,13 @@ impl fmt::Debug for HpsSymmetry {
 impl fmt::Display for HpsSymmetry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.coxeter_group {
-            Some(coxeter) => {
-                write!(f, "<{coxeter}>")
-            }
-            None => {
-                write!(
-                    f,
-                    "<{}D group from {} generators>",
-                    self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1),
-                    self.generators.len(),
-                )
-            }
+            Some(coxeter) => write!(f, "<{coxeter}>"),
+            None => write!(
+                f,
+                "<{}D group from {} generators>",
+                self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1),
+                self.generators.len(),
+            ),
         }
     }
 }
@@ -142,7 +136,13 @@ impl TransformByMotor for HpsSymmetry {
         for g in Arc::make_mut(&mut ret.generators) {
             *g = m.transform(g);
         }
-        ret.coxeter_offset = m * &ret.coxeter_offset;
+        // If the coxeter group cannot be transformed, just replace it with
+        // `None`.
+        ret.coxeter_group = self
+            .coxeter_group
+            .as_ref()
+            .and_then(|c| c.transform_by(&m.euclidean_rotation_matrix()).ok())
+            .map(Arc::new);
         ret
     }
 }
@@ -166,7 +166,7 @@ impl HpsSymmetry {
                     .mirrors()
                     .at(field_span)?
                     .cols()
-                    .map(|v| ValueData::Vec(self.coxeter_offset.transform_vector(v)).at(field_span))
+                    .map(|v| ValueData::Vec(v.to_vector()).at(field_span))
                     .collect_vec()
                     .into(),
             ),
@@ -191,7 +191,6 @@ impl HpsSymmetry {
         Ok(Self {
             generators: Arc::new(generators.into_vec()),
             coxeter_group: Some(Arc::new(coxeter)),
-            coxeter_offset: pga::Motor::ident(0),
         })
     }
 
@@ -200,7 +199,6 @@ impl HpsSymmetry {
         Self {
             generators: Arc::new(generators.into_iter().collect()),
             coxeter_group: None,
-            coxeter_offset: pga::Motor::ident(0),
         }
     }
 
@@ -280,36 +278,27 @@ impl HpsSymmetry {
             .at(string_span)?;
         self.coxeter_vector(self_span, v, string_span)
     }
-    /// Constructs a vector in the symmetry basis from the
+    /// Constructs a vector in the symmetry basis from a distance to each
+    /// mirror.
     pub fn coxeter_vector(
         &self,
         self_span: Span,
-        v: impl VectorRef,
-        v_span: Span,
+        mirror_distances: impl VectorRef,
+        mirror_distances_span: Span,
     ) -> Result<Vector> {
         let mirror_basis = self.as_coxeter(self_span)?.mirror_basis().at(self_span)?;
 
         // TODO: truncate to approx nonzero
-        let v_ndim = v.ndim();
+        let mirror_distances_ndim = mirror_distances.ndim();
         let basis_ndim = mirror_basis.ndim();
-        if v_ndim > basis_ndim {
-            return Err(
-                format!("group has ndim {basis_ndim} but vector {v:?} has ndim {v_ndim}")
-                    .at(v_span),
-            );
+        if mirror_distances_ndim > basis_ndim {
+            return Err(format!(
+                "group has ndim {basis_ndim} but vector {mirror_distances:?} has ndim {mirror_distances_ndim}"
+            )
+            .at(mirror_distances_span));
         }
 
-        // Transform by offset.
-        // TODO: this *should* just be a matrix multiplication
-        let ndim = std::cmp::max(mirror_basis.ndim(), self.coxeter_offset.ndim());
-        let mirror_basis = Matrix::from_cols(
-            mirror_basis
-                .at_ndim(ndim)
-                .cols()
-                .map(|col| self.coxeter_offset.transform_vector(col)),
-        );
-
-        Ok(mirror_basis * v)
+        Ok(mirror_basis * mirror_distances)
     }
 
     /// Returns a motor representing a sequence of generators, specified using

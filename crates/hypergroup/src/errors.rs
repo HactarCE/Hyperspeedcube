@@ -8,6 +8,7 @@ pub type GroupResult<T> = Result<T, GroupError>;
 /// Error that can occur during group construction.
 #[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
+#[non_exhaustive]
 pub enum GroupError {
     #[error("overflow ({0})")]
     Overflow(#[from] IndexOverflow),
@@ -35,4 +36,6 @@ pub enum GroupError {
 
     #[error("bad motor")]
     BadMotor,
+    #[error("offset matrix is too high-dimensional")]
+    OffsetMatrixTooHighDimensional,
 }

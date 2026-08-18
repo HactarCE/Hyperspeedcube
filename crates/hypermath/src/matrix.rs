@@ -3,6 +3,7 @@
 use std::ops::*;
 
 use approx_collections::{ApproxEq, Precision};
+use itertools::Itertools;
 
 use crate::{Float, Ndim, Vector, VectorRef, permutations};
 
@@ -125,6 +126,15 @@ impl Matrix {
             *ret.get_mut(i, i) = elem;
         }
         ret
+    }
+
+    /// Returns whether the matrix approximately equals the identity matrix.
+    pub fn is_ident(&self, prec: Precision) -> bool {
+        let indices = (0..self.ndim()).cartesian_product(0..self.ndim());
+        indices.zip(&self.elems).all(|((i, j), &elem)| {
+            let expected = (i == j) as u8 as Float;
+            prec.eq(elem, expected)
+        })
     }
 
     /// Pads the matrix with identity up to `ndim`, avoiding reallocation if
