@@ -4,6 +4,7 @@ use std::io::Write;
 use hyperpuzzle_core::{Catalog, CatalogBuilder};
 
 mod hps_construction;
+mod precision_balance;
 mod verification;
 
 fn load_new_catalog() -> Catalog {
