@@ -56,7 +56,7 @@ impl Space {
     /// Returns an error if `ndim` is not in the range
     /// [`Self::MIN_NDIM`]`..=`[`Self::MAX_NDIM`].
     pub fn new(ndim: u8) -> Result<Self> {
-        Self::with_primordial_cube_radius(ndim, crate::PRIMORDIAL_CUBE_RADIUS)
+        Self::with_primordial_cube_radius(ndim, crate::DEFAULT_PRIMORDIAL_CUBE_RADIUS)
     }
 
     /// Constructs a new space with a primordial cube of radius `radius`.
@@ -365,7 +365,7 @@ impl Space {
         self.add_polytope_if_non_degenerate(p)
     }
 
-    /// Applies a portal's transfomr to a polytope.
+    /// Applies a portal's transform to a polytope.
     fn send_polytope_through_portal(
         &mut self,
         polytope: ElementId,
@@ -526,9 +526,14 @@ impl Space {
     /// Unfolds a polytope across portals, and returns the set of portals that
     /// the polytope crosses through.
     ///
-    /// Returns `None` if the polytope only exists because of portals. This
-    /// should never happen for a max-rank polytope.
+    /// Returns an error if the the number of copies exceeds
+    /// [`crate::DEFAULT_UNFOLD_LIMIT`].
     pub fn unfold(&mut self, polytope: ElementId) -> Result<ElementId> {
+        self.unfold_with_limit(polytope, crate::DEFAULT_UNFOLD_LIMIT)
+    }
+
+    /// Same as [`Self::unfold()`] but with a custom limit.
+    pub fn unfold_with_limit(&mut self, polytope: ElementId, limit: usize) -> Result<ElementId> {
         if let Some(cached_result) = self.cached_unfolded.get(&polytope) {
             return Ok(*cached_result);
         }
@@ -555,12 +560,13 @@ impl Space {
                 let mut unprocessed_boundary_elements: VecDeque<ElementId> = boundary
                     .iter()
                     .filter(|b| !boundary_portals.contains_element(*b))
-                    .map(|b| self.unfold(b))
+                    .map(|b| self.unfold_with_limit(b, limit))
                     .try_collect()?;
 
                 // Orbit the non-portal boundary elements using the bounding portals
                 // elements as the generating set.
 
+                let mut i = 0;
                 let generator_portals = boundary_portals.iter_portals().collect_vec();
                 let mut new_boundary_elements_set: Set64<ElementId> =
                     unprocessed_boundary_elements.iter().copied().collect();
@@ -569,7 +575,11 @@ impl Space {
                         let new_elem = self.send_polytope_through_portal(elem, g)?;
                         if new_boundary_elements_set.insert(new_elem) {
                             unprocessed_boundary_elements.push_back(new_elem);
+                            i += 1;
                         }
+                    }
+                    if unprocessed_boundary_elements.len() + i > limit {
+                        bail!("exceeded limit while unfolding polytope");
                     }
                 }
 

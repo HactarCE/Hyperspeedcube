@@ -45,7 +45,11 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(meta: Arc<PuzzleListEntry>, ndim: u8) -> Result<Self> {
+    pub fn new(
+        meta: Arc<PuzzleListEntry>,
+        ndim: u8,
+        primordial_cube_radius: Float,
+    ) -> Result<Self> {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");

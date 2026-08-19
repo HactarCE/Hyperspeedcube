@@ -83,8 +83,11 @@ impl PuzzleProduct {
         build_ctx.pop_task();
 
         build_ctx.push_task("initializing shape builder");
-        let mut shape_builder =
-            from_space::PuzzleShapeFactorBuilder::new(&spec.coxeter_matrix, group.clone())?;
+        let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(
+            &spec.coxeter_matrix,
+            group.clone(),
+            spec.primordial_cube_radius(),
+        )?;
         build_ctx.pop_task();
 
         build_ctx.push_task("naming named points");

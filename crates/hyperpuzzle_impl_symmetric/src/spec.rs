@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use eyre::{Result, bail, ensure};
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
-use hypermath::{Subspace, prelude::*};
-use hyperpuzzle_core::{CatalogId, PuzzleListEntry};
+use hypermath::{Float, Subspace, prelude::*};
+use hyperpuzzle_core::CatalogId;
 use hypuz_notation::Str;
 use itertools::Itertools;
 
@@ -83,6 +83,23 @@ pub struct FactorPuzzleSpec {
 
     /// Cut distances for each axis orbit.
     pub axis_orbit_cut_distances: Vec<CutDistances>,
+}
+
+impl FactorPuzzleSpec {
+    /// Returns the number of dimensions needed for the puzzle.
+    pub fn ndim(&self) -> u8 {
+        self.coxeter_matrix.generator_count()
+    }
+
+    /// Returns a radius for the primordial cube.
+    pub fn primordial_cube_radius(&self) -> Float {
+        self.facet_orbits
+            .iter()
+            .map(|f| f.vector.mag())
+            .max_by(Float::total_cmp)
+            .map(|d| hypershape::recommended_primordial_cube_radius(self.ndim(), d))
+            .unwrap_or(hypershape::DEFAULT_PRIMORDIAL_CUBE_RADIUS)
+    }
 }
 
 /// Specification for an orbit of named points in a [`FactorTwistSystemSpec`].

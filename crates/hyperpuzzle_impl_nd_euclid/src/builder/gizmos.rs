@@ -109,7 +109,7 @@ fn build_3d_gizmos(
         mesh,
         twists,
         primordial_cube.into(),
-        hypershape::PRIMORDIAL_CUBE_RADIUS,
+        hypershape::DEFAULT_PRIMORDIAL_CUBE_RADIUS,
         gizmo_poles,
         "twist gizmo",
         |ax| gizmo_surfaces[&ax],
