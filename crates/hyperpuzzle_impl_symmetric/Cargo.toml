@@ -30,5 +30,6 @@ indexmap.workspace = true
 itertools.workspace = true
 parking_lot.workspace = true
 rand.workspace = true
+rayon.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true

@@ -11,7 +11,7 @@ use super::{AbbrGenSeq, GenSeq};
 /// Error that can occur during orbit expansion.
 #[derive(thiserror::Error, Debug, Copy, Clone)]
 #[error("exceeded orbit limit of {0}")]
-pub struct ExceededOrbitLimit(usize);
+pub struct ExceededOrbitLimit(pub(crate) usize);
 
 /// Generates a group or orbit by starting from an initial element and applying
 /// generators recursively to find new objects. This function is the same as

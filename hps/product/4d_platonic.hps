@@ -329,7 +329,7 @@ fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_600cell_ft([0.96], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
+def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
 
 
 

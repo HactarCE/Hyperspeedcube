@@ -33,27 +33,27 @@ use super::load_new_catalog;
 //
 // ### Without vertex: Shallow Icosahedron
 //
-// - core: 1
-// - C   : 1 * 600
-// -  F  : 1 * 1200
-// -   E : 1 * 720
-// - C E : 1 * 600*6
-// -  FE : 1 * 1200*3
+// - core: 1 * (1 coset)
+// - C   : 1 * (600 cosets)
+// -  F  : 1 * (1200 cosets)
+// -   E : 1 * (720 cosets)
+// - C E : 1 * (600*6 = 3600 cosets)
+// -  FE : 1 * (1200*3 = 3600 cosets)
 //
 // ### With vertex: (Astral + Anti-Astral - Half-Cut - Shallow) Icosahedron
 //
-//    V: 1 * 120
-// C  V: 5 * 600*4
-//  F V: 5 * 1200*3
-//  FEV: 7 * 1200*3*2
-// C EV: 5 * 600*6*2
-// CFEV: 3 * 600*4*3*2
-//   EV: 2 * 720*2
+//    V: 1 * (120 cosets)
+// C  V: 4 * (600*4 = 2400 cosets)
+//  F V: 5 * (1200*3 = 3600 cosets)
+//  FEV: 6 * (1200*3*2 = 7200 cosets)
+// C EV: 5 * (600*6*2 = 7200 cosets)
+// CFEV: 4 * (600*4*3*2 = 14400 cosets)
+//   EV: 2 * (720*2 = 1440 cosets)
 //
 // ### Total
 //
-// - Including core: 172,321 pieces
-// - Excluding core: 172,320 pieces
+// - Including core: 177,121 pieces
+// - Excluding core: 177,120 pieces
 
 #[test]
 pub fn test_approx_precision() {
@@ -66,7 +66,7 @@ pub fn test_approx_precision() {
         ("rhombicuboctahedron_14", 26, 386),
         ("rhombicuboctahedron_21", 26, 554),
         ("rhombicuboctahedron_25", 26, 578),
-        ("600cell_ft_shallow", 600, 172_320),
+        ("600cell_ft_shallow", 600, 177120),
     ] {
         println!("Building {id} ...");
         let puz = catalog
@@ -103,6 +103,7 @@ fn test_polygon_precision_limit() {
         }
     }
     println!("Done! First bad polygon is {min_bad}");
+    assert!(min_bad >= 4000, "regression in max polygon");
 }
 
 fn is_ngon_ft_shallow_ok(catalog: &Catalog, n: usize) -> bool {

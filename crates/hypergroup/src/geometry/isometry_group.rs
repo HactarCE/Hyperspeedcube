@@ -12,8 +12,8 @@ use hypuz_util::ti::{TiVec, TypedIndex, TypedIndexIter};
 use itertools::Itertools;
 
 use crate::{
-    AbstractGroupLut, GeneratorId, Group, GroupAction, GroupElementId, GroupError, GroupResult,
-    PerFactorGroup, PerGenerator, PerGroupElement,
+    AbstractGroupLut, ExceededOrbitLimit, GeneratorId, Group, GroupAction, GroupElementId,
+    GroupError, GroupResult, PerFactorGroup, PerGenerator, PerGroupElement,
 };
 
 /// Isometry group.
@@ -261,7 +261,7 @@ impl IsometryGroup {
             prior_ndim += factor_group_isometries.ndim;
             m
         })
-        .reduce(|m1, m2| m1 * m2)
+        .tree_reduce(|m1, m2| m1 * m2) // fewer chained operations -> better precision
         .unwrap_or_else(|| Motor::ident(self.ndim))
     }
 
@@ -300,10 +300,13 @@ impl IsometryGroup {
 
     /// Generates the orbit of `init` in the group and returns an arbitrary
     /// group element from the coset for each element in the orbit.
+    ///
+    /// Returns an error if the number of members in the orbit exceeds `limit`.
     pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
         &self,
         mut init: T,
-    ) -> Vec<(GroupElementId, T)> {
+        limit: usize,
+    ) -> Result<Vec<(GroupElementId, T)>, ExceededOrbitLimit> {
         let mut seen = ApproxHashMap::new(APPROX);
         seen.entry_with_mut_key(&mut init).or_insert(());
 
@@ -324,8 +327,11 @@ impl IsometryGroup {
                 }
             }
             next_unprocessed_index += 1;
+            if ret.len() > limit {
+                return Err(ExceededOrbitLimit(limit));
+            }
         }
-        ret
+        Ok(ret)
     }
 }
 

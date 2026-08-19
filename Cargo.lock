@@ -2931,6 +2931,7 @@ dependencies = [
  "itertools 0.14.0",
  "parking_lot",
  "rand 0.10.1",
+ "rayon",
  "smallvec",
  "thiserror 2.0.18",
 ]

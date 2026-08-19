@@ -84,7 +84,7 @@ impl PuzzleProduct {
 
         build_ctx.push_task("initializing shape builder");
         let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(
-            &spec.coxeter_matrix,
+            spec.coxeter_matrix.clone(),
             group.clone(),
             spec.primordial_cube_radius(),
         )?;

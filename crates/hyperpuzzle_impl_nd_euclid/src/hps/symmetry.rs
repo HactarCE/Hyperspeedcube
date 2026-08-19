@@ -315,7 +315,7 @@ impl HpsSymmetry {
                     .ok_or_else(|| format!("generator index {i} out of range").at(span))?;
                 Ok(g.to_ndim_at_least(ndim))
             })
-            .reduce(|a, b| Ok(a? * b?))
+            .tree_reduce(|a, b| Ok(a? * b?)) // fewer chained operations -> better precision
             .unwrap_or(Ok(Motor::ident(ndim))) // if `gen_seq` is empty
     }
 

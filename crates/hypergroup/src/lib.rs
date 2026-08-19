@@ -32,7 +32,7 @@ use primitives::{
 pub use subgroup_action::SubgroupAction;
 
 /// Recommended limit for group construction.
-pub const ORBIT_LIMIT: usize = 1_000_000;
+pub const ORBIT_LIMIT: usize = 100_000;
 
 hypuz_util::typed_index_struct! {
     /// ID of a group generator.

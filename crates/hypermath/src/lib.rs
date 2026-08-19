@@ -80,7 +80,7 @@ pub use subspace::Subspace;
 pub use which_side::PointWhichSide;
 
 /// Approximate comparison tuned for doing geometric puzzle computations.
-pub const APPROX: Precision = Precision::new_simple(20);
+pub const APPROX: Precision = Precision::new_simple(22); // tuned based on `test_polygon_precision_limit()`
 
 /// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {

@@ -523,8 +523,8 @@ impl Space {
         Ok(Set64::<ElementId>::new())
     }
 
-    /// Unfolds a polytope across portals, and returns the set of portals that
-    /// the polytope crosses through.
+    /// Unfolds a polytope across portals that it spans, returning one unfolded
+    /// copy of the polytope.
     ///
     /// Returns an error if the the number of copies exceeds
     /// [`crate::DEFAULT_UNFOLD_LIMIT`].

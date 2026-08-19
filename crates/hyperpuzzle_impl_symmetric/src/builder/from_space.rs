@@ -1,14 +1,15 @@
 //! Constructor for [`ProductPuzzleBuilder`] using [`hypershape::Space`] to cut
 //! polytope elements.
 
+use std::collections::HashMap;
+
 use eyre::{OptionExt, Result, bail, ensure};
-use hypergroup::{CoxeterMatrix, IsometryGroup};
-use hypermath::{APPROX, ApproxHashMap, Centroid, Hyperplane, Point};
-use hyperpuzzle_core::{
-    Color, IndexOverflow, Orbit, PerAxis, PerColor, PerPiece, PerSurface, Piece, Surface,
-};
-use hypuz_notation::Str;
+use hypergroup::{CoxeterMatrix, GroupElementId, IsometryGroup};
+use hypermath::{APPROX, ApproxHashMap, Centroid, Float, Hyperplane, Point, Vector};
+use hyperpuzzle_core::{Orbit, PerAxis, PerPiece, PerSurface, Piece, Surface};
+use hypershape::PortalId;
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
 use crate::{builder::DisjointUnionColorName, geometry::PolytopeGeometry};
@@ -19,6 +20,7 @@ use crate::{builder::DisjointUnionColorName, geometry::PolytopeGeometry};
 /// This type cannot be direct-producted.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeFactorBuilder {
+    coxeter_matrix: CoxeterMatrix,
     group: IsometryGroup,
 
     space: hypershape::Space,
@@ -32,8 +34,13 @@ pub(super) struct PuzzleShapeFactorBuilder {
 }
 
 impl PuzzleShapeFactorBuilder {
-    pub fn new(coxeter_matrix: &CoxeterMatrix, group: IsometryGroup) -> Result<Self> {
-        let mut space = hypershape::Space::new(group.ndim())?;
+    pub fn new(
+        coxeter_matrix: CoxeterMatrix,
+        group: IsometryGroup,
+        primordial_cube_radius: Float,
+    ) -> Result<Self> {
+        let mut space =
+            hypershape::Space::with_primordial_cube_radius(group.ndim(), primordial_cube_radius)?;
         let mut initial_piece = space.primordial_cube().into();
         for mirror_vector in coxeter_matrix.mirrors()?.cols() {
             let mirror_plane =
@@ -49,6 +56,7 @@ impl PuzzleShapeFactorBuilder {
         }]);
 
         Ok(Self {
+            coxeter_matrix,
             group,
 
             space,
@@ -159,10 +167,37 @@ impl PuzzleShapeFactorBuilder {
     pub fn into_product_puzzle_shape(mut self) -> Result<ProductPuzzleShape> {
         let ndim = self.ndim();
 
+        let mut subgroup_cosets_cache = HashMap::new();
+
+        let mirror_basis = self.coxeter_matrix.mirror_basis()?;
+
         let pieces: PerPiece<PieceData> = self
             .pieces
             .iter_values()
             .map(|piece| {
+                let mut mirror_distances = vec![1; self.coxeter_matrix.generator_count() as usize];
+                for PortalId(i) in self
+                    .space
+                    .get(piece.polytope)
+                    .boundary_portals()
+                    .iter_portals()
+                {
+                    mirror_distances[i as usize] = 0;
+                }
+                let subgroup_cosets = subgroup_cosets_cache
+                    .entry(mirror_distances.clone())
+                    .or_insert_with(|| {
+                        let representative_point = mirror_basis
+                            * Vector::from_iter(mirror_distances.into_iter().map(|i| i as _));
+                        self.group
+                            .orbit_geometric(representative_point, hypergroup::ORBIT_LIMIT)
+                            .map(|orbit_members| {
+                                orbit_members.into_iter().map(|(e, _)| e).collect_vec()
+                            })
+                    })
+                    .as_ref()
+                    .map_err(|&e| e)?;
+
                 let unfolded = self.space.unfold(piece.polytope)?;
                 let piece_polytope = self.space.get(unfolded);
                 let point_inside_piece = piece_polytope.arbitrary_interior_point();
@@ -209,29 +244,23 @@ impl PuzzleShapeFactorBuilder {
                     grip_signature: PerAxis::new(), // will be computed later
                 };
 
-                let mut centroids_seen = ApproxHashMap::<Centroid, ()>::new(APPROX);
-                centroids_seen.insert(init_piece_data.polytope.centroid.clone(), ());
-
-                eyre::Ok(hypergroup::orbit_collect_with_limit(
-                    hypergroup::ORBIT_LIMIT,
-                    init_piece_data,
-                    self.group.generator_motors(),
-                    |_, piece_data, g| {
-                        let new_centroid = g.transform(&piece_data.polytope.centroid);
-
-                        centroids_seen
-                            .insert(new_centroid.clone(), ())
-                            .is_none()
-                            .then(|| {
-                                let polytope = g.transform(&piece_data.polytope);
-                                let facets = piece_data
+                eyre::Ok(
+                    subgroup_cosets
+                        .par_iter()
+                        .map(|&elem| {
+                            if elem == GroupElementId::IDENTITY {
+                                init_piece_data.clone()
+                            } else {
+                                let motor = self.group.motor(elem);
+                                let polytope = motor.transform(&init_piece_data.polytope);
+                                let facets = init_piece_data
                                     .facets
                                     .iter()
                                     .map(|f| PieceFacetData {
-                                        polytope: g.transform(&f.polytope),
+                                        polytope: motor.transform(&f.polytope),
                                         sticker_data: f.sticker_data.as_ref().and_then(|s| {
-                                            let h =
-                                                g.transform(&self.surfaces[s.surface].hyperplane);
+                                            let h = motor
+                                                .transform(&self.surfaces[s.surface].hyperplane);
                                             Some(StickerData {
                                                 surface: *self.hyperplane_to_surface.get(h)?,
                                             })
@@ -243,10 +272,12 @@ impl PuzzleShapeFactorBuilder {
                                     facets,
                                     grip_signature: PerAxis::new(), // will be computed later
                                 }
-                            })
-                    },
-                )?)
+                            }
+                        })
+                        .collect_vec_list(),
+                )
             })
+            .flatten_ok()
             .flatten_ok()
             .try_collect()?;
 

@@ -169,7 +169,7 @@ impl SimpleOrbitSpec {
         named_point_unit_vectors: &PerNamedPoint<Vector>,
         named_point_action: &GroupAction<NamedPoint>,
     ) -> Result<Vec<(GroupElementId, Vector, Vec<Vec<NamedPoint>>)>> {
-        let orbit = group.orbit_geometric(self.vector.clone());
+        let orbit = group.orbit_geometric(self.vector.clone(), hypergroup::ORBIT_LIMIT)?;
 
         let Some(unit_init_vector) = self.vector.normalize() else {
             // No named points needed! Hopefully the orbit has a prefix;
