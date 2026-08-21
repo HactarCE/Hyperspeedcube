@@ -17,7 +17,7 @@ add_menu_entry(path = "Solid|2D|Polygon|None", priority = 100, id = "ngon")
 
 add_menu_entry(path = "Solid|2D|Polygon|FT",   priority = 1,   next_inline = "Depth",   default = true)
 add_menu_entry(path = "Solid|2D|Polygon|FT|Shallow", priority = 100, id = "ngon_ft_shallow", default = true)
-add_menu_entry(path = "Solid|2D|Polygon|FT|Deep",    priority = 4,   id = "ngon_ft_deep")
+// add_menu_entry(path = "Solid|2D|Polygon|FT|Deep",    priority = 4,   id = "ngon_ft_deep") // TODO: decide what to do with this
 add_menu_entry(path = "Solid|2D|Polygon|FT|Half",    priority = 3,   id = "ngon_ft_half")
 add_menu_entry(path = "Solid|2D|Polygon|FT|Layered", priority = 2,   id = "ngon_ft_layered")
 add_menu_entry(path = "Solid|2D|Polygon|FT|Astral",  priority = 1,   id = "ngon_ft_astral")
@@ -151,23 +151,24 @@ add_puzzle(id = "ngon_ft_shallow", name = "Shallow-Cut FT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_ft_deep", name = "Deep-Cut FT Polygon Generator",
-    tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
-    ndim = 2,
-    params = [edges_param, edge_divisions_param],
-    gen = fn(n, divisions) {
-        return #{
-            name = "Deep {${n}}${divisions}",
-            colors = "ngon(${n})",
-            twists = "ngon_ft(${n})",
-            build = fn() {
-                @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.A = @shapes/2d/polygon.new(n).deep_cut_depths(divisions)
-            }
-        }
-    },
-)
+// TODO: decide what to do with this
+// add_puzzle(id = "ngon_ft_deep", name = "Deep-Cut FT Polygon Generator",
+//     tags = #{ author = "Andrew Farkas" },
+//     engine = "symmetric",
+//     ndim = 2,
+//     params = [edges_param, edge_divisions_param],
+//     gen = fn(n, divisions) {
+//         return #{
+//             name = "Deep {${n}}${divisions}",
+//             colors = "ngon(${n})",
+//             twists = "ngon_ft(${n})",
+//             build = fn() {
+//                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
+//                 #puz.layers.A = @shapes/2d/polygon.new(n).deep_cut_depths(divisions)
+//             }
+//         }
+//     },
+// )
 
 add_puzzle(id = "ngon_ft_half", name = "Half-Cut FT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
