@@ -50,7 +50,7 @@ fn def_chamfered_tetrahedron_ft(cube_depth, **kwargs) {
 def_chamfered_tetrahedron_ft(
     0.75,
     id = "chamfered_tetrahedron_canon",
-    name = ["Canon-Cut Chamfered Tetrahedron", "Canon-Cut Chamfered Tetrahedron"],
+    name = ["Canon-Cut FT Chamfered Tetrahedron", "Canon-Cut FT Chamfered Tetrahedron"],
     tags = #{ author = ["Andrew Farkas", "SuperSnowman16"] },
 )
 

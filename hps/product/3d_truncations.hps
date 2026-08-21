@@ -6,6 +6,7 @@ use * from euclid
 
 add_menu_entry(path = "Solid|3D|Truncations", section = true)
 add_menu_entry(path = "Solid|3D|Truncations|Cubic", next_column = "Truncation")
+add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral", next_column = "Truncation")
 
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron", next_inline = "Cuts")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron|None", priority = 100, id = "cuboctahedron")
@@ -27,6 +28,12 @@ for i in 1..=32 {
 
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron", next_inline = "Cuts")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron|None", priority = 100, id = "truncated_cuboctahedron")
+
+add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron|None", priority = 100, id = "icosidodecahedron")
+for i in 1..=8 {
+    add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron|${i}", id = "icosidodecahedron_ft_${i}")
+}
 
 //---------------//
 // Twist systems //
@@ -53,8 +60,9 @@ fn def_truncation_twists(shape_file, vertex_cd_point, **kwargs) {
     )
 }
 
-def_truncation_twists(@shapes/3d/cube, "oxo", id = "cube_ft_vt")
-def_truncation_twists(@shapes/3d/cube, "xox", id = "cube_ft_et_vt")
+def_truncation_twists(@shapes/3d/cube, "oxo", id = "cube_ft_vt", name = "FT+VT Cube")
+def_truncation_twists(@shapes/3d/cube, "xox", id = "cube_ft_et_vt", name = "FT+ET+VT Cube")
+def_truncation_twists(@shapes/3d/dodecahedron, "oxo", id = "dodecahedron_ft_vt", name = "FT+VT Dodecahedron")
 
 //------- //
 // Shapes //
@@ -92,6 +100,7 @@ def_truncation(@shapes/3d/cube, "xxo", id = "truncated_cube", name = "Truncated 
 def_truncation(@shapes/3d/cube, "oxx", id = "truncated_octahedron", name = "Truncated Octahedron")
 def_truncation(@shapes/3d/cube, "xox", id = "rhombicuboctahedron", name = "Rhombicuboctahedron")
 def_truncation(@shapes/3d/cube, "xxx", id = "truncated_cuboctahedron", name = "Truncated Cuboctahedron")
+def_truncation(@shapes/3d/dodecahedron, "oxo", id = "icosidodecahedron", name = "Icosidodecahedron")
 
 //---------------------- //
 // Cuboctahedron puzzles //
@@ -159,3 +168,20 @@ def_rhombicuboctahedron((3-2*√2)/4,       id = "rhombicuboctahedron_29", name 
 def_rhombicuboctahedron((3-2*√2)/5,       id = "rhombicuboctahedron_30", name = "FT Rhombicuboctahedron 30")
 def_rhombicuboctahedron((3-2*√2)/8,       id = "rhombicuboctahedron_31", name = "FT Rhombicuboctahedron 31")
 def_rhombicuboctahedron(0,                id = "rhombicuboctahedron_32", name = ["FT Rhombicuboctahedron 32", "Half-Cut FT Rhombicuboctahedron"])
+
+//-------------------------- //
+// Icosidodecahedron puzzles //
+//-------------------------- //
+
+fn def_icosidodecahedron(t, **kwargs) {
+    def_truncation(@shapes/3d/dodecahedron, "oxo", twists = "dodecahedron_ft_vt", cuts = #{ f = [t], v = [t] }, **kwargs)
+}
+
+def_icosidodecahedron(1-(1-1/φ)*1/4,  id = "icosidodecahedron_ft_1",  name = ["FT Icosidodecahedron 1", "Shallow-Cut Icosidodecahedron", "Canon-Cut Icosidodecahedron"])
+def_icosidodecahedron(1-(1-1/φ)*1/3,  id = "icosidodecahedron_ft_2",  name = "FT Icosidodecahedron 2")
+def_icosidodecahedron(1-(1-1/φ)*2/5,  id = "icosidodecahedron_ft_3",  name = "FT Icosidodecahedron 3")
+def_icosidodecahedron(1-(1-1/φ)*1/2,  id = "icosidodecahedron_ft_4",  name = "FT Icosidodecahedron 4")
+def_icosidodecahedron(1-(1-1/φ)*3/5,  id = "icosidodecahedron_ft_5",  name = "FT Icosidodecahedron 5")
+def_icosidodecahedron(1-(1-1/φ)*2/3,  id = "icosidodecahedron_ft_6",  name = "FT Icosidodecahedron 6")
+def_icosidodecahedron(1-(1-1/φ)*0.69, id = "icosidodecahedron_ft_7",  name = "FT Icosidodecahedron 7")
+def_icosidodecahedron(√((φ + 1)/5),  id = "icosidodecahedron_ft_8",  name = "FT Icosidodecahedron 8")

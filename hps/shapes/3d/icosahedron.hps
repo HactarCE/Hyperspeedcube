@@ -9,9 +9,9 @@ export fn new(t: Transform) -> Map {
     export sym = dodecahedron.sym
 
     // source: https://polytope.miraheze.org/wiki/Icosahedron
-    circumradius = √((5 + √5) / 8)
-    edge_radius = (1 + √5) / 4
-    inradius = (3*√3 + √15) / 12
+    circumradius = √(φ + 2)/2
+    edge_radius = φ/2
+    inradius = (φ + 1) / (2 * √3)
 
     export face = sym.xoo.unit
     export edge = sym.oxo.unit * edge_radius/inradius

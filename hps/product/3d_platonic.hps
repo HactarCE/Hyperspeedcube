@@ -206,7 +206,7 @@ add_twist_system(id = "icosahedron_ft", name = "FT Icosahedron",
 //---------------------//
 
 add_puzzle_list_entry("tetrahedron_a(1)")
-add_puzzle(id = "tetrahedron_a", name = "N-Layer Tetrahedron A",
+add_puzzle(id = "tetrahedron_a", name = "Tetrahedron A Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -228,6 +228,7 @@ add_puzzle(id = "tetrahedron_a", name = "N-Layer Tetrahedron A",
 )
 
 add_puzzle(id = "tetrahedron_b", name = ["Tetrahedron B", "Tetraminx"],
+    keywords = "FT/VT",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -244,7 +245,7 @@ add_puzzle(id = "tetrahedron_b", name = ["Tetrahedron B", "Tetraminx"],
 
 add_puzzle_list_entry("tetrahedron_c(1)")
 add_puzzle_list_entry("tetrahedron_c(4)")
-add_puzzle(id = "tetrahedron_c", name = ["N-Layer Tetrahedron C", "N-Layer FT+VT Tetrahedron (Shallow)"],
+add_puzzle(id = "tetrahedron_c", name = ["Tetrahedron C Generator", "Shallow-Cut FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -258,7 +259,8 @@ add_puzzle(id = "tetrahedron_c", name = ["N-Layer Tetrahedron C", "N-Layer FT+VT
                 "Jing's Pyraminx", // https://twistypuzzles.com/app/museum/museum_showitem.php?pkey=1578
                 "Halpern-Meier Tetrahedron", // https://twistypuzzles.com/app/museum/museum_showitem.php?pkey=547
                 "Obieemnaia Logicheskaia Igra", // https://twistypuzzles.com/app/museum/museum_showitem.php?pkey=9618
-                "Canon-Cut Tetrahedron",
+                "Canon-Cut FT Tetrahedron",
+                "Shallow-Cut FT Tetrahedron",
             ]
         }
         if cuts == 3 { names ++= ["Elite Tetrahedron"] } // https://twistypuzzles.com/app/museum/museum_showitem.php?pkey=2016
@@ -277,7 +279,7 @@ add_puzzle(id = "tetrahedron_c", name = ["N-Layer Tetrahedron C", "N-Layer FT+VT
 )
 
 add_puzzle_list_entry("pyraminx(3)")
-add_puzzle(id = "pyraminx", name = "N-Layer Pyraminx",
+add_puzzle(id = "pyraminx", name = ["Pyraminx Generator", "Layered FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -285,7 +287,7 @@ add_puzzle(id = "pyraminx", name = "N-Layer Pyraminx",
     twists = "tetrahedron_fvt",
     params = [layers_param],
     gen = fn(layers) {
-        names = [n_layer_prefix(layers) ++ "Pyraminx"]
+        names = [n_layer_prefix(layers) ++ "Pyraminx", n_layer_prefix(layers) ++ "FT/VT Tetrahedron"]
         if layers == 4 { names = ["Master Pyraminx"] ++ names }
         if layers == 6 { names = ["Royal Pyraminx"] ++ names } // https://twistypuzzles.com/app/museum/museum_showitem.php?pkey=1819
         return #{
@@ -311,7 +313,7 @@ add_puzzle_list_entry("cube_ft(4)")
 add_puzzle_list_entry("cube_ft(5)")
 add_puzzle_list_entry("cube_ft(6)")
 add_puzzle_list_entry("cube_ft(7)")
-add_puzzle(id = "cube_ft", name = ["N-Layer FT Cube", "NxNxN FT Cube", "n^3", "N-Layer Rubik's Cube"],
+add_puzzle(id = "cube_ft", name = ["FT Cube Generator", "NxNxN Generator", "n^3 Generator", "Rubik's Cube Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -319,9 +321,9 @@ add_puzzle(id = "cube_ft", name = ["N-Layer FT Cube", "NxNxN FT Cube", "n^3", "N
     twists = "cube_ft",
     params = [layers_param],
     gen = fn(layers) {
-        names = ["${layers}^3", "${layers}x${layers}x${layers}"]
-        if layers == 2 { names ++= ["Pocket Cube"] }
-        if layers == 3 { names ++= ["Rubik's Cube", "Canon-Cut Cube"] }
+        names = ["${layers}^3", "${layers}x${layers}x${layers}", "${layers}-Layer FT Cube"]
+        if layers == 2 { names ++= ["Pocket Cube", "Half-Cut FT Cube", "Adjacent-Cut FT Cube"] }
+        if layers == 3 { names ++= ["Rubik's Cube", "Canon-Cut FT Cube", "Shallow-Cut FT Cube", "Astral FT Cube"] }
         if layers == 4 { names ++= ["Rubik's Revenge"] }
         if layers == 5 { names ++= ["Professor Cube"] }
         return #{
@@ -340,7 +342,7 @@ add_puzzle(id = "cube_ft", name = ["N-Layer FT Cube", "NxNxN FT Cube", "n^3", "N
 
 add_puzzle_list_entry("octahedron_ft_adj(2)")
 add_puzzle_list_entry("octahedron_ft_adj(3)")
-add_puzzle(id = "octahedron_ft_adj", name = "N-Layer FT Octahedron",
+add_puzzle(id = "octahedron_ft_adj", name = "Adjacent-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -349,9 +351,9 @@ add_puzzle(id = "octahedron_ft_adj", name = "N-Layer FT Octahedron",
     params = [layers_param],
     gen = fn(layers) {
         names = ["Adjacent-Cut " ++ n_layer_prefix(layers) ++ "FT Octahedron"]
-        if layers == 2 { names ++= ["Skewb Diamond"] }
-        if layers == 3 { names ++= ["Face-Turning Octahedron"] }
-        if layers == 4 { names ++= ["Master Face-Turning Octahedron"] }
+        if layers == 2 { names = ["Skewb Diamond"] ++ names }
+        if layers == 3 { names = ["FTO"] ++ names }
+        if layers == 4 { names = ["Master Face-Turning Octahedron"] ++ names }
         return #{
             name = names,
             build = fn() {
@@ -363,7 +365,7 @@ add_puzzle(id = "octahedron_ft_adj", name = "N-Layer FT Octahedron",
 )
 
 add_puzzle_list_entry("octahedron_ft_shallow(1)")
-add_puzzle(id = "octahedron_ft_shallow", name = "N-Layer FT Octahedron (Shallow)",
+add_puzzle(id = "octahedron_ft_shallow", name = "Shallow-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet", "Luna Harran"] },
     engine = "symmetric",
     ndim = 3,
@@ -371,8 +373,8 @@ add_puzzle(id = "octahedron_ft_shallow", name = "N-Layer FT Octahedron (Shallow)
     twists = "octahedron_ft",
     params = [cuts_param],
     gen = fn(cuts) {
-        names = [n_cut_prefix(cuts) ++ " FT Octahedron (Shallow)"]
-        if cuts == 1 { names ++= ["Canon-Cut Octahedron"] }
+        names = ["Shallow-Cut ${n_cut_prefix(cuts)}FT Octahedron"]
+        if cuts == 1 { names = ["Shallow-Cut FT Octahedron", "Canon-Cut Octahedron"] ++ names }
         return #{
             name = names,
             build = fn() {
@@ -398,7 +400,7 @@ add_puzzle_list_entry("megaminx(7)")
 add_puzzle_list_entry("megaminx(8)")
 add_puzzle_list_entry("megaminx(9)")
 add_puzzle_list_entry("megaminx(10)")
-add_puzzle(id = "megaminx", name = ["N-Layer Megaminx", "N-Layer FT Dodecahedron (Shallow)"],
+add_puzzle(id = "megaminx", name = ["Shallow-Cut FT Docedahedron Generator", "Megaminx Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -409,15 +411,9 @@ add_puzzle(id = "megaminx", name = ["N-Layer Megaminx", "N-Layer FT Dodecahedron
         names = [n_cut_prefix(cuts) ++ "Megaminx"]
         metric_names = [null, "Megaminx", "Gigaminx", "Teraminx", "Petaminx", "Examinx", "Zettaminx", "Yottaminx", "Ronnaminx", "Atlasminx", "Minx of Madness"]
         metric_name = metric_names[cuts]
-        if metric_name != null {
-            names = [metric_name] ++ names
-        }
-        if cuts == 1 {
-            names ++= ["Canon-Cut Dodecahedron", "Hungarian Supernova"]
-        }
-        if cuts == 9 {
-            names ++= ["Quettaminx"]
-        }
+        if metric_name != null { names = [metric_name] ++ names }
+        if cuts == 1 { names ++= ["Shallow-Cut FT Dodecahedron", "Canon-Cut FT Dodecahedron", "Hungarian Supernova"] }
+        if cuts == 9 { names ++= ["Quettaminx"] }
         return #{
             name = names,
             build = fn() {
@@ -442,7 +438,7 @@ add_puzzle(id = "megaminx_crystal", name = "Megaminx Crystal",
     },
 )
 
-add_puzzle(id = "pyraminx_crystal", name = "Pyraminx Crystal",
+add_puzzle(id = "pyraminx_crystal", name = ["Pyraminx Crystal", "Adjacent-Cut FT Dodecahedron"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -456,7 +452,7 @@ add_puzzle(id = "pyraminx_crystal", name = "Pyraminx Crystal",
 )
 
 add_puzzle_list_entry("curvy_starminx(1)")
-add_puzzle(id = "curvy_starminx", name = "N-Layer Curvy Starminx",
+add_puzzle(id = "curvy_starminx", name = "Curvy Starminx Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -492,7 +488,7 @@ add_puzzle_list_entry("pentultimate(3)")
 add_puzzle_list_entry("pentultimate(4)")
 add_puzzle_list_entry("pentultimate(5)")
 add_puzzle_list_entry("pentultimate(7)")
-add_puzzle(id = "pentultimate", name = "N-Layer Pentultimate",
+add_puzzle(id = "pentultimate", name = "Pentultimate Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -501,7 +497,8 @@ add_puzzle(id = "pentultimate", name = "N-Layer Pentultimate",
     params = [#{**layers_param, default = 2}],
     gen = fn(layers) {
         names = [n_layer_prefix(layers, default = 2) ++ "Pentultimate"]
-        if layers == 3 { names = ["Master Pentultimate"] ++ names }
+        if layers == 2 { names ++= ["Half-Cut FT Dodecahedron"] }
+        if layers == 3 { names = ["Master Pentultimate", "Astral FT Dodecahedron"] ++ names }
         if layers == 4 { names = ["Elite Pentultimate"] ++ names }
         if layers == 5 { names = ["Royal Pentultimate"] ++ names }
         if layers == 7 { names = ["God Emperor Pentultimate"] ++ names }
@@ -557,12 +554,12 @@ def_ft_icosahedron(
 // )
 def_ft_icosahedron(
     [7/9],
-    id = "radio_1_5", name = ["Radiolarian 1.5", "FT Icosahedron 1.5", "FT Icosahedron (Shallow)", "Radio Canon", "Canon-Cut Icosahedron"],
+    id = "radio_1_5", name = ["Radiolarian 1.5", "FT Icosahedron 1.5", "Shallow-Cut FT Icosahedron", "Radio Canon", "Canon-Cut Icosahedron"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [1 - (1-RADIO_4)*2/3],
-    id = "radio_2", name = ["Radiolarian 2", "FT Icosahedron 2", "FT Icosahedron (Adjacent)", "Circo-Radiolarian"],
+    id = "radio_2", name = ["Radiolarian 2", "FT Icosahedron 2", "Adjacent-Cut FT Icosahedron", "Circo-Radiolarian"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
@@ -633,11 +630,11 @@ def_ft_icosahedron(
 )
 def_ft_icosahedron(
     [0.05],
-    id = "radio_14", name = ["Radiolarian 14", "FT Icosahedron 14", "Radio Fathom"],
+    id = "radio_14", name = ["Radiolarian 14", "FT Icosahedron 14", "Astral FT Icosahedron", "Radio Fathom"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [0],
-    id = "radio_15", name = ["Radiolarian 15", "FT Icosahedron 15", "FT Icosahedron (Half)", "Radio Chop"],
+    id = "radio_15", name = ["Radiolarian 15", "FT Icosahedron 15", "Half-Cut FT Icosahedron", "Radio Chop"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
