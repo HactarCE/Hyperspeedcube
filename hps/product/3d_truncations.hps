@@ -8,28 +8,28 @@ add_menu_entry(path = "Solid|3D|Truncations", section = true)
 add_menu_entry(path = "Solid|3D|Truncations|Cubic", next_column = "Truncation")
 add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral", next_column = "Truncation")
 
-add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron|None", priority = 100, id = "cuboctahedron")
 for i in 1..=10 {
     add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron|${i}", id = "cuboctahedron_ft_${i}")
 }
 
-add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cube", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cube", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cube|None", priority = 100, id = "truncated_cube")
 
-add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Octahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Octahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Octahedron|None", priority = 100, id = "truncated_cube")
 
-add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron|None", priority = 100, id = "rhombicuboctahedron")
 for i in 1..=32 {
     add_menu_entry(path = "Solid|3D|Truncations|Cubic|Rhombicuboctahedron|${i}", id = "rhombicuboctahedron_ft_${i}")
 }
 
-add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Truncated Cuboctahedron|None", priority = 100, id = "truncated_cuboctahedron")
 
-add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron|None", priority = 100, id = "icosidodecahedron")
 for i in 1..=8 {
     add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral|Icosidodecahedron|${i}", id = "icosidodecahedron_ft_${i}")

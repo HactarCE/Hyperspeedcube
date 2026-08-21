@@ -3,7 +3,7 @@ use * from euclid
 GIZMO_EDGE_FACTOR = 0.25
 
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 20 }
-cuts_param = #{ name = "Cuts", type = Int, default = 1, min = 1, max = 10 }
+cuts_param = #{ name = "Cuts depth", type = Int, default = 1, min = 1, max = 10 }
 
 fn n_layer_prefix(n, *, default=3) { if n == default { "" } else { "${n}-Layer " } }
 fn n_cut_prefix(n, *, default=1) { if n == default { "" } else { "${n}-Cut " } }
@@ -22,7 +22,7 @@ add_menu_entry(path = "Solid|4D|Platonic|120-Cell",  priority = 2, next_inline =
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell",  priority = 1, next_inline = "Axes")
 
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|None", priority = 100, id = "4simplex")
-add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT",                  next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT",                  next_inline = "Cuts depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|A",                id = "4simplex_a")
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|B",                id = "4simplex_b")
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|C",                id = "4simplex_c")
@@ -46,14 +46,14 @@ add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT",   priority = 53,  next_inl
 for i in 1..=11 {
     add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|${i}", id = "24cell_ft_${i}")
 }
-add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid", next_inline = "Cuts")
+add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid", next_inline = "Cuts depth")
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid|1 + 5", id = "24cell_ft_hybrid_1_5")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|RT",   priority = 52,  id = "24cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|ET",   priority = 51,  id = "24cell_et")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|VT",   priority = 50,  id = "24cell_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|None", priority = 100, id = "120cell")
-add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT",   priority = 53,  next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT",   priority = 53,  next_inline = "Cuts depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Shallow", priority = 3, id = "120cell_ft_shallow", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Evil",    priority = 2, id = "120cell_ft_evil")
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Half",    priority = 1, id = "120cell_ft_half")
@@ -62,7 +62,7 @@ add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Half",    priority = 1, id 
 // add_menu_entry(path = "Solid|4D|Platonic|120-Cell|VT",   priority = 50,  id = "120cell_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|None", priority = 100, id = "600cell")
-add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT",   priority = 53,  next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT",   priority = 53,  next_inline = "Cuts depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT|Shallow", priority = 2, id = "600cell_ft_shallow", default = true)
 // add_menu_entry(path = "Solid|4D|Platonic|600-Cell|RT",   priority = 52,  id = "600cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|600-Cell|ET",   priority = 51,  id = "600cell_et")

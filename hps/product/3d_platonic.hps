@@ -21,7 +21,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron", priority = 2, next_inlin
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron",  priority = 1, next_inline = "Axes")
 
 add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|None", priority = 100, id = "tetrahedron")
-add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT",                  next_inline = "Cuts", default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT",                  next_inline = "Cut depth", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|A",                id = "tetrahedron_a")
 add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|B",                id = "tetrahedron_b")
 add_menu_entry(path = "Solid|3D|Platonic|Tetrahedron|FVT|C",                id = "tetrahedron_c", default = true)
@@ -47,7 +47,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Starminx",         prio
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pentultimate",     priority = 10, id = "pentultimate")
 
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|None",   priority = 100, id = "icosahedron")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT",     next_inline = "Depth (Radiolarian Number)", priority = 52, default = true)
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT",     next_inline = "Cut depth (Radiolarian number)", priority = 52, default = true)
 // add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1",   id = "radio_1")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|1.5", id = "radio_1_5", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|2",   id = "radio_2")
@@ -66,7 +66,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|12",  id = "radio_12")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|13",  id = "radio_13")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|14",  id = "radio_14")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|15",  id = "radio_15")
-add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid|Eitan's Nebula (3 + 4)", id = "eitans_nebula")
 add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid|Eitan's Galaxy (3 + 7)", id = "eitans_galaxy")
 

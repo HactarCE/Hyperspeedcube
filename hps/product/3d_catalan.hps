@@ -6,7 +6,7 @@ use * from euclid
 
 add_menu_entry(path = "Solid|3D|Catalan", section = true)
 
-add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|None", priority = 100, id = "rhombic_dodecahedron")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|1", id = "rhombic_dodecahedron_ft_1")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|2", id = "rhombic_dodecahedron_ft_2")
@@ -15,7 +15,7 @@ add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|4", id = "rhombic_d
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|5", id = "rhombic_dodecahedron_ft_5")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Dodecahedron|6", id = "rhombic_dodecahedron_ft_6")
 
-add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron", next_inline = "Cuts")
+add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron", next_inline = "Cut depth")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron|None",                   priority = 100, id = "rhombic_triacontahedron")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron|Canon",                  priority = 4, id = "rhombic_triacontahedron_ft_canon")
 add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron|Adjacent",               priority = 3, id = "rhombic_triacontahedron_ft_adj")
