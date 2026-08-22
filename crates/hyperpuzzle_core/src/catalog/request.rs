@@ -139,9 +139,9 @@ impl Drop for GenericRequest {
 ///
 /// For a given `Arc<GenericRequestData>`, There is at most one [`CacheEntry`]
 /// that holds a reference to it. All other references are held by
-/// [`GenericRequest`]s. When the last [`GenericRequest`] is dropped, the cache entry
-/// is removed and then the `subrequest` field is dropped, which may recursively
-/// cause another cache entry to be removed, etc.
+/// [`GenericRequest`]s. When the last [`GenericRequest`] is dropped, the cache
+/// entry is removed and then the `subrequest` field is dropped, which may
+/// recursively cause another cache entry to be removed, etc.
 pub(super) struct GenericRequestData {
     /// Mutable state for the request.
     pub(super) state: Arc<Mutex<GenericRequestState>>,

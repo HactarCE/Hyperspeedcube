@@ -2,9 +2,8 @@ use std::ops::Index;
 
 use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex, TypedIndexIter};
 
-use crate::{NameError, Names};
-
 use super::*;
+use crate::{NameError, Names};
 
 /// Immutable bi-directional map between IDs and name specifications.
 #[derive(Debug, Default, Clone)]

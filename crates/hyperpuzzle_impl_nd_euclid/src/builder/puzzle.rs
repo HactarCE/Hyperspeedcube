@@ -17,8 +17,9 @@ use tinyset::Set64;
 
 use super::shape::ShapeBuildOutput;
 use super::{AdHocTwistSystemBuilder, AxisLayersBuilder, ShapeBuilder, TwistSystemBuilder};
+use crate::NamedTwistsList;
 use crate::components::NdEuclidTwistsList;
-use crate::{NamedTwistsList, prelude::*};
+use crate::prelude::*;
 
 /// [`Puzzle`] under construction.
 #[derive(Debug)]

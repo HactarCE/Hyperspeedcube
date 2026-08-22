@@ -4,17 +4,18 @@ use eyre::{Context, eyre};
 use hypergroup::GenSeq;
 use hyperpuzzle_core::{BuildCtx, TwistSystem};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
+use hyperpuzzlescript::engine::HpsEngineError;
+use hyperpuzzlescript::util::pop_map_key_in_special_var;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
-    Span, Spanned, SpecialVar, Value, ValueData, engine::HpsEngineError, unpack_kwargs,
-    util::pop_map_key_in_special_var,
+    Span, Spanned, SpecialVar, Value, ValueData, unpack_kwargs,
 };
 use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec};
-use crate::{StabilizerTwistOrbitSpec, builder::*};
+use crate::builder::*;
+use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec, StabilizerTwistOrbitSpec};
 
 pub struct SymmetricTwistSystemEngine;
 

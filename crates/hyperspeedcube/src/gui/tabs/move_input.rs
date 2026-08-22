@@ -103,16 +103,18 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
         });
 
-        // let puz = view.puzzle();
-        // egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
-        //     for transform in puz.twists.twists.iter_keys() {
-        //         if ui.button(&puz.twists.names[transform]).clicked() {
-        //             let twist = Move::new((), &puz.twists.names[transform], None, 1);
-        //             view.sim
-        //                 .lock()
-        //                 .do_event(ReplayEvent::Twists(smallvec![twist]));
-        //         }
-        //     }
-        // });
+        /*
+        let puz = view.puzzle();
+        egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+            for transform in puz.twists.twists.iter_keys() {
+                if ui.button(&puz.twists.names[transform]).clicked() {
+                    let twist = Move::new((), &puz.twists.names[transform], None, 1);
+                    view.sim
+                        .lock()
+                        .do_event(ReplayEvent::Twists(smallvec![twist]));
+                }
+            }
+        });
+        */
     });
 }

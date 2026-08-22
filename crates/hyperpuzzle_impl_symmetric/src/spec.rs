@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use eyre::{Result, bail, ensure};
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
-use hypermath::{Float, Subspace, prelude::*};
+use hypermath::prelude::*;
+use hypermath::{Float, Subspace};
 use hyperpuzzle_core::CatalogId;
 use hypuz_notation::Str;
 use itertools::Itertools;

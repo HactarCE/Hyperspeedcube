@@ -12,7 +12,8 @@ use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::{PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData};
-use crate::{builder::DisjointUnionColorName, geometry::PolytopeGeometry};
+use crate::builder::DisjointUnionColorName;
+use crate::geometry::PolytopeGeometry;
 
 /// Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.

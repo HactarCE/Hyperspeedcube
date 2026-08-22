@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use eyre::Result;
+use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::{
-    CatalogId, CatalogObject, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit,
-    PaletteColor, TypedIndex, catalog::BuildCtx,
+    CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit, PaletteColor,
+    TypedIndex,
 };
-use hypuz_notation::{Str, family::SequentialLowercaseName};
+use hypuz_notation::Str;
+use hypuz_notation::family::SequentialLowercaseName;
 use indexmap::IndexMap;
 use itertools::Itertools;
 

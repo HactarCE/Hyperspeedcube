@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt, ops::Index, sync::Arc};
+use std::collections::HashMap;
+use std::fmt;
+use std::ops::Index;
+use std::sync::Arc;
 
 use hypuz_notation::Str;
 use hypuz_util::ti::{IndexOutOfRange, TiVec, TypedIndex};

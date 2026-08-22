@@ -5,18 +5,18 @@ use hypergroup::GenSeq;
 use hypermath::Float;
 use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
+use hyperpuzzlescript::builtins::catalog::tags::tags_from_map;
+use hyperpuzzlescript::engine::HpsEngineError;
+use hyperpuzzlescript::util::{ListOrVal, pop_map_key_in_special_var};
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
-    Value, ValueData,
-    builtins::catalog::tags::tags_from_map,
-    engine::HpsEngineError,
-    pop_kwarg, unpack_kwargs,
-    util::{ListOrVal, pop_map_key_in_special_var},
+    Value, ValueData, pop_kwarg, unpack_kwargs,
 };
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{CutDistances, NamedPointOrbitSpec, builder::*};
+use crate::builder::*;
+use crate::{CutDistances, NamedPointOrbitSpec};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -87,7 +87,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let id = build_ctx.id();
                 let meta = build_ctx.build_blocking::<PuzzleListEntry>(id)?;
 
-                // TODO: error message on extra param says "unused function arg" but should say "unused map key"
+                // TODO: error message on extra param says "unused function arg" but should say
+                // "unused map key"
                 unpack_kwargs!(
                     kwargs,
                     name: ListOrVal<String>,

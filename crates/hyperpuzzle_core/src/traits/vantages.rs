@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use std::any::Any;
+use std::sync::Arc;
 
 use eyre::OptionExt;
 
@@ -105,7 +106,8 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
         // if self.is_identity(&twist.transform) {
         //     Ok(twist_name.to_string())
         // } else {
-        //     let transform_name = self.vantage_group_element_name_concrete(twist.transform)?;
+        //     let transform_name =
+        // self.vantage_group_element_name_concrete(twist.transform)?;
         //     Ok(format!("{twist_name}@{transform_name}"))
         // }
     }
@@ -120,7 +122,8 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
         // match name.split_once('@') {
         //     Some((axis_name, elem_name)) => Some(SimpleRelativeAxis {
         //         absolute_axis: self.axis_names().id_from_name(axis_name)?,
-        //         transform: self.vantage_group_element_from_name_concrete(elem_name)?,
+        //         transform:
+        // self.vantage_group_element_from_name_concrete(elem_name)?,
         //     }),
         //     None => Some(SimpleRelativeAxis {
         //         absolute_axis: self.axis_names().id_from_name(name)?,
@@ -134,7 +137,8 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
         // match name.split_once('@') {
         //     Some((twist_name, elem_name)) => Some(SimpleRelativeTwist {
         //         absolute_twist: self.twist_names().id_from_name(twist_name)?,
-        //         transform: self.vantage_group_element_from_name_concrete(elem_name)?,
+        //         transform:
+        // self.vantage_group_element_from_name_concrete(elem_name)?,
         //     }),
         //     None => Some(SimpleRelativeTwist {
         //         absolute_twist: self.twist_names().id_from_name(name)?,

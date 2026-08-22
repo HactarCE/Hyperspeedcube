@@ -1,8 +1,6 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    convert::Infallible,
-    hash::Hash,
-};
+use std::collections::{HashSet, VecDeque};
+use std::convert::Infallible;
+use std::hash::Hash;
 
 use hypermath::prelude::*;
 

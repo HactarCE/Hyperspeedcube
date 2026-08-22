@@ -1,6 +1,7 @@
 use super::*;
 
-/// Puzzle list entry, which generally corresponds to a puzzle or puzzle generator.
+/// Puzzle list entry, which generally corresponds to a puzzle or puzzle
+/// generator.
 #[derive(Serialize, Debug, Clone)]
 pub struct PuzzleListEntry {
     /// Catalog ID.

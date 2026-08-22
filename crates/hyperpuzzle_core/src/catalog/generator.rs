@@ -14,8 +14,8 @@ pub(super) struct BuildCtxInner {
 
     /// Mutable request state.
     ///
-    /// We reference [`GenericRequestState`] instead of [`GenericRequestData`] to avoid
-    /// keeping the request alive if all `Request`s are dropped.
+    /// We reference [`GenericRequestState`] instead of [`GenericRequestData`]
+    /// to avoid keeping the request alive if all `Request`s are dropped.
     pub(super) request_state: Arc<Mutex<GenericRequestState>>,
     /// Whether all requests to build the object have been dropped.
     pub(super) canceled: Arc<AtomicBool>,
@@ -241,7 +241,8 @@ impl<T: CatalogObject> Generator<T> {
             id,
             params: vec![],
             subset_param: None,
-            validation: GeneratorParamValidation { allow_empty: true }, // doesn't matter; always empty
+            // validation doesn't matter; always empty
+            validation: GeneratorParamValidation { allow_empty: true },
             generate: Box::new(generate),
         }
     }

@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, hash_map},
-    sync::Arc,
-};
+use std::collections::{HashMap, hash_map};
+use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;

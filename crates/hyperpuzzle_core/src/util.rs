@@ -145,8 +145,8 @@ pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
     name.split(',').map(|s| s.split_once(':')).collect()
 }
 
-/// Either a fixed object `Arc<T>` from the catalog, or an ad-hoc builder `Arc<Mutex<T>>`
-/// that will be used to construct a catalog object.
+/// Either a fixed object `Arc<T>` from the catalog, or an ad-hoc builder
+/// `Arc<Mutex<T>>` that will be used to construct a catalog object.
 #[derive(Debug)]
 pub enum MaybeAdHoc<T> {
     /// Fixed object from the catalog.

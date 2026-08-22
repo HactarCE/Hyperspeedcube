@@ -3,11 +3,12 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use eyre::{OptionExt, bail};
-use hypergroup::{Group, IsometryGroup};
-use hypermath::{APPROX, ApproxHashMap, Point, Vector, VectorRef};
+use hypergroup::IsometryGroup;
+use hypermath::{APPROX, ApproxHashMap, Vector, VectorRef};
 use hyperpuzzle_core::{IndexOutOfRange, Names};
+use hypuz_notation::Str;
 use hypuz_notation::charsets::CharSet;
-use hypuz_notation::{Str, family::SequentialLowercaseName};
+use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_util::ti::{IndexOverflow, TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};

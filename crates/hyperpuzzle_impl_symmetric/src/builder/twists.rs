@@ -234,10 +234,12 @@ impl TwistSystemProduct {
             //       but make sure to not cause float precision issues
             group = unshuffled_group;
 
-            // // Shuffle group generators to improve average word length, making some
-            // // group operations faster.
-            // group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
-            //     .wrap_err("error shuffling twist symmetry generators")?;
+            /*
+            // Shuffle group generators to improve average word length, making some
+            // group operations faster.
+            group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
+                .wrap_err("error shuffling twist symmetry generators")?;
+            */
         } else {
             coxeter_mirrors = vec![];
             group = IsometryGroup::trivial_with_ndim(spec.ndim);

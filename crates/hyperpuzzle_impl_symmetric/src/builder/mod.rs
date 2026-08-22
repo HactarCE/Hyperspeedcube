@@ -1,10 +1,8 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Weak},
-};
+use std::collections::HashMap;
+use std::sync::{Arc, Weak};
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::AbbrGenSeq;

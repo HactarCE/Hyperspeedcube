@@ -332,7 +332,7 @@ impl PuzzleWidget {
                         solve_to_load,
                     } => {
                         match request.get() {
-                            Ok(puzzle) => self.load(request.id().to_string(), solve_to_load, prefs), // TODO: consider inlining
+                            Ok(puzzle) => self.load(request.id().to_string(), solve_to_load, prefs), /* TODO: consider inlining */
                             Err(task_strings) => {
                                 loading_heading = Some(
                                     task_strings.iter().map(|s| capitalize(s)).join("\n").into(),

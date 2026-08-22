@@ -245,7 +245,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                     ),
                                                     |ui| {
                                                         ui.add(
-                                                            // TODO: factor height into constant (same as BIG_BUTTON_HEIGHT)
+                                                            // TODO: factor height into constant
+                                                            // (same as BIG_BUTTON_HEIGHT)
                                                             egui::Button::new(
                                                                 L.catalog.generate_puzzle,
                                                             )

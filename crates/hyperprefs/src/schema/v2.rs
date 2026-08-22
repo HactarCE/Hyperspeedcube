@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use hyperpuzzle_core::{PaletteColor, notation::Str};
+use hyperpuzzle_core::PaletteColor;
+use hyperpuzzle_core::notation::Str;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 

@@ -1,8 +1,8 @@
 use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 
 use crate::L;
-use crate::gui::components::PrefsUi;
 use crate::gui::App;
+use crate::gui::components::PrefsUi;
 
 pub fn build_quick_settings_ui(ui: &mut egui::Ui, app: &mut App) {
     egui::containers::menu::MenuButton::new(mdi!(ui, COG))

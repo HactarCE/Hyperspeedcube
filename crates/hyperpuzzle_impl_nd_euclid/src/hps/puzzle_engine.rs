@@ -46,7 +46,8 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 //         pop_kwarg!(kwargs, colors: Option<String>);
 //         pop_kwarg!(kwargs, twists: Option<String>);
 
-//         let version = version.map(|s| s.parse().at(version_span)).transpose()?;
+//         let version = version.map(|s|
+// s.parse().at(version_span)).transpose()?;
 
 //         catalog.add::<NdEuclidPuzzle>(hps_gen.make_generator(
 //             eval_tx,
@@ -74,61 +75,65 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 
 //                         // Build color system.
 //                         if let Some(colors_id) = &colors {
-//                             builder.lock().shape.lock().colors = ColorSystemBuilder(
-//                                 MaybeAdHoc::Fixed(build_ctx.build_str_blocking(colors_id).at(caller_span )?),
+//                             builder.lock().shape.lock().colors =
+// ColorSystemBuilder(
+// MaybeAdHoc::Fixed(build_ctx.build_str_blocking(colors_id).at(caller_span )?),
 //                             );
 //                         } else {
-//                             logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
-//                         }
+//                             logger.warn(format!("using ad-hoc color system
+// for puzzle {id:?}"));                         }
 
 //                         // Build twist system.
 //                         if let Some(twists_id) = &twists {
-//                             builder.lock().twists = TwistSystemBuilder(MaybeAdHoc::Fixed(
-//                                 build_ctx.build_str_blocking(twists_id).at(caller_span)?,
-//                             ));
-//                         } else {
-//                             logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
-//                         }
+//                             builder.lock().twists =
+// TwistSystemBuilder(MaybeAdHoc::Fixed(
+// build_ctx.build_str_blocking(twists_id).at(caller_span)?,
+// ));                         } else {
+//                             logger.warn(format!("using ad-hoc color system
+// for puzzle {id:?}"));                         }
 
 //                         if let Some(remove_internals) = remove_internals {
-//                             builder.lock().shape.lock().remove_internals = remove_internals;
-//                         }
+//                             builder.lock().shape.lock().remove_internals =
+// remove_internals;                         }
 //                         if let Some(full_scramble_length) = scramble {
-//                             builder.lock().full_scramble_length = full_scramble_length;
-//                         };
+//                             builder.lock().full_scramble_length =
+// full_scramble_length;                         };
 
 //                         let mut scope = Scope::default();
 //                         scope.special.ndim = Some(ndim);
 //                         scope.special.puz =
-//                             Arc::new(Mutex::new(HpsPuzzle(builder.clone()).at(BUILTIN_SPAN)));
+//
+// Arc::new(Mutex::new(HpsPuzzle(builder.clone()).at(BUILTIN_SPAN)));
 //                         scope.special.shape = Arc::new(Mutex::new(
-//                             HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN),
-//                         ));
-//                         scope.special.twists = Arc::new(Mutex::new(
-//                             HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
-//                         ));
-//                         scope.special.axes = Arc::new(Mutex::new(
-//                             HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
-//                         ));
-//                         scope.special.id = Some(id.to_string().into());
+//
+// HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN),
+// ));                         scope.special.twists = Arc::new(Mutex::new(
+//
+// HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+// ));                         scope.special.axes = Arc::new(Mutex::new(
+//
+// HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+// ));                         scope.special.id = Some(id.to_string().into());
 //                         let scope = Arc::new(scope);
 //                         let mut exports = None;
-//                         let mut eval_ctx = EvalCtx::new(&scope, runtime, caller_span, &mut exports);
+//                         let mut eval_ctx = EvalCtx::new(&scope, runtime,
+// caller_span, &mut exports);
 
 //                         let build_fn = Arc::clone(&build);
 
 //                         build_fn
-//                             .call(build_span, &mut eval_ctx, vec![], Map::new())
-//                             .map_err(|e| eval_ctx.runtime.report_and_convert_to_eyre(e))
-//                             .wrap_err("error building puzzle")?;
+//                             .call(build_span, &mut eval_ctx, vec![],
+// Map::new())                             .map_err(|e|
+// eval_ctx.runtime.report_and_convert_to_eyre(e))
+// .wrap_err("error building puzzle")?;
 
 //                         let b = builder.lock();
 
 //                         // Assign default piece type to remaining pieces.
 //                         b.shape.lock().mark_untyped_pieces()?;
 
-//                         b.build(Some(&build_ctx), &mut eval_ctx.warnf()).at(caller_span)
-//                     }),
+//                         b.build(Some(&build_ctx), &mut
+// eval_ctx.warnf()).at(caller_span)                     }),
 //                 }))
 //             },
 //         ))?;
@@ -149,8 +154,8 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 //             |build_ctx, _kwargs| {
 //                 build_ctx
 //                     .build_blocking::<NdEuclidPuzzle>(build_ctx.id())
-//                     .map(|nd_euclid_puzzle| Arc::clone(&nd_euclid_puzzle.list_entry))
-//             },
+//                     .map(|nd_euclid_puzzle|
+// Arc::clone(&nd_euclid_puzzle.list_entry))             },
 //         ))?;
 
 //         let tx = eval_tx.clone();
@@ -160,8 +165,8 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 //                 .and_then(|nd_euclid_puzzle| {
 //                     tx.eval_blocking(move |runtime| {
 //                         (nd_euclid_puzzle.build)(build_ctx, runtime)
-//                             .map_err(|e| runtime.report_and_convert_to_eyre(e))
-//                     })
+//                             .map_err(|e|
+// runtime.report_and_convert_to_eyre(e))                     })
 //                 })
 //         }))?;
 
@@ -171,8 +176,8 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 
 // struct NdEuclidPuzzle {
 //     list_entry: Arc<PuzzleListEntry>,
-//     build: Arc<dyn Send + Sync + Fn(BuildCtx, &mut Runtime) -> Result<Arc<Puzzle>>>,
-// }
+//     build: Arc<dyn Send + Sync + Fn(BuildCtx, &mut Runtime) ->
+// Result<Arc<Puzzle>>>, }
 
 // impl CatalogObject for NdEuclidPuzzle {
 //     fn catalog_type_name() -> &'static str {
@@ -207,8 +212,8 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 //         meta.tags.set_opt_color_system(colors.as_deref());
 //         meta.tags.set_opt_twist_system(twists.as_deref());
 
-//         if let Err(e) = meta.tags.insert_named("ndim", TagValue::Int(ndim as i64)) {
-//             ctx.warn(e.to_string());
+//         if let Err(e) = meta.tags.insert_named("ndim", TagValue::Int(ndim as
+// i64)) {             ctx.warn(e.to_string());
 //         }
 
 //         let meta = Arc::new(meta);
@@ -217,58 +222,62 @@ impl HpsEngine for NdEuclidPuzzleEngine {
 //             meta: Arc::clone(&meta),
 //             build_puzzle: Box::new(move |build_ctx, runtime| {
 //                 let logger = &build_ctx.logger();
-//                 let builder = Arc::new(Mutex::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?));
+//                 let builder =
+// Arc::new(Mutex::new(PuzzleBuilder::new(Arc::clone(&meta), ndim)?));
 //                 let id = &meta.id;
 
 //                 // Build color system.
 //                 if let Some(colors_id) = &colors {
-//                     builder.lock().shape.lock().colors = ColorSystemBuilder(MaybeAdHoc::Fixed(
-//                         build_ctx.build_str_blocking(colors_id)?,
-//                     ));
+//                     builder.lock().shape.lock().colors =
+// ColorSystemBuilder(MaybeAdHoc::Fixed(
+// build_ctx.build_str_blocking(colors_id)?,                     ));
 //                 } else {
-//                     logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
-//                 }
+//                     logger.warn(format!("using ad-hoc color system for puzzle
+// {id:?}"));                 }
 
 //                 // Build twist system.
 //                 if let Some(twists_id) = &twists {
-//                     builder.lock().twists = TwistSystemBuilder(MaybeAdHoc::Fixed(
-//                         build_ctx.build_str_blocking(twists_id)?,
-//                     ));
+//                     builder.lock().twists =
+// TwistSystemBuilder(MaybeAdHoc::Fixed(
+// build_ctx.build_str_blocking(twists_id)?,                     ));
 //                 } else {
-//                     logger.warn(format!("using ad-hoc color system for puzzle {id:?}"));
-//                 }
+//                     logger.warn(format!("using ad-hoc color system for puzzle
+// {id:?}"));                 }
 
 //                 if let Some(remove_internals) = remove_internals {
-//                     builder.lock().shape.lock().remove_internals = remove_internals;
-//                 }
+//                     builder.lock().shape.lock().remove_internals =
+// remove_internals;                 }
 //                 if let Some(full_scramble_length) = scramble {
-//                     builder.lock().full_scramble_length = full_scramble_length;
-//                 };
+//                     builder.lock().full_scramble_length =
+// full_scramble_length;                 };
 
 //                 let mut scope = Scope::default();
 //                 scope.special.ndim = Some(ndim);
 //                 scope.special.puz =
-//                     Arc::new(Mutex::new(HpsPuzzle(builder.clone()).at(BUILTIN_SPAN)));
+//
+// Arc::new(Mutex::new(HpsPuzzle(builder.clone()).at(BUILTIN_SPAN)));
 //                 scope.special.shape = Arc::new(Mutex::new(
 //                     HpsShape(builder.lock().shape.clone()).at(BUILTIN_SPAN),
 //                 ));
 //                 scope.special.twists = Arc::new(Mutex::new(
-//                     HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
-//                 ));
-//                 scope.special.axes = Arc::new(Mutex::new(
-//                     HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
-//                 ));
-//                 scope.special.id = Some(id.to_string().into());
+//
+// HpsTwistSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+// ));                 scope.special.axes = Arc::new(Mutex::new(
+//
+// HpsAxisSystem(builder.lock().twists.clone()).at(BUILTIN_SPAN),
+// ));                 scope.special.id = Some(id.to_string().into());
 //                 let scope = Arc::new(scope);
 //                 let mut exports = None;
-//                 let mut eval_ctx = EvalCtx::new(&scope, runtime, caller_span, &mut exports);
+//                 let mut eval_ctx = EvalCtx::new(&scope, runtime, caller_span,
+// &mut exports);
 
 //                 let build_fn = Arc::clone(&build);
 
 //                 build_fn
 //                     .call(build_span, &mut eval_ctx, vec![], Map::new())
-//                     .map_err(|e| eval_ctx.runtime.report_and_convert_to_eyre(e))
-//                     .wrap_err("error building puzzle")?;
+//                     .map_err(|e|
+// eval_ctx.runtime.report_and_convert_to_eyre(e))
+// .wrap_err("error building puzzle")?;
 
 //                 let b = builder.lock();
 

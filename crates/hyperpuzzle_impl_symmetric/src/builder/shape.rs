@@ -1,12 +1,15 @@
 //! Types for constructing pieces and piece facets, including stickers.
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
-use hyperpuzzle_core::{ComponentList, prelude::*};
-use hypuz_notation::{Str, family::SequentialLowercaseName};
+use hyperpuzzle_core::ComponentList;
+use hyperpuzzle_core::prelude::*;
+use hypuz_notation::Str;
+use hypuz_notation::family::SequentialLowercaseName;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use smallvec::SmallVec;

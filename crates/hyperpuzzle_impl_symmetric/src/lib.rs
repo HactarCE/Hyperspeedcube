@@ -93,7 +93,8 @@ fn make_puzzle_tag_set(ndim: Option<i64>) -> Result<TagSet> {
 }
 
 pub fn add_catalog_entries(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
-    // TODO: redirect when nested; e.g., `product([product(a,b),c])` -> `product([a,b,c])`
+    // TODO: redirect when nested; e.g., `product([product(a,b),c])` ->
+    // `product([a,b,c])`
     add_puzzles_to_catalog(catalog)?;
     add_twist_systems_to_catalog(catalog)?;
     add_color_systems_to_catalog(catalog)?;
