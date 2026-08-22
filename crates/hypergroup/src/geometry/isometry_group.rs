@@ -302,7 +302,7 @@ impl IsometryGroup {
     /// group element from the coset for each element in the orbit.
     ///
     /// Returns an error if the number of members in the orbit exceeds `limit`.
-    pub fn orbit_geometric<T: Clone + ApproxHash + Ndim + TransformByMotor>(
+    pub fn orbit_geometric<T: Clone + ApproxHash + TransformByMotor>(
         &self,
         mut init: T,
         limit: usize,
