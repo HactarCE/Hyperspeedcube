@@ -1,4 +1,7 @@
+use log::Level;
+
 use super::*;
+use crate::LogLine;
 
 /// Context when building an object in the catalog.
 ///
@@ -55,7 +58,14 @@ impl BuildCtx {
 
     pub fn warn_fn(&self) -> impl Fn(eyre::Report) {
         let l = self.0.catalog.logger.clone();
-        move |e| l.warn(format!("{e:?}")) // include backtrace
+        move |e| {
+            l.log(LogLine {
+                level: Level::Warn,
+                filename: None,
+                msg: format!("{e}"),
+                full: Some(format!("{e:?}")), // include backtrace
+            });
+        }
     }
 
     /// Adds a task to the task stack.
