@@ -3,7 +3,7 @@ use * from euclid
 GIZMO_EDGE_FACTOR = 0.25
 
 layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 20 }
-cuts_param = #{ name = "Cuts depth", type = Int, default = 1, min = 1, max = 10 }
+cuts_param = #{ name = "Cuts", type = Int, default = 1, min = 1, max = 10 }
 
 fn n_layer_prefix(n, *, default=3) { if n == default { "" } else { "${n}-Layer " } }
 fn n_cut_prefix(n, *, default=1) { if n == default { "" } else { "${n}-Cut " } }
@@ -22,7 +22,7 @@ add_menu_entry(path = "Solid|4D|Platonic|120-Cell",  priority = 2, next_inline =
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell",  priority = 1, next_inline = "Axes")
 
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|None", priority = 100, id = "4simplex")
-add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT",                  next_inline = "Cuts depth", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT",                  next_inline = "Cuts", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|A",                id = "4simplex_a")
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|B",                id = "4simplex_b")
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|C",                id = "4simplex_c")
@@ -30,7 +30,7 @@ add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|D",                id = "4s
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|Pyraminx",         id = "4simplex_pyraminx")
 
 add_menu_entry(path = "Solid|4D|Platonic|Hypercube|None", priority = 100, id = "hypercube")
-add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "hypercube_ft", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "4cube_ft", default = true)
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT",   priority = 52,  id = "hypercube_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET",   priority = 51,  id = "hypercube_et")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT",   priority = 50,  id = "hypercube_vt")
@@ -46,14 +46,14 @@ add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT",   priority = 53,  next_inl
 for i in 1..=11 {
     add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|${i}", id = "24cell_ft_${i}")
 }
-add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid", next_inline = "Cuts depth")
+add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid", next_inline = "Cut depths")
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid|1 + 5", id = "24cell_ft_hybrid_1_5")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|RT",   priority = 52,  id = "24cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|ET",   priority = 51,  id = "24cell_et")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|VT",   priority = 50,  id = "24cell_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|None", priority = 100, id = "120cell")
-add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT",   priority = 53,  next_inline = "Cuts depth", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT",   priority = 53,  next_inline = "Cut depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Shallow", priority = 3, id = "120cell_ft_shallow", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Evil",    priority = 2, id = "120cell_ft_evil")
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Half",    priority = 1, id = "120cell_ft_half")
@@ -62,7 +62,7 @@ add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Half",    priority = 1, id 
 // add_menu_entry(path = "Solid|4D|Platonic|120-Cell|VT",   priority = 50,  id = "120cell_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|None", priority = 100, id = "600cell")
-add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT",   priority = 53,  next_inline = "Cuts depth", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT",   priority = 53,  next_inline = "Cut depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT|Shallow", priority = 2, id = "600cell_ft_shallow", default = true)
 // add_menu_entry(path = "Solid|4D|Platonic|600-Cell|RT",   priority = 52,  id = "600cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|600-Cell|ET",   priority = 51,  id = "600cell_et")
@@ -113,7 +113,7 @@ add_twist_system(id = "4simplex_fvt", name = "FT/VT 4-Simplex",
     },
 )
 
-add_twist_system(id = "hypercube_ft", name = "FT Hypercube",
+add_twist_system(id = "4cube_ft", name = "FT Hypercube",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -236,18 +236,18 @@ add_puzzle(id = "4simplex_pyraminx", name = "N-Layer 4-Simplex Pyraminx",
 // Hypercube puzzles //
 //-------------------//
 
-add_puzzle_list_entry("hypercube_ft(2)")
-add_puzzle_list_entry("hypercube_ft(3)")
-add_puzzle_list_entry("hypercube_ft(4)")
-add_puzzle_list_entry("hypercube_ft(5)")
-add_puzzle_list_entry("hypercube_ft(6)")
-add_puzzle_list_entry("hypercube_ft(7)")
-add_puzzle(id = "hypercube_ft", name = ["N-Layer FT Hypercube", "n^4", "NxNxNxN FT Hypercube", "N-Layer 4D Rubik's Cube"],
+add_puzzle_list_entry("4cube_ft(2)")
+add_puzzle_list_entry("4cube_ft(3)")
+add_puzzle_list_entry("4cube_ft(4)")
+add_puzzle_list_entry("4cube_ft(5)")
+add_puzzle_list_entry("4cube_ft(6)")
+add_puzzle_list_entry("4cube_ft(7)")
+add_puzzle(id = "4cube_ft", name = ["N-Layer FT Hypercube", "n^4", "NxNxNxN FT Hypercube", "N-Layer 4D Rubik's Cube"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 4,
     colors = "hypercube",
-    twists = "hypercube_ft",
+    twists = "4cube_ft",
     params = [layers_param],
     gen = fn(layers) {
         names = ["${layers}^4", "${layers}x${layers}x${layers}x${layers}"]
@@ -384,7 +384,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|C", id = "4_simplex_c_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|D", id = "4_simplex_d_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|Pyraminx", id = "4_simplex_pyraminx_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "hypercube_ft")
+// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "4cube_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT", priority = 3, id = "todo")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET", priority = 2, id = "todo")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT", priority = 1, id = "todo")
@@ -444,7 +444,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // )
 
 // add_twist_system(
-//     id = "hypercube_ft",
+//     id = "4cube_ft",
 //     name = "FT Hypercube",
 //     engine = "symmetric",
 //     ndim = 4,
@@ -468,7 +468,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // )
 
 // add_puzzle(
-//     id = "hypercube_ft",
+//     id = "4cube_ft",
 //     name = "FT Hypercube",
 //     version = "0.1.0",
 //     engine = "symmetric",
@@ -481,7 +481,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 //     ],
 //     gen = fn(layers, subset) {
 //         export name = "${layers}^4"
-//         export twists = "hypercube_ft.${subset}",
+//         export twists = "4cube_ft.${subset}",
 //         export fn build() {
 //             shape = @shapes/4d/hypercube.new()
 //             #shape.sym = shape.sym
