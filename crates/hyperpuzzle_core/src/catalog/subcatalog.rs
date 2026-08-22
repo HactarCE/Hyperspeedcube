@@ -62,7 +62,7 @@ impl<T: CatalogObject> SubCatalog<T> {
             log::warn!(
                 "{} subcatalog has 100+ hooks! this may cause performance problems",
                 T::catalog_type_name(),
-            )
+            );
         }
     }
 

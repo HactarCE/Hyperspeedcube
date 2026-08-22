@@ -131,7 +131,7 @@ pub(super) struct GenericRequest {
 
 impl Drop for GenericRequest {
     fn drop(&mut self) {
-        (self.data.call_when_generic_request_is_dropped)()
+        (self.data.call_when_generic_request_is_dropped)();
     }
 }
 

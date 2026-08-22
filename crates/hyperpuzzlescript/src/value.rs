@@ -9,7 +9,7 @@ use hypermath::{APPROX, Vector, VectorRef};
 use itertools::Itertools;
 
 use crate::{
-    BoxDynValue, Error, EvalCtx, FnType, FullDiagnostic, List, Map, ND_EUCLID, Result, Runtime,
+    BoxDynValue, Error, EvalCtx, FnType, FullDiagnostic, List, Map, ND_EUCLID, Result,
     Scope, Span, TracebackLine, Type,
 };
 

@@ -89,7 +89,7 @@ impl PuzzleProduct {
         build_ctx.pop_task();
 
         build_ctx.push_task("naming named points");
-        let (named_point_vectors, named_point_unit_vectors, named_point_orbits, named_point_names) =
+        let (named_point_vectors, named_point_unit_vectors, _named_point_orbits, named_point_names) =
             FactorNamedPointBasedNames::<Axis>::from_spec(&group, &spec.named_point_orbits)?;
         build_ctx.pop_task();
 
@@ -273,7 +273,7 @@ impl PuzzleProduct {
     /// Constructs the final puzzle.
     pub fn build(
         &self,
-        build_ctx: &BuildCtx,
+        _build_ctx: &BuildCtx,
         meta: Arc<PuzzleListEntry>,
         colors: Arc<ColorSystem>,
         twists: Arc<TwistSystem>,

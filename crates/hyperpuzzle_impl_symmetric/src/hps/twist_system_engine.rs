@@ -24,7 +24,7 @@ impl HpsEngine for SymmetricTwistSystemEngine {
         &self,
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
-        ctx: &mut EvalCtx<'_>,
+        _ctx: &mut EvalCtx<'_>,
         hps_gen: hyperpuzzlescript::engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
         catalog.add::<TwistSystemProduct>(hps_gen.make_generator(

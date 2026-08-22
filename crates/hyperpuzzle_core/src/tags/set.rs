@@ -143,7 +143,7 @@ impl TagSet {
     /// Sets the `ndim` tag.
     pub fn set_ndim(&mut self, value: impl Into<TagValue>) {
         self.insert_named("ndim", value.into())
-            .expect("ndim tag does not exist")
+            .expect("ndim tag does not exist");
     }
 
     /// Returns an entry in the map.

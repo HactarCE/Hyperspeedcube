@@ -67,7 +67,7 @@ impl ColorSystemDisjointUnion {
 
     pub fn terms_with_prefixes(&self) -> Vec<(Str, &ColorSystemTerm)> {
         if let [t] = self.terms.as_slice() {
-            vec![(Str::new(), &self.terms[0])]
+            vec![(Str::new(), t)]
         } else {
             self.terms
                 .iter()
@@ -77,11 +77,7 @@ impl ColorSystemDisjointUnion {
         }
     }
 
-    pub fn build(
-        &self,
-        build_ctx: &BuildCtx,
-        warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<Arc<ColorSystem>> {
+    pub fn build(&self) -> Result<Arc<ColorSystem>> {
         let terms = self.terms_with_prefixes();
 
         let names = Names::new_simple(

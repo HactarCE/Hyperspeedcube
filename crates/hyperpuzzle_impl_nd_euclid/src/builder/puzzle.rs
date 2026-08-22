@@ -54,7 +54,7 @@ impl PuzzleBuilder {
         let (min, max) = (Space::MIN_NDIM, Space::MAX_NDIM);
         ensure!(ndim >= min, "ndim={ndim} is below min value of {min}");
         ensure!(ndim <= max, "ndim={ndim} exceeds max value of {max}");
-        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, ndim)?;
+        let shape = ShapeBuilder::new_with_primordial_cube(&meta.id, ndim, primordial_cube_radius)?;
         let twists = AdHocTwistSystemBuilder::new(meta.id.clone(), ndim);
         Ok(Self {
             meta,

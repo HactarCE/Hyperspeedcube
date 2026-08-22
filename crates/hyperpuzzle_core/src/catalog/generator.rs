@@ -91,7 +91,7 @@ impl BuildCtx {
         let (new_request, call_if_new) = self.0.catalog.new_request(id, &self.0.parent_ids);
 
         match new_request.inner {
-            RequestInner::Precomputed(result) => return Ok(result.clone()?),
+            RequestInner::Precomputed(result) => Ok(result.clone()?),
             RequestInner::Requested {
                 generic_request, ..
             } => {
@@ -102,7 +102,7 @@ impl BuildCtx {
                 let mut request_data_guard = self.0.request_state.lock();
                 let subrequest = &mut request_data_guard.subrequest;
                 if subrequest.is_some() {
-                    return Err(eyre!("parallel subrequests are not allowed").into());
+                    bail!("parallel subrequests are not allowed");
                 }
                 *subrequest = Some(generic_request);
                 drop(request_data_guard);
@@ -172,7 +172,7 @@ impl BuildCtx {
             } else if let Some(other_cache_entry) = cache.get(&obj.id().to_string())
                 && let CacheEntry::Done(other_result) = other_cache_entry
                 && let Ok(other_obj) = other_result
-                && Arc::ptr_eq(other_obj, &obj)
+                && Arc::ptr_eq(other_obj, obj)
             {
                 // ID of constructed object is different from ID of request, but
                 // object matches cache entry with constructed ID. i.e., request
@@ -319,10 +319,7 @@ impl<T: CatalogObject> Generator<T> {
             subset: match &self.subset_param {
                 Some(subsets) => match &subsets.default {
                     Some(default_id) => Some(default_id.clone()),
-                    None => match subsets.options.first() {
-                        Some(option) => Some(option.id.clone()),
-                        None => None,
-                    },
+                    None => subsets.options.first().map(|option| option.id.clone()),
                 },
                 None => None,
             },

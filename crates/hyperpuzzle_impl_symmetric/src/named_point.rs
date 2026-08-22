@@ -1,9 +1,7 @@
-use std::ops::Deref;
-
-use eyre::{OptionExt, Result, bail, eyre};
+use eyre::Result;
 use hypergroup::{GroupAction, GroupElementId};
-use hypermath::{Vector, VectorRef};
-use hyperpuzzle_core::{Axis, IndexOverflow, NameSpecBiMap, Names, PerAxis, TiVec, TypedIndex};
+use hypermath::Vector;
+use hyperpuzzle_core::{IndexOverflow, Names, TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::SmallVec;
 

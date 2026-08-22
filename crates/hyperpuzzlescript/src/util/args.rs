@@ -1,4 +1,4 @@
-use crate::{Error, EvalCtx, FromValue, Map, Result, Span, SpecialVar, Value};
+use crate::{Error, FromValue, Map, Result, Span, SpecialVar, Value};
 
 /// Removes and returns the next argument from `args`.
 ///

@@ -395,7 +395,7 @@ impl<I: TypedIndex> ProductNamedPointBasedNames<I> {
 }
 
 fn prefixed_if_needed<'a, I: TypedIndex>(
-    iter: impl ExactSizeIterator + Iterator<Item = &'a TiVec<I, Str>>,
+    iter: impl ExactSizeIterator<Item = &'a TiVec<I, Str>>,
 ) -> TiVec<I, Str> {
     let needs_prefix = iter.len() != 1;
     iter.enumerate()
@@ -542,7 +542,6 @@ impl<I: TypedIndex> FactorNamedPointBasedNames<I> {
             }
         }
 
-        if named_point_names.str_to_id.get("").is_some() {}
         let named_point_chars = named_point_names
             .id_to_str
             .iter_values()

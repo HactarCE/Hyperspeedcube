@@ -1,24 +1,19 @@
 //! Hyperpuzzlescript interface for the symmetric puzzle engine.
 
-use std::any::TypeId;
-use std::collections::HashMap;
-use std::fmt;
 use std::sync::Arc;
 
-use eyre::{Context, eyre};
-use hypergroup::{AbbrGenSeq, GenSeq};
+use eyre::eyre;
+use hypergroup::GenSeq;
 use hypermath::Vector;
 use hypermath::pga::Motor;
 use hyperpuzzle_core::CatalogBuilder;
-use hyperpuzzle_core::catalog::{Menu, MenuContent};
-use hyperpuzzle_impl_nd_euclid::hps::{ElementNames, HpsOrbitNames};
+use hyperpuzzle_core::catalog::MenuContent;
+use hyperpuzzle_impl_nd_euclid::hps::ElementNames;
 use hyperpuzzlescript::util::{expect_end_of_map, pop_map_key};
 use hyperpuzzlescript::{
-    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, HpsEngine, ListOf, Map, Runtime, Spanned,
+    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, Map, Runtime,
     Str, Type, Value, ValueData, hps_fns,
 };
-use itertools::Itertools;
-use parking_lot::Mutex;
 
 mod puzzle_engine;
 mod twist_system_engine;
@@ -29,7 +24,7 @@ use twist_system_engine::SymmetricTwistSystemEngine;
 use crate::{NamedPointOrbitSpec, NamedPointSpec, SimpleOrbitSpec};
 
 /// ID for the symmetric puzzle [`Menu`].
-pub const MENU_ID: &'static str = "symmetric";
+pub const MENU_ID: &str = "symmetric";
 
 pub fn register_hps_engines(rt: &mut Runtime) {
     rt.register_puzzle_engine("symmetric", Arc::new(SymmetricPuzzleEngine));
@@ -82,7 +77,7 @@ pub fn define_in(
                 .at(ctx.caller_span)?;
         }
 
-        fn add_colors_override(ctx: EvalCtx, id_pattern: Str, f: Arc<FnValue>) -> () {
+        fn add_colors_override(ctx: EvalCtx, id_pattern: Str, _f: Arc<FnValue>) -> () {
             ctx.warn(format!("adding color override for {id_pattern:?}"));
         }
     ])?;

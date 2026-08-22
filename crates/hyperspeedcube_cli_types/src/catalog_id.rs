@@ -44,7 +44,7 @@ impl Deref for CatalogIdent {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
@@ -238,7 +238,6 @@ impl FromStr for CatalogIdValue {
                 .map(Box::from)
                 .map(CatalogIdent);
             let id = ident
-                .clone()
                 .then(
                     ast_node
                         .clone()

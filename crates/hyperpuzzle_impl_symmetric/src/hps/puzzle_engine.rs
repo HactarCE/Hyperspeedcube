@@ -36,7 +36,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 caller_span,
                 format!("missing `name` for puzzle generator `{id}`"),
             );
-            hps_gen.names.push(id.to_string().into());
+            hps_gen.names.push(id.to_string());
         }
         let name = hps_gen.names[0].clone();
         let aliases = hps_gen.names[1..].to_vec();

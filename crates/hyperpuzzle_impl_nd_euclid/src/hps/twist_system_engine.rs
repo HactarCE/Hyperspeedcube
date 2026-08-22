@@ -17,7 +17,7 @@ impl HpsEngine for NdEuclidTwistSystemEngine {
         &self,
         catalog: &CatalogBuilder,
         eval_tx: &EvalRequestTx,
-        ctx: &mut EvalCtx<'_>,
+        _ctx: &mut EvalCtx<'_>,
         hps_gen: engine::HpsGenerator,
     ) -> Result<(), HpsEngineError> {
         catalog.add::<TwistSystem>(hps_gen.make_generator(

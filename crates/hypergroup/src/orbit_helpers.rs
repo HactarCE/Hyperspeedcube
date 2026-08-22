@@ -25,7 +25,7 @@ pub fn orbit<E, G>(
     mut apply_generator: impl FnMut(&E, &G) -> Option<E>,
 ) {
     try_orbit(init, generators, |elem, g| Ok(apply_generator(elem, g)))
-        .unwrap_or_else(|e: Infallible| match e {})
+        .unwrap_or_else(|e: Infallible| match e {});
 }
 
 /// Same as [`orbit()`], but returns early with an error if the number of

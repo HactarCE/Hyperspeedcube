@@ -1,14 +1,7 @@
-use std::sync::Arc;
-
-use eyre::{Context, bail, eyre};
+use eyre::eyre;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::util::MaybeAdHoc;
 use hyperpuzzlescript::engine::{HpsEngineError, HpsGenerator};
 use hyperpuzzlescript::*;
-use parking_lot::Mutex;
-
-use crate::builder::*;
-use crate::hps::{HpsAxisSystem, HpsPuzzle, HpsShape, HpsTwistSystem};
 
 pub struct NdEuclidPuzzleEngine;
 

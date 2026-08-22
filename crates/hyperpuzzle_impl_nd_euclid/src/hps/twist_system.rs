@@ -376,7 +376,7 @@ impl HpsTwistSystem {
         // TODO: allow indexing by numeric ID
         Ok(self.twist_from_name(span, index.as_ref::<str>()?)?.into())
     }
-    fn twist_from_name(&self, span: Span, name: &str) -> Result<Option<HpsTwist>> {
+    fn twist_from_name(&self, _span: Span, name: &str) -> Result<Option<HpsTwist>> {
         let Ok(Some(notation::Move {
             layers: LayerPrefix::DEFAULT,
             transform:

@@ -3,12 +3,10 @@ use hypergroup::{ConstraintSet, ExceededOrbitLimit, GroupElementId};
 use hypermath::pga::Motor;
 use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, Vector, VectorRef, approx_collections};
 use hyperpuzzle_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
-use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypershape::{Cut, Space};
 use hypuz_notation::{Move, Transform};
 use itertools::Itertools;
 
-use super::TwistSystemProduct;
 use crate::{NamedPointSet, StabilizerFamily, SymmetricTwistSystemComponent};
 
 pub fn build_3d_gizmo(

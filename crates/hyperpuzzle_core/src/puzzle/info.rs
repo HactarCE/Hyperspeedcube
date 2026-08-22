@@ -204,7 +204,7 @@ impl fmt::Display for PaletteColor {
             PaletteColor::Unknown => write!(f, "(unknown)"),
             PaletteColor::HexCode { rgb } => write!(f, "{rgb}"),
             PaletteColor::Single { name } => write!(f, "{name}"),
-            PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index),
+            PaletteColor::Set { set_name, index } => write!(f, "{set_name} [{index}]"),
             PaletteColor::Gradient {
                 gradient_name,
                 index,

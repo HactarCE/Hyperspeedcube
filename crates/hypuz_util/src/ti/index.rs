@@ -44,7 +44,6 @@ pub trait TypedIndex:
 
     /// Returns the index offset by a fixed amount, or an error if it does not
     /// fit.
-    #[must_use]
     fn offset_index(self, offset: usize) -> Result<Self, IndexOverflow> {
         // `saturating_add()` is ok because `MAX_INDEX < usize::MAX`
         Self::try_from_index(offset.saturating_add(self.to_index()))

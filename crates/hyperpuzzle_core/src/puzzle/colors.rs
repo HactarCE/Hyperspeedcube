@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 
 use super::*;
-use crate::{CatalogId, ComponentList, NameSpecBiMap};
+use crate::{CatalogId, ComponentList};
 
 /// System of sticker colors for a puzzle.
 #[derive(Debug, Clone)]

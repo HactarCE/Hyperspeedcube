@@ -229,7 +229,7 @@ impl Runtime {
         engine_name: &str,
         engine_name_span: Span,
     ) -> Result<Arc<dyn HpsEngine>> {
-        let opt = self.puzzle_engines.get(&*engine_name).cloned();
+        let opt = self.puzzle_engines.get(engine_name).cloned();
         opt.ok_or_else(|| {
             format!(
                 "unknown puzzle engine {engine_name:?}; supported engines: {:?}",
@@ -244,7 +244,7 @@ impl Runtime {
         engine_name: &str,
         engine_name_span: Span,
     ) -> Result<Arc<dyn HpsEngine>> {
-        let opt = self.twist_system_engines.get(&*engine_name).cloned();
+        let opt = self.twist_system_engines.get(engine_name).cloned();
         opt.ok_or_else(|| {
             format!(
                 "unknown twist system engine {engine_name:?}; supported engines: {:?}",

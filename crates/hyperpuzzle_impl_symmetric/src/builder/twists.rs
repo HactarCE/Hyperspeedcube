@@ -209,7 +209,7 @@ impl TwistSystemProduct {
     /// Constructs a product twist system builder with a single factor.
     pub fn new_factor(
         spec: &FactorTwistSystemSpec,
-        warn_fn: &mut impl FnMut(eyre::Report),
+        _warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
         let coxeter_mirrors;
         let group;
@@ -600,7 +600,7 @@ impl TwistSystemProduct {
         build_ctx: &BuildCtx,
         axis_names: &Names<Axis>,
         named_point_names: &Names<NamedPoint>,
-        warn_fn: &mut impl FnMut(eyre::Report),
+        _warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Vec<SymmetricTwistSystemAxisOrbit>> {
         let mut ret = vec![];
         for orbit in self.axis_orbits() {
@@ -665,8 +665,7 @@ impl TwistSystemProduct {
                     .wrap_err_with(|| {
                         format!(
                             "error calculating unit twist transform \
-                             for stabilizer twist {:?}",
-                            twist_name,
+                             for stabilizer twist {twist_name:?}",
                         )
                     })?;
                     build_ctx.pop_task();

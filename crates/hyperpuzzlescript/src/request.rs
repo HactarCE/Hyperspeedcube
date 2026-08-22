@@ -1,6 +1,6 @@
 use std::sync::{Arc, mpsc};
 
-use crate::{EvalCtx, FnValue, List, Map, Runtime, Scope, Span, Value};
+use crate::{EvalCtx, Runtime, Scope};
 
 /// Callback to execute with an HPS runtime.
 pub type EvalRequest = Box<dyn Send + FnOnce(&mut Runtime)>;

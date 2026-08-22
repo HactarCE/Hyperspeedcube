@@ -99,7 +99,7 @@ pub fn define_in(
                         .collect();
                     let callback = Arc::clone(&callback);
 
-                    let color_system_ref = Arc::clone(&color_system);
+                    let color_system_ref = Arc::clone(color_system);
                     let (new_default, new_schemes) =
                         tx.eval_blocking(Arc::new(scope), move |ctx| {
                             // IIFE to mimic try_block

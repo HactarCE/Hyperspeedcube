@@ -71,13 +71,13 @@ impl CatalogBuilder {
     /// This must be called manually for every individual puzzle and puzzle
     /// generator that should appear in the puzzle list.
     pub fn add_to_puzzle_list(&self, id: &CatalogId) {
-        self.puzzle_list.lock().push(id.clone())
+        self.puzzle_list.lock().push(id.clone());
     }
     /// Adds a puzzle generator to the puzzle list.
     ///
     /// Wrapper around [`Self::add_to_puzzle_list()`] for convenience.
     pub fn add_generator_to_puzzle_list(&self, id: &CatalogIdent) {
-        self.add_to_puzzle_list(&CatalogId::new(id.clone(), [], None))
+        self.add_to_puzzle_list(&CatalogId::new(id.clone(), [], None));
     }
 
     /// Creates a menu.

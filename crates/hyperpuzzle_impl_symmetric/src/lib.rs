@@ -44,9 +44,7 @@ const PRODUCT_GENERATOR_VERSION: Version = Version {
     patch: 0,
 };
 
-fn product_id<'a>(
-    mut factor_ids: impl ExactSizeIterator + Iterator<Item = &'a CatalogId>,
-) -> CatalogId {
+fn product_id<'a>(mut factor_ids: impl ExactSizeIterator<Item = &'a CatalogId>) -> CatalogId {
     if factor_ids.len() == 1 {
         return factor_ids.next().expect("bad iterator len").clone();
     }
@@ -60,7 +58,7 @@ fn product_id<'a>(
 }
 
 fn disjoint_union_id<'a>(
-    mut summand_ids: impl ExactSizeIterator + Iterator<Item = &'a CatalogId>,
+    mut summand_ids: impl ExactSizeIterator<Item = &'a CatalogId>,
 ) -> CatalogId {
     if summand_ids.len() == 1 {
         return summand_ids.next().expect("bad iterator len").clone();
@@ -302,7 +300,7 @@ fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
                     ColorSystemDisjointUnion::disjoint_union_identity(),
                     |a, b| a.disjoint_union(&ColorSystemDisjointUnion::from_factor_color_system(b)),
                 )?
-                .build(&build_ctx, &mut build_ctx.warn_fn())
+                .build()
         }),
     }))?;
 

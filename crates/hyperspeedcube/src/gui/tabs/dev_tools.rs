@@ -346,7 +346,7 @@ fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> 
 
     let color_name_kv_pairs =
         pad_to_common_length(color_system.names.list().iter_values().map(|s| {
-            let string_literal = hyperpuzzlescript::codegen::to_str_literal(&s);
+            let string_literal = hyperpuzzlescript::codegen::to_str_literal(s);
             format!(" name = {string_literal},")
         }));
     let default_color_kv_pairs =

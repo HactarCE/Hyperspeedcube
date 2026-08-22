@@ -2,7 +2,7 @@
 //! them.
 
 use std::any::{Any, TypeId};
-use std::collections::{BTreeMap, BTreeSet, HashMap, hash_map};
+use std::collections::{BTreeSet, HashMap, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -125,7 +125,7 @@ impl Catalog {
 
         // Make sure the generator exists before creating a cache entry
         let generator = match subcatalog.try_get_generator(&id.base) {
-            Ok(g) => Arc::clone(&g),
+            Ok(g) => Arc::clone(g),
             Err(e) => return (Request::new_error(id, e), None),
         };
 
@@ -136,7 +136,7 @@ impl Catalog {
 
         let (request, is_new) = subcatalog.request_cache_entry(self, id.clone());
 
-        let call_if_new = if is_new {
+        let call_if_new = is_new.then(|| {
             let RequestInner::Requested {
                 generic_request, ..
             } = &request.inner
@@ -153,7 +153,7 @@ impl Catalog {
                 parent_ids,
             }));
             let id = id.clone();
-            Some(Box::new(move || {
+            Box::new(move || {
                 // Generate
                 let mut result = match generator.canonicalize(build_ctx.id()) {
                     Some(canonicalized_id) => build_ctx.build_blocking(&canonicalized_id), // redirect
@@ -192,7 +192,7 @@ impl Catalog {
                             if let Err(e) = (hook.callback)(obj, wildcard_values) {
                                 (build_ctx.warn_fn())(
                                     e.wrap_err(format!("error in hook `{}`", hook.id_pattern)),
-                                )
+                                );
                             }
                             build_ctx.pop_task();
                         }
@@ -201,10 +201,8 @@ impl Catalog {
                 }
 
                 build_ctx.store_result(result);
-            }) as Box<dyn 'static + Send + FnOnce()>)
-        } else {
-            None
-        };
+            }) as Box<dyn 'static + Send + FnOnce()>
+        });
 
         (request, call_if_new)
     }
