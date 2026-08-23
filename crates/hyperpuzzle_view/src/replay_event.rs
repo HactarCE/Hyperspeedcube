@@ -26,8 +26,8 @@ pub enum ReplayEvent {
     GizmoClick {
         /// Event timestamp.
         time: Option<Timestamp>,
-        /// Layers affected by the twist.
-        layers: LayerMask,
+        /// Layer mask selected during the click.
+        layers: Option<LayerMask>,
         /// Gizmo target clicked on, which corresponds to a twist.
         target: String,
         /// Whether the twist should be executed in reverse.

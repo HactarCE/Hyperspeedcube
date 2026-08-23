@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use eyre::{OptionExt, Result, ensure};
+use eyre::{OptionExt, Result, ensure, eyre};
 use hypermath::prelude::*;
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
@@ -160,6 +160,25 @@ impl PuzzleBuilder {
 
         // Build twist gizmos.
         let gizmo_twists = super::gizmos::build_twist_gizmos(space, &mut mesh, &twists, warn_fn)?;
+        let gizmo_axes = Arc::new(gizmo_twists.try_map_ref(|_, mv| {
+            (twists.axis_from_family)(&mv.transform.family)
+                .ok_or_else(|| eyre!("missing axis for gizmo twist {mv:?}"))
+        })?);
+        // `&_` is required to work around https://github.com/rust-lang/rust/issues/58052
+        let get_gizmo_twist = Box::new(
+            move |gizmo_face: GizmoFace, layers: Option<LayerMask>, direction: Sign, _state: &_| {
+                let mut twist = gizmo_twists[gizmo_face].clone();
+                if let Some(l) = layers {
+                    twist.layers = l.into();
+                }
+                if direction == Sign::Neg
+                    && let Ok(inv_mult) = twist.multiplier.inv()
+                {
+                    twist.multiplier = inv_mult;
+                }
+                Some(twist)
+            },
+        );
 
         // Build vertex sets.
         let mut vertex_count = 0;
@@ -227,7 +246,8 @@ impl PuzzleBuilder {
             axis_vectors: twists.axes.components.get()?,
             axis_layer_depths,
 
-            gizmo_twists,
+            gizmo_axes,
+            get_gizmo_twist,
         });
 
         let twists_list = twists.components.get::<NdEuclidTwistsList>()?;

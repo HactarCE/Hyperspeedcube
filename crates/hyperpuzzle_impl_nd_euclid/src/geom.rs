@@ -1,5 +1,7 @@
+use std::fmt;
 use std::sync::Arc;
 
+use hypermath::Sign;
 use hypermath::{Float, Hyperplane, Point, VectorRef};
 use hyperpuzzle_core::Component;
 use hyperpuzzle_core::prelude::*;
@@ -8,7 +10,6 @@ use crate::PuzzleLayerDepths;
 use crate::components::NdEuclidAxisVectors;
 
 /// Geometry for an N-dimensional Euclidean puzzle.
-#[derive(Debug)]
 pub struct NdEuclidPuzzleGeometry {
     /// Flattened vertex coordinates.
     pub vertex_coordinates: Vec<Float>,
@@ -45,8 +46,20 @@ pub struct NdEuclidPuzzleGeometry {
     /// Top and bottom depths for each layer on each axis.
     pub axis_layer_depths: PerAxis<PuzzleLayerDepths>,
 
-    /// Twist for each face of a twist gizmo.
-    pub gizmo_twists: PerGizmoFace<Move>,
+    /// Axis for each twist gizmo face.
+    pub gizmo_axes: Arc<PerGizmoFace<Axis>>,
+    /// Function to compute the move to apply when a gizmo face is clicked.
+    pub get_gizmo_twist: Box<
+        dyn Send + Sync + Fn(GizmoFace, Option<LayerMask>, Sign, &dyn PuzzleState) -> Option<Move>,
+    >,
+}
+
+impl fmt::Debug for NdEuclidPuzzleGeometry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NdEuclidPuzzleGeometry")
+            .field("ndim", &self.ndim())
+            .finish_non_exhaustive()
+    }
 }
 
 impl Component<Puzzle> for NdEuclidPuzzleGeometry {}
@@ -65,7 +78,9 @@ impl NdEuclidPuzzleGeometry {
             mesh: Mesh::new_empty(3),
             axis_vectors: Arc::new(NdEuclidAxisVectors::new(3)),
             axis_layer_depths: PerAxis::new(),
-            gizmo_twists: PerGizmoFace::new(),
+
+            gizmo_axes: Arc::new(PerGizmoFace::new()),
+            get_gizmo_twist: Box::new(|_, _, _, _| None),
         }
     }
 

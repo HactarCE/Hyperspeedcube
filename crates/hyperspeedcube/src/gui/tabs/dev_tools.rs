@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
+use hypermath::Sign;
 use hyperprefs::Preferences;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
@@ -110,19 +111,25 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
             .components
             .get::<NdEuclidPuzzleGeometry>()
             .expect("expected NdEuclidPuzzleGeometry");
-        let mv = &geom.gizmo_twists[hov.gizmo_face];
 
         ui.label("");
         ui.strong("Gizmo twist");
-        info_line(ui, "Move", mv);
-        if let Some(axis) = (puz.twists.axis_from_family)(&mv.transform.family) {
-            if let Ok(name) = puz.axes().names.get(axis) {
-                info_line(ui, "Axis name", name);
+        let sim = view.sim.lock();
+        for sign in [Sign::Pos, Sign::Neg] {
+            if let Some(mv) = (geom.get_gizmo_twist)(hov.gizmo_face, None, sign, sim.puzzle()) {
+                info_line(ui, &format!("Move ({sign})"), mv);
             }
-            let layers_info = &puz.axis_layers[axis];
-            info_line(ui, "Max layer", layers_info.max_layer);
-            info_line(ui, "Allow negatives?", layers_info.allow_negatives);
         }
+        drop(sim);
+
+        let axis = geom.gizmo_axes[hov.gizmo_face];
+        info_line(ui, "Axis", axis);
+        if let Ok(name) = puz.axes().names.get(axis) {
+            info_line(ui, "Axis name", name);
+        }
+        let layers_info = &puz.axis_layers[axis];
+        info_line(ui, "Max layer", layers_info.max_layer);
+        info_line(ui, "Allow negatives?", layers_info.allow_negatives);
     }
 }
 

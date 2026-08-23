@@ -621,11 +621,8 @@ fn show_gizmo_face(
     let stroke_strong = egui::Stroke::new(2.0, strong_color);
     let fill = weak_color;
 
-    let twist = &geom.gizmo_twists[gizmo_face];
-    let axis = (puzzle.twists.axis_from_family)(&twist.transform.family);
-    let other_faces_on_same_gizmo = geom.gizmo_twists.iter_filter(|_gizmo_face, twist| {
-        (puzzle.twists.axis_from_family)(&twist.transform.family) == axis
-    });
+    let axis = geom.gizmo_axes[gizmo_face];
+    let other_faces_on_same_gizmo = geom.gizmo_axes.iter_filter(|_gizmo_face, &ax| ax == axis);
 
     if show_other_faces_on_same_gizmo {
         for face in other_faces_on_same_gizmo {
@@ -825,9 +822,7 @@ fn show_nd_euclid_puzzle_view(
             layers |= LayerMask::from_layer(layer);
         }
     }
-    if layers == LayerMask::EMPTY {
-        layers.insert(Layer::SHALLOWEST);
-    }
+    let layers = (layers != LayerMask::EMPTY).then_some(layers);
 
     enum Action {
         None,
@@ -961,18 +956,16 @@ fn show_nd_euclid_puzzle_view(
     );
     if let Some(gizmo_vertex_3d_positions) = nd_euclid.renderer.gizmo_vertex_3d_positions.get() {
         if let Some(axis) = temp_gizmo_highlight {
-            for (gizmo_face, twist) in &geom.gizmo_twists {
-                if (puzzle.twists.axis_from_family)(&twist.transform.family) == Some(axis) {
-                    show_gizmo_face(
-                        &puzzle,
-                        &geom,
-                        gizmo_face,
-                        &gizmo_vertex_3d_positions,
-                        &gizmo_painter,
-                        to_egui,
-                        false,
-                    );
-                }
+            for gizmo_face in geom.gizmo_axes.iter_filter(|_, &ax| ax == axis) {
+                show_gizmo_face(
+                    &puzzle,
+                    &geom,
+                    gizmo_face,
+                    &gizmo_vertex_3d_positions,
+                    &gizmo_painter,
+                    to_egui,
+                    false,
+                );
             }
         } else if let Some(hover) = &nd_euclid.gizmo_hover_state().filter(|_| show_gizmo_hover) {
             show_gizmo_face(

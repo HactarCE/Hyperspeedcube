@@ -333,18 +333,21 @@ impl NdEuclidViewState {
     }
 
     /// Applies a twist to the puzzle based on the current mouse position.
-    pub fn do_click_twist(&self, sim: &mut PuzzleSimulation, layers: LayerMask, direction: Sign) {
+    pub fn do_click_twist(
+        &self,
+        sim: &mut PuzzleSimulation,
+        layers: Option<LayerMask>,
+        direction: Sign,
+    ) {
         if let Some(hov) = &self.gizmo_hover_state {
-            let Ok(mut twist) = self.geom.gizmo_twists.get(hov.gizmo_face).cloned() else {
+            let Some(twist) = (self.geom.get_gizmo_twist)(
+                hov.gizmo_face,
+                layers.clone(),
+                direction,
+                sim.puzzle(),
+            ) else {
                 return;
             };
-
-            twist.layers = LayerPrefix::from(&layers);
-            if direction == Sign::Neg
-                && let Ok(inv_mult) = twist.multiplier.inv()
-            {
-                twist.multiplier = inv_mult;
-            }
 
             sim.do_event(ReplayEvent::GizmoClick {
                 time: Some(hyperpuzzle::Timestamp::now()),
@@ -371,11 +374,9 @@ impl NdEuclidViewState {
         reverse: bool,
         anti: bool,
     ) {
-        let puzzle = sim.puzzle_type();
         let target_vector = if gizmo
             && let Some(hov) = self.gizmo_hover_state
-            && let Ok(mv) = self.geom.gizmo_twists.get(hov.gizmo_face)
-            && let Some(axis) = (puzzle.twists.axis_from_family)(&mv.transform.family)
+            && let Ok(&axis) = self.geom.gizmo_axes.get(hov.gizmo_face)
             && let Ok(axis_vector) = self.geom.axis_vectors.vectors_by_id.get(axis)
         {
             axis_vector.clone()

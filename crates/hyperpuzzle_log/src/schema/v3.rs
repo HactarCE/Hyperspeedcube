@@ -300,8 +300,8 @@ pub enum LogEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         time: Option<Timestamp>,
         /// Layer mask gripped.
-        #[kdl(property("layers"), proxy = KdlProxy)]
-        layers: LayerMask,
+        #[kdl(property("layers"), optional, proxy = KdlProxy)]
+        layers: Option<LayerMask>,
         /// String identifier for the area clicked.
         #[kdl(property("target"))]
         target: String,

@@ -339,6 +339,25 @@ impl PuzzleProduct {
                 .wrap_err("error building 4D gizmos")?;
             }
         }
+        let gizmo_axes = Arc::new(gizmo_twists.try_map_ref(|_, mv| {
+            (twists.axis_from_family)(&mv.transform.family)
+                .ok_or_else(|| eyre!("missing axis for gizmo twist {mv:?}"))
+        })?);
+        // `&_` is required to work around https://github.com/rust-lang/rust/issues/58052
+        let get_gizmo_twist = Box::new(
+            move |gizmo_face: GizmoFace, layers: Option<LayerMask>, direction: Sign, _state: &_| {
+                let mut twist = gizmo_twists[gizmo_face].clone();
+                if let Some(l) = layers {
+                    twist.layers = l.into();
+                }
+                if direction == Sign::Neg
+                    && let Ok(inv_mult) = twist.multiplier.inv()
+                {
+                    twist.multiplier = inv_mult;
+                }
+                Some(twist)
+            },
+        );
 
         let (planes, sticker_planes) = shape.build_sticker_planes();
 
@@ -355,7 +374,8 @@ impl PuzzleProduct {
             axis_vectors: twists.axes.components.get()?,
             axis_layer_depths: PerAxis::new(), // TODO: is this needed?
 
-            gizmo_twists,
+            gizmo_axes,
+            get_gizmo_twist,
         });
 
         let random_move = Box::new({
