@@ -55,7 +55,7 @@ pub fn define_in(
         /// - `default: Str?` — Name of the default color scheme
         #[kwargs(kwargs)]
         fn add_color_system(ctx: EvalCtx) -> () {
-            let hps_gen = super::generators::hps_generator_from_kwargs(kwargs)?;
+            let hps_gen = super::generators::hps_generator_from_kwargs(ctx, kwargs)?;
             let caller_span = ctx.caller_span;
             cat.add(hps_gen.make_generator(&tx, move |build_ctx, tx, kwargs| {
                 Ok(tx.eval_blocking_raw(move |runtime| {

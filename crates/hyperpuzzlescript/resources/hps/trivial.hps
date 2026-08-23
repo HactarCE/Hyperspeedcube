@@ -1,7 +1,7 @@
 use * from euclid
 
 add_puzzle(
-    id = "test_puzzle",
+    id = "test_puzzle@0",
     name = "Test Puzzle",
     engine = "symmetric",
     ndim = 3,

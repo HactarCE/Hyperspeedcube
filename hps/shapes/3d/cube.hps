@@ -44,7 +44,7 @@ western_color_scheme = #{
 }
 
 add_color_system(
-    id = "cube",
+    id = "cube@1",
     name = "Cube",
     schemes = #{
         Western = western_color_scheme,

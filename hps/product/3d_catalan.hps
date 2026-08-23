@@ -27,7 +27,7 @@ add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron|Big Kahuna",    
 //-------------------- //
 
 add_twist_system(
-    id = "rhombic_dodecahedron_ft",
+    id = "rhombic_dodecahedron_ft@0",
     name = "FT Rhombic Dodecahedron",
     engine = "symmetric",
     ndim = 3,
@@ -41,7 +41,7 @@ add_twist_system(
 )
 
 add_puzzle(
-    id = "rhombic_dodecahedron",
+    id = "rhombic_dodecahedron@1",
     name = "Rhombic Dodecahedron",
     engine = "symmetric",
     ndim = 3,
@@ -69,19 +69,19 @@ fn def_rhombic_dodecahedron(cut_depths, **kwargs) {
         **kwargs,
     )
 }
-def_rhombic_dodecahedron([2/3], id = "rhombic_dodecahedron_ft_1", name = ["FT Rhombic Dodecahedron 1", "Tahi", "Canon-Cut FT Rhombic Dodecahedron"])
-def_rhombic_dodecahedron([1/2], id = "rhombic_dodecahedron_ft_2", name = ["FT Rhombic Dodecahedron 2", "Rua"])
-def_rhombic_dodecahedron([2/5], id = "rhombic_dodecahedron_ft_3", name = ["FT Rhombic Dodecahedron 3"])
-def_rhombic_dodecahedron([1/3], id = "rhombic_dodecahedron_ft_4", name = ["FT Rhombic Dodecahedron 4", "Toru"])
-def_rhombic_dodecahedron([1/4], id = "rhombic_dodecahedron_ft_5", name = ["FT Rhombic Dodecahedron 5"])
-def_rhombic_dodecahedron([0],   id = "rhombic_dodecahedron_ft_6", name = ["FT Rhombic Dodecahedron 6", "Rhombic Dodecahedron Chop", "Half-Cut FT Rhombic Dodecahedron"])
+def_rhombic_dodecahedron([2/3], id = "rhombic_dodecahedron_ft_1@0", name = ["FT Rhombic Dodecahedron 1", "Tahi", "Canon-Cut FT Rhombic Dodecahedron"])
+def_rhombic_dodecahedron([1/2], id = "rhombic_dodecahedron_ft_2@0", name = ["FT Rhombic Dodecahedron 2", "Rua"])
+def_rhombic_dodecahedron([2/5], id = "rhombic_dodecahedron_ft_3@0", name = ["FT Rhombic Dodecahedron 3"])
+def_rhombic_dodecahedron([1/3], id = "rhombic_dodecahedron_ft_4@0", name = ["FT Rhombic Dodecahedron 4", "Toru"])
+def_rhombic_dodecahedron([1/4], id = "rhombic_dodecahedron_ft_5@0", name = ["FT Rhombic Dodecahedron 5"])
+def_rhombic_dodecahedron([0],   id = "rhombic_dodecahedron_ft_6@0", name = ["FT Rhombic Dodecahedron 6", "Rhombic Dodecahedron Chop", "Half-Cut FT Rhombic Dodecahedron"])
 
 //------------------------ //
 // Rhombic Triacontahedron //
 //------------------------ //
 
 add_twist_system(
-    id = "rhombic_triacontahedron_ft",
+    id = "rhombic_triacontahedron_ft@0",
     name = "FT Rhombic Triacontahedron",
     engine = "symmetric",
     ndim = 3,
@@ -95,7 +95,7 @@ add_twist_system(
 )
 
 add_puzzle(
-    id = "rhombic_triacontahedron",
+    id = "rhombic_triacontahedron@1",
     name = "Rhombic Triacontahedron",
     engine = "symmetric",
     ndim = 3,
@@ -125,13 +125,13 @@ fn def_rhombic_triacontahedron(cut_depths, **kwargs) {
     )
 }
 
-def_rhombic_triacontahedron([1-(1-1/φ)/3], id = "rhombic_triacontahedron_ft_canon", name = ["Canon-Cut FT Rhombic Triacontahedron"]) // TODO: cut deeper to avoid floating pieces when jumbling
-def_rhombic_triacontahedron([1-(1-1/φ)/2], id = "rhombic_triacontahedron_ft_adj", name = ["Adjacent-Cut FT Rhombic Triacontahedron"])
+def_rhombic_triacontahedron([1-(1-1/φ)/3], id = "rhombic_triacontahedron_ft_canon@0", name = ["Canon-Cut FT Rhombic Triacontahedron"]) // TODO: cut deeper to avoid floating pieces when jumbling
+def_rhombic_triacontahedron([1-(1-1/φ)/2], id = "rhombic_triacontahedron_ft_adj@0", name = ["Adjacent-Cut FT Rhombic Triacontahedron"])
 // d = (2*φ+4) / ((8*φ+6) - (4*φ+3)/√(3*φ+2) - √(4*φ^2 + 11*φ + 6)) // sweet spot, no mechanism due to zero-area corner stalk
 // d = 3/4 // looks good, but piece overhangs
 // sweet spot near 0.723, but piece overhangs
-def_rhombic_triacontahedron([0.675], id = "golden_ratio_labyrinth", name = "Golden Ratio Labyrinth")
-def_rhombic_triacontahedron([1/φ], id = "big_kahuna", name = "Big Kahuna")
+def_rhombic_triacontahedron([0.675], id = "golden_ratio_labyrinth@0", name = "Golden Ratio Labyrinth")
+def_rhombic_triacontahedron([1/φ], id = "big_kahuna@0", name = "Big Kahuna")
 // d = 0.55
 // d = 0.5 // sweet spot
 // def_rhombic_triacontahedron([0.5], id = "rhombic_triacontahedron_ft_new", name = "FT Rhombic Triacontahedron (New)") // sweet spot

@@ -205,7 +205,7 @@ impl BuildCtx {
 /// Object generator.
 pub struct Generator<T> {
     /// Catalog ID without any parameters or subset.
-    pub id: CatalogIdent,
+    pub id: VersionedCatalogWord,
     /// Parameter types, ranges, and defaults.
     pub params: Vec<GeneratorParam>,
     /// Subset parameter, if any.
@@ -244,7 +244,7 @@ impl<T: CatalogObject> fmt::Display for Generator<T> {
 impl<T: CatalogObject> Generator<T> {
     /// Constructs a generator that takes no parameters.
     pub fn new_constant(
-        id: CatalogIdent,
+        id: VersionedCatalogWord,
         generate: impl 'static + Send + Sync + Fn(BuildCtx) -> Result<Arc<T>>,
     ) -> Self {
         Self {
@@ -283,15 +283,15 @@ impl<T: CatalogObject> Generator<T> {
         }
 
         // Check arguments
-        if id.args.is_empty() && self.validation.allow_empty {
+        if id.args().is_empty() && self.validation.allow_empty {
             // ok
         } else {
             let expected = self.params.len();
-            let got = id.args.len();
+            let got = id.args().len();
             if expected != got {
                 bail!("{self} requires {expected} params; got {got}");
             }
-            for (i, (param, arg)) in std::iter::zip(&self.params, &id.args).enumerate() {
+            for (i, (param, arg)) in std::iter::zip(&self.params, id.args()).enumerate() {
                 param
                     .typed_value(arg.clone())
                     .with_context(|| format!("bad value for param at index {i} for {self}"))?;
@@ -301,39 +301,42 @@ impl<T: CatalogObject> Generator<T> {
         Ok(())
     }
 
-    /// Canonicalizes the ID, or returns `None` if the ID is already canonical.
+    /// Canonicalizes the ID according to the generator.
     ///
     /// This method is idempotent.
     #[must_use]
-    pub fn canonicalize(&self, id: &CatalogId) -> Option<CatalogId> {
+    pub fn canonicalize(&self, mut id: CatalogId) -> CatalogId {
+        // Canonicalize empty argument list
+        if id.args().is_empty() {
+            id.args = None;
+        }
+
+        // Set version number
+        id.base.version = self.id.version;
+
         // Remove subset if default
         if let Some(subset_param) = &self.subset_param
-            && id.subset.is_some()
             && id.subset == subset_param.default
         {
-            Some(CatalogId {
-                base: id.base.clone(),
-                args: id.args.clone(),
-                subset: None,
-            })
-        } else {
-            None
+            id.subset = subset_param.default.clone();
         }
+
+        id
     }
 
     /// Returns the ID of some default value for this generator.
     pub fn default_id(&self) -> CatalogId {
-        CatalogId {
-            base: self.id.clone(),
-            args: self.params.iter().map(|p| p.default.clone()).collect(),
-            subset: match &self.subset_param {
+        CatalogId::new(
+            self.id.clone(),
+            self.params.iter().map(|p| p.default.clone()),
+            match &self.subset_param {
                 Some(subsets) => match &subsets.default {
                     Some(default_id) => Some(default_id.clone()),
                     None => subsets.options.first().map(|option| option.id.clone()),
                 },
                 None => None,
             },
-        }
+        )
     }
 }
 
@@ -350,18 +353,18 @@ pub struct GeneratorSubsetParam {
     pub options: Vec<GeneratorSubsetParamValue>,
     /// Default subset to use when constructing the object, in case the ID does
     /// not specify.
-    pub default: Option<CatalogIdent>,
+    pub default: Option<CatalogWord>,
     /// Maximal subset, if there is an unambiguous answer. This is sometimes
     /// used as the default subset, such as when constructing one factor of a
     /// product puzzle.
-    pub maximal: Option<CatalogIdent>,
+    pub maximal: Option<CatalogWord>,
 }
 
 /// Allowed value for the subset parameter of a [`Generator`].
 #[derive(Debug, Clone)]
 pub struct GeneratorSubsetParamValue {
     /// ID suffix for the subset. Typically `rot` or `refle`.
-    pub id: CatalogIdent,
+    pub id: CatalogWord,
     /// Word to prepend to the name, with a space. Typically `Rot ` or `Refle `.
     pub name_prefix: String,
 }

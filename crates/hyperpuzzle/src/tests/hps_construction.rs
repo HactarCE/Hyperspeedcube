@@ -134,7 +134,7 @@ fn puzzles_in_list(catalog: &Catalog) -> Vec<Arc<PuzzleListEntry>> {
         .puzzle_list
         .iter()
         .map(|entry| {
-            if let Some(g) = catalog.get_generator::<Puzzle>(&entry.id.base)
+            if let Some(g) = catalog.get_versioned_generator::<Puzzle>(&entry.id.base)
                 && !g.params.is_empty()
                 && let Ok(list_entry) = catalog.build_blocking::<PuzzleListEntry>(&g.default_id())
             {

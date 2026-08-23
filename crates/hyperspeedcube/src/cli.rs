@@ -103,7 +103,8 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
             // Filter by type
             if !all {
                 entries.retain(|meta| {
-                    let Some(generator) = catalog.get_generator::<PuzzleListEntry>(&meta.id.base)
+                    let Some(generator) =
+                        catalog.get_versioned_generator::<PuzzleListEntry>(&meta.id.base)
                     else {
                         log::warn!(
                             "puzzle list entry {} has no corresponding generator",

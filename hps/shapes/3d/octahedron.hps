@@ -29,7 +29,9 @@ export fn new(t: Transform) -> Map {
     }]
 }
 
-add_color_system(id = "octahedron", name = "Octahedron",
+add_color_system(
+    id = "octahedron@1",
+    name = "Octahedron",
     default_scheme = "Diansheng",
     schemes = #{
         "Lanlan" = #{

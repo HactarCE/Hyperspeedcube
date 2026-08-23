@@ -25,8 +25,9 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use hyperpuzzle_core::{
-    BuildCtx, CatalogBuilder, CatalogIdent, CatalogObject, Generator, GeneratorParam,
+    BuildCtx, CatalogBuilder, CatalogObject, CatalogWord, Generator, GeneratorParam,
     GeneratorParamValidation, GeneratorSubsetParam, TypedCatalogIdValue,
+    catalog::VersionedCatalogWord,
 };
 use itertools::Itertools;
 
@@ -113,7 +114,7 @@ pub trait HpsEngine: Send + Sync {
 /// construct puzzles, twist systems, etc.
 #[derive(Debug, Clone)]
 pub struct HpsGenerator {
-    pub id: CatalogIdent,
+    pub id: VersionedCatalogWord,
     /// Name and aliases. This may be empty.
     pub names: Vec<String>,
     pub kwargs: Map,
@@ -157,9 +158,9 @@ impl HpsGenerator {
             validation,
             generate: Box::new(move |build_ctx| {
                 if let Some(g) = &g
-                    && !build_ctx.id().args.is_empty()
+                    && !build_ctx.id().args().is_empty()
                 {
-                    let mut args: Vec<Value> = std::iter::zip(&g.params, &build_ctx.id().args)
+                    let mut args: Vec<Value> = std::iter::zip(&g.params, build_ctx.id().args())
                         .map(|(param, arg)| param.typed_value(arg.clone()))
                         .map_ok(|v| param_value_into_hps(&v))
                         .try_collect()?;
@@ -229,7 +230,7 @@ impl HpsGenerator {
             eval_tx,
             GeneratorParamValidation { allow_empty: true },
             move |build_ctx, tx, kwargs| {
-                if build_ctx.id().args.is_empty() {
+                if build_ctx.id().args().is_empty() {
                     Ok(Arc::clone(&default))
                 } else {
                     generate(build_ctx, tx, kwargs)

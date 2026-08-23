@@ -19,7 +19,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "600cell",
+    id = "600cell@1",
     name = "600-Cell",
     colors = #{
         ODLOFOIOL = "Rainbow [0/600]",

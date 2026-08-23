@@ -84,17 +84,17 @@ fn add_basic_shape(shape_file, **kwargs) {
     )
 }
 
-add_basic_shape(@shapes/3d/tetrahedron,  id = "tetrahedron",  name = ["Tetrahedron", "3-Simplex"])
-add_basic_shape(@shapes/3d/cube,         id = "cube",         name = ["Cube", "3-Cube", "Hexahedron", "1x1x1", "1^3"])
-add_basic_shape(@shapes/3d/octahedron,   id = "octahedron",   name = ["Octahedron", "3-Orthoplex"])
-add_basic_shape(@shapes/3d/dodecahedron, id = "dodecahedron", name = "Dodecahedron")
-add_basic_shape(@shapes/3d/icosahedron,  id = "icosahedron",  name = "Icosahedron")
+add_basic_shape(@shapes/3d/tetrahedron,  id = "tetrahedron@1",  name = ["Tetrahedron", "3-Simplex"])
+add_basic_shape(@shapes/3d/cube,         id = "cube@1",         name = ["Cube", "3-Cube", "Hexahedron", "1x1x1", "1^3"])
+add_basic_shape(@shapes/3d/octahedron,   id = "octahedron@1",   name = ["Octahedron", "3-Orthoplex"])
+add_basic_shape(@shapes/3d/dodecahedron, id = "dodecahedron@1", name = "Dodecahedron")
+add_basic_shape(@shapes/3d/icosahedron,  id = "icosahedron@1",  name = "Icosahedron")
 
 //---------------//
 // Twist systems //
 //---------------//
 
-add_twist_system(id = "tetrahedron_fvt", name = "FT/VT Tetrahedron",
+add_twist_system(id = "tetrahedron_fvt@1", name = "FT/VT Tetrahedron",
     engine = "symmetric",
     ndim = 3,
     build = fn() {
@@ -115,7 +115,7 @@ add_twist_system(id = "tetrahedron_fvt", name = "FT/VT Tetrahedron",
     },
 )
 
-add_twist_system(id = "cube_ft", name = "FT Cube",
+add_twist_system(id = "cube_ft@1", name = "FT Cube",
     engine = "symmetric",
     ndim = 3,
     build = fn() {
@@ -134,7 +134,7 @@ add_twist_system(id = "cube_ft", name = "FT Cube",
     },
 )
 
-add_twist_system(id = "octahedron_ft", name = "FT Octahedron",
+add_twist_system(id = "octahedron_ft@1", name = "FT Octahedron",
     engine = "symmetric",
     ndim = 3,
     build = fn() {
@@ -155,7 +155,7 @@ add_twist_system(id = "octahedron_ft", name = "FT Octahedron",
     },
 )
 
-add_twist_system(id = "dodecahedron_ft", name = "FT Dodecahedron",
+add_twist_system(id = "dodecahedron_ft@1", name = "FT Dodecahedron",
     engine = "symmetric",
     ndim = 3,
     build = fn() {
@@ -176,7 +176,7 @@ add_twist_system(id = "dodecahedron_ft", name = "FT Dodecahedron",
     },
 )
 
-add_twist_system(id = "icosahedron_ft", name = "FT Icosahedron",
+add_twist_system(id = "icosahedron_ft@0", name = "FT Icosahedron",
     engine = "symmetric",
     ndim = 3,
     build = fn() {
@@ -206,7 +206,7 @@ add_twist_system(id = "icosahedron_ft", name = "FT Icosahedron",
 //---------------------//
 
 add_puzzle_list_entry("tetrahedron_a(1)")
-add_puzzle(id = "tetrahedron_a", name = "Tetrahedron A Generator",
+add_puzzle(id = "tetrahedron_a@1", name = "Tetrahedron A Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -227,7 +227,7 @@ add_puzzle(id = "tetrahedron_a", name = "Tetrahedron A Generator",
     }
 )
 
-add_puzzle(id = "tetrahedron_b", name = ["Tetrahedron B", "Tetraminx"],
+add_puzzle(id = "tetrahedron_b@1", name = ["Tetrahedron B", "Tetraminx"],
     keywords = "FT/VT",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
@@ -245,7 +245,7 @@ add_puzzle(id = "tetrahedron_b", name = ["Tetrahedron B", "Tetraminx"],
 
 add_puzzle_list_entry("tetrahedron_c(1)")
 add_puzzle_list_entry("tetrahedron_c(4)")
-add_puzzle(id = "tetrahedron_c", name = ["Tetrahedron C Generator", "Shallow-Cut FT/VT Tetrahedron Generator"],
+add_puzzle(id = "tetrahedron_c@1", name = ["Tetrahedron C Generator", "Shallow-Cut FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -279,7 +279,7 @@ add_puzzle(id = "tetrahedron_c", name = ["Tetrahedron C Generator", "Shallow-Cut
 )
 
 add_puzzle_list_entry("pyraminx(3)")
-add_puzzle(id = "pyraminx", name = ["Pyraminx Generator", "Layered FT/VT Tetrahedron Generator"],
+add_puzzle(id = "pyraminx@1", name = ["Pyraminx Generator", "Layered FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -313,7 +313,7 @@ add_puzzle_list_entry("cube_ft(4)")
 add_puzzle_list_entry("cube_ft(5)")
 add_puzzle_list_entry("cube_ft(6)")
 add_puzzle_list_entry("cube_ft(7)")
-add_puzzle(id = "cube_ft", name = ["FT Cube Generator", "NxNxN Generator", "n^3 Generator", "Rubik's Cube Generator"],
+add_puzzle(id = "cube_ft@1", name = ["FT Cube Generator", "NxNxN Generator", "n^3 Generator", "Rubik's Cube Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -342,7 +342,7 @@ add_puzzle(id = "cube_ft", name = ["FT Cube Generator", "NxNxN Generator", "n^3 
 
 add_puzzle_list_entry("octahedron_ft_adj(2)")
 add_puzzle_list_entry("octahedron_ft_adj(3)")
-add_puzzle(id = "octahedron_ft_adj", name = "Adjacent-Cut FT Octahedron Generator",
+add_puzzle(id = "octahedron_ft_adj@1", name = "Adjacent-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -365,7 +365,7 @@ add_puzzle(id = "octahedron_ft_adj", name = "Adjacent-Cut FT Octahedron Generato
 )
 
 add_puzzle_list_entry("octahedron_ft_shallow(1)")
-add_puzzle(id = "octahedron_ft_shallow", name = "Shallow-Cut FT Octahedron Generator",
+add_puzzle(id = "octahedron_ft_shallow@1", name = "Shallow-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet", "Luna Harran"] },
     engine = "symmetric",
     ndim = 3,
@@ -400,7 +400,7 @@ add_puzzle_list_entry("megaminx(7)")
 add_puzzle_list_entry("megaminx(8)")
 add_puzzle_list_entry("megaminx(9)")
 add_puzzle_list_entry("megaminx(10)")
-add_puzzle(id = "megaminx", name = ["Shallow-Cut FT Docedahedron Generator", "Megaminx Generator"],
+add_puzzle(id = "megaminx@1", name = ["Shallow-Cut FT Docedahedron Generator", "Megaminx Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -424,7 +424,7 @@ add_puzzle(id = "megaminx", name = ["Shallow-Cut FT Docedahedron Generator", "Me
     }
 )
 
-add_puzzle(id = "megaminx_crystal", name = "Megaminx Crystal",
+add_puzzle(id = "megaminx_crystal@1", name = "Megaminx Crystal",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -438,7 +438,7 @@ add_puzzle(id = "megaminx_crystal", name = "Megaminx Crystal",
     },
 )
 
-add_puzzle(id = "pyraminx_crystal", name = ["Pyraminx Crystal", "Adjacent-Cut FT Dodecahedron"],
+add_puzzle(id = "pyraminx_crystal@1", name = ["Pyraminx Crystal", "Adjacent-Cut FT Dodecahedron"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -452,7 +452,7 @@ add_puzzle(id = "pyraminx_crystal", name = ["Pyraminx Crystal", "Adjacent-Cut FT
 )
 
 add_puzzle_list_entry("curvy_starminx(1)")
-add_puzzle(id = "curvy_starminx", name = "Curvy Starminx Generator",
+add_puzzle(id = "curvy_starminx@1", name = "Curvy Starminx Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -470,7 +470,7 @@ add_puzzle(id = "curvy_starminx", name = "Curvy Starminx Generator",
     }
 )
 
-add_puzzle(id = "starminx", name = "Starminx",
+add_puzzle(id = "starminx@1", name = "Starminx",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -488,7 +488,7 @@ add_puzzle_list_entry("pentultimate(3)")
 add_puzzle_list_entry("pentultimate(4)")
 add_puzzle_list_entry("pentultimate(5)")
 add_puzzle_list_entry("pentultimate(7)")
-add_puzzle(id = "pentultimate", name = "Pentultimate Generator",
+add_puzzle(id = "pentultimate@1", name = "Pentultimate Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -535,106 +535,106 @@ use RADIO_2, RADIO_3, RADIO_4, RADIO_5, RADIO_7, RADIO_8, RADIO_11, RADIO_12, RA
 diff = 0.08
 def_ft_icosahedron(
     [RADIO_4+diff, RADIO_4],
-    id = "eitans_nebula", name = "Eitan's Nebula",
+    id = "eitans_nebula@0", name = "Eitan's Nebula",
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 
 galaxy = √((6/(47 + 21*√5)) + ((3*√3 - √15)/2)^2)
 def_ft_icosahedron(
     [galaxy, RADIO_7],
-    id = "eitans_galaxy", name = "Eitan's Galaxy",
+    id = "eitans_galaxy@0", name = "Eitan's Galaxy",
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 
 // TODO: Radio 1 needs piece deletion
 // def_ft_icosahedron(
 //     0.8,
-//     id = "radio_1", name = ["Radiolarian 1"],
+//     id = "radio_1@0", name = ["Radiolarian 1"],
 //     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 // )
 def_ft_icosahedron(
     [7/9],
-    id = "radio_1_5", name = ["Radiolarian 1.5", "FT Icosahedron 1.5", "Shallow-Cut FT Icosahedron", "Radio Canon", "Canon-Cut Icosahedron"],
+    id = "radio_1_5@0", name = ["Radiolarian 1.5", "FT Icosahedron 1.5", "Shallow-Cut FT Icosahedron", "Radio Canon", "Canon-Cut Icosahedron"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [1 - (1-RADIO_4)*2/3],
-    id = "radio_2", name = ["Radiolarian 2", "FT Icosahedron 2", "Adjacent-Cut FT Icosahedron", "Circo-Radiolarian"],
+    id = "radio_2@0", name = ["Radiolarian 2", "FT Icosahedron 2", "Adjacent-Cut FT Icosahedron", "Circo-Radiolarian"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [1 - (1-RADIO_4)*4/5],
-    id = "radio_3", name = ["Radiolarian 3", "FT Icosahedron 3"],
+    id = "radio_3@0", name = ["Radiolarian 3", "FT Icosahedron 3"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_4],
-    id = "radio_4", name = ["Radiolarian 4", "FT Icosahedron 4", "Eitan's Star", "DeFTI"],
+    id = "radio_4@0", name = ["Radiolarian 4", "FT Icosahedron 4", "Eitan's Star", "DeFTI"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [lerp(RADIO_4, RADIO_5, 3/5)],
-    id = "radio_4_5", name = ["Radiolarian 4.5", "FT Icosahedron 4.5"],
+    id = "radio_4_5@0", name = ["Radiolarian 4.5", "FT Icosahedron 4.5"],
     tags = #{ author = "Andrew Farkas" },
 )
 def_ft_icosahedron(
     [RADIO_5],
-    id = "radio_5", name = ["Radiolarian 5", "FT Icosahedron 5", "Cat's Cradle"],
+    id = "radio_5@0", name = ["Radiolarian 5", "FT Icosahedron 5", "Cat's Cradle"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_7 + 0.02],
-    id = "radio_6", name = ["Radiolarian 6", "FT Icosahedron 6", "Radio Web"],
+    id = "radio_6@0", name = ["Radiolarian 6", "FT Icosahedron 6", "Radio Web"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_7],
-    id = "radio_7", name = ["Radiolarian 7", "FT Icosahedron 7", "Radio Jewel"],
+    id = "radio_7@0", name = ["Radiolarian 7", "FT Icosahedron 7", "Radio Jewel"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_7 - 0.06],
-    id = "radio_8", name = ["Radiolarian 8", "FT Icosahedron 8", "Radio Jam"],
+    id = "radio_8@0", name = ["Radiolarian 8", "FT Icosahedron 8", "Radio Jam"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [1/3 + 0.03],
-    id = "radio_8_5", name = ["Radiolarian 8.5", "FT Icosahedron 8.5"],
+    id = "radio_8_5@0", name = ["Radiolarian 8.5", "FT Icosahedron 8.5"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
     tags = #{ author = "Andrew Farkas" },
 )
 def_ft_icosahedron(
     [1/3],
-    id = "radio_9", name = ["Radiolarian 9", "FT Icosahedron 9", "Radio Crystal"],
+    id = "radio_9@0", name = ["Radiolarian 9", "FT Icosahedron 9", "Radio Crystal"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [1/3 - 0.05],
-    id = "radio_10", name = ["Radiolarian 10", "FT Icosahedron 10", "Radio Nova"],
+    id = "radio_10@0", name = ["Radiolarian 10", "FT Icosahedron 10", "Radio Nova"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_11],
-    id = "radio_11", name = ["Radiolarian 11", "FT Icosahedron 11", "Radio Star"],
+    id = "radio_11@0", name = ["Radiolarian 11", "FT Icosahedron 11", "Radio Star"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_12],
-    id = "radio_12", name = ["Radiolarian 12", "FT Icosahedron 12", "Radio Nebula"],
+    id = "radio_12@0", name = ["Radiolarian 12", "FT Icosahedron 12", "Radio Nebula"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [RADIO_13],
-    id = "radio_13", name = ["Radiolarian 13", "FT Icosahedron 13", "Radio Gem"],
+    id = "radio_13@0", name = ["Radiolarian 13", "FT Icosahedron 13", "Radio Gem"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [0.05],
-    id = "radio_14", name = ["Radiolarian 14", "FT Icosahedron 14", "Astral FT Icosahedron", "Radio Fathom"],
+    id = "radio_14@0", name = ["Radiolarian 14", "FT Icosahedron 14", "Astral FT Icosahedron", "Radio Fathom"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 def_ft_icosahedron(
     [0],
-    id = "radio_15", name = ["Radiolarian 15", "FT Icosahedron 15", "Half-Cut FT Icosahedron", "Radio Chop"],
+    id = "radio_15@0", name = ["Radiolarian 15", "FT Icosahedron 15", "Half-Cut FT Icosahedron", "Radio Chop"],
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )

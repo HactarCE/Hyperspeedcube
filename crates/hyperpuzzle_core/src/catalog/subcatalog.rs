@@ -3,11 +3,14 @@ use super::*;
 /// Subcatalog for a specific object type (puzzles, color systems, twist
 /// systems, etc.).
 pub struct SubCatalog<T> {
-    /// Object generators, indexed by generator ID (e.g., `ft_cube`).
+    /// Object generators, indexed by generator ID.
+    ///
+    /// The generator ID may be versioned (e.g., `ft_cube@1`) or unversioned
+    /// (e.g., `ft_cube`).
     ///
     /// This includes non-generated objects, which are equivalent to generators
     /// that take no parameters.
-    pub generators: HashMap<String, Arc<Generator<T>>>,
+    pub generators: HashMap<VersionedCatalogWord, Arc<Generator<T>>>,
     /// Hooks, which are called on the output of generators before they are
     /// cached and returned.
     ///
@@ -39,15 +42,39 @@ impl<T: CatalogObject> Default for SubCatalog<T> {
 impl<T: CatalogObject> SubCatalog<T> {
     /// Adds a generator to the catalog.
     pub(super) fn add(&mut self, generator: Arc<Generator<T>>) -> Result<()> {
-        match self.generators.entry(generator.id.to_string()) {
+        if generator.id.version.is_none() {
+            bail!(
+                "{} generator ID `{}` is missing version number",
+                T::catalog_type_name(),
+                generator.id.word,
+            )
+        }
+
+        match self.generators.entry(generator.id.clone()) {
             hash_map::Entry::Occupied(occupied_entry) => {
-                bail!("duplicate ID {:?}", occupied_entry.key())
+                bail!("duplicate ID {:?}", occupied_entry.key());
             }
             hash_map::Entry::Vacant(vacant_entry) => {
-                vacant_entry.insert(generator);
-                Ok(())
+                vacant_entry.insert(Arc::clone(&generator));
             }
         }
+
+        // Update unversioned ID
+        match self
+            .generators
+            .entry(generator.id.word.clone().with_version(None))
+        {
+            hash_map::Entry::Occupied(mut e) => {
+                if generator.id.version > e.get().id.version {
+                    e.insert(generator); // newer version!
+                }
+            }
+            hash_map::Entry::Vacant(e) => {
+                e.insert(generator); // first!
+            }
+        }
+
+        Ok(())
     }
 
     /// Adds a hook to the catalog.
@@ -66,10 +93,13 @@ impl<T: CatalogObject> SubCatalog<T> {
         }
     }
 
-    pub(super) fn try_get_generator(&self, id_base: &str) -> Result<&Arc<Generator<T>>> {
+    pub(super) fn try_get_generator(
+        &self,
+        id_base: &VersionedCatalogWord,
+    ) -> Result<&Arc<Generator<T>>> {
         self.generators.get(id_base).ok_or_else(|| {
             eyre!(
-                "no {ty} or {ty} generator with ID {id_base:?}",
+                "no {ty} or {ty} generator with ID `{id_base}`",
                 ty = T::catalog_type_name(),
             )
         })
@@ -87,15 +117,9 @@ impl<T: CatalogObject> SubCatalog<T> {
         catalog: &Catalog,
         id: CatalogId,
     ) -> (Request<T>, bool) {
-        if *id.base == *crate::AD_HOC_ID_STR {
+        if *id.base.word == *crate::AD_HOC_ID_STR {
             return (
-                Request::new_error(
-                    &id,
-                    eyre!(
-                        "ad-hoc generator cannot be called directly \
-                         (if you are seeing this, it's probably a bug)"
-                    ),
-                ),
+                Request::new_error(&id, eyre!("ad-hoc generator cannot be invoked directly")),
                 false,
             );
         }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::{
     CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit, PaletteColor,
     TypedIndex,

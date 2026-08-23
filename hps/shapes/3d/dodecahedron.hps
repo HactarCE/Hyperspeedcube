@@ -39,7 +39,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "dodecahedron",
+    id = "dodecahedron@1",
     name = "Dodecahedron",
     colors = #{
         U = "White",

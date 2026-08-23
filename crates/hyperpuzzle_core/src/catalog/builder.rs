@@ -76,7 +76,7 @@ impl CatalogBuilder {
     /// Adds a puzzle generator to the puzzle list.
     ///
     /// Wrapper around [`Self::add_to_puzzle_list()`] for convenience.
-    pub fn add_generator_to_puzzle_list(&self, id: &CatalogIdent) {
+    pub fn add_generator_to_puzzle_list(&self, id: &VersionedCatalogWord) {
         self.add_to_puzzle_list(&CatalogId::new(id.clone(), [], None));
     }
 

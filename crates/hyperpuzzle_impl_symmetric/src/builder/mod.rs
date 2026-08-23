@@ -335,7 +335,7 @@ impl PuzzleProduct {
                     &mut gizmo_twists,
                     &axis_vectors.vectors_by_id,
                     &symmetric_twist_system_component,
-                    warn_fn,
+                    &mut *warn_fn,
                 )
                 .wrap_err("error building 4D gizmos")?;
             }
@@ -389,6 +389,24 @@ impl PuzzleProduct {
 
         let mut components = ComponentList::new();
         components.insert(geom);
+
+        // Check that stable puzzle doesn't depend on unstable colors/twists
+        if self.id.base.version.unwrap_or(0) > 0 {
+            if colors.id.base.version.unwrap_or(0) == 0 {
+                warn_fn(eyre!(
+                    "stable puzzle {} depends on unstable color system {}",
+                    self.id,
+                    colors.id,
+                ));
+            }
+            if twists.id.base.version.unwrap_or(0) == 0 {
+                warn_fn(eyre!(
+                    "stable puzzle {} depends on unstable twist system {}",
+                    self.id,
+                    twists.id,
+                ));
+            }
+        }
 
         Ok(Arc::new_cyclic(move |this| Puzzle {
             this: Weak::clone(this),

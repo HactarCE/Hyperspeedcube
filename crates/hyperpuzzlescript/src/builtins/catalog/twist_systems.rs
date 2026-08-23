@@ -47,7 +47,7 @@ pub fn define_in(
             let engine = ctx
                 .runtime
                 .twist_system_engine_callback(&engine, engine_span)?;
-            let hps_gen = super::generators::hps_generator_from_kwargs(kwargs)?;
+            let hps_gen = super::generators::hps_generator_from_kwargs(ctx, kwargs)?;
             engine
                 .add_catalog_entries(&cat, &tx, ctx, hps_gen)
                 .map_err(|e| e.to_full_diagnostic(ctx.caller_span))?;

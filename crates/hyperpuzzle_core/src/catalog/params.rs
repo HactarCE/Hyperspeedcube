@@ -26,7 +26,7 @@ impl GeneratorParam {
             }
             GeneratorParamType::List(inner) => arg
                 .into_list()
-                .and_then(|l| l.into_iter().map(|e| inner.typed_value(&e)).try_collect())
+                .and_then(|l| l.into_iter().map(|e| inner.typed_value(e)).try_collect())
                 .map(TypedCatalogIdValue::List),
         }
         .map_err(|inner| GeneratorParamError {
@@ -79,17 +79,17 @@ impl fmt::Display for GeneratorParamType {
 impl GeneratorParamType {
     /// Converts a catalog ID value into a typed value for this parameter, or
     /// returns an error if it is invalid.
-    pub fn typed_value(&self, arg: &CatalogIdValue) -> Result<TypedCatalogIdValue, CatalogIdError> {
+    pub fn typed_value(&self, arg: CatalogIdValue) -> Result<TypedCatalogIdValue, CatalogIdError> {
         match self {
             GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
             GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
             GeneratorParamType::Puzzle { .. } | GeneratorParamType::Id { .. } => {
-                arg.clone().into_id().map(TypedCatalogIdValue::Id)
+                arg.into_id().map(TypedCatalogIdValue::Id)
             }
             GeneratorParamType::List(inner) => arg
                 .clone()
                 .into_list()
-                .and_then(|l| l.into_iter().map(|e| inner.typed_value(&e)).try_collect())
+                .and_then(|l| l.into_iter().map(|e| inner.typed_value(e)).try_collect())
                 .map(TypedCatalogIdValue::List),
         }
     }

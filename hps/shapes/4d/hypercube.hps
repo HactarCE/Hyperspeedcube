@@ -31,7 +31,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "hypercube",
+    id = "hypercube@1",
     name = "Hypercube",
     colors = #{
         R = "Red",

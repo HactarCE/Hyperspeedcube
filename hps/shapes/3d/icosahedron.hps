@@ -49,7 +49,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "icosahedron",
+    id = "icosahedron@1",
     name = "Icosahedron",
     default_scheme = "FTI Standard",
     schemes = #{

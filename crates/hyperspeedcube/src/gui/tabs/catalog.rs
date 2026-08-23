@@ -201,7 +201,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                         for query_result in query_results {
                             let obj = query_result.object.clone();
-                            let Some(generator) = catalog.get_generator(&obj.id.base) else {
+                            let Some(generator) = catalog.get_generator(&obj.id.base.word) else {
                                 ui.colored_label(
                                     ui.visuals().error_fg_color,
                                     format!("Missing generator for {:?}", obj.id),
@@ -209,7 +209,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 continue;
                             };
                             let r = ui.add(query_result);
-                            if generator.params.len() == obj.id.args.len() {
+                            if generator.params.len() == obj.id.args().len() {
                                 if r.clicked() {
                                     app.load_puzzle(&obj.id.to_string());
                                 }
@@ -221,7 +221,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                                 if let Some(popup_data) = generator_popup_data
                                     .as_mut()
-                                    .filter(|data| data.widget.generator_id == obj.id.base)
+                                    .filter(|data| data.widget.generator_id == obj.id.base.word)
                                 {
                                     let mut is_open = EguiFlag::load(ui, unique_id!());
                                     let was_open = *is_open;
@@ -331,7 +331,7 @@ struct PuzzleGeneratorPopupData {
 impl PuzzleGeneratorPopupData {
     fn new(name: &str, puzzle_generator: &Generator<Puzzle>) -> Self {
         Self {
-            widget: PuzzleGeneratorUi::new(puzzle_generator.id.clone()),
+            widget: PuzzleGeneratorUi::new(puzzle_generator.id.word.clone()),
             title: name.to_string(),
         }
     }

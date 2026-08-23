@@ -54,7 +54,7 @@ impl PuzzleCatalogMenuUi {
     fn set_menu_path_from_puzzle_id(&mut self) {
         if let Some(menu) = hyperpuzzle::catalog().menus.get(self.menu_id.as_str())
             && let Ok(puzzle_id) = self.puzzle_id.parse::<CatalogId>()
-            && let Some(menu_path) = menu.puzzle_id_to_path(&puzzle_id.base)
+            && let Some(menu_path) = menu.puzzle_id_to_path(&puzzle_id.base.word)
         {
             self.menu_path = menu_path.to_string();
         }
@@ -352,14 +352,14 @@ impl<'a> MenuUiElement<'a> {
                 ui.separator();
             }
             MenuUiElement::End { id } => {
-                if id.args.is_empty() {
+                if id.args().is_empty() {
                     if let Some(g) = generator_ui
-                        && *g.generator_id != *id.base
+                        && *g.generator_id != *id.base.word
                     {
                         *generator_ui = None;
                     }
-                    let g =
-                        generator_ui.get_or_insert_with(|| PuzzleGeneratorUi::new(id.base.clone()));
+                    let g = generator_ui
+                        .get_or_insert_with(|| PuzzleGeneratorUi::new(id.base.word.clone()));
                     ui.add(&mut *g);
                     if let Some(new_puzzle_id) = g.generated_id() {
                         *puzzle_id = new_puzzle_id.to_string();

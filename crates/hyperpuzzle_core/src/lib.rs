@@ -45,12 +45,7 @@ pub use crate::timestamp::Timestamp;
 
 /// Prelude of common imports.
 pub mod prelude {
-    pub use crate::catalog::{
-        BuildCtx, Catalog, CatalogBuilder, CatalogId, CatalogIdError, CatalogIdValue, CatalogIdent,
-        CatalogObject, Generator, GeneratorParam, GeneratorParamError, GeneratorParamType,
-        GeneratorParamValidation, GeneratorSubsetParam, GeneratorSubsetParamValue, PuzzleListEntry,
-        TypedCatalogIdValue,
-    };
+    pub use crate::catalog::*;
     pub use crate::lint::PuzzleLintOutput;
     pub use crate::names::{
         AutoNames, BadName, NameSpec, NameSpecBiMap, NameSpecBiMapBuilder, NameSpecMap,
@@ -129,7 +124,7 @@ const REFL_ID_STR: &str = "rot";
 pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
     CatalogId {
         base: AD_HOC_ID_STR.parse().expect("bad ID"),
-        args: vec![puzzle_id.into()],
+        args: Some(vec![puzzle_id.into()]),
         subset: None,
     }
 }

@@ -3,7 +3,7 @@ layers_param = #{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }
 add_menu_entry(path = "Solid|1D",      next_column = "Shape")
 add_menu_entry(path = "Solid|1D|Line", id = "line", default = true)
 
-add_twist_system(id = "line", name = "Line",
+add_twist_system(id = "line@1", name = "Line",
     engine = "symmetric",
     ndim = 1,
     build = fn() {
@@ -14,7 +14,7 @@ add_twist_system(id = "line", name = "Line",
     },
 )
 
-add_puzzle(id = "line", name = "Line",
+add_puzzle(id = "line@1", name = "Line",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 1,

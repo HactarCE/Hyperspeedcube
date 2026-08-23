@@ -1,5 +1,5 @@
 use hyperpuzzle::{
-    CatalogId, CatalogIdValue, CatalogIdent, GeneratorParamType, Puzzle, TypedCatalogIdValue,
+    CatalogId, CatalogIdValue, CatalogWord, GeneratorParamType, Puzzle, TypedCatalogIdValue,
 };
 use itertools::Itertools;
 
@@ -9,7 +9,7 @@ pub const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
 
 #[derive(Debug, Clone)]
 pub struct PuzzleGeneratorUi {
-    pub generator_id: CatalogIdent,
+    pub generator_id: CatalogWord,
     pub param_uis: Vec<(Option<String>, GeneratorParamUi)>,
 }
 
@@ -19,7 +19,10 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
         let Some(g) = catalog.get_generator::<Puzzle>(&self.generator_id) else {
             return ui.colored_label(
                 ui.visuals().error_fg_color,
-                format!("no puzzle or generator with ID {:?}", self.generator_id),
+                format!(
+                    "no puzzle or puzzle generator with ID `{}`",
+                    self.generator_id,
+                ),
             );
         };
 
@@ -50,7 +53,7 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
 }
 
 impl PuzzleGeneratorUi {
-    pub fn new(generator_id: CatalogIdent) -> Self {
+    pub fn new(generator_id: CatalogWord) -> Self {
         Self {
             generator_id,
             param_uis: vec![],
@@ -59,21 +62,20 @@ impl PuzzleGeneratorUi {
 
     pub fn from_generated_id(puzzle_id: CatalogId) -> Self {
         Self {
-            generator_id: puzzle_id.base,
+            generator_id: puzzle_id.base.word,
             param_uis: vec![], // TODO: fill in defaults
         }
     }
 
     pub fn generated_id(&self) -> Option<CatalogId> {
-        Some(CatalogId {
-            base: self.generator_id.clone(),
-            args: self
-                .param_uis
+        Some(CatalogId::new(
+            self.generator_id.clone(),
+            self.param_uis
                 .iter()
                 .map(|(_label, param_ui)| param_ui.to_id_value())
-                .collect::<Option<_>>()?,
-            subset: None, // TODO
-        })
+                .collect::<Option<Vec<_>>>()?,
+            None, // TODO subset
+        ))
     }
 }
 
@@ -136,7 +138,7 @@ impl GeneratorParamUi {
             &GeneratorParamUi::Bool { current, .. } => Some(current.into()),
             &GeneratorParamUi::Int { current, .. } => Some(current.into()),
             GeneratorParamUi::Puzzle { menu_ui } => {
-                menu_ui.get_selected_puzzle().map(CatalogIdValue::Generator)
+                menu_ui.get_selected_puzzle().map(CatalogIdValue::Id)
             }
             GeneratorParamUi::List { elements, .. } => elements
                 .iter()

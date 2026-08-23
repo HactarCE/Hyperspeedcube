@@ -57,7 +57,7 @@ pub fn define_in(
         fn add_puzzle(ctx: EvalCtx) -> () {
             pop_kwarg!(kwargs, (engine, engine_span): String);
             let engine = ctx.runtime.puzzle_engine_callback(&engine, engine_span)?;
-            let hps_gen = super::generators::hps_generator_from_kwargs(kwargs)?;
+            let hps_gen = super::generators::hps_generator_from_kwargs(ctx, kwargs)?;
             engine
                 .add_catalog_entries(&cat, &tx, ctx, hps_gen)
                 .map_err(|e| e.to_full_diagnostic(ctx.caller_span))?;

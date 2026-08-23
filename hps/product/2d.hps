@@ -28,7 +28,7 @@ add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     priority = 0,   id = "ngon
 
 add_menu_entry(path = "Solid|2D|Polygon|FT+VT", priority = -1,  id = "ngon_ft_vt")
 
-add_twist_system(id = "ngon_ft", name = "FT Polygon Generator",
+add_twist_system(id = "ngon_ft@1", name = "FT Polygon Generator",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -47,7 +47,7 @@ add_twist_system(id = "ngon_ft", name = "FT Polygon Generator",
     },
 )
 
-add_twist_system(id = "ngon_vt", name = "VT Polygon Generator",
+add_twist_system(id = "ngon_vt@1", name = "VT Polygon Generator",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -66,7 +66,7 @@ add_twist_system(id = "ngon_vt", name = "VT Polygon Generator",
     },
 )
 
-add_twist_system(id = "ngon_ft_vt", name = "FT+VT Polygon Generator",
+add_twist_system(id = "ngon_ft_vt@1", name = "FT+VT Polygon Generator",
     engine = "symmetric",
     ndim = 2,
     params = [edges_param],
@@ -93,7 +93,7 @@ add_twist_system(id = "ngon_ft_vt", name = "FT+VT Polygon Generator",
     },
 )
 
-add_puzzle(id = "triangle_ft_shallow", name = "Shallow-Cut FT Triangle Generator",
+add_puzzle(id = "triangle_ft_shallow@1", name = "Shallow-Cut FT Triangle Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -101,7 +101,7 @@ add_puzzle(id = "triangle_ft_shallow", name = "Shallow-Cut FT Triangle Generator
     gen = fn(divisions) { "ngon_ft_shallow(3,${divisions})" },
 )
 
-add_puzzle(id = "square_ft_layered", name = "FT Square Generator",
+add_puzzle(id = "square_ft_layered@1", name = "FT Square Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -109,7 +109,7 @@ add_puzzle(id = "square_ft_layered", name = "FT Square Generator",
     gen = fn(layers) { "ngon_ft_layered(4,${layers})" },
 )
 
-add_puzzle(id = "triangle_layered", name = "Layered FT Triangle Generator",
+add_puzzle(id = "triangle_layered@1", name = "Layered FT Triangle Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -117,7 +117,7 @@ add_puzzle(id = "triangle_layered", name = "Layered FT Triangle Generator",
     gen = fn(layers) { "ngon_ft_layered(3,${layers})" },
 )
 
-add_puzzle(id = "ngon", name = "Polygon Generator",
+add_puzzle(id = "ngon@1", name = "Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -133,7 +133,7 @@ add_puzzle(id = "ngon", name = "Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_ft_shallow", name = "Shallow-Cut FT Polygon Generator",
+add_puzzle(id = "ngon_ft_shallow@1", name = "Shallow-Cut FT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -152,7 +152,7 @@ add_puzzle(id = "ngon_ft_shallow", name = "Shallow-Cut FT Polygon Generator",
 )
 
 // TODO: decide what to do with this
-// add_puzzle(id = "ngon_ft_deep", name = "Deep-Cut FT Polygon Generator",
+// add_puzzle(id = "ngon_ft_deep@1", name = "Deep-Cut FT Polygon Generator",
 //     tags = #{ author = "Andrew Farkas" },
 //     engine = "symmetric",
 //     ndim = 2,
@@ -170,7 +170,7 @@ add_puzzle(id = "ngon_ft_shallow", name = "Shallow-Cut FT Polygon Generator",
 //     },
 // )
 
-add_puzzle(id = "ngon_ft_half", name = "Half-Cut FT Polygon Generator",
+add_puzzle(id = "ngon_ft_half@1", name = "Half-Cut FT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -188,7 +188,7 @@ add_puzzle(id = "ngon_ft_half", name = "Half-Cut FT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_ft_layered", name = "Layered FT Polygon Generator",
+add_puzzle(id = "ngon_ft_layered@1", name = "Layered FT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -206,7 +206,7 @@ add_puzzle(id = "ngon_ft_layered", name = "Layered FT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_ft_astral", name = "Astral FT Polygon Generator",
+add_puzzle(id = "ngon_ft_astral@1", name = "Astral FT Polygon Generator",
     tags = #{ author = ["Andrew Farkas", "SuperSnowman16"] },
     engine = "symmetric",
     ndim = 2,
@@ -228,7 +228,7 @@ add_puzzle(id = "ngon_ft_astral", name = "Astral FT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_vt_adj", name = "Adjacent-Cut VT Polygon Generator",
+add_puzzle(id = "ngon_vt_adj@1", name = "Adjacent-Cut VT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -246,7 +246,7 @@ add_puzzle(id = "ngon_vt_adj", name = "Adjacent-Cut VT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_vt_half", name = "Half-Cut VT Polygon Generator",
+add_puzzle(id = "ngon_vt_half@1", name = "Half-Cut VT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -264,7 +264,7 @@ add_puzzle(id = "ngon_vt_half", name = "Half-Cut VT Polygon Generator",
     },
 )
 
-add_puzzle(id = "ngon_ft_vt", name = "FT+VT Polygon Generator",
+add_puzzle(id = "ngon_ft_vt@1", name = "FT+VT Polygon Generator",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,

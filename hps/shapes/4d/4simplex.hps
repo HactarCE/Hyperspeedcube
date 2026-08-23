@@ -40,7 +40,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "4simplex",
+    id = "4simplex@1",
     name = "4-Simplex",
     colors = #{
         A = "Red",

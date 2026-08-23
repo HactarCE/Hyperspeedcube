@@ -155,18 +155,18 @@ impl Catalog {
             let id = id.clone();
             Box::new(move || {
                 // Generate
-                let mut result = match generator.canonicalize(build_ctx.id()) {
-                    Some(canonicalized_id) => build_ctx.build_blocking(&canonicalized_id), // redirect
-                    None => {
-                        build_ctx.push_task(format!(
-                            "generating {} `{}`",
-                            T::catalog_type_name(),
-                            build_ctx.id(),
-                        ));
-                        let result = (generator.generate)(build_ctx.clone());
-                        build_ctx.pop_task();
-                        result
-                    }
+                let canonicalized_id = generator.canonicalize(build_ctx.id().clone());
+                let mut result = if canonicalized_id != id {
+                    build_ctx.build_blocking(&canonicalized_id) // redirect
+                } else {
+                    build_ctx.push_task(format!(
+                        "generating {} `{}`",
+                        T::catalog_type_name(),
+                        build_ctx.id(),
+                    ));
+                    let result = (generator.generate)(build_ctx.clone());
+                    build_ctx.pop_task();
+                    result
                 }
                 .map_err(|e| {
                     Arc::new(CatalogError {
@@ -237,8 +237,19 @@ impl CatalogData {
     }
 
     /// Returns a generator by its ID, if it exists.
-    pub fn get_generator<T: CatalogObject>(&self, id: &str) -> Option<&Arc<Generator<T>>> {
+    pub fn get_versioned_generator<T: CatalogObject>(
+        &self,
+        id: &VersionedCatalogWord,
+    ) -> Option<&Arc<Generator<T>>> {
         self.get_subcatalog()?.generators.get(id)
+    }
+
+    /// Returns a generator by its ID, if it exists.
+    ///
+    /// When multiple versions exist, the one with the greatest version number
+    /// is returned.
+    pub fn get_generator<T: CatalogObject>(&self, id: &str) -> Option<&Arc<Generator<T>>> {
+        self.get_versioned_generator(&id.parse::<CatalogWord>().ok()?.with_version(None))
     }
 
     fn get_subcatalog_mut<T: CatalogObject>(&mut self) -> &mut SubCatalog<T> {

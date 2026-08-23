@@ -4,16 +4,28 @@
 
 use std::sync::Arc;
 
-use hyperpuzzle_core::{GeneratorParam, GeneratorParamType, TypedCatalogIdValue};
+use hyperpuzzle_core::{
+    GeneratorParam, GeneratorParamType, TypedCatalogIdValue, VersionedCatalogWord,
+};
 use itertools::Itertools;
 
 use crate::engine::{HpsGenerator, HpsGeneratorFn};
 use crate::util::{ListOrVal, pop_map_key};
-use crate::{ErrorExt, FnValue, Map, Result, Spanned, Type, Value};
+use crate::{ErrorExt, EvalCtx, FnValue, Map, Result, Spanned, Type, Value};
 
-pub(super) fn hps_generator_from_kwargs(mut kwargs: Map) -> Result<HpsGenerator> {
+pub(super) fn hps_generator_from_kwargs(
+    ctx: &mut EvalCtx<'_>,
+    mut kwargs: Map,
+) -> Result<HpsGenerator> {
     pop_kwarg!(kwargs, (id, id_span): String);
-    let id = id.parse().at(id_span)?;
+    let mut id: VersionedCatalogWord = id.parse().at(id_span)?;
+    if id.version.is_none() {
+        ctx.warn_at(
+            id_span,
+            format!("ID `{id}` is missing version; add `@0` if it is not yet stable"),
+        );
+        id.version = Some(0);
+    }
 
     let names = match kwargs.get("name") {
         Some(v) => v.ref_to::<ListOrVal<&str>>()?.0,

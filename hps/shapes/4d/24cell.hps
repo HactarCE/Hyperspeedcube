@@ -51,7 +51,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "24cell",
+    id = "24cell@1",
     name = "24-Cell",
     default_scheme = "Swirl",
     schemes = #{

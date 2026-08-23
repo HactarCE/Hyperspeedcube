@@ -1,4 +1,5 @@
 use std::num::NonZeroI32;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
@@ -9,8 +10,8 @@ use hypergroup::{
 use hypermath::{Float, Matrix, Point, Vector, VectorRef};
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::{
-    Axis, AxisSystem, CatalogId, CatalogObject, ComponentList, IndexOverflow, Names, PerAxis,
-    TwistSystem, TypedIndex, TypedIndexIter,
+    Axis, AxisSystem, CatalogId, CatalogObject, CatalogWord, ComponentList, IndexOverflow, Names,
+    PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypuz_notation::family::SequentialLowercaseName;
@@ -198,7 +199,7 @@ impl TwistSystemProduct {
     pub fn new_empty(ndim: u8) -> Self {
         Self {
             id: CatalogId::new(
-                "empty".parse().expect("bad Id"),
+                "empty".parse::<CatalogWord>().expect("bad ID"),
                 [(ndim as i64).into()],
                 None,
             ),

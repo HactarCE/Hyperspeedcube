@@ -19,7 +19,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "16cell",
+    id = "16cell@1",
     name = "16-Cell",
     colors = #{
         FORU = "Mono Dyad [0]",

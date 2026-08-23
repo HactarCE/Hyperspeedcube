@@ -38,7 +38,7 @@ export fn new(t: Transform) -> Map {
 }
 
 add_color_system(
-    id = "tetrahedron",
+    id = "tetrahedron@1",
     name = "Tetrahedron",
     colors = #{
         L = "Red",

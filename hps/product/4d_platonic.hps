@@ -30,7 +30,7 @@ add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|D",                id = "4s
 add_menu_entry(path = "Solid|4D|Platonic|Simplex|FVT|Pyraminx",         id = "4simplex_pyraminx")
 
 add_menu_entry(path = "Solid|4D|Platonic|Hypercube|None", priority = 100, id = "hypercube")
-add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "4cube_ft", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "hypercube_ft", default = true)
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT",   priority = 52,  id = "hypercube_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET",   priority = 51,  id = "hypercube_et")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT",   priority = 50,  id = "hypercube_vt")
@@ -82,18 +82,18 @@ fn add_basic_shape(shape_file, **kwargs) {
     )
 }
 
-add_basic_shape(@shapes/4d/4simplex,  id = "4simplex",  name = ["4-Simplex", "5-Cell", "Pentachoron"])
-add_basic_shape(@shapes/4d/hypercube, id = "hypercube", name = ["Hypercube", "8-Cell", "Octachoron", "4-Cube", "4D Cube", "Tesseract", "1x1x1x1", "1^4"])
-add_basic_shape(@shapes/4d/16cell,    id = "16cell",    name = ["16-Cell", "Hexadecachoron", "Hyperoctahedron", "4-Orthoplex"])
-add_basic_shape(@shapes/4d/24cell,    id = "24cell",    name = ["24-Cell", "Icositetrachoron", "Octaplex"])
-add_basic_shape(@shapes/4d/120cell,   id = "120cell",   name = ["120-Cell", "Hecatonicosachoron", "Dodecaplex", "Hyperdodecahedron"])
-add_basic_shape(@shapes/4d/600cell,   id = "600cell",   name = ["600-Cell", "Hexacosichoron", "Tetraplex", "Hypericosahedron"])
+add_basic_shape(@shapes/4d/4simplex,  id = "4simplex@1",  name = ["4-Simplex", "5-Cell", "Pentachoron"])
+add_basic_shape(@shapes/4d/hypercube, id = "hypercube@1", name = ["Hypercube", "8-Cell", "Octachoron", "4-Cube", "4D Cube", "Tesseract", "1x1x1x1", "1^4"])
+add_basic_shape(@shapes/4d/16cell,    id = "16cell@1",    name = ["16-Cell", "Hexadecachoron", "Hyperoctahedron", "4-Orthoplex"])
+add_basic_shape(@shapes/4d/24cell,    id = "24cell@1",    name = ["24-Cell", "Icositetrachoron", "Octaplex"])
+add_basic_shape(@shapes/4d/120cell,   id = "120cell@1",   name = ["120-Cell", "Hecatonicosachoron", "Dodecaplex", "Hyperdodecahedron"])
+add_basic_shape(@shapes/4d/600cell,   id = "600cell@1",   name = ["600-Cell", "Hexacosichoron", "Tetraplex", "Hypericosahedron"])
 
 //---------------//
 // Twist systems //
 //---------------//
 
-add_twist_system(id = "4simplex_fvt", name = "FT/VT 4-Simplex",
+add_twist_system(id = "4simplex_fvt@1", name = "FT/VT 4-Simplex",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -113,7 +113,7 @@ add_twist_system(id = "4simplex_fvt", name = "FT/VT 4-Simplex",
     },
 )
 
-add_twist_system(id = "4cube_ft", name = "FT Hypercube",
+add_twist_system(id = "hypercube_ft@1", name = "FT Hypercube",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -129,7 +129,7 @@ add_twist_system(id = "4cube_ft", name = "FT Hypercube",
     },
 )
 
-add_twist_system(id = "24cell_ft", name = "FT 24-Cell",
+add_twist_system(id = "24cell_ft@1", name = "FT 24-Cell",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -143,7 +143,7 @@ add_twist_system(id = "24cell_ft", name = "FT 24-Cell",
     },
 )
 
-add_twist_system(id = "120cell_ft", name = "FT 120-Cell",
+add_twist_system(id = "120cell_ft@1", name = "FT 120-Cell",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -157,7 +157,7 @@ add_twist_system(id = "120cell_ft", name = "FT 120-Cell",
     },
 )
 
-add_twist_system(id = "600cell_ft", name = "FT 600-Cell",
+add_twist_system(id = "600cell_ft@1", name = "FT 600-Cell",
     engine = "symmetric",
     ndim = 4,
     build = fn() {
@@ -192,7 +192,7 @@ fn build_4simplex(vt_cut_depths: List[Num]) {
 }
 
 add_puzzle_list_entry("4simplex_a(1)")
-add_puzzle(id = "4simplex_a", name = "N-Layer 4-Simplex A",
+add_puzzle(id = "4simplex_a@1", name = "N-Layer 4-Simplex A",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex A",
         build = fn() { build_4simplex(rev(@util/layers.inclusive_exclusive(2/3, 3/2, cuts))) },
@@ -201,7 +201,7 @@ add_puzzle(id = "4simplex_a", name = "N-Layer 4-Simplex A",
 )
 
 add_puzzle_list_entry("4simplex_b(1)")
-add_puzzle(id = "4simplex_b", name = "N-Layer 4-Simplex B",
+add_puzzle(id = "4simplex_b@1", name = "N-Layer 4-Simplex B",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex B",
         build = fn() { build_4simplex(@util/layers.exclusive(2/3, 1/4, cuts, padding=1/2)) },
@@ -209,13 +209,13 @@ add_puzzle(id = "4simplex_b", name = "N-Layer 4-Simplex B",
     **common_4simplex,
 )
 
-add_puzzle(id = "4simplex_c", name = ["4-Simplex C", "Adjacent-Cut 4-Simplex"],
+add_puzzle(id = "4simplex_c@1", name = ["4-Simplex C", "Adjacent-Cut 4-Simplex"],
     build = fn() { build_4simplex([1/4]) },
     **common_4simplex,
 )
 
 add_puzzle_list_entry("4simplex_d(1)")
-add_puzzle(id = "4simplex_d", name = "N-Layer 4-Simplex D",
+add_puzzle(id = "4simplex_d@1", name = "N-Layer 4-Simplex D",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex D",
         build = fn() { build_4simplex(@util.layers.inclusive_exclusive(0, -1, cuts)) },
@@ -224,7 +224,7 @@ add_puzzle(id = "4simplex_d", name = "N-Layer 4-Simplex D",
 )
 
 add_puzzle_list_entry("4simplex_pyraminx(3)")
-add_puzzle(id = "4simplex_pyraminx", name = "N-Layer 4-Simplex Pyraminx",
+add_puzzle(id = "4simplex_pyraminx@1", name = "N-Layer 4-Simplex Pyraminx",
     params = [layers_param], gen = fn(layers) { #{
         name = n_layer_prefix(layers) ++ "4-Simplex Pyraminx",
         build = fn() { build_4simplex(@util.layers.exclusive(4, -1, layers-1)) },
@@ -236,18 +236,18 @@ add_puzzle(id = "4simplex_pyraminx", name = "N-Layer 4-Simplex Pyraminx",
 // Hypercube puzzles //
 //-------------------//
 
-add_puzzle_list_entry("4cube_ft(2)")
-add_puzzle_list_entry("4cube_ft(3)")
-add_puzzle_list_entry("4cube_ft(4)")
-add_puzzle_list_entry("4cube_ft(5)")
-add_puzzle_list_entry("4cube_ft(6)")
-add_puzzle_list_entry("4cube_ft(7)")
-add_puzzle(id = "4cube_ft", name = ["N-Layer FT Hypercube", "n^4", "NxNxNxN FT Hypercube", "N-Layer 4D Rubik's Cube"],
+add_puzzle_list_entry("hypercube_ft(2)")
+add_puzzle_list_entry("hypercube_ft(3)")
+add_puzzle_list_entry("hypercube_ft(4)")
+add_puzzle_list_entry("hypercube_ft(5)")
+add_puzzle_list_entry("hypercube_ft(6)")
+add_puzzle_list_entry("hypercube_ft(7)")
+add_puzzle(id = "hypercube_ft@1", name = ["N-Layer FT Hypercube", "n^4", "NxNxNxN FT Hypercube", "N-Layer 4D Rubik's Cube"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 4,
     colors = "hypercube",
-    twists = "4cube_ft",
+    twists = "hypercube_ft",
     params = [layers_param],
     gen = fn(layers) {
         names = ["${layers}^4", "${layers}x${layers}x${layers}x${layers}"]
@@ -281,18 +281,18 @@ fn def_24cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_24cell_ft([2/3],  id = "24cell_ft_1", name = ["FT 24-Cell 1", "Canon-Cut 24-Cell", "Shallow-Cut FT 24-Cell"])
-def_24cell_ft([3/5],  id = "24cell_ft_2", name = ["FT 24-Cell 2"])
-def_24cell_ft([1/2],  id = "24cell_ft_3", name = ["FT 24-Cell 3", "Adjacent-Cut FT 24-Cell"])
-def_24cell_ft([2/5],  id = "24cell_ft_4", name = ["FT 24-Cell 4"])
-def_24cell_ft([1/3],  id = "24cell_ft_5", name = ["FT 24-Cell 5"])
-def_24cell_ft([7/25], id = "24cell_ft_6", name = ["FT 24-Cell 6"])
-def_24cell_ft([1/4],  id = "24cell_ft_7", name = ["FT 24-Cell 7"])
-def_24cell_ft([2/9],  id = "24cell_ft_8", name = ["FT 24-Cell 8"])
-def_24cell_ft([1/5],  id = "24cell_ft_9", name = ["FT 24-Cell 9"])
-def_24cell_ft([1/6],  id = "24cell_ft_10", name = ["FT 24-Cell 10", "Astral FT 24-Cell"])
-def_24cell_ft([0],    id = "24cell_ft_11", name = ["FT 24-Cell 11", "Half-Cut FT 24-Cell"])
-def_24cell_ft([2/3, 1/3], id = "24cell_ft_hybrid_1_5", name = ["FT 24-Cell 1 + 5"])
+def_24cell_ft([2/3],  id = "24cell_ft_1@1", name = ["FT 24-Cell 1", "Canon-Cut 24-Cell", "Shallow-Cut FT 24-Cell"])
+def_24cell_ft([3/5],  id = "24cell_ft_2@1", name = ["FT 24-Cell 2"])
+def_24cell_ft([1/2],  id = "24cell_ft_3@1", name = ["FT 24-Cell 3", "Adjacent-Cut FT 24-Cell"])
+def_24cell_ft([2/5],  id = "24cell_ft_4@1", name = ["FT 24-Cell 4"])
+def_24cell_ft([1/3],  id = "24cell_ft_5@1", name = ["FT 24-Cell 5"])
+def_24cell_ft([7/25], id = "24cell_ft_6@1", name = ["FT 24-Cell 6"])
+def_24cell_ft([1/4],  id = "24cell_ft_7@1", name = ["FT 24-Cell 7"])
+def_24cell_ft([2/9],  id = "24cell_ft_8@1", name = ["FT 24-Cell 8"])
+def_24cell_ft([1/5],  id = "24cell_ft_9@1", name = ["FT 24-Cell 9"])
+def_24cell_ft([1/6],  id = "24cell_ft_10@1", name = ["FT 24-Cell 10", "Astral FT 24-Cell"])
+def_24cell_ft([0],    id = "24cell_ft_11@1", name = ["FT 24-Cell 11", "Half-Cut FT 24-Cell"])
+def_24cell_ft([2/3, 1/3], id = "24cell_ft_hybrid_1_5@1", name = ["FT 24-Cell 1 + 5"])
 
 //------------------//
 // 120-cell puzzles //
@@ -313,9 +313,9 @@ fn def_120cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_120cell_ft([3/2 * 1/φ], id = "120cell_ft_shallow", name = ["FT 120-Cell (Shallow)", "Canon-Cut 120-Cell"])
-def_120cell_ft([1/φ], id = "120cell_ft_evil", name = "FT 120-Cell (Evil)")
-def_120cell_ft([0], id = "120cell_ft_half", name = "FT 120-Cell (Half)")
+def_120cell_ft([3/2 * 1/φ], id = "120cell_ft_shallow@1", name = ["FT 120-Cell (Shallow)", "Canon-Cut 120-Cell"])
+def_120cell_ft([1/φ], id = "120cell_ft_evil@1", name = "FT 120-Cell (Evil)")
+def_120cell_ft([0], id = "120cell_ft_half@1", name = "FT 120-Cell (Half)")
 
 //------------------//
 // 600-cell puzzles //
@@ -336,7 +336,7 @@ fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
+def_600cell_ft([0.97], id = "600cell_ft_shallow@0", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
 
 
 
@@ -384,7 +384,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|C", id = "4_simplex_c_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|D", id = "4_simplex_d_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|Pyraminx", id = "4_simplex_pyraminx_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "4cube_ft")
+// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "hypercube_ft")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT", priority = 3, id = "todo")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET", priority = 2, id = "todo")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT", priority = 1, id = "todo")
@@ -444,7 +444,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // )
 
 // add_twist_system(
-//     id = "4cube_ft",
+//     id = "hypercube_ft",
 //     name = "FT Hypercube",
 //     engine = "symmetric",
 //     ndim = 4,
@@ -468,7 +468,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 // )
 
 // add_puzzle(
-//     id = "4cube_ft",
+//     id = "hypercube_ft",
 //     name = "FT Hypercube",
 //     version = "0.1.0",
 //     engine = "symmetric",
@@ -481,7 +481,7 @@ def_600cell_ft([0.97], id = "600cell_ft_shallow", name = ["FT 600-Cell (Shallow)
 //     ],
 //     gen = fn(layers, subset) {
 //         export name = "${layers}^4"
-//         export twists = "4cube_ft.${subset}",
+//         export twists = "hypercube_ft.${subset}",
 //         export fn build() {
 //             shape = @shapes/4d/hypercube.new()
 //             #shape.sym = shape.sym
