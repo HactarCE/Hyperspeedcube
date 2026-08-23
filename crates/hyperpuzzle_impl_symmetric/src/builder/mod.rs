@@ -280,7 +280,6 @@ impl PuzzleProduct {
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Arc<Puzzle>> {
         let ndim = self.ndim();
-        let piece_count = self.shape.pieces.len();
 
         // TODO: actually measure perf on, e.g., FT 600-Cell
         let mut shape = self.shape.clone();
@@ -288,16 +287,16 @@ impl PuzzleProduct {
             shape.remove_internals();
         }
 
-        let (pieces, stickers) = self.shape.build_piece_and_stickers(&colors)?;
+        let (pieces, stickers) = shape.build_piece_and_stickers(&colors)?;
 
         let (piece_types, piece_type_hierarchy, piece_type_masks) =
-            self.shape.build_piece_types(warn_fn)?;
+            shape.build_piece_types(warn_fn)?;
 
         let axis_vectors = twists.axes.components.get::<NdEuclidAxisVectors>()?;
         let symmetric_twist_system_component =
             twists.components.get::<SymmetricTwistSystemComponent>()?;
 
-        let grip_signatures = Arc::new(self.shape.build_grip_signatures());
+        let grip_signatures = Arc::new(shape.build_grip_signatures());
 
         let axis_layers: PerAxis<AxisLayersInfo> = self
             .axis_layers_per_orbit
@@ -317,7 +316,7 @@ impl PuzzleProduct {
             .flat_map(|(_, orbit)| orbit.axes())
             .collect();
 
-        let mut mesh = self.shape.build_mesh()?;
+        let mut mesh = shape.build_mesh()?;
 
         let mut gizmo_twists = PerGizmoFace::new();
         if !symmetric_twist_system_component.axes.is_empty() {
@@ -341,12 +340,12 @@ impl PuzzleProduct {
             }
         }
 
-        let (planes, sticker_planes) = self.shape.build_sticker_planes();
+        let (planes, sticker_planes) = shape.build_sticker_planes();
 
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates: vec![],
-            piece_vertex_sets: PerPiece::new_with_len(piece_count),
-            piece_centroids: self.shape.build_piece_centroids(),
+            piece_vertex_sets: PerPiece::new_with_len(shape.pieces.len()),
+            piece_centroids: shape.build_piece_centroids(),
 
             planes,
             sticker_planes,
@@ -431,7 +430,7 @@ impl PuzzleProduct {
                         ty,
                         twists: Arc::clone(&symmetric_twist_system_component),
                         piece_grip_signatures: Arc::clone(&grip_signatures),
-                        piece_attitudes: PerPiece::new_with_len(piece_count),
+                        piece_attitudes: PerPiece::new_with_len(shape.pieces.len()),
                     }
                     .into()
                 }
