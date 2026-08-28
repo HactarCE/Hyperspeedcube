@@ -17,7 +17,7 @@ pub fn strip_layer_suffix(s: &str) -> (&str, Option<char>) {
     strip_suffix_char(s, |c| matches!(c, 'w' | 'v'))
 }
 
-/// Removes a jumbling suffix `h`, `j`, or `k` from a twist family.
+/// Removes a jumbling suffix from a twist family.
 ///
 /// The first element of the returned tuple is the twist name without the
 /// jumbling suffix. The second element is the jumbling suffix, if one is
@@ -25,8 +25,15 @@ pub fn strip_layer_suffix(s: &str) -> (&str, Option<char>) {
 ///
 /// If no jumbling suffix is present, the first element of the tuple is the same
 /// as the input string.
-pub fn strip_jumbling_suffix(s: &str) -> (&str, Option<char>) {
-    strip_suffix_char(s, crate::charsets::is_jumbling_suffix)
+pub fn strip_jumbling_suffix(s: &str) -> (&str, Option<JumbleSuffix>) {
+    // Try to split at the last and second-to-last Latin characters
+    let char_indices = s.char_indices().rev();
+    let latin_letter_indices = char_indices.filter(|(_i, c)| matches!(c, 'a'..='z'));
+    latin_letter_indices
+        .take(2)
+        .filter_map(|(i, _c)| Some((&s[..i], Some(JumbleSuffix::from_str(&s[i..]).ok()?))))
+        .last() // prefer second-to-last
+        .unwrap_or((s, None))
 }
 
 fn strip_suffix_char(s: &str, is_char_allowed: fn(char) -> bool) -> (&str, Option<char>) {
@@ -129,6 +136,12 @@ impl FromStr for SequentialLowercaseName {
     }
 }
 
+impl From<u32> for SequentialLowercaseName {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
 /// Zero-indexed sequential uppercase name.
 ///
 /// This is typically used for numbering axes within a set.
@@ -224,6 +237,49 @@ impl FromStr for UppercaseGreekPrefix {
     }
 }
 
+/// Jumble suffix.
+///
+/// - `h` = half of a doctrinaire move
+/// - `j` = single jumbling angle
+/// - `ja`, `jb`, `jc`, ..., `jz`, `jΓa`, `jΓb`, ... = numbered jumbling angles
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum JumbleSuffix {
+    /// `h`
+    H,
+    /// `j` or `ja`, `jb`, `jc`, ..., `jz`, `jΓa`, `jΓb`, ...
+    J(Option<SequentialLowercaseName>),
+}
+
+impl fmt::Display for JumbleSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JumbleSuffix::H => write!(f, "h"),
+            JumbleSuffix::J(None) => write!(f, "j"),
+            JumbleSuffix::J(Some(n)) => write!(f, "j{n}"),
+        }
+    }
+}
+
+impl FromStr for JumbleSuffix {
+    type Err = ParseJumblingSuffixError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "h" {
+            Ok(Self::H)
+        } else if let Some(rest) = s.strip_prefix('j') {
+            if rest.is_empty() {
+                Ok(Self::J(None))
+            } else {
+                Ok(Self::J(Some(
+                    rest.parse().map_err(|_| ParseJumblingSuffixError)?,
+                )))
+            }
+        } else {
+            Err(ParseJumblingSuffixError)
+        }
+    }
+}
+
 /// Returns the `n`th letter from the short lowercase Greek alphabet series.
 ///
 /// Panics if `n >= 9`.
@@ -271,3 +327,57 @@ impl fmt::Display for ParseSequentialNameError {
 }
 
 impl std::error::Error for ParseSequentialNameError {}
+
+/// Error when parsing a jumbling suffix.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ParseJumblingSuffixError;
+
+impl fmt::Display for ParseJumblingSuffixError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid jumbling suffix")
+    }
+}
+
+impl std::error::Error for ParseJumblingSuffixError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jumbling_suffix() {
+        let test_cases = [
+            ("h", JumbleSuffix::H),
+            ("j", JumbleSuffix::J(None)),
+            ("ja", JumbleSuffix::J(Some(0.into()))),
+            ("jb", JumbleSuffix::J(Some(1.into()))),
+            ("jj", JumbleSuffix::J(Some(9.into()))),
+            ("jΓa", JumbleSuffix::J(Some(26.into()))),
+            ("jΓj", JumbleSuffix::J(Some(35.into()))),
+            ("jΩz", JumbleSuffix::J(Some(285.into()))),
+            ("jΓΓa", JumbleSuffix::J(Some(286.into()))),
+            ("jΓΓj", JumbleSuffix::J(Some(295.into()))),
+        ];
+        for (s, expected) in test_cases {
+            assert_eq!(s.parse(), Ok(expected));
+            assert_ne!(format!("j{s}").parse(), Ok(expected));
+
+            JumbleSuffix::from_str(&format!("a{s}")).unwrap_err();
+            assert_eq!(
+                strip_jumbling_suffix(&format!("a{s}")),
+                ("a", Some(expected)),
+            );
+
+            for prefix in ["a", "J", "Γ"] {
+                JumbleSuffix::from_str(&format!("{prefix}{s}")).unwrap_err();
+                assert_eq!(
+                    strip_jumbling_suffix(&format!("{prefix}{s}")),
+                    (prefix, Some(expected)),
+                );
+            }
+        }
+
+        assert_eq!(strip_jumbling_suffix("abcd"), ("abcd", None));
+        assert_eq!(JumbleSuffix::from_str("aj"), Err(ParseJumblingSuffixError));
+    }
+}

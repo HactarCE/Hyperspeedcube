@@ -54,11 +54,6 @@ pub fn is_family_char(c: char) -> bool {
     classify(c).is_some()
 }
 
-/// Returns whether `c` is a jumbling suffix character `h`, `j`, or `k`.
-pub fn is_jumbling_suffix(c: char) -> bool {
-    matches!(c, 'h' | 'j' | 'k')
-}
-
 /// Uppercase Greek letters that are visually distinct from Latin letters.
 pub const UPPERCASE_GREEK: [char; 10] = ['Γ', 'Δ', 'Θ', 'Λ', 'Ξ', 'Π', 'Σ', 'Φ', 'Ψ', 'Ω'];
 /// Short lowercase Greek letters that are visually distinct from Latin letters.
