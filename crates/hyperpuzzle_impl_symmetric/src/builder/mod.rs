@@ -297,8 +297,11 @@ impl PuzzleProduct {
 
         // TODO: actually measure perf on, e.g., FT 600-Cell
         let mut shape = self.shape.clone();
-        if ndim > 3 {
-            shape.remove_internals();
+        if ndim > 2 {
+            // 2D internals are very helpful, so keep them.
+            // 3D internals can block jumbling moves.
+            // 4D+ internals are invisible anyway so remove them.
+            shape.remove_internals(); // TODO: allow keeping internals for debugging
         }
 
         let (pieces, stickers) = shape.build_piece_and_stickers(&colors)?;
