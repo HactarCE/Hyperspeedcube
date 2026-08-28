@@ -39,7 +39,14 @@ for i in 1..=8 {
 // Twist systems //
 //---------------//
 
-fn def_truncation_twists(shape_file, vertex_cd_point, **kwargs) {
+fn def_truncation_twists(
+    shape_file,
+    vertex_cd_point,
+    *,
+    jumble_moves = #{},
+    jumble_stops = #{},
+    **kwargs,
+) {
     add_twist_system(
         engine = "symmetric",
         ndim = 3,
@@ -55,14 +62,30 @@ fn def_truncation_twists(shape_file, vertex_cd_point, **kwargs) {
                     #twists.axes ++= [p.projected_to(elements[k])]
                 }
             }
+            print(jumble_moves, jumble_stops)
+            #twists.jumble_moves = jumble_moves
+            #twists.jumble_stops = jumble_stops
         },
         **kwargs,
     )
 }
 
-def_truncation_twists(@shapes/3d/cube, "oxo", id = "cube_ft_vt@1", name = "FT+VT Cube")
-def_truncation_twists(@shapes/3d/cube, "xox", id = "cube_ft_et_vt@0", name = "FT+ET+VT Cube") // TODO: jumbling angles (ET cube)
-def_truncation_twists(@shapes/3d/dodecahedron, "oxo", id = "dodecahedron_ft_vt@1", name = "FT+VT Dodecahedron") // TODO: jumbling angles (FT icosahedron)
+def_truncation_twists(
+    @shapes/3d/cube, "oxo",
+    id = "cube_ft_vt@1", name = "FT+VT Cube",
+)
+def_truncation_twists(
+    @shapes/3d/cube, "xox",
+    id = "cube_ft_et_vt@0", name = "FT+ET+VT Cube",
+    jumble_moves = #{ UF = #{ j = "UR->RF" } },
+    jumble_stops = #{ UF = ["j"] },
+)
+def_truncation_twists(
+    @shapes/3d/dodecahedron, "oxo",
+    id = "dodecahedron_ft_vt@1", name = "FT+VT Dodecahedron",
+    jumble_moves = #{ FRU = #{ j = "DLFL->DLDRF" } },
+    jumble_stops = #{ FRU = ["j"] }
+)
 
 //------- //
 // Shapes //

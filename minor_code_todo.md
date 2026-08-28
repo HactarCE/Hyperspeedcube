@@ -17,3 +17,6 @@
 - Break ties in twist dragging based on whichever axis it's closest to
 - Actually support twist subsets
 - Infer ±inf cut depths for simple layer list
+- Disallow drag twist if axis/layer is blocked
+- Jumble scrambles
+- Custom scramble sequences

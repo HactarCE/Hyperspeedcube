@@ -36,7 +36,16 @@ add_twist_system(
         #twists.sym = cube.sym
         #twists.points = cube.points
         #twists.axes = [cube.edge.unit]
-        // TODO: stabilizer twists + sets
+        #twists.stabilizer_twists = [
+            [["UF", "F"], 1/2],
+            [["UF", "L"], 1/(2*√2)],
+        ]
+        #twists.stabilizer_sets = [
+            [["R", "U"], 1],
+            [["R", "U", "F"], (1-2*√2)/√3], // TODO: why backwards???
+        ]
+        #twists.jumble_moves.UF = #{ j = "UR->RF" }
+        #twists.jumble_stops.UF = ["j"]
     }
 )
 
@@ -89,8 +98,18 @@ add_twist_system(
         dodecahedron = @shapes/3d/dodecahedron.new()
         #twists.sym = dodecahedron.sym
         #twists.points = dodecahedron.points
-        #twists.axes = [dodecahedron.edge.unit]
-        // TODO: stabilizer twists + sets
+        #twists.axes = [dodecahedron.edge]
+        #twists.stabilizer_twists = [
+            [["UF", "F"], 1/φ/2],
+            [["UF", "L"], 1/φ^2/2],
+        ]
+        #twists.stabilizer_sets = [
+            [["R", "U"], lerp(dodecahedron.edge.mag, φ / √(φ + 2), 0.5)],
+            [["R", "U", "F"], lerp(dodecahedron.vertex.mag, (φ + 1) / √(3*φ + 6), 0.5)],
+        ]
+        #twists.jumble_moves.UF = #{ h = "PRR->DLDR", ja = "UR->RF", jb = "DRF->DLF" }
+        #twists.jumble_stops.UF = ["h", "ja", "jb"]
+        // TODO: only add `h` at high enough cut depths (`jumbl2` subset)
     }
 )
 
@@ -117,16 +136,15 @@ fn def_rhombic_triacontahedron(cut_depths, **kwargs) {
             dodecahedron = @shapes/3d/dodecahedron.new()
             #shape.sym = dodecahedron.sym
             #shape.points = dodecahedron.points
-            #shape.facets = [dodecahedron.edge.unit]
-            // #puz.layers.RF = @util/layers.with_opposite([1] ++ cut_depths)
-            #puz.layers.RF = [1] ++ cut_depths
+            #shape.facets = [dodecahedron.edge]
+            #puz.layers.RF = @util/layers.with_opposite([∞] ++ cut_depths.map(fn (x) { x * dodecahedron.edge.mag }))
         },
         **kwargs,
     )
 }
 
-def_rhombic_triacontahedron([1-(1-1/φ)/3], id = "rhombic_triacontahedron_ft_canon@0", name = "Canon-Cut FT Rhombic Triacontahedron") // TODO: cut deeper to avoid floating pieces when jumbling
-def_rhombic_triacontahedron([1-(1-1/φ)/2], id = "rhombic_triacontahedron_ft_adj@0", name = "Adjacent-Cut FT Rhombic Triacontahedron")
+def_rhombic_triacontahedron([0.85], id = "rhombic_triacontahedron_ft_canon@0", name = "Canon-Cut FT Rhombic Triacontahedron")
+def_rhombic_triacontahedron([φ/2], id = "rhombic_triacontahedron_ft_adj@0", name = "Adjacent-Cut FT Rhombic Triacontahedron")
 // d = (2*φ+4) / ((8*φ+6) - (4*φ+3)/√(3*φ+2) - √(4*φ^2 + 11*φ + 6)) // sweet spot, no mechanism due to zero-area corner stalk
 // d = 3/4 // looks good, but piece overhangs
 // sweet spot near 0.723, but piece overhangs
