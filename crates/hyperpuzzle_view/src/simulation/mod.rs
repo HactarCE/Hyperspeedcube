@@ -553,8 +553,22 @@ impl PuzzleSimulation {
                 twists,
             } => {
                 let mut any_effect = false;
+                let mut animations: Vec<AnimationFromState> = vec![];
                 for twist in twists {
-                    any_effect |= self.do_twist(twist);
+                    let (success, anim_to_enqueue) = self.do_twist(twist);
+                    any_effect |= success;
+
+                    if let Some(new_anim) = &anim_to_enqueue
+                        && let Some(last) = animations.last_mut()
+                        && let Some(combined_anim) = last.anim.simultaneous(&*new_anim.anim)
+                    {
+                        last.anim = combined_anim;
+                    } else {
+                        animations.extend(anim_to_enqueue);
+                    }
+                }
+                for anim in animations {
+                    self.twist_anim.push(anim);
                 }
                 if any_effect
                     && !is_replaying
@@ -615,17 +629,17 @@ impl PuzzleSimulation {
         }
     }
 
-    /// Executes a twist on the puzzle and queues the appropriate animation.
-    /// Returns whether the twist was successful.
+    /// Executes a twist on the puzzle. Returns whether the twist was
+    /// successful, and an optional animation to enqueue.
     ///
     /// Any in-progress partial twist is canceled.
     ///
     /// This does **not** affect the undo stack. Use [`Self::do_event()`]
     /// instead if that's desired.
-    fn do_twist(&mut self, twist: &Move) -> bool {
+    fn do_twist(&mut self, twist: &Move) -> (bool, Option<AnimationFromState>) {
         let puzzle = Arc::clone(self.puzzle_type());
         let Some(axis) = (puzzle.twists.axis_from_family)(&twist.transform.family) else {
-            return false;
+            return (false, None);
         };
         let layers_info = puzzle.axis_layers[axis];
         let layer_mask = twist.layers.to_layer_mask(layers_info);
@@ -647,7 +661,7 @@ impl PuzzleSimulation {
         match self.latest_state.do_twist_dyn(twist) {
             Ok(new_state) => {
                 let Some(axis) = (puzzle.twists.axis_from_family)(&twist.transform.family) else {
-                    return false;
+                    return (false, None);
                 };
                 let layers_info = puzzle.axis_layers[axis];
 
@@ -664,37 +678,33 @@ impl PuzzleSimulation {
                         .powi(twist.multiplier.into())
                         .canonicalize_up_to_180()
                 {
-                    self.twist_anim.push(AnimationFromState {
-                        state,
-                        anim: NdEuclidPuzzleAnimation {
-                            pieces: grip,
-                            initial_transform: nd_euclid_initial_transform
-                                .unwrap_or_else(|| Motor::ident(final_transform.ndim())),
-                            final_transform,
-                        }
-                        .into(),
-                    });
+                    let anim = NdEuclidPuzzleAnimation {
+                        pieces: grip,
+                        initial_transform: nd_euclid_initial_transform
+                            .unwrap_or_else(|| Motor::ident(final_transform.ndim())),
+                        final_transform,
+                    }
+                    .into();
+                    (true, Some(AnimationFromState { state, anim }))
                 } else if let Ok(symmetric) = puzzle
                     .twists
                     .components
                     .get::<SymmetricTwistSystemComponent>()
                     && let Ok(m) = symmetric.twist_motor(twist)
                 {
-                    self.twist_anim.push(AnimationFromState {
-                        state,
-                        anim: NdEuclidPuzzleAnimation {
-                            pieces: grip,
-                            initial_transform: nd_euclid_initial_transform
-                                .unwrap_or_else(|| Motor::ident(symmetric.ndim())),
-                            final_transform: m,
-                        }
-                        .into(),
-                    });
+                    let anim = NdEuclidPuzzleAnimation {
+                        pieces: grip,
+                        initial_transform: nd_euclid_initial_transform
+                            .unwrap_or_else(|| Motor::ident(symmetric.ndim())),
+                        final_transform: m,
+                    }
+                    .into();
+                    (true, Some(AnimationFromState { state, anim }))
+                } else {
+                    (true, None)
                 }
-
-                true
             }
-            Err(blocking_pieces) => {
+            Err(TwistError::Blocked(blocking_pieces)) => {
                 self.blocking_anim.set(blocking_pieces);
 
                 if let Some(initial_transform) = nd_euclid_initial_transform {
@@ -710,7 +720,11 @@ impl PuzzleSimulation {
                     });
                 }
 
-                false
+                (false, None)
+            }
+            Err(e) => {
+                eprintln!("{e}"); // TODO display this to the end user via status bar
+                (false, None)
             }
         }
     }

@@ -2930,6 +2930,7 @@ dependencies = [
  "indexmap",
  "itertools 0.14.0",
  "parking_lot",
+ "proptest",
  "rand 0.10.1",
  "rayon",
  "smallvec",

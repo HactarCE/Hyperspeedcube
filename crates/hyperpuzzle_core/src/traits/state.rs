@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::WhichSide;
-use hypuz_notation::LayerMask;
+use hypuz_notation::{Layer, LayerMask};
 
 use super::*;
 use crate::{Axis, Move, PerPiece, Piece, PieceMask, Puzzle};
@@ -28,7 +28,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     ///
     /// If the twist is not valid for a reason other than blocked pieces,
     /// returns `Err(vec![])`.
-    fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>>
+    fn do_twist(&self, twist: &Move) -> Result<Self, TwistError>
     where
         Self: Sized;
 
@@ -37,7 +37,7 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
     ///
     /// If the twist is not valid for a reason other than blocked pieces,
     /// returns `Err(vec![])`.
-    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, Vec<Piece>>;
+    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, TwistError>;
 
     /// Returns whether the puzzle is in a solved state.
     fn is_solved(&self) -> bool;
@@ -99,3 +99,20 @@ box_dyn_wrapper_struct! {
     pub struct BoxDynPuzzleState(Box<dyn PuzzleState>);
 }
 impl_dyn_clone!(for BoxDynPuzzleState);
+
+/// Error returned when a twist fails.
+#[derive(thiserror::Error, Debug, Clone)]
+#[expect(missing_docs)]
+#[non_exhaustive]
+pub enum TwistError {
+    #[error("internal error")]
+    Internal,
+    #[error("unknown twist")]
+    Unknown,
+    #[error("twist is blocked by {} pieces", .0.len())]
+    Blocked(Vec<Piece>),
+    #[error("twist does not land on a jumble stop of layer {0}")]
+    MissesJumbleStop(Layer),
+    #[error("twist has no effect")]
+    NoEffect,
+}

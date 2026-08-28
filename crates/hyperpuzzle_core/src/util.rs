@@ -32,25 +32,24 @@ pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
     )
 }
 
-/// Returns a random nonempty layer mask, or `None` if `max_layer == 0`.
-pub fn random_layer_mask(
+/// Returns an iterator over random layer masks up to the specified layer count.
+///
+/// This includes some layer masks that may be undesirable, such as the empty
+/// layer mask and the layer mask that includes all layers.
+pub fn random_layer_masks(
     rng: &mut dyn rand::Rng,
     layer_count: u16,
-) -> Option<hypuz_notation::LayerMask> {
-    if layer_count == 0 {
-        None
-    } else {
-        let mut random_bits = std::iter::from_fn(|| Some(rng.next_u32()))
-            .flat_map(|bits: u32| (0..u32::BITS).map(move |i| bits & (1 << i) != 0));
-        std::iter::from_fn(|| hypuz_notation::LayerRange::all(layer_count))
-            .map(|all_layers| {
-                all_layers
-                    .into_iter()
-                    .filter(|_| random_bits.next().expect("end of random bits"))
-                    .collect()
-            })
-            .find(|mask: &hypuz_notation::LayerMask| !mask.is_empty())
-    }
+) -> impl '_ + Iterator<Item = hypuz_notation::LayerMask> {
+    let mut random_bits = std::iter::from_fn(|| Some(rng.next_u32()))
+        .flat_map(|bits: u32| (0..u32::BITS).map(move |i| bits & (1 << i) != 0));
+    std::iter::from_fn(move || hypuz_notation::LayerRange::all(layer_count)).map(
+        move |all_layers| {
+            all_layers
+                .into_iter()
+                .filter(|_| random_bits.next().expect("end of random bits"))
+                .collect()
+        },
+    )
 }
 
 // TODO: remove name functions. they should live in hypuz_notation

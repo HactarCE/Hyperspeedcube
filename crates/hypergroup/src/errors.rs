@@ -6,8 +6,8 @@ use crate::GroupElementId;
 pub type GroupResult<T> = Result<T, GroupError>;
 
 /// Error that can occur during group construction.
-#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone)]
+#[expect(missing_docs)]
 #[non_exhaustive]
 pub enum GroupError {
     #[error("overflow ({0})")]

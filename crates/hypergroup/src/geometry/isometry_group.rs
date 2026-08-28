@@ -5,8 +5,7 @@ use std::sync::{Arc, LazyLock};
 use hypermath::approx_collections::hash_map::Entry;
 use hypermath::pga::Motor;
 use hypermath::{
-    APPROX, ApproxHash, ApproxHashMap, MotorNearestNeighborMap, Ndim, Point, TransformByMotor,
-    Vector,
+    APPROX, ApproxHash, ApproxHashMap, MotorNearestNeighborMap, Point, TransformByMotor, Vector,
 };
 use hypuz_util::ti::{TiVec, TypedIndex, TypedIndexIter};
 use itertools::Itertools;

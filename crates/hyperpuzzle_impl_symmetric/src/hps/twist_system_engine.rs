@@ -2,19 +2,20 @@ use std::sync::Arc;
 
 use eyre::{Context, eyre};
 use hypergroup::GenSeq;
+use hypermath::Float;
 use hyperpuzzle_core::{BuildCtx, TwistSystem};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::engine::HpsEngineError;
 use hyperpuzzlescript::util::pop_map_key_in_special_var;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
-    Span, Spanned, SpecialVar, Value, ValueData, unpack_kwargs,
+    Span, Spanned, SpecialVar, Type, Value, ValueData, unpack_kwargs,
 };
 use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::builder::*;
+use crate::{JumbleAngleSpec, JumbleMoveSpec, JumbleStopSpec, builder::*};
 use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec, StabilizerTwistOrbitSpec};
 
 pub struct SymmetricTwistSystemEngine;
@@ -71,6 +72,14 @@ pub(super) fn init_twists_in_hps_scope(scope: &mut Scope) {
     m.insert("axes".into(), super::new_hps_list());
     m.insert("stabilizer_twists".into(), super::new_hps_list());
     m.insert("stabilizer_sets".into(), super::new_hps_list());
+    m.insert(
+        "jumble_moves".into(),
+        ValueData::Map(Arc::new(Map::new())).at(BUILTIN_SPAN),
+    );
+    m.insert(
+        "jumble_stops".into(),
+        ValueData::Map(Arc::new(Map::new())).at(BUILTIN_SPAN),
+    );
     scope.special.twists = Arc::new(Mutex::new(ValueData::Map(Arc::new(m)).at(BUILTIN_SPAN)));
 }
 
@@ -146,6 +155,55 @@ pub(super) fn twist_system_product_from_hps(
         });
     }
 
+    let mut jumble_moves = vec![];
+    for (axis_name, jumble_map) in &*pop_map_key_in_special_var::<Arc<Map>>(
+        &mut twists_map,
+        build_span,
+        SpecialVar::Twists,
+        "jumble_moves",
+    )? {
+        for (k, v) in &*jumble_map.as_ref::<Map>()? {
+            jumble_moves.push(JumbleMoveSpec {
+                axis: Str::from(axis_name.as_str()),
+                suffix: k
+                    .parse()
+                    .with_context(|| format!("parsing jumble move {k:?}"))
+                    .at(jumble_map.span)?,
+                angle: if let Ok(a) = v.ref_to::<Float>() {
+                    JumbleAngleSpec::Angle(a)
+                } else if let Ok(s) = v.as_ref::<str>() {
+                    let (start, end) = s.split_once("->").ok_or_else(|| {
+                        "bad jumble transform; expected the form \"A->B\" with axis names"
+                            .at(v.span)
+                    })?;
+                    JumbleAngleSpec::FromTo(Str::from(start.trim()), Str::from(end.trim()))
+                } else {
+                    return Err(v.type_error(Type::Num | Type::Str));
+                },
+            });
+        }
+    }
+
+    let mut jumble_stops = vec![];
+    for (axis_name, stops_list) in &*pop_map_key_in_special_var::<Arc<Map>>(
+        &mut twists_map,
+        build_span,
+        SpecialVar::Twists,
+        "jumble_stops",
+    )? {
+        for transform in stops_list.as_ref::<[Value]>()? {
+            let s = transform.as_ref::<str>()?;
+            let i = s.find(|c| matches!(c, '0'..='9' | '\'')).unwrap_or(s.len());
+            jumble_stops.push(JumbleStopSpec {
+                axis: Str::from(axis_name.as_str()),
+                suffix: s[..i].parse().at(transform.span)?,
+                multiplier: s[i..]
+                    .parse()
+                    .map_err(|_| "bad twist multiplier".at(transform.span))?,
+            });
+        }
+    }
+
     build_ctx.push_task("Constructing twist system factor");
     let result = TwistSystemProduct::new_factor(
         &crate::FactorTwistSystemSpec {
@@ -157,6 +215,8 @@ pub(super) fn twist_system_product_from_hps(
             named_point_orbits,
             named_point_set_orbits,
             stabilizer_twist_orbits,
+            jumble_moves,
+            jumble_stops,
         },
         &mut ctx.warnf(),
     )

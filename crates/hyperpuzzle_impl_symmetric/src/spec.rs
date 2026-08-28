@@ -5,13 +5,15 @@ use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, Isometr
 use hypermath::prelude::*;
 use hypermath::{Float, Subspace};
 use hyperpuzzle_core::CatalogId;
-use hypuz_notation::Str;
+use hypuz_notation::family::JumbleSuffix;
+use hypuz_notation::{Multiplier, Str};
 use itertools::Itertools;
 
 use crate::builder::TwistSystemProduct;
 use crate::{CutDistances, NamedPoint, PerNamedPoint};
 
 /// Specification for a twist system factor.
+#[derive(Debug, Clone)]
 pub struct FactorTwistSystemSpec {
     /// ID for the twist system.
     pub id: CatalogId,
@@ -30,6 +32,15 @@ pub struct FactorTwistSystemSpec {
     pub named_point_set_orbits: Vec<NamedPointSetOrbitSpec>,
     /// Orbits of stabilizer twists.
     pub stabilizer_twist_orbits: Vec<StabilizerTwistOrbitSpec>,
+    /// Jumble moves.
+    ///
+    /// Jumble moves are expanded by axis orbit.
+    pub jumble_moves: Vec<JumbleMoveSpec>,
+    /// Jumble stops for axis orbits.
+    ///
+    /// Jumble stops are expanded by puzzle symmetry, which often includes
+    /// reflections.
+    pub jumble_stops: Vec<JumbleStopSpec>,
 }
 
 /// Specification for an orbit of named point sets in a
@@ -37,6 +48,7 @@ pub struct FactorTwistSystemSpec {
 ///
 /// This struct only contains info about one named point set in the orbit; the
 /// orbit is generated using the grip group.
+#[derive(Debug, Clone)]
 pub struct NamedPointSetOrbitSpec {
     /// Names of the named points in the set.
     pub named_points: Vec<Str>,
@@ -48,6 +60,7 @@ pub struct NamedPointSetOrbitSpec {
 ///
 /// This struct only contains info about one twist in the orbit; the orbit is
 /// generated using the grip group.
+#[derive(Debug, Clone)]
 pub struct StabilizerTwistOrbitSpec {
     /// Name of the axis to twist.
     pub axis_name: Str,
@@ -58,7 +71,7 @@ pub struct StabilizerTwistOrbitSpec {
 }
 
 /// Specification for a factor of a [`ProductPuzzleSpec`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FactorPuzzleSpec {
     /// ID for the puzzle.
     pub id: CatalogId,
@@ -272,4 +285,32 @@ impl SimpleOrbitSpec {
             candidates.retain(|&p| !subspace.contains(&named_point_unit_vectors[p]));
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct JumbleMoveSpec {
+    /// Name of one axis in the orbit.
+    pub axis: Str,
+    /// Jumble suffix for twist notation.
+    pub suffix: JumbleSuffix,
+    /// Jumble angle.
+    pub angle: JumbleAngleSpec,
+}
+
+#[derive(Debug, Clone)]
+pub enum JumbleAngleSpec {
+    /// Transform from one axis to another.
+    FromTo(Str, Str),
+    /// Exact angle.
+    Angle(Float),
+}
+
+#[derive(Debug, Clone)]
+pub struct JumbleStopSpec {
+    /// Name of one axis in the orbit.
+    pub axis: Str,
+    /// Jumbling suffix for twist notation.
+    pub suffix: JumbleSuffix,
+    /// Multiplier for the jumble transform.
+    pub multiplier: Multiplier,
 }

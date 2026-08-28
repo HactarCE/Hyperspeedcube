@@ -4,10 +4,13 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
+use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
 use hyperpuzzle_core::{catalog::VersionedCatalogWord, group::GroupElementId};
-use hyperpuzzle_impl_nd_euclid::{NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData};
+use hyperpuzzle_impl_nd_euclid::{
+    NdEuclidAxisVectors, NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData,
+};
 
 mod builder;
 mod cut_distances;
@@ -18,17 +21,17 @@ mod spec;
 mod stabilizer_family;
 mod twist_system;
 
-use builder::PuzzleProduct;
+use builder::{ColorSystemDisjointUnion, PuzzleProduct, TwistSystemProduct};
 pub use cut_distances::CutDistances;
+use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
 pub use spec::*;
 pub use stabilizer_family::StabilizerFamily;
 pub use twist_system::{
+    AxisOrbitJumbleData, JumbleStop, JumbleStopInfo, JumbleTransform, PerJumbleStop,
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
-
-use crate::builder::{ColorSystemDisjointUnion, TwistSystemProduct};
 
 const PRODUCT_ID: &str = "product@1";
 const DISJOINT_UNION_ID: &str = "sum@1";
@@ -270,6 +273,8 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
                     named_point_orbits: vec![],
                     named_point_set_orbits: vec![],
                     stabilizer_twist_orbits: vec![],
+                    jumble_moves: vec![],
+                    jumble_stops: vec![],
                 },
                 &mut build_ctx.warn_fn(),
             )?))
@@ -309,17 +314,91 @@ fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct Attitude {
+    jumble_offset: Option<Motor>,
+    element: GroupElementId,
+}
+
+impl Default for Attitude {
+    fn default() -> Self {
+        Self::from(GroupElementId::IDENTITY)
+    }
+}
+
+impl From<GroupElementId> for Attitude {
+    fn from(value: GroupElementId) -> Self {
+        Self {
+            jumble_offset: None,
+            element: value,
+        }
+    }
+}
+
+impl Attitude {
+    fn compose(&self, other: &Self, group: &hypergroup::IsometryGroup) -> Self {
+        let j1 = self.jumble_offset.as_ref();
+        let j2 = other.jumble_offset.as_ref();
+
+        // j1 e1 j2 e2
+        // = (j1 (e1 j2 e1')) (e1 e2)
+        let mut jumble_offset = hypermath::util::merge_options(
+            j1.cloned(),
+            j2.map(|j| group.motor(self.element).transform(j)),
+            |a, b| a * b,
+        );
+        let mut element = group.compose(self.element, other.element);
+        if let Some(j) = &jumble_offset
+            && let Some(unjumbled) = group.element_from_motor(j)
+        {
+            // simplify!
+            jumble_offset = None;
+            element = group.compose(unjumbled, element);
+        }
+        Self {
+            jumble_offset,
+            element,
+        }
+    }
+
+    fn motor(&self, group: &hypergroup::IsometryGroup) -> Motor {
+        match &self.jumble_offset {
+            Some(j) => j * group.motor(self.element),
+            None => group.motor(self.element),
+        }
+    }
+
+    fn inverse(&self, group: &hypergroup::IsometryGroup) -> Self {
+        // (j1 e1)'
+        // = e1' j1'
+        // = (e1' j1' e1) e1'
+        Self {
+            jumble_offset: self
+                .jumble_offset
+                .as_ref()
+                .map(|j| group.motor(self.element).reverse().transform(&j.reverse())),
+            element: group.inverse(self.element),
+        }
+    }
+}
+
 /// Instance of a product puzzle with a particular state.
 #[derive(Debug, Clone)]
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,
     twists: Arc<SymmetricTwistSystemComponent>,
     piece_grip_signatures: Arc<PerPiece<PerAxis<Option<LayerRange>>>>,
-    piece_attitudes: PerPiece<GroupElementId>, // TODO: consider storing inverse
+    piece_points: Arc<PerPiece<Vec<Point>>>,
+    axis_layer_ranges: Arc<PerAxis<PerLayer<[Float; 2]>>>,
+    axis_vectors: Arc<NdEuclidAxisVectors>,
+    /// Current jumble stop for each layer on each axis, or `None` if this
+    /// puzzle has no jumbling.
+    axis_jumble_states: Option<PerAxis<PerLayer<JumbleStop>>>,
+    piece_attitudes: PerPiece<Attitude>,
 }
 
 impl PuzzleState for ProductPuzzleState {
-    fn ty(&self) -> &std::sync::Arc<Puzzle> {
+    fn ty(&self) -> &Arc<Puzzle> {
         &self.ty
     }
 
@@ -327,25 +406,61 @@ impl PuzzleState for ProductPuzzleState {
         self.clone().into()
     }
 
-    fn do_twist(&self, twist: &Move) -> std::result::Result<Self, Vec<Piece>>
+    fn do_twist(&self, twist: &Move) -> Result<Self, TwistError>
     where
         Self: Sized,
     {
-        let (axis, transform) = self.twists.resolve_twist(twist).map_err(|_| vec![])?;
+        let (axis, element, jumble_offset) = self
+            .twists
+            .resolve_twist(twist)
+            .map_err(|_| TwistError::Unknown)?;
+        let attitude_delta = Attitude {
+            element,
+            jumble_offset: jumble_offset.clone().map(|(m, _)| m),
+        };
+
         let layer_mask = twist.layers.to_layer_mask(self.ty.axis_layers[axis]);
+        let pieces_affected = self.compute_grip(axis, &layer_mask);
+        let blocking_pieces = pieces_affected
+            .iter_filter(|_piece, &which_side| which_side == WhichSide::Split)
+            .collect_vec();
+        if !blocking_pieces.is_empty() {
+            return Err(TwistError::Blocked(blocking_pieces));
+        }
+
         let mut ret = self.clone();
-        for (piece, which_side) in self.compute_grip(axis, &layer_mask) {
+
+        let (_, axis_orbit) = self.twists.axis_undeorbiters[axis];
+        if let Some(axis_jumble_states) = &mut ret.axis_jumble_states
+            && let Some((_, angle_delta)) = jumble_offset
+            && let Some(jumble_data) = &self.twists.axis_orbits[axis_orbit].jumble_data
+        {
+            for layer in &layer_mask {
+                let old_stop = axis_jumble_states[axis][layer];
+                let old_angle = jumble_data.stops[old_stop].angle;
+                let new_angle = old_angle + angle_delta;
+                let new_stop = jumble_data
+                    .factor_exact(new_angle)
+                    .ok_or(TwistError::MissesJumbleStop(layer))?;
+                // TODO: check per-layer validity
+
+                // if !jumble_data.stops[new_stop].layer_mask.contains(layer) {
+                //     return Err(TwistError::MissesJumbleStop(layer));
+                // }
+                axis_jumble_states[axis][layer] = new_stop;
+            }
+        }
+
+        for (piece, which_side) in pieces_affected {
             if which_side == WhichSide::Inside {
-                ret.piece_attitudes[piece] = self
-                    .twists
-                    .group
-                    .compose(transform, ret.piece_attitudes[piece]);
+                ret.piece_attitudes[piece] =
+                    attitude_delta.compose(&ret.piece_attitudes[piece], &self.twists.group);
             }
         }
         Ok(ret)
     }
 
-    fn do_twist_dyn(&self, twist: &Move) -> std::result::Result<BoxDynPuzzleState, Vec<Piece>> {
+    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, TwistError> {
         self.do_twist(twist).map(BoxDynPuzzleState::new)
     }
 
@@ -354,24 +469,27 @@ impl PuzzleState for ProductPuzzleState {
     }
 
     fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide> {
-        self.piece_attitudes.map_ref(|piece, _| {
-            match self.piece_layer_range_on_axis(piece, axis) {
-                Some(range) => WhichSide::from_points(range.into_iter().map(|l| {
-                    if layers.contains(l) {
-                        PointWhichSide::Inside
-                    } else {
-                        PointWhichSide::Outside
-                    }
-                })),
-                None => WhichSide::Split, // axis is entirely blocked
-            }
-        })
+        self.piece_attitudes.map_ref(
+            |piece, _| match self.piece_layer_range_on_axis(piece, axis) {
+                (piece_layers, piece_is_outside_layers) => WhichSide::from_points(
+                    piece_layers
+                        .into_iter()
+                        .map(|l| {
+                            if layers.contains(l) {
+                                PointWhichSide::Inside
+                            } else {
+                                PointWhichSide::Outside
+                            }
+                        })
+                        .chain(piece_is_outside_layers.then_some(PointWhichSide::Outside)),
+                ),
+            },
+        )
     }
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        Some(LayerMask::from_range(
-            self.piece_layer_range_on_axis(piece, axis)?,
-        ))
+        let (layer_mask, outside_layers) = self.piece_layer_range_on_axis(piece, axis);
+        (!outside_layers).then_some(layer_mask)
     }
 
     fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
@@ -382,7 +500,7 @@ impl PuzzleState for ProductPuzzleState {
         NdEuclidPuzzleStateRenderData {
             piece_transforms: self
                 .piece_attitudes
-                .map_ref(|_, &e| self.twists.group.motor(e)),
+                .map_ref(|_, e| e.motor(&self.twists.group)),
         }
         .into()
     }
@@ -414,7 +532,7 @@ impl ProductPuzzleState {
     /// Returns the attitude of each piece.
     fn piece_transforms(&self) -> PerPiece<pga::Motor> {
         self.piece_attitudes
-            .map_ref(|_, &e| self.twists.group.motor(e))
+            .map_ref(|_, e| e.motor(&self.twists.group))
     }
 
     /// Returns piece transforms for a partial twist.
@@ -430,10 +548,28 @@ impl ProductPuzzleState {
         piece_transforms
     }
 
-    fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> Option<LayerRange> {
-        let attitude = self.piece_attitudes[piece];
-        let inverse_attitude = self.twists.group.inverse(attitude);
-        self.piece_grip_signatures[piece][self.twists.axis_action.act(inverse_attitude, axis)]
+    /// Returns the set of layers on the axis that contain any piece geometry,
+    /// and a boolean indicating whether the piece contains any geometry outside
+    /// the axis layers.
+    fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> (LayerMask, bool) {
+        let attitude = &self.piece_attitudes[piece];
+        let inverse_attitude = attitude.motor(&self.twists.group).reverse();
+        let Some(transformed_axis_vector) = inverse_attitude
+            .transform(&self.axis_vectors.vectors_by_id[axis])
+            .normalize()
+        else {
+            return Default::default(); // bad axis vector
+        };
+        let Some((min, mut max)) = self.piece_points[piece]
+            .iter()
+            .map(|p| transformed_axis_vector.dot(p.as_vector()))
+            .minmax_float()
+            .into_option()
+        else {
+            return Default::default(); // no geometry
+        };
+
+        layers_containing_range(&self.axis_layer_ranges[axis], min, max)
     }
 }
 
@@ -500,4 +636,86 @@ fn chain_cloned<'a, T: 'a + Clone, B: FromIterator<T>>(
     b: impl IntoIterator<Item = &'a T>,
 ) -> B {
     std::iter::chain(a, b).cloned().collect()
+}
+
+/// Returns the minimal set of layers that fully contains the range `min..=max`,
+/// and a boolean indicating whether any portion of the range is not contained
+/// in any layer.
+fn layers_containing_range(
+    axis_layers: &PerLayer<[Float; 2]>,
+    range_min: Float,
+    mut range_max: Float,
+) -> (LayerMask, bool) {
+    let mut mask = LayerMask::new();
+    let mut outside_any_layer = false;
+
+    // Iterate from outermost (greatest) to innermost (least)
+    for (layer, &[layer_max, layer_min]) in axis_layers {
+        // Cover `layer_max..=range_max`
+        outside_any_layer |= APPROX.lt(layer_max, range_max);
+
+        // Exit if this layer is completely below the range
+        if APPROX.lt_eq(layer_max, range_min) {
+            return (mask, outside_any_layer);
+        }
+
+        // Cover `layer_min..=layer_max`
+        if APPROX.lt(layer_min, range_max) {
+            mask.insert(layer);
+            // We've covered `layer_min..=range_max`, so the remaining range is `range_min..=layer_min`
+            range_max = layer_min;
+        }
+
+        // Exit if we have covered all of the range
+        if APPROX.lt_eq(range_max, range_min) {
+            return (mask, outside_any_layer);
+        }
+    }
+
+    (mask, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    const TEST_LAYER_COUNT: usize = 10;
+
+    proptest! {
+        #[test]
+        fn proptest_layers_containing_range(
+            mut range in [0..TEST_LAYER_COUNT, 0..TEST_LAYER_COUNT],
+            layers_bitmask in 0..(1_u64 << TEST_LAYER_COUNT),
+        ) {
+            prop_assume!(range[0] != range[1]);
+            range.sort();
+            test_layers_containing_range(range, layers_bitmask);
+        }
+    }
+
+    fn test_layers_containing_range([range_min, range_max]: [usize; 2], layers_bitmask: u64) {
+        let mut layers = PerLayer::new();
+        let mut expected_layer_mask = LayerMask::new();
+        let mut expected_bool = false;
+        for i in (0..TEST_LAYER_COUNT).rev() {
+            if layers_bitmask & (1 << i) != 0 {
+                let layer = layers.push([(i + 1) as Float, i as Float]).unwrap();
+                if (range_min..range_max).contains(&i) {
+                    expected_layer_mask.insert(layer);
+                }
+            } else if (range_min..range_max).contains(&i) {
+                expected_bool = true;
+            }
+        }
+        let actual_result =
+            layers_containing_range(&layers, range_min as Float, range_max as Float);
+        assert_eq!((expected_layer_mask, expected_bool), actual_result);
+    }
+
+    #[test]
+    fn test_repro() {
+        test_layers_containing_range([0, 1], 5);
+    }
 }

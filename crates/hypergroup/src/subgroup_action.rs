@@ -99,6 +99,16 @@ impl<P: TypedIndex> SubgroupAction<P> {
         Ok(ret)
     }
 
+    /// Returns a generating set for the subgroup.
+    pub fn subgroup_generators(&self) -> Vec<GroupElementId> {
+        self.subgroup_action
+            .group()
+            .generators()
+            .iter_values()
+            .map(|elem_in_subgroup| self.subgroup_to_overgroup(*elem_in_subgroup))
+            .collect()
+    }
+
     pub(crate) fn overgroup_to_subgroup(
         &self,
         elem_in_overgroup: GroupElementId,

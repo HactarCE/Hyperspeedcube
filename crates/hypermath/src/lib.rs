@@ -75,7 +75,7 @@ pub mod util;
 pub mod which_side;
 
 pub use ndim::Ndim;
-pub use sign::Sign;
+pub use sign::{RotDir, Sign};
 pub use subspace::Subspace;
 pub use which_side::PointWhichSide;
 
@@ -92,7 +92,7 @@ pub mod prelude {
     pub use crate::matrix::*;
     pub use crate::permutations::{self, Parity};
     pub use crate::point::*;
-    pub use crate::sign::Sign;
+    pub use crate::sign::{RotDir, Sign};
     pub use crate::traits::*;
     pub use crate::vector::*;
     pub use crate::which_side::*;

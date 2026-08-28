@@ -100,7 +100,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///    `fix` must be one of the following:
         ///     - A vector (zero [bulk], [grade] 1, [antigrade] 3)
         ///     - A line (nonzero [bulk], [grade] 2, [antigrade] 2)
-        /// 2. There are many 180-degree rotations that take any given vector to
+        /// 2. There are many 180° rotations that take any given vector to
         ///    its opposite, so this case is disallowed due to ambiguity.
         /// 3. This results in the component of each vector that is
         ///    perpendicular to `fix`.
@@ -116,16 +116,16 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///     https://en.wikipedia.org/wiki/Vector_projection
         ///
         /// ```title="Examples of rotation construction"
-        /// // 45-degree rotation in the XY plane
+        /// // 45° rotation in the XY plane
         /// rot(start = 'x', end = vec(1, 1, 0))
         ///
-        /// // 180-degree rotation around the Z axis
+        /// // 180° rotation around the Z axis
         /// rot(fix = 'z', angle = pi)
         ///
         /// // Jumbling rotation of the Curvy Copter puzzle
         /// rot(fix = vec(1, 1, 0), angle = acos(1/3))
         ///
-        /// // 90-degree rotation around an edge of a cube
+        /// // 90° rotation around an edge of a cube
         /// rot(fix = vec(1, 1, 0), start = 'x', end = 'z')
         /// ```
         #[kwargs(

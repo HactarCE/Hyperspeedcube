@@ -17,6 +17,10 @@ impl PuzzleStateRenderData for () {}
 pub trait PuzzleAnimation: Any + Send + Sync {
     /// Returns a copy of the data.
     fn clone_dyn(&self) -> BoxDynPuzzleAnimation;
+
+    /// Returns a simultaneous animation, or `None` if the animations cannot be
+    /// combined.
+    fn simultaneous(&self, other: &dyn PuzzleAnimation) -> Option<BoxDynPuzzleAnimation>;
 }
 box_dyn_wrapper_struct! {
     /// Wrapper around `Box<dyn PuzzleAnimation>` that can be downcast to a
@@ -28,5 +32,9 @@ impl_dyn_clone!(for BoxDynPuzzleAnimation);
 impl PuzzleAnimation for () {
     fn clone_dyn(&self) -> BoxDynPuzzleAnimation {
         ().into()
+    }
+
+    fn simultaneous(&self, _other: &dyn PuzzleAnimation) -> Option<BoxDynPuzzleAnimation> {
+        Some(().into())
     }
 }

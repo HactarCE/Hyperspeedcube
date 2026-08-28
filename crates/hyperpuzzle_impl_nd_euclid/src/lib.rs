@@ -80,7 +80,7 @@ lazy_static! {
             colors: Arc::new(ColorSystem::new_empty()),
             can_scramble: false,
             full_scramble_length: 0,
-            axis_layers: PerAxis::new(),
+            axis_layers: Arc::new(PerAxis::new()),
             twists: Arc::new(TwistSystem::new_empty()),
             new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
             random_move: Box::new(move |_rng| None),

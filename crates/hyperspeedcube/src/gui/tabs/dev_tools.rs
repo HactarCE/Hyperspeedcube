@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
-use hypermath::Sign;
+use hypermath::RotDir;
 use hyperprefs::Preferences;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
@@ -115,9 +115,16 @@ fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
         ui.label("");
         ui.strong("Gizmo twist");
         let sim = view.sim.lock();
-        for sign in [Sign::Pos, Sign::Neg] {
-            if let Some(mv) = (geom.get_gizmo_twist)(hov.gizmo_face, None, sign, sim.puzzle()) {
-                info_line(ui, &format!("Move ({sign})"), mv);
+        for dir in [RotDir::Cw, RotDir::Ccw] {
+            if let Some((gizmo_name, moves)) =
+                (geom.get_gizmo_twist)(hov.gizmo_face, None, dir, sim.puzzle())
+            {
+                info_line(ui, "Gizmo name", gizmo_name);
+                info_line(
+                    ui,
+                    &format!("Moves ({dir})"),
+                    moves.iter().map(|m| m.to_string()).join(" "),
+                );
             }
         }
         drop(sim);

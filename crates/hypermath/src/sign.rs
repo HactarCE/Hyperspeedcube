@@ -6,6 +6,47 @@ use std::ops::{Mul, MulAssign, Neg};
 
 use num_traits::Signed;
 
+/// Clockwise or counterclockwise.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum RotDir {
+    /// Clockwise
+    Cw,
+    /// Counterclockwise
+    Ccw,
+}
+
+impl RotDir {
+    /// Converts the rotation direction to a sign, given which direction is
+    /// considered positive.
+    pub fn to_sign(self, positive: RotDir) -> Sign {
+        if self == positive {
+            Sign::Pos
+        } else {
+            Sign::Neg
+        }
+    }
+}
+
+impl fmt::Display for RotDir {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RotDir::Cw => write!(f, "CW"),
+            RotDir::Ccw => write!(f, "CCW"),
+        }
+    }
+}
+
+impl Neg for RotDir {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            RotDir::Cw => RotDir::Ccw,
+            RotDir::Ccw => RotDir::Cw,
+        }
+    }
+}
+
 /// Positive or negative.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Sign {

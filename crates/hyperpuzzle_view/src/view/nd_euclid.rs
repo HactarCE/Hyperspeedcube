@@ -8,7 +8,6 @@ use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::FloatMinMaxByIteratorExt;
 use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
-use smallvec::smallvec;
 
 use super::{GizmoHoverState, NdEuclidPuzzleHoverState, PuzzleViewInput};
 use crate::styles::PuzzleStyleStates;
@@ -337,10 +336,10 @@ impl NdEuclidViewState {
         &self,
         sim: &mut PuzzleSimulation,
         layers: Option<LayerMask>,
-        direction: Sign,
+        direction: RotDir,
     ) {
         if let Some(hov) = &self.gizmo_hover_state {
-            let Some(twist) = (self.geom.get_gizmo_twist)(
+            let Some((gizmo_name, twists)) = (self.geom.get_gizmo_twist)(
                 hov.gizmo_face,
                 layers.clone(),
                 direction,
@@ -352,10 +351,10 @@ impl NdEuclidViewState {
             sim.do_event(ReplayEvent::GizmoClick {
                 time: Some(hyperpuzzle::Timestamp::now()),
                 layers,
-                target: twist.transform.to_string(),
-                reverse: direction == Sign::Neg,
+                target: gizmo_name,
+                reverse: direction == RotDir::Ccw,
             });
-            sim.do_event(ReplayEvent::Twists(smallvec![twist]));
+            sim.do_event(ReplayEvent::Twists(twists.into()));
         }
     }
 

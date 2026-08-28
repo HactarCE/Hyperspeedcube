@@ -14,3 +14,6 @@
 - Make sure 4D twist names are correct!
 - Write tests for log files for various puzzles!
 - Check 4D twist directions (search for "todo" in HPS code)
+- Break ties in twist dragging based on whichever axis it's closest to
+- Actually support twist subsets
+- Infer ±inf cut depths for simple layer list

@@ -125,13 +125,15 @@ fn def_rhombic_triacontahedron(cut_depths, **kwargs) {
     )
 }
 
-def_rhombic_triacontahedron([1-(1-1/φ)/3], id = "rhombic_triacontahedron_ft_canon@0", name = ["Canon-Cut FT Rhombic Triacontahedron"]) // TODO: cut deeper to avoid floating pieces when jumbling
-def_rhombic_triacontahedron([1-(1-1/φ)/2], id = "rhombic_triacontahedron_ft_adj@0", name = ["Adjacent-Cut FT Rhombic Triacontahedron"])
+def_rhombic_triacontahedron([1-(1-1/φ)/3], id = "rhombic_triacontahedron_ft_canon@0", name = "Canon-Cut FT Rhombic Triacontahedron") // TODO: cut deeper to avoid floating pieces when jumbling
+def_rhombic_triacontahedron([1-(1-1/φ)/2], id = "rhombic_triacontahedron_ft_adj@0", name = "Adjacent-Cut FT Rhombic Triacontahedron")
 // d = (2*φ+4) / ((8*φ+6) - (4*φ+3)/√(3*φ+2) - √(4*φ^2 + 11*φ + 6)) // sweet spot, no mechanism due to zero-area corner stalk
 // d = 3/4 // looks good, but piece overhangs
 // sweet spot near 0.723, but piece overhangs
 def_rhombic_triacontahedron([0.675], id = "golden_ratio_labyrinth@0", name = "Golden Ratio Labyrinth")
 def_rhombic_triacontahedron([1/φ], id = "big_kahuna@0", name = "Big Kahuna")
+def_rhombic_triacontahedron([1/φ/2], id = "ftrtc_jumble_test@0", name = "FT Rhombic Triacontahedron Jumbling Test")
+def_rhombic_triacontahedron([0], id = "rhombic_triacontahedron_ft_half@0", name = "Half-Cut FT Rhombic Triacontahedron")
 // d = 0.55
 // d = 0.5 // sweet spot
 // def_rhombic_triacontahedron([0.5], id = "rhombic_triacontahedron_ft_new", name = "FT Rhombic Triacontahedron (New)") // sweet spot

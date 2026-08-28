@@ -60,7 +60,7 @@ mod state;
 mod ui_data;
 mod vantages;
 
-pub use state::{BoxDynPuzzleState, PuzzleState};
+pub use state::{BoxDynPuzzleState, PuzzleState, TwistError};
 pub use ui_data::{
     BoxDynPuzzleAnimation, BoxDynPuzzleStateRenderData, PuzzleAnimation, PuzzleStateRenderData,
 };

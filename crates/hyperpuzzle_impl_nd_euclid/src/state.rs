@@ -71,23 +71,23 @@ impl PuzzleState for NdEuclidPuzzleState {
         self.clone().into()
     }
 
-    fn do_twist(&self, twist: &Move) -> Result<Self, Vec<Piece>> {
+    fn do_twist(&self, twist: &Move) -> Result<Self, TwistError> {
         let twists = &self
             .puzzle_type
             .twists
             .components
             .get::<NdEuclidTwistsList>()
-            .map_err(|_| vec![])?;
+            .map_err(|_| TwistError::Internal)?;
 
         let twist_id = self
             .puzzle_type
             .twists
             .components
             .get::<NamedTwistsList>()
-            .map_err(|_| vec![])?
+            .map_err(|_| TwistError::Internal)?
             .names
             .id_from_name(&twist.transform.family)
-            .ok_or(vec![])?;
+            .ok_or(TwistError::Unknown)?;
 
         let axis = twists.twist_axes[twist_id];
         let twist_transform = &twists.twist_transforms[twist_id].powi(twist.multiplier.into());
@@ -99,14 +99,14 @@ impl PuzzleState for NdEuclidPuzzleState {
             .iter_filter(|_piece, &which_side| which_side == WhichSide::Split)
             .collect_vec();
         if !split_pieces.is_empty() {
-            return Err(split_pieces);
+            return Err(TwistError::Blocked(split_pieces));
         }
         // Check for empty grip (no-op).
         if grip
             .iter()
             .all(|(_piece, &which_side)| which_side == WhichSide::Outside)
         {
-            return Err(vec![]);
+            return Err(TwistError::Internal);
         }
 
         let mut cached_transforms = self.cached_transforms.lock();
@@ -137,7 +137,7 @@ impl PuzzleState for NdEuclidPuzzleState {
         })
     }
 
-    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, Vec<Piece>> {
+    fn do_twist_dyn(&self, twist: &Move) -> Result<BoxDynPuzzleState, TwistError> {
         self.do_twist(twist).map(BoxDynPuzzleState::new)
     }
 

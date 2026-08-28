@@ -471,6 +471,16 @@ impl Group {
             }
         }
     }
+
+    /// Returns the period of a group element.
+    ///
+    /// This takes O(_n_) time, where _n_ is the period.
+    pub fn period(&self, e: GroupElementId) -> usize {
+        // TODO: could split this into factor groups and then return LCM
+        std::iter::successors(Some(e), |&a| Some(self.compose(a, e)))
+            .take_while_inclusive(|&a| a != GroupElementId::IDENTITY)
+            .count()
+    }
 }
 
 #[cfg(test)]
@@ -485,6 +495,21 @@ mod tests {
         assert_eq!(1, g.element_count());
         assert!(g.generators().is_empty());
         assert!(Arc::ptr_eq(&g.inner, &Group::trivial().inner))
+    }
+
+    #[test]
+    fn test_group_element() {
+        let g = Group::from_compose_fn("Z6", 1, |a, b| {
+            Ok(GroupElementId((a.0 + (b.0 + 1) as u32) % 6))
+        })
+        .unwrap();
+
+        assert_eq!(g.period(GroupElementId(0)), 1);
+        assert_eq!(g.period(GroupElementId(1)), 6);
+        assert_eq!(g.period(GroupElementId(2)), 3);
+        assert_eq!(g.period(GroupElementId(3)), 2);
+        assert_eq!(g.period(GroupElementId(4)), 3);
+        assert_eq!(g.period(GroupElementId(5)), 6);
     }
 
     lazy_static::lazy_static! {

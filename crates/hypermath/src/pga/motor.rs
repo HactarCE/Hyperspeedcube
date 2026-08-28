@@ -164,6 +164,16 @@ impl Motor {
     pub fn from_normalized_vector_product(a: impl VectorRef, b: impl VectorRef) -> Self {
         Self::normalized_vector_reflection(b) * Self::normalized_vector_reflection(a)
     }
+    /// Constructs a rotation motor (also called a "rotor") around a vector by
+    /// an angle. `v` **must** be a unit vector in 3 or fewer dimensions.
+    ///
+    /// This uses the right-hand rule for rotations: a 90° rotation around +Z
+    /// takes +X to +Y.
+    pub fn from_angle_around_3d_vector(v: impl VectorRef, angle: Float) -> Self {
+        // TODO: there's probably a more efficient way to do this
+        Self::rotation_infallible(Vector::unit(2), v)
+            .transform(&Self::from_angle_in_axis_plane(0, 1, angle))
+    }
 
     /// Constructs a new zero motor which can then be filled with coefficients.
     pub(crate) fn zero(ndim: u8, is_reflection: bool) -> Self {

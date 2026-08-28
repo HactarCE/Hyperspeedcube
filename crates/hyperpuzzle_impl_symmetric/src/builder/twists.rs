@@ -1,3 +1,4 @@
+use std::f64::consts::TAU;
 use std::num::NonZeroI32;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use hyperpuzzle_core::{
     PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
+use hypuz_notation::Str;
 use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
 use itertools::Itertools;
@@ -22,8 +24,9 @@ use smallvec::smallvec;
 
 use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
 use crate::{
-    FactorTwistSystemSpec, NamedPoint, NamedPointSet, PerNamedPoint, StabilizerFamily,
-    SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
+    AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleStopInfo, JumbleTransform, NamedPoint,
+    NamedPointSet, PerJumbleStop, PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit,
+    SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
 #[derive(Debug, Clone)]
@@ -91,6 +94,11 @@ pub struct AxisOrbit {
     /// Because they are not used in higher dimensions, this list is made empty
     /// in 5D+.
     pub stabilizer_twists: Vec<(NamedPointSet, Float)>,
+    /// Jumble moves, not including the (optional) doctrinaire move.
+    pub jumble_moves: Vec<JumbleTransform>,
+    /// Jumble stops, not yet expanded by symmetry and not including the
+    /// doctrinaire stop.
+    pub jumble_stops: Vec<Float>,
 }
 
 impl AxisOrbit {
@@ -117,6 +125,8 @@ impl AxisOrbit {
                 .iter()
                 .map(|(set, distance)| Ok((set.offset_ids_by(named_point_id_offset)?, *distance)))
                 .try_collect()?,
+            jumble_moves: self.jumble_moves.clone(),
+            jumble_stops: self.jumble_stops.clone(),
         })
     }
 }
@@ -263,7 +273,9 @@ impl TwistSystemProduct {
             axis_orbits.push(AxisOrbit {
                 len: orbit_members.len(),
                 id_offset: axis_id_offset,
-                stabilizer_twists: vec![], // will be populated later
+                stabilizer_twists: vec![], // will be populated later, after naming
+                jumble_moves: vec![],      // will be populated later, after naming
+                jumble_stops: vec![],      // will be populated later, after naming
             });
             axis_id_offset += orbit_members.len();
             for (undeorbiter, axis_vector, axis_name) in orbit_members {
@@ -311,6 +323,53 @@ impl TwistSystemProduct {
                 .map(|s| names.named_point_from_name(s))
                 .try_collect()?;
             named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
+        }
+
+        // Assemble jumble moves.
+        for jumble_move_spec in &spec.jumble_moves {
+            let axis = names.member_from_name(&jumble_move_spec.axis)?;
+            let orbit_index = axis_which_orbit[axis];
+            let angle = match &jumble_move_spec.angle {
+                crate::JumbleAngleSpec::FromTo(start, end) => {
+                    let fixed_vector = &axis_vectors[axis];
+                    let start_vector = &axis_vectors[names.member_from_name(&start)?];
+                    let end_vector = &axis_vectors[names.member_from_name(&end)?];
+                    let reject_and_normalize = |v: &Vector| {
+                        v.rejected_from(fixed_vector)
+                            .and_then(|u| u.normalize())
+                            .unwrap_or_else(|| v.clone())
+                    };
+                    Vector::dot(
+                        &reject_and_normalize(start_vector),
+                        &reject_and_normalize(end_vector),
+                    )
+                    .acos()
+                }
+                crate::JumbleAngleSpec::Angle(a) => *a,
+            };
+            axis_orbits[orbit_index]
+                .jumble_moves
+                .push(JumbleTransform::new_unit_jumbling(
+                    jumble_move_spec.suffix,
+                    angle,
+                ));
+        }
+
+        // Assemble jumble stops.
+        for jumble_stop_spec in &spec.jumble_stops {
+            let axis = names.member_from_name(&jumble_stop_spec.axis)?;
+            let orbit_index = axis_which_orbit[axis];
+            let angle = axis_orbits[orbit_index]
+                .jumble_moves
+                .iter()
+                .find(|mv| mv.suffix == Some(jumble_stop_spec.suffix))
+                .ok_or_else(|| {
+                    eyre!("no jumble suffix \"{}\"", jumble_stop_spec.suffix)
+                        .wrap_err(format!("calculating jumble stop {jumble_stop_spec:?}"))
+                })?
+                .angle
+                * jumble_stop_spec.multiplier.0 as Float;
+            axis_orbits[orbit_index].jumble_stops.push(angle);
         }
 
         let id = crate::product_id([&spec.id].into_iter());
@@ -469,10 +528,11 @@ impl TwistSystemProduct {
         build_ctx.pop_task();
 
         let mut components = ComponentList::new();
-        components.insert(Arc::new(NdEuclidAxisVectors::from_vectors(
+        let axis_vectors = Arc::new(NdEuclidAxisVectors::from_vectors(
             self.ndim(),
             self.axis_vectors.clone(),
-        )));
+        ));
+        components.insert(Arc::clone(&axis_vectors));
 
         build_ctx.push_task("constructing axis system");
         let axes = Arc::new(AxisSystem {
@@ -507,6 +567,7 @@ impl TwistSystemProduct {
 
             axis_undeorbiters,
             axis_orbits,
+            axis_vectors,
 
             named_point_action: self.named_point_action.clone(),
             named_point_names,
@@ -610,11 +671,15 @@ impl TwistSystemProduct {
             build_ctx.push_task(format!("building orbit of {}", axis_names[orbit.first()]));
 
             build_ctx.push_task("constructing subgroup constraint solver");
-            let mut subgroup_solver = SubgroupConstraintSolver::new(
+            let subgroup_action =
                 SubgroupAction::from_subgroup_predicate(&self.named_point_action, |e| {
                     self.axis_action.act(e, orbit.first()) == orbit.first()
-                })?,
-            );
+                })?;
+            let subgroup_has_reflection = subgroup_action
+                .subgroup_generators()
+                .into_iter()
+                .any(|e| self.group.is_reflection(e));
+            let mut subgroup_solver = SubgroupConstraintSolver::new(subgroup_action);
             build_ctx.pop_task();
 
             let stabilizer_twist_families = match self.group.ndim() {
@@ -626,56 +691,98 @@ impl TwistSystemProduct {
             };
 
             build_ctx.push_task("computing stabilizer twists");
-            let stabilizer_twists = stabilizer_twist_families
-                .iter()
-                .map(|(secondary, distance)| {
-                    let twist_name = StabilizerFamily {
-                        primary: orbit.first(),
-                        secondary: secondary.clone(),
-                    }
-                    .name(axis_names, named_point_names);
+            let mut stabilizer_twists: Vec<(NamedPointSet, UniqueMinimalClockwiseGenerator, f64)> =
+                vec![];
+            for (secondary, distance) in stabilizer_twist_families {
+                let twist_name = StabilizerFamily {
+                    primary: orbit.first(),
+                    secondary: secondary.clone(),
+                }
+                .name(axis_names, named_point_names);
 
-                    build_ctx.push_task(format!("computing orbit of {twist_name}"));
+                build_ctx.push_task(format!("computing orbit of {twist_name}"));
 
-                    build_ctx.push_task("computing stabilized coset");
-                    let coset = subgroup_solver
-                        .solve(&hypergroup::ConstraintSet::from_iter(
-                            secondary
-                                .iter()
-                                .circular_tuple_windows()
-                                .map(|(from, to)| hypergroup::Constraint { from, to }),
-                        ))
-                        .ok_or_else(|| {
-                            eyre!(
-                                "stabilizer twist {:?} imposes unsatisfiable constraints \
-                                 (hint: if there are more than 3 stabilized points, \
-                                 ensure they are in cyclic order)",
-                                twist_name,
-                            )
-                        })?;
-                    build_ctx.pop_task();
-
-                    build_ctx.push_task("computing unit twist transform");
-                    let unit_twist_transform = if secondary.is_empty() {
-                        unit_twist_transform(&self.group, &coset, &[first_axis_vector])
-                    } else {
-                        let secondary_vector = secondary.vector(&self.named_point_vectors);
-                        let stabilized_vectors = &[first_axis_vector, &secondary_vector];
-                        unit_twist_transform(&self.group, &coset, stabilized_vectors)
-                    }
-                    .wrap_err_with(|| {
-                        format!(
-                            "error calculating unit twist transform \
-                             for stabilizer twist {twist_name:?}",
+                build_ctx.push_task("computing stabilized coset");
+                let coset = subgroup_solver
+                    .solve(&hypergroup::ConstraintSet::from_iter(
+                        secondary
+                            .iter()
+                            .circular_tuple_windows()
+                            .map(|(from, to)| hypergroup::Constraint { from, to }),
+                    ))
+                    .ok_or_else(|| {
+                        eyre!(
+                            "stabilizer twist {:?} imposes unsatisfiable constraints \
+                             (hint: if there are more than 3 stabilized points, \
+                             ensure they are in cyclic order)",
+                            twist_name,
                         )
                     })?;
-                    build_ctx.pop_task();
+                build_ctx.pop_task();
 
-                    build_ctx.pop_task();
+                build_ctx.push_task("computing unit twist transform");
+                let unit_twist_transform = if secondary.is_empty() {
+                    unit_twist_transform(&self.group, &coset, &[first_axis_vector])
+                } else {
+                    let secondary_vector = secondary.vector(&self.named_point_vectors);
+                    let stabilized_vectors = &[first_axis_vector, &secondary_vector];
+                    unit_twist_transform(&self.group, &coset, stabilized_vectors)
+                }
+                .wrap_err_with(|| {
+                    format!(
+                        "error calculating unit twist transform \
+                         for stabilizer twist {twist_name:?}",
+                    )
+                })?;
+                build_ctx.pop_task();
 
-                    eyre::Ok((secondary.clone(), unit_twist_transform, *distance))
-                })
-                .try_collect()?;
+                build_ctx.pop_task();
+
+                stabilizer_twists.push((secondary.clone(), unit_twist_transform, *distance));
+            }
+            build_ctx.pop_task();
+
+            build_ctx.push_task("computing jumble data");
+            let mut jumble_data = None;
+            if !orbit.jumble_moves.is_empty() {
+                let mut transforms = orbit.jumble_moves.clone();
+
+                let doctrinaire_order = stabilizer_twists
+                    .iter()
+                    .find(|(point_set, _, _)| point_set.is_empty())
+                    .map(|(_, clockwise_generator, _)| clockwise_generator.order.get() as usize);
+                if let Some(n) = doctrinaire_order {
+                    transforms.insert(0, JumbleTransform::new_unit_doctrinaire(n));
+                }
+
+                let mut stops = orbit.jumble_stops.clone();
+
+                // Add mirror stops.
+                if subgroup_has_reflection {
+                    stops.extend(stops.clone().into_iter().map(|s| -s));
+                }
+
+                // Add doctrinaire stop.
+                stops.push(0.0);
+
+                // Expand by doctrinaire symmetry. This is only correct because
+                // the doctrinaire twist is taken from the puzzle symmetry; if
+                // the doctrinaire twist were a subset of puzzle symmetry, then
+                // we would need to expand only by the puzzle symmetry.
+                let n = doctrinaire_order.unwrap_or(1);
+                let stops = itertools::iproduct!(0..n, &stops)
+                    .map(|(i, a)| a + TAU * i as Float / n as Float)
+                    .collect_vec();
+
+                if stops.is_empty() {
+                    build_ctx.warn_fn()(eyre!(
+                        "axis orbit of {} has jumble moves but no jumble stops",
+                        axis_names[orbit.first()],
+                    ));
+                }
+
+                jumble_data = Some(AxisOrbitJumbleData::new(transforms, stops)?);
+            }
             build_ctx.pop_task();
 
             ret.push(SymmetricTwistSystemAxisOrbit {
@@ -683,6 +790,7 @@ impl TwistSystemProduct {
                 len: orbit.len,
                 subgroup_solver: Mutex::new(subgroup_solver),
                 stabilizer_twists,
+                jumble_data,
             });
 
             build_ctx.pop_task();

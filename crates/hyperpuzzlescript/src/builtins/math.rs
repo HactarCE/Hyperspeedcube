@@ -31,7 +31,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("-", |_, a: Num, b: Num| -> Num { a - b }),
         ("*", |_, a: Num, b: Num| -> Num { a * b }),
         ("/", |_, a: Num, b: Num| -> Num { a / b }),
-        ("%", |_, a: Num, b: Num| -> Num { a.rem_euclid(b) }),
+        ("%", |_, a: Num, b: Num| -> Num {
+            hypermath::util::approx_rem_euclid(a, b)
+        }),
         ("^", |_, a: Num, b: Num| -> Num { a.powf(b) }),
         ("°", |_, n: Num| -> Num { n.to_radians() }),
         // Number comparisons

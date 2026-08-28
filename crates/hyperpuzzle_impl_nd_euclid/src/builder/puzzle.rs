@@ -166,17 +166,20 @@ impl PuzzleBuilder {
         })?);
         // `&_` is required to work around https://github.com/rust-lang/rust/issues/58052
         let get_gizmo_twist = Box::new(
-            move |gizmo_face: GizmoFace, layers: Option<LayerMask>, direction: Sign, _state: &_| {
+            move |gizmo_face: GizmoFace,
+                  layers: Option<LayerMask>,
+                  direction: RotDir,
+                  _state: &_| {
                 let mut twist = gizmo_twists[gizmo_face].clone();
                 if let Some(l) = layers {
                     twist.layers = l.into();
                 }
-                if direction == Sign::Neg
+                if direction == RotDir::Ccw
                     && let Ok(inv_mult) = twist.multiplier.inv()
                 {
                     twist.multiplier = inv_mult;
                 }
-                Some(twist)
+                Some((twist.transform.family.to_string(), vec![twist]))
             },
         );
 
@@ -228,10 +231,10 @@ impl PuzzleBuilder {
         axis_layers.resize(twists.axes.len())?;
         let axis_layer_depths = axis_layers.try_map_ref(|_, layers| layers.build())?;
 
-        let axis_layers = axis_layer_depths.map_ref(|_, depths| AxisLayersInfo {
+        let axis_layers = Arc::new(axis_layer_depths.map_ref(|_, depths| AxisLayersInfo {
             max_layer: depths.len() as u16,
             allow_negatives: false, // TODO: configurable negative layers
-        });
+        }));
 
         let geom = Arc::new(NdEuclidPuzzleGeometry {
             vertex_coordinates,
@@ -273,8 +276,12 @@ impl PuzzleBuilder {
                 let axis = twists_list.twist_axes[random_twist];
 
                 let layer_count = axis_layers_info[axis].max_layer;
+                if layer_count == 0 {
+                    return None;
+                }
                 let random_layer_mask =
-                    hyperpuzzle_core::util::random_layer_mask(rng, layer_count)?;
+                    hyperpuzzle_core::util::random_layer_masks(rng, layer_count)
+                        .find(|mask| !mask.is_empty())?;
 
                 let max_multiplier =
                     twists_list.scramble_max_multipliers[random_twist].unwrap_or_default();

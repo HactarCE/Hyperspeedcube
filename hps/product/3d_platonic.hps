@@ -198,6 +198,9 @@ add_twist_system(id = "icosahedron_ft@0", name = "FT Icosahedron",
             // [["R", "F", "U", "G", "E"], dodeca.facet.mag/dodeca.vertex.mag], // TODO: why wrong direction?
             // TODO: move input doesn't work for these twists? e.g., `bB_aU_aF_aR_aE_aG`
         ]
+
+        #twists.jumble_moves.F = #{ j = "G->E" }
+        #twists.jumble_stops.F = ["j"]
     },
 )
 
@@ -477,9 +480,8 @@ add_puzzle(id = "starminx@1", name = "Starminx",
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
     build = fn() {
-        depth = √5 - 2
         @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-        #puz.layers.F = [1, depth, -depth, -1]
+        #puz.layers.F = @util/layers.with_opposite([1, @util/layers/ft.STARMINX_DEPTH])
     },
 )
 

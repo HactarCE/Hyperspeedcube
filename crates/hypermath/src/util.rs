@@ -1,12 +1,15 @@
 //! Common mathematical utility functions that didn't fit anywhere else.
 
 pub use std::f64::consts::PI;
-use std::ops::{Add, BitXorAssign, Mul};
+use std::{
+    f64::consts::TAU,
+    ops::{Add, BitXorAssign, Mul},
+};
 
 use itertools::Itertools;
 use num_traits::{CheckedShl, PrimInt, Unsigned};
 
-use crate::{APPROX, Float, Point, Vector, VectorRef};
+use crate::{APPROX, Float, Point, Sign, Vector, VectorRef};
 
 // TODO: move many of these to hypuz_util
 
@@ -218,6 +221,49 @@ pub fn min_max(elems: impl IntoIterator<Item = Float>) -> Option<(Float, Float)>
         max = Float::max(max, elem);
     }
     Some((min, max))
+}
+
+/// Returns a number as an integer if it is approximately equal to one, or
+/// `None` if it is not. Uses [`APPROX`].
+pub fn to_integer<I: PrimInt>(float: Float) -> Option<I> {
+    let i = I::from(float.round())?;
+    APPROX.eq(float, i.to_f64()?).then_some(i)
+}
+
+/// Returns the angle in the range `-π..=π`.
+///
+/// `preferred_sign` is determines the sign of the output when the result would
+/// be ±π:
+///
+/// - `None` - Uses sign from input `angle`
+/// - `Some(Sign::Pos)` - Prefers `+π`
+/// - `Some(Sign::Neg)` - Prefers `-π`
+pub fn minimize_angle(angle: Float, preferred_sign: Option<Sign>) -> Float {
+    let angle = angle.rem_euclid(TAU);
+    match APPROX.cmp(angle, PI) {
+        std::cmp::Ordering::Less => angle,
+        std::cmp::Ordering::Equal => match preferred_sign.unwrap_or(Sign::from(angle)) {
+            Sign::Pos => angle,
+            Sign::Neg => angle - TAU,
+        },
+        std::cmp::Ordering::Greater => angle - TAU,
+    }
+}
+
+/// Returns the angle in the range `0..τ`. Angles approximately equal to τ are coerced to 0.
+pub fn canonicalize_angle(angle: Float) -> Float {
+    approx_rem_euclid(angle, TAU)
+}
+
+/// Returns `n.rem_euclid(d)`, but values approximately equal to `0` to `d` are
+/// coerced to `0`.
+pub fn approx_rem_euclid(n: Float, d: Float) -> Float {
+    let residue = n.rem_euclid(d);
+    if APPROX.eq_zero(residue) || APPROX.eq(residue, d) {
+        0.0
+    } else {
+        residue
+    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use hypermath::Sign;
+use hypermath::RotDir;
 use hypermath::{Float, Hyperplane, Point, VectorRef};
 use hyperpuzzle_core::Component;
 use hyperpuzzle_core::prelude::*;
@@ -48,9 +48,19 @@ pub struct NdEuclidPuzzleGeometry {
 
     /// Axis for each twist gizmo face.
     pub gizmo_axes: Arc<PerGizmoFace<Axis>>,
-    /// Function to compute the move to apply when a gizmo face is clicked.
+    /// Function to compute the move(s) to apply when a gizmo face is clicked.
+    /// Also returns a string identifier for the gizmo clicked.
+    ///
+    /// If multiple moves are returned, they must all be on the same axis.
     pub get_gizmo_twist: Box<
-        dyn Send + Sync + Fn(GizmoFace, Option<LayerMask>, Sign, &dyn PuzzleState) -> Option<Move>,
+        dyn Send
+            + Sync
+            + Fn(
+                GizmoFace,
+                Option<LayerMask>,
+                RotDir,
+                &dyn PuzzleState,
+            ) -> Option<(String, Vec<Move>)>,
     >,
 }
 

@@ -826,15 +826,15 @@ fn show_nd_euclid_puzzle_view(
 
     enum Action {
         None,
-        ClickTwist(Sign),
+        ClickTwist(RotDir),
         EditStickerColor,
         Recenter { reverse: bool, anti: bool },
     }
 
     let action = if r.clicked() && modifiers.is_none() {
-        Action::ClickTwist(Sign::Neg)
+        Action::ClickTwist(RotDir::Ccw)
     } else if r.secondary_clicked() && modifiers.is_none() {
-        Action::ClickTwist(Sign::Pos)
+        Action::ClickTwist(RotDir::Cw)
     } else if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
         // Ctrl + shift + right-click = edit sticker color
         Action::EditStickerColor
