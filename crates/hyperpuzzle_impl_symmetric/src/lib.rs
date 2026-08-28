@@ -33,10 +33,16 @@ pub use twist_system::{
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
-const PRODUCT_ID: &str = "product@1";
-const DISJOINT_UNION_ID: &str = "sum@1";
 const ROT_ID: &str = "rot";
 const REFLE_ID: &str = "refle";
+
+pub fn product_base_id() -> VersionedCatalogWord {
+    "product@1".parse().expect("bad catalog ID")
+}
+
+pub fn disjoint_union_base_id() -> VersionedCatalogWord {
+    "sum@1".parse().expect("bad catalog ID")
+}
 
 const ROT_NAME_PREFIX: &str = "Rot ";
 const REFLE_NAME_PREFIX: &str = "Refle ";
@@ -52,7 +58,7 @@ fn product_id<'a>(mut factor_ids: impl ExactSizeIterator<Item = &'a CatalogId>) 
         return factor_ids.next().expect("bad iterator len").clone();
     }
     CatalogId::new(
-        PRODUCT_ID.parse::<CatalogWord>().expect("bad catalog ID"),
+        product_base_id(),
         [CatalogIdValue::List(
             factor_ids.map(|id| id.clone().into()).collect(),
         )],
@@ -67,9 +73,7 @@ fn disjoint_union_id<'a>(
         return summand_ids.next().expect("bad iterator len").clone();
     }
     CatalogId::new(
-        DISJOINT_UNION_ID
-            .parse::<CatalogWord>()
-            .expect("bad catalog ID"),
+        disjoint_union_base_id(),
         [CatalogIdValue::List(
             summand_ids.map(|id| id.clone().into()).collect(),
         )],
@@ -111,7 +115,6 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     product_tags.insert_named("pseudodoctrinaire", true.into())?;
     product_tags.insert_named("ndim/generic", true.into())?;
 
-    let id: VersionedCatalogWord = PRODUCT_ID.parse().expect("bad catalog ID");
     let params = vec![GeneratorParam {
         name: "Factors".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Puzzle {
@@ -141,7 +144,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     // };
 
     catalog.add::<PuzzleListEntry>(Arc::new(Generator {
-        id: id.clone(),
+        id: product_base_id(),
         params: params.clone(),
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: true },
@@ -172,7 +175,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     }))?;
 
     catalog.add::<PuzzleProduct>(Arc::new(Generator {
-        id: id.clone(),
+        id: product_base_id(),
         params: params.clone(),
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: false },
@@ -188,14 +191,14 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     }))?;
 
     catalog.add::<Puzzle>(Arc::new(Generator {
-        id: id.clone(),
+        id: product_base_id(),
         params: params.clone(),
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(build_product_puzzle_impl),
     }))?;
 
-    catalog.add_to_puzzle_list(&CatalogId::new(id.clone(), vec![], None));
+    catalog.add_to_puzzle_list(&CatalogId::new(product_base_id(), vec![], None));
 
     Ok(())
 }
@@ -216,7 +219,6 @@ fn build_product_puzzle_impl(build_ctx: BuildCtx) -> Result<Arc<Puzzle>> {
 }
 
 fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
-    let id: VersionedCatalogWord = PRODUCT_ID.parse().expect("bad catalog ID");
     let params = vec![GeneratorParam {
         name: "Factors".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Id {
@@ -226,7 +228,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     }];
 
     catalog.add::<TwistSystemProduct>(Arc::new(Generator {
-        id: id.clone(),
+        id: product_base_id(),
         params: params.clone(),
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: false },
@@ -242,7 +244,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     }))?;
 
     catalog.add::<TwistSystem>(Arc::new(Generator {
-        id: id.clone(),
+        id: product_base_id(),
         params: params.clone(),
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: false },
@@ -285,7 +287,6 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
 }
 
 fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
-    let id: VersionedCatalogWord = DISJOINT_UNION_ID.parse().expect("bad catalog ID");
     let params = vec![GeneratorParam {
         name: "Terms".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Id {
@@ -295,7 +296,7 @@ fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     }];
 
     catalog.add::<ColorSystem>(Arc::new(Generator {
-        id,
+        id: disjoint_union_base_id(),
         params,
         subset_param: None,
         validation: GeneratorParamValidation { allow_empty: false },

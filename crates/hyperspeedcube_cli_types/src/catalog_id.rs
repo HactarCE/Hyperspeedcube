@@ -35,19 +35,7 @@ impl FromStr for CatalogWord {
         if s.is_empty() {
             return Err(CatalogIdError::Empty);
         }
-        let str_before_version = match s.split_once('@') {
-            Some((l, r)) => {
-                if r.parse::<u32>().is_err() {
-                    return Err(CatalogIdError::BadVersion(r.to_string()));
-                }
-                l
-            }
-            None => s,
-        };
-        if let Some(c) = str_before_version
-            .chars()
-            .find(|&c| !is_catalog_word_char(c))
-        {
+        if let Some(c) = s.chars().find(|&c| !is_catalog_word_char(c)) {
             return Err(CatalogIdError::BadChar(c));
         }
         Ok(Self(Box::from(s)))
