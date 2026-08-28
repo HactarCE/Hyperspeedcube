@@ -193,8 +193,7 @@ impl Default for Multiplier {
 
 impl fmt::Display for Multiplier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // cast to i64 to avoid overflow
-        let abs = self.0.abs();
+        let abs = self.0.unsigned_abs();
         if abs != 1 {
             write!(f, "{abs}")?;
         }
@@ -227,17 +226,16 @@ impl FromStr for Multiplier {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.strip_suffix('\'') {
-            Some(rest) => Ok(Self(
-                i32::try_from(rest.parse::<u32>().map_err(|_| ())?)
-                    .map_err(|_| ())?
-                    .checked_neg()
-                    .ok_or(())?,
-            )),
-            _ => Ok(Self(
-                i32::try_from(s.parse::<u32>().map_err(|_| ())?).map_err(|_| ())?,
-            )),
-        }
+        Ok(Self(if s.is_empty() {
+            1
+        } else if s == "'" {
+            -1
+        } else if let Some(rest) = s.strip_suffix('\'') {
+            // funny conversions to avoid panic on overflow
+            i32::try_from(-i64::from(rest.parse::<u32>().map_err(|_| ())?)).map_err(|_| ())?
+        } else {
+            i32::try_from(s.parse::<u32>().map_err(|_| ())?).map_err(|_| ())?
+        }))
     }
 }
 
@@ -266,4 +264,40 @@ pub(crate) fn write_separated_list<T: fmt::Display>(
         fmt::Display::fmt(elem, f)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_multiplier() {
+        assert_eq!(Multiplier(3).to_string(), "3");
+        assert_eq!(Multiplier(2).to_string(), "2");
+        assert_eq!(Multiplier(1).to_string(), "");
+        assert_eq!(Multiplier(0).to_string(), "0");
+        assert_eq!(Multiplier(-1).to_string(), "'");
+        assert_eq!(Multiplier(-2).to_string(), "2'");
+        assert_eq!(Multiplier(-3).to_string(), "3'");
+
+        assert_eq!("1".parse(), Ok(Multiplier(1)));
+        assert_eq!("1'".parse(), Ok(Multiplier(-1)));
+
+        for m in -100..=100 {
+            assert_eq!(Multiplier(m).to_string().parse(), Ok(Multiplier(m)));
+        }
+
+        for m in [i32::MIN, i32::MAX] {
+            assert_eq!(Multiplier(m).to_string().parse(), Ok(Multiplier(m)));
+        }
+
+        assert_eq!(
+            format!("{}'", i32::MIN.unsigned_abs()).parse(),
+            Ok(Multiplier(i32::MIN)),
+        );
+        assert_eq!(
+            format!("{}", i32::MIN.unsigned_abs()).parse::<Multiplier>(),
+            Err(()),
+        );
+    }
 }
