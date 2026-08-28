@@ -148,7 +148,7 @@ where
             .selectable_label(is_current, &elided_preset_name)
             .interact(egui::Sense::drag());
 
-        if elided_preset_name != preset_name && !egui::Popup::is_any_open(ui.ctx()) {
+        if elided_preset_name != preset_name && !egui::Popup::is_any_open(ui) {
             r = r.on_hover_text(preset_name);
         }
 
@@ -186,7 +186,7 @@ where
         let mut preset_to_delete = None;
         let mut edit_popup = TextEditPopup::new(ui);
         let mut new_popup = TextEditPopup::new(ui);
-        let mut dnd = ReorderDnd::new(ui.ctx(), self.id.with("dnd")).with_style(DndStyle {
+        let mut dnd = ReorderDnd::new(ui, self.id.with("dnd")).with_style(DndStyle {
             payload_opacity: 0.4,
             ..Default::default()
         });
@@ -250,7 +250,7 @@ where
                 let button = IconButton::small(mdi!(ui, PLUS));
                 crate::gui::util::wrap_if_needed_for_width(ui, button.min_size());
                 let mut r = ui.add(button);
-                if !egui::Popup::is_any_open(ui.ctx()) {
+                if !egui::Popup::is_any_open(ui) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
 
@@ -423,7 +423,7 @@ where
         if *self.changed {
             // TODO: is this necessary here?
             //       should we use it in other places too?
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         }
 
         r.response

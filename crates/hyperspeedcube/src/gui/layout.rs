@@ -20,9 +20,9 @@ pub fn build_layout_presets_ui(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         .anchor(egui::Align2::RIGHT_TOP, egui::vec2(24.0, 24.0))
         .title_bar(false)
         .resizable(false)
-        .show(ui.ctx(), |ui| {
+        .show(ui, |ui| {
             let serialized_dock_state =
-                match super::layout::serialize_dock_state(ui.ctx(), &app_ui.dock_state) {
+                match super::layout::serialize_dock_state(ui, &app_ui.dock_state) {
                     Ok(serialized) => serialized,
                     Err(e) => {
                         ui.colored_label(

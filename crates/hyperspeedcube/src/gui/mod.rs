@@ -258,11 +258,10 @@ impl AppUi {
                 if let Some(solve_summary_modal) = &mut self.solve_summary_modal
                     && !is_special_anim_in_progress
                 {
-                    let r = egui::Modal::new(unique_id!()).show(ui.ctx(), |ui| {
+                    let r = egui::Modal::new(unique_id!()).show(ui, |ui| {
                         let target_size = egui::vec2(625.0, 750.0);
                         ui.set_max_size(
-                            target_size
-                                .at_most(ui.ctx().content_rect().size() - egui::Vec2::splat(64.0)),
+                            target_size.at_most(ui.content_rect().size() - egui::Vec2::splat(64.0)),
                         );
                         solve_summary_modal.show(ui, &mut self.app);
                     });

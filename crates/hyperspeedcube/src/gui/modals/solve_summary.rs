@@ -188,7 +188,7 @@ impl SolveSummaryModal {
                 title_rect.right_center() - egui::vec2(title_rect.height() / 2.0, 0.0);
             let button_size = egui::Vec2::splat(ui.spacing().icon_width);
             let button_rect = egui::Rect::from_center_size(button_center, button_size);
-            let button_rect = button_rect.round_to_pixels_ui_inward(ui.ctx());
+            let button_rect = button_rect.round_to_pixels_ui_inward(ui);
 
             if crate::gui::util::close_button(ui, button_rect).clicked() {
                 ui.close();

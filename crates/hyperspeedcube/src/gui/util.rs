@@ -50,7 +50,7 @@ pub fn rounded_pixel_rect(
     rect: egui::Rect,
     downscale_rate: u32,
 ) -> (egui::Rect, [u32; 2]) {
-    let dpi = ui.ctx().pixels_per_point();
+    let dpi = ui.pixels_per_point();
 
     // Round rectangle to pixel boundary for crisp image.
     let mut pixels_rect = rect;
@@ -171,7 +171,7 @@ impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
     pub fn new(ui: &mut egui::Ui) -> Self {
         let id = ui.next_auto_id();
         ui.skip_ahead_auto_ids(1);
-        Self::from_ctx_and_id(ui.ctx(), id)
+        Self::from_ctx_and_id(ui, id)
     }
     /// Returns a temporary value based on `id_source`.
     pub fn from_ctx_and_id(ctx: &egui::Context, id_source: impl Hash) -> Self {
@@ -214,7 +214,7 @@ pub fn focus_and_select_all(
             egui::text::CCursor::new(0),
             egui::text::CCursor::new(r.galley.len()),
         )));
-    r.state.store(ui.ctx(), r.response.id);
+    r.state.store(ui, r.response.id);
     r.response.response
 }
 

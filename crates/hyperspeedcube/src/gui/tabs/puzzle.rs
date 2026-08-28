@@ -325,7 +325,7 @@ impl PuzzleWidget {
         let mut loading_heading: Option<Cow<'_, str>> = None;
         let mut loading_progress = None;
         if let Some(loading) = self.loading.take() {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
+            crate::gui::util::centered_popup_area(ui, rect, unique_id!(self.id), |ui| {
                 match loading {
                     PuzzleWidgetLoading::BuildingPuzzle {
                         request,
@@ -343,7 +343,7 @@ impl PuzzleWidget {
                                 });
                             }
                         }
-                        ui.ctx().request_repaint_after_secs(0.2); // try again soon
+                        ui.request_repaint_after_secs(0.2); // try again soon
                     }
                     PuzzleWidgetLoading::LoadingFile {
                         puzzle_id,
@@ -366,15 +366,15 @@ impl PuzzleWidget {
                         }
                     }
                 }
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             });
         } else if let Some(scramble_progress) = scramble_progress {
             let (done, total) = scramble_progress.fraction();
             loading_heading = Some(L.puzzle_view.scrambling.into());
             loading_progress = Some(done as f32 / total as f32);
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         } else if let Some((scramble_type, scramble_error)) = scramble_error {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
+            crate::gui::util::centered_popup_area(ui, rect, unique_id!(self.id), |ui| {
                 ui.heading("Error scrambling");
                 ui.label(scramble_error);
                 ui.separator();
@@ -392,7 +392,7 @@ impl PuzzleWidget {
         }
 
         if let Some(heading_text) = loading_heading {
-            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(self.id), |ui| {
+            crate::gui::util::centered_popup_area(ui, rect, unique_id!(self.id), |ui| {
                 ui.horizontal(|ui| {
                     ui.spinner();
                     if !heading_text.is_empty() {
@@ -796,7 +796,7 @@ fn show_nd_euclid_puzzle_view(
     if renderer.puzzle_vertex_3d_positions.get().is_none()
         || renderer.gizmo_vertex_3d_positions.get().is_none()
     {
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     // Click = twist
@@ -902,7 +902,7 @@ fn show_nd_euclid_puzzle_view(
     };
 
     if draw_params.any_animated() {
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     // Draw puzzle.
@@ -1003,7 +1003,7 @@ fn show_color_edit_popup(
     // TODO: Allow moving the popup. This requires a small PR to emilk/egui.
     let opt_popup_response = egui::Popup::new(
         editing_color.id,
-        ui.ctx().clone(),
+        ui.clone(),
         egui::PopupAnchor::PointerFixed,
         ui.layer_id(),
     )
@@ -1024,7 +1024,7 @@ fn show_color_edit_popup(
         if (clicked_elsewhere && !is_first_frame)
             || ui.input(|input| input.key_pressed(egui::Key::Escape))
         {
-            egui::Popup::close_id(ui.ctx(), editing_color.id);
+            egui::Popup::close_id(ui, editing_color.id);
         }
     }
 
@@ -1073,7 +1073,7 @@ fn show_status_bar_contents_for_sim(
         let atoms = (mdi!(ui, TIMER), timer_text);
         ui.add(egui::Button::new(atoms).fill(egui::Color32::TRANSPARENT))
             .on_i18n_hover_explanation(&L.status_bar.timer);
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     if sim.has_been_fully_scrambled() {

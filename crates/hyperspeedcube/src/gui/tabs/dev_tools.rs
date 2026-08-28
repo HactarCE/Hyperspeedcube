@@ -233,7 +233,7 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
         return;
     };
 
-    let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("dnd"));
+    let mut dnd = Dnd::new(ui, ui.auto_id_with("dnd"));
     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
         dnd.reorderable_with_handle(ui, i, |ui, _| {
             let Some(loaded_orbit) = &state.loaded_orbit else {
@@ -300,7 +300,7 @@ fn show_orbit_color(
                                 ),
                             },
                         );
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             });
         }
@@ -498,7 +498,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
                             .filter_map(|tag| tag.iter().exactly_one().ok())
                             .map(|tag| format!("'!{tag}',\n"))
                             .join("");
-                        ui.ctx().copy_text(text);
+                        ui.copy_text(text);
                     }
                     egui::CollapsingHeader::new("Missing tags")
                         .id_salt((&lint.meta.id, "missing_tags"))

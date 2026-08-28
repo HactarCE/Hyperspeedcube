@@ -44,7 +44,7 @@ fn show_tooltip_if_hovered(r: &egui::Response, markdown: &str) {
             .kind(egui::PopupKind::Tooltip)
             .show(|ui| {
                 let w =
-                    super::super::ext::HELP_TOOLTIP_WIDTH.at_most(ui.ctx().content_rect().width());
+                    super::super::ext::HELP_TOOLTIP_WIDTH.at_most(ui.content_rect().width());
                 ui.set_width(w);
                 crate::gui::markdown::md(ui, markdown);
             });

@@ -27,7 +27,7 @@ impl egui::Widget for LeaderboardsUi<'_> {
                     md(ui, L.leaderboards.sign_in_desc.with(LEADERBOARDS_DOMAIN));
                     if ui.link(L.leaderboards.actions.sign_in).clicked() {
                         let url = lb.init_auth(Arc::clone(self.0));
-                        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+                        ui.open_url(egui::OpenUrl::new_tab(url));
                     }
                     if !hyperpaths::IS_OFFICIAL_BUILD {
                         md(ui, L.leaderboards.sign_in_desc_localhost);

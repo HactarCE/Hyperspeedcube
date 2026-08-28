@@ -41,7 +41,7 @@ impl ResponseExt for egui::Response {
 }
 
 fn show_hover_explanation_internal(ui: &mut egui::Ui, strong_text: &str, detailed_message: &str) {
-    let w = EXPLANATION_TOOLTIP_WIDTH.at_most(ui.ctx().content_rect().width());
+    let w = EXPLANATION_TOOLTIP_WIDTH.at_most(ui.content_rect().width());
     ui.allocate_ui_with_layout(
         egui::vec2(w, 0.0),
         egui::Layout::top_down(egui::Align::LEFT),

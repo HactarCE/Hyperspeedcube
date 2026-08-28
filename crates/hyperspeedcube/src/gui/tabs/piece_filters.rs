@@ -154,8 +154,8 @@ fn show_filter_presets_list_ui_contents(
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
 
-    let mut preset_dnd = Dnd::new(ui.ctx(), "preset_dnd");
-    let mut seq_dnd = Dnd::new(ui.ctx(), "seq_dnd");
+    let mut preset_dnd = Dnd::new(ui, "preset_dnd");
+    let mut seq_dnd = Dnd::new(ui, "seq_dnd");
 
     ui.visuals_mut().collapsing_header_frame = true;
 
@@ -663,7 +663,7 @@ fn show_current_filter_preset_ui_contents(
         .show(ui, |ui| {
             let current = &mut view.filters.current;
 
-            let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("rule_dnd"));
+            let mut dnd = Dnd::new(ui, ui.auto_id_with("rule_dnd"));
             let is_any_dragging = dnd.is_dragging();
 
             let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
@@ -881,7 +881,7 @@ fn show_filter_checkboxes_ui(
 
     let allowed_states = FilterCheckboxAllowedStates::NeutralShowHide;
     egui::collapsing_header::CollapsingState::load_with_default_open(
-        ui.ctx(),
+        ui,
         unique_id!(&id),
         true,
     )
@@ -966,7 +966,7 @@ fn show_piece_type_hierarchy(
     changed: &mut bool,
 ) {
     egui::collapsing_header::CollapsingState::load_with_default_open(
-        ui.ctx(),
+        ui,
         egui::Id::new(id.with(hierarchy as *const _)),
         is_root,
     )

@@ -43,12 +43,12 @@ pub struct TextEditPopup<'v, 's, 'p> {
 }
 impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     pub fn new(ui: &mut egui::Ui) -> Self {
-        let ctx = ui.ctx().clone();
+        let ctx = ui.clone();
         let new_name = EguiTempValue::new(ui);
         let popup_id = new_name.id.with("popup");
         let popup = egui::Popup::new(
             popup_id,
-            ui.ctx().clone(),
+            ui.clone(),
             egui::PopupAnchor::Pointer,
             egui::LayerId::new(egui::Order::Middle, popup_id),
         )

@@ -21,8 +21,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             },
         ]);
 
-        let mut group_dnd = Dnd::new(ui.ctx(), "group_dnd");
-        let mut keybind_dnd = Dnd::new(ui.ctx(), "keybind_dnd");
+        let mut group_dnd = Dnd::new(ui, "group_dnd");
+        let mut keybind_dnd = Dnd::new(ui, "keybind_dnd");
         for (group_index, group) in keybind_groups.iter().enumerate() {
             group_dnd.reorderable_with_handle(ui, group_index, |ui, _is_dragging| {
                 ui.vertical(|ui| {

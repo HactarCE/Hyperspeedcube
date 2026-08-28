@@ -184,7 +184,7 @@ where
                             .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
                         if r.clicked() {
                             key_combo_popup::open(
-                                ui.ctx(),
+                                ui,
                                 Some(keybind.key),
                                 self.keybind_set.clone(),
                                 idx,

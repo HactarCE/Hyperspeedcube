@@ -124,13 +124,13 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             if ui.button(L.menu.file.copy_hsc_log).clicked()
                 && let Some(copy_text) = app_ui.app.serialize_puzzle_log(false)
             {
-                ui.ctx().copy_text(copy_text);
+                ui.copy_text(copy_text);
             }
             ui.add_enabled_ui(has_replay, |ui| {
                 if ui.button(L.menu.file.copy_hsc_replay).clicked()
                     && let Some(copy_text) = app_ui.app.serialize_puzzle_log(true)
                 {
-                    ui.ctx().copy_text(copy_text);
+                    ui.copy_text(copy_text);
                 }
             });
         });
@@ -144,7 +144,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
         if save_buttons_scope.response.contains_pointer() {
             egui::Tooltip::always_open(
-                ui.ctx().clone(),
+                ui.clone(),
                 ui.layer_id(),
                 save_buttons_scope.response.id,
                 egui::PopupAnchor::Position(
@@ -166,7 +166,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             if ui.button(L.menu.file.exit).clicked()
                 && app_ui.confirm_discard_all_puzzles(L.confirm_discard.exit)
             {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     });

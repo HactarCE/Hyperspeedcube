@@ -95,7 +95,7 @@ fn show_contents(ui: &mut egui::Ui, app: &mut App) {
 fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let (prefs, ui) = prefs_ui.split();
 
-    let mut dnd = Dnd::new(ui.ctx(), ui.auto_id_with("dnd"));
+    let mut dnd = Dnd::new(ui, ui.auto_id_with("dnd"));
     let mut to_rename = None;
     let mut to_delete = None;
 

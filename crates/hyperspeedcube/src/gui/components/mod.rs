@@ -45,7 +45,7 @@ fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Resp
 pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option<String>) -> bool {
     let has_been_copied = crate::gui::util::EguiTempFlag::new(ui);
     if let Some(text) = text_to_copy {
-        ui.ctx().copy_text(text);
+        ui.copy_text(text);
         has_been_copied.set();
     }
     if has_been_copied.get() {

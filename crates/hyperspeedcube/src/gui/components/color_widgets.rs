@@ -77,7 +77,7 @@ impl<'a> ColorsUi<'a> {
     }
     pub fn drag_puzzle_colors(mut self, ui: &mut egui::Ui, drag_puzzle_colors: bool) -> Self {
         if drag_puzzle_colors {
-            self.dnd = Some(Dnd::new(ui.ctx(), ui.auto_id_with("drag_puzzle_colors")));
+            self.dnd = Some(Dnd::new(ui, ui.auto_id_with("drag_puzzle_colors")));
             self.show_puzzle_colors(true)
         } else {
             self.dnd = None;
@@ -541,7 +541,7 @@ impl ColorButton {
                 .fixed_pos(left_bottom)
                 .constrain(true)
                 .pivot(egui::Align2::LEFT_BOTTOM)
-                .show(ui.ctx(), |ui| {
+                .show(ui, |ui| {
                     egui::Frame::popup(ui.style())
                         .shadow(egui::epaint::Shadow::NONE)
                         .show(ui, |ui| {
@@ -686,7 +686,7 @@ fn paint_colored_rect(
                 rect.max.x -= rounding;
             }
 
-            let block_count = (rect.size().x * painter.ctx().pixels_per_point()
+            let block_count = (rect.size().x * painter.pixels_per_point()
                 / GRADIENT_RESOLUTION as f32)
                 .round() as usize;
             for i in 0..block_count {
@@ -856,7 +856,7 @@ pub fn color_assignment_popup(
     let (changed, temp_colors) = egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| {
-            crate::gui::components::ColorsUi::new(ui.ctx(), color_palette)
+            crate::gui::components::ColorsUi::new(ui, color_palette)
                 .clickable(true)
                 .drag_puzzle_colors(ui, true)
                 .show_compact_palette(
