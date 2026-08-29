@@ -65,22 +65,19 @@ fn main() -> eyre::Result<()> {
         return Ok(());
     }
 
-    // #[cfg(target_os = "windows")]
+    #[cfg(target_os = "windows")]
     if let Ok(exe_path) = std::env::current_exe()
         && let exe_path_str = exe_path.to_string_lossy()
-        && exe_path_str.contains(r"\Appdata\Local\Temp\")
-        && exe_path_str.contains(r".zip")
-    {
-        if rfd::MessageDialog::new()
+        && exe_path_str.contains(r"\AppData\Local\Temp\")
+        && rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Warning)
             .set_title(L.error_dialog.running_in_a_zip.title)
             .set_description(L.error_dialog.running_in_a_zip.desc)
             .set_buttons(rfd::MessageButtons::YesNo)
             .show()
             != rfd::MessageDialogResult::Yes
-        {
-            return Ok(());
-        }
+    {
+        return Ok(());
     }
 
     #[cfg(debug_assertions)]
