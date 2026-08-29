@@ -305,6 +305,9 @@ impl TwistSystemProduct {
                 stabilized_points.transform_by_group_element(&named_point_action, deorbiter),
                 orbit.gizmo_pole_distance,
             ));
+            if orbit.gizmo_pole_distance <= 0.0 {
+                bail!("stabilizer twist gizmo_pole_distance cannot be negative")
+            }
         }
 
         let mut named_point_set_orbits: Vec<(NamedPointSet, Float)> = vec![];
@@ -323,6 +326,9 @@ impl TwistSystemProduct {
                 .map(|s| names.named_point_from_name(s))
                 .try_collect()?;
             named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
+            if orbit.gizmo_pole_distance <= 0.0 {
+                bail!("named point set gizmo_pole_distance cannot be negative")
+            }
         }
 
         // Assemble jumble moves.
@@ -704,12 +710,7 @@ impl TwistSystemProduct {
 
                 build_ctx.push_task("computing stabilized coset");
                 let coset = subgroup_solver
-                    .solve(&hypergroup::ConstraintSet::from_iter(
-                        secondary
-                            .iter()
-                            .circular_tuple_windows()
-                            .map(|(from, to)| hypergroup::Constraint { from, to }),
-                    ))
+                    .solve(&cycle_constraints(secondary.iter()))
                     .ok_or_else(|| {
                         eyre!(
                             "stabilizer twist {:?} imposes unsatisfiable constraints \
@@ -722,11 +723,11 @@ impl TwistSystemProduct {
 
                 build_ctx.push_task("computing unit twist transform");
                 let unit_twist_transform = if secondary.is_empty() {
-                    unit_twist_transform(&self.group, &coset, &[first_axis_vector])
+                    unit_twist_transform(&self.group, &coset, &[first_axis_vector.clone()])
                 } else {
                     let secondary_vector = secondary.vector(&self.named_point_vectors);
-                    let stabilized_vectors = &[first_axis_vector, &secondary_vector];
-                    unit_twist_transform(&self.group, &coset, stabilized_vectors)
+                    let stabilized_vectors = [first_axis_vector.clone(), secondary_vector];
+                    unit_twist_transform(&self.group, &coset, &stabilized_vectors)
                 }
                 .wrap_err_with(|| {
                     format!(
@@ -812,7 +813,7 @@ impl TwistSystemProduct {
 fn unit_twist_transform(
     group: &IsometryGroup,
     stabilizer_coset: &ConjugateCoset,
-    stabilized_vectors: &[&Vector],
+    stabilized_vectors: &[Vector],
 ) -> Result<UniqueMinimalClockwiseGenerator> {
     if stabilized_vectors.len() + 2 != group.ndim() as usize {
         bail!("`stabilized_vectors` must have length ndim-2");
@@ -823,30 +824,20 @@ fn unit_twist_transform(
         .filter(|&e| e != GroupElementId::IDENTITY)
         .filter(|&e| !group.is_reflection(e))
         .collect_vec();
-    let order =
-        NonZeroI32::new(nontrivial_rotations.len() as i32 + 1).ok_or_eyre("math is broken")?;
     let (mut min_group_element, min_rotation) = nontrivial_rotations
         .iter()
         .filter_map(|&e| Some((e, group.motor(e).normalize()?)))
         .max_by_float_key(|(_e, m)| m.scalar().abs())
         .ok_or_eyre("empty coset")?;
-    let arbitrary_nonparallel_vector = Vector::unit(
-        (0..group.ndim())
-            .min_by_float_key(|&i| {
-                stabilized_vectors
-                    .iter()
-                    .map(|v| v.get(i).abs())
-                    .max_float()
-                    .unwrap_or(0.0)
-            })
-            .unwrap_or(0),
-    );
+    let arbitrary_perpendicular_vector =
+        Vector::arbitrary_perpendicular_to(group.ndim(), stabilized_vectors)
+            .ok_or_eyre("stabilized vectors cannot span all of space")?;
     let orientation = Matrix::from_cols(
         std::iter::chain(
-            stabilized_vectors.iter().copied(),
+            stabilized_vectors,
             [
-                &arbitrary_nonparallel_vector,
-                &min_rotation.transform(&arbitrary_nonparallel_vector),
+                &arbitrary_perpendicular_vector,
+                &min_rotation.transform(&arbitrary_perpendicular_vector),
             ],
         )
         .collect_vec(), // Chain does not impl ExactSizeIterator
@@ -855,8 +846,90 @@ fn unit_twist_transform(
     if orientation > 0.0 {
         min_group_element = group.inverse(min_group_element);
     }
-    Ok(UniqueMinimalClockwiseGenerator {
-        element: min_group_element,
-        order,
-    })
+
+    Ok(UniqueMinimalClockwiseGenerator::new(
+        group.abstract_group(),
+        min_group_element,
+    ))
+}
+
+/// Constructs a constraint set for a cycle of points.
+fn cycle_constraints(
+    points: impl Iterator<Item = NamedPoint> + Clone + ExactSizeIterator,
+) -> hypergroup::ConstraintSet<NamedPoint> {
+    hypergroup::ConstraintSet::from_iter(
+        points
+            .circular_tuple_windows()
+            .map(|(from, to)| hypergroup::Constraint { from, to }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use hypergroup::GeneratorId;
+    use hypermath::APPROX;
+
+    use super::*;
+
+    #[test]
+    fn test_unit_twist_transform() -> Result<()> {
+        let h3 = hypergroup::CoxeterMatrix::H3();
+        let group =
+            hypergroup::CoxeterMatrix::direct_product(&h3, &hypergroup::CoxeterMatrix::A(1)?)?
+                .isometry_group()?;
+
+        let named_point_vectors: PerNamedPoint<Vector> = group
+            .orbit_geometric(
+                h3.mirror_basis()?.col(2).to_vector(),
+                hypergroup::ORBIT_LIMIT,
+            )?
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect();
+        let points: PerNamedPoint<Point> = named_point_vectors.map_ref(|_, v| Point(v.clone()));
+
+        let named_point_action = group.action_on_points(&points)?;
+
+        let w = Vector::unit(3);
+
+        let subgroup_action = SubgroupAction::from_subgroup_predicate(&named_point_action, |e| {
+            APPROX.eq(&group.motor(e).transform(&w), &w) // stabilize W axis
+        })?;
+        let mut subgroup_solver = SubgroupConstraintSolver::new(subgroup_action);
+
+        let g1 = group.generators()[GeneratorId(1)];
+        let g2 = group.generators()[GeneratorId(2)];
+
+        let f = NamedPoint(0);
+        let u = named_point_action.act(g2, f);
+        let r = named_point_action.act(g1, u);
+
+        let mut check_unit_twist_transform = |stab: &[NamedPoint], period: usize| -> Result<()> {
+            println!("Testing setwise stabilizer {:?} with period {period}", stab);
+
+            let secondary_vector: Vector = stab.iter().map(|&p| &named_point_vectors[p]).sum();
+            let stabilized_vectors = [w.clone(), secondary_vector];
+
+            // unit_twist_transform() should always produce a clockwise
+            // rotation, regardless of the input cycle direction.
+            let forward_coset = subgroup_solver
+                .solve(&cycle_constraints(stab.iter().copied()))
+                .expect("unsat");
+            let reverse_coset = subgroup_solver
+                .solve(&cycle_constraints(stab.iter().rev().copied()))
+                .expect("unsat");
+            let unit1 = unit_twist_transform(&group, &forward_coset, &stabilized_vectors)?;
+            let unit2 = unit_twist_transform(&group, &reverse_coset, &stabilized_vectors)?;
+            assert_eq!(group.abstract_group().period(unit1.element), period);
+            assert_eq!(group.abstract_group().period(unit2.element), period);
+            assert_eq!(unit1, unit2);
+            Ok(())
+        };
+
+        check_unit_twist_transform(&[u], 5)?; // face twist
+        check_unit_twist_transform(&[u, r], 2)?; // edge twist
+        check_unit_twist_transform(&[u, r, f], 3)?; // vertex twist
+
+        Ok(())
+    }
 }

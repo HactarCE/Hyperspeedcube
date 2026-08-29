@@ -195,8 +195,6 @@ add_twist_system(id = "icosahedron_ft@0", name = "FT Icosahedron",
         #twists.stabilizer_sets = [
             [["F", "R"], lerp(shape.edge.mag, dodeca.edge.mag/dodeca.vertex.mag, GIZMO_EDGE_FACTOR)],
             [["U", "F", "R", "E", "G"], lerp(shape.vertex.mag, dodeca.facet.mag/dodeca.vertex.mag, GIZMO_EDGE_FACTOR)],
-            // [["R", "F", "U", "G", "E"], dodeca.facet.mag/dodeca.vertex.mag], // TODO: why wrong direction?
-            // TODO: move input doesn't work for these twists? e.g., `bB_aU_aF_aR_aE_aG`
         ]
 
         #twists.jumble_moves.F = #{ j = "G->E" }
@@ -548,7 +546,7 @@ def_ft_icosahedron(
     tags = #{ author = ["Andrew Farkas", "Jason White"] },
 )
 
-// TODO: Radio 1 needs piece deletion
+// TODO: Radio 1 needs piece deletion or conical cuts
 // def_ft_icosahedron(
 //     0.8,
 //     id = "radio_1@0", name = ["Radiolarian 1"],

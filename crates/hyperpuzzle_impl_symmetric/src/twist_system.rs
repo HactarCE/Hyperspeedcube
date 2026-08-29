@@ -465,6 +465,18 @@ pub struct UniqueMinimalClockwiseGenerator {
     pub order: NonZeroI32,
 }
 
+impl UniqueMinimalClockwiseGenerator {
+    /// Constructs a unique minimal clockwise generator struct using the given
+    /// element, inferring the order of the group.
+    pub fn new(group: &hypergroup::Group, element: GroupElementId) -> Self {
+        Self {
+            element,
+            order: NonZeroI32::new(group.period(element) as i32)
+                .expect("group element period is zero"),
+        }
+    }
+}
+
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum TwistError {
     #[error("unknown axis: {0:?}")]

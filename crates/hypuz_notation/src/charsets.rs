@@ -29,6 +29,7 @@ pub fn classify(c: char) -> Option<CharSet> {
         'ε' | 'η' | 'κ' | 'μ' | 'π' | 'τ' | 'φ' | 'ψ' | 'ω' => {
             Some(CharSet::ShortLowercaseGreek)
         }
+        '_' => Some(CharSet::Underscore),
         _ => None,
     }
 }

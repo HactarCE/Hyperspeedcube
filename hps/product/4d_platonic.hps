@@ -34,12 +34,15 @@ add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT",   priority = 52,  id = "hypercube_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET",   priority = 51,  id = "hypercube_et")
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT",   priority = 50,  id = "hypercube_vt")
+// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT+VT", priority = 50,  id = "hypercube_vt")
+// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|48-Cell", priority = 50,  id = "hypercube_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|16-Cell|None", priority = 100, id = "16cell")
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|FT",   priority = 53, id = "16cell_ft", default = true)
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|RT",   priority = 52, id = "16cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|ET",   priority = 51, id = "16cell_et")
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|VT",   priority = 50, id = "16cell_vt")
+// add_menu_entry(path = "Solid|4D|Platonic|16-Cell|48-Cell", priority = 50,  id = "hypercube_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|None", priority = 100, id = "24cell")
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT",   priority = 53,  next_inline = "Depth", default = true)
@@ -51,22 +54,17 @@ add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid|1 + 5", id = "24cell_
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|RT",   priority = 52,  id = "24cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|ET",   priority = 51,  id = "24cell_et")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|VT",   priority = 50,  id = "24cell_vt")
+// add_menu_entry(path = "Solid|4D|Platonic|24-Cell|48-Cell", priority = 50,  id = "hypercube_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|None", priority = 100, id = "120cell")
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT",   priority = 53,  next_inline = "Cut depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Shallow", priority = 3, id = "120cell_ft_shallow", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Evil",    priority = 2, id = "120cell_ft_evil")
 add_menu_entry(path = "Solid|4D|Platonic|120-Cell|FT|Half",    priority = 1, id = "120cell_ft_half")
-// add_menu_entry(path = "Solid|4D|Platonic|120-Cell|RT",   priority = 52,  id = "120cell_rt")
-// add_menu_entry(path = "Solid|4D|Platonic|120-Cell|ET",   priority = 51,  id = "120cell_et")
-// add_menu_entry(path = "Solid|4D|Platonic|120-Cell|VT",   priority = 50,  id = "120cell_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|None", priority = 100, id = "600cell")
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT",   priority = 53,  next_inline = "Cut depth", default = true)
 add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT|Shallow", priority = 2, id = "600cell_ft_shallow", default = true)
-// add_menu_entry(path = "Solid|4D|Platonic|600-Cell|RT",   priority = 52,  id = "600cell_rt")
-// add_menu_entry(path = "Solid|4D|Platonic|600-Cell|ET",   priority = 51,  id = "600cell_et")
-// add_menu_entry(path = "Solid|4D|Platonic|600-Cell|VT",   priority = 50,  id = "600cell_vt")
 
 //--------------//
 // Basic shapes //
@@ -105,7 +103,7 @@ add_twist_system(id = "4simplex_fvt@1", name = "FT/VT 4-Simplex",
         #twists.stabilizer_twists = [
             [["A", "B"], s],
             [["A", "B", "C"], s * 2/√3],
-            [["A", "βB"], s], // TODO: why is this backwards? (but not when using βC)
+            [["A", "βB"], s],
             [["βA", "B"], s],
             [["βA", "B", "C"], s * 2/√3],
             [["βA", "βB"], s],
@@ -337,157 +335,3 @@ fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
 }
 
 def_600cell_ft([0.97], id = "600cell_ft_shallow@0", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
-
-
-
-
-// - **Shape**
-// - *Platonic*
-// - Simplex
-//   - **Axes**
-//   - FVT
-// - Hypercube
-//   - **Axes**
-//   - FT
-//   - RT
-//   - ET
-//   - VT
-//   - FT+VT
-//   - 48-Cell
-// - 16-Cell
-//   - **Axes**
-//   - FT
-//   - RT
-//   - ET
-//   - 48-Cell
-// - 24-Cell
-//   - **Axes**
-//   - FT
-//   - 48-Cell
-// - 120-Cell
-//   - **Axes**
-//   - FT
-//     - **Depth**
-//     - Shallow
-//     - Evil
-//     - Half
-// - 600-Cell
-//   - **Axes**
-//   - FT
-
-// // Parameter for hypercube gimzos
-// export GIZMO_EDGE_FACTOR = 0.8
-
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT", priority = 1, default = true, next_inline = "Depth")
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|A", id = "4_simplex_a_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|B", id = "4_simplex_b_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|C", id = "4_simplex_c_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|D", id = "4_simplex_d_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|4-Simplex|FVT|Pyraminx", id = "4_simplex_pyraminx_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT", priority = 4, default = true, id = "hypercube_ft")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|RT", priority = 3, id = "todo")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|ET", priority = 2, id = "todo")
-// add_menu_entry(path = "Solid|4D|Platonic|Hypercube|VT", priority = 1, id = "todo")
-// add_menu_entry(path = "Solid|4D|Platonic|16-Cell|FT", priority = 4, default = true, id = "todo")
-// add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT", priority = 4, default = true, id = "todo")
-
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|16-Cell",
-//     priority = -16,
-//     next_column = "Axes",
-// )
-
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|24-Cell",
-//     priority = -24,
-//     next_column = "Axes",
-// )
-
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|600-Cell",
-//     priority = -600,
-//     next_column = "Axes",
-// )
-
-// add_menu_entry(
-//     path = "Solid|4D|Catalan",
-//     section = true,
-// )
-// add_menu_entry(
-//     path = "Solid|4D|Catalan|48-Cell",
-//     next_column = "Axes",
-// )
-// add_menu_entry(
-//     path = "Solid|4D|Catalan|48-Cell|None",
-//     priority = 1000,
-//     id = "48cell",
-// )
-
-
-
-// add_menu_entry(
-//     path = "Solid|4D|Catalan|48-Cell|FT",
-//     id = "48cell_ft",
-//     default = true,
-// )
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|16-Cell|48-Cell",
-//     id = "48cell_ft",
-// )
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|24-Cell|48-Cell",
-//     id = "48cell_ft",
-// )
-// add_menu_entry(
-//     path = "Solid|4D|Platonic|Hypercube|48-Cell",
-//     id = "48cell_ft",
-// )
-
-// add_twist_system(
-//     id = "hypercube_ft",
-//     name = "FT Hypercube",
-//     engine = "symmetric",
-//     ndim = 4,
-//     subsets = [
-//         #{id = "rot", name = "Rot", default = true},
-//         #{id = "refle", name = "Refle", maximal = true},
-//     ],
-//     build = fn(subset) {
-//         shape = @shapes/4d/hypercube.new()
-//         #twists.sym = if subset == "rot" { shape.sym.chiral } else { shape.sym }
-//         #twists.points = [shape.facet]
-//         #twists.axes = [shape.facet]
-//         if subset == "rot" {
-//             #twists.stabilizer_twists = [
-//                 [["R", "U"], 1],
-//                 [["R", "U"], (1 + GIZMO_EDGE_FACTOR) / √2],
-//                 [["R", "U", "F"], (1 + 2 * GIZMO_EDGE_FACTOR) / √3],
-//             ]
-//         }
-//     }
-// )
-
-// add_puzzle(
-//     id = "hypercube_ft",
-//     name = "FT Hypercube",
-//     version = "0.1.0",
-//     engine = "symmetric",
-//     ndim = 4,
-//     colors = "hypercube",
-//     params = [#{ name = "Layers", type = Int, default = 3, min = 1, max = 50 }],
-//     subsets = [
-//         #{id = "rot", name = "Rot", default = true},
-//         #{id = "refle", name = "Refle", maximal = true},
-//     ],
-//     gen = fn(layers, subset) {
-//         export name = "${layers}^4"
-//         export twists = "hypercube_ft.${subset}",
-//         export fn build() {
-//             shape = @shapes/4d/hypercube.new()
-//             #shape.sym = shape.sym
-//             #shape.colors = shape.colors
-//             #shape.facets ++= [shape.facet]
-//             #puz.layers.R = @util.layers.inclusive(layers)
-//         }
-//     },
-// )

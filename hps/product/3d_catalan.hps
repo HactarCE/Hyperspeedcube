@@ -42,7 +42,7 @@ add_twist_system(
         ]
         #twists.stabilizer_sets = [
             [["R", "U"], 1],
-            [["R", "U", "F"], (1-2*√2)/√3], // TODO: why backwards???
+            [["R", "U", "F"], (2*√2-1)/√3],
         ]
         #twists.jumble_moves.UF = #{ j = "UR->RF" }
         #twists.jumble_stops.UF = ["j"]

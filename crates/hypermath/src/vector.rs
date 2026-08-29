@@ -377,6 +377,14 @@ impl Vector {
         ret
     }
 
+    /// Returns an arbitrary vector perpendicular to all vectors in `vectors`,
+    /// or `None` if there is none within the given number of dimensions.
+    pub fn arbitrary_perpendicular_to(ndim: u8, vectors: &[Vector]) -> Option<Self> {
+        (0..ndim)
+            .map(Vector::unit)
+            .find_map(|v| v.rejected_from_all(vectors.iter().cloned()).normalize())
+    }
+
     /// Resizes the vector in-place, padding with zeros.
     pub fn resize(&mut self, ndim: u8) {
         self.0.resize(ndim as _, 0.0);
