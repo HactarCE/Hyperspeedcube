@@ -6,11 +6,10 @@
 #![allow(missing_docs)] // too many things to document
 
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate strum;
 
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 use bitvec::vec::BitVec;
 use eyre::{OptionExt, eyre};
@@ -54,12 +53,11 @@ pub const DEFAULT_ANIMATION_PRESET_NAME: &str = "Medium";
 pub const DEFAULT_LAYOUT_PRESET_NAME: &str = "Basic";
 pub const DEFAULT_CUSTOM_STYLE_NAME: &str = "Hidden";
 
-lazy_static! {
-    static ref DEFAULT_PREFS_RAW: schema::current::Preferences =
-        serde_norway::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
-    pub static ref DEFAULT_PREFS: Preferences =
-        Preferences::from_serde(&(), DEFAULT_PREFS_RAW.clone());
-}
+static DEFAULT_PREFS_RAW: LazyLock<schema::current::Preferences> = LazyLock::new(|| {
+    serde_norway::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences")
+});
+pub static DEFAULT_PREFS: LazyLock<Preferences> =
+    LazyLock::new(|| Preferences::from_serde(&(), DEFAULT_PREFS_RAW.clone()));
 
 #[derive(Debug, Default)]
 pub struct Preferences {
@@ -213,7 +211,7 @@ impl Preferences {
     /// existing preferences are backed up (if possible) and `backup` (or else
     /// the default preferences) is returned.
     pub fn load(backup: Option<Self>) -> Self {
-        lazy_static::initialize(&DEFAULT_PREFS);
+        std::sync::LazyLock::force(&DEFAULT_PREFS);
 
         let mut config = config::Config::builder()
             .set_default("version", schema::CURRENT_VERSION)

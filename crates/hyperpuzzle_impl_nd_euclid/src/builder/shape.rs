@@ -1,5 +1,5 @@
 use std::collections::{HashMap, hash_map};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use eyre::{Context, OptionExt, Result, bail, ensure, eyre};
 use hypermath::prelude::*;
@@ -265,10 +265,8 @@ impl ShapeBuilder {
         name: String,
         display: Option<String>,
     ) -> Result<PieceType> {
-        lazy_static! {
-            static ref PIECE_TYPE_NAME_REGEX: Regex =
-                Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*$").expect("bad regex");
-        }
+        static PIECE_TYPE_NAME_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*$").expect("bad regex"));
 
         if !PIECE_TYPE_NAME_REGEX.is_match(&name) {
             bail!("invalid piece type name: {name:?}")

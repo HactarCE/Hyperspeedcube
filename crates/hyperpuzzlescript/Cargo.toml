@@ -29,7 +29,6 @@ eyre.workspace = true
 include_dir.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
-lazy_static.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 thiserror.workspace = true

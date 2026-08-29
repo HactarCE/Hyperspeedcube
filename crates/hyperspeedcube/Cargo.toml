@@ -45,7 +45,6 @@ hcegui = { workspace = true, features = ["ansi", "dnd"] }
 indexmap.workspace = true
 itertools.workspace = true
 lab.workspace = true
-lazy_static.workspace = true
 log.workspace = true
 material-design-icons.workspace = true
 names.workspace = true

@@ -28,12 +28,12 @@
 //! ```
 
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
 pub use hyperpuzzle_impl_nd_euclid as nd_euclid;
 pub use hyperpuzzle_impl_symmetric as symmetric;
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
 pub use prelude::*;
 
@@ -43,14 +43,13 @@ pub mod prelude {
     pub use hyperpuzzle_impl_nd_euclid::prelude::*;
 }
 
-lazy_static! {
-    /// Global catalog.
-    ///
-    /// Even though [`Catalog`] already contains an `Arc<Mutex<T>>` internally,
-    /// we use another layer of `Arc<Mutex<Catalog>>` here so that we can reset
-    /// the catalog without interfering with old references to it.
-    static ref CATALOG: Arc<Mutex<Catalog>> = Arc::new(Mutex::new(Catalog::default()));
-}
+/// Global catalog.
+///
+/// Even though [`Catalog`] already contains an `Arc<Mutex<T>>` internally, we
+/// use another layer of `Arc<Mutex<Catalog>>` here so that we can reset the
+/// catalog without interfering with old references to it.
+static CATALOG: LazyLock<Arc<Mutex<Catalog>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(Catalog::default())));
 
 /// Returns the global catalog.
 pub fn catalog() -> Catalog {

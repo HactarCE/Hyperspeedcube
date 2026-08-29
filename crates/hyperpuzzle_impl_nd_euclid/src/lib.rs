@@ -1,11 +1,8 @@
 //! N-dimensional Euclidean puzzle simulation backend and Hyperpuzzlescript API
 //! for Hyperspeedcube.
 
-#[macro_use]
-extern crate lazy_static;
-
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, LazyLock, Weak};
 
 use hypermath::pga;
 use hyperpuzzle_core::ComponentList;
@@ -55,36 +52,34 @@ pub struct NdEuclidPuzzleStateRenderData {
 
 impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
-lazy_static! {
-    /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
-    pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = {
-        let mut components = ComponentList::new();
-        let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
-        components.insert(Arc::clone(&geom));
+/// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
+pub static PLACEHOLDER_PUZZLE: LazyLock<Arc<Puzzle>> = LazyLock::new(|| {
+    let mut components = ComponentList::new();
+    let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
+    components.insert(Arc::clone(&geom));
 
-        Arc::new_cyclic(|this| Puzzle {
-            this: Weak::clone(this),
-            meta: Arc::new(PuzzleListEntry {
-                id: "placeholder".parse().expect("bad ID"),
-                version: None,
-                name: "🤔".to_string(),
-                aliases: vec![],
-                tags: TagSet::new(),
-            }),
-            view_prefs_set: None,
-            pieces: PerPiece::new(),
-            stickers: PerSticker::new(),
-            piece_types: PerPieceType::new(),
-            piece_type_hierarchy: PieceTypeHierarchy::new(0),
-            piece_type_masks: HashMap::new(),
-            colors: Arc::new(ColorSystem::new_empty()),
-            can_scramble: false,
-            full_scramble_length: 0,
-            axis_layers: Arc::new(PerAxis::new()),
-            twists: Arc::new(TwistSystem::new_empty()),
-            new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
-            random_move: Box::new(move |_rng| None),
-            components,
-        })
-    };
-}
+    Arc::new_cyclic(|this| Puzzle {
+        this: Weak::clone(this),
+        meta: Arc::new(PuzzleListEntry {
+            id: "placeholder".parse().expect("bad ID"),
+            version: None,
+            name: "🤔".to_string(),
+            aliases: vec![],
+            tags: TagSet::new(),
+        }),
+        view_prefs_set: None,
+        pieces: PerPiece::new(),
+        stickers: PerSticker::new(),
+        piece_types: PerPieceType::new(),
+        piece_type_hierarchy: PieceTypeHierarchy::new(0),
+        piece_type_masks: HashMap::new(),
+        colors: Arc::new(ColorSystem::new_empty()),
+        can_scramble: false,
+        full_scramble_length: 0,
+        axis_layers: Arc::new(PerAxis::new()),
+        twists: Arc::new(TwistSystem::new_empty()),
+        new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
+        random_move: Box::new(move |_rng| None),
+        components,
+    })
+});

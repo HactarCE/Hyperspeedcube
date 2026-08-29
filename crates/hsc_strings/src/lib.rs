@@ -4,9 +4,6 @@
 use std::fmt;
 use std::path::Path;
 
-#[macro_use]
-extern crate lazy_static;
-
 use lang::Lang;
 use owo_colors::OwoColorize;
 

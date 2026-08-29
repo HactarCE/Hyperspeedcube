@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::sync::mpsc;
 
 use parking_lot::Mutex;
@@ -10,12 +11,10 @@ pub use platform::*;
 
 use crate::PrefsConvert;
 
-lazy_static! {
-    pub(crate) static ref PREFS_SAVE_THREAD: (
-        mpsc::Sender<PrefsSaveCommand>,
-        Mutex<Option<std::thread::JoinHandle<()>>>
-    ) = spawn_save_thread();
-}
+pub(crate) static PREFS_SAVE_THREAD: LazyLock<(
+    mpsc::Sender<PrefsSaveCommand>,
+    Mutex<Option<std::thread::JoinHandle<()>>>,
+)> = LazyLock::new(spawn_save_thread);
 
 fn spawn_save_thread() -> (
     mpsc::Sender<PrefsSaveCommand>,

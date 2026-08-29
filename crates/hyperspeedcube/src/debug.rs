@@ -1,8 +1,7 @@
 use parking_lot::Mutex;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref FRAME_DEBUG_INFO: Mutex<String> = Mutex::new(String::new());
-}
+pub static FRAME_DEBUG_INFO: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
 
 #[allow(unused_macros)]
 macro_rules! printlnd {

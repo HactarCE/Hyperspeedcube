@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use egui::NumExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
@@ -399,10 +399,8 @@ impl fmt::Display for Query<'_> {
 }
 impl<'a> Query<'a> {
     pub fn from_str(s: &'a str) -> Self {
-        lazy_static! {
-            static ref SEGMENT_REGEX: Regex =
-                Regex::new(r#"\s+|([^"\s]|"([^"]*|\\")"?)+"#).expect("bad regex");
-        }
+        static SEGMENT_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"\s+|([^"\s]|"([^"]*|\\")"?)+"#).expect("bad regex"));
 
         let mut segments = vec![];
         let mut included_tags = vec![];

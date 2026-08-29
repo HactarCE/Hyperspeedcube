@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use eyre::Result;
 use parking_lot::Mutex;
@@ -24,21 +24,19 @@ impl Release {
     }
 }
 
-lazy_static! {
-    pub static ref NEWER_RELEASE: Arc<Mutex<Option<Release>>> = {
-        let arc_mutex = Arc::new(Mutex::new(None));
-        std::thread::spawn({
-            let arc_mutex = Arc::clone(&arc_mutex);
-            move || match check_for_update() {
-                Ok(newer_release) => *arc_mutex.lock() = newer_release,
-                Err(e) => {
-                    log::error!("Error checking for updates: {e}");
-                }
+pub static NEWER_RELEASE: LazyLock<Arc<Mutex<Option<Release>>>> = LazyLock::new(|| {
+    let arc_mutex = Arc::new(Mutex::new(None));
+    std::thread::spawn({
+        let arc_mutex = Arc::clone(&arc_mutex);
+        move || match check_for_update() {
+            Ok(newer_release) => *arc_mutex.lock() = newer_release,
+            Err(e) => {
+                log::error!("Error checking for updates: {e}");
             }
-        });
-        arc_mutex
-    };
-}
+        }
+    });
+    arc_mutex
+});
 
 fn check_for_update() -> Result<Option<Release>> {
     // https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28

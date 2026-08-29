@@ -15,6 +15,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 mod menu;
 mod set;
@@ -23,10 +24,8 @@ pub use menu::AllTags;
 pub use set::TagSet;
 use strum::EnumString;
 
-lazy_static! {
-    /// Catalog of known tags, defined in `tags.kdl`.
-    pub static ref TAGS: AllTags = AllTags::load();
-}
+/// Catalog of known tags, defined in `tags.kdl`.
+pub static TAGS: LazyLock<AllTags> = LazyLock::new(AllTags::load);
 
 /// How to display a node in the tag menu.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

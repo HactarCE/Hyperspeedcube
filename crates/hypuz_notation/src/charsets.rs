@@ -1,4 +1,5 @@
 //! Character sets allowed in notation.
+use std::sync::LazyLock;
 
 /// Character sets allowed in family names.
 pub enum CharSet {
@@ -70,12 +71,12 @@ pub const FAMILY_CHAR_CLASS: &str = "[A-Za-zΓΔΘΛΞΠΣΦΨΩβδζθλξεη
 /// returns true.
 pub const FAMILY_CHARS: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzΓΔΘΛΞΠΣΦΨΩβδζθλξεηκμπτφψω";
-
 /// String containing all group prefix characters.
 pub const GROUP_PREFIX_CHARS: &str = "!#$%&?^`";
 
 #[cfg(test)]
-lazy_static::lazy_static! {
-    pub(crate) static ref FAMILY_REGEX: &'static str = format!("{FAMILY_CHAR_CLASS}+").leak();
-    pub(crate) static ref OPT_FAMILY_REGEX: &'static str = format!("{FAMILY_CHAR_CLASS}*").leak();
-}
+pub(crate) static FAMILY_REGEX: LazyLock<&'static str> =
+    LazyLock::new(|| format!("{FAMILY_CHAR_CLASS}+").leak());
+#[cfg(test)]
+pub(crate) static OPT_FAMILY_REGEX: LazyLock<&'static str> =
+    LazyLock::new(|| format!("{FAMILY_CHAR_CLASS}*").leak());

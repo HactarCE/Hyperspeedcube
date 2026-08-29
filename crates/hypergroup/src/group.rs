@@ -485,6 +485,8 @@ impl Group {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use proptest::prelude::*;
 
     use super::*;
@@ -512,14 +514,12 @@ mod tests {
         assert_eq!(g.period(GroupElementId(5)), 6);
     }
 
-    lazy_static::lazy_static! {
-        static ref BIG_PRODUCT_GROUP: Group = {
-            let g1 = CoxeterMatrix::B(3).unwrap().group().unwrap(); // cube (3D)
-            let g2 = CoxeterMatrix::I(10).unwrap().group().unwrap(); // 10-gon (2D)
-            let g3 = CoxeterMatrix::A(5).unwrap().group().unwrap(); // 5-simplex (5D)
-            Group::product(&[g1, g2, g3]).unwrap()
-        };
-    }
+    static BIG_PRODUCT_GROUP: LazyLock<Group> = LazyLock::new(|| {
+        let g1 = CoxeterMatrix::B(3).unwrap().group().unwrap(); // cube (3D)
+        let g2 = CoxeterMatrix::I(10).unwrap().group().unwrap(); // 10-gon (2D)
+        let g3 = CoxeterMatrix::A(5).unwrap().group().unwrap(); // 5-simplex (5D)
+        Group::product(&[g1, g2, g3]).unwrap()
+    });
 
     fn elem_strategy() -> impl Strategy<Value = GroupElementId> {
         (0..BIG_PRODUCT_GROUP.element_count() as u32).prop_map(GroupElementId)

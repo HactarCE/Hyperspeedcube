@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use itertools::Itertools;
 use kdl::{KdlDocument, KdlEntry};
@@ -11,9 +12,8 @@ use crate::schema::*;
 use crate::util;
 use crate::warn::*;
 
-lazy_static! {
-    pub static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{\{([\s\S]*?)}}").expect("bad regex");
-}
+pub static TEMPLATE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{\{([\s\S]*?)}}").expect("bad regex"));
 
 #[derive(Debug)]
 pub struct Lang {

@@ -1,8 +1,5 @@
 //! Multidimensional twisty puzzle generator and simulator backend.
 
-#[macro_use]
-extern crate lazy_static; // TODO: replace with std::sync::Lazy
-
 #[cfg(test)]
 use criterion as _; // Suppress unused crate warning (it's used in a benchmark)
 

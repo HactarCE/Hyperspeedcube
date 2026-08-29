@@ -1,10 +1,9 @@
 //! Multidimensional twisty puzzle simulator.
-
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(unused)] // TODO: remove
 
-#[macro_use]
-extern crate lazy_static;
+use std::sync::LazyLock;
+
 #[macro_use]
 extern crate strum;
 
@@ -32,15 +31,13 @@ const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_512x512.png");
 
-lazy_static! {
-    static ref PROGRAM: hyperpuzzle_log::Program = hyperpuzzle_log::Program {
-        name: Some(TITLE.to_string()),
-        version: Some(env!("CARGO_PKG_VERSION").to_string()),
-    };
-    static ref CLIPBOARD: Result<parking_lot::Mutex<arboard::Clipboard>, arboard::Error> =
-        arboard::Clipboard::new().map(parking_lot::Mutex::new);
-    static ref IS_PRERELEASE: bool = env!("CARGO_PKG_VERSION").contains('-');
-}
+static PROGRAM: LazyLock<hyperpuzzle_log::Program> = LazyLock::new(|| hyperpuzzle_log::Program {
+    name: Some(TITLE.to_string()),
+    version: Some(env!("CARGO_PKG_VERSION").to_string()),
+});
+static CLIPBOARD: LazyLock<Result<parking_lot::Mutex<arboard::Clipboard>, arboard::Error>> =
+    LazyLock::new(|| arboard::Clipboard::new().map(parking_lot::Mutex::new));
+static IS_PRERELEASE: LazyLock<bool> = LazyLock::new(|| env!("CARGO_PKG_VERSION").contains('-'));
 
 /// Number of points that the mouse must be dragged to twist the puzzle.
 ///

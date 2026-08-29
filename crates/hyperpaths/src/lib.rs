@@ -2,12 +2,10 @@
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::LazyLock;
 use std::{env, fmt};
 
 use directories::ProjectDirs;
-
-#[macro_use]
-extern crate lazy_static;
 
 /// Whether this is an official build of the software (as opposed to a local
 /// build).
@@ -25,9 +23,7 @@ const HPS_DIR_NAME: &str = "hps";
 
 pub const LEADERBOARDS_TOKEN_FILE_NAME: &str = "hsc2-token";
 
-lazy_static! {
-    static ref PATHS: Option<AppPaths> = app_paths();
-}
+static PATHS: LazyLock<Option<AppPaths>> = LazyLock::new(app_paths);
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NoPaths;

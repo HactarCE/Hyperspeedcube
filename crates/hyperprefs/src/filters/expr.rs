@@ -1,15 +1,14 @@
 use std::collections::HashSet;
 use std::fmt;
+use std::sync::LazyLock;
 
 use hyperpuzzle_core::prelude::*;
 use itertools::{Itertools, PutBack};
 use regex::Regex;
 
-lazy_static! {
-    /// Regex matching a name, or any single symbol.
-    static ref TOKEN_REGEX: Regex =
-        Regex::new(r"['@]?([a-zA-Z_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ][a-zA-Z0-9_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ]*)|.").expect("bad regex");
-}
+/// Regex matching a name, or any single symbol.
+static TOKEN_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"['@]?([a-zA-Z_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ][a-zA-Z0-9_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ]*)|.").expect("bad regex"));
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilterExpr {

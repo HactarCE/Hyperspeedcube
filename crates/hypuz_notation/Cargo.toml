@@ -26,7 +26,6 @@ smallvec.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-lazy_static.workspace = true
 pretty_assertions.workspace = true
 proptest-derive.workspace = true
 proptest.workspace = true

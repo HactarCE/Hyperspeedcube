@@ -27,7 +27,6 @@ eyre.workspace = true
 float-ord.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
-lazy_static.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 rand.workspace = true

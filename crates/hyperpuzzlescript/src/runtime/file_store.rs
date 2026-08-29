@@ -1,20 +1,17 @@
 use std::fmt;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use lazy_static::lazy_static;
 
 #[cfg(feature = "hyperpaths")]
 use crate::LANGUAGE_NAME;
 use crate::{FILE_EXTENSION, FileId, INDEX_FILE_NAME, Result, Value, ast};
 
-lazy_static! {
-    static ref INTERNAL_SOURCE: ariadne::Source<ArcStr> =
-        ariadne::Source::from(ArcStr::from("<internal>"));
-}
+static INTERNAL_SOURCE: LazyLock<ariadne::Source<ArcStr>> =
+    LazyLock::new(|| ariadne::Source::from(ArcStr::from("<internal>")));
 
 #[derive(Debug)]
 pub struct Module {
