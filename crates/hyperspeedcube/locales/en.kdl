@@ -165,8 +165,8 @@ leaderboards {
   }
 
   loading {
-    waiting_for_auth "Waiting for authentication ..."
-    fetching_profile_info "Fetching profile info ..."
+    waiting_for_auth "Waiting for authentication …"
+    fetching_profile_info "Fetching profile info …"
   }
 
   links {
@@ -780,6 +780,7 @@ catalog {
   filter_by_tag "Filter by tag"
   generate_puzzle "Generate puzzle"
   clear_search "Clear search"
+  search_hint "Search by puzzle name or #tag …"
 }
 
 piece_filters {

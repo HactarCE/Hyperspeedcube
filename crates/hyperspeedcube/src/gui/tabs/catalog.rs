@@ -126,6 +126,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             let r = ui.add(
                 egui::TextEdit::singleline(&mut search_query_string)
                     .desired_width(f32::INFINITY)
+                    .hint_text(L.catalog.search_hint)
                     .layouter(&mut Query::text_layouter),
             );
 
