@@ -25,14 +25,14 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use hyperpuzzle_core::{
-    BuildCtx, CatalogBuilder, CatalogObject, CatalogWord, Generator, GeneratorParam,
-    GeneratorParamValidation, GeneratorSubsetParam, TypedCatalogIdValue,
-    catalog::VersionedCatalogWord,
+    BuildCtx, CatalogBuilder, CatalogObject, Generator, GeneratorParam, GeneratorParamValidation,
+    GeneratorSubsetParam, TypedCatalogIdValue, catalog::VersionedCatalogWord,
 };
 use itertools::Itertools;
 
 use crate::{
-    EvalCtx, EvalRequestTx, FnValue, FullDiagnostic, Map, Num, Scope, Span, Type, Value, ValueData,
+    EvalCtx, EvalRequestTx, FnValue, FullDiagnostic, HpsThreadPanic, Map, Num, Scope, Span, Type,
+    Value, ValueData,
 };
 
 #[derive(Debug)]
@@ -53,12 +53,18 @@ impl From<eyre::Report> for HpsEngineError {
     }
 }
 
+impl From<HpsThreadPanic> for HpsEngineError {
+    fn from(value: HpsThreadPanic) -> Self {
+        Self::Eyre(value.into())
+    }
+}
+
 impl HpsEngineError {
     pub fn to_eyre(self, tx: &EvalRequestTx) -> eyre::Report {
         match self {
-            HpsEngineError::Hps(full_diagnostic) => {
-                tx.eval_blocking_raw(|runtime| runtime.report_and_convert_to_eyre(full_diagnostic))
-            }
+            HpsEngineError::Hps(full_diagnostic) => tx
+                .eval_blocking_raw(|runtime| runtime.report_and_convert_to_eyre(full_diagnostic))
+                .unwrap_or_else(HpsThreadPanic::into),
             HpsEngineError::Eyre(report) => report,
         }
     }
@@ -191,6 +197,7 @@ impl HpsGenerator {
                         }
                         Ok(return_value)
                     })
+                    .unwrap_or_else(|e: HpsThreadPanic| Err(e.into()))
                     .map_err(HpsEngineError::Hps)
                     .and_then(|val| {
                         // `generate` must be called outside of the HPS thread

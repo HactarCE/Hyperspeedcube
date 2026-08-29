@@ -27,8 +27,7 @@
 //! hyperpuzzlescript = { version = "*", features = ["hyperpaths"] }
 //! ```
 
-use std::sync::Arc;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock, mpsc};
 
 pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
@@ -113,14 +112,20 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     hyperpuzzle_impl_symmetric::add_catalog_entries(catalog)
         .expect("error adding symmetric puzzles to catalog");
 
-    // Load user files.
+    // Load user files on a new thread in case it panics.
     rt.modules.add_default_files();
-    rt.exec_all_files();
+    let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
+        rt.exec_all_files();
+        tx.send(()).expect("HPS exec receiver dropped");
         for eval_request in eval_rx {
             eval_request(&mut rt);
         }
     });
+    // Wait for files to finish loading.
+    if rx.recv().is_err() {
+        catalog.logger()?.error(hyperpuzzlescript::HpsThreadPanic);
+    }
 
     Ok(())
 }

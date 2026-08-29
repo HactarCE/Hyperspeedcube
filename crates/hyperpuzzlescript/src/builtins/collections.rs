@@ -5,7 +5,8 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::{
-    Builtins, EmptyList, FnValue, List, Map, NonEmptyListOf, Num, Result, Str, Value, ValueData,
+    Builtins, EmptyList, FnValue, FullDiagnostic, List, Map, NonEmptyListOf, Num, Result, Str,
+    Value, ValueData,
 };
 
 /// Adds the built-in operators and functions.
@@ -62,7 +63,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                     .map(|(k, v)| {
                         let k_str = ValueData::Str(k.as_str().into()).at(ctx.caller_span);
                         let new_v = f.call(f_span, ctx, vec![k_str, v.clone()], Map::new())?;
-                        Ok((k.clone(), new_v))
+                        Ok::<_, FullDiagnostic>((k.clone(), new_v))
                     })
                     .try_collect()?
             }

@@ -30,7 +30,7 @@ impl EvalRequestTx {
     /// # Panics
     ///
     /// Panics if there are any issues communicating with the HPS thread.
-    pub fn eval_blocking_raw<R, F>(&self, f: F) -> R
+    pub fn eval_blocking_raw<R, F>(&self, f: F) -> Result<R, HpsThreadPanic>
     where
         R: 'static + Send,
         F: 'static + Send + FnOnce(&mut Runtime) -> R,
@@ -42,10 +42,8 @@ impl EvalRequestTx {
                     eprintln!("error sending result from HPS thread: {e}");
                 }
             }))
-            .expect("error sending request to HPS thread");
-        result_rx
-            .recv()
-            .expect("error receiving result from HPS thread")
+            .map_err(|_| HpsThreadPanic)?;
+        result_rx.recv().map_err(|_| HpsThreadPanic)
     }
 
     /// Evaluates a callback on the HPS thread and returns the result of it.
@@ -60,7 +58,7 @@ impl EvalRequestTx {
     /// # Panics
     ///
     /// Panics if there are any issues communicating with the HPS thread.
-    pub fn eval_blocking<R, F>(&self, scope: Arc<Scope>, f: F) -> R
+    pub fn eval_blocking<R, F>(&self, scope: Arc<Scope>, f: F) -> Result<R, HpsThreadPanic>
     where
         R: 'static + Send,
         F: 'static + Send + FnOnce(&mut EvalCtx<'_>) -> R,
@@ -75,3 +73,10 @@ impl EvalRequestTx {
         })
     }
 }
+
+/// Error returned when the HPS thread has panicked.
+#[derive(thiserror::Error, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[error(
+    "HPS thread panicked; please submit a bug report.\nThis error will persist until the catalog is reloaded."
+)]
+pub struct HpsThreadPanic;

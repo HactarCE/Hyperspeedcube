@@ -7,8 +7,8 @@ use itertools::Itertools;
 
 use super::{FullDiagnostic, ReportBuilder};
 use crate::{
-    FILE_EXTENSION, FnType, INDEX_FILE_NAME, Key, Span, Spanned, SpecialVar, Type, Value,
-    ValueData, ast,
+    FILE_EXTENSION, FnType, HpsThreadPanic, INDEX_FILE_NAME, Key, Span, Spanned, SpecialVar, Type,
+    Value, ValueData, ast,
 };
 
 /// Error message, without traceback information.
@@ -187,6 +187,9 @@ pub enum Error {
     Assert(EcoString),
     #[error("{2}")]
     AssertCompare(Box<Value>, Box<Value>, EcoString),
+
+    #[error("{0}")]
+    HpsThreadPanic(#[from] HpsThreadPanic),
 
     /// Not actually an error; used for ordinary return statements.
     #[error("internal: leaked 'return'")]
@@ -484,6 +487,8 @@ impl Error {
             Self::Internal(msg) => report_builder.main_label(msg),
             Self::User(_) | Self::Assert(_) => report_builder.main_label("error reported here"),
             Self::AssertCompare(l, r, _) => report_builder.label_values([&**l, &**r]),
+
+            Self::HpsThreadPanic(h) => report_builder.main_label(h),
 
             Self::StackOverflow
             | Self::Return(_)

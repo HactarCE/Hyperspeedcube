@@ -46,7 +46,7 @@ impl HpsEngine for NdEuclidTwistSystemEngine {
                 scope.special.id = Some(id.to_string().into());
                 let exports = tx.eval_blocking(Arc::new(scope), move |ctx| {
                     build.call(build_span, ctx, vec![], Map::new())
-                })?;
+                })??;
 
                 let mut b = builder.lock();
                 if let Ok(exports_map) = exports.to::<Arc<Map>>() {

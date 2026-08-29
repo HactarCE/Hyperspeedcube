@@ -24,7 +24,7 @@ pub use diagnostic::{
     Warning,
 };
 pub use engine::HpsEngine;
-pub use request::{EvalRequest, EvalRequestTx};
+pub use request::{EvalRequest, EvalRequestTx, HpsThreadPanic};
 pub use runtime::{Builtins, EvalCtx, Modules, ParentScope, Runtime, Scope, SpecialVariables};
 pub use ty::{FnType, Type};
 pub use util::{FromValue, FromValueRef, TypeOf, hps_ty};

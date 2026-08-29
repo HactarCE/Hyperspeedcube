@@ -46,10 +46,13 @@ impl HpsEngine for SymmetricTwistSystemEngine {
                 scope.special.id = Some(id.to_string().into());
                 scope.special.ndim = Some(ndim);
                 init_twists_in_hps_scope(&mut scope);
-                Ok(Arc::new(tx.eval_blocking(Arc::new(scope), move |ctx| {
-                    build.call(build_span, ctx, vec![], Map::new())?;
-                    twist_system_product_from_hps(&build_ctx, ctx, build_span, name)
-                })?))
+                Ok(Arc::new(tx.eval_blocking(
+                    Arc::new(scope),
+                    move |ctx| {
+                        build.call(build_span, ctx, vec![], Map::new())?;
+                        twist_system_product_from_hps(&build_ctx, ctx, build_span, name)
+                    },
+                )??))
             },
         ))?;
 

@@ -1,7 +1,7 @@
 use ariadne::Fmt;
 
 use super::{Diagnostic, Error, ReportBuilder, TracebackLine};
-use crate::{FileId, Span, Value};
+use crate::{ErrorExt, FileId, HpsThreadPanic, Span, Value};
 
 /// [`Diagnostic`] with primary span and traceback.
 #[derive(Debug, Clone)]
@@ -94,6 +94,12 @@ impl FullDiagnostic {
             *expected = t;
         }
         self
+    }
+}
+
+impl From<HpsThreadPanic> for FullDiagnostic {
+    fn from(value: HpsThreadPanic) -> Self {
+        value.at(crate::BUILTIN_SPAN)
     }
 }
 

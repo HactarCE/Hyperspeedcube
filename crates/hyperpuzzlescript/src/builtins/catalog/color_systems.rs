@@ -12,8 +12,8 @@ use itertools::Itertools;
 
 use crate::util::{expect_end_of_map, pop_map_key};
 use crate::{
-    Builtins, ErrorExt, EvalRequestTx, FnValue, List, Map, Result, Runtime, Scope, Span, Str, Type,
-    Value, ValueData,
+    Builtins, ErrorExt, EvalRequestTx, FnValue, FullDiagnostic, List, Map, Result, Runtime, Scope,
+    Span, Str, Type, Value, ValueData,
 };
 
 /// Adds the built-in functions.
@@ -60,7 +60,7 @@ pub fn define_in(
             cat.add(hps_gen.make_generator(&tx, move |build_ctx, tx, kwargs| {
                 Ok(tx.eval_blocking_raw(move |runtime| {
                     color_system_from_kwargs(build_ctx, caller_span, runtime, kwargs)
-                })?)
+                })??)
             }))
             .at(caller_span)?;
         }
@@ -114,7 +114,7 @@ pub fn define_in(
                                         .unwrap_or_default()
                                         .iter()
                                         .map(|(k, v)| {
-                                            Ok((
+                                            Ok::<_, FullDiagnostic>((
                                                 k.to_string(),
                                                 color_scheme_from_map(
                                                     &color_system_ref.names,
@@ -131,7 +131,7 @@ pub fn define_in(
                                 ctx.runtime.report_diagnostic(e);
                                 eyre!("error executing color system hook")
                             })
-                        })?;
+                        })??;
 
                     let color_system_mut = Arc::get_mut(color_system)
                         .ok_or_eyre("cannot run color system hook on redirected color system")?;
@@ -179,7 +179,7 @@ fn color_system_from_kwargs(
 
     let mut schemes: Vec<(String, &Map)> = schemes
         .iter()
-        .map(|(k, v)| Ok((k.to_string(), v.as_ref::<Map>()?)))
+        .map(|(k, v)| Ok::<_, FullDiagnostic>((k.to_string(), v.as_ref::<Map>()?)))
         .try_collect()?;
 
     // Build & validate names.

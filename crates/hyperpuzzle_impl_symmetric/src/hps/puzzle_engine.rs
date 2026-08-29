@@ -59,7 +59,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 let id = build_ctx.id().clone();
                 pop_kwarg!(kwargs, name: ListOrVal<String>);
                 let tags = if is_generator {
-                    tx.eval_blocking(Scope::new(), move |ctx| get_tags(ctx, &mut kwargs, false))?
+                    tx.eval_blocking(Scope::new(), move |ctx| get_tags(ctx, &mut kwargs, false))??
                 } else {
                     tags.clone()
                 };
@@ -245,7 +245,7 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         )
                         .at(caller_span)?,
                     ))
-                })
+                })?
             },
         ))?;
 
