@@ -149,8 +149,12 @@ add_twist_system(id = "120cell_ft@1", name = "FT 120-Cell",
         #twists.sym = shape.sym
         #twists.points = shape.points
         #twists.axes = [shape.facet]
+        inradius = 1 + φ*3/2 // assuming edge length = 1
+        facet_inradius = √((25+11*√5)/40) // assuming edge length = 1
+
         #twists.stabilizer_twists = [
-            // [["A", "B"], 1/√3],
+            [["II", "IU"], facet_inradius/inradius],
+            // TODO: add remaining stabilizer twists
         ]
     },
 )
