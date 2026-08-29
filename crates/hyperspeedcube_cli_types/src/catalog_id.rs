@@ -328,28 +328,29 @@ impl FromStr for CatalogIdValue {
                 .at_least(1)
                 .to_slice()
                 .map(Box::from)
-                .map(CatalogWord);
+                .map(CatalogWord)
+                .padded();
             let int_u32 = text::digits(10)
                 .to_slice()
                 .try_map(|s, e| u32::from_str(s).map_err(|err| Rich::custom(e, err)));
             let id = word
-                .then(just('@').ignore_then(int_u32).or_not())
+                .then(just('@').padded().ignore_then(int_u32).or_not())
                 .map(|(word, version)| VersionedCatalogWord { word, version })
                 .then(
                     ast_node
                         .clone()
-                        .separated_by(just(','))
+                        .separated_by(just(',').padded())
                         .collect()
-                        .delimited_by(just('('), just(')'))
+                        .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 )
-                .then(just('.').ignore_then(word).or_not())
+                .then(just('.').padded().ignore_then(word).or_not())
                 .map(|((base, args), subset)| Self::Id(CatalogId { base, args, subset }));
 
             let list = ast_node
-                .separated_by(just(','))
+                .separated_by(just(',').padded())
                 .collect()
-                .delimited_by(just('['), just(']'))
+                .delimited_by(just('[').padded(), just(']').padded())
                 .map(Self::List);
 
             choice((
@@ -358,6 +359,7 @@ impl FromStr for CatalogIdValue {
                 just('*').to(Self::Wildcard),
                 just('!').to(Self::Error),
             ))
+            .padded()
             .boxed()
         })
         .parse(s)
@@ -490,7 +492,7 @@ impl_catalog_id_value_convert!(to_bool -> bool, |b: bool| Self::Id(b.into()));
 impl_catalog_id_value_convert!(to_int -> i64, |i: i64| Self::Id(i.into()));
 
 /// Error produced when parsing a catalog ID.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 #[expect(missing_docs)]
 pub enum CatalogIdError {
     #[error("catalog ID parse error: {0}")]
@@ -535,12 +537,20 @@ mod tests {
     #[test]
     fn test_catalog_id_roundtrip() {
         for s in [
-            "product(ngon_ft(7,3).refl,line(3))",
+            "product@3([ngon_ft@1(7,3).refl,line@2(3)])",
             "megaminx_crystal",
-            "curvy_copter.rot",
+            "curvy_copter@5.rot",
             "cube_ft(3).refl",
         ] {
             assert_eq!(s, CatalogId::from_str(s).unwrap().to_string());
         }
+
+        assert_eq!(
+            Ok("product@3([ngon_ft@1(7,3).refl,line@2(3)])".to_string()),
+            CatalogId::from_str(
+                "  product  @  3  (  [  ngon_ft  @  1  (  7  ,  3  )  .  refl  ,  line  @  2  (  3  )  ]  )  ",
+            )
+            .map(|id| id.to_string()),
+        );
     }
 }
