@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt;
+use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::thread::JoinHandle;
@@ -612,7 +613,7 @@ fn show_gizmo_face(
     gizmo_face: GizmoFace,
     gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     painter: &egui::Painter,
-    project_to_egui: impl Fn(cgmath::Vector4<f32>) -> egui::Pos2,
+    project_to_egui: impl Copy + Fn(cgmath::Vector4<f32>) -> egui::Pos2,
     show_other_faces_on_same_gizmo: bool,
 ) {
     let strong_color = egui::Color32::LIGHT_BLUE;
@@ -629,7 +630,15 @@ fn show_gizmo_face(
             let mesh_range = geom.mesh.gizmo_ranges[face]; // TODO: fix crash here
             for edge_id in mesh_range.edge_range() {
                 let edge = geom.mesh.edges[edge_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
-                painter.line_segment(edge.map(&project_to_egui), stroke_weak);
+                paint_gizmo_segment(
+                    painter,
+                    edge_id,
+                    mesh_range.vertex_range(),
+                    &geom.mesh,
+                    gizmo_vertex_3d_positions,
+                    project_to_egui,
+                    stroke_weak,
+                );
             }
         }
     }
@@ -638,14 +647,49 @@ fn show_gizmo_face(
     for tri_id in mesh_range.triangle_range() {
         let tri = geom.mesh.triangles[tri_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.add(egui::Shape::convex_polygon(
-            tri.into_iter().map(&project_to_egui).collect(),
+            tri.into_iter().map(project_to_egui).collect(),
             fill,
             egui::Stroke::NONE,
         ));
     }
     for edge_id in mesh_range.edge_range() {
-        let edge = geom.mesh.edges[edge_id].map(|i| gizmo_vertex_3d_positions[i as usize]);
-        painter.line_segment(edge.map(&project_to_egui), stroke_strong);
+        paint_gizmo_segment(
+            painter,
+            edge_id,
+            mesh_range.vertex_range(),
+            &geom.mesh,
+            gizmo_vertex_3d_positions,
+            project_to_egui,
+            stroke_strong,
+        );
+    }
+}
+
+fn paint_gizmo_segment(
+    painter: &egui::Painter,
+    edge_id: usize,
+    vertex_range: Range<usize>,
+    mesh: &Mesh,
+    gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
+    project_to_egui: impl Fn(cgmath::Vector4<f32>) -> egui::Pos2,
+    stroke: egui::Stroke,
+) {
+    let vertex_ids = mesh.edges[edge_id];
+    let screen_points = vertex_ids.map(|i| project_to_egui(gizmo_vertex_3d_positions[i as usize]));
+
+    let a = project_to_egui(gizmo_vertex_3d_positions[vertex_range.start]);
+    let b = project_to_egui(gizmo_vertex_3d_positions[vertex_range.start + 1]);
+    let c = project_to_egui(gizmo_vertex_3d_positions[vertex_range.start + 2]);
+    let u = c - a;
+    let v = c - b;
+    let is_backface = u.x * v.y - u.y * v.x < 0.0;
+
+    if is_backface {
+        let mut s = stroke;
+        s.color = s.color.gamma_multiply(0.25);
+        painter.line_segment(screen_points, s);
+    } else {
+        painter.line_segment(screen_points, stroke);
     }
 }
 

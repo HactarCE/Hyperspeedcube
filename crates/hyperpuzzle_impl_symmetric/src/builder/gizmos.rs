@@ -1,7 +1,9 @@
 use eyre::{OptionExt, Result, eyre};
 use hypergroup::{ConstraintSet, ExceededOrbitLimit, GroupElementId};
 use hypermath::pga::Motor;
-use hypermath::{APPROX, ApproxHashMap, Hyperplane, Point, Vector, VectorRef, approx_collections};
+use hypermath::{
+    APPROX, ApproxHashMap, Hyperplane, Matrix, Point, Vector, VectorRef, approx_collections,
+};
 use hyperpuzzle_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
 use hypershape::{Cut, Space};
 use hypuz_notation::{Move, Transform};
@@ -33,14 +35,24 @@ pub fn build_3d_gizmo(
         let unfolded_face_id = space.unfold(facet_id.into())?;
         let unfolded_face = space.get(unfolded_face_id).as_face()?;
 
-        let vertex_positions = unfolded_face
+        let mut vertex_positions = unfolded_face
             .vertices_in_order()?
             .map(|v| v.pos())
             .collect_vec();
+        // Enforce consistent winding order for gizmo faces.
+        if Matrix::from_cols((0..3).map(|i| vertex_positions[i].as_vector())).determinant() > 0.0 {
+            vertex_positions.reverse();
+        }
 
         // Generate mesh for each face
         for (axis, _, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes)? {
-            let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
+            let mut transformed_vertex_positions = vertex_positions
+                .iter()
+                .map(|p| m.transform(p))
+                .collect_vec();
+            if m.is_reflection() {
+                transformed_vertex_positions.reverse();
+            }
             let surface_id = mesh.add_gizmo_surface(&axis_vectors[axis])?;
             let range = mesh.add_gizmo_polygon(transformed_vertex_positions, surface_id)?;
             mesh.add_gizmo_face(range)?;
@@ -64,8 +76,9 @@ pub fn build_4d_gizmo(
     let mut space = Space::new(4)?;
     let mut seen_axes = TiMask::new_empty(twists.axes.len());
     'facet: for facet_id in gizmo_facets(&mut space, axis_vectors, twists)? {
+        let init_axis_vector = space.get(facet_id).hyperplane_pole()?.into_vector();
         let init_axis = *axis_from_vector
-            .get(space.get(facet_id).hyperplane_pole()?.into_vector())
+            .get(init_axis_vector.clone())
             .ok_or_eyre("unknown axis vector")?;
 
         if seen_axes.contains(init_axis) {
@@ -180,12 +193,24 @@ pub fn build_4d_gizmo(
                 }
             })
             .map(|(face, secondary)| {
-                let vertex_positions = space
+                let mut vertex_positions = space
                     .get(face)
                     .as_face()?
                     .vertices_in_order()?
                     .map(|v| v.pos())
                     .collect_vec();
+                // Enforce consistent winding order for gizmo faces.
+                if Matrix::from_cols([
+                    &init_axis_vector,
+                    vertex_positions[0].as_vector(),
+                    vertex_positions[1].as_vector(),
+                    vertex_positions[2].as_vector(),
+                ])
+                .determinant()
+                    > 0.0
+                {
+                    vertex_positions.reverse();
+                }
                 eyre::Ok((vertex_positions, secondary))
             })
             .try_collect()?;
@@ -194,7 +219,13 @@ pub fn build_4d_gizmo(
         for (axis, e, m) in orbit_axes_with_representatives(init_axis, twists, &mut seen_axes)? {
             // Generate mesh for each face
             for (vertex_positions, secondary) in &faces {
-                let transformed_vertex_positions = vertex_positions.iter().map(|p| m.transform(p));
+                let mut transformed_vertex_positions = vertex_positions
+                    .iter()
+                    .map(|p| m.transform(p))
+                    .collect_vec();
+                if m.is_reflection() {
+                    transformed_vertex_positions.reverse();
+                }
                 let transformed_secondary =
                     secondary.transform_by_group_element(&twists.named_point_action, e);
                 let surface_id = mesh.add_gizmo_surface(&axis_vectors[axis])?;
@@ -213,6 +244,11 @@ pub fn build_4d_gizmo(
     Ok(())
 }
 
+/// Returns a list of facets to use for constructing gizmos. Each facet
+/// corresponds to one axis.
+///
+/// Note that "facet" is the same as "face" in 3D, but in 4D "facet" is the same
+/// as "cell."
 fn gizmo_facets(
     space: &mut Space,
     axis_vectors: &PerAxis<Vector>,

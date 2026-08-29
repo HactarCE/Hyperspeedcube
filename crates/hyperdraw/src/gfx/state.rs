@@ -14,6 +14,7 @@ pub struct GraphicsState {
 
     pub(super) pipelines: Pipelines,
 
+    /// UV vertices for screenshot blit.
     pub(super) uv_vertex_buffer: wgpu::Buffer,
     pub(super) nearest_neighbor_sampler: wgpu::Sampler,
 }

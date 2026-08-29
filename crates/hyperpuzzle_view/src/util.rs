@@ -12,6 +12,8 @@ use cgmath::SquareMatrix;
 pub fn triangle_hover_barycentric_coordinates(
     hover_pos: cgmath::Point2<f32>,
     tri: [cgmath::Vector4<f32>; 3],
+    allow_frontfaces: bool,
+    allow_backfaces: bool,
 ) -> Option<([f32; 3], bool)> {
     // If any vertex is culled, skip the whole triangle.
     if tri.iter().any(|p| p.w == 0.0) {
@@ -23,6 +25,9 @@ pub fn triangle_hover_barycentric_coordinates(
     // Ensure the triangle is counterclockwise.
     let mut total_area = triangle_area_2x(tri_2d);
     let rev = total_area < 0.0;
+    if (rev && !allow_backfaces) || (!rev && !allow_frontfaces) {
+        return None;
+    }
     if rev {
         tri_2d.reverse();
         total_area = -total_area;

@@ -456,7 +456,9 @@ impl NdEuclidViewState {
                 // If the cursor isn't hovering the triangle, then
                 // `triangle_hover_barycentric_coordinates()` returns `None`.
                 let (barycentric_coords @ [qa, qb, qc], backface) =
-                    crate::util::triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
+                    crate::util::triangle_hover_barycentric_coordinates(
+                        cursor_pos, tri_verts, true, true,
+                    )?;
 
                 let [pa, pb, pc] = vertex_ids.map(|i| mesh.vertex_position(i));
                 let position =
@@ -497,6 +499,7 @@ impl NdEuclidViewState {
         gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     ) -> Option<GizmoHoverState> {
         let mesh = &self.geom.mesh;
+
         mesh.triangles[mesh_range.triangle_range()]
             .iter()
             .find_map(move |&vertex_ids| {
@@ -504,8 +507,15 @@ impl NdEuclidViewState {
                     vertex_ids.map(|i| gizmo_vertex_3d_positions[i as usize]);
                 // If the cursor isn't hovering the triangle, then
                 // `triangle_hover_barycentric_coordinates()` returns `None`.
+                let allow_frontfaces = self.geom.ndim() != 3 || self.camera.prefs().show_frontfaces;
+                let allow_backfaces = self.geom.ndim() != 3 || self.camera.prefs().show_backfaces;
                 let (_barycentric_coords @ [qa, qb, qc], backface) =
-                    crate::util::triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
+                    crate::util::triangle_hover_barycentric_coordinates(
+                        cursor_pos,
+                        tri_verts,
+                        allow_frontfaces,
+                        allow_backfaces,
+                    )?;
 
                 Some(GizmoHoverState {
                     z: qa * a.z + qb * b.z + qc * c.z,
