@@ -141,11 +141,9 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         SpecialVar::Shape,
                         "sym",
                     )?;
-                    let coxeter_matrix = sym.as_coxeter(sym_span)?.clone();
-                    let generators = coxeter_matrix
-                        .generator_motors()
-                        .at(sym_span)?
-                        .map(|g, m| (GenSeq::new([g]), m));
+                    let generators = sym
+                        .generators()
+                        .map_ref(|g, m| (GenSeq::new([g]), m.clone()));
 
                     build_ctx.push_task("parsing named points specification");
                     let mut autonames = crate::named_point_autonames();
@@ -232,7 +230,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                             &crate::FactorPuzzleSpec {
                                 id,
                                 name,
-                                coxeter_matrix,
+                                symmetry: sym.isometry_group().at(sym_span)?,
+                                coxeter_matrix: sym.as_coxeter().cloned(),
                                 named_point_orbits,
                                 facet_orbits,
                                 colors_id: colors

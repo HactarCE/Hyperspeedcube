@@ -80,13 +80,13 @@ impl PuzzleProduct {
         warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
         build_ctx.push_task("constructing puzzle isometry group");
-        let group = spec.coxeter_matrix.isometry_group()?;
+        let group = spec.symmetry.clone();
         build_ctx.pop_task();
 
         build_ctx.push_task("initializing shape builder");
         let mut shape_builder = from_space::PuzzleShapeFactorBuilder::new(
-            spec.coxeter_matrix.clone(),
             group.clone(),
+            spec.coxeter_matrix.clone(),
             spec.primordial_cube_radius(),
         )?;
         build_ctx.pop_task();

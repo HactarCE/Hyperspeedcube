@@ -1,6 +1,4 @@
 use std::f64::consts::TAU;
-use std::num::NonZeroI32;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
@@ -15,18 +13,17 @@ use hyperpuzzle_core::{
     PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };
 use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
-use hypuz_notation::Str;
 use hypuz_notation::family::SequentialLowercaseName;
-use hypuz_util::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt};
+use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
 use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
 use crate::{
-    AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleStopInfo, JumbleTransform, NamedPoint,
-    NamedPointSet, PerJumbleStop, PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit,
-    SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
+    AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleTransform, NamedPoint, NamedPointSet,
+    PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent,
+    UniqueMinimalClockwiseGenerator,
 };
 
 #[derive(Debug, Clone)]
@@ -62,10 +59,16 @@ impl TwistSystemFactor {
         })
     }
 
-    fn update_stabilizer_twists(&mut self, total_ndim: u8, new_sets: &[(NamedPointSet, Float)]) {
+    fn add_auto_stabilizer_twists(&mut self, total_ndim: u8, new_sets: &[(NamedPointSet, Float)]) {
         for orbit in &mut self.axis_orbits {
             if total_ndim <= 4 {
-                orbit.stabilizer_twists.extend_from_slice(new_sets);
+                orbit.stabilizer_twists.extend(new_sets.iter().cloned().map(
+                    |(setwise_stabilized_set, gizmo_pole_distance)| StabilizerTwistBuilder {
+                        setwise_stabilized_set,
+                        gizmo_pole_distance,
+                        auto_generated: true,
+                    },
+                ));
             } else {
                 orbit.stabilizer_twists.clear();
             }
@@ -93,7 +96,7 @@ pub struct AxisOrbit {
     ///
     /// Because they are not used in higher dimensions, this list is made empty
     /// in 5D+.
-    pub stabilizer_twists: Vec<(NamedPointSet, Float)>,
+    pub stabilizer_twists: Vec<StabilizerTwistBuilder>,
     /// Jumble moves, not including the (optional) doctrinaire move.
     pub jumble_moves: Vec<JumbleTransform>,
     /// Jumble stops, not yet expanded by symmetry and not including the
@@ -123,10 +126,36 @@ impl AxisOrbit {
             stabilizer_twists: self
                 .stabilizer_twists
                 .iter()
-                .map(|(set, distance)| Ok((set.offset_ids_by(named_point_id_offset)?, *distance)))
+                .map(|stab_twist_builder| stab_twist_builder.offset_ids_by(named_point_id_offset))
                 .try_collect()?,
             jumble_moves: self.jumble_moves.clone(),
             jumble_stops: self.jumble_stops.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StabilizerTwistBuilder {
+    /// Set of points that are cycled (and thus setwise-stabilized) by the
+    /// twist.
+    pub setwise_stabilized_set: NamedPointSet,
+    /// Gizmo pole distance for the twist in 4D. This is ignored for 3D puzzles,
+    /// which use the axis vector to determine the gizmo pole distance.
+    pub gizmo_pole_distance: Float,
+    /// Whether the stabilizer twist was automatically generated via the puzzle
+    /// product construction, in which case it is ok if it does not correspond
+    /// to a valid twist.
+    pub auto_generated: bool,
+}
+
+impl StabilizerTwistBuilder {
+    fn offset_ids_by(&self, named_point_id_offset: usize) -> Result<Self, IndexOverflow> {
+        Ok(Self {
+            setwise_stabilized_set: self
+                .setwise_stabilized_set
+                .offset_ids_by(named_point_id_offset)?,
+            gizmo_pole_distance: self.gizmo_pole_distance,
+            auto_generated: self.auto_generated,
         })
     }
 }
@@ -139,8 +168,12 @@ pub struct TwistSystemProduct {
 
     /// Grip group.
     pub group: IsometryGroup,
-    /// Mirror planes from the Coxeter matrix for the grip group.
-    pub coxeter_mirrors: Vec<Vector>,
+    /// Possibly-incomplete list of normal vectors for mirror planes bounding
+    /// the fundamental region of the grip group.
+    ///
+    /// This is used for optimization purposes only. It is always acceptable for
+    /// this list to be empty.
+    pub fundamental_region_mirrors: Vec<Vector>,
 
     /// Action of the grip group on named points.
     pub named_point_action: GroupAction<NamedPoint>,
@@ -195,7 +228,7 @@ impl TwistSystemProduct {
         Self {
             id: crate::product_id([].into_iter()),
             group: IsometryGroup::trivial(),
-            coxeter_mirrors: vec![],
+            fundamental_region_mirrors: vec![],
             named_point_action: GroupAction::trivial(),
             named_point_vectors: PerNamedPoint::new(),
             named_point_unit_vectors: PerNamedPoint::new(),
@@ -222,39 +255,7 @@ impl TwistSystemProduct {
         spec: &FactorTwistSystemSpec,
         _warn_fn: &mut impl FnMut(eyre::Report),
     ) -> Result<Self> {
-        let coxeter_mirrors;
-        let group;
-        if let Some(coxeter_matrix) = &spec.coxeter_matrix {
-            if coxeter_matrix.generator_count() != spec.ndim {
-                bail!(
-                    "ndim={}, but coxeter_matrix_ndim={}",
-                    spec.ndim,
-                    coxeter_matrix.generator_count(),
-                );
-            }
-            coxeter_mirrors = coxeter_matrix
-                .mirrors()?
-                .cols()
-                .map(|col| col.to_vector())
-                .collect_vec();
-            let unshuffled_group = coxeter_matrix
-                .isometry_group()
-                .wrap_err("error expanding twist symmetries")?;
-
-            // TODO: shuffle group generators to improve average word length,
-            //       but make sure to not cause float precision issues
-            group = unshuffled_group;
-
-            /*
-            // Shuffle group generators to improve average word length, making some
-            // group operations faster.
-            group = crate::shuffle_group_generators(&unshuffled_group, &mut rand::rng())
-                .wrap_err("error shuffling twist symmetry generators")?;
-            */
-        } else {
-            coxeter_mirrors = vec![];
-            group = IsometryGroup::trivial_with_ndim(spec.ndim);
-        }
+        let group = spec.symmetry.clone();
 
         let (named_point_vectors, named_point_unit_vectors, named_point_orbits, mut names) =
             FactorNamedPointBasedNames::<Axis>::from_spec(&group, &spec.named_point_orbits)?;
@@ -301,10 +302,14 @@ impl TwistSystemProduct {
             )?;
             let axis_orbit_index = axis_which_orbit[axis];
             let deorbiter = axis_deorbiters[axis];
-            axis_orbits[axis_orbit_index].stabilizer_twists.push((
-                stabilized_points.transform_by_group_element(&named_point_action, deorbiter),
-                orbit.gizmo_pole_distance,
-            ));
+            axis_orbits[axis_orbit_index]
+                .stabilizer_twists
+                .push(StabilizerTwistBuilder {
+                    setwise_stabilized_set: stabilized_points
+                        .transform_by_group_element(&named_point_action, deorbiter),
+                    gizmo_pole_distance: orbit.gizmo_pole_distance,
+                    auto_generated: false,
+                });
             if orbit.gizmo_pole_distance <= 0.0 {
                 bail!("stabilizer twist gizmo_pole_distance cannot be negative")
             }
@@ -391,7 +396,10 @@ impl TwistSystemProduct {
             id,
 
             group,
-            coxeter_mirrors,
+            fundamental_region_mirrors: match &spec.coxeter_matrix {
+                Some(coxeter) => coxeter.mirrors()?.cols().map(|v| v.to_vector()).collect(),
+                None => vec![],
+            },
 
             named_point_action,
             named_point_vectors,
@@ -423,11 +431,11 @@ impl TwistSystemProduct {
             GroupAction::product([&a.named_point_action, &b.named_point_action])?;
         let axis_action = GroupAction::product([&a.axis_action, &b.axis_action])?;
 
-        let coxeter_mirrors = std::iter::chain(
-            a.coxeter_mirrors
+        let fundamental_region_mirrors = std::iter::chain(
+            a.fundamental_region_mirrors
                 .iter()
                 .map(|v| crate::lift_vector_by_ndim(v, 0, a.ndim(), b.ndim())),
-            b.coxeter_mirrors
+            b.fundamental_region_mirrors
                 .iter()
                 .map(|v| crate::lift_vector_by_ndim(v, a.ndim(), b.ndim(), 0)),
         )
@@ -479,10 +487,10 @@ impl TwistSystemProduct {
             .map(|factor| factor.offset_ids_by(a.axis_vectors.len(), a.named_point_vectors.len()))
             .try_collect()?;
         for factor in &mut a_new_factors {
-            factor.update_stabilizer_twists(ndim, &b_new_named_point_set_orbits);
+            factor.add_auto_stabilizer_twists(ndim, &b_new_named_point_set_orbits);
         }
         for factor in &mut b_new_factors {
-            factor.update_stabilizer_twists(ndim, &a_new_named_point_set_orbits);
+            factor.add_auto_stabilizer_twists(ndim, &a_new_named_point_set_orbits);
         }
 
         let factors: Vec<TwistSystemFactor> =
@@ -497,8 +505,8 @@ impl TwistSystemProduct {
         Ok(Self {
             id: crate::product_id(factors.iter().map(|f| &f.id)),
 
-            coxeter_mirrors,
             group,
+            fundamental_region_mirrors,
 
             named_point_action,
             named_point_vectors,
@@ -568,7 +576,7 @@ impl TwistSystemProduct {
         components.insert(Arc::new(SymmetricTwistSystemComponent {
             axes: Arc::clone(&axes),
             group: self.group.clone(),
-            coxeter_mirrors: self.coxeter_mirrors.clone(),
+            fundamental_region_mirrors: self.fundamental_region_mirrors.clone(),
             axis_action: self.axis_action.clone(),
 
             axis_undeorbiters,
@@ -689,9 +697,11 @@ impl TwistSystemProduct {
             build_ctx.pop_task();
 
             let stabilizer_twist_families = match self.group.ndim() {
-                // gizmo pole distance doesn't matter
-                3 => &[(NamedPointSet::EMPTY, 0.0)],
-                // for 3D
+                3 => &[StabilizerTwistBuilder {
+                    setwise_stabilized_set: NamedPointSet::EMPTY,
+                    gizmo_pole_distance: 0.0, // doesn't matter for 3D
+                    auto_generated: false,
+                }],
                 4 => &*orbit.stabilizer_twists,
                 _ => &[],
             };
@@ -699,7 +709,13 @@ impl TwistSystemProduct {
             build_ctx.push_task("computing stabilizer twists");
             let mut stabilizer_twists: Vec<(NamedPointSet, UniqueMinimalClockwiseGenerator, f64)> =
                 vec![];
-            for (secondary, distance) in stabilizer_twist_families {
+            for stabilizer_twist_family in stabilizer_twist_families {
+                let StabilizerTwistBuilder {
+                    setwise_stabilized_set: secondary,
+                    gizmo_pole_distance,
+                    auto_generated,
+                } = stabilizer_twist_family;
+
                 let twist_name = StabilizerFamily {
                     primary: orbit.first(),
                     secondary: secondary.clone(),
@@ -722,7 +738,7 @@ impl TwistSystemProduct {
                 build_ctx.pop_task();
 
                 build_ctx.push_task("computing unit twist transform");
-                let unit_twist_transform = if secondary.is_empty() {
+                let unit_twist_transform_result = if secondary.is_empty() {
                     unit_twist_transform(&self.group, &coset, &[first_axis_vector.clone()])
                 } else {
                     let secondary_vector = secondary.vector(&self.named_point_vectors);
@@ -734,12 +750,22 @@ impl TwistSystemProduct {
                         "error calculating unit twist transform \
                          for stabilizer twist {twist_name:?}",
                     )
-                })?;
+                });
+                // Allow errors if auto-generated
+                let opt_unit_twist_transform = Some(unit_twist_transform_result)
+                    .filter(|result| result.is_ok() || !*auto_generated)
+                    .transpose()?;
                 build_ctx.pop_task();
 
                 build_ctx.pop_task();
 
-                stabilizer_twists.push((secondary.clone(), unit_twist_transform, *distance));
+                if let Some(unit_twist_transform) = opt_unit_twist_transform {
+                    stabilizer_twists.push((
+                        secondary.clone(),
+                        unit_twist_transform,
+                        *gizmo_pole_distance,
+                    ));
+                }
             }
             build_ctx.pop_task();
 

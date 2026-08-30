@@ -40,8 +40,12 @@ pub struct SymmetricTwistSystemComponent {
     pub axes: Arc<AxisSystem>,
     /// Grip group, which is the symmetry group of the axis system.
     pub group: IsometryGroup,
-    /// Coxeter mirrors which generate the grip group.
-    pub coxeter_mirrors: Vec<Vector>,
+    /// Possibly-incomplete list of normal vectors for mirror planes bounding
+    /// the fundamental region of the grip group.
+    ///
+    /// This is used for optimization purposes only. It is always acceptable for
+    /// this list to be empty.
+    pub fundamental_region_mirrors: Vec<Vector>,
     /// Action of the grip group on the axes.
     pub axis_action: GroupAction<Axis>,
 

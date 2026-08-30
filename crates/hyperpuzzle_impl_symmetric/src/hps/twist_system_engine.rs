@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use eyre::{Context, eyre};
 use hypergroup::GenSeq;
-use hypermath::Float;
+use hypermath::{Float, Ndim};
 use hyperpuzzle_core::{BuildCtx, TwistSystem};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::engine::HpsEngineError;
@@ -104,11 +104,9 @@ pub(super) fn twist_system_product_from_hps(
         SpecialVar::Twists,
         "sym",
     )?;
-    let coxeter_matrix = sym.as_coxeter(sym_span)?.clone();
-    let generators = coxeter_matrix
-        .generator_motors()
-        .at(sym_span)?
-        .map(|g, m| (GenSeq::new([g]), m));
+    let generators = sym
+        .generators()
+        .map_ref(|g, m| (GenSeq::new([g]), m.clone()));
 
     let mut autonames = crate::named_point_autonames();
     let named_point_orbits: Vec<NamedPointOrbitSpec> = pop_map_key_in_special_var::<Vec<Value>>(
@@ -208,12 +206,13 @@ pub(super) fn twist_system_product_from_hps(
     }
 
     build_ctx.push_task("Constructing twist system factor");
-    let result = TwistSystemProduct::new_factor(
+    let output = TwistSystemProduct::new_factor(
         &crate::FactorTwistSystemSpec {
             id: build_ctx.id().clone(),
             name,
-            ndim: coxeter_matrix.generator_count(),
-            coxeter_matrix: Some(coxeter_matrix),
+            ndim: sym.ndim(),
+            symmetry: sym.isometry_group().at(sym_span)?,
+            coxeter_matrix: sym.as_coxeter().cloned(),
             axis_orbits,
             named_point_orbits,
             named_point_set_orbits,
@@ -223,9 +222,8 @@ pub(super) fn twist_system_product_from_hps(
         },
         &mut ctx.warnf(),
     )
-    .wrap_err("error building symmetric twist system")
-    .at(caller_span);
+    .at(caller_span)?;
     build_ctx.pop_task();
 
-    result
+    Ok(output)
 }

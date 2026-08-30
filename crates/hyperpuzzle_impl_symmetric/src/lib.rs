@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
+use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hyperpuzzle_core::prelude::*;
@@ -270,7 +271,8 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
                     id: build_ctx.id().clone(),
                     name: "Empty".to_string(),
                     ndim: build_ctx.id().args()[0].to_int()?.try_into()?,
-                    coxeter_matrix: None,
+                    symmetry: IsometryGroup::trivial(),
+                    coxeter_matrix: Some(CoxeterMatrix::trivial()),
                     axis_orbits: vec![],
                     named_point_orbits: vec![],
                     named_point_set_orbits: vec![],

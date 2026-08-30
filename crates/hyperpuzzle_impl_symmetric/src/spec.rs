@@ -21,8 +21,12 @@ pub struct FactorTwistSystemSpec {
     pub name: String,
     /// Number of dimensions.
     pub ndim: u8,
-    /// Symmetry for the twist system.
-    pub coxeter_matrix: Option<CoxeterMatrix>,
+    /// Grip group for the twist system.
+    pub symmetry: IsometryGroup,
+    /// Coxeter matrix, used for symmetry optimization when available.
+    ///
+    /// If present, this **must** be the same as `symmetry`.
+    pub coxeter_matrix: Option<CoxeterMatrix>, // TODO: replace with fundamental region mirror list
     /// Orbits of axes.
     pub axis_orbits: Vec<SimpleOrbitSpec>,
     /// Orbits of named points, which are used to name axes and twists.
@@ -79,9 +83,11 @@ pub struct FactorPuzzleSpec {
     pub name: String,
 
     /// Symmetry for the puzzle factor.
-    // TODO: split axes symmetry and facets symmetry (requires expanding shape
-    // symmetry before slicing)
-    pub coxeter_matrix: CoxeterMatrix,
+    pub symmetry: IsometryGroup,
+    /// Coxeter matrix, used for symmetry optimization when available.
+    ///
+    /// If present, this **must** be the same as `symmetry`.
+    pub coxeter_matrix: Option<CoxeterMatrix>,
 
     /// Named points, which are used to name facets.
     pub named_point_orbits: Vec<NamedPointOrbitSpec>,
@@ -102,7 +108,7 @@ pub struct FactorPuzzleSpec {
 impl FactorPuzzleSpec {
     /// Returns the number of dimensions needed for the puzzle.
     pub fn ndim(&self) -> u8 {
-        self.coxeter_matrix.generator_count()
+        self.symmetry.ndim()
     }
 
     /// Returns a radius for the primordial cube.

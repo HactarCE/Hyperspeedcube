@@ -255,22 +255,23 @@ fn gizmo_facets(
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = twists
-        .coxeter_mirrors
+        .fundamental_region_mirrors
         .iter()
-        .filter_map(|mirror_vector| Hyperplane::new(mirror_vector, 0.0));
+        .filter_map(|v| Hyperplane::new(v, 0.0));
     let carve_planes = twists
-        .axis_orbits
-        .iter()
-        .filter_map(|orbit| Hyperplane::from_pole(&axis_vectors[orbit.first]));
+        .axis_vectors
+        .vectors_by_id
+        .iter_values()
+        .filter_map(|v| Hyperplane::from_pole(v));
 
-    let gizmo_polyhedron = space.add_folded_shape(mirror_planes, carve_planes)?;
-    let gizmo_polyhedron = space.get(gizmo_polyhedron);
-    Ok(gizmo_polyhedron
+    let gizmo_polytope = space.add_folded_shape(mirror_planes, carve_planes)?;
+    let gizmo_polytope = space.get(gizmo_polytope);
+    Ok(gizmo_polytope
         .facets()
-        .filter(|&f| {
-            !gizmo_polyhedron
+        .filter(|&facet| {
+            !gizmo_polytope
                 .boundary_portals()
-                .contains_element(f.as_element().id())
+                .contains_element(facet.as_element().id())
         })
         .map(|f| f.id())
         .collect())

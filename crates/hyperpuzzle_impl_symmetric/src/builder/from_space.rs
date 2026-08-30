@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::{CoxeterMatrix, GroupElementId, IsometryGroup};
-use hypermath::{APPROX, ApproxHashMap, Centroid, Float, Hyperplane, Point, Vector};
+use hypermath::{APPROX, ApproxHashMap, Centroid, Float, Hyperplane, Ndim, Point, Vector};
 use hyperpuzzle_core::{Orbit, PerAxis, PerPiece, PerSurface, Piece, Surface};
 use hypershape::PortalId;
 use itertools::Itertools;
@@ -21,8 +21,8 @@ use crate::geometry::PolytopeGeometry;
 /// This type cannot be direct-producted.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeFactorBuilder {
-    coxeter_matrix: CoxeterMatrix,
     group: IsometryGroup,
+    coxeter_matrix: Option<CoxeterMatrix>,
 
     space: hypershape::Space,
 
@@ -36,20 +36,22 @@ pub(super) struct PuzzleShapeFactorBuilder {
 
 impl PuzzleShapeFactorBuilder {
     pub fn new(
-        coxeter_matrix: CoxeterMatrix,
         group: IsometryGroup,
+        coxeter_matrix: Option<CoxeterMatrix>,
         primordial_cube_radius: Float,
     ) -> Result<Self> {
         let mut space =
             hypershape::Space::with_primordial_cube_radius(group.ndim(), primordial_cube_radius)?;
         let mut initial_piece = space.primordial_cube().into();
-        for mirror_vector in coxeter_matrix.mirrors()?.cols() {
-            let mirror_plane =
-                Hyperplane::new(mirror_vector, 0.0).ok_or_eyre("bad mirror vector")?;
-            initial_piece = hypershape::Cut::carve_portal(mirror_plane)
-                .cut(&mut space, initial_piece)?
-                .outside()
-                .ok_or_eyre("fundamental region is empty")?;
+        if let Some(coxeter) = &coxeter_matrix {
+            for mirror_vector in coxeter.mirrors()?.cols() {
+                let mirror_plane =
+                    Hyperplane::new(mirror_vector, 0.0).ok_or_eyre("bad mirror vector")?;
+                initial_piece = hypershape::Cut::carve_portal(mirror_plane)
+                    .cut(&mut space, initial_piece)?
+                    .outside()
+                    .ok_or_eyre("fundamental region is empty")?;
+            }
         }
         let pieces = PerPiece::from_iter([PieceShapeBuilder {
             polytope: initial_piece,
@@ -57,8 +59,8 @@ impl PuzzleShapeFactorBuilder {
         }]);
 
         Ok(Self {
-            coxeter_matrix,
             group,
+            coxeter_matrix,
 
             space,
 
@@ -170,37 +172,44 @@ impl PuzzleShapeFactorBuilder {
 
         let mut subgroup_cosets_cache = HashMap::new();
 
-        let mirror_basis = self.coxeter_matrix.mirror_basis()?;
+        let opt_mirror_basis = self
+            .coxeter_matrix
+            .as_ref()
+            .map(|coxeter| coxeter.mirror_basis())
+            .transpose()?;
 
         let pieces: PerPiece<PieceData> = self
             .pieces
             .iter_values()
             .map(|piece| {
-                let mut mirror_distances = vec![1; self.coxeter_matrix.generator_count() as usize];
-                for PortalId(i) in self
-                    .space
-                    .get(piece.polytope)
-                    .boundary_portals()
-                    .iter_portals()
-                {
-                    mirror_distances[i as usize] = 0;
-                }
-                let subgroup_cosets = subgroup_cosets_cache
-                    .entry(mirror_distances.clone())
-                    .or_insert_with(|| {
-                        let representative_point = mirror_basis
-                            * Vector::from_iter(mirror_distances.into_iter().map(|i| i as _));
-                        self.group
-                            .orbit_geometric(representative_point, hypergroup::ORBIT_LIMIT)
-                            .map(|orbit_members| {
-                                orbit_members.into_iter().map(|(e, _)| e).collect_vec()
-                            })
-                    })
-                    .as_ref()
-                    .map_err(|&e| e)?;
+                let mut subgroup_cosets = &vec![GroupElementId::IDENTITY];
+                if let Some(mirror_basis) = opt_mirror_basis {
+                    let mut mirror_distances = vec![1; mirror_basis.ndim() as usize];
+                    for PortalId(i) in self
+                        .space
+                        .get(piece.polytope)
+                        .boundary_portals()
+                        .iter_portals()
+                    {
+                        mirror_distances[i as usize] = 0;
+                    }
+                    subgroup_cosets = subgroup_cosets_cache
+                        .entry(mirror_distances.clone())
+                        .or_insert_with(|| {
+                            let representative_point = mirror_basis
+                                * Vector::from_iter(mirror_distances.into_iter().map(|i| i as _));
+                            self.group
+                                .orbit_geometric(representative_point, hypergroup::ORBIT_LIMIT)
+                                .map(|orbit_members| {
+                                    orbit_members.into_iter().map(|(e, _)| e).collect_vec()
+                                })
+                        })
+                        .as_ref()
+                        .map_err(|&e| e)?;
+                };
 
-                let unfolded = self.space.unfold(piece.polytope)?;
-                let piece_polytope = self.space.get(unfolded);
+                let unfolded_polytope_id = self.space.unfold(piece.polytope)?;
+                let piece_polytope = self.space.get(unfolded_polytope_id);
                 let point_inside_piece = piece_polytope.arbitrary_interior_point();
                 let sticker_facet_id_list: Vec<hypershape::FacetId> = piece_polytope
                     .boundary()

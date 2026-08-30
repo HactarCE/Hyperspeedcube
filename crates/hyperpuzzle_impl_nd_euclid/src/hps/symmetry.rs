@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use hypergroup::{
     AbbrGenSeq, CoxeterMatrix, ExceededOrbitLimit, GenSeq, GeneratorId, GroupError, GroupResult,
-    IsometryGroup,
+    IsometryGroup, PerGenerator,
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
@@ -21,7 +21,7 @@ use itertools::Itertools;
 #[derive(Clone)]
 pub struct HpsSymmetry {
     /// Generators of the group.
-    generators: Arc<Vec<Motor>>,
+    generators: Arc<PerGenerator<Motor>>,
     /// Coxeter matrix, if this is one.
     coxeter_group: Option<Arc<CoxeterMatrix>>,
 }
@@ -41,7 +41,7 @@ impl fmt::Display for HpsSymmetry {
             None => write!(
                 f,
                 "<{}D group from {} generators>",
-                self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1),
+                self.ndim(),
                 self.generators.len(),
             ),
         }
@@ -117,8 +117,11 @@ impl TryFrom<CoxeterMatrix> for HpsSymmetry {
 impl PartialEq for HpsSymmetry {
     fn eq(&self, other: &Self) -> bool {
         self.generators.len() == other.generators.len()
-            && std::iter::zip(&*self.generators, &*other.generators)
-                .all(|(g1, g2)| APPROX.eq(g1, g2))
+            && std::iter::zip(
+                self.generators.iter_values(),
+                other.generators.iter_values(),
+            )
+            .all(|(g1, g2)| APPROX.eq(g1, g2))
     }
 }
 
@@ -126,14 +129,18 @@ impl Ndim for HpsSymmetry {
     /// Returns the minimum number of dimensions required to represent the
     /// symmetry group.
     fn ndim(&self) -> u8 {
-        self.generators.iter().map(|g| g.ndim()).max().unwrap_or(1)
+        self.generators
+            .iter_values()
+            .map(|g| g.ndim())
+            .max()
+            .unwrap_or(0)
     }
 }
 
 impl TransformByMotor for HpsSymmetry {
     fn transform_by(&self, m: &Motor) -> Self {
         let mut ret = self.clone();
-        for g in Arc::make_mut(&mut ret.generators) {
+        for (_, g) in Arc::make_mut(&mut ret.generators) {
             *g = m.transform(g);
         }
         // If the coxeter group cannot be transformed, just replace it with
@@ -162,7 +169,7 @@ impl HpsSymmetry {
             "chiral" => Some(self.chiral_subgroup().into()),
             "is_chiral" => Some(self.is_chiral().into()),
             "mirror_vectors" => Some(
-                self.as_coxeter(field_span)?
+                self.as_coxeter_or_err(field_span)?
                     .mirrors()
                     .at(field_span)?
                     .cols()
@@ -172,7 +179,7 @@ impl HpsSymmetry {
             ),
             "generators" => Some(
                 self.generators
-                    .iter()
+                    .iter_values()
                     .map(|g| ValueData::EuclidTransform(g.clone()).at(field_span))
                     .collect_vec()
                     .into(),
@@ -187,9 +194,8 @@ impl HpsSymmetry {
 
     /// Constructs a symmetry object from a Coxeter group.
     pub fn from_coxeter(coxeter: CoxeterMatrix) -> GroupResult<Self> {
-        let generators = coxeter.generator_motors()?;
         Ok(Self {
-            generators: Arc::new(generators.into_vec()),
+            generators: Arc::new(coxeter.generator_motors()?),
             coxeter_group: Some(Arc::new(coxeter)),
         })
     }
@@ -242,23 +248,26 @@ impl HpsSymmetry {
 
     /// Returns the underlying Coxeter group, or returns an error if the group
     /// was not constructed as a Coxeter group.
-    pub fn as_coxeter(&self, span: Span) -> Result<&CoxeterMatrix> {
-        self.coxeter_group
-            .as_deref()
-            .ok_or("expected Coxeter group")
-            .at(span)
+    pub fn as_coxeter_or_err(&self, span: Span) -> Result<&CoxeterMatrix> {
+        self.as_coxeter().ok_or("expected Coxeter group").at(span)
+    }
+
+    /// Returns the underlying Coxeter group, or `None` if the group was not
+    /// constructed as a Coxeter group.
+    pub fn as_coxeter(&self) -> Option<&CoxeterMatrix> {
+        self.coxeter_group.as_deref()
     }
 
     /// Returns whether any of the generators of the group is a reflection.
     pub fn is_chiral(&self) -> bool {
-        self.generators.iter().all(|g| !g.is_reflection())
+        self.generators.iter_values().all(|g| !g.is_reflection())
     }
     /// Returns the chiral subgroup of the group.
     ///
     /// This is idempotent.
     pub fn chiral_subgroup(&self) -> Self {
-        let rotations = self.generators.iter().filter(|g| !g.is_reflection());
-        let mut reflections = self.generators.iter().filter(|g| g.is_reflection());
+        let rotations = self.generators.iter_values().filter(|g| !g.is_reflection());
+        let mut reflections = self.generators.iter_values().filter(|g| g.is_reflection());
         let first_reflection = reflections.next();
 
         Self::from_generators(itertools::chain(
@@ -286,7 +295,10 @@ impl HpsSymmetry {
         mirror_distances: impl VectorRef,
         mirror_distances_span: Span,
     ) -> Result<Vector> {
-        let mirror_basis = self.as_coxeter(self_span)?.mirror_basis().at(self_span)?;
+        let mirror_basis = self
+            .as_coxeter_or_err(self_span)?
+            .mirror_basis()
+            .at(self_span)?;
 
         // TODO: truncate to approx nonzero
         let mirror_distances_ndim = mirror_distances.ndim();
@@ -308,13 +320,7 @@ impl HpsSymmetry {
         gen_seq
             .0
             .iter()
-            .map(|&GeneratorId(i)| -> Result<Motor> {
-                let g = self
-                    .generators
-                    .get(i as usize)
-                    .ok_or_else(|| format!("generator index {i} out of range").at(span))?;
-                Ok(g.to_ndim_at_least(ndim))
-            })
+            .map(|&i| Ok(self.generators.get(i).at(span)?.to_ndim_at_least(ndim)))
             .tree_reduce(|a, b| Ok(a? * b?)) // fewer chained operations -> better precision
             .unwrap_or(Ok(Motor::ident(ndim))) // if `gen_seq` is empty
     }
@@ -329,8 +335,7 @@ impl HpsSymmetry {
             &self
                 .generators
                 .iter()
-                .enumerate()
-                .map(|(i, m)| (GenSeq::new([GeneratorId(i as u8)]), m.clone()))
+                .map(|(g, m)| (GenSeq::new([g]), m.clone()))
                 .collect_vec(),
             object,
         )
@@ -338,11 +343,11 @@ impl HpsSymmetry {
 
     /// Returns the isometry group of the symmetry.
     pub fn isometry_group(&self) -> GroupResult<IsometryGroup> {
-        IsometryGroup::from_generators("", self.generators.iter().cloned().collect())
+        IsometryGroup::from_generators("", (*self.generators).clone())
     }
 
     /// Returns a list of generators of the group.
-    pub fn generators(&self) -> &[Motor] {
+    pub fn generators(&self) -> &PerGenerator<Motor> {
         &self.generators
     }
 }
