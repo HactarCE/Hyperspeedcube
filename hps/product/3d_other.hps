@@ -1,0 +1,36 @@
+use * from euclid
+
+add_menu_entry(path = "Solid|3D|Pyritohedron", next_inline = "Altitude")
+add_menu_entry(path = "Solid|3D|Pyritohedron|1/7", next_inline = "Cut depth")
+add_menu_entry(path = "Solid|3D|Pyritohedron|1/7|Moth to the Flame", id = "moth_to_the_flame")
+
+add_twist_system(
+    id = "pyritohedron_1_7_ft@0",
+    name = "FT Pyritohedron (1/7)",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        shape = @shapes/3d/pyritohedron.new_with_angle(τ/7)
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        // TODO: this should be expressible with just `ja` and `jb`
+        #twists.jumble_moves.U = #{ ja = "BL->BR", jb = "BR->R", jc = "BL->R", jd = "L->R" }
+        #twists.jumble_stops.U = ["ja", "jb", "jc", "jd"]
+    }
+)
+
+add_puzzle(
+    id = "moth_to_the_flame@0",
+    name = "Moth to the Flame (bandaged)",
+    engine = "symmetric",
+    tags = #{ author = ["SuperSnowman16", "Andrew Farkas"] },
+    ndim = 3,
+    colors = "dodecahedron",
+    twists = "pyritohedron_1_7_ft",
+    build = fn() {
+        @util.build_symmetric_shape(@shapes/3d/pyritohedron.new_with_angle(τ/7))
+        #puz.layers.F = [∞, 0.755]
+        // TODO: unbandage
+    },
+)

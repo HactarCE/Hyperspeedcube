@@ -1,0 +1,43 @@
+use * from euclid
+
+export fn altitude_from_angle(angle) {
+    z = cos(angle) + 1
+    return (√z - √2)/(√2 * √z) + 1/2 * √((-3 * cos(angle) + 2 * √2 * √z - 1)/z)
+}
+
+export fn new_with_angle(angle) {
+    return new(altitude_from_angle(angle))
+}
+
+export fn new(a) -> Map { new(a, ident()) }
+export fn new(a, t: Transform) -> Map {
+    export fn transform_by(t2: Transform) -> Map { new(a, t2 * t) }
+
+    export cube = @shapes/3d/cube.new(t)
+    export sym = symmetry([cube.sym.thru(0), cube.sym.thru([1, 2])])
+
+    export face = vec(0, a, 1)
+    export vertex_1 = vec(1, 1, 1)
+    export vertex_2 = vec(0, 1+a, 1-a^2)
+
+    export facet = face
+
+    export points = [#{
+        vector = facet,
+        names = sym.names(point(facet), #{
+            // same as dodecahedron
+            U = [],
+            F = [1, "BL"],
+            R = [1, "U"],
+            L = [0, "R"],
+            BR = [1, "R"],
+            BL = [0, "BR"],
+            DR = [1, "L"],
+            DL = [0, "DR"],
+            PB = [1, "DR"],
+            PD = [1, "DL"],
+            PR = [1, "F"],
+            PL = [1, "PD"],
+        }),
+    }]
+}
