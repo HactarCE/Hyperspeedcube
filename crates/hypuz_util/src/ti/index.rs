@@ -122,6 +122,15 @@ pub trait TypedIndex:
     fn take_and_increment(&mut self) -> Result<Self, IndexOverflow> {
         Ok(std::mem::replace(self, self.next()?))
     }
+
+    /// Like [`Iterator::enumerate`], but yields newtype indices instead of
+    /// `usize`.
+    ///
+    /// If the number of elements exceeds [`Self::MAX_INDEX`], iteration stops
+    /// without any error.
+    fn enumerate<I: IntoIterator>(iter: I) -> impl Iterator<Item = (Self, I::Item)> {
+        std::iter::zip(Self::iter(Self::MAX_INDEX.saturating_add(1)), iter)
+    }
 }
 
 /// Iterator over all indexes in a range. See [`TypedIndex::iter()`].

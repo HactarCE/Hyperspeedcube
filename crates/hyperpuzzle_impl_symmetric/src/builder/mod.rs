@@ -31,15 +31,17 @@ use shape::{
 };
 pub(crate) use twists::TwistSystemProduct;
 
-use crate::{FactorPuzzleSpec, NamedPoint, ProductPuzzleState, SymmetricTwistSystemComponent};
+use crate::{
+    FactorPuzzleSpec, NamedPoint, PerAxisOrbit, ProductPuzzleState, SymmetricTwistSystemComponent,
+};
 
 #[derive(Debug)]
 pub struct PuzzleProduct {
     id: CatalogId,
     factors: Vec<PuzzleProductFactor>,
     shape: ProductPuzzleShape,
-    axis_layers_per_orbit: Vec<AxisLayersInfo>, // TODO: may be redundant with layer ranges
-    axis_layer_ranges_per_orbit: Vec<PerLayer<[Float; 2]>>,
+    axis_layers_per_orbit: PerAxisOrbit<AxisLayersInfo>, // TODO: may be redundant with layer ranges
+    axis_layer_ranges_per_orbit: PerAxisOrbit<PerLayer<[Float; 2]>>,
 }
 
 impl CatalogObject for PuzzleProduct {
@@ -65,8 +67,8 @@ impl PuzzleProduct {
             id: crate::product_id([].into_iter()),
             factors: vec![],
             shape: ProductPuzzleShape::direct_product_identity(),
-            axis_layers_per_orbit: vec![],
-            axis_layer_ranges_per_orbit: vec![],
+            axis_layers_per_orbit: PerAxisOrbit::new(),
+            axis_layer_ranges_per_orbit: PerAxisOrbit::new(),
         }
     }
 
@@ -229,7 +231,6 @@ impl PuzzleProduct {
             id: crate::product_id([&spec.id].into_iter()),
             factors: vec![PuzzleProductFactor {
                 id: spec.id.clone(),
-                name: spec.name.clone(),
                 colors_id: spec.colors_id.clone(),
                 twists_id: spec.twists.as_ref().map(|t| t.id.clone()),
             }],
@@ -255,12 +256,12 @@ impl PuzzleProduct {
             factors: crate::chain_cloned(&self.factors, &rhs.factors),
             shape: self.shape.direct_product(&rhs.shape)?,
             axis_layers_per_orbit: crate::chain_cloned(
-                &self.axis_layers_per_orbit,
-                &rhs.axis_layers_per_orbit,
+                self.axis_layers_per_orbit.iter_values(),
+                rhs.axis_layers_per_orbit.iter_values(),
             ),
             axis_layer_ranges_per_orbit: crate::chain_cloned(
-                &self.axis_layer_ranges_per_orbit,
-                &rhs.axis_layer_ranges_per_orbit,
+                self.axis_layer_ranges_per_orbit.iter_values(),
+                rhs.axis_layer_ranges_per_orbit.iter_values(),
             ),
         })
     }
@@ -316,11 +317,12 @@ impl PuzzleProduct {
         let grip_signatures = Arc::new(shape.build_grip_signatures());
 
         let axis_layers: Arc<PerAxis<AxisLayersInfo>> = Arc::new(
-            self.axis_layers_per_orbit
-                .iter()
-                .zip(&*symmetric_twist_system_component.axis_orbits)
-                .flat_map(|(&layers_info, orbit)| std::iter::repeat_n(layers_info, orbit.len))
-                .collect(),
+            std::iter::zip(
+                self.axis_layers_per_orbit.iter_values(),
+                symmetric_twist_system_component.axis_orbits.iter_values(),
+            )
+            .flat_map(|(&layers_info, orbit)| std::iter::repeat_n(layers_info, orbit.len))
+            .collect(),
         );
         // For each axis, compute whether its layers combine to contain every
         // piece.
@@ -335,29 +337,28 @@ impl PuzzleProduct {
         }
 
         let axis_layer_ranges = Arc::new(
-            self.axis_layer_ranges_per_orbit
-                .iter()
-                .zip(&*symmetric_twist_system_component.axis_orbits)
-                .flat_map(|(layer_ranges, orbit)| {
-                    std::iter::repeat_n(layer_ranges.clone(), orbit.len)
-                })
-                .collect(),
+            std::iter::zip(
+                self.axis_layer_ranges_per_orbit.iter_values(),
+                symmetric_twist_system_component.axis_orbits.iter_values(),
+            )
+            .flat_map(|(layer_ranges, orbit)| std::iter::repeat_n(layer_ranges.clone(), orbit.len))
+            .collect(),
         );
 
-        let axes_with_nontrivial_twists: Vec<Axis> = self
-            .axis_layers_per_orbit
-            .iter()
-            .zip(&*symmetric_twist_system_component.axis_orbits)
-            .filter(|(layers_info, orbit)| {
-                layers_info.max_layer > 0
-                    && symmetric_twist_system_component.axis_has_twists(orbit.first)
-            })
-            .flat_map(|(layers_info, orbit)| {
-                orbit.axes().filter(|&axis| {
-                    !does_axis_contain_every_piece[axis] || layers_info.max_layer > 1
-                })
-            })
-            .collect();
+        let axes_with_nontrivial_twists: Vec<Axis> = std::iter::zip(
+            self.axis_layers_per_orbit.iter_values(),
+            symmetric_twist_system_component.axis_orbits.iter_values(),
+        )
+        .filter(|(layers_info, orbit)| {
+            layers_info.max_layer > 0
+                && symmetric_twist_system_component.axis_has_twists(orbit.first)
+        })
+        .flat_map(|(layers_info, orbit)| {
+            orbit
+                .axes()
+                .filter(|&axis| !does_axis_contain_every_piece[axis] || layers_info.max_layer > 1)
+        })
+        .collect();
 
         let mut mesh = shape.build_mesh()?;
 
@@ -528,7 +529,7 @@ impl PuzzleProduct {
 
         let any_jumbling = symmetric_twist_system_component
             .axis_orbits
-            .iter()
+            .iter_values()
             .any(|orbit| orbit.jumble_data.is_some());
 
         Ok(Arc::new_cyclic(move |this| Puzzle {
@@ -573,16 +574,11 @@ impl PuzzleProduct {
     pub fn build_ad_hoc_color_system(&self) -> Result<Arc<ColorSystem>> {
         self.shape.build_ad_hoc_color_system(self.id.clone())
     }
-
-    pub fn name(&self) -> String {
-        crate::product_name(self.factors.iter().map(|f| &f.name))
-    }
 }
 
 #[derive(Debug, Clone)]
 struct PuzzleProductFactor {
     id: CatalogId,
-    name: String,
     /// Color system ID, or `None` to use an ad-hoc color system.
     colors_id: Option<CatalogId>,
     /// Twist system ID, or `None` to use no twists.

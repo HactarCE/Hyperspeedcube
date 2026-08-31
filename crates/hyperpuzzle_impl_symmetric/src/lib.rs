@@ -34,9 +34,6 @@ pub use twist_system::{
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
-const ROT_ID: &str = "rot";
-const REFLE_ID: &str = "refle";
-
 pub fn product_base_id() -> VersionedCatalogWord {
     "product@1".parse().expect("bad catalog ID")
 }
@@ -45,14 +42,12 @@ pub fn disjoint_union_base_id() -> VersionedCatalogWord {
     "sum@1".parse().expect("bad catalog ID")
 }
 
-const ROT_NAME_PREFIX: &str = "Rot ";
-const REFLE_NAME_PREFIX: &str = "Refle ";
+hypuz_util::typed_index_struct! {
+    /// ID of an orbit of axes under twist system symmetry.
+    pub(crate) struct AxisOrbit(u16);
+}
 
-const PRODUCT_GENERATOR_VERSION: Version = Version {
-    major: 1,
-    minor: 0,
-    patch: 0,
-};
+pub(crate) type PerAxisOrbit<T> = TiVec<AxisOrbit, T>;
 
 fn product_id<'a>(mut factor_ids: impl ExactSizeIterator<Item = &'a CatalogId>) -> CatalogId {
     if factor_ids.len() == 1 {

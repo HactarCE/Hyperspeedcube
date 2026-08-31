@@ -21,9 +21,9 @@ use smallvec::smallvec;
 
 use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
 use crate::{
-    AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleTransform, NamedPoint, NamedPointSet,
-    PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent,
-    UniqueMinimalClockwiseGenerator,
+    AxisOrbit, AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleTransform, NamedPoint,
+    NamedPointSet, PerAxisOrbit, PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit,
+    SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
 
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ pub struct TwistSystemFactor {
     pub id: CatalogId,
     pub name: String,
     pub names: FactorNamedPointBasedNames<Axis>,
-    pub axis_orbits: Vec<AxisOrbit>,
+    pub axis_orbits: Vec<AxisOrbitBuilder>,
     pub named_point_orbits: Vec<NamedPointOrbit>,
 }
 
@@ -76,7 +76,7 @@ impl TwistSystemFactor {
 }
 
 #[derive(Debug, Clone)]
-pub struct AxisOrbit {
+pub struct AxisOrbitBuilder {
     /// Number of axes in the orbit.
     pub len: usize,
     /// ID offset of the axes in the orbit.
@@ -103,7 +103,7 @@ pub struct AxisOrbit {
     pub jumble_stops: Vec<Float>,
 }
 
-impl AxisOrbit {
+impl AxisOrbitBuilder {
     pub fn first(&self) -> Axis {
         Axis(self.id_offset as _) // already checked at construction
     }
@@ -265,7 +265,7 @@ impl TwistSystemProduct {
         for (orbit_index, orbit) in spec.axis_orbits.iter().enumerate() {
             let orbit_members =
                 orbit.expand_and_name(&group, &named_point_unit_vectors, &named_point_action)?;
-            axis_orbits.push(AxisOrbit {
+            axis_orbits.push(AxisOrbitBuilder {
                 len: orbit_members.len(),
                 id_offset: axis_id_offset,
                 stabilizer_twists: vec![], // will be populated later, after naming
@@ -604,7 +604,7 @@ impl TwistSystemProduct {
 
     /// Returns an iterator over all axis orbits, each paired with the ID of the
     /// first axis in that orbit.
-    pub fn axis_orbits(&self) -> impl Iterator<Item = &AxisOrbit> {
+    pub fn axis_orbits(&self) -> impl Iterator<Item = &AxisOrbitBuilder> {
         self.factors.iter().flat_map(|factor| &factor.axis_orbits)
     }
 
@@ -628,10 +628,10 @@ impl TwistSystemProduct {
             .position(|orbit| orbit.axes().contains(&axis))
     }
 
-    fn build_axis_undeorbiters(&self) -> Result<PerAxis<(GroupElementId, usize)>> {
+    fn build_axis_undeorbiters(&self) -> Result<PerAxis<(GroupElementId, AxisOrbit)>> {
         let mut ret = PerAxis::new_with_len(self.len());
 
-        for (orbit_index, orbit) in self.axis_orbits().enumerate() {
+        for (orbit_index, orbit) in AxisOrbit::enumerate(self.axis_orbits()) {
             ret[orbit.first()] = (GroupElementId::IDENTITY, orbit_index);
             hypergroup::orbit(
                 (orbit.first(), GroupElementId::IDENTITY),
@@ -670,8 +670,8 @@ impl TwistSystemProduct {
         axis_names: &Names<Axis>,
         named_point_names: &Names<NamedPoint>,
         _warn_fn: &mut impl FnMut(eyre::Report),
-    ) -> Result<Vec<SymmetricTwistSystemAxisOrbit>> {
-        let mut ret = vec![];
+    ) -> Result<PerAxisOrbit<SymmetricTwistSystemAxisOrbit>> {
+        let mut ret = PerAxisOrbit::new();
         for orbit in self.axis_orbits() {
             let first_axis_vector = &self.axis_vectors[orbit.first()];
 
@@ -689,7 +689,7 @@ impl TwistSystemProduct {
             let mut subgroup_solver = SubgroupConstraintSolver::new(subgroup_action);
             build_ctx.pop_task();
 
-            let stabilizer_twist_families = match self.group.ndim() {
+            let stabilizer_twist_families: &[_] = match self.group.ndim() {
                 3 => &[StabilizerTwistBuilder {
                     setwise_stabilized_set: NamedPointSet::EMPTY,
                     gizmo_pole_distance: 0.0, // doesn't matter for 3D
@@ -805,7 +805,7 @@ impl TwistSystemProduct {
                 subgroup_solver: Mutex::new(subgroup_solver),
                 stabilizer_twists,
                 jumble_data,
-            });
+            })?;
 
             build_ctx.pop_task();
         }

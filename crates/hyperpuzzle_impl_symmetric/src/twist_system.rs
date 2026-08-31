@@ -20,7 +20,7 @@ use parking_lot::Mutex;
 use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{NamedPoint, NamedPointSet, PerNamedPoint, StabilizerFamily};
+use crate::{AxisOrbit, NamedPoint, NamedPointSet, PerAxisOrbit, PerNamedPoint, StabilizerFamily};
 
 hypuz_util::typed_index_struct! {
     /// ID of a jumbling stop within an axis.
@@ -61,9 +61,9 @@ pub struct SymmetricTwistSystemComponent {
     ///
     /// [conjugate subgroup]:
     ///     https://mathworld.wolfram.com/ConjugateSubgroup.html
-    pub axis_undeorbiters: Arc<PerAxis<(GroupElementId, usize)>>,
+    pub axis_undeorbiters: Arc<PerAxis<(GroupElementId, AxisOrbit)>>,
     /// Data for each axis orbit.
-    pub axis_orbits: Arc<Vec<SymmetricTwistSystemAxisOrbit>>,
+    pub axis_orbits: Arc<PerAxisOrbit<SymmetricTwistSystemAxisOrbit>>,
     /// Vector for each axis.
     pub axis_vectors: Arc<NdEuclidAxisVectors>,
 
