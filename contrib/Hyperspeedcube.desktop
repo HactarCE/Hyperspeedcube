@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hyperspeedcube
+Comment=Modern, beginner-friendly 3D and 4D Rubik's cube simulator
+TryExec=hyperspeedcube
+Exec=hyperspeedcube
+Terminal=false
+PrefersNonDefaultGPU=true
+SingleMainWindow=true
