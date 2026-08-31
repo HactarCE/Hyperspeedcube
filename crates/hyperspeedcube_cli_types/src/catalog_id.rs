@@ -166,8 +166,8 @@ pub struct CatalogId {
     pub base: VersionedCatalogWord,
     /// Argument values, if the base string specifies a generator.
     pub args: Option<Vec<CatalogIdValue>>,
-    /// Optional subset.
-    pub subset: Option<CatalogWord>,
+    /// Optional subsets.
+    pub subsets: Vec<CatalogWord>,
 }
 
 impl fmt::Debug for CatalogId {
@@ -178,15 +178,19 @@ impl fmt::Debug for CatalogId {
 
 impl fmt::Display for CatalogId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { base, args, subset } = self;
+        let Self {
+            base,
+            args,
+            subsets,
+        } = self;
         write!(f, "{base}")?;
         if let Some(args) = args {
             write!(f, "(")?;
             write_comma_sep_list(f, args)?;
             write!(f, ")")?;
         }
-        if let Some(s) = subset {
-            write!(f, ".{s}")?;
+        for subset in subsets {
+            write!(f, ".{subset}")?;
         }
         Ok(())
     }
@@ -229,12 +233,16 @@ impl CatalogId {
     pub fn new(
         base: impl Into<VersionedCatalogWord>,
         args: impl IntoIterator<Item = CatalogIdValue>,
-        subset: Option<CatalogWord>,
+        subsets: impl IntoIterator<Item = CatalogWord>,
     ) -> Self {
         let base = base.into();
         let args: Vec<_> = args.into_iter().collect();
         let args = (!args.is_empty()).then_some(args);
-        Self { base, args, subset }
+        Self {
+            base,
+            args,
+            subsets: subsets.into_iter().collect(),
+        }
     }
 
     /// Returns a catalog ID for an unnamed object.
@@ -242,7 +250,7 @@ impl CatalogId {
         Self {
             base: "unnamed".parse().expect("invalid ID"),
             args: None,
-            subset: None,
+            subsets: vec![],
         }
     }
 
@@ -263,9 +271,9 @@ impl CatalogId {
     fn match_wildcards_into(&self, other: &Self, output_buffer: &mut Vec<CatalogIdValue>) -> bool {
         self.base == other.base
             && self.args().len() == other.args().len()
-            && self.subset == other.subset
             && std::iter::zip(self.args(), other.args())
                 .all(|(pattern, value)| pattern.match_wildcards_into(value, output_buffer))
+            && other.subsets.iter().all(|s| self.subsets.contains(s))
     }
 }
 
@@ -344,8 +352,14 @@ impl FromStr for CatalogIdValue {
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 )
-                .then(just('.').padded().ignore_then(word).or_not())
-                .map(|((base, args), subset)| Self::Id(CatalogId { base, args, subset }));
+                .then(just('.').padded().ignore_then(word).repeated().collect())
+                .map(|((base, args), subsets)| {
+                    Self::Id(CatalogId {
+                        base,
+                        args,
+                        subsets,
+                    })
+                });
 
             let list = ast_node
                 .separated_by(just(',').padded())
@@ -419,7 +433,7 @@ impl CatalogIdValue {
     fn to_word_with_expected(&self, expected: &'static str) -> Result<CatalogWord, CatalogIdError> {
         match self {
             CatalogIdValue::Id(id)
-                if id.args.is_none() && id.subset.is_none() && id.base.version.is_none() =>
+                if id.args.is_none() && id.subsets.is_empty() && id.base.version.is_none() =>
             {
                 Ok(id.base.word.clone())
             }
@@ -537,18 +551,18 @@ mod tests {
     #[test]
     fn test_catalog_id_roundtrip() {
         for s in [
-            "product@3([ngon_ft@1(7,3).refl,line@2(3)])",
+            "product@3.rot([ngon_ft@1(7,3).refl,line@2(3)])",
             "megaminx_crystal",
-            "curvy_copter@5.rot",
+            "curvy_copter@5.rot.jumbl",
             "cube_ft(3).refl",
         ] {
             assert_eq!(s, CatalogId::from_str(s).unwrap().to_string());
         }
 
         assert_eq!(
-            Ok("product@3([ngon_ft@1(7,3).refl,line@2(3)])".to_string()),
+            Ok("product@3.refl.jumbl([ngon_ft@1(7,3).refl,line@2(3)])".to_string()),
             CatalogId::from_str(
-                "  product  @  3  (  [  ngon_ft  @  1  (  7  ,  3  )  .  refl  ,  line  @  2  (  3  )  ]  )  ",
+                "  product  @  3  .  refl  .  jumbl  (  [  ngon_ft  @  1  (  7  ,  3  )  .  refl  ,  line  @  2  (  3  )  ]  )  ",
             )
             .map(|id| id.to_string()),
         );

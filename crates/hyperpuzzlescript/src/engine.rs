@@ -135,7 +135,6 @@ pub struct HpsGenerator {
 #[derive(Debug, Clone)]
 pub struct HpsGeneratorFn {
     pub params: Vec<GeneratorParam>,
-    pub subset_param: Option<GeneratorSubsetParam>,
     pub gen_fn: Arc<FnValue>,
     pub gen_fn_span: Span,
 }
@@ -148,6 +147,7 @@ impl HpsGenerator {
         &self,
         eval_tx: &EvalRequestTx,
         validation: GeneratorParamValidation,
+        subset_params: Vec<GeneratorSubsetParam>,
         generate: impl 'static
         + Send
         + Sync
@@ -160,7 +160,7 @@ impl HpsGenerator {
         Arc::new(Generator {
             id: self.id.clone(),
             params: g.as_ref().map(|g| g.params.clone()).unwrap_or(vec![]),
-            subset_param: g.as_ref().map(|g| g.subset_param.clone()).unwrap_or(None),
+            subset_params,
             validation,
             generate: Box::new(move |build_ctx| {
                 if let Some(g) = &g
@@ -170,9 +170,6 @@ impl HpsGenerator {
                         .map(|(param, arg)| param.typed_value(arg.clone()))
                         .map_ok(|v| param_value_into_hps(&v))
                         .try_collect()?;
-                    if let Some(subset) = &build_ctx.id().subset {
-                        args.push(ValueData::Str((**subset).into()).at(crate::BUILTIN_SPAN));
-                    }
 
                     let gen_fn = Arc::clone(&g.gen_fn);
                     let gen_fn_span = g.gen_fn_span;
@@ -236,6 +233,7 @@ impl HpsGenerator {
         self.make_generator_with_validation(
             eval_tx,
             GeneratorParamValidation { allow_empty: true },
+            vec![], // todo
             move |build_ctx, tx, kwargs| {
                 if build_ctx.id().args().is_empty() {
                     Ok(Arc::clone(&default))
@@ -265,6 +263,7 @@ impl HpsGenerator {
         self.make_generator_with_validation(
             eval_tx,
             GeneratorParamValidation { allow_empty: false },
+            vec![], //todo
             generate,
         )
     }

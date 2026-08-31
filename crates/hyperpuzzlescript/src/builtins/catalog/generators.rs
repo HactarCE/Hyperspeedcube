@@ -39,7 +39,6 @@ pub(super) fn hps_generator_from_kwargs(
         pop_kwarg!(kwargs, (r#gen, gen_fn_span): Arc<FnValue>);
         Some(HpsGeneratorFn {
             params: params_from_array(params)?,
-            subset_param: None, // TODO
             gen_fn: r#gen,
             gen_fn_span,
         })

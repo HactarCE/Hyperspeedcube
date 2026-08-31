@@ -122,6 +122,6 @@ pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {
     CatalogId {
         base: AD_HOC_ID_STR.parse().expect("bad ID"),
         args: Some(vec![puzzle_id.into()]),
-        subset: None,
+        subsets: vec![],
     }
 }

@@ -126,6 +126,42 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
                 l
             }
         ),
+        ("contains", |ctx, list: List, value: Value| -> bool {
+            let mut contains = false;
+            for elem in list {
+                if elem.eq(&value, ctx.caller_span)? {
+                    contains = true;
+                    break;
+                }
+            }
+            contains
+        }),
+        (
+            "any",
+            |ctx, list: List, (f, f_span): Arc<FnValue>| -> bool {
+                let mut any = false;
+                for elem in list {
+                    if f.call(f_span, ctx, vec![elem], Map::new())?.to()? {
+                        any = true;
+                        break;
+                    }
+                }
+                any
+            }
+        ),
+        (
+            "all",
+            |ctx, list: List, (f, f_span): Arc<FnValue>| -> bool {
+                let mut all = true;
+                for elem in list {
+                    if !f.call(f_span, ctx, vec![elem], Map::new())?.to()? {
+                        all = false;
+                        break;
+                    }
+                }
+                all
+            }
+        ),
         // Maps
         ("keys", |ctx, m: Arc<Map>| -> List {
             m.keys()

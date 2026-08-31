@@ -26,10 +26,14 @@ pub struct StabilizerFamily {
 impl StabilizerFamily {
     /// Returns the name for the stabilizer family, in human-friendly notation.
     pub fn name(&self, axis_names: &Names<Axis>, named_point_names: &Names<NamedPoint>) -> String {
-        format!(
-            "{}_{}", // TODO: proper separator
-            &axis_names[self.primary],
-            self.secondary.name(named_point_names),
-        )
+        let primary = &axis_names[self.primary];
+        if named_point_names.is_empty() {
+            return primary.to_string();
+        } else {
+            format!(
+                "{primary}_{}", // TODO: proper separator
+                self.secondary.name(named_point_names),
+            )
+        }
     }
 }

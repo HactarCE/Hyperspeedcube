@@ -147,7 +147,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     catalog.add::<PuzzleListEntry>(Arc::new(Generator {
         id: product_base_id(),
         params: params.clone(),
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: true },
         generate: Box::new(move |build_ctx| {
             if build_ctx.id().args().is_empty() {
@@ -178,7 +178,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     catalog.add::<PuzzleProduct>(Arc::new(Generator {
         id: product_base_id(),
         params: params.clone(),
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             build_ctx
@@ -194,7 +194,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     catalog.add::<Puzzle>(Arc::new(Generator {
         id: product_base_id(),
         params: params.clone(),
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(build_product_puzzle_impl),
     }))?;
@@ -231,7 +231,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     catalog.add::<TwistSystemProduct>(Arc::new(Generator {
         id: product_base_id(),
         params: params.clone(),
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             build_ctx
@@ -247,7 +247,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     catalog.add::<TwistSystem>(Arc::new(Generator {
         id: product_base_id(),
         params: params.clone(),
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             build_ctx
@@ -263,7 +263,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
             ty: GeneratorParamType::Int { min: 1, max: 8 },
             default: "1".parse().expect("bad param default"),
         }],
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             Ok(Arc::new(TwistSystemProduct::new_factor(
@@ -300,7 +300,7 @@ fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     catalog.add::<ColorSystem>(Arc::new(Generator {
         id: disjoint_union_base_id(),
         params,
-        subset_param: None,
+        subset_params: vec![],
         validation: GeneratorParamValidation { allow_empty: false },
         generate: Box::new(|build_ctx| {
             build_ctx

@@ -208,8 +208,8 @@ pub struct Generator<T> {
     pub id: VersionedCatalogWord,
     /// Parameter types, ranges, and defaults.
     pub params: Vec<GeneratorParam>,
-    /// Subset parameter, if any.
-    pub subset_param: Option<GeneratorSubsetParam>,
+    /// Subset parameters.
+    pub subset_params: Vec<GeneratorSubsetParam>,
 
     /// Options when validating parameters.
     pub validation: GeneratorParamValidation,
@@ -250,7 +250,7 @@ impl<T: CatalogObject> Generator<T> {
         Self {
             id,
             params: vec![],
-            subset_param: None,
+            subset_params: vec![],
             // validation doesn't matter; always empty
             validation: GeneratorParamValidation { allow_empty: true },
             generate: Box::new(generate),
@@ -261,41 +261,37 @@ impl<T: CatalogObject> Generator<T> {
     ///
     /// This catches most common error. Integer bounds are not checked.
     pub fn validate(&self, id: &CatalogId) -> Result<()> {
-        // Check subset
-        if let Some(subset) = &id.subset {
-            let Some(subset_param) = &self.subset_param else {
-                bail!("{self} has no subset parameter; got `{subset}`");
-            };
-            if !subset_param
-                .options
-                .iter()
-                .any(|option| &option.id == subset)
-            {
-                bail!(
-                    "{self} has no `{subset}` subset, only {}",
-                    subset_param
-                        .options
-                        .iter()
-                        .map(|option| format!("`{}`", option.id))
-                        .join(", "),
-                );
-            }
+        if self.validation.allow_empty && id.args().is_empty() && id.subsets.is_empty() {
+            return Ok(());
         }
 
         // Check arguments
-        if id.args().is_empty() && self.validation.allow_empty {
-            // ok
-        } else {
-            let expected = self.params.len();
-            let got = id.args().len();
-            if expected != got {
-                bail!("{self} requires {expected} params; got {got}");
+        let expected = self.params.len();
+        let got = id.args().len();
+        if expected != got {
+            bail!("{self} requires {expected} params; got {got}");
+        }
+        for (i, (param, arg)) in std::iter::zip(&self.params, id.args()).enumerate() {
+            param
+                .typed_value(arg.clone())
+                .with_context(|| format!("bad value for param at index {i} for {self}"))?;
+        }
+
+        // Check subsets
+        let mut subset_params_specified = vec![false; self.subset_params.len()];
+        for subset in &id.subsets {
+            let i = self
+                .subset_params
+                .iter()
+                .position(|p| p.has_option(subset))
+                .ok_or_else(|| eyre!("no subset {subset:?}"))?;
+            if subset_params_specified[i] {
+                bail!("subset {} was specified twice", self.subset_params[i]);
             }
-            for (i, (param, arg)) in std::iter::zip(&self.params, id.args()).enumerate() {
-                param
-                    .typed_value(arg.clone())
-                    .with_context(|| format!("bad value for param at index {i} for {self}"))?;
-            }
+            subset_params_specified[i] = true;
+        }
+        if let Some(i) = subset_params_specified.iter().position(|present| !present) {
+            bail!("missing subset {}", self.subset_params[i]);
         }
 
         Ok(())
@@ -314,12 +310,8 @@ impl<T: CatalogObject> Generator<T> {
         // Set version number
         id.base.version = self.id.version;
 
-        // Remove subset if default
-        if let Some(subset_param) = &self.subset_param
-            && id.subset == subset_param.default
-        {
-            id.subset = subset_param.default.clone();
-        }
+        // Sort subsets
+        id.subsets.sort();
 
         id
     }
@@ -329,13 +321,7 @@ impl<T: CatalogObject> Generator<T> {
         CatalogId::new(
             self.id.clone(),
             self.params.iter().map(|p| p.default.clone()),
-            match &self.subset_param {
-                Some(subsets) => match &subsets.default {
-                    Some(default_id) => Some(default_id.clone()),
-                    None => subsets.options.first().map(|option| option.id.clone()),
-                },
-                None => None,
-            },
+            self.subset_params.iter().map(|p| p.default.clone()),
         )
     }
 }
@@ -353,20 +339,34 @@ pub struct GeneratorSubsetParam {
     pub options: Vec<GeneratorSubsetParamValue>,
     /// Default subset to use when constructing the object, in case the ID does
     /// not specify.
-    pub default: Option<CatalogWord>,
+    pub default: CatalogWord,
     /// Maximal subset, if there is an unambiguous answer. This is sometimes
     /// used as the default subset, such as when constructing one factor of a
     /// product puzzle.
     pub maximal: Option<CatalogWord>,
 }
 
+impl fmt::Display for GeneratorSubsetParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.options.iter().map(|o| &o.id).join("/"))?;
+        write!(f, " subset")?;
+        Ok(())
+    }
+}
+
+impl GeneratorSubsetParam {
+    pub fn has_option(&self, s: &str) -> bool {
+        self.options.iter().any(|o| &*o.id == s)
+    }
+}
+
 /// Allowed value for the subset parameter of a [`Generator`].
 #[derive(Debug, Clone)]
 pub struct GeneratorSubsetParamValue {
-    /// ID suffix for the subset. Typically `rot` or `refle`.
+    /// ID suffix for the subset, such as `rot` or `refl`.
     pub id: CatalogWord,
-    /// Word to prepend to the name, with a space. Typically `Rot ` or `Refle `.
-    pub name_prefix: String,
+    /// Human-friendly name for the subset, such as `Rotations` or `Reflections`.
+    pub name: String,
 }
 
 /// Validation options for a generator.
