@@ -66,7 +66,6 @@ impl TwistSystemFactor {
                     |(setwise_stabilized_set, gizmo_pole_distance)| StabilizerTwistBuilder {
                         setwise_stabilized_set,
                         gizmo_pole_distance,
-                        auto_generated: true,
                     },
                 ));
             } else {
@@ -142,10 +141,6 @@ pub struct StabilizerTwistBuilder {
     /// Gizmo pole distance for the twist in 4D. This is ignored for 3D puzzles,
     /// which use the axis vector to determine the gizmo pole distance.
     pub gizmo_pole_distance: Float,
-    /// Whether the stabilizer twist was automatically generated via the puzzle
-    /// product construction, in which case it is ok if it does not correspond
-    /// to a valid twist.
-    pub auto_generated: bool,
 }
 
 impl StabilizerTwistBuilder {
@@ -155,7 +150,6 @@ impl StabilizerTwistBuilder {
                 .setwise_stabilized_set
                 .offset_ids_by(named_point_id_offset)?,
             gizmo_pole_distance: self.gizmo_pole_distance,
-            auto_generated: self.auto_generated,
         })
     }
 }
@@ -308,7 +302,6 @@ impl TwistSystemProduct {
                     setwise_stabilized_set: stabilized_points
                         .transform_by_group_element(&named_point_action, deorbiter),
                     gizmo_pole_distance: orbit.gizmo_pole_distance,
-                    auto_generated: false,
                 });
             if orbit.gizmo_pole_distance <= 0.0 {
                 bail!("stabilizer twist gizmo_pole_distance cannot be negative")
@@ -700,7 +693,6 @@ impl TwistSystemProduct {
                 3 => &[StabilizerTwistBuilder {
                     setwise_stabilized_set: NamedPointSet::EMPTY,
                     gizmo_pole_distance: 0.0, // doesn't matter for 3D
-                    auto_generated: false,
                 }],
                 4 => &*orbit.stabilizer_twists,
                 _ => &[],
@@ -713,7 +705,6 @@ impl TwistSystemProduct {
                 let StabilizerTwistBuilder {
                     setwise_stabilized_set: secondary,
                     gizmo_pole_distance,
-                    auto_generated,
                 } = stabilizer_twist_family;
 
                 let twist_name = StabilizerFamily {
@@ -738,7 +729,7 @@ impl TwistSystemProduct {
                 build_ctx.pop_task();
 
                 build_ctx.push_task("computing unit twist transform");
-                let unit_twist_transform_result = if secondary.is_empty() {
+                let opt_unit_twist_transform = if secondary.is_empty() {
                     unit_twist_transform(&self.group, &coset, &[first_axis_vector.clone()])
                 } else {
                     let secondary_vector = secondary.vector(&self.named_point_vectors);
@@ -750,11 +741,7 @@ impl TwistSystemProduct {
                         "error calculating unit twist transform \
                          for stabilizer twist {twist_name:?}",
                     )
-                });
-                // Allow errors if auto-generated
-                let opt_unit_twist_transform = Some(unit_twist_transform_result)
-                    .filter(|result| result.is_ok() || !*auto_generated)
-                    .transpose()?;
+                })?;
                 build_ctx.pop_task();
 
                 build_ctx.pop_task();
@@ -832,7 +819,7 @@ impl TwistSystemProduct {
 }
 
 /// Returns the unique minimal clockwise generator from a coset, or `None` if
-/// there is not one.
+/// the coset is empty.
 ///
 /// `stabilized_vectors` must be a list of vectors of length `ndim-2`, and is
 /// used to define "clockwise."
@@ -840,7 +827,7 @@ fn unit_twist_transform(
     group: &IsometryGroup,
     stabilizer_coset: &ConjugateCoset,
     stabilized_vectors: &[Vector],
-) -> Result<UniqueMinimalClockwiseGenerator> {
+) -> Result<Option<UniqueMinimalClockwiseGenerator>> {
     if stabilized_vectors.len() + 2 != group.ndim() as usize {
         bail!("`stabilized_vectors` must have length ndim-2");
     }
@@ -850,11 +837,13 @@ fn unit_twist_transform(
         .filter(|&e| e != GroupElementId::IDENTITY)
         .filter(|&e| !group.is_reflection(e))
         .collect_vec();
-    let (mut min_group_element, min_rotation) = nontrivial_rotations
+    let Some((mut min_group_element, min_rotation)) = nontrivial_rotations
         .iter()
         .filter_map(|&e| Some((e, group.motor(e).normalize()?)))
         .max_by_float_key(|(_e, m)| m.scalar().abs())
-        .ok_or_eyre("empty coset")?;
+    else {
+        return Ok(None);
+    };
     let arbitrary_perpendicular_vector =
         Vector::arbitrary_perpendicular_to(group.ndim(), stabilized_vectors)
             .ok_or_eyre("stabilized vectors cannot span all of space")?;
@@ -873,10 +862,10 @@ fn unit_twist_transform(
         min_group_element = group.inverse(min_group_element);
     }
 
-    Ok(UniqueMinimalClockwiseGenerator::new(
+    Ok(Some(UniqueMinimalClockwiseGenerator::new(
         group.abstract_group(),
         min_group_element,
-    ))
+    )))
 }
 
 /// Constructs a constraint set for a cycle of points.
@@ -944,8 +933,8 @@ mod tests {
             let reverse_coset = subgroup_solver
                 .solve(&cycle_constraints(stab.iter().rev().copied()))
                 .expect("unsat");
-            let unit1 = unit_twist_transform(&group, &forward_coset, &stabilized_vectors)?;
-            let unit2 = unit_twist_transform(&group, &reverse_coset, &stabilized_vectors)?;
+            let unit1 = unit_twist_transform(&group, &forward_coset, &stabilized_vectors)?.unwrap();
+            let unit2 = unit_twist_transform(&group, &reverse_coset, &stabilized_vectors)?.unwrap();
             assert_eq!(group.abstract_group().period(unit1.element), period);
             assert_eq!(group.abstract_group().period(unit2.element), period);
             assert_eq!(unit1, unit2);
