@@ -38,7 +38,8 @@ add_menu_entry(path = "Solid|4D|Platonic|Hypercube|FT",   priority = 53,  id = "
 // add_menu_entry(path = "Solid|4D|Platonic|Hypercube|48-Cell", priority = 50,  id = "hypercube_vt")
 
 add_menu_entry(path = "Solid|4D|Platonic|16-Cell|None", priority = 100, id = "16cell")
-// add_menu_entry(path = "Solid|4D|Platonic|16-Cell|FT",   priority = 53, id = "16cell_ft", default = true)
+add_menu_entry(path = "Solid|4D|Platonic|16-Cell|FT",   priority = 53, next_inline = "Cut depth", default = true)
+for i in 1..=11 { add_menu_entry(path = "Solid|4D|Platonic|16-Cell|FT|${i}", id = "16cell_ft_${i}", default = i == 1) }
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|RT",   priority = 52, id = "16cell_rt")
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|ET",   priority = 51, id = "16cell_et")
 // add_menu_entry(path = "Solid|4D|Platonic|16-Cell|VT",   priority = 50, id = "16cell_vt")
@@ -46,9 +47,7 @@ add_menu_entry(path = "Solid|4D|Platonic|16-Cell|None", priority = 100, id = "16
 
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|None", priority = 100, id = "24cell")
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT",   priority = 53,  next_inline = "Depth", default = true)
-for i in 1..=11 {
-    add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|${i}", id = "24cell_ft_${i}")
-}
+for i in 1..=11 { add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|${i}", id = "24cell_ft_${i}", default = i == 1) }
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid", next_inline = "Cut depths")
 add_menu_entry(path = "Solid|4D|Platonic|24-Cell|FT|Hybrid|1 + 5", id = "24cell_ft_hybrid_1_5")
 // add_menu_entry(path = "Solid|4D|Platonic|24-Cell|RT",   priority = 52,  id = "24cell_rt")
@@ -123,6 +122,21 @@ add_twist_system(id = "hypercube_ft@1", name = "FT Hypercube",
             [["R", "U"], 1],
             [["R", "U", "F"], lerp(√2, 1/√2, GIZMO_EDGE_FACTOR)],
             [["R", "U", "F", "I"], lerp(√3, 1/√3, GIZMO_EDGE_FACTOR)],
+        ]
+    },
+)
+
+add_twist_system(id = "16cell_ft@1", name = "FT 16-Cell",
+    engine = "symmetric",
+    ndim = 4,
+    build = fn() {
+        shape = @shapes/4d/16cell.new()
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        #twists.stabilizer_twists = [
+            [["FORU", "F"], 1/√3],
+            [["FORU", "F", "O", "R"], 1/√3],
         ]
     },
 )
@@ -266,6 +280,35 @@ add_puzzle(id = "hypercube_ft@1", name = ["N-Layer FT Hypercube", "n^4", "NxNxNx
         }
     }
 )
+
+//-----------------//
+// 16-cell puzzles //
+//-----------------//
+
+fn def_16cell_ft(cut_depths: List[Num], **kwargs) {
+    add_puzzle(
+        tags = #{ author = "Andrew Farkas" },
+        engine = "symmetric",
+        ndim = 4,
+        colors = "16cell",
+        twists = "16cell_ft",
+        build = fn() {
+            @util.build_symmetric_shape(@shapes/4d/16cell.new())
+            #puz.cuts.FORU = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.FORU = true
+        },
+        **kwargs,
+    )
+}
+
+def_16cell_ft([3/5],  id = "16cell_ft_1@1", name = ["FT 16-Cell 1", "Canon-Cut 16-Cell", "Shallow-Cut FT 16-Cell"])
+def_16cell_ft([1/2],  id = "16cell_ft_2@1", name = ["FT 16-Cell 2", "Adjacent-Cut FT 16-Cell"])
+def_16cell_ft([4/9],  id = "16cell_ft_3@1", name = ["FT 16-Cell 3"])
+def_16cell_ft([1/3],  id = "16cell_ft_4@1", name = ["FT 16-Cell 4"])
+def_16cell_ft([1/4],  id = "16cell_ft_5@1", name = ["FT 16-Cell 5"])
+def_16cell_ft([1/5],  id = "16cell_ft_6@1", name = ["FT 16-Cell 6"])
+def_16cell_ft([2/15], id = "16cell_ft_7@1", name = ["FT 16-Cell 7", "Astral FT 16-Cell"])
+def_16cell_ft([0],    id = "16cell_ft_8@1", name = ["FT 16-Cell 8", "Half-Cut FT 16-Cell"])
 
 //-----------------//
 // 24-cell puzzles //
