@@ -363,9 +363,9 @@ fn def_120cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_120cell_ft([3/2 * 1/φ], id = "120cell_ft_shallow@1", name = ["FT 120-Cell (Shallow)", "Canon-Cut 120-Cell"])
-def_120cell_ft([1/φ], id = "120cell_ft_evil@1", name = "FT 120-Cell (Evil)")
-def_120cell_ft([0], id = "120cell_ft_half@1", name = "FT 120-Cell (Half)")
+def_120cell_ft([3/2 * 1/φ], id = "120cell_ft_shallow@1", name = ["Shallow-Cut FT 120-Cell", "Canon-Cut 120-Cell"])
+def_120cell_ft([1/φ], id = "120cell_ft_evil@1", name = "Evil FT 120-Cell")
+def_120cell_ft([0], id = "120cell_ft_half@1", name = "Half-Cut 120-Cell")
 
 //------------------//
 // 600-cell puzzles //
@@ -387,4 +387,4 @@ fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
     )
 }
 
-def_600cell_ft([0.97], id = "600cell_ft_shallow@0", name = ["FT 600-Cell (Shallow)", "Canon-Cut 600-Cell"])
+def_600cell_ft([0.97], id = "600cell_ft_shallow@0", name = ["Shallow-Cut FT 600-Cell", "Canon-Cut 600-Cell"])

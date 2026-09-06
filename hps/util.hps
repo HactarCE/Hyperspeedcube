@@ -42,3 +42,44 @@ export fn subscript(n: Nat) -> Str {
     }
     return out
 }
+
+/// Returns whether a linear Coxeter diagram has a ring in each connected
+/// component when the `i`th element is removed.
+export fn vertex_cd_point_has_element(vertex_cd_point: Str, i: Nat) -> Bool {
+    len = vertex_cd_point.len()
+    return (
+        (i == 0 or (0..i).any(fn(j) { vertex_cd_point[j] == "x" }))
+        and (i+1 == len or ((i+1)..len).any(fn(j) { vertex_cd_point[j] == "x" }))
+    )
+}
+
+export fn cd_element_exists(vertex_cd_point: Str, indices_to_remove: List[Nat]) -> Bool {
+    print(vertex_cd_point, indices_to_remove)
+    cut_points = [-1] ++ indices_to_remove.sorted() ++ [vertex_cd_point.len()]
+    for i in 1..cut_points.len() {
+        pre = cut_points[i-1]
+        post = cut_points[i]
+        range = (pre+1)..post
+        if range.len() > 0 and range.all(fn(j) { vertex_cd_point[j] != "x" }) {
+            return false
+        }
+    }
+    return true
+}
+
+assert(    cd_element_exists("xoxoo", [0]))
+assert(    cd_element_exists("xoxoo", [1]))
+assert(not cd_element_exists("xoxoo", [2]))
+assert(not cd_element_exists("xoxoo", [3]))
+assert(    cd_element_exists("xoxoo", [4]))
+
+assert(    cd_element_exists("xoxoo", [0, 1]))
+assert(not cd_element_exists("xoxoo", [0, 2]))
+assert(not cd_element_exists("xoxoo", [0, 3]))
+assert(    cd_element_exists("xoxoo", [0, 4]))
+assert(not cd_element_exists("xoxoo", [1, 2]))
+assert(not cd_element_exists("xoxoo", [1, 3]))
+assert(    cd_element_exists("xoxoo", [1, 4]))
+assert(not cd_element_exists("xoxoo", [2, 3]))
+assert(not cd_element_exists("xoxoo", [2, 4]))
+assert(    cd_element_exists("xoxoo", [3, 4]))

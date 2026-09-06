@@ -1,0 +1,185 @@
+use * from euclid
+
+//--------------//
+// Menu entries //
+//--------------//
+
+add_menu_entry(path = "Solid|4D|Truncations", section = true)
+add_menu_entry(path = "Solid|4D|Truncations|5-Simplex", next_column = "Truncation")
+add_menu_entry(path = "Solid|4D|Truncations|Hypercube/16-Cell", next_column = "Truncation")
+add_menu_entry(path = "Solid|4D|Truncations|24-Cell",    next_column = "Truncation")
+add_menu_entry(path = "Solid|4D|Truncations|120-Cell/600-Cell",   next_column = "Truncation")
+
+add_menu_entry(path = "Solid|4D|Truncations|120-Cell|Bitruncated 120-Cell", next_inline = "Cut depth")
+add_menu_entry(path = "Solid|4D|Truncations|120-Cell|Bitruncated 120-Cell|None", priority = 100, id = "120cell_bitruncated")
+add_menu_entry(path = "Solid|4D|Truncations|120-Cell|Bitruncated 120-Cell|Shallow", id = "120cell_bitruncated_ft")
+
+// - **Shape**
+// - *Truncations*
+// - Simplex
+//   - **Truncation**
+//   - Bitruncated
+//   - Bitruncated Dual
+//   - Cantellated
+//   - Cantitruncated
+//   - Omnitruncated
+//   - Rectified
+//   - Rucinated
+//   - Runcitruncated
+//   - Truncated
+// - Hypercube/16-Cell
+//   - **Truncation**
+//   - Bitruncated Hypercube
+//   - Cantellated Hypercube
+//   - Cantitruncated Hypercube
+//   - Omnitruncated Hypercube
+//   - Rectified Hypercube
+//   - Rucinated Hypercube
+//   - Runcitruncated Hypercube
+//   - Truncated Hypercube
+//   - Truncated 16-Cell
+// - 24-Cell
+//   - **Truncation**
+//   - Cantellated
+//   - Omnitruncated
+//   - Omnitruncated dual
+//   - Rectified
+//   - Rucinated
+//   - Runcitruncated
+//   - Truncated
+// - 120-Cell
+//   - **Truncation**
+//   - Bitruncated
+
+// add_menu_entry(path = "Solid|4D|Truncations", section = true)
+// add_menu_entry(path = "Solid|4D|Truncations|Hypercube/16-Cell", next_column = "Truncation")
+// add_menu_entry(path = "Solid|4D|Truncations|Hypercube/16-Cell|Runcitruncated Hypercube", next_column = "Axes")
+// add_menu_entry(path = "Solid|4D|Truncations|Hypercube/16-Cell|Runcitruncated Hypercube|FT", id = "ft_runcitruncated_hypercube")
+
+//---------------//
+// Twist systems //
+//---------------//
+
+fn def_truncation_twists(
+    shape_file,
+    vertex_cd_point,
+    axes: Map,
+    *,
+    **kwargs,
+) {
+    add_twist_system(
+        engine = "symmetric",
+        ndim = 4,
+        build = fn() {
+            shape = shape_file.new()
+            #twists.sym = shape.sym
+            #twists.points = shape.points
+            elements = #{ f = shape.facet, e = shape.edge, r = shape.ridge, v = shape.vertex }
+            p = shape.sym.vec(vertex_cd_point)
+            p /= p.projected_to(shape.sym.ooox).mag
+            for i, k in ["f", "e", "r", "v"] {
+                facet_pole = p.projected_to(elements[k])
+                if @util.cd_element_exists(vertex_cd_point, [i]) {
+                    #twists.axes ++= [facet_pole]
+
+                    // TODO: this algorithm for adding gizmos is insufficient
+                    for i2, k2 in ["f", "e", "r", "v"] {
+                        if i != i2 and @util.cd_element_exists(vertex_cd_point, [i, i2]) {
+                            pole_distance = (facet_pole - p.projected_to([elements[k], elements[k2]])).mag
+                            print(i, k, i2, k2, axes[k])
+                            secondary = axes[k2].filter(fn(x) { x != strcat(axes[k]) })
+                            #twists.stabilizer_twists ++= [[[strcat(axes[k]), *secondary], pole_distance]]
+                        }
+                    }
+                    // HOW TO GET GIZMO POLE DISTANCE:
+                    // 1. remove node corresponding to axis
+                    // 2. remove node corresponding to stabilizer set
+                    // 3. remove connected components with no ringed nodes (i.e., no `x`s)
+                    // 4. project point onto all removed nodes (from steps 1-3)
+                    // 5. if any nodes removed in step 3, reduce the pole distance by some amount so that it is visible on gizmo
+                }
+            }
+        },
+        **kwargs,
+    )
+}
+
+axes_120cell = #{ f = ["IR"], r = ["IR", "IU"], e = ["IR", "IU", "IF"], v = ["IR", "IU", "IF", "II"] }
+fn strcat(strings: List[Str]) -> Str {
+    strings.reduce(fn(a, b) { a ++ b })
+}
+
+def_truncation_twists(
+    @shapes/4d/120cell, "oxxo", axes_120cell,
+    id = "120cell_ft_vt@1", name = "FT+VT 120-Cell",
+    // stabilizer_twists = [
+    //     [["II", "IRIUIFII"], 0.1],
+    // ],
+)
+// def_truncation_twists(
+//     @shapes/3d/cube, "xox",
+//     id = "cube_ft_et_vt@0", name = "FT+ET+VT Cube",
+// )
+// def_truncation_twists(
+//     @shapes/3d/dodecahedron, "oxo",
+//     id = "dodecahedron_ft_vt@1", name = "FT+VT Dodecahedron",
+// )
+
+axes_hypercube = #{
+    f = ["R"],
+    r = ["R", "U"],
+    e = ["R", "U", "F"],
+    v = ["R", "U", "F", "I"],
+}
+
+def_truncation_twists(
+    @shapes/4d/hypercube, "ooxx", axes_hypercube,
+    id = "hypercube_test", name = "Hypercube Truncation Test"
+)
+
+//------- //
+// Shapes //
+//------- //
+
+fn def_truncation(shape_file, vertex_cd_point, axes: Map, *, cuts = null, layers = #{}, **kwargs) {
+    add_puzzle(
+        engine = "symmetric",
+        ndim = 4,
+        build = fn() {
+            shape = shape_file.new()
+            #shape.sym = shape.sym
+            #shape.points = shape.points
+            elements = #{ f = shape.facet, r = shape.ridge, e = shape.edge, v = shape.vertex }
+            p = shape.sym.vec(vertex_cd_point)
+            p /= p.projected_to(shape.sym.ooox).mag
+            for i, k in ["f", "r", "e", "v"] {
+                if @util.cd_element_exists(vertex_cd_point, [i]) {
+                    facet_pole = p.projected_to(elements[k])
+                    #shape.facets ++= [facet_pole]
+                    if cuts != null {
+                        axis_name = strcat(axes[k])
+                        #puz.cuts[axis_name] = @util/cuts.with_opposite(cuts[k].map(fn(d) { d * facet_pole.mag }))
+                        #puz.is_full_cut[axis_name] = true
+                    }
+                }
+            }
+        },
+        tags = #{ author = ["Andrew Farkas", "SuperSnowman16", "Milo Jacquet"] },
+        **kwargs,
+    )
+}
+
+def_truncation(@shapes/4d/120cell, "oxxo", axes_120cell, id = "120cell_bitruncated@1", name = "Bitruncated 120-Cell")
+
+// def_truncation(
+//     @shapes/4d/120cell, "oxxo", axes_120cell,
+//     id = "120cell_bitruncated_ft@0", name = "FT Bitruncated 120-Cell",
+//     twists = "120cell_ft_vt", cuts = #{ f = [0.99], v = [0.99] },
+// )
+
+// def_truncation(@shapes/4d/hypercube, "ooxx", axes_hypercube, id = "hypercube_truncation_test@0", name = "Hypercube Truncation Test (shape)")
+// def_truncation(
+//     @shapes/4d/hypercube, "ooxx", axes_hypercube,
+//     id = "hypercube_truncation_test_ft@0", name = "Hypercube Truncation Test",
+//     twists = "hypercube_test", //cuts = #{ f = [0.99] }
+// )

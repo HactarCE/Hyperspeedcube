@@ -5,7 +5,7 @@ use * from euclid
 //--------------//
 
 add_menu_entry(path = "Solid|3D|Truncations", section = true)
-add_menu_entry(path = "Solid|3D|Truncations|Cubic", next_column = "Truncation")
+add_menu_entry(path = "Solid|3D|Truncations|Cubic",        next_column = "Truncation")
 add_menu_entry(path = "Solid|3D|Truncations|Dodecahedral", next_column = "Truncation")
 
 add_menu_entry(path = "Solid|3D|Truncations|Cubic|Cuboctahedron", next_inline = "Cut depth")
@@ -57,12 +57,12 @@ fn def_truncation_twists(
             elements = #{ f = shape.face, e = shape.edge, v = shape.vertex }
             p = shape.sym.vec(vertex_cd_point)
             p /= p.projected_to(shape.sym.oox).mag
-            for k in ["f", "e", "v"] {
-                if dot(p.unit, elements[k].unit) != 1 {
+            for i, k in ["f", "e", "v"] {
+                if @util.cd_element_exists(vertex_cd_point, [i]) {
                     #twists.axes ++= [p.projected_to(elements[k])]
+                    // TODO: add stabilizer twists and stabilizer sets
                 }
             }
-            print(jumble_moves, jumble_stops)
             #twists.jumble_moves = jumble_moves
             #twists.jumble_stops = jumble_stops
         },
@@ -72,7 +72,7 @@ fn def_truncation_twists(
 
 def_truncation_twists(
     @shapes/3d/cube, "oxo",
-    id = "cube_ft_vt@1", name = "FT+VT Cube",
+    id = "cube_ft_vt@0", name = "FT+VT Cube",
 )
 def_truncation_twists(
     @shapes/3d/cube, "xox",
@@ -82,7 +82,7 @@ def_truncation_twists(
 )
 def_truncation_twists(
     @shapes/3d/dodecahedron, "oxo",
-    id = "dodecahedron_ft_vt@1", name = "FT+VT Dodecahedron",
+    id = "dodecahedron_ft_vt@0", name = "FT+VT Dodecahedron",
     jumble_moves = #{ FRU = #{ j = "DLFL->DLDRF" } },
     jumble_stops = #{ FRU = ["j"] }
 )
@@ -103,8 +103,8 @@ fn def_truncation(shape_file, vertex_cd_point, *, cuts = null, layers = #{}, **k
             axes = #{ f = "R", e = "RU", v = "RUF" }
             p = shape.sym.vec(vertex_cd_point)
             p /= p.projected_to(shape.sym.oox).mag
-            for k in ["f", "e", "v"] {
-                if dot(p.unit, elements[k].unit) != 1 {
+            for i, k in ["f", "e", "v"] {
+                if @util.cd_element_exists(vertex_cd_point, [i]) {
                     facet_pole = p.projected_to(elements[k])
                     #shape.facets ++= [facet_pole]
                     if cuts != null {
@@ -135,16 +135,16 @@ fn def_cuboctahedron(t, **kwargs) {
 }
 
 // Numbering courtesy of Luna Harran
-def_cuboctahedron(3/4,  id = "cuboctahedron_ft_1@1",  name = ["FT Cuboctahedron 1", "Canon-Cut Cuboctahedron"])
-def_cuboctahedron(2/3,  id = "cuboctahedron_ft_2@1",  name = "FT Cuboctahedron 2")
-def_cuboctahedron(3/5,  id = "cuboctahedron_ft_3@1",  name = "FT Cuboctahedron 3")
-def_cuboctahedron(1/2,  id = "cuboctahedron_ft_4@1",  name = ["FT Cuboctahedron 4", "Rainbow Cube + 3^3"])
-def_cuboctahedron(2/5,  id = "cuboctahedron_ft_5@1",  name = "FT Cuboctahedron 5")
-def_cuboctahedron(1/3,  id = "cuboctahedron_ft_6@1",  name = "FT Cuboctahedron 6")
-def_cuboctahedron(7/24, id = "cuboctahedron_ft_7@1",  name = "FT Cuboctahedron 7")
-def_cuboctahedron(1/4,  id = "cuboctahedron_ft_8@1",  name = "FT Cuboctahedron 8")
-def_cuboctahedron(1/6,  id = "cuboctahedron_ft_9@1",  name = "FT Cuboctahedron 9")
-def_cuboctahedron(0,    id = "cuboctahedron_ft_10@1", name = ["FT Cuboctahedron 10", "Half-Cut FT Cuboctahedron"])
+def_cuboctahedron(3/4,  id = "cuboctahedron_ft_1@0",  name = ["FT Cuboctahedron 1", "Canon-Cut Cuboctahedron"])
+def_cuboctahedron(2/3,  id = "cuboctahedron_ft_2@0",  name = "FT Cuboctahedron 2")
+def_cuboctahedron(3/5,  id = "cuboctahedron_ft_3@0",  name = "FT Cuboctahedron 3")
+def_cuboctahedron(1/2,  id = "cuboctahedron_ft_4@0",  name = ["FT Cuboctahedron 4", "Rainbow Cube + 3^3"])
+def_cuboctahedron(2/5,  id = "cuboctahedron_ft_5@0",  name = "FT Cuboctahedron 5")
+def_cuboctahedron(1/3,  id = "cuboctahedron_ft_6@0",  name = "FT Cuboctahedron 6")
+def_cuboctahedron(7/24, id = "cuboctahedron_ft_7@0",  name = "FT Cuboctahedron 7")
+def_cuboctahedron(1/4,  id = "cuboctahedron_ft_8@0",  name = "FT Cuboctahedron 8")
+def_cuboctahedron(1/6,  id = "cuboctahedron_ft_9@0",  name = "FT Cuboctahedron 9")
+def_cuboctahedron(0,    id = "cuboctahedron_ft_10@0", name = ["FT Cuboctahedron 10", "Half-Cut FT Cuboctahedron"])
 
 //---------------------------- //
 // Rhombicuboctahedron puzzles //

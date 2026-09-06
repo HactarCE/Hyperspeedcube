@@ -298,7 +298,6 @@ add_puzzle(id = "ngon_vt_layered@1", name = "Layered VT Polygon Generator",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
                 @util.build_symmetric_shape(shape)
-                print(shape.layered_vt_cuts(layers-1))
                 #puz.cuts.AB = shape.layered_vt_cuts(layers-1)
                 #puz.is_full_cut.AB = true
             },
