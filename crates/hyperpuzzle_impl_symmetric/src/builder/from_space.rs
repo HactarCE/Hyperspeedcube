@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use eyre::{OptionExt, Result, bail, ensure};
 use hypergroup::{CoxeterMatrix, GroupElementId, IsometryGroup};
 use hypermath::{APPROX, ApproxHashMap, Centroid, Float, Hyperplane, Ndim, Point, Vector};
-use hyperpuzzle_core::{Orbit, PerAxis, PerPiece, PerSurface, Piece, Surface};
+use hyperpuzzle_core::{Orbit, PerPiece, PerSurface, Piece, Surface};
 use hypershape::PortalId;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};

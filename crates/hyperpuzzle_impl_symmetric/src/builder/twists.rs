@@ -338,8 +338,8 @@ impl TwistSystemProduct {
             let angle = match &jumble_move_spec.angle {
                 crate::JumbleAngleSpec::FromTo(start, end) => {
                     let fixed_vector = &axis_vectors[axis];
-                    let start_vector = &axis_vectors[names.member_from_name(&start)?];
-                    let end_vector = &axis_vectors[names.member_from_name(&end)?];
+                    let start_vector = &axis_vectors[names.member_from_name(start)?];
+                    let end_vector = &axis_vectors[names.member_from_name(end)?];
                     let reject_and_normalize = |v: &Vector| {
                         v.rejected_from(fixed_vector)
                             .and_then(|u| u.normalize())
@@ -347,7 +347,7 @@ impl TwistSystemProduct {
                     };
                     Vector::dot(
                         &reject_and_normalize(start_vector),
-                        &reject_and_normalize(end_vector),
+                        reject_and_normalize(end_vector),
                     )
                     .acos()
                 }
@@ -709,7 +709,7 @@ impl TwistSystemProduct {
                     setwise_stabilized_set: NamedPointSet::EMPTY,
                     gizmo_pole_distance: 0.0, // doesn't matter for 3D
                 }],
-                4 => &*orbit.stabilizer_twists,
+                4 => &orbit.stabilizer_twists,
                 _ => &[],
             };
 
@@ -885,7 +885,7 @@ fn unit_twist_transform(
 
 /// Constructs a constraint set for a cycle of points.
 fn cycle_constraints(
-    points: impl Iterator<Item = NamedPoint> + Clone + ExactSizeIterator,
+    points: impl Clone + ExactSizeIterator<Item = NamedPoint>,
 ) -> hypergroup::ConstraintSet<NamedPoint> {
     hypergroup::ConstraintSet::from_iter(
         points

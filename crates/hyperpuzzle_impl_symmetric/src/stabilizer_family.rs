@@ -28,7 +28,7 @@ impl StabilizerFamily {
     pub fn name(&self, axis_names: &Names<Axis>, named_point_names: &Names<NamedPoint>) -> String {
         let primary = &axis_names[self.primary];
         if named_point_names.is_empty() {
-            return primary.to_string();
+            primary.to_string()
         } else {
             format!(
                 "{primary}_{}", // TODO: proper separator

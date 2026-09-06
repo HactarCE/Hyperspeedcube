@@ -549,7 +549,7 @@ impl AxisOrbitJumbleData {
     ) -> Result<Self> {
         let stops = stops
             .into_iter()
-            .map(|angle| hypermath::util::canonicalize_angle(angle))
+            .map(hypermath::util::canonicalize_angle)
             .sorted_by(Float::total_cmp)
             .dedup_by(|a, b| APPROX.eq(a, b))
             .map(|angle| JumbleStopInfo::new(&transforms, angle))
@@ -626,12 +626,12 @@ impl AxisOrbitJumbleData {
         let stop2 = &self.stops[end];
         let (tf1, tf2) = if angle_delta > 0.0 {
             (
-                stop1.to_doctrinaire_prefer_next.clone(),
+                stop1.to_doctrinaire_prefer_next,
                 stop2.to_doctrinaire_prefer_prev.rev()?,
             )
         } else {
             (
-                stop1.to_doctrinaire_prefer_prev.clone(),
+                stop1.to_doctrinaire_prefer_prev,
                 stop2.to_doctrinaire_prefer_next.rev()?,
             )
         };
@@ -682,7 +682,7 @@ fn find_simple_transform_for_angle(
         }
     }
 
-    Err(NoSimpleTransform(angle).into())
+    Err(NoSimpleTransform(angle))
 }
 
 #[derive(thiserror::Error, Debug, Default, Copy, Clone)]
@@ -747,7 +747,7 @@ impl JumbleStopInfo {
             let to_prev = find_simple_transform_for_angle(transforms, -residue);
             Ok(Self {
                 angle,
-                to_doctrinaire_prefer_next: to_next.clone().or_else(|_| to_prev.clone())?,
+                to_doctrinaire_prefer_next: to_next.or_else(|_| to_prev)?,
                 to_doctrinaire_prefer_prev: to_prev.or(to_next)?,
             })
         }
@@ -825,7 +825,7 @@ impl JumbleTransform {
     /// Multiplies the twist by a multiplier. Returns an error on overflow.
     pub fn multiply(&self, n: i32) -> Result<Self> {
         Ok(Self {
-            suffix: self.suffix.clone(),
+            suffix: self.suffix,
             multiplier: Multiplier(self.multiplier.0.checked_mul(n).ok_or_eyre("overflow")?),
             angle: self.angle * n as Float,
             is_doctrinaire: self.is_doctrinaire,

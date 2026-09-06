@@ -14,13 +14,6 @@ use sha2::Digest;
 
 use crate::catalog::CatalogObject;
 
-/// Like `format!()` but returns a `&'static str` that is computed only once.
-macro_rules! static_format {
-    ($($args:tt)*) => {
-        *const { ::std::sync::LazyLock::<&'static str>::new(|| ::std::format!($($args)*).leak()) }
-    };
-}
-
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
     let mut sha256 = sha2::Sha256::new();

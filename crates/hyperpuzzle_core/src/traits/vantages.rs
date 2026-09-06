@@ -100,7 +100,7 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
         }
     }
     /// Returns the name of a relative twist.
-    fn twist_name_concrete(&self, twist: SimpleRelativeTwist<Self>) -> eyre::Result<String> {
+    fn twist_name_concrete(&self, _twist: SimpleRelativeTwist<Self>) -> eyre::Result<String> {
         todo!()
         // let twist_name = &self.twist_names()[twist.absolute_twist];
         // if self.is_identity(&twist.transform) {
@@ -117,7 +117,7 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
     /// Returns the vantage with the given name.
     fn vantage_from_name_concrete(&self, name: &str) -> Option<Vantage>;
     /// Returns the relative axis with the given name.
-    fn axis_from_name_concrete(&self, name: &str) -> Option<SimpleRelativeAxis<Self>> {
+    fn axis_from_name_concrete(&self, _name: &str) -> Option<SimpleRelativeAxis<Self>> {
         todo!()
         // match name.split_once('@') {
         //     Some((axis_name, elem_name)) => Some(SimpleRelativeAxis {
@@ -132,7 +132,7 @@ pub trait SimpleVantageGroup: Any + Send + Sync {
         // }
     }
     /// Returns the relative twist with the given name.
-    fn twist_from_name_concrete(&self, name: &str) -> Option<SimpleRelativeTwist<Self>> {
+    fn twist_from_name_concrete(&self, _name: &str) -> Option<SimpleRelativeTwist<Self>> {
         todo!()
         // match name.split_once('@') {
         //     Some((twist_name, elem_name)) => Some(SimpleRelativeTwist {

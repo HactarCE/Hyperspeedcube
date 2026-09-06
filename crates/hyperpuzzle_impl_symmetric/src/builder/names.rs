@@ -205,6 +205,8 @@ pub enum StrTrieError {
     SameName(Str),
     #[error("{prefix:?} is a prefix of {word:?}")]
     NotPrefixFree { prefix: Str, word: Str },
+    #[error("{0}")]
+    IndexOverflow(#[from] IndexOverflow),
 }
 
 /// Bidirectional map that stores a single prefix-free name for each index.
@@ -252,7 +254,7 @@ impl<I: TypedIndex> PrefixFreeBiMap<I> {
     /// Returns a disjoint union of names. If there are multiple addends, they
     /// are differentiated by prepending a [`SequentialLowercaseName`] to every
     /// name. If there is only one addend, the names are left unmodified.
-    pub fn disjoint_union(addends: &[&Self]) -> Result<Self, IndexOverflow> {
+    pub fn disjoint_union(addends: &[&Self]) -> Result<Self, StrTrieError> {
         match addends {
             [] => return Ok(Self::new()),
             [a] => return Ok((*a).clone()),
@@ -268,9 +270,9 @@ impl<I: TypedIndex> PrefixFreeBiMap<I> {
                     .id_to_str
                     .iter_values()
                     .map(|s| format!("{prefix}{s}").into()),
-            );
+            )?;
             let new_subtree = ret.str_to_id.try_map_ref(|i| i.offset_index(offset))?;
-            ret.str_to_id.insert_subtree(&prefix, new_subtree);
+            ret.str_to_id.insert_subtree(&prefix, new_subtree)?;
             offset += addend.len();
         }
         Ok(ret)

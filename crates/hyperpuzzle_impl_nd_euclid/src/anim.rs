@@ -25,17 +25,13 @@ impl PuzzleAnimation for NdEuclidPuzzleAnimation {
 
     fn simultaneous(&self, other: &dyn PuzzleAnimation) -> Option<BoxDynPuzzleAnimation> {
         let other = (other as &dyn Any).downcast_ref::<Self>()?;
-        if self.pieces == other.pieces {
-            Some(
-                Self {
-                    pieces: self.pieces.clone(),
-                    initial_transform: self.initial_transform.clone(),
-                    final_transform: &other.final_transform * &self.final_transform,
-                }
-                .into(),
-            )
-        } else {
-            None
-        }
+        (self.pieces == other.pieces).then(|| {
+            Self {
+                pieces: self.pieces.clone(),
+                initial_transform: self.initial_transform.clone(),
+                final_transform: &other.final_transform * &self.final_transform,
+            }
+            .into()
+        })
     }
 }

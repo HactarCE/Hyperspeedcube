@@ -28,7 +28,7 @@ pub fn strip_layer_suffix(s: &str) -> (&str, Option<char>) {
 pub fn strip_jumbling_suffix(s: &str) -> (&str, Option<JumbleSuffix>) {
     // Try to split at the last and second-to-last Latin characters
     let char_indices = s.char_indices().rev();
-    let latin_letter_indices = char_indices.filter(|(_i, c)| matches!(c, 'a'..='z'));
+    let latin_letter_indices = char_indices.filter(|(_i, c)| c.is_ascii_lowercase());
     latin_letter_indices
         .take(2)
         .filter_map(|(i, _c)| Some((&s[..i], Some(JumbleSuffix::from_str(&s[i..]).ok()?))))

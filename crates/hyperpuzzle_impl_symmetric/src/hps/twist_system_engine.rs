@@ -166,7 +166,7 @@ pub(super) fn twist_system_product_from_hps(
         SpecialVar::Twists,
         "jumble_moves",
     )? {
-        for (k, v) in &*jumble_map.as_ref::<Map>()? {
+        for (k, v) in jumble_map.as_ref::<Map>()? {
             jumble_moves.push(JumbleMoveSpec {
                 axis: Str::from(axis_name.as_str()),
                 suffix: k

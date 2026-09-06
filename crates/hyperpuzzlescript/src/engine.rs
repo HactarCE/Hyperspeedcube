@@ -166,7 +166,7 @@ impl HpsGenerator {
                 if let Some(g) = &g
                     && !build_ctx.id().args().is_empty()
                 {
-                    let mut args: Vec<Value> = std::iter::zip(&g.params, build_ctx.id().args())
+                    let args: Vec<Value> = std::iter::zip(&g.params, build_ctx.id().args())
                         .map(|(param, arg)| param.typed_value(arg.clone()))
                         .map_ok(|v| param_value_into_hps(&v))
                         .try_collect()?;

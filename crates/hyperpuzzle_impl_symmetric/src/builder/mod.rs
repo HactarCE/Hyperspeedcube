@@ -303,12 +303,9 @@ impl PuzzleProduct {
         .filter(|(layer_map, orbit)| {
             layer_map.info().max_layer > 0
                 && symmetric_twist_system_component.axis_has_twists(orbit.first)
+                && (!layer_map.covers_whole_space() || layer_map.info().max_layer > 1)
         })
-        .flat_map(|(layer_map, orbit)| {
-            orbit
-                .axes()
-                .filter(|&axis| !layer_map.covers_whole_space() || layer_map.info().max_layer > 1)
-        })
+        .flat_map(|(_layer_map, orbit)| orbit.axes())
         .collect();
 
         let mut mesh = shape.build_mesh()?;

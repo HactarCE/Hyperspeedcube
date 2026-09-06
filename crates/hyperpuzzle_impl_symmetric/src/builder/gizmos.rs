@@ -22,7 +22,7 @@ pub fn build_3d_gizmo(
 
     let mut space = Space::new(3)?;
     let mut seen_axes = TiMask::new_empty(twists.axes.len());
-    for facet_id in gizmo_facets(&mut space, axis_vectors, twists)? {
+    for facet_id in gizmo_facets(&mut space, twists)? {
         let init_axis = *axis_from_vector
             .get(space.get(facet_id).hyperplane_pole()?.into_vector())
             .ok_or_eyre("unknown axis vector")?;
@@ -75,7 +75,7 @@ pub fn build_4d_gizmo(
 
     let mut space = Space::new(4)?;
     let mut seen_axes = TiMask::new_empty(twists.axes.len());
-    'facet: for facet_id in gizmo_facets(&mut space, axis_vectors, twists)? {
+    'facet: for facet_id in gizmo_facets(&mut space, twists)? {
         let init_axis_vector = space.get(facet_id).hyperplane_pole()?.into_vector();
         let init_axis = *axis_from_vector
             .get(init_axis_vector.clone())
@@ -251,7 +251,6 @@ pub fn build_4d_gizmo(
 /// as "cell."
 fn gizmo_facets(
     space: &mut Space,
-    axis_vectors: &PerAxis<Vector>,
     twists: &SymmetricTwistSystemComponent,
 ) -> Result<Vec<hypershape::FacetId>> {
     let mirror_planes = twists
@@ -262,7 +261,7 @@ fn gizmo_facets(
         .axis_vectors
         .vectors_by_id
         .iter_values()
-        .filter_map(|v| Hyperplane::from_pole(v));
+        .filter_map(Hyperplane::from_pole);
 
     let gizmo_polytope = space.add_folded_shape(mirror_planes, carve_planes)?;
     let gizmo_polytope = space.get(gizmo_polytope);
