@@ -40,8 +40,8 @@ fn def_chamfered_tetrahedron_ft(cube_depth, **kwargs) {
             #shape.points = cube.points
             #shape.facets = [cube.facet, r * tetrahedron.facet.unit]
             d = 0.75
-            #puz.layers.U = [1, cube_depth, -cube_depth, -1]
-            #puz.layers.UFR = [∞, (1 - (1-cube_depth)/√2) * 2/√3]
+            #puz.cuts.U = [cube_depth, -cube_depth]
+            #puz.cuts.UFR = [(1 - (1-cube_depth)/√2) * 2/√3]
         },
         **kwargs,
     )

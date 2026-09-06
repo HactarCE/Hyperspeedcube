@@ -284,13 +284,13 @@ impl PolytopeGeometry {
     }
 
     /// Returns the minimum and maximum heights of vertices in the polytope
-    /// along the given axis vector.
+    /// along the given normalized axis vector.
     ///
     /// Returns `None` if the polytope is empty.
-    pub(super) fn height_on_axis(&self, axis: &Vector) -> Option<(f64, f64)> {
+    pub(super) fn height_on_axis(&self, normalized_axis_vector: &Vector) -> Option<(f64, f64)> {
         self.verts
             .iter_rows()
-            .map(|v| std::iter::zip(axis.iter(), v).map(|(a, b)| a * b).sum()) // dot product
+            .map(|v| normalized_axis_vector.dot(v))
             .minmax_float()
             .into_option()
     }

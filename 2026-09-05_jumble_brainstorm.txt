@@ -1,0 +1,48 @@
+rhombic_dodecahedron_ft_1@1.jumbl.rot
+
+jumble_subsets = ["jumbl1", "jumbl2"]
+
+
+USE CASES (twist system)
+- axis symmetry reduction
+- removing jumble stops
+    - removing all jumble stops effectively removes all jumble moves
+
+USE CASES (puzzle definition)
+- selecting which twist subset to use
+
+.jumbl_rot
+.jumbl_refl
+.doc_rot
+.doc_refl
+
+.rot
+.refl
+
+
+
+subset_params = [
+    #{ doc = "Doctrinaire", jumbl = "Jumbling" },
+    #{ rot = "Rot", refl = "Rot + Refl" },
+]
+
+
+
+subset_params = [
+    "doc_jumbl",
+    "rot_refl",
+    #{ doc = "Doctrinaire", jumbl1 = "Jumbling (~42°)", jumbl2 = "Jumbling (~42° + 90°)" },
+    #{ rot = "Rot", refl = "Rot + Refl" },
+],
+
+
+TWIST SYSTEM:
+- chiral = true,
+- jumbling = true,
+
+FT Rhombic Triacontahedron (Jumbling Refle)
+FT Rhombic Triacontahedron (Doctrinaire Refle)
+FT Rhombic Triacontahedron (Jumbling)
+FT Rhombic Triacontahedron (Doctrinaire)
+
+jumbling = false // indicate a puzzle is always doctrinaire, even when the twist system is jumbling

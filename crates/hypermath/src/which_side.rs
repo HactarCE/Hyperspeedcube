@@ -81,6 +81,13 @@ impl WhichSide {
                 PointWhichSide::Outside => is_any_outside = true,
             }
         }
+        Self::from_bools(is_any_inside, is_any_outside)
+    }
+
+    /// Constructs a [`WhichSide`] from a boolean indicating whether any point
+    /// is inside the region and a boolean indicating whether any point is
+    /// outside the region.
+    pub fn from_bools(is_any_inside: bool, is_any_outside: bool) -> Self {
         match (is_any_inside, is_any_outside) {
             (true, true) => WhichSide::Split,
             (true, false) => WhichSide::Inside,

@@ -23,8 +23,9 @@ add_menu_entry(path = "Solid|2D|Polygon|FT|Layered", priority = 2,   id = "ngon_
 add_menu_entry(path = "Solid|2D|Polygon|FT|Astral",  priority = 1,   id = "ngon_ft_astral")
 
 add_menu_entry(path = "Solid|2D|Polygon|VT",   priority = 0,   next_inline = "Depth")
-add_menu_entry(path = "Solid|2D|Polygon|VT|Adjacent", priority = 1,   id = "ngon_vt_adj")
-add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     priority = 0,   id = "ngon_vt_half")
+add_menu_entry(path = "Solid|2D|Polygon|VT|Adjacent", priority = 3,   id = "ngon_vt_adj")
+add_menu_entry(path = "Solid|2D|Polygon|VT|Half",     priority = 2,   id = "ngon_vt_half")
+add_menu_entry(path = "Solid|2D|Polygon|VT|Layered",  priority = 1,   id = "ngon_vt_layered")
 
 add_menu_entry(path = "Solid|2D|Polygon|FT+VT", priority = -1,  id = "ngon_ft_vt")
 
@@ -58,7 +59,7 @@ add_twist_system(id = "ngon_vt@1", name = "VT Polygon Generator",
                 shape = @shapes/2d/polygon.new(n)
                 #twists.sym = shape.sym
                 #twists.points = shape.points
-                #twists.axes = [shape.vertex]
+                #twists.axes = [shape.vertex.unit * shape.facet.mag]
                 #twists.stabilizer_twists = [[["AB", "A"], shape.edge_length/2]]
                 #twists.stabilizer_sets = [[["A", "B"], lerp(shape.circumradius, shape.inradius, GIZMO_VERTEX_FACTOR)]]
             },
@@ -109,7 +110,15 @@ add_puzzle(id = "square_ft_layered@1", name = "FT Square Generator",
     gen = fn(layers) { "ngon_ft_layered(4,${layers})" },
 )
 
-add_puzzle(id = "triangle_layered@1", name = "Layered FT Triangle Generator",
+add_puzzle(id = "square_vt_layered@1", name = "VT Square Generator",
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 2,
+    params = [layers_param],
+    gen = fn(layers) { "ngon_vt_layered(4,${layers})" },
+)
+
+add_puzzle(id = "triangle_layered@1", name = ["Layered FT Triangle Generator", "Triminx Generator"],
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 2,
@@ -144,8 +153,10 @@ add_puzzle(id = "ngon_ft_shallow@1", name = "Shallow-Cut FT Polygon Generator",
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {
-                @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.A = @shapes/2d/polygon.new(n).shallow_cut_depths(divisions)
+                shape = @shapes/2d/polygon.new(n)
+                @util.build_symmetric_shape(shape)
+                #puz.cuts.A = shape.shallow_ft_cuts(divisions)
+                #puz.is_full_cut.A = n == 3
             },
         }
     },
@@ -164,7 +175,8 @@ add_puzzle(id = "ngon_ft_shallow@1", name = "Shallow-Cut FT Polygon Generator",
 //             twists = "ngon_ft(${n})",
 //             build = fn() {
 //                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-//                 #puz.layers.A = @shapes/2d/polygon.new(n).deep_cut_depths(divisions)
+//                 #puz.cuts.A = @shapes/2d/polygon.new(n).deep_ft_cuts(divisions)
+//                 #puz.is_full_cut.A = n == 3
 //             }
 //         }
 //     },
@@ -182,7 +194,8 @@ add_puzzle(id = "ngon_ft_half@1", name = "Half-Cut FT Polygon Generator",
             twists = "ngon_ft(${n})",
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.A = [∞, 0, -∞]
+                #puz.cuts.A = [0]
+                #puz.is_full_cut.A = true
             },
         }
     },
@@ -194,13 +207,17 @@ add_puzzle(id = "ngon_ft_layered@1", name = "Layered FT Polygon Generator",
     ndim = 2,
     params = [edges_param, layers_param],
     gen = fn(n, layers) {
+        name = ["Layered {${n}}${layers}"]
+        if n == 3 { name ++= ["Triminx ${layers}"] }
         return #{
-            name = "Layered {${n}}${layers}",
+            name = name,
             colors = "ngon(${n})",
             twists = "ngon_ft(${n})",
             build = fn() {
-                @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.A = @shapes/2d/polygon.new(n).layered_cut_depths(layers)
+                shape = @shapes/2d/polygon.new(n)
+                @util.build_symmetric_shape(shape)
+                #puz.cuts.A = shape.layered_ft_cuts(layers-1)
+                #puz.is_full_cut.A = true
             },
         }
     },
@@ -222,7 +239,8 @@ add_puzzle(id = "ngon_ft_astral@1", name = "Astral FT Polygon Generator",
                 min_angle = π/n * (floor(n/2)+1) // angle between nearest non-parallel planes
                 recip_max_intersection_radius = cos(min_angle) // reciprocal of outermost intersection, assuming cut depth = 1
                 cut_depth_lower_bound = cos(min_angle) * if floor(n/2).is_odd() { shape.inradius } else { shape.circumradius }
-                #puz.layers.A = [∞, cut_depth_lower_bound/2]
+                #puz.cuts.A = [cut_depth_lower_bound/2]
+                #puz.is_full_cut.A = n == 3
             },
         }
     },
@@ -239,8 +257,10 @@ add_puzzle(id = "ngon_vt_adj@1", name = "Adjacent-Cut VT Polygon Generator",
             colors = "ngon(${n})",
             twists = "ngon_vt(${n})",
             build = fn() {
-                @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.AB = @shapes/2d/polygon.new(n).adjacent_vt_cut_depths(divisions)
+                shape = @shapes/2d/polygon.new(n)
+                @util.build_symmetric_shape(shape)
+                #puz.cuts.AB = shape.adjacent_vt_cuts(divisions)
+                #puz.is_full_cut.AB = n == 3
             },
         }
     },
@@ -258,7 +278,29 @@ add_puzzle(id = "ngon_vt_half@1", name = "Half-Cut VT Polygon Generator",
             twists = "ngon_vt(${n})",
             build = fn() {
                 @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.AB = [∞, 0, -∞]
+                #puz.cuts.AB = [0]
+                #puz.is_full_cut.AB = true
+            },
+        }
+    },
+)
+
+add_puzzle(id = "ngon_vt_layered@1", name = "Layered VT Polygon Generator",
+    tags = #{ author = "Andrew Farkas" },
+    engine = "symmetric",
+    ndim = 2,
+    params = [edges_param, layers_param],
+    gen = fn(n, layers) {
+        return #{
+            name = "Layered VT {${n}}${layers}",
+            colors = "ngon(${n})",
+            twists = "ngon_vt(${n})",
+            build = fn() {
+                shape = @shapes/2d/polygon.new(n)
+                @util.build_symmetric_shape(shape)
+                print(shape.layered_vt_cuts(layers-1))
+                #puz.cuts.AB = shape.layered_vt_cuts(layers-1)
+                #puz.is_full_cut.AB = true
             },
         }
     },
@@ -276,10 +318,11 @@ add_puzzle(id = "ngon_ft_vt@1", name = "FT+VT Polygon Generator",
             twists = "ngon_ft_vt(${n})",
             build = fn() {
                 shape = @shapes/2d/polygon.new(n)
-                @util.build_symmetric_shape(@shapes/2d/polygon.new(n))
-                #puz.layers.A = @shapes/2d/polygon.new(n).shallow_cut_depths(3)
-                shallow_cut_depth = #puz.layers.A[1]
-                #puz.layers.AB = [∞, shallow_cut_depth * shape.circumradius/shape.inradius]
+                @util.build_symmetric_shape(shape)
+                #puz.cuts.A = shape.shallow_ft_cuts(3)
+                shallow_cut_depth = #puz.cuts.A[0]
+                #puz.cuts.AB = shape.polygon [shallow_cut_depth * shape.circumradius/shape.inradius]
+                #puz.is_full_cut.AB
             },
         }
     },

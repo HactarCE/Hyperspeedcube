@@ -26,7 +26,8 @@ add_puzzle(id = "line@1", name = "Line",
             name = "{}" ++ if layers == 3 { "" } else { " ${layers}" },
             build = fn() {
                 @util.build_symmetric_shape(@shapes/1d/line.new())
-                #puz.layers.A = @util/layers.inclusive(layers)
+                #puz.cuts.A = @util/cuts.spaced(layers-1)
+                #puz.is_full_cut.A = true
             },
         }
     },

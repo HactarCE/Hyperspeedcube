@@ -707,7 +707,7 @@ impl<'a> EvalCtx<'a> {
                 // Some operators cannot be implemented as functions because
                 // they don't always evaluate both arguments, so we implement
                 // them here.
-                fn unpack_binop_args<const N: usize>(
+                fn unpack_op_args<const N: usize>(
                     op: Span,
                     args: &[ast::Node],
                 ) -> Result<&[ast::Node; N]> {
@@ -715,27 +715,31 @@ impl<'a> EvalCtx<'a> {
                 }
                 match &self[*op] {
                     "??" => {
-                        let [l, r] = unpack_binop_args(*op, args)?;
+                        let [l, r] = unpack_op_args(*op, args)?;
                         match self.eval(l)?.data {
                             ValueData::Null => Ok(self.eval(r)?.data),
                             other => Ok(other),
                         }
                     }
                     "and" => {
-                        let [l, r] = unpack_binop_args(*op, args)?;
+                        let [l, r] = unpack_op_args(*op, args)?;
                         Ok((self.eval(l)?.to()? && self.eval(r)?.to()?).into())
                     }
                     "or" => {
-                        let [l, r] = unpack_binop_args(*op, args)?;
+                        let [l, r] = unpack_op_args(*op, args)?;
                         Ok((self.eval(l)?.to()? || self.eval(r)?.to()?).into())
                     }
                     "xor" => {
-                        let [l, r] = unpack_binop_args(*op, args)?;
+                        let [l, r] = unpack_op_args(*op, args)?;
                         Ok((self.eval(l)?.to::<bool>()? ^ self.eval(r)?.to::<bool>()?).into())
                     }
                     "not" => {
-                        let [arg] = unpack_binop_args(*op, args)?;
+                        let [arg] = unpack_op_args(*op, args)?;
                         Ok((!self.eval(arg)?.to::<bool>()?).into())
+                    }
+                    "is" => {
+                        let [l, r] = unpack_op_args(*op, args)?;
+                        Ok(self.eval(l)?.is_type(&self.eval(r)?.to::<Type>()?).into())
                     }
                     _ => {
                         let op_fn = self

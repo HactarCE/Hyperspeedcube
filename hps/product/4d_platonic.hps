@@ -187,17 +187,19 @@ common_4simplex = #{
 
 fn build_4simplex(vt_cut_depths: List[Num]) {
     @util.build_symmetric_shape(@shapes/4d/4simplex.new())
-    vertex_layers = [∞] ++ vt_cut_depths ++ [-∞]
-    facet_layers = @util/layers.opposite(vertex_layers)
-    #puz.layers.A = facet_layers
-    #puz.layers.βA = vertex_layers
+    vertex_layers = vt_cut_depths
+    facet_layers = @util/cuts.opposite(vertex_layers)
+    #puz.cuts.A = facet_layers
+    #puz.cuts.βA = vertex_layers
+    #puz.is_full_cut.A = true
+    #puz.is_full_cut.βA = true
 }
 
 add_puzzle_list_entry("4simplex_a(1)")
 add_puzzle(id = "4simplex_a@1", name = "N-Layer 4-Simplex A",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex A",
-        build = fn() { build_4simplex(rev(@util/layers.inclusive_exclusive(2/3, 3/2, cuts))) },
+        build = fn() { build_4simplex(@util/cuts.spaced(cuts, [3/2, 2/3], [1, 0])) },
     } },
     **common_4simplex,
 )
@@ -206,7 +208,7 @@ add_puzzle_list_entry("4simplex_b(1)")
 add_puzzle(id = "4simplex_b@1", name = "N-Layer 4-Simplex B",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex B",
-        build = fn() { build_4simplex(@util/layers.exclusive(2/3, 1/4, cuts, padding=1/2)) },
+        build = fn() { build_4simplex(@util/cuts.spaced(cuts, [2/3, 1/4], 1/2)) },
     } },
     **common_4simplex,
 )
@@ -220,7 +222,7 @@ add_puzzle_list_entry("4simplex_d(1)")
 add_puzzle(id = "4simplex_d@1", name = "N-Layer 4-Simplex D",
     params = [cuts_param], gen = fn(cuts) { #{
         name = n_layer_prefix(cuts + 1, default = 2) ++ "4-Simplex D",
-        build = fn() { build_4simplex(@util.layers.inclusive_exclusive(0, -1, cuts)) },
+        build = fn() { build_4simplex(@util/cuts.spaced(cuts, [0, -1], [0, 1])) },
     } },
     **common_4simplex,
 )
@@ -229,7 +231,7 @@ add_puzzle_list_entry("4simplex_pyraminx(3)")
 add_puzzle(id = "4simplex_pyraminx@1", name = "N-Layer 4-Simplex Pyraminx",
     params = [layers_param], gen = fn(layers) { #{
         name = n_layer_prefix(layers) ++ "4-Simplex Pyraminx",
-        build = fn() { build_4simplex(@util.layers.exclusive(4, -1, layers-1)) },
+        build = fn() { build_4simplex(@util/cuts.spaced(layers-1, [4, -1])) },
     } },
     **common_4simplex,
 )
@@ -258,7 +260,8 @@ add_puzzle(id = "hypercube_ft@1", name = ["N-Layer FT Hypercube", "n^4", "NxNxNx
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/4d/hypercube.new())
-                #puz.layers.R = @util/layers/ft.cube(4, layers)
+                #puz.cuts.R = @util/cuts/ft.cube(4, layers)
+                #puz.is_full_cut.R = true
             },
         }
     }
@@ -277,7 +280,8 @@ fn def_24cell_ft(cut_depths: List[Num], **kwargs) {
         twists = "24cell_ft",
         build = fn() {
             @util.build_symmetric_shape(@shapes/4d/24cell.new())
-            #puz.layers.A = @util/layers.with_opposite([∞] ++ cut_depths)
+            #puz.cuts.A = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.A = true
         },
         **kwargs,
     )
@@ -309,7 +313,8 @@ fn def_120cell_ft(cut_depths: List[Num], **kwargs) {
         twists = "120cell_ft",
         build = fn() {
             @util.build_symmetric_shape(@shapes/4d/120cell.new())
-            #puz.layers.II = @util/layers.with_opposite([∞] ++ cut_depths)
+            #puz.cuts.II = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.II = true
         },
         **kwargs,
     )
@@ -332,7 +337,8 @@ fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
         twists = "600cell_ft",
         build = fn() {
             @util.build_symmetric_shape(@shapes/4d/600cell.new())
-            #puz.layers.ODLOFOIOL = @util/layers.with_opposite([∞] ++ cut_depths)
+            #puz.cuts.ODLOFOIOL = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.ODLOFOIOL = true
         },
         **kwargs,
     )

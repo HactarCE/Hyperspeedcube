@@ -17,6 +17,7 @@ mod builder;
 mod cut_distances;
 mod geometry;
 pub mod hps;
+mod layer_map;
 mod named_point;
 mod spec;
 mod stabilizer_family;
@@ -26,6 +27,7 @@ use builder::{ColorSystemDisjointUnion, PuzzleProduct, TwistSystemProduct};
 pub use cut_distances::CutDistances;
 use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
+use layer_map::{IntersectedLayers, LayerMap};
 pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
 pub use spec::*;
 pub use stabilizer_family::StabilizerFamily;
@@ -44,10 +46,10 @@ pub fn disjoint_union_base_id() -> VersionedCatalogWord {
 
 hypuz_util::typed_index_struct! {
     /// ID of an orbit of axes under twist system symmetry.
-    pub(crate) struct AxisOrbit(u16);
+    pub struct AxisOrbit(u16);
 }
 
-pub(crate) type PerAxisOrbit<T> = TiVec<AxisOrbit, T>;
+pub type PerAxisOrbit<T> = TiVec<AxisOrbit, T>;
 
 fn product_id<'a>(mut factor_ids: impl ExactSizeIterator<Item = &'a CatalogId>) -> CatalogId {
     if factor_ids.len() == 1 {
@@ -385,9 +387,8 @@ impl Attitude {
 pub struct ProductPuzzleState {
     ty: Arc<Puzzle>,
     twists: Arc<SymmetricTwistSystemComponent>,
-    piece_grip_signatures: Arc<PerPiece<PerAxis<Option<LayerRange>>>>,
     piece_points: Arc<PerPiece<Vec<Point>>>,
-    axis_layer_ranges: Arc<PerAxis<PerLayer<[Float; 2]>>>,
+    layer_maps: Arc<PerAxis<LayerMap>>,
     axis_vectors: Arc<NdEuclidAxisVectors>,
     /// Current jumble stop for each layer on each axis, or `None` if this
     /// puzzle has no jumbling.
@@ -467,27 +468,15 @@ impl PuzzleState for ProductPuzzleState {
     }
 
     fn compute_grip(&self, axis: Axis, layers: &LayerMask) -> PerPiece<WhichSide> {
-        self.piece_attitudes.map_ref(
-            |piece, _| match self.piece_layer_range_on_axis(piece, axis) {
-                (piece_layers, piece_is_outside_layers) => WhichSide::from_points(
-                    piece_layers
-                        .into_iter()
-                        .map(|l| {
-                            if layers.contains(l) {
-                                PointWhichSide::Inside
-                            } else {
-                                PointWhichSide::Outside
-                            }
-                        })
-                        .chain(piece_is_outside_layers.then_some(PointWhichSide::Outside)),
-                ),
-            },
-        )
+        self.piece_attitudes.map_ref(|piece, _| {
+            self.piece_layer_range_on_axis(piece, axis)
+                .which_side(layers)
+        })
     }
 
     fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        let (layer_mask, outside_layers) = self.piece_layer_range_on_axis(piece, axis);
-        (!outside_layers).then_some(layer_mask)
+        let intersecting_layers = self.piece_layer_range_on_axis(piece, axis);
+        (!intersecting_layers.outside_any_layer).then_some(intersecting_layers.layers)
     }
 
     fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
@@ -549,7 +538,7 @@ impl ProductPuzzleState {
     /// Returns the set of layers on the axis that contain any piece geometry,
     /// and a boolean indicating whether the piece contains any geometry outside
     /// the axis layers.
-    fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> (LayerMask, bool) {
+    fn piece_layer_range_on_axis(&self, piece: Piece, axis: Axis) -> IntersectedLayers {
         let attitude = &self.piece_attitudes[piece];
         let inverse_attitude = attitude.motor(&self.twists.group).reverse();
         let Some(transformed_axis_vector) = inverse_attitude
@@ -558,7 +547,7 @@ impl ProductPuzzleState {
         else {
             return Default::default(); // bad axis vector
         };
-        let Some((min, mut max)) = self.piece_points[piece]
+        let Some((min, max)) = self.piece_points[piece]
             .iter()
             .map(|p| transformed_axis_vector.dot(p.as_vector()))
             .minmax_float()
@@ -567,7 +556,9 @@ impl ProductPuzzleState {
             return Default::default(); // no geometry
         };
 
-        layers_containing_range(&self.axis_layer_ranges[axis], min, max)
+        self.layer_maps[axis]
+            .intersecting_layers(min..max)
+            .unwrap_or_default()
     }
 }
 

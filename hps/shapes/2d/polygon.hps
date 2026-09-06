@@ -33,33 +33,30 @@ export fn new(n: Nat, t: Transform) -> Map {
         names = sym.names(point(facet), point_names),
     }]
 
-    export fn shallow_cut_depths(layer_count: Nat) -> List[Num] {
+    export fn shallow_ft_cuts(cut_count: Nat) -> List[Num] {
         if n == 3 {
-            return @util/layers.even_odd(inradius, 0, layer_count) ++ [-∞]
+            return @util/cuts.even_odd(cut_count, [inradius, 0])
         } else {
             max_cut_depth = inradius - ft_edge_depth/2
-            return @util/layers.even_odd(inradius, max_cut_depth, layer_count)
+            return @util/cuts.even_odd(cut_count, [inradius, max_cut_depth])
         }
     }
 
-    max_deep_cut_depth = inradius - ft_edge_depth
-    export fn deep_cut_depths(layer_count: Nat) -> List[Num] {
-        @util/layers.inclusive(inradius, max_deep_cut_depth, layer_count)
+    export fn deep_ft_cuts(cut_count: Nat) -> List[Num] {
+        @util/cuts.spaced(cut_count, [inradius, inradius - ft_edge_depth], 0)
     }
 
-    export fn layered_cut_depths(layer_count: Nat) -> List[Num] {
-        @util/layers.inclusive(inradius, inradius - vertex_height, layer_count)
+    export fn layered_ft_cuts(cut_count: Nat) -> List[Num] {
+        @util/cuts.spaced(cut_count, [inradius, -if n.is_even() { inradius } else { circumradius }])
     }
 
-    if n == 3 {
-        export fn opposite_full_cut_depths(layer_count: Nat) -> List[Num] {
-            @util/layers.inclusive(-max_cut_depth, -inradius, layer_count)
-        }
+    export fn layered_vt_cuts(cut_count: Nat) -> List[Num] {
+        @util/cuts.spaced(cut_count, [circumradius, -if n.is_even() { circumradius } else { inradius }])
     }
 
     max_adjacent_vt_cut_depth = ft_edge_depth - inradius
-    export fn adjacent_vt_cut_depths(layer_count: Nat) -> List[Num] {
-        @util/layers.inclusive(circumradius, max_adjacent_vt_cut_depth, layer_count)
+    export fn adjacent_vt_cuts(cut_count: Nat) -> List[Num] {
+        @util/cuts.spaced(cut_count, [circumradius, circumradius - vt_edge_depth], [1, 0])
     }
 }
 

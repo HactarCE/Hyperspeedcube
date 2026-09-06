@@ -290,6 +290,25 @@ impl Motor {
             ret
         }
     }
+    /// Lowers the motor into the lowest-dimensional space possible while
+    /// representing the same transform.
+    #[must_use]
+    pub fn to_min_ndim(&self) -> Self {
+        let min_ndim = self
+            .nonzero_terms()
+            .map(|t| t.axes.min_ndim())
+            .max()
+            .unwrap_or(0);
+        if min_ndim == self.ndim {
+            self.clone()
+        } else {
+            let mut ret = Self::zero(min_ndim, self.is_reflection);
+            for term in self.nonzero_terms() {
+                ret += term;
+            }
+            ret
+        }
+    }
 
     /// Returns whether the motor is equivalent to another motor.
     pub fn is_equivalent_to(&self, other: &Self) -> bool {

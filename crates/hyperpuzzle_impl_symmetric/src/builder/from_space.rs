@@ -93,7 +93,7 @@ impl PuzzleShapeFactorBuilder {
             .hyperplane_to_surface
             .insert(plane.clone(), new_surface);
         if old_surface.is_some() {
-            bail!("duplicate surfaces");
+            bail!("duplicate surfaces at {}", plane);
         }
         let cut = hypershape::Cut::carve(plane);
         self.cut(cut)?;
@@ -251,7 +251,6 @@ impl PuzzleShapeFactorBuilder {
                             })
                         })
                         .try_collect()?,
-                    grip_signature: PerAxis::new(), // will be computed later
                 };
 
                 eyre::Ok(
@@ -277,11 +276,7 @@ impl PuzzleShapeFactorBuilder {
                                         }),
                                     })
                                     .collect();
-                                PieceData {
-                                    polytope,
-                                    facets,
-                                    grip_signature: PerAxis::new(), // will be computed later
-                                }
+                                PieceData { polytope, facets }
                             }
                         })
                         .collect_vec_list(),

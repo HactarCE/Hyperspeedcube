@@ -148,7 +148,10 @@ impl TransformByMotor for HpsSymmetry {
         ret.coxeter_group = self
             .coxeter_group
             .as_ref()
-            .and_then(|c| c.transform_by(&m.euclidean_rotation_matrix()).ok())
+            .and_then(|c| {
+                c.transform_by(&m.to_min_ndim().euclidean_rotation_matrix())
+                    .ok()
+            })
             .map(Arc::new);
         ret
     }

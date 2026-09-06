@@ -1,3 +1,4 @@
+/// Returns cuts for an N-dimensional FT cube.
 export fn cube(ndim: Nat, layers: Nat) -> List[Num] {
     REALISITIC_PROPORTIONS = true
     CORNER_STALK_SIZE = 0.1
@@ -10,9 +11,10 @@ export fn cube(ndim: Nat, layers: Nat) -> List[Num] {
         mechanical_limit = 1 / √(ndim-1)
     }
     outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-    return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
+    return @util/cuts.spaced(layers-1, outermost_cut, 0)
 }
 
+/// Returns cuts for an N-dimensional shallow FT simplex.
 export fn simplex_shallow(ndim: Nat, cuts: Nat) -> List[Num] {
     REALISITIC_PROPORTIONS = true
     PADDING = 0.25
@@ -27,17 +29,20 @@ export fn simplex_shallow(ndim: Nat, cuts: Nat) -> List[Num] {
     // Even though in 3D it is safe to cut all the way to -1/3, canon-cut puzzle
     // products require the presence of the core so we cannot cut below the
     // origin (i.e., 0).
-    return [∞] ++ @util/layers.exclusive(outer_limit, 0, cuts, padding=PADDING) ++ [-∞]
+    return @util/cuts.spaced(cuts, [outer_limit, 0], PADDING)
 }
 
+/// Returns cuts for a shallow FT octahedron.
+///
+/// These cuts ensure that all inner layers are isomorphic.
 export fn octahedron_shallow(cuts: Nat) -> List[Num] {
     if cuts < 1 { return [] }
 
     // These are not realistic for large layer counts but it is usable.
     center = 1/2
     half_range = 1/6
-    depths = [1] ++ @util/layers.exclusive_centered(center, half_range, cuts)
-    return @util/layers.with_opposite(depths)
+    depths = @util/cuts.spaced(cuts, [center + half_range, center - half_range])
+    return @util/cuts.with_opposite(depths)
 }
 
 //--------------//
@@ -57,9 +62,8 @@ export fn dodecahedron_shallow(cuts: Nat) -> List[Num] {
     AKKEI_PROPORTIONS = false
     CORNER_STALK_SIZE = 0.03
 
-    depths = [1]
     if cuts == 1 {
-        depths ++= [if AKKEI_PROPORTIONS { lerp(1/φ, 1, 1/(2 * φ^2 + 1)) } else { 1/φ }]
+        depths = [if AKKEI_PROPORTIONS { lerp(1/φ, 1, 1/(2 * φ^2 + 1)) } else { 1/φ }]
     } else if cuts > 1 {
         aesthetic_limit = 1 - (1 - MEGAMINX_DEPTH)/cuts
         mechanical_limit = 1
@@ -73,9 +77,9 @@ export fn dodecahedron_shallow(cuts: Nat) -> List[Num] {
         } else {
             1/φ
         }
-        depths ++= @util/layers.inclusive(outermost_cut, innermost_cut, cuts - 1)
+        depths = @util/cuts.spaced(cuts, [outermost_cut, innermost_cut], 0)
     }
-    return @util/layers.with_opposite(depths)
+    return @util/cuts.with_opposite(depths)
 }
 
 export fn curvy_starminx(cuts: Nat) -> List[Num] {
@@ -83,8 +87,8 @@ export fn curvy_starminx(cuts: Nat) -> List[Num] {
 
     mid_depth = 1/3
     half_range = √5 - 2 - 1/3 + 0.15
-    depths = [1] ++ @util/layers.exclusive_centered(mid_depth, half_range, cuts)
-    return @util/layers.with_opposite(depths)
+    depths = @util/cuts.spaced(cuts, [mid_depth + half_range, mid_depth - half_range])
+    return @util/cuts.with_opposite(depths)
 }
 
 export fn pentultimate(layers: Nat) -> List[Num] {
@@ -100,7 +104,7 @@ export fn pentultimate(layers: Nat) -> List[Num] {
         mechanical_limit = (-10 + 7 * √5) / 29
     }
     outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-    return @util/layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
+    return @util/cuts.spaced(layers-1, outermost_cut)
 }
 
 //-------------//

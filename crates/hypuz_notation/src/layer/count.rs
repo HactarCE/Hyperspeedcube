@@ -11,6 +11,8 @@ use super::{Layer, LayerRange, SignedLayer};
 pub struct AxisLayersInfo {
     /// Number of layers on the axis, which is equal to the maximum positive
     /// layer.
+    ///
+    /// This may be zero to indictate that there are no layers on the axis.
     pub max_layer: u16,
     /// Whether to allow negative layer numbers to index from the opposite side.
     /// Negative layer numbers are only allowed inside `{}` layer sets. See

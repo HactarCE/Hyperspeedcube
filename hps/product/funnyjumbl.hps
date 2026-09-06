@@ -1,0 +1,30 @@
+use * from euclid
+
+add_twist_system(
+    id = "cheese_jumble_test",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        polygon = @shapes/2d/polygon.new(12)
+        #twists.sym = cd([12,2])
+        #twists.points = [vec(0,0,1),polygon.facet]
+        #twists.axes = [vec(0,0,polygon.facet.mag), polygon.facet]
+        #twists.jumble_moves.ZZC = #{ j = "ZZF->ZZA" }
+        #twists.jumble_stops.ZZC = ["j"]
+    }
+)
+
+add_puzzle(
+    id = "cheese_jumble_test",
+    engine = "symmetric",
+    ndim = 3,
+    twists = "cheese_jumble_test",
+    build = fn() {
+        polygon = @shapes/2d/polygon.new(12)
+        #shape.sym = cd([12,2])
+        #shape.points = [vec(0,0,1),polygon.facet]
+        #shape.facets = [vec(0,0,polygon.facet.mag), polygon.facet]
+        #puz.cuts.ZZA = [1.75]
+        #puz.cuts.ZZC = [1.75]
+    },
+)

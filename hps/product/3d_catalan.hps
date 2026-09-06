@@ -73,7 +73,8 @@ fn def_rhombic_dodecahedron(cut_depths, **kwargs) {
             #shape.sym = cube.sym
             #shape.points = cube.points
             #shape.facets = [cube.edge.unit]
-            #puz.layers.RF = @util/layers.with_opposite([1] ++ cut_depths)
+            #puz.cuts.RF = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.RF = true
         },
         **kwargs,
     )
@@ -137,7 +138,8 @@ fn def_rhombic_triacontahedron(cut_depths, **kwargs) {
             #shape.sym = dodecahedron.sym
             #shape.points = dodecahedron.points
             #shape.facets = [dodecahedron.edge]
-            #puz.layers.RF = @util/layers.with_opposite([∞] ++ cut_depths.map(fn (x) { x * dodecahedron.edge.mag }))
+            #puz.cuts.RF = @util/cuts.with_opposite(cut_depths.map(fn (x) { x * dodecahedron.edge.mag }))
+            #puz.is_full_cut.RF = true
         },
         **kwargs,
     )

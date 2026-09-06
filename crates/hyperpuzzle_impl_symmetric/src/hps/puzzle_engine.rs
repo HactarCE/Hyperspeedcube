@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
-use hypermath::Float;
+use hypermath::collections::RangeMap;
 use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
 use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::builtins::catalog::tags::tags_from_map;
@@ -12,11 +12,12 @@ use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
     Value, ValueData, pop_kwarg, unpack_kwargs,
 };
+use hypuz_notation::Layer;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::builder::*;
 use crate::{CutDistances, NamedPointOrbitSpec};
+use crate::{PerAxisOrbit, builder::*};
 
 pub struct SymmetricPuzzleEngine;
 
@@ -125,7 +126,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                 }));
                 scope.special.puz = Arc::new(Mutex::new({
                     let mut m = Map::new();
-                    m.insert("layers".into(), super::new_hps_map());
+                    m.insert("cuts".into(), super::new_hps_map());
+                    m.insert("is_full_cut".into(), super::new_hps_map());
                     ValueData::Map(Arc::new(m)).at(BUILTIN_SPAN)
                 }));
                 tx.eval_blocking(Arc::new(scope), move |ctx| {
@@ -180,18 +182,23 @@ impl HpsEngine for SymmetricPuzzleEngine {
                         std::mem::take(&mut *ctx.scope.special.puz.lock()).to::<Arc<Map>>()?,
                     );
 
-                    build_ctx.push_task("parsing cut distances specification");
-                    let (layers_spec, layers_spec_span) =
+                    let axis_orbit_count = match &twists {
+                        Some(t) => t.axis_orbits().count(),
+                        None => 0,
+                    };
+
+                    build_ctx.push_task("parsing negative layer specs");
+                    let mut opt_negative_layers =
+                        PerAxisOrbit::<Option<bool>>::new_with_len(axis_orbit_count);
+                    let (negative_layers_spec, negative_layers_spec_span) =
                         pop_map_key_in_special_var::<Spanned<Arc<Map>>>(
                             &mut puz_map,
                             build_span,
                             SpecialVar::Puz,
-                            "layers",
+                            "is_full_cut",
                         )?;
-                    let axis_orbit_cut_distances;
                     if let Some(twists) = &twists {
-                        let mut layer_floats = vec![None; twists.axis_orbits().count()];
-                        for (k, v) in &*layers_spec {
+                        for (k, v) in &*negative_layers_spec {
                             let axis = twists
                                 .axis_from_name(k)
                                 .ok_or_else(|| format!("no axis named {k:?}"))
@@ -200,28 +207,66 @@ impl HpsEngine for SymmetricPuzzleEngine {
                                 .orbit_containing_axis(axis)
                                 .ok_or("axis has no orbit")
                                 .at(v.span)?;
-                            if layer_floats[i].is_some() {
-                                ctx.warn_at(
-                                    v.span,
-                                    format!("duplicate layers for orbit of axis {k:?}"),
-                                );
+                            if opt_negative_layers[i].is_some() {
+                                Err("duplicate is_full_cut for axis orbit".at(v.span))?;
                             }
-                            layer_floats[i] = Some(v.ref_to::<Vec<Float>>()?);
+                            opt_negative_layers[i] = Some(v.ref_to()?);
                         }
-                        axis_orbit_cut_distances = layer_floats
-                            .into_iter()
-                            .map(Option::unwrap_or_default)
-                            .map(CutDistances::new)
-                            .try_collect()?;
-                    } else {
-                        if !layers_spec.is_empty() {
-                            ctx.warn_at(
-                                layers_spec_span,
-                                "ignoring `layers` because there are no axes",
-                            );
-                        }
-                        axis_orbit_cut_distances = vec![];
+                    } else if !negative_layers_spec.is_empty() {
+                        ctx.warn_at(
+                            negative_layers_spec_span,
+                            "ignoring `is_full_cut` because there are no axes",
+                        );
                     }
+                    let axis_orbit_is_full_cut =
+                        opt_negative_layers.map(|_, opt| opt.unwrap_or(false));
+                    build_ctx.pop_task();
+
+                    build_ctx.push_task("parsing cuts specification");
+                    let (cuts_spec, cuts_spec_span) =
+                        pop_map_key_in_special_var::<Spanned<Arc<Map>>>(
+                            &mut puz_map,
+                            build_span,
+                            SpecialVar::Puz,
+                            "cuts",
+                        )?;
+                    let mut opt_cut_distances =
+                        PerAxisOrbit::<Option<CutDistances>>::new_with_len(axis_orbit_count);
+                    if let Some(twists) = &twists {
+                        for (k, v) in &*cuts_spec {
+                            let axis = twists
+                                .axis_from_name(k)
+                                .ok_or_else(|| format!("no axis named {k:?}"))
+                                .at(v.span)?;
+                            let i = twists
+                                .orbit_containing_axis(axis)
+                                .ok_or("axis has no orbit")
+                                .at(v.span)?;
+                            if opt_cut_distances[i].is_some() {
+                                Err("duplicate cuts for axis orbit".at(v.span))?;
+                            }
+                            opt_cut_distances[i] = Some(CutDistances::new(v.ref_to()?).at(v.span)?);
+                        }
+                    } else if !cuts_spec.is_empty() {
+                        ctx.warn_at(cuts_spec_span, "ignoring `cuts` because there are no axes");
+                    }
+                    let axis_orbit_cut_distances =
+                        opt_cut_distances.map(|_, opt| opt.unwrap_or_default());
+                    build_ctx.pop_task();
+
+                    build_ctx.push_task("building layer maps");
+                    let opt_layer_maps =
+                        PerAxisOrbit::<Option<RangeMap<Option<Layer>>>>::new_with_len(
+                            axis_orbit_count,
+                        );
+                    // TODO: parse layer specs
+                    let axis_orbit_layer_maps = opt_layer_maps.try_map(|orbit_index, opt| {
+                        opt.map(Ok).unwrap_or_else(|| {
+                            axis_orbit_cut_distances[orbit_index]
+                                .implied_layers(axis_orbit_is_full_cut[orbit_index])
+                                .at(cuts_spec_span)
+                        })
+                    })?;
                     build_ctx.pop_task();
 
                     Ok(Arc::new(
@@ -239,6 +284,8 @@ impl HpsEngine for SymmetricPuzzleEngine {
                                     .transpose()?,
                                 twists,
                                 axis_orbit_cut_distances,
+                                axis_orbit_layer_maps,
+                                axis_orbit_is_full_cut,
                             },
                             &mut build_ctx.warn_fn(),
                         )

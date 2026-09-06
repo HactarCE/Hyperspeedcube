@@ -1,0 +1,92 @@
+export fn layered(layer_count: Nat) -> List[Num] {
+    (1..layer_count).map(fn(i) { lerp(1, -1, i / layer_count) })
+}
+
+export fn spaced(cut_count: Nat) { spaced(cut_count, 1) }
+export fn spaced(cut_count: Nat, endpoint: Num | List[Num]) { spaced(cut_count, endpoint, 1) }
+
+/// Returns evenly spaced cuts with padding on either side.
+///
+/// - `cut_count` is the number of cut depths returned.
+/// - `endpoint` describes the bounds of the cuts. Default: `1`
+///     - If `endpoint` is a `List[Num]`, then it must have length 2. Its two
+///       values `[start, end]` are used as endpoints.
+///     - If `endpoint` is `Num`, then `endpoint` and `-endpoint` are used as
+///       endpoints.
+/// - `padding` describes the amount of space between each endpoint and its
+///   nearest cut. Default: `1`
+///     - If `padding` is a `List[Num]`, then it must have length 2. Its two
+///       values `[start_padding, end_padding]` are used for padding around the
+///       `start` and `end` respectively.
+///     - If `padding` is a `Num`, then the same padding is used around both
+///       endpoints.
+///
+/// Padding values are measured in relatively terms as a proportion of a layer
+/// (i.e., the distance between cuts), _not_ absolute units.
+export fn spaced(
+    cut_count: Nat,
+    endpoint: Num | List[Num],
+    padding: Num | List[Num],
+) -> List[Num] {
+    if endpoint is Num { endpoint = [endpoint, -endpoint] }
+    if padding is Num { padding = [padding, padding] }
+    if len(endpoint) != 2 { error("`endpoint` must have length 2") }
+    if len(padding) != 2 { error("`padding` must have length 2") }
+    total_padding = padding[0] + padding[1]
+
+    if cut_count == 0 { return [] }
+
+    if cut_count == 1 {
+        if endpoint[0] == endpoint[1] {
+            return [endpoint[0]]
+        }
+        if total_padding != 0 {
+            return [lerp(endpoint[0], endpoint[1], padding[0] / total_padding)]
+        }
+        error("cannot generate 1 cut between unequal endpoints with zero padding")
+    }
+
+    spacing = (endpoint[1] - endpoint[0]) / (cut_count - 1 + total_padding)
+    first_cut = endpoint[0] + padding[0] * spacing
+    last_cut = endpoint[1] - padding[1] * spacing
+    if cut_count == 1 {
+        assert_eq(first_cut, last_cut)
+        return [first_cut]
+    }
+    return (0..cut_count).map(fn (i) { lerp(first_cut, last_cut, i / (cut_count-1)) })
+}
+
+assert_eq(layered(4), [1/2, 0, -1/2])
+assert_eq(spaced(3), [1/2, 0, -1/2])
+assert_eq(spaced(3, 2.3, 0), [2.3, 0, -2.3])
+assert_eq(spaced(4, 1, 0.5), [0.75, 0.25, -0.25, -0.75])
+assert_eq(spaced(3, [1, -2], [1, 0]), [0, -1, -2])
+
+
+// 1 -> spaced(1, [start, stop])
+// 2 -> spaced(1, [start, stop], [0.5, 1])
+// 3 -> spaced(2, [start, stop], [0, 1])
+// 4 -> spaced(2, [start, stop], [0.5, 1])
+// 5 -> spaced(3, [start, stop], [0, 1])
+
+/// Returns evenly-spaced cut depths for half of a puzzle.
+///
+/// - For even numbers of layers, includes both endpoints.
+/// - For odd numbers of layers, includes the first endpoint but not the second.
+///
+/// See `spaced()` for documentation about `endpoint`.
+export fn even_odd(cut_count: Nat, endpoint: Num | List[Num]) -> List[Num] {
+    inner_padding = if is_even(cut_count) { 0 } else { 0.5 }
+    return spaced(floor(cut_count/2), endpoint, [1, inner_padding])
+}
+
+/// Returns negated and reversed cut depths.
+export fn opposite(cut_depths: List[Num]) -> List[Num] {
+    cut_depths.rev().map(fn(depth) { return -depth })
+}
+
+/// Returns the original cut depths concatenated with the negated and reversed
+/// cut depths.
+export fn with_opposite(cut_depths: List[Num]) -> List[Num] {
+    cut_depths ++ opposite(cut_depths.filter(fn(depth) { depth != 0 }))
+}

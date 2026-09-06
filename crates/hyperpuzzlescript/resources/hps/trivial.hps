@@ -10,6 +10,5 @@ add_puzzle(
         #shape.sym = sym
         #shape.points = [sym.oox]
         #shape.facets = [sym.oox]
-        #puz.layers.R = [1, 0, -1]
     },
 )

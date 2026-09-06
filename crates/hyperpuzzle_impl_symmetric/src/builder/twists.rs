@@ -187,6 +187,7 @@ pub struct TwistSystemProduct {
     pub axis_vectors: PerAxis<Vector>,
 
     pub factors: Vec<TwistSystemFactor>,
+    pub factor_axis_id_offsets: Vec<usize>,
 
     /// Nonempty sets of named points, each with a gizmo pole distance. Each
     /// orbit has only one representative in this list.
@@ -229,6 +230,7 @@ impl TwistSystemProduct {
             axis_action: GroupAction::trivial(),
             axis_vectors: PerAxis::new(),
             factors: vec![],
+            factor_axis_id_offsets: vec![],
             named_point_set_orbits: vec![],
         }
     }
@@ -402,6 +404,7 @@ impl TwistSystemProduct {
             axis_vectors,
 
             factors: vec![factor],
+            factor_axis_id_offsets: vec![0],
 
             named_point_set_orbits,
         })
@@ -489,6 +492,14 @@ impl TwistSystemProduct {
         let factors: Vec<TwistSystemFactor> =
             std::iter::chain(a_new_factors, b_new_factors).collect();
 
+        let factor_axis_id_offsets = std::iter::chain(
+            a.factor_axis_id_offsets.iter().copied(),
+            b.factor_axis_id_offsets
+                .iter()
+                .map(|offset| self.len() + offset),
+        )
+        .collect_vec();
+
         let named_point_set_orbits = if ndim <= 4 {
             std::iter::chain(a_new_named_point_set_orbits, b_new_named_point_set_orbits).collect()
         } else {
@@ -509,6 +520,7 @@ impl TwistSystemProduct {
             axis_vectors,
 
             factors,
+            factor_axis_id_offsets,
 
             named_point_set_orbits,
         })
@@ -619,13 +631,16 @@ impl TwistSystemProduct {
             .get(factor_index as usize)?
             .names
             .member_from_name(rest)
+            .ok()?
+            .offset_index(self.factor_axis_id_offsets[factor_index as usize])
             .ok()
     }
 
-    pub fn orbit_containing_axis(&self, axis: Axis) -> Option<usize> {
+    pub fn orbit_containing_axis(&self, axis: Axis) -> Option<AxisOrbit> {
         // This could be faster, but it doesn't need to be
         self.axis_orbits()
             .position(|orbit| orbit.axes().contains(&axis))
+            .map(|i| AxisOrbit(i as u16))
     }
 
     fn build_axis_undeorbiters(&self) -> Result<PerAxis<(GroupElementId, AxisOrbit)>> {

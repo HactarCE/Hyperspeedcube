@@ -1,7 +1,9 @@
 use eyre::{Result, bail};
-use hypermath::{APPROX, Float};
-use hyperpuzzle_core::TypedIndex;
-use hypuz_notation::{AxisLayersInfo, Layer, LayerRange};
+use hypermath::{APPROX, Float, RangeMap, collections::NanError};
+use hyperpuzzle_core::PerLayer;
+use hypuz_notation::Layer;
+use itertools::Itertools;
+use smallvec::SmallVec;
 
 /// Cut distances for an axis.
 ///
@@ -12,17 +14,12 @@ pub struct CutDistances(Vec<Float>);
 
 impl CutDistances {
     /// Validates cut distances.
-    pub fn new(cut_distances: Vec<Float>) -> Result<Self> {
-        // infinity is ok! NaN is not.
-        if let Some(bad) = cut_distances.iter().find(|f| f.is_nan()) {
+    pub fn new(mut cut_distances: Vec<Float>) -> Result<Self> {
+        if let Some(bad) = cut_distances.iter().find(|f| !f.is_finite()) {
             bail!("bad cut distance {bad}");
         }
-        if !cut_distances.iter().is_sorted_by(|&a, &b| a > b) {
-            bail!(
-                "cut distances must be sorted from outermost (greatest) \
-                 to innermost (least); got {cut_distances:?}",
-            );
-        }
+        cut_distances.sort_by(|a, b| a.total_cmp(b).reverse());
+        cut_distances.dedup_by(|a, b| APPROX.eq(*a, *b));
         Ok(Self(cut_distances))
     }
 
@@ -31,44 +28,50 @@ impl CutDistances {
         &self.0
     }
 
-    /// Returns the number of layers on each axis in the orbit.
-    pub fn layer_count(&self) -> usize {
-        self.0.len().saturating_sub(1)
-    }
-
-    /// Returns the cut distance bounding the outside of each layer, from
-    /// outermost to innermost, with an extra `None` at the end.
-    fn layer_outside_distances(&self) -> impl Iterator<Item = (Option<Layer>, Float)> {
-        Layer::iter(self.layer_count())
-            .map(Some)
-            .chain([None])
-            .zip(self.0.iter().copied())
-    }
-
-    /// Returns the layer range for a piece that spans from `min_distance` to
-    /// `max_distance` along the axis vector.
-    pub fn layer_range_for_distance_range(
-        &self,
-        max_distance: Float,
-        min_distance: Float,
-    ) -> Option<LayerRange> {
-        // TODO: `None` should represent "not in any layer". blocking the axis
-        //       completely is currently unrepresentable
-        let (max_layer, _) = self
-            .layer_outside_distances()
-            .take_while(|(_, d)| APPROX.gt_eq(d, &max_distance))
-            .last()?;
-        let (min_layer, _) = self
-            .layer_outside_distances()
-            .take_while(|(_, d)| APPROX.gt(d, &min_distance))
-            .last()?;
-        Some(LayerRange::new(min_layer?, max_layer?))
-    }
-
-    pub fn layers_info(&self) -> AxisLayersInfo {
-        AxisLayersInfo {
-            max_layer: self.layer_count() as u16,
-            allow_negatives: false, // TODO
+    /// Returns a layer map, assuming each cut range is assigned one layer.
+    ///
+    /// If there are _n_ cuts, then there will be _n+1_ layers.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use hypermath::prelude::*;
+    /// # use hyperpuzzle_impl_symmetric::CutDistances;
+    /// # use hypuz_notation::Layer;
+    /// let cuts = CutDistances::new(vec![0.5, 0.0, -0.5]).unwrap();
+    ///
+    /// let mut expected = RangeMap::new(None);
+    /// expected.set_range(0.5..Float::INFINITY, Layer::new(1));
+    /// expected.set_range(0.0..0.5, Layer::new(2));
+    /// expected.set_range(-0.5..0.0, Layer::new(3));
+    /// expected.set_range(Float::NEG_INFINITY..-0.5, Layer::new(4));
+    ///
+    /// assert_eq!(expected, cuts.implied_layers());
+    /// ```
+    pub fn implied_layers(&self, is_full_cut: bool) -> Result<RangeMap<Option<Layer>>, NanError> {
+        let mut ret = RangeMap::new(None);
+        for (i, (&hi, &lo)) in itertools::chain!(
+            &[Float::INFINITY],
+            &self.0,
+            is_full_cut.then_some(&Float::NEG_INFINITY)
+        )
+        .tuple_windows()
+        .enumerate()
+        {
+            ret.set_range(lo..hi, Layer::from_index(i))?;
         }
+        Ok(ret)
     }
+}
+
+/// Layer distances along an axis.
+///
+/// Each layer has a list of ranges. The ranges and layers are not necessarily
+/// in order, but they must be non-overlapping.
+pub struct LayerDistanceRanges(PerLayer<SmallVec<[[Float; 2]; 1]>>);
+
+pub struct DistanceRange {}
+
+impl LayerDistanceRanges {
+    // pub fn get(&self) -> &PerLayer<SmallVec<[[Float;2]; 1]>>
 }

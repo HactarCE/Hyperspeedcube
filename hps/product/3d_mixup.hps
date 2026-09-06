@@ -1,0 +1,30 @@
+use * from euclid
+
+add_twist_system(
+    id = "mixup_cube_45",
+    engine = "symmetric",
+    ndim = 3,
+    build = fn() {
+        shape = @shapes/3d/cube.new()
+        #twists.sym = shape.sym
+        #twists.points = shape.points
+        #twists.axes = [shape.facet]
+        #twists.jumble_moves.R = #{ h = 45° }
+        #twists.jumble_stops.R = ["h"]
+    }
+)
+
+add_puzzle(
+    id = "mixup_cube",
+    engine = "symmetric",
+    ndim = 3,
+    twists = "mixup_cube_45",
+    build = fn() {
+        polygon = @shapes/2d/polygon.new(12)
+        #shape.sym = cd([12,2])
+        #shape.points = [vec(0,0,1),polygon.facet]
+        #shape.facets = [vec(0,0,polygon.facet.mag), polygon.facet]
+        #puz.cuts.ZZA = [1.75]
+        #puz.cuts.ZZC = [1.75]
+    },
+)

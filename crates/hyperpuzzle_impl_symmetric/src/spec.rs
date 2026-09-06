@@ -2,15 +2,16 @@ use std::sync::Arc;
 
 use eyre::{Result, bail, ensure};
 use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
+use hypermath::collections::RangeMap;
 use hypermath::prelude::*;
 use hypermath::{Float, Subspace};
 use hyperpuzzle_core::CatalogId;
 use hypuz_notation::family::JumbleSuffix;
-use hypuz_notation::{Multiplier, Str};
+use hypuz_notation::{Layer, Multiplier, Str};
 use itertools::Itertools;
 
 use crate::builder::TwistSystemProduct;
-use crate::{CutDistances, NamedPoint, PerNamedPoint};
+use crate::{CutDistances, NamedPoint, PerAxisOrbit, PerNamedPoint};
 
 /// Specification for a twist system factor.
 #[derive(Debug, Clone)]
@@ -102,7 +103,12 @@ pub struct FactorPuzzleSpec {
     pub twists: Option<Arc<TwistSystemProduct>>,
 
     /// Cut distances for each axis orbit.
-    pub axis_orbit_cut_distances: Vec<CutDistances>,
+    pub axis_orbit_cut_distances: PerAxisOrbit<CutDistances>,
+    /// Layer map for each axis orbit.
+    pub axis_orbit_layer_maps: PerAxisOrbit<RangeMap<Option<Layer>>>,
+    /// For each axis orbit: whether the axis is "full-cut," in which case
+    /// negative layer indices are allowed and implied layer maps include -∞.
+    pub axis_orbit_is_full_cut: PerAxisOrbit<bool>,
 }
 
 impl FactorPuzzleSpec {

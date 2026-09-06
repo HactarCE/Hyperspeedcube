@@ -293,7 +293,7 @@ impl LayerMask {
     }
 
     /// Returns the maximum layer that fits in the set at its current size.
-    fn capacity(&self) -> Layer {
+    pub fn capacity(&self) -> Layer {
         Layer::new_clamped(match self.as_ref_enum() {
             LayerMaskEnum::Bitmask(_) => usize::BITS as u16 - 1,
             LayerMaskEnum::BitVec(vec) => (vec.len() - 1) as u16,

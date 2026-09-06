@@ -32,7 +32,8 @@ use shape::{
 pub(crate) use twists::TwistSystemProduct;
 
 use crate::{
-    FactorPuzzleSpec, NamedPoint, PerAxisOrbit, ProductPuzzleState, SymmetricTwistSystemComponent,
+    FactorPuzzleSpec, LayerMap, NamedPoint, PerAxisOrbit, ProductPuzzleState,
+    SymmetricTwistSystemComponent,
 };
 
 #[derive(Debug)]
@@ -40,8 +41,7 @@ pub struct PuzzleProduct {
     id: CatalogId,
     factors: Vec<PuzzleProductFactor>,
     shape: ProductPuzzleShape,
-    axis_layers_per_orbit: PerAxisOrbit<AxisLayersInfo>, // TODO: may be redundant with layer ranges
-    axis_layer_ranges_per_orbit: PerAxisOrbit<PerLayer<[Float; 2]>>,
+    axis_orbit_layer_maps: PerAxisOrbit<LayerMap>,
 }
 
 impl CatalogObject for PuzzleProduct {
@@ -67,8 +67,7 @@ impl PuzzleProduct {
             id: crate::product_id([].into_iter()),
             factors: vec![],
             shape: ProductPuzzleShape::direct_product_identity(),
-            axis_layers_per_orbit: PerAxisOrbit::new(),
-            axis_layer_ranges_per_orbit: PerAxisOrbit::new(),
+            axis_orbit_layer_maps: PerAxisOrbit::new(),
         }
     }
 
@@ -159,12 +158,13 @@ impl PuzzleProduct {
         // Slice axes
         if let Some(twists) = &spec.twists {
             build_ctx.push_task("slicing axes");
-            for (orbit, cut_distances) in
-                std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
-            {
+            for (orbit, cut_distances) in std::iter::zip(
+                twists.axis_orbits(),
+                spec.axis_orbit_cut_distances.iter_values(),
+            ) {
                 for axis in orbit.axes() {
-                    for &cut_distance in cut_distances.distances() {
-                        let plane = Hyperplane::new(&twists.axis_vectors[axis], cut_distance)
+                    for &d in cut_distances.distances() {
+                        let plane = Hyperplane::new(&twists.axis_vectors[axis], d)
                             .ok_or_eyre("bad axis vector")?;
                         shape_builder.slice(plane)?;
                     }
@@ -176,46 +176,15 @@ impl PuzzleProduct {
         }
 
         build_ctx.push_task("building shape");
-        let mut shape = shape_builder.into_product_puzzle_shape()?;
+        let shape = shape_builder.into_product_puzzle_shape()?;
         build_ctx.pop_task();
 
-        // Add grip signatures
-        if let Some(twists) = &spec.twists {
-            build_ctx.push_task("computing grip signatures");
-            for (_, piece_data) in &mut shape.pieces {
-                piece_data.grip_signature = PerAxis::new_with_len(twists.len());
-                for (orbit, cut_distances) in
-                    std::iter::zip(twists.axis_orbits(), &spec.axis_orbit_cut_distances)
-                {
-                    let recip_mag = twists.axis_vectors[orbit.first()].mag().recip();
-                    for axis in orbit.axes() {
-                        if let Some((min_height, max_height)) = piece_data
-                            .polytope
-                            .height_on_axis(&twists.axis_vectors[axis])
-                        {
-                            piece_data.grip_signature[axis] = cut_distances
-                                .layer_range_for_distance_range(
-                                    max_height * recip_mag,
-                                    min_height * recip_mag,
-                                );
-                        }
-                    }
-                }
-            }
-            build_ctx.pop_task();
-        }
-
-        let axis_layers_per_orbit = spec
-            .axis_orbit_cut_distances
-            .iter()
-            .map(|d| d.layers_info())
-            .collect();
-
-        let axis_layer_ranges_per_orbit = spec
-            .axis_orbit_cut_distances
-            .iter()
-            .map(|d| d.distances().array_windows().copied().collect())
-            .collect();
+        let axis_orbit_layer_maps = spec
+            .axis_orbit_layer_maps
+            .map_ref(|orbit_index, layer_map| {
+                let allow_negatives = spec.axis_orbit_is_full_cut[orbit_index];
+                LayerMap::new(Arc::new(layer_map.clone()), allow_negatives)
+            });
 
         if let Some(twists) = &spec.twists
             && shape.ndim() != twists.ndim()
@@ -235,8 +204,7 @@ impl PuzzleProduct {
                 twists_id: spec.twists.as_ref().map(|t| t.id.clone()),
             }],
             shape,
-            axis_layers_per_orbit,
-            axis_layer_ranges_per_orbit,
+            axis_orbit_layer_maps,
         })
     }
 
@@ -255,13 +223,9 @@ impl PuzzleProduct {
             ),
             factors: crate::chain_cloned(&self.factors, &rhs.factors),
             shape: self.shape.direct_product(&rhs.shape)?,
-            axis_layers_per_orbit: crate::chain_cloned(
-                self.axis_layers_per_orbit.iter_values(),
-                rhs.axis_layers_per_orbit.iter_values(),
-            ),
-            axis_layer_ranges_per_orbit: crate::chain_cloned(
-                self.axis_layer_ranges_per_orbit.iter_values(),
-                rhs.axis_layer_ranges_per_orbit.iter_values(),
+            axis_orbit_layer_maps: crate::chain_cloned(
+                self.axis_orbit_layer_maps.iter_values(),
+                rhs.axis_orbit_layer_maps.iter_values(),
             ),
         })
     }
@@ -314,49 +278,36 @@ impl PuzzleProduct {
         let symmetric_twist_system_component =
             twists.components.get::<SymmetricTwistSystemComponent>()?;
 
-        let grip_signatures = Arc::new(shape.build_grip_signatures());
-
         let axis_layers: Arc<PerAxis<AxisLayersInfo>> = Arc::new(
             std::iter::zip(
-                self.axis_layers_per_orbit.iter_values(),
+                self.axis_orbit_layer_maps.iter_values(),
                 symmetric_twist_system_component.axis_orbits.iter_values(),
             )
-            .flat_map(|(&layers_info, orbit)| std::iter::repeat_n(layers_info, orbit.len))
+            .flat_map(|(layer_map, orbit)| std::iter::repeat_n(layer_map.info(), orbit.len))
             .collect(),
         );
-        // For each axis, compute whether its layers combine to contain every
-        // piece.
-        let mut does_axis_contain_every_piece = axis_layers.map_ref(|_, _| true);
-        for (_piece, piece_grip_signatures) in &*grip_signatures {
-            // TODO: instead of basing this on grip signatures, look for ±inf cut depths
-            for (axis, layer_range) in piece_grip_signatures {
-                if layer_range.is_none() {
-                    does_axis_contain_every_piece[axis] = false;
-                }
-            }
-        }
 
-        let axis_layer_ranges = Arc::new(
+        let axis_layer_maps = Arc::new(
             std::iter::zip(
-                self.axis_layer_ranges_per_orbit.iter_values(),
+                self.axis_orbit_layer_maps.iter_values(),
                 symmetric_twist_system_component.axis_orbits.iter_values(),
             )
-            .flat_map(|(layer_ranges, orbit)| std::iter::repeat_n(layer_ranges.clone(), orbit.len))
-            .collect(),
+            .flat_map(|(layer_map, orbit)| std::iter::repeat_n(layer_map.clone(), orbit.len))
+            .collect::<PerAxis<LayerMap>>(),
         );
 
         let axes_with_nontrivial_twists: Vec<Axis> = std::iter::zip(
-            self.axis_layers_per_orbit.iter_values(),
+            self.axis_orbit_layer_maps.iter_values(),
             symmetric_twist_system_component.axis_orbits.iter_values(),
         )
-        .filter(|(layers_info, orbit)| {
-            layers_info.max_layer > 0
+        .filter(|(layer_map, orbit)| {
+            layer_map.info().max_layer > 0
                 && symmetric_twist_system_component.axis_has_twists(orbit.first)
         })
-        .flat_map(|(layers_info, orbit)| {
+        .flat_map(|(layer_map, orbit)| {
             orbit
                 .axes()
-                .filter(|&axis| !does_axis_contain_every_piece[axis] || layers_info.max_layer > 1)
+                .filter(|&axis| !layer_map.covers_whole_space() || layer_map.info().max_layer > 1)
         })
         .collect();
 
@@ -390,6 +341,7 @@ impl PuzzleProduct {
         // `&_` is required to work around https://github.com/rust-lang/rust/issues/58052
         let axis_names = Arc::clone(&twists.axes.names);
         let symmetric_twist_system_component_ref = Arc::clone(&symmetric_twist_system_component);
+        let axis_layers_ref = Arc::clone(&axis_layers);
         let get_gizmo_twist = Box::new(
             move |gizmo_face: GizmoFace,
                   layers: Option<LayerMask>,
@@ -406,15 +358,18 @@ impl PuzzleProduct {
                 // Handle jumbling
                 let dir_sign = direction.to_sign(RotDir::Cw);
                 if let Some(axis) = axis_names.lookup(&twist.transform.family)
-                    && let (_, orbit_index) =
+                    && let (_, axis_orbit_index) =
                         symmetric_twist_system_component_ref.axis_undeorbiters[axis]
-                    && let Some(jumble_data) =
-                        &symmetric_twist_system_component_ref.axis_orbits[orbit_index].jumble_data
+                    && let layer_mask = &LayerMask::all(axis_layers_ref[axis].max_layer)
+                    && let Some(jumble_data) = &symmetric_twist_system_component_ref.axis_orbits
+                        [axis_orbit_index]
+                        .jumble_data
                     && let Some(state) =
                         (state as &dyn Any).downcast_ref::<crate::ProductPuzzleState>()
                     && let Some(jumble_states) = &state.axis_jumble_states
                     && let Some(first_layer) = layer_mask.iter().next()
-                    && let old_stop = jumble_states[axis][first_layer]
+                    // TODO: only allow stops that are valid on all layers
+                    && let Ok(&old_stop) = jumble_states[axis].get(first_layer)
                     && let new_stop = jumble_data.adjacent_stop(old_stop, dir_sign)
                     && let Ok(jumble_transforms) =
                         jumble_data.notation_from_stop_to_stop(old_stop, new_stop, Some(dir_sign))
@@ -463,6 +418,7 @@ impl PuzzleProduct {
             get_gizmo_twist,
         });
 
+        let axis_layer_maps_ref = Arc::clone(&axis_layer_maps);
         let random_move = Box::new({
             let symmetric_twist_system_component = Arc::clone(&symmetric_twist_system_component);
             let axis_layers = Arc::clone(&axis_layers);
@@ -474,7 +430,7 @@ impl PuzzleProduct {
                         .take(1000) // abort if failed too many times
                         .find(|layer_mask| {
                             !layer_mask.is_empty()
-                                && (!does_axis_contain_every_piece[axis]
+                                && (!axis_layer_maps_ref[axis].covers_whole_space()
                                     || *layer_mask != all_layers)
                         })?;
                 let family = &symmetric_twist_system_component.axes.names[axis];
@@ -553,9 +509,8 @@ impl PuzzleProduct {
                 ProductPuzzleState {
                     ty,
                     twists: Arc::clone(&symmetric_twist_system_component),
-                    piece_grip_signatures: Arc::clone(&grip_signatures),
                     piece_points: Arc::clone(&piece_points),
-                    axis_layer_ranges: Arc::clone(&axis_layer_ranges),
+                    layer_maps: Arc::clone(&axis_layer_maps),
                     axis_vectors: Arc::clone(&axis_vectors),
                     axis_jumble_states: any_jumbling.then(|| {
                         axis_layers.map_ref(|_, layers_info| {

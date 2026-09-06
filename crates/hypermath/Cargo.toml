@@ -34,5 +34,8 @@ serde = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["const_new"] }
 tinyset.workspace = true
 
+[dev-dependencies]
+proptest.workspace = true
+
 [features]
 serde = ["dep:serde", "smallvec/serde"]

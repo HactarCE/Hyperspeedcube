@@ -108,7 +108,8 @@ fn def_truncation(shape_file, vertex_cd_point, *, cuts = null, layers = #{}, **k
                     facet_pole = p.projected_to(elements[k])
                     #shape.facets ++= [facet_pole]
                     if cuts != null {
-                        #puz.layers[axes[k]] = @util/layers.with_opposite([∞] ++ cuts[k].map(fn(d) { d * facet_pole.mag }))
+                        #puz.cuts[axes[k]] = @util/cuts.with_opposite(cuts[k].map(fn(d) { d * facet_pole.mag }))
+                        #puz.is_full_cut[axes[k]] = true
                     }
                 }
             }

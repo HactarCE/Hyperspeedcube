@@ -42,7 +42,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT",                  prio
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx",         priority = 15, id = "megaminx", default = true)
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Megaminx Crystal", priority = 14, id = "megaminx_crystal")
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pyraminx Crystal", priority = 13, id = "pyraminx_crystal")
-add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Curvy Starminx",   priority = 12, id = "curvy_starminx")
+add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Litestarminx",     priority = 12, id = "curvy_starminx")
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Starminx",         priority = 11, id = "starminx")
 add_menu_entry(path = "Solid|3D|Platonic|Dodecahedron|FT|Pentultimate",     priority = 10, id = "pentultimate")
 
@@ -219,17 +219,16 @@ add_puzzle(id = "tetrahedron_a@1", name = "Tetrahedron A Generator",
             name = n_layer_prefix(cuts + 1, default = 2) ++ "Tetrahedron A",
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
-                vertex_layers = [∞] ++ @util/layers.exclusive(1, 1/3, cuts, padding=1/2) ++ [-∞]
-                facet_layers = @util/layers.opposite(vertex_layers)
-                #puz.layers.R = facet_layers
-                #puz.layers.RFL = vertex_layers
+                #puz.cuts.R = @util/cuts.spaced(cuts, [-1/3, -1], 1/2)
+                #puz.cuts.RFL = @util/cuts.spaced(cuts, [1, 1/3], 1/2)
+                #puz.is_full_cut.R = true
+                #puz.is_full_cut.RFL = true
             },
         }
     }
 )
 
 add_puzzle(id = "tetrahedron_b@1", name = ["Tetrahedron B", "Tetraminx"],
-    keywords = "FT/VT",
     tags = #{ author = "Andrew Farkas" },
     engine = "symmetric",
     ndim = 3,
@@ -237,10 +236,10 @@ add_puzzle(id = "tetrahedron_b@1", name = ["Tetrahedron B", "Tetraminx"],
     twists = "tetrahedron_fvt",
     build = fn() {
         @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
-        vertex_layers = [∞, 1/3, -∞]
-        facet_layers = @util/layers.opposite(vertex_layers)
-        #puz.layers.R = facet_layers
-        #puz.layers.RFL = vertex_layers
+        #puz.cuts.R = [-1/3]
+        #puz.cuts.RFL = [1/3]
+        #puz.is_full_cut.R = true
+        #puz.is_full_cut.RFL = true
     },
 )
 
@@ -270,10 +269,12 @@ add_puzzle(id = "tetrahedron_c@1", name = ["Tetrahedron C Generator", "Shallow-C
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
-                facet_layers = @util/layers/ft.simplex_shallow(3, cuts)
-                vertex_layers = @util/layers.opposite(facet_layers)
-                #puz.layers.R = facet_layers
-                #puz.layers.RFL = vertex_layers
+                facet_layers = @util/cuts/ft.simplex_shallow(3, cuts)
+                vertex_layers = @util/cuts.opposite(facet_layers)
+                #puz.cuts.R = facet_layers
+                #puz.cuts.RFL = vertex_layers
+                #puz.is_full_cut.R = true
+                #puz.is_full_cut.RFL = true
             },
         }
     }
@@ -295,10 +296,12 @@ add_puzzle(id = "pyraminx@1", name = ["Pyraminx Generator", "Layered FT/VT Tetra
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/tetrahedron.new())
-                facet_layers = @util/layers.inclusive(1, -3, layers)
-                vertex_layers = @util/layers.opposite(facet_layers)
-                #puz.layers.R = facet_layers
-                #puz.layers.RFL = vertex_layers
+                facet_layers = @util/cuts.spaced(layers-1, [1, -3])
+                vertex_layers = @util/cuts.opposite(facet_layers)
+                #puz.cuts.R = facet_layers
+                #puz.cuts.RFL = vertex_layers
+                #puz.is_full_cut.R = true
+                #puz.is_full_cut.RFL = true
             },
         }
     }
@@ -331,7 +334,8 @@ add_puzzle(id = "cube_ft@1", name = ["FT Cube Generator", "NxNxN Generator", "n^
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/cube.new())
-                #puz.layers.R = @util/layers/ft.cube(3, layers)
+                #puz.cuts.R = @util/cuts/ft.cube(3, layers)
+                #puz.is_full_cut.R = true
             },
         }
     }
@@ -359,7 +363,8 @@ add_puzzle(id = "octahedron_ft_adj@1", name = "Adjacent-Cut FT Octahedron Genera
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/octahedron.new())
-                #puz.layers.F = @util/layers.inclusive(1, -1, layers)
+                #puz.cuts.F = @util/cuts.spaced(layers-1)
+                #puz.is_full_cut.F = true
             },
         }
     }
@@ -380,8 +385,8 @@ add_puzzle(id = "octahedron_ft_shallow@1", name = "Shallow-Cut FT Octahedron Gen
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/octahedron.new())
-                l = @util/layers.inclusive_exclusive(1, 1/3, cuts + 1)
-                #puz.layers.F = @util/layers/ft.octahedron_shallow(cuts)
+                #puz.cuts.F = @util/cuts/ft.octahedron_shallow(cuts)
+                #puz.is_full_cut.F = true
             },
         }
     }
@@ -419,7 +424,8 @@ add_puzzle(id = "megaminx@1", name = ["Shallow-Cut FT Docedahedron Generator", "
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-                #puz.layers.F = @util/layers/ft.dodecahedron_shallow(cuts)
+                #puz.cuts.F = @util/cuts/ft.dodecahedron_shallow(cuts)
+                #puz.is_full_cut.F = true
             },
         }
     }
@@ -433,9 +439,10 @@ add_puzzle(id = "megaminx_crystal@1", name = "Megaminx Crystal",
     twists = "dodecahedron_ft",
     build = fn() {
         t = cos(π/10) * tan(π/5) / (2 - sin(π/10))
-        depth = lerp(@util/layers/ft.MEGAMINX_DEPTH, @util/layers/ft.PYRAMINX_CRYSTAL_DEPTH, t)
+        depth = lerp(@util/cuts/ft.MEGAMINX_DEPTH, @util/cuts/ft.PYRAMINX_CRYSTAL_DEPTH, t)
         @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-        #puz.layers.F = [1, depth, -depth, -1]
+        #puz.cuts.F = [depth, -depth]
+        #puz.is_full_cut.F = true
     },
 )
 
@@ -446,14 +453,15 @@ add_puzzle(id = "pyraminx_crystal@1", name = ["Pyraminx Crystal", "Adjacent-Cut 
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
     build = fn() {
-        depth = @util/layers/ft.PYRAMINX_CRYSTAL_DEPTH
+        depth = @util/cuts/ft.PYRAMINX_CRYSTAL_DEPTH
         @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-        #puz.layers.F = [1, depth, -depth, -1]
+        #puz.cuts.F = [depth, -depth]
+        #puz.is_full_cut.F = true
     },
 )
 
-add_puzzle_list_entry("curvy_starminx(1)")
-add_puzzle(id = "curvy_starminx@1", name = "Curvy Starminx Generator",
+add_puzzle_list_entry("litestarminx(1)")
+add_puzzle(id = "litestarminx@1", name = ["Litestarminx Generator", "Planar Curvy Starminx Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
     engine = "symmetric",
     ndim = 3,
@@ -462,10 +470,11 @@ add_puzzle(id = "curvy_starminx@1", name = "Curvy Starminx Generator",
     params = [cuts_param],
     gen = fn(cuts) {
         return #{
-            name = n_cut_prefix(cuts) ++ "Curvy Starminx",
+            name = [n_cut_prefix(cuts) ++ "Litestarminx", n_cut_prefix(cuts) ++ "Planar Curvy Starminx"],
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-                #puz.layers.F = @util/layers/ft.curvy_starminx(cuts)
+                #puz.cuts.F = @util/cuts/ft.curvy_starminx(cuts)
+                #puz.is_full_cut.F = true
             },
         }
     }
@@ -479,7 +488,8 @@ add_puzzle(id = "starminx@1", name = "Starminx",
     twists = "dodecahedron_ft",
     build = fn() {
         @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-        #puz.layers.F = @util/layers.with_opposite([1, @util/layers/ft.STARMINX_DEPTH])
+        #puz.cuts.F = @util/cuts.with_opposite([@util/cuts/ft.STARMINX_DEPTH])
+        #puz.is_full_cut.F = true
     },
 )
 
@@ -506,7 +516,8 @@ add_puzzle(id = "pentultimate@1", name = "Pentultimate Generator",
             name = names,
             build = fn() {
                 @util.build_symmetric_shape(@shapes/3d/dodecahedron.new())
-                #puz.layers.F = @util/layers/ft.pentultimate(layers)
+                #puz.cuts.F = @util/cuts/ft.pentultimate(layers)
+                #puz.is_full_cut.F = true
             },
         }
     }
@@ -524,13 +535,14 @@ fn def_ft_icosahedron(cut_depths: List[Num], **kwargs) {
         twists = "icosahedron_ft",
         build = fn() {
             @util.build_symmetric_shape(@shapes/3d/icosahedron.new())
-            #puz.layers.A = @util/layers.with_opposite([1] ++ cut_depths)
+            #puz.cuts.A = @util/cuts.with_opposite(cut_depths)
+            #puz.is_full_cut.A = true
         },
         **kwargs,
     )
 }
 
-use RADIO_2, RADIO_3, RADIO_4, RADIO_5, RADIO_7, RADIO_8, RADIO_11, RADIO_12, RADIO_13 from @util/layers/ft
+use RADIO_2, RADIO_3, RADIO_4, RADIO_5, RADIO_7, RADIO_8, RADIO_11, RADIO_12, RADIO_13 from @util/cuts/ft
 
 diff = 0.08
 def_ft_icosahedron(

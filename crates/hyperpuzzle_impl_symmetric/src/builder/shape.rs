@@ -182,11 +182,6 @@ impl ProductPuzzleShape {
         Ok((piece_types, piece_type_hierarchy, piece_type_masks))
     }
 
-    /// Returns the grip signature for each piece.
-    pub fn build_grip_signatures(&self) -> PerPiece<PerAxis<Option<LayerRange>>> {
-        self.pieces.map_ref(|_, piece| piece.grip_signature.clone())
-    }
-
     /// Constructs a mesh for rendering the puzzle.
     pub fn build_mesh(&self) -> Result<Mesh> {
         let mut mesh = Mesh::new_empty(self.ndim());
@@ -247,8 +242,6 @@ pub(super) struct PieceData {
     /// In 3D and below, this includes non-sticker facets. In 4D+, non-sticker
     /// facets are removed because internals are never visible in 4D+.
     pub facets: Vec<PieceFacetData>,
-    /// Grip signature for the piece.
-    pub grip_signature: PerAxis<Option<LayerRange>>,
 }
 
 impl PieceData {
@@ -256,7 +249,6 @@ impl PieceData {
     pub const POINT: Self = Self {
         polytope: PolytopeGeometry::POINT,
         facets: vec![],
-        grip_signature: PerAxis::new(),
     };
 
     /// Returns the number of stickers on the piece.
@@ -299,11 +291,6 @@ impl PieceData {
                             }
                         }),
                     }),
-            )
-            .collect(),
-            grip_signature: std::iter::chain(
-                a.grip_signature.iter_values().copied(),
-                b.grip_signature.iter_values().copied(),
             )
             .collect(),
         }

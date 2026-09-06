@@ -30,7 +30,29 @@ add_puzzle(
     twists = "pyritohedron_1_7_ft",
     build = fn() {
         @util.build_symmetric_shape(@shapes/3d/pyritohedron.new_with_angle(τ/7))
-        #puz.layers.F = [∞, 0.755]
+        #puz.cuts.F = [0.755]
         // TODO: unbandage
     },
+)
+
+add_puzzle(
+    id = "cube_ft_4_other@0",
+    name = "The Other 4x4x4",
+    engine = "symmetric",
+    tags = #{ author = "Andrew Farkas", inventor = "Carl Hoff" },
+    ndim = 3,
+    colors = "cube",
+    twists = "cube_ft",
+    build = fn() {
+        @util.build_symmetric_shape(@shapes/3d/cube.new())
+        d2 = 3/5
+        d1 = 1/5
+        #puz.cuts.R = [d2, d1]
+        #puz.layers.R = [
+             [ ∞,  d2],
+            [[ d2,  d1], [-d1, -d2]],
+             [ d1, -d1],
+             [-d2, -∞],
+        ]
+    }
 )
