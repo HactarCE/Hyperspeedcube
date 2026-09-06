@@ -78,11 +78,33 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
             hypermath::util::lerp(a, b, t)
         }
 
-        /// `projected_to()` projects the first vector onto the second.
+        /// `projected_to()` projects the first vector onto the second. If
+        /// multiple vectors are supplied, then the first vector is projected
+        /// onto the subspace spanned by all of them.
         ///
-        /// It returns `null` if `b` is zero.
+        /// It returns `null` if a single zero vector is supplied as the second
+        /// argument. If multiple vectors are supplied, then zero vectors are
+        /// ignored.
         fn projected_to(a: Vector, b: Vector) -> Option<Vector> {
             a.projected_to(&b)
+        }
+        fn projected_to(a: Vector, b: Vec<Vector>) -> Vector {
+            let a_perp = a.rejected_from_all(b);
+            a - a_perp
+        }
+
+        /// `rejected_from()` rejects the first vector from the second. If
+        /// multiple vectors are supplied, then the first vector is rejected
+        /// from all of them.
+        ///
+        /// It returns `null` if a single zero vector is supplied as the second
+        /// argument. If multiple vectors are supplied, then zero vectors are
+        /// ignored.
+        fn rejected_from(a: Vector, b: Vector) -> Option<Vector> {
+            a.rejected_from(&b)
+        }
+        fn rejected_from(a: Vector, b: Vec<Vector>) -> Vector {
+            a.rejected_from_all(b)
         }
     ])?;
 
