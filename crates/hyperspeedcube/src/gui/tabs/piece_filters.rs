@@ -880,64 +880,60 @@ fn show_filter_checkboxes_ui(
     let _ = filters.piece_types.resize(puzzle.piece_types.len());
 
     let allowed_states = FilterCheckboxAllowedStates::NeutralShowHide;
-    egui::collapsing_header::CollapsingState::load_with_default_open(
-        ui,
-        unique_id!(&id),
-        true,
-    )
-    .show_header(ui, |ui| {
-        let mut common_state = get_common_state(filters.colors.iter_values());
-        let r = ui.add(FilterCheckbox::new(
-            allowed_states,
-            common_state.as_mut(),
-            L.piece_filters.colors,
-        ));
-        *changed |= r.changed();
-        if r.changed() {
-            filters.colors.fill(common_state.flatten());
-        }
-    })
-    .body(|ui| {
-        let states_iter = filters.colors.iter_values_mut();
-        let rgbs_iter = color_scheme
-            .values()
-            .map(|color| prefs.color_palette.get(color).unwrap_or_default());
-        let color_names = puzzle.colors.names.list().iter_values();
-
-        // TODO: refactor
-        let show_the_things = |ui: &mut egui::Ui| {
-            for ((state, rgb), display_name) in states_iter.zip(rgbs_iter).zip(color_names) {
-                let r = &ui.add(
-                    FilterCheckbox::new(allowed_states, Some(state), &**display_name)
-                        .color(rgb.to_egui_color32())
-                        .indent(),
-                );
-                *changed |= r.changed();
+    egui::collapsing_header::CollapsingState::load_with_default_open(ui, unique_id!(&id), true)
+        .show_header(ui, |ui| {
+            let mut common_state = get_common_state(filters.colors.iter_values());
+            let r = ui.add(FilterCheckbox::new(
+                allowed_states,
+                common_state.as_mut(),
+                L.piece_filters.colors,
+            ));
+            *changed |= r.changed();
+            if r.changed() {
+                filters.colors.fill(common_state.flatten());
             }
-        };
+        })
+        .body(|ui| {
+            let states_iter = filters.colors.iter_values_mut();
+            let rgbs_iter = color_scheme
+                .values()
+                .map(|color| prefs.color_palette.get(color).unwrap_or_default());
+            let color_names = puzzle.colors.names.list().iter_values();
 
-        if puzzle.colors.len() > 12 {
-            egui::Frame {
-                stroke: egui::Stroke {
-                    width: 1.0,
-                    color: ui.visuals().window_stroke.color,
-                },
-                inner_margin: egui::Margin::same(3),
-                ..Default::default()
+            // TODO: refactor
+            let show_the_things = |ui: &mut egui::Ui| {
+                for ((state, rgb), display_name) in states_iter.zip(rgbs_iter).zip(color_names) {
+                    let r = &ui.add(
+                        FilterCheckbox::new(allowed_states, Some(state), &**display_name)
+                            .color(rgb.to_egui_color32())
+                            .indent(),
+                    );
+                    *changed |= r.changed();
+                }
+            };
+
+            if puzzle.colors.len() > 12 {
+                egui::Frame {
+                    stroke: egui::Stroke {
+                        width: 1.0,
+                        color: ui.visuals().window_stroke.color,
+                    },
+                    inner_margin: egui::Margin::same(3),
+                    ..Default::default()
+                }
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .min_scrolled_height(300.0)
+                        .max_height(100.0)
+                        .show(ui, |ui| {
+                            show_the_things(ui);
+                            ui.set_min_width(ui.min_rect().width() + 50.0);
+                        });
+                });
+            } else {
+                show_the_things(ui);
             }
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .min_scrolled_height(300.0)
-                    .max_height(100.0)
-                    .show(ui, |ui| {
-                        show_the_things(ui);
-                        ui.set_min_width(ui.min_rect().width() + 50.0);
-                    });
-            });
-        } else {
-            show_the_things(ui);
-        }
-    });
+        });
 
     show_piece_type_hierarchy(
         unique_id!(&id),

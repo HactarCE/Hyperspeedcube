@@ -14,8 +14,7 @@
 //! Tags and the tag menu are defined in `tags.kdl` at the crate root.
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 mod menu;
 mod set;

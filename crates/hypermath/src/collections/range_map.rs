@@ -1,7 +1,10 @@
-use std::{collections::BTreeMap, fmt, range::Range};
+use std::collections::BTreeMap;
+use std::fmt;
+use std::range::Range;
+
+use itertools::Itertools;
 
 use crate::{APPROX, Float, FloatPool};
-use itertools::Itertools;
 
 /// Map from float ranges to values.
 ///

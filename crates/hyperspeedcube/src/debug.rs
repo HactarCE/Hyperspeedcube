@@ -1,5 +1,6 @@
-use parking_lot::Mutex;
 use std::sync::LazyLock;
+
+use parking_lot::Mutex;
 
 pub static FRAME_DEBUG_INFO: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
 

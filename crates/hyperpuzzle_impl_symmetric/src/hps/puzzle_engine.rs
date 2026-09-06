@@ -16,8 +16,8 @@ use hypuz_notation::Layer;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{CutDistances, NamedPointOrbitSpec};
-use crate::{PerAxisOrbit, builder::*};
+use crate::builder::*;
+use crate::{CutDistances, NamedPointOrbitSpec, PerAxisOrbit};
 
 pub struct SymmetricPuzzleEngine;
 

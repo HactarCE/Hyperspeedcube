@@ -1,8 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use hypermath::RotDir;
-use hypermath::{Float, Hyperplane, Point, VectorRef};
+use hypermath::{Float, Hyperplane, Point, RotDir, VectorRef};
 use hyperpuzzle_core::Component;
 use hyperpuzzle_core::prelude::*;
 

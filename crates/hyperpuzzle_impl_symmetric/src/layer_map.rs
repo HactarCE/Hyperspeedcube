@@ -1,6 +1,8 @@
-use std::{range::Range, sync::Arc};
+use std::range::Range;
+use std::sync::Arc;
 
-use hypermath::{Float, RangeMap, WhichSide, collections::NanError};
+use hypermath::collections::NanError;
+use hypermath::{Float, RangeMap, WhichSide};
 use hypuz_notation::{AxisLayersInfo, Layer, LayerMask, LayerRange};
 
 /// Ranges of cut depths along an axis corresponding to layers.

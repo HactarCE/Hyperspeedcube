@@ -1,5 +1,6 @@
 use eyre::{Result, bail};
-use hypermath::{APPROX, Float, RangeMap, collections::NanError};
+use hypermath::collections::NanError;
+use hypermath::{APPROX, Float, RangeMap};
 use hyperpuzzle_core::PerLayer;
 use hypuz_notation::Layer;
 use itertools::Itertools;

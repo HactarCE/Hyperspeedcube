@@ -15,8 +15,11 @@ use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{JumbleAngleSpec, JumbleMoveSpec, JumbleStopSpec, builder::*};
-use crate::{NamedPointOrbitSpec, NamedPointSetOrbitSpec, StabilizerTwistOrbitSpec};
+use crate::builder::*;
+use crate::{
+    JumbleAngleSpec, JumbleMoveSpec, JumbleStopSpec, NamedPointOrbitSpec, NamedPointSetOrbitSpec,
+    StabilizerTwistOrbitSpec,
+};
 
 pub struct SymmetricTwistSystemEngine;
 

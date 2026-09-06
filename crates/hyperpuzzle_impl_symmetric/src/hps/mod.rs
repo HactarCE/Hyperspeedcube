@@ -11,8 +11,8 @@ use hyperpuzzle_core::catalog::MenuContent;
 use hyperpuzzle_impl_nd_euclid::hps::ElementNames;
 use hyperpuzzlescript::util::{expect_end_of_map, pop_map_key};
 use hyperpuzzlescript::{
-    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, Map, Runtime,
-    Str, Type, Value, ValueData, hps_fns,
+    BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, Map, Runtime, Str, Type, Value, ValueData,
+    hps_fns,
 };
 
 mod puzzle_engine;

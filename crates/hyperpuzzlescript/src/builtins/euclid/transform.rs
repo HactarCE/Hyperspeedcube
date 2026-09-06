@@ -100,8 +100,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ///    `fix` must be one of the following:
         ///     - A vector (zero [bulk], [grade] 1, [antigrade] 3)
         ///     - A line (nonzero [bulk], [grade] 2, [antigrade] 2)
-        /// 2. There are many 180° rotations that take any given vector to
-        ///    its opposite, so this case is disallowed due to ambiguity.
+        /// 2. There are many 180° rotations that take any given vector to its
+        ///    opposite, so this case is disallowed due to ambiguity.
         /// 3. This results in the component of each vector that is
         ///    perpendicular to `fix`.
         ///

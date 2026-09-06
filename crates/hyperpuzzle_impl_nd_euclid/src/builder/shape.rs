@@ -265,8 +265,9 @@ impl ShapeBuilder {
         name: String,
         display: Option<String>,
     ) -> Result<PieceType> {
-        static PIECE_TYPE_NAME_REGEX: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*$").expect("bad regex"));
+        static PIECE_TYPE_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*$").expect("bad regex")
+        });
 
         if !PIECE_TYPE_NAME_REGEX.is_match(&name) {
             bail!("invalid piece type name: {name:?}")

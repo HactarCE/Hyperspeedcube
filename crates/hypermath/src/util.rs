@@ -1,10 +1,8 @@
 //! Common mathematical utility functions that didn't fit anywhere else.
 
 pub use std::f64::consts::PI;
-use std::{
-    f64::consts::TAU,
-    ops::{Add, BitXorAssign, Mul},
-};
+use std::f64::consts::TAU;
+use std::ops::{Add, BitXorAssign, Mul};
 
 use itertools::Itertools;
 use num_traits::{CheckedShl, PrimInt, Unsigned};
@@ -250,7 +248,8 @@ pub fn minimize_angle(angle: Float, preferred_sign: Option<Sign>) -> Float {
     }
 }
 
-/// Returns the angle in the range `0..τ`. Angles approximately equal to τ are coerced to 0.
+/// Returns the angle in the range `0..τ`. Angles approximately equal to τ are
+/// coerced to 0.
 pub fn canonicalize_angle(angle: Float) -> Float {
     approx_rem_euclid(angle, TAU)
 }

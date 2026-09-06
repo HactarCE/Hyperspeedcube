@@ -620,7 +620,8 @@ impl AxisOrbitJumbleData {
             return JumbleTransform::simplify_seq([tf]);
         }
 
-        // Fallback: `start` -> doctrinaire position near `start` -> doctrinaire position near `end` -> `end`
+        // Fallback: `start` -> doctrinaire position near `start` -> doctrinaire
+        // position near `end` -> `end`
         let stop1 = &self.stops[start];
         let stop2 = &self.stops[end];
         let (tf1, tf2) = if angle_delta > 0.0 {

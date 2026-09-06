@@ -365,7 +365,8 @@ impl GeneratorSubsetParam {
 pub struct GeneratorSubsetParamValue {
     /// ID suffix for the subset, such as `rot` or `refl`.
     pub id: CatalogWord,
-    /// Human-friendly name for the subset, such as `Rotations` or `Reflections`.
+    /// Human-friendly name for the subset, such as `Rotations` or
+    /// `Reflections`.
     pub name: String,
 }
 

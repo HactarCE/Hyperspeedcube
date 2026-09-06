@@ -1,5 +1,4 @@
-use std::sync::LazyLock;
-use std::sync::mpsc;
+use std::sync::{LazyLock, mpsc};
 
 use parking_lot::Mutex;
 

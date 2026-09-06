@@ -7,8 +7,10 @@ use itertools::{Itertools, PutBack};
 use regex::Regex;
 
 /// Regex matching a name, or any single symbol.
-static TOKEN_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"['@]?([a-zA-Z_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ][a-zA-Z0-9_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ]*)|.").expect("bad regex"));
+static TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"['@]?([a-zA-Z_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ][a-zA-Z0-9_βδζθλξεηκμπτφψωΓΔΘΛΞΠΣΦΨΩ]*)|.")
+        .expect("bad regex")
+});
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilterExpr {

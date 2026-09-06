@@ -7,8 +7,9 @@ use eyre::{OptionExt, Result};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzle_core::catalog::VersionedCatalogWord;
+use hyperpuzzle_core::group::GroupElementId;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::{catalog::VersionedCatalogWord, group::GroupElementId};
 use hyperpuzzle_impl_nd_euclid::{
     NdEuclidAxisVectors, NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData,
 };
@@ -651,7 +652,8 @@ fn layers_containing_range(
         // Cover `layer_min..=layer_max`
         if APPROX.lt(layer_min, range_max) {
             mask.insert(layer);
-            // We've covered `layer_min..=range_max`, so the remaining range is `range_min..=layer_min`
+            // We've covered `layer_min..=range_max`, so the remaining range is
+            // `range_min..=layer_min`
             range_max = layer_min;
         }
 

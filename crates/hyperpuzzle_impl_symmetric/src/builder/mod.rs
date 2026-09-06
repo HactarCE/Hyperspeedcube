@@ -374,7 +374,8 @@ impl PuzzleProduct {
                     && let Ok(jumble_transforms) =
                         jumble_data.notation_from_stop_to_stop(old_stop, new_stop, Some(dir_sign))
                 {
-                    // TODO: consider all layers, and select the next jumble stop that is ok for all of them
+                    // TODO: consider all layers, and select the next jumble stop that is ok for all
+                    // of them
                     return Some((
                         gizmo_string,
                         jumble_transforms
