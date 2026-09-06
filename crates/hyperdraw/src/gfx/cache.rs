@@ -68,6 +68,22 @@ impl CachedTexture2d {
             },
         })
     }
+
+    /// Writes raw data directly to the texture. The texture is resized to fit
+    /// the data.
+    pub fn write<T: bytemuck::Pod>(&mut self, data: &[T]) {
+        let len = data.len() as u32;
+        let max_dimension = self.inner.gfx.device.limits().max_texture_dimension_2d;
+        let w = std::cmp::min(len, max_dimension);
+        let h = len.div_ceil(w);
+        self.set_size([w, h]);
+        self.inner.gfx.queue.write_texture(
+            self.texture.as_image_copy(),
+            bytemuck::cast_slice(data),
+            wgpu::TexelCopyBufferLayout::default(),
+            self.inner.extent_3d(),
+        );
+    }
 }
 
 /// Cached texture. The cache is invalidated if the texture changes size.
@@ -80,7 +96,7 @@ pub struct CachedTexture<S> {
     /// Default view of the texture.
     pub view: wgpu::TextureView,
 }
-impl<S: PartialEq + Copy> CachedTexture<S> {
+impl<S: PartialEq + Copy + std::fmt::Debug> CachedTexture<S> {
     fn new_generic(inner: CachedTextureInner<S>) -> Self {
         let texture = inner.gfx.create_texture(wgpu::TextureDescriptor {
             label: Some(&inner.label),

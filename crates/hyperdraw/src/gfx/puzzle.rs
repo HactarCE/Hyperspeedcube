@@ -25,7 +25,7 @@ use web_time::Instant;
 use super::bindings::WgpuPassExt;
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
 use super::structs::*;
-use super::{CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState, pipelines};
+use super::{CachedTexture2d, DrawParams, GraphicsState, pipelines};
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
 /// clipping far from the camera, but also less Z buffer precision.
@@ -563,18 +563,6 @@ impl NdEuclidPuzzleRenderer {
                 });
             }
         }
-        let mut color_palette_size = color_palette.len() as u32;
-        let max_color_palette_size = self.gfx.device.limits().max_texture_dimension_1d;
-        if color_palette_size > max_color_palette_size {
-            log::warn!(
-                "Color palette size ({color_palette_size}) exceeds \
-                 maximum 1D texture size ({max_color_palette_size})"
-            );
-            color_palette_size = max_color_palette_size;
-        }
-        self.buffers
-            .color_palette_texture
-            .set_size(color_palette_size);
 
         // Write color palette. TODO: only write to buffer when it changes
         let color_palette_data = color_palette;
@@ -1184,7 +1172,7 @@ struct_with_constructor! {
                  * TEXTURES
                  */
                 /// Color palette texture.
-                color_palette_texture: CachedTexture1d = CachedTexture1d::new(
+                color_palette_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("color_palette_texture"),
                     wgpu::TextureFormat::Rgba8UnormSrgb,

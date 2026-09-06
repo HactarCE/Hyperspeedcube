@@ -102,7 +102,7 @@ struct DrawParams {
  */
 
 // Textures and texture samplers
-@group(0) @binding(50)  var color_palette_texture: texture_1d<f32>;
+@group(0) @binding(50)  var color_palette_texture: texture_2d<f32>;
 @group(0) @binding(100) var polygons_texture: texture_2d<u32>;
 @group(0) @binding(101) var polygons_depth_texture: texture_depth_2d;
 @group(0) @binding(102) var edge_ids_texture: texture_2d<u32>;
@@ -459,7 +459,8 @@ fn get_color(color_id: u32, lighting: f32, screen_space_xy: vec2<f32>) -> vec4<f
     if index == COLOR_RAINBOW {
         color = sinebow((screen_space_xy.x - screen_space_xy.y) - draw_params.rainbow_offset);
     } else {
-        color = textureLoad(color_palette_texture, index, 0);
+        let w = textureDimensions(color_palette_texture).x;
+        color = textureLoad(color_palette_texture, vec2(index % w, index / w), 0);
     }
     // Premultiply alpha.
     return vec4(color.rgb * light_value, 1.0) * color.a;
