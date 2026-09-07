@@ -4,7 +4,6 @@ use eyre::{Context, eyre};
 use hypergroup::GenSeq;
 use hypermath::{Float, Ndim};
 use hyperpuzzle_core::{BuildCtx, TwistSystem};
-use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::engine::HpsEngineError;
 use hyperpuzzlescript::util::pop_map_key_in_special_var;
 use hyperpuzzlescript::{
@@ -16,6 +15,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::builder::*;
+use crate::hps::HpsSymmetry;
 use crate::{
     JumbleAngleSpec, JumbleMoveSpec, JumbleStopSpec, NamedPointOrbitSpec, NamedPointSetOrbitSpec,
     StabilizerTwistOrbitSpec,

@@ -4,7 +4,6 @@ use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
 use hypermath::collections::RangeMap;
 use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
-use hyperpuzzle_impl_nd_euclid::hps::HpsSymmetry;
 use hyperpuzzlescript::builtins::catalog::tags::tags_from_map;
 use hyperpuzzlescript::engine::HpsEngineError;
 use hyperpuzzlescript::util::{ListOrVal, pop_map_key_in_special_var};
@@ -17,6 +16,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::builder::*;
+use crate::hps::HpsSymmetry;
 use crate::{CutDistances, NamedPointOrbitSpec, PerAxisOrbit};
 
 pub struct SymmetricPuzzleEngine;

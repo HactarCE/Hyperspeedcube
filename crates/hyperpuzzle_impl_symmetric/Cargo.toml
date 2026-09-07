@@ -19,7 +19,6 @@ workspace = true
 hypergroup.workspace = true
 hypermath.workspace = true
 hyperpuzzle_core.workspace = true
-hyperpuzzle_impl_nd_euclid.workspace = true
 hyperpuzzlescript.workspace = true
 hypuz_notation.workspace = true
 hypuz_util.workspace = true
@@ -28,11 +27,13 @@ eyre.workspace = true
 hypershape.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
+log.workspace = true
 parking_lot.workspace = true
 rand.workspace = true
 rayon.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true
+tinyset.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

@@ -11,7 +11,6 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::Component;
 use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
 use hypuz_notation::family::JumbleSuffix;
 use hypuz_notation::{Str, Transform};
 use hypuz_util::FloatMinMaxByIteratorExt;
@@ -20,7 +19,10 @@ use parking_lot::Mutex;
 use rand::{Rng, RngExt};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{AxisOrbit, NamedPoint, NamedPointSet, PerAxisOrbit, PerNamedPoint, StabilizerFamily};
+use crate::{
+    AxisOrbit, NamedPoint, NamedPointSet, NdEuclidAxisVectors, PerAxisOrbit, PerNamedPoint,
+    StabilizerFamily,
+};
 
 hypuz_util::typed_index_struct! {
     /// ID of a jumbling stop within an axis.

@@ -1627,12 +1627,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "disjoint"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c37b399c91d093763e38c7a57a740e0005e30e5aff7132e791aada5eef3fed99"
-
-[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2843,7 +2837,6 @@ version = "0.1.0"
 dependencies = [
  "eyre",
  "hyperpuzzle_core",
- "hyperpuzzle_impl_nd_euclid",
  "hyperpuzzle_impl_symmetric",
  "hyperpuzzle_log",
  "hyperpuzzlescript",
@@ -2886,29 +2879,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperpuzzle_impl_nd_euclid"
-version = "0.1.0"
-dependencies = [
- "disjoint",
- "eyre",
- "float-ord",
- "hypergroup",
- "hypermath",
- "hyperpuzzle_core",
- "hyperpuzzlescript",
- "hypershape",
- "indexmap",
- "itertools 0.14.0",
- "log",
- "parking_lot",
- "rand 0.10.1",
- "regex",
- "smallvec",
- "thiserror 2.0.18",
- "tinyset",
-]
-
-[[package]]
 name = "hyperpuzzle_impl_symmetric"
 version = "0.1.0"
 dependencies = [
@@ -2916,19 +2886,20 @@ dependencies = [
  "hypergroup",
  "hypermath",
  "hyperpuzzle_core",
- "hyperpuzzle_impl_nd_euclid",
  "hyperpuzzlescript",
  "hypershape",
  "hypuz_notation",
  "hypuz_util",
  "indexmap",
  "itertools 0.14.0",
+ "log",
  "parking_lot",
  "proptest",
  "rand 0.10.1",
  "rayon",
  "smallvec",
  "thiserror 2.0.18",
+ "tinyset",
 ]
 
 [[package]]

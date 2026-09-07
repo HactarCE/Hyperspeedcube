@@ -6,7 +6,7 @@ use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
-use hyperpuzzle::nd_euclid::{PgaMotorToNearestTwist, TwistToPgaMotor};
+use hyperpuzzle::symmetric::{PgaMotorToNearestTwist, TwistToPgaMotor};
 use hyperpuzzle::prelude::*;
 use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
 use hyperpuzzle_log::{LogEvent, Scramble};

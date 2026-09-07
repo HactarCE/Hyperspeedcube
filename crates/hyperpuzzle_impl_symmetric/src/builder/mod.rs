@@ -11,7 +11,6 @@ use hypermath::prelude::*;
 use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, NdEuclidPuzzleGeometry};
 
 mod colors;
 mod from_space;
@@ -19,6 +18,8 @@ mod gizmos;
 mod names;
 mod shape;
 mod twists;
+mod vantage_group;
+mod vantage_set;
 
 pub(crate) use colors::ColorSystemDisjointUnion;
 use hypuz_notation::family::SequentialLowercaseName;
@@ -30,10 +31,14 @@ use shape::{
     DisjointUnionColorName, PieceData, PieceFacetData, ProductPuzzleShape, StickerData, SurfaceData,
 };
 pub(crate) use twists::TwistSystemProduct;
+pub use vantage_group::VantageGroupBuilder;
+pub use vantage_set::{
+    AxisDirectionMapBuilder, RelativeAxisBuilder, RelativeTwistBuilder, VantageSetBuilder,
+};
 
 use crate::{
-    FactorPuzzleSpec, LayerMap, NamedPoint, PerAxisOrbit, ProductPuzzleState,
-    SymmetricTwistSystemComponent,
+    FactorPuzzleSpec, LayerMap, NamedPoint, NdEuclidAxisVectors, NdEuclidPuzzleGeometry,
+    PerAxisOrbit, ProductPuzzleState, SymmetricTwistSystemComponent,
 };
 
 #[derive(Debug)]

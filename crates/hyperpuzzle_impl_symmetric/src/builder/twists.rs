@@ -12,7 +12,6 @@ use hyperpuzzle_core::{
     Axis, AxisSystem, CatalogId, CatalogObject, CatalogWord, ComponentList, IndexOverflow, Names,
     PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };
-use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, PgaMotorToNearestTwist, TwistToPgaMotor};
 use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_notation::{Move, Multiplier};
 use hypuz_util::FloatMinMaxByIteratorExt;
@@ -23,8 +22,9 @@ use smallvec::smallvec;
 use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
 use crate::{
     AxisOrbit, AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleTransform, NamedPoint,
-    NamedPointSet, PerAxisOrbit, PerNamedPoint, StabilizerFamily, SymmetricTwistSystemAxisOrbit,
-    SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
+    NamedPointSet, NdEuclidAxisVectors, PerAxisOrbit, PerNamedPoint, PgaMotorToNearestTwist,
+    StabilizerFamily, SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent,
+    TwistToPgaMotor, UniqueMinimalClockwiseGenerator,
 };
 
 #[derive(Debug, Clone)]

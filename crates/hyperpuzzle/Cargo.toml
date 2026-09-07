@@ -17,7 +17,6 @@ workspace = true
 
 [dependencies]
 hyperpuzzle_core.workspace = true
-hyperpuzzle_impl_nd_euclid.workspace = true
 hyperpuzzle_impl_symmetric.workspace = true
 hyperpuzzlescript.workspace = true
 

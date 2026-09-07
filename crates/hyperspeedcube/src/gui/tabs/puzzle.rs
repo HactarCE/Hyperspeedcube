@@ -220,7 +220,7 @@ impl PuzzleWidget {
                     view: view.unwrap_or_else(|| {
                         let gfx = &self.gfx;
                         let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
-                            &hyperpuzzle::nd_euclid::PLACEHOLDER_PUZZLE,
+                            &hyperpuzzle::symmetric::PLACEHOLDER_PUZZLE,
                         )));
                         PuzzleView::new(gfx, &sim, prefs)
                     }),
