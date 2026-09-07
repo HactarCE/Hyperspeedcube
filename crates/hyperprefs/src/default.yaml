@@ -59,6 +59,7 @@ interaction:
   realign_on_release: false
   realign_on_keypress: true
   smart_realign: true
+  reverse_backface_gizmo_clicks: true
   middle_click_delete: true
   show_move_count_in_status_bar: true
   show_speedsolve_timer_in_status_bar: true

@@ -4,6 +4,7 @@ use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::prelude::*;
+use hyperprefs::InteractionPreferences;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::FloatMinMaxByIteratorExt;
 use hyperpuzzle::prelude::*;
@@ -343,9 +344,13 @@ impl NdEuclidViewState {
         &self,
         sim: &mut PuzzleSimulation,
         layers: Option<LayerMask>,
-        direction: RotDir,
+        mut direction: RotDir,
+        prefs: &InteractionPreferences,
     ) {
         if let Some(hov) = &self.gizmo_hover_state {
+            if hov.backface && prefs.reverse_backface_gizmo_clicks {
+                direction = -direction;
+            }
             let Some((gizmo_name, twists)) = (self.geom.get_gizmo_twist)(
                 hov.gizmo_face,
                 layers.clone(),

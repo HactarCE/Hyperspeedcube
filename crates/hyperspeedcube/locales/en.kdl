@@ -506,6 +506,11 @@ prefs {
           This adds a full-puzzle rotation to the undo history.
         """
       }
+      (HoverStrings)reverse_backface_gizmo_clicks "Reverse backface gizmo clicks" {
+        desc """
+          When enabled, clicking on the backface of a gizmo does the reverse twist.
+        """
+      }
     }
     gui {
       title "GUI"

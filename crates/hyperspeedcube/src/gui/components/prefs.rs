@@ -453,6 +453,10 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
         prefs_ui.checkbox(&l.realign_puzzle_on_release, access!(.realign_on_release));
         prefs_ui.checkbox(&l.realign_puzzle_on_keypress, access!(.realign_on_keypress));
         prefs_ui.checkbox(&l.smart_realign, access!(.smart_realign));
+        prefs_ui.checkbox(
+            &l.reverse_backface_gizmo_clicks,
+            access!(.reverse_backface_gizmo_clicks),
+        );
     });
 
     let l = &L.prefs.interaction.gui;

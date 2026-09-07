@@ -898,7 +898,7 @@ fn show_nd_euclid_puzzle_view(
     match action {
         Action::None => (),
         Action::ClickTwist(sign) => {
-            nd_euclid.do_click_twist(&mut sim.lock(), layers, sign);
+            nd_euclid.do_click_twist(&mut sim.lock(), layers, sign, &prefs.interaction);
         }
         Action::EditStickerColor => {
             if let Some(hov) = nd_euclid.puzzle_hover_state()
