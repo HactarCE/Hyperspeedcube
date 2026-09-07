@@ -101,10 +101,9 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     })
     .expect("error defining HPS catalog built-ins");
 
-    // Add NdEuclid built-ins.
-    hyperpuzzle_impl_nd_euclid::hps::register_hps_engines(&mut rt);
+    // Add the shared Euclidean geometry HPS vocabulary.
     rt.with_builtins(hyperpuzzle_impl_nd_euclid::hps::define_in)
-        .expect("error defining HPS euclid built-ins");
+        .expect("error defining HPS euclid geometry built-ins");
 
     hyperpuzzle_impl_symmetric::hps::register_hps_engines(&mut rt);
     rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))

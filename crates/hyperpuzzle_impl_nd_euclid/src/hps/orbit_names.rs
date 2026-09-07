@@ -14,7 +14,7 @@ use hyperpuzzlescript::{
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{HpsAxis, HpsEuclidError, HpsSymmetry};
+use super::{HpsEuclidError, HpsSymmetry};
 
 #[derive(Debug, Clone)]
 pub struct ElementNames(pub HpsOrbitNames);
@@ -107,12 +107,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsOrbitNames>()?;
 
     builtins.set_fns(hps_fns![
-        ("$", |ctx, axis: HpsAxis| -> HpsOrbitNames {
-            HpsOrbitNames::from((axis.into(), ctx.caller_span))
-        }),
-        ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames {
-            orbit_names
-        }),
+        ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames { orbit_names }),
         (
             "++",
             |_, (a, a_span): Str, b: HpsOrbitNames| -> HpsOrbitNames {
@@ -181,26 +176,6 @@ impl HpsOrbitNames {
                         *s += &**new_str;
                     }
                 }
-                HpsOrbitNamesComponent::Axis(axis) => {
-                    let axes = &axis.axes;
-                    for (s, t) in strings_and_transforms {
-                        let (transformed_axis, transformed_axis_vector) = super::transform_axis(
-                            span,
-                            &*axes.lock_vectors().at(span)?,
-                            &t,
-                            (axis.id, component_span),
-                        )?;
-                        let transformed_axis_name = axes
-                            .axis_name(transformed_axis)
-                            .at(span)?
-                            .ok_or(HpsEuclidError::UnnamedAxis(
-                                transformed_axis,
-                                transformed_axis_vector,
-                            ))
-                            .at(span)?;
-                        s.push_str(&transformed_axis_name.spec);
-                    }
-                }
                 HpsOrbitNamesComponent::Cosets(lazy_coset_map) => {
                     // Compute cosets map.
                     let mut lazy_coset_map_guard = lazy_coset_map.lock();
@@ -244,18 +219,12 @@ impl HpsOrbitNames {
 #[derive(Debug, Clone)]
 pub enum HpsOrbitNamesComponent {
     Str(Str),
-    Axis(HpsAxis),
     Cosets(Arc<Mutex<LazyCosetMap>>),
     Fn(Arc<FnValue>),
 }
 impl From<Str> for HpsOrbitNamesComponent {
     fn from(value: Str) -> Self {
         Self::Str(value)
-    }
-}
-impl From<HpsAxis> for HpsOrbitNamesComponent {
-    fn from(value: HpsAxis) -> Self {
-        Self::Axis(value)
     }
 }
 impl From<Arc<FnValue>> for HpsOrbitNamesComponent {
