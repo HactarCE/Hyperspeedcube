@@ -138,11 +138,15 @@ impl NdEuclidViewState {
 
                 // Initialize partial twist state.
                 DragState::PreTwist => {
-                    if exceeded_twist_drag_threshold && ndim == 3 {
+                    if exceeded_twist_drag_threshold
+                        && ndim == 3
+                        && let Some(parallel_drag_delta) =
+                            self.parallel_drag_delta().and_then(|v| v.normalize())
+                    {
+                        let mut float_pool = FloatPool::new(APPROX);
                         // IIFE to mimic try_block
                         let best_grip = (|| {
                             let hov = self.puzzle_hover_state()?;
-                            let parallel_drag_delta = self.parallel_drag_delta()?;
                             let target = hov.normal_3d().cross_product_3d(&parallel_drag_delta);
                             sim.nd_euclid()?
                                 .geom
@@ -152,14 +156,17 @@ impl NdEuclidViewState {
                                 .filter_map(|(axis, axis_vector)| {
                                     // TODO: canoncalize axis based on layer mask
                                     let layers = puzzle.min_drag_layer_mask(axis, hov.piece)?;
-                                    let score = target.dot(axis_vector.normalize()?).abs();
-                                    if !APPROX.is_pos(score) {
+                                    let score1 = target.dot(axis_vector.normalize()?).abs();
+                                    if !APPROX.is_pos(score1) {
                                         return None;
                                     }
+                                    let score2 = axis_vector.dot(hov.position.as_vector());
+                                    let score =
+                                        [score1, score2].map(|x| FloatOrd(float_pool.intern(x)));
                                     Some((axis, layers, score))
                                 })
                                 // TODO: handle multiple good matches, maybe?
-                                .max_by_key(|(_, _, score)| FloatOrd(*score))
+                                .max_by_key(|(_, _, score)| *score)
                                 .map(|(axis, layers, _)| (axis, layers))
                         })();
                         if let Some((axis, layers)) = best_grip {
