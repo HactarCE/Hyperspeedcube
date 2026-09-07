@@ -6,14 +6,15 @@ use hypergroup::{
     ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
     SubgroupConstraintSolver,
 };
-use hypermath::{Float, Matrix, Point, Vector, VectorRef};
+use hypermath::{Float, Matrix, MotorNearestNeighborMap, Point, Vector, VectorRef};
 use hyperpuzzle_core::catalog::BuildCtx;
 use hyperpuzzle_core::{
     Axis, AxisSystem, CatalogId, CatalogObject, CatalogWord, ComponentList, IndexOverflow, Names,
     PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };
-use hyperpuzzle_impl_nd_euclid::NdEuclidAxisVectors;
+use hyperpuzzle_impl_nd_euclid::{NdEuclidAxisVectors, PgaMotorToNearestTwist, TwistToPgaMotor};
 use hypuz_notation::family::SequentialLowercaseName;
+use hypuz_notation::{Move, Multiplier};
 use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -566,10 +567,11 @@ impl TwistSystemProduct {
         build_ctx.pop_task();
 
         let mut components = ComponentList::new();
-        build_ctx.push_task("constructing symmetric twist system component");
+
         build_ctx.push_task("building axis undeorbiters");
         let axis_undeorbiters = Arc::new(self.build_axis_undeorbiters()?);
         build_ctx.pop_task();
+
         build_ctx.push_task("building axis orbits");
         let axis_orbits = Arc::new(self.build_axis_orbits(
             build_ctx,
@@ -578,7 +580,9 @@ impl TwistSystemProduct {
             warn_fn,
         )?);
         build_ctx.pop_task();
-        components.insert(Arc::new(SymmetricTwistSystemComponent {
+
+        build_ctx.push_task("constructing symmetric twist system component");
+        let sym_twist_system = Arc::new(SymmetricTwistSystemComponent {
             axes: Arc::clone(&axes),
             group: self.group.clone(),
             fundamental_region_mirrors: self.fundamental_region_mirrors.clone(),
@@ -591,6 +595,58 @@ impl TwistSystemProduct {
             named_point_action: self.named_point_action.clone(),
             named_point_names,
             named_point_vectors: Arc::new(self.named_point_vectors.clone()),
+        });
+        components.insert(Arc::clone(&sym_twist_system));
+        build_ctx.pop_task();
+
+        if self.ndim() == 3 {
+            build_ctx.push_task("constructing PgaMotorToNearestTwist");
+            let nearest_twist_per_axis_orbit = sym_twist_system.axis_orbits.map_ref(|_, orbit| {
+                orbit
+                    .stabilizer_twists
+                    .iter()
+                    .find(|(named_point_set, _, _)| named_point_set.is_empty())
+                    .map(|(_, min_clockwise_generator, _)| {
+                        let max_multiplier = min_clockwise_generator.order.get() / 2;
+                        let unit_motor = self.group.motor(min_clockwise_generator.element);
+                        let motors = (-max_multiplier..=max_multiplier)
+                            .map(|multiplier| unit_motor.powi(multiplier as i64))
+                            .collect_vec();
+                        MotorNearestNeighborMap::new(&motors, -max_multiplier..=max_multiplier)
+                    })
+            });
+            let sym_twist_system_ref = Arc::clone(&sym_twist_system);
+            components.insert(PgaMotorToNearestTwist::new(
+                move |axis, layer_mask, motor| {
+                    let axis_name = sym_twist_system_ref.axes.names.get(axis).ok()?;
+                    let group = &sym_twist_system_ref.group;
+                    let (undeorbiter, axis_orbit_index) =
+                        sym_twist_system_ref.axis_undeorbiters[axis];
+                    let motor_near_first_axis = group
+                        .motor(group.inverse(undeorbiter))
+                        .transform_motor_oriented(motor);
+                    let multiplier = *nearest_twist_per_axis_orbit[axis_orbit_index]
+                        .as_ref()?
+                        .nearest(&motor_near_first_axis)?;
+                    if multiplier == 0 {
+                        return None;
+                    }
+                    Some(Move::new(
+                        layer_mask.clone(),
+                        axis_name,
+                        None,
+                        Multiplier(multiplier),
+                    ))
+                },
+            ));
+            build_ctx.pop_task();
+        }
+
+        build_ctx.push_task("constructing TwistToPgaMotor");
+        components.insert(TwistToPgaMotor::new(move |twist_transform| {
+            sym_twist_system
+                .twist_motor(&Move::from(twist_transform.clone()))
+                .ok()
         }));
         build_ctx.pop_task();
 

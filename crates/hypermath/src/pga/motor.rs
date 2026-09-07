@@ -430,6 +430,18 @@ impl Motor {
             .to_point()
             .unwrap_or(Point::ORIGIN)
     }
+    /// Transforms a motor, preserving its orientation.
+    ///
+    /// I.e., if `self` is a reflection, then `m` is reversed so that its
+    /// rotation direction remains consistent.
+    pub fn transform_motor_oriented(&self, m: &Motor) -> Motor {
+        let ret = self.transform(m);
+        if self.is_reflection() {
+            ret.reverse()
+        } else {
+            ret
+        }
+    }
 
     /// Returns the scalar dot product between two motors.
     pub fn dot(a: &Self, b: &Self) -> Float {
@@ -899,6 +911,29 @@ mod tests {
         assert!(APPROX.ne_zero(&ax2));
         let wedge = Blade::wedge(&ax2, &Blade::from_vector(vector![0.0, 0.0, 0.0, 1.0]));
         assert!(wedge.is_some_and(|b| APPROX.eq_zero(b)));
+    }
+
+    #[test]
+    fn test_motor_powi() {
+        let motors = vec![
+            Motor::rotation([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, -5.0]).unwrap(),
+            Motor::rotation([1.0, 0.0], [0.0, 1.0]).unwrap(),
+            Motor::from_angle_in_axis_plane(0, 1, std::f64::consts::PI),
+        ];
+
+        fn naive_powi(m: &Motor, i: i64) -> Motor {
+            if i < 0 {
+                naive_powi(&m.reverse(), -i)
+            } else {
+                (0..i).fold(Motor::ident(m.ndim()), |acc, _| acc * m)
+            }
+        }
+
+        for m in motors {
+            for i in -10..10 {
+                assert_approx_eq!(m.powi(i), naive_powi(&m, i));
+            }
+        }
     }
 
     #[test]

@@ -460,7 +460,12 @@ impl Group {
         if i == 0 {
             GroupElementId::IDENTITY
         } else if i < 0 {
-            self.powi(self.inverse(e), -i) // TODO: fix panic on overflow
+            if let Some(neg_i) = i.checked_neg() {
+                self.powi(self.inverse(e), neg_i)
+            } else {
+                let sqrt = self.powi(self.inverse(e), -(i / 2));
+                self.compose(sqrt, sqrt)
+            }
         } else {
             let init = self.powi(e, i >> 1);
             let squared = self.compose(init, init);
@@ -578,6 +583,21 @@ mod tests {
                 g.inverse(g.compose(b, a)),
                 g.compose(g.inverse(a), g.inverse(b)),
             );
+        }
+
+        #[test]
+        fn proptest_product_group_powi(
+            a in elem_strategy(),
+            i in -20..20_i32,
+        ) {
+            let g = &*BIG_PRODUCT_GROUP;
+            let expected = if i < 0 {
+                let inv_a = g.inverse(a);
+                (0..-i).fold(GroupElementId::IDENTITY, |acc, _| g.compose(acc, inv_a))
+            } else {
+                (0..i).fold(GroupElementId::IDENTITY, |acc, _| g.compose(acc, a))
+            };
+            assert_eq!(expected, g.powi(a, i));
         }
     }
 }

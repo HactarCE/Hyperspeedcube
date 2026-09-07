@@ -876,9 +876,10 @@ impl PuzzleSimulation {
                     &partial.layers,
                     &partial.transform,
                 )
-                && let Some(twist_motor) =
+                && let Some(unit_twist_motor) =
                     (twist_to_motor.twist_to_pga_motor)(&closest_move.transform)
             {
+                let twist_motor = unit_twist_motor.powi(closest_move.multiplier.0 as i64);
                 let dot_with_twist = Motor::dot(&partial.transform, &twist_motor).abs();
                 let dot_with_identity = partial.transform.get(hypermath::pga::Axes::SCALAR).abs();
                 if dot_with_twist > dot_with_identity {
