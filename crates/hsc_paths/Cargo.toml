@@ -1,5 +1,5 @@
 [package]
-name = "hyperpaths"
+name = "hsc_paths"
 description = "Paths for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

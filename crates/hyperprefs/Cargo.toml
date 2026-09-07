@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperpaths.workspace = true
+hsc_paths.workspace = true
 hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
 hypuz_util = { workspace = true, features = ["serde"] }
 

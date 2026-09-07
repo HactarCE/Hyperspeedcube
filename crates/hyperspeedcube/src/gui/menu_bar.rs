@@ -135,7 +135,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             });
         });
 
-        if let Ok(solves_dir) = hyperpaths::solves_dir() {
+        if let Ok(solves_dir) = hsc_paths::solves_dir() {
             ui.separator();
             if ui.button(L.menu.file.show_solves_dir).clicked() {
                 open_dir(solves_dir);
@@ -272,7 +272,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
         ui.separator();
 
-        if let Ok(hps_dir) = hyperpaths::hps_dir()
+        if let Ok(hps_dir) = hsc_paths::hps_dir()
             && ui
                 .button(L.menu.puzzles.show_hps_dir.label)
                 .on_i18n_hover_explanation(&L.menu.puzzles.show_hps_dir)

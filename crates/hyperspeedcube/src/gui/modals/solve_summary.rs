@@ -101,11 +101,11 @@ impl SolveSummaryModal {
             .solve_completion
             .unwrap_or_else(Utc::now)
             .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        let file_name = hyperpaths::solve_autosave_filename(
+        let file_name = hsc_paths::solve_autosave_filename(
             &completion_timestamp_str,
             verification.solution_stm,
         );
-        let file_path = hyperpaths::solve_autosave_path(
+        let file_path = hsc_paths::solve_autosave_path(
             &replay.puzzle.id,
             &completion_timestamp_str,
             verification.solution_stm,
@@ -263,8 +263,7 @@ impl SolveSummaryModal {
                     }
                 }
             }
-            if let Ok(dir_path) =
-                hyperpaths::solves_dir_for_puzzle(&self.puzzle.meta.id.to_string())
+            if let Ok(dir_path) = hsc_paths::solves_dir_for_puzzle(&self.puzzle.meta.id.to_string())
             {
                 if self.save_result == Some(Ok(())) {
                     if let Ok(file_path) = &self.file_path

@@ -2695,14 +2695,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsc_paths"
+version = "0.1.0"
+dependencies = [
+ "directories",
+ "log",
+ "time",
+]
+
+[[package]]
 name = "hsc_stats"
 version = "0.1.0"
 dependencies = [
  "eyre",
  "hsc_log",
+ "hsc_paths",
  "hyperkdl",
  "hyperkdl_derive",
- "hyperpaths",
  "hyperpuzzle_core",
  "kdl",
  "log",
@@ -2832,15 +2841,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperpaths"
-version = "0.1.0"
-dependencies = [
- "directories",
- "log",
- "time",
-]
-
-[[package]]
 name = "hyperprefs"
 version = "0.1.0"
 dependencies = [
@@ -2848,7 +2848,7 @@ dependencies = [
  "colorous",
  "config",
  "eyre",
- "hyperpaths",
+ "hsc_paths",
  "hyperpuzzle_core",
  "hypuz_util",
  "indexmap",
@@ -2967,8 +2967,8 @@ dependencies = [
  "ecolor",
  "ecow",
  "eyre",
+ "hsc_paths",
  "hypermath",
- "hyperpaths",
  "hyperpuzzle_core",
  "hypuz_notation",
  "include_dir",
@@ -3016,12 +3016,12 @@ dependencies = [
  "float-ord",
  "hcegui",
  "hsc_log",
+ "hsc_paths",
  "hsc_stats",
  "hsc_strings",
  "hypercubing_leaderboards_client",
  "hyperdraw",
  "hypermath",
- "hyperpaths",
  "hyperprefs",
  "hyperpuzzle",
  "hyperpuzzle_view",

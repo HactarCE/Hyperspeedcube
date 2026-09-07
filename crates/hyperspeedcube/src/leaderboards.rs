@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hypercubing_leaderboards_client::{AuthFlow, Leaderboards};
 use parking_lot::Mutex;
 
-pub const LEADERBOARDS_DOMAIN: &str = if hyperpaths::IS_OFFICIAL_BUILD {
+pub const LEADERBOARDS_DOMAIN: &str = if hsc_paths::IS_OFFICIAL_BUILD {
     hypercubing_leaderboards_client::LEADERBOARDS_DOMAIN
 } else {
     "http://localhost:3000"
@@ -105,15 +105,15 @@ fn save_token_to_file(token: Option<&str>) {
                 # DO NOT share this file with anyone.\
             ";
             if let Err(e) = std::fs::write(
-                hyperpaths::LEADERBOARDS_TOKEN_FILE_NAME,
+                hsc_paths::LEADERBOARDS_TOKEN_FILE_NAME,
                 format!("{msg}\n{token}\n"),
             ) {
                 log::error!("Error saving leaderboards token: {e}");
             }
         }
         None => {
-            if std::path::PathBuf::from(hyperpaths::LEADERBOARDS_TOKEN_FILE_NAME).is_file()
-                && let Err(e) = std::fs::remove_file(hyperpaths::LEADERBOARDS_TOKEN_FILE_NAME)
+            if std::path::PathBuf::from(hsc_paths::LEADERBOARDS_TOKEN_FILE_NAME).is_file()
+                && let Err(e) = std::fs::remove_file(hsc_paths::LEADERBOARDS_TOKEN_FILE_NAME)
             {
                 log::error!("Error deleting leaderboards token: {e}");
             }
@@ -122,7 +122,7 @@ fn save_token_to_file(token: Option<&str>) {
 }
 
 fn load_token_from_file() -> Option<String> {
-    let file_contents = std::fs::read_to_string(hyperpaths::LEADERBOARDS_TOKEN_FILE_NAME).ok()?;
+    let file_contents = std::fs::read_to_string(hsc_paths::LEADERBOARDS_TOKEN_FILE_NAME).ok()?;
     let token = file_contents
         .lines()
         .find(|line| !line.is_empty() && !line.starts_with('#'))?

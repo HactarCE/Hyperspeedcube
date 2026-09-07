@@ -17,7 +17,7 @@ impl egui::Widget for LeaderboardsUi<'_> {
         let mut wants_sign_out = false;
         let r = match &*lb {
             LeaderboardsClientState::NotSignedIn => {
-                let menu_button_label = if hyperpaths::IS_OFFICIAL_BUILD {
+                let menu_button_label = if hsc_paths::IS_OFFICIAL_BUILD {
                     L.leaderboards.sign_in
                 } else {
                     L.leaderboards.sign_in_localhost
@@ -29,7 +29,7 @@ impl egui::Widget for LeaderboardsUi<'_> {
                         let url = lb.init_auth(Arc::clone(self.0));
                         ui.open_url(egui::OpenUrl::new_tab(url));
                     }
-                    if !hyperpaths::IS_OFFICIAL_BUILD {
+                    if !hsc_paths::IS_OFFICIAL_BUILD {
                         md(ui, L.leaderboards.sign_in_desc_localhost);
                     }
                 })

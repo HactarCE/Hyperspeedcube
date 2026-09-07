@@ -14,9 +14,9 @@ pub mod vec;
 
 use crate::{Builtins, Result};
 
-#[cfg(feature = "hyperpaths")]
-const INCLUDE_DEBUG_FNS: bool = !hyperpaths::IS_OFFICIAL_BUILD;
-#[cfg(not(feature = "hyperpaths"))]
+#[cfg(feature = "hsc_paths")]
+const INCLUDE_DEBUG_FNS: bool = !hsc_paths::IS_OFFICIAL_BUILD;
+#[cfg(not(feature = "hsc_paths"))]
 const INCLUDE_DEBUG_FNS: bool = true;
 
 /// Defines all base functionality that isn't related to the puzzle catalog.

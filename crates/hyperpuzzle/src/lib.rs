@@ -24,7 +24,7 @@
 //! this to your `Cargo.toml`:
 //!
 //! ```toml
-//! hyperpuzzlescript = { version = "*", features = ["hyperpaths"] }
+//! hyperpuzzlescript = { version = "*", features = ["hsc_paths"] }
 //! ```
 
 use std::sync::{Arc, LazyLock, mpsc};

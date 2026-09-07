@@ -5,15 +5,15 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use eyre::Result;
+use hsc_paths::NoPaths;
 use hyperkdl::{NodeContentsSchema, Warning};
-use hyperpaths::NoPaths;
 use hyperpuzzle_core::Timestamp;
 use hyperpuzzle_core::verification::SolveVerification;
 use kdl::{KdlDocument, KdlDocumentFormat, KdlError};
 
 /// Saves the statistics file, overwriting the existing one.
 pub fn save(stats: &StatsDb) -> Result<()> {
-    let path = hyperpaths::stats_file()?;
+    let path = hsc_paths::stats_file()?;
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
     }
@@ -26,7 +26,7 @@ pub fn save(stats: &StatsDb) -> Result<()> {
 pub fn load() -> StatsDb {
     // IIFE to mimic try_block
     (|| {
-        let path = hyperpaths::stats_file().ok()?;
+        let path = hsc_paths::stats_file().ok()?;
         let file_contents = std::fs::read_to_string(path).ok()?;
         match StatsDb::deserialize(&file_contents) {
             Ok((stats, warnings)) if warnings.is_empty() => Some(stats),
@@ -34,12 +34,12 @@ pub fn load() -> StatsDb {
                 for warning in warnings {
                     log::warn!("Warning loading stats: {warning}");
                 }
-                hyperpaths::move_to_backup_file(path);
+                hsc_paths::move_to_backup_file(path);
                 Some(stats)
             }
             Err(e) => {
                 log::error!("Error loading stats: {e}");
-                hyperpaths::move_to_backup_file(path);
+                hsc_paths::move_to_backup_file(path);
                 None
             }
         }
@@ -253,7 +253,7 @@ pub struct FmcPB {
 impl FmcPB {
     /// Returns the absolute path to the log file.
     pub fn abs_path(&self) -> Result<PathBuf, NoPaths> {
-        Ok(hyperpaths::solves_dir()?.join(&self.file))
+        Ok(hsc_paths::solves_dir()?.join(&self.file))
     }
 }
 
@@ -271,6 +271,6 @@ pub struct SpeedPB {
 impl SpeedPB {
     /// Returns the absolute path to the log file.
     pub fn abs_path(&self) -> Result<PathBuf, NoPaths> {
-        Ok(hyperpaths::solves_dir()?.join(&self.file))
+        Ok(hsc_paths::solves_dir()?.join(&self.file))
     }
 }

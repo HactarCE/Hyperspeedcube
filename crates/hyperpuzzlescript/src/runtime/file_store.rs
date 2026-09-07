@@ -6,7 +6,7 @@ use arcstr::{ArcStr, Substr};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-#[cfg(feature = "hyperpaths")]
+#[cfg(feature = "hsc_paths")]
 use crate::LANGUAGE_NAME;
 use crate::{FILE_EXTENSION, FileId, INDEX_FILE_NAME, Result, Value, ast};
 
@@ -60,14 +60,14 @@ pub struct Modules(IndexMap<Substr, Module>);
 
 impl Modules {
     /// Constructs a new file store with built-in files and user files (if
-    /// feature `hyperpaths` is enabled).
+    /// feature `hsc_paths` is enabled).
     pub fn add_default_files(&mut self) {
         // Load built-in files.
         self.add_builtin_files();
 
         // Load user files.
-        #[cfg(feature = "hyperpaths")]
-        match hyperpaths::hps_dir() {
+        #[cfg(feature = "hsc_paths")]
+        match hsc_paths::hps_dir() {
             Ok(hps_dir) => {
                 log::info!(
                     "Reading {LANGUAGE_NAME} files from path {}",

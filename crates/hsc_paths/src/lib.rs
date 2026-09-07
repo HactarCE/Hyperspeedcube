@@ -200,7 +200,7 @@ fn portable_dir() -> Option<PathBuf> {
         let exe_path = env::current_exe().ok()?.canonicalize().ok()?;
         Some(exe_path.parent()?.to_path_buf())
     } else {
-        // `/crates/hyperpaths/`
+        // `/crates/hsc_paths/`
         Some(
             PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
                 .ok()?

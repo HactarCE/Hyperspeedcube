@@ -86,7 +86,7 @@ fn main() -> eyre::Result<()> {
         let contents = format!("{title}\n\n{panic_info}\n\n{backtrace}");
         // IIFE to mimic try_block
         let fs_result = (|| {
-            let dir = hyperpaths::crash_report_dir()?;
+            let dir = hsc_paths::crash_report_dir()?;
             std::fs::create_dir_all(dir)?;
             let filename =
                 dir.join(format!("crash_{}.log", hyperpuzzle::Timestamp::now()).replace(':', "_"));
