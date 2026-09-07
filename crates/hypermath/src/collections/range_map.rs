@@ -180,6 +180,7 @@ impl PartialOrd for OrdFloat {
     }
 }
 
+/// Error reported when an unexpected NaN occurs.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NanError;
 
