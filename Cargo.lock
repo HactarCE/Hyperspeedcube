@@ -2675,15 +2675,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hsc_log"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "hyperkdl",
+ "hyperkdl_derive",
+ "hyperpuzzle_core",
+ "hypuz_notation",
+ "itertools 0.14.0",
+ "kdl",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "smallvec",
+ "thiserror 2.0.18",
+ "timecheck",
+]
+
+[[package]]
 name = "hsc_stats"
 version = "0.1.0"
 dependencies = [
  "eyre",
+ "hsc_log",
  "hyperkdl",
  "hyperkdl_derive",
  "hyperpaths",
  "hyperpuzzle_core",
- "hyperpuzzle_log",
  "kdl",
  "log",
 ]
@@ -2850,9 +2870,9 @@ name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
  "eyre",
+ "hsc_log",
  "hyperpuzzle_core",
  "hyperpuzzle_impl_symmetric",
- "hyperpuzzle_log",
  "hyperpuzzlescript",
  "parking_lot",
  "pretty_assertions",
@@ -2917,37 +2937,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperpuzzle_log"
-version = "0.1.0"
-dependencies = [
- "hex",
- "hyperkdl",
- "hyperkdl_derive",
- "hyperpuzzle_core",
- "hypuz_notation",
- "itertools 0.14.0",
- "kdl",
- "log",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "smallvec",
- "thiserror 2.0.18",
- "timecheck",
-]
-
-[[package]]
 name = "hyperpuzzle_view"
 version = "0.1.0"
 dependencies = [
  "cgmath",
  "eyre",
  "float-ord",
+ "hsc_log",
  "hyperdraw",
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
- "hyperpuzzle_log",
  "hypuz_notation",
  "itertools 0.14.0",
  "log",
@@ -3015,6 +3015,7 @@ dependencies = [
  "eyre",
  "float-ord",
  "hcegui",
+ "hsc_log",
  "hsc_stats",
  "hsc_strings",
  "hypercubing_leaderboards_client",
@@ -3023,7 +3024,6 @@ dependencies = [
  "hyperpaths",
  "hyperprefs",
  "hyperpuzzle",
- "hyperpuzzle_log",
  "hyperpuzzle_view",
  "hyperpuzzlescript",
  "indexmap",

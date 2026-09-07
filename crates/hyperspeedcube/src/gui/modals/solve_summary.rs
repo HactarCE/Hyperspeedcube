@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
 use egui::{NumExt, include_image};
+use hsc_log::verify::SolveVerificationError;
+use hsc_log::{LogFile, Solve};
 use hsc_stats::{NewPbs, PuzzlePBs, StatsDb};
 use hypercubing_leaderboards_client::{
     AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards,
@@ -10,8 +12,6 @@ use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
 use hyperpuzzle::{CatalogIdValue, FloatMinMaxIteratorExt, Puzzle, chrono};
-use hyperpuzzle_log::verify::SolveVerificationError;
-use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
 use parking_lot::Mutex;
 
@@ -89,10 +89,10 @@ impl SolveSummaryModal {
 
         let replay = sim_guard.serialize(true);
 
-        let verification = hyperpuzzle_log::verify::verify(
+        let verification = hsc_log::verify::verify(
             &hyperpuzzle::catalog(),
             &replay,
-            hyperpuzzle_log::verify::VerificationOptions::QUICK,
+            hsc_log::verify::VerificationOptions::QUICK,
         )?;
 
         // IIFE to mimic try_block
@@ -1050,7 +1050,7 @@ impl<T> RequestState<T> {
 }
 
 fn try_timestamp(output: &mut RequestState<Option<String>>, digest: Arc<[u8]>) {
-    output.request_async(move || match hyperpuzzle_log::verify::timestamp(&digest) {
+    output.request_async(move || match hsc_log::verify::timestamp(&digest) {
         Ok(s) => Ok(Some(s)),
         Err(e) => Err(e.to_string()),
     });
@@ -1145,10 +1145,10 @@ mod tests {
 
     #[track_caller]
     fn verify_solve(saved_solve: &Solve) {
-        let verify_output = hyperpuzzle_log::verify::verify(
+        let verify_output = hsc_log::verify::verify(
             &hyperpuzzle::catalog(),
             &saved_solve,
-            hyperpuzzle_log::verify::VerificationOptions::FULL,
+            hsc_log::verify::VerificationOptions::FULL,
         )
         .unwrap();
         if !verify_output.errors.is_empty() {

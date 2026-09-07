@@ -22,7 +22,7 @@ hypermath.workspace = true
 hyperpaths.workspace = true
 hyperprefs.workspace = true
 hyperpuzzle = { workspace = true, features = ["oklab"] }
-hyperpuzzle_log.workspace = true
+hsc_log.workspace = true
 hyperpuzzle_view.workspace = true
 hyperpuzzlescript = { workspace = true, features = ["hyperpaths"] }
 hsc_stats.workspace = true

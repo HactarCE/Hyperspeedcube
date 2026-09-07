@@ -235,7 +235,7 @@ impl PuzzlePBs {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, hyperkdl_derive::NodeContents)]
 pub struct FirstSolve {
     /// Timestamp when the puzzle was first solved.
-    #[kdl(argument, proxy = hyperpuzzle_log::KdlProxy)]
+    #[kdl(argument, proxy = hsc_log::KdlProxy)]
     pub time: Timestamp,
 }
 

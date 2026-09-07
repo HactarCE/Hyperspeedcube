@@ -194,7 +194,7 @@ pub fn verify(
             LogEvent::Macro { .. } => {
                 bld_fsm.do_twist();
                 used_macros = true;
-                let e = "macros are not supported in this version of `hyperpuzzle_log`".to_string();
+                let e = "macros are not supported in this version of `hsc_log`".to_string();
                 if !errors.contains(&e) {
                     errors.push(e);
                 }

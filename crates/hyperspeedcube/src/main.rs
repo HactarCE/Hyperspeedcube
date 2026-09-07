@@ -31,7 +31,7 @@ const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_512x512.png");
 
-static PROGRAM: LazyLock<hyperpuzzle_log::Program> = LazyLock::new(|| hyperpuzzle_log::Program {
+static PROGRAM: LazyLock<hsc_log::Program> = LazyLock::new(|| hsc_log::Program {
     name: Some(TITLE.to_string()),
     version: Some(env!("CARGO_PKG_VERSION").to_string()),
 });

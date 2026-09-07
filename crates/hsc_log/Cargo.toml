@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzle_log"
+name = "hsc_log"
 description = "Log files for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

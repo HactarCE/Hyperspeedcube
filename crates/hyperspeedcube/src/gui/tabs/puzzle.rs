@@ -9,13 +9,13 @@ use std::time::Duration;
 use egui::Widget;
 use egui::mutex::RwLock;
 use eyre::Result;
+use hsc_log::Solve;
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::catalog::{CatalogError, Request};
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
 };

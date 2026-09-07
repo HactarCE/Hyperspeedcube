@@ -2,12 +2,12 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
+use hsc_log::Solve;
 use hsc_stats::StatsDb;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use parking_lot::Mutex;
 
@@ -157,7 +157,7 @@ impl App {
     pub(crate) fn serialize_puzzle_log(&mut self, replay: bool) -> Option<String> {
         let solve = self.active_puzzle.with_sim(|sim| sim.serialize(replay));
         Some(
-            hyperpuzzle_log::LogFile {
+            hsc_log::LogFile {
                 program: Some(crate::PROGRAM.clone()),
                 solves: vec![solve?],
             }
@@ -174,7 +174,7 @@ impl App {
     }
     pub(crate) fn paste_from_string(&mut self, s: &str) {
         // TODO: handle error
-        match hyperpuzzle_log::deserialize(s) {
+        match hsc_log::deserialize(s) {
             Ok((log_file, warnings)) => {
                 for warning in warnings {
                     log::warn!("Warning while loading log file: {warning}");

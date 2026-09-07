@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
+use hsc_log::{LogEvent, Scramble};
 use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
@@ -10,7 +11,6 @@ use hyperpuzzle::prelude::*;
 use hyperpuzzle::symmetric::{
     PgaMotorToNearestTwist, SymmetricTwistSystemComponent, TwistToPgaMotor,
 };
-use hyperpuzzle_log::{LogEvent, Scramble};
 use hypuz_notation::Invert;
 use itertools::Itertools;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};
@@ -935,7 +935,7 @@ impl PuzzleSimulation {
     }
 
     /// Returns a log file as a string.
-    pub fn serialize(&self, replay: bool) -> hyperpuzzle_log::Solve {
+    pub fn serialize(&self, replay: bool) -> hsc_log::Solve {
         let puz = self.puzzle_type();
 
         let mut log = vec![];
@@ -1026,9 +1026,9 @@ impl PuzzleSimulation {
             }
         }
 
-        hyperpuzzle_log::Solve {
+        hsc_log::Solve {
             replay: Some(replay),
-            puzzle: hyperpuzzle_log::LogPuzzle {
+            puzzle: hsc_log::LogPuzzle {
                 id: puz.meta.id.to_string(),
                 version: puz.meta.version.map(|v| v.to_string()).unwrap_or_default(),
             },
@@ -1045,8 +1045,8 @@ impl PuzzleSimulation {
         }
     }
     /// Loads a log file from a string.
-    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzle_log::Solve) -> Self {
-        let hyperpuzzle_log::Solve {
+    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hsc_log::Solve) -> Self {
+        let hsc_log::Solve {
             replay,
             puzzle: _,
             solved: _,
@@ -1300,7 +1300,7 @@ solve {
     #[test]
     fn test_puzzle_sim_replay_round_trip() {
         hyperpuzzle::load_global_catalog();
-        let (log_file, _) = hyperpuzzle_log::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
+        let (log_file, _) = hsc_log::deserialize(EXAMPLE_REPLAY_FILE).unwrap();
         let original_solve = &log_file.solves[0];
         let puzzle = hyperpuzzle::catalog()
             .build_blocking(&original_solve.puzzle.id.parse().unwrap())

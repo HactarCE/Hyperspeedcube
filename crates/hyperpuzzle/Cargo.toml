@@ -24,7 +24,7 @@ eyre.workspace = true
 parking_lot.workspace = true
 
 [dev-dependencies]
-hyperpuzzle_log.workspace = true
+hsc_log.workspace = true
 
 pretty_assertions.workspace = true
 eyre.workspace = true

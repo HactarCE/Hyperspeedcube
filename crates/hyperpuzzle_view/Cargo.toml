@@ -16,10 +16,10 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hsc_log.workspace = true
 hyperdraw.workspace = true
 hypermath.workspace = true
 hyperprefs.workspace = true
-hyperpuzzle_log.workspace = true
 hyperpuzzle.workspace = true
 hypuz_notation.workspace = true
 

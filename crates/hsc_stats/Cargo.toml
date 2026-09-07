@@ -16,11 +16,11 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperkdl.workspace = true
+hsc_log.workspace = true
 hyperkdl_derive.workspace = true
+hyperkdl.workspace = true
 hyperpaths.workspace = true
 hyperpuzzle_core.workspace = true
-hyperpuzzle_log.workspace = true
 
 eyre.workspace = true
 kdl.workspace = true

@@ -168,7 +168,7 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 .context("error reading log file")?;
             log::trace!("Deserializing log file ...");
             let (log_file, _warnings) =
-                hyperpuzzle_log::deserialize(&buffer).context("error deserializing log file")?;
+                hsc_log::deserialize(&buffer).context("error deserializing log file")?;
 
             let catalog = hyperpuzzle::catalog();
 
@@ -176,13 +176,13 @@ pub(crate) fn exec(subcommand: Subcommand) -> Result<()> {
                 .solves
                 .iter()
                 .filter_map(|solve| {
-                    hyperpuzzle_log::verify::verify(
+                    hsc_log::verify::verify(
                         &catalog,
                         solve,
                         if fast {
-                            hyperpuzzle_log::verify::VerificationOptions::QUICK
+                            hsc_log::verify::VerificationOptions::QUICK
                         } else {
-                            hyperpuzzle_log::verify::VerificationOptions::FULL
+                            hsc_log::verify::VerificationOptions::FULL
                         },
                     )
                     .map_err(|e| eprintln!("{e}"))

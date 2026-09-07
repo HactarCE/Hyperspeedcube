@@ -1,3 +1,3 @@
-# hyperpuzzle_log
+# hsc_log
 
 Log files for Hyperspeedcube
