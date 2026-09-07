@@ -22,9 +22,8 @@ mod symmetry;
 mod twist_system_engine;
 
 pub use orbit_names::{ElementNames, HpsOrbitNames, HpsOrbitNamesComponent};
-pub use symmetry::HpsSymmetry;
-
 use puzzle_engine::SymmetricPuzzleEngine;
+pub use symmetry::HpsSymmetry;
 use twist_system_engine::SymmetricTwistSystemEngine;
 
 use crate::{NamedPointOrbitSpec, NamedPointSpec, SimpleOrbitSpec};

@@ -107,7 +107,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set_custom_ty::<HpsOrbitNames>()?;
 
     builtins.set_fns(hps_fns![
-        ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames { orbit_names }),
+        ("$", |_, orbit_names: HpsOrbitNames| -> HpsOrbitNames {
+            orbit_names
+        }),
         (
             "++",
             |_, (a, a_span): Str, b: HpsOrbitNames| -> HpsOrbitNames {
