@@ -5,22 +5,9 @@
 //! accept mutable aliasing in the Hyperpuzzlescript API, so the Rust API must
 //! also have mutable aliasing.
 
-mod axis_layers;
-mod axis_system;
-mod color_system;
-mod gizmos;
-mod puzzle;
-mod shape;
-mod twist_system;
 mod vantage_group;
 mod vantage_set;
 
-pub use axis_layers::{AxisLayerBuilder, AxisLayersBuilder};
-pub use axis_system::{AdHocAxisSystemBuilder, AxisBuilder};
-pub use color_system::{AdHocColorSystemBuilder, ColorBuilder, ColorSystemBuilder};
-pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
-pub use shape::ShapeBuilder;
-pub use twist_system::{AdHocTwistSystemBuilder, TwistBuilder, TwistSystemBuilder};
 pub use vantage_group::VantageGroupBuilder;
 pub use vantage_set::{
     AxisDirectionMapBuilder, RelativeAxisBuilder, RelativeTwistBuilder, VantageSetBuilder,
