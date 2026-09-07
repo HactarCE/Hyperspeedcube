@@ -18,7 +18,7 @@ members = [
     "crates/hypershape",
     "crates/hyperspeedcube_cli_types",
     "crates/hyperspeedcube",
-    "crates/hyperstats",
+    "crates/hsc_stats",
     "crates/hypuz_notation",
     "crates/hypuz_util",
     "crates/timecheck",
@@ -83,7 +83,7 @@ hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
 hyperspeedcube_cli_types = { path = "crates/hyperspeedcube_cli_types" }
-hyperstats = { path = "crates/hyperstats" }
+hsc_stats = { path = "crates/hsc_stats" }
 hypuz_notation = { path = "crates/hypuz_notation" }
 hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }

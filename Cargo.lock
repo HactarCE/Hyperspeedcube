@@ -2675,6 +2675,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hsc_stats"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "hyperkdl",
+ "hyperkdl_derive",
+ "hyperpaths",
+ "hyperpuzzle_core",
+ "hyperpuzzle_log",
+ "kdl",
+ "log",
+]
+
+[[package]]
 name = "hsc_strings"
 version = "0.1.0"
 dependencies = [
@@ -3001,6 +3015,7 @@ dependencies = [
  "eyre",
  "float-ord",
  "hcegui",
+ "hsc_stats",
  "hsc_strings",
  "hypercubing_leaderboards_client",
  "hyperdraw",
@@ -3011,7 +3026,6 @@ dependencies = [
  "hyperpuzzle_log",
  "hyperpuzzle_view",
  "hyperpuzzlescript",
- "hyperstats",
  "indexmap",
  "itertools 0.14.0",
  "js-sys",
@@ -3053,20 +3067,6 @@ dependencies = [
  "numeric-sort",
  "serde",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "hyperstats"
-version = "0.1.0"
-dependencies = [
- "eyre",
- "hyperkdl",
- "hyperkdl_derive",
- "hyperpaths",
- "hyperpuzzle_core",
- "hyperpuzzle_log",
- "kdl",
- "log",
 ]
 
 [[package]]

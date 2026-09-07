@@ -1,5 +1,5 @@
 [package]
-name = "hyperstats"
+name = "hsc_stats"
 description = "Log file management for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

@@ -2,13 +2,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
+use hsc_stats::StatsDb;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
-use hyperstats::StatsDb;
 use parking_lot::Mutex;
 
 use crate::L;
@@ -35,7 +35,7 @@ pub struct App {
 impl App {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, _initial_file: Option<PathBuf>) -> Self {
         let prefs = Preferences::load(None);
-        let stats = hyperstats::load();
+        let stats = hsc_stats::load();
         let leaderboards = LeaderboardsClientState::load();
 
         let animation_prefs = prefs

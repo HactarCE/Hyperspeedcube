@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
 use egui::{NumExt, include_image};
+use hsc_stats::{NewPbs, PuzzlePBs, StatsDb};
 use hypercubing_leaderboards_client::{
     AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards,
 };
@@ -12,7 +13,6 @@ use hyperpuzzle::{CatalogIdValue, FloatMinMaxIteratorExt, Puzzle, chrono};
 use hyperpuzzle_log::verify::SolveVerificationError;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperpuzzle_view::PuzzleSimulation;
-use hyperstats::{NewPbs, PuzzlePBs, StatsDb};
 use parking_lot::Mutex;
 
 use crate::L;
@@ -117,7 +117,7 @@ impl SolveSummaryModal {
 
         if new_pbs.first {
             stats.record_first_solve(&verification);
-            if let Err(e) = hyperstats::save(stats) {
+            if let Err(e) = hsc_stats::save(stats) {
                 log::warn!("Error saving stats file: {e}");
             }
             sim_guard.start_special_anim();
@@ -779,7 +779,7 @@ impl SolveSummaryModal {
         .map_err(|e| e.to_string())?;
 
         stats.record_new_pb(&self.verification, &self.file_name);
-        if let Err(e) = hyperstats::save(stats) {
+        if let Err(e) = hsc_stats::save(stats) {
             crate::error_dialog(L.error_dialog.saving_file, e);
         }
 
