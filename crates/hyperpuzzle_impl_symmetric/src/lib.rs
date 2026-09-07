@@ -1,41 +1,68 @@
 //! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Weak};
 
 use eyre::{OptionExt, Result};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzle_core::ComponentList;
 use hyperpuzzle_core::catalog::VersionedCatalogWord;
 use hyperpuzzle_core::group::GroupElementId;
 use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_impl_nd_euclid::{
-    NdEuclidAxisVectors, NdEuclidPuzzleAnimation, NdEuclidPuzzleStateRenderData,
-};
 
+mod anim;
 mod builder;
+mod components;
 mod cut_distances;
+mod geom;
 mod geometry;
 pub mod hps;
 mod layer_map;
+mod layers;
 mod named_point;
 mod spec;
 mod stabilizer_family;
+mod state;
+mod twist_key;
 mod twist_system;
+mod vantage_group;
 
+pub use anim::NdEuclidPuzzleAnimation;
 use builder::{ColorSystemDisjointUnion, PuzzleProduct, TwistSystemProduct};
+pub use components::{
+    NamedTwistsList, NdEuclidAxisVectors, NdEuclidTwistsList, NdEuclidViewOffset,
+    PgaMotorToNearestTwist, TwistToPgaMotor,
+};
 pub use cut_distances::CutDistances;
+pub use geom::NdEuclidPuzzleGeometry;
 use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 use layer_map::{IntersectedLayers, LayerMap};
+pub use layers::{LayerDepths, PuzzleLayerDepths};
 pub use named_point::{NamedPoint, NamedPointSet, PerNamedPoint};
 pub use spec::*;
 pub use stabilizer_family::StabilizerFamily;
+pub use state::{NdEuclidPuzzleState, NdEuclidPuzzleStateRenderData};
+pub use twist_key::TwistKey;
 pub use twist_system::{
     AxisOrbitJumbleData, JumbleStop, JumbleStopInfo, JumbleTransform, PerJumbleStop,
     SymmetricTwistSystemAxisOrbit, SymmetricTwistSystemComponent, UniqueMinimalClockwiseGenerator,
 };
+pub use vantage_group::{
+    NdEuclidRelativeAxis, NdEuclidRelativeTwist, NdEuclidVantageGroup, NdEuclidVantageGroupElement,
+    PerReferenceVector, ReferenceVector,
+};
+
+/// Prelude of common imports.
+pub mod prelude {
+    pub use crate::{
+        NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidPuzzleState,
+        NdEuclidPuzzleStateRenderData,
+    };
+}
 
 pub fn product_base_id() -> VersionedCatalogWord {
     "product@1".parse().expect("bad catalog ID")
@@ -665,6 +692,38 @@ fn layers_containing_range(
 
     (mask, true)
 }
+
+/// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
+pub static PLACEHOLDER_PUZZLE: LazyLock<Arc<Puzzle>> = LazyLock::new(|| {
+    let mut components = ComponentList::new();
+    let geom = Arc::new(NdEuclidPuzzleGeometry::placeholder());
+    components.insert(Arc::clone(&geom));
+
+    Arc::new_cyclic(|this| Puzzle {
+        this: Weak::clone(this),
+        meta: Arc::new(PuzzleListEntry {
+            id: "placeholder".parse().expect("bad ID"),
+            version: None,
+            name: "🤔".to_string(),
+            aliases: vec![],
+            tags: TagSet::new(),
+        }),
+        view_prefs_set: None,
+        pieces: PerPiece::new(),
+        stickers: PerSticker::new(),
+        piece_types: PerPieceType::new(),
+        piece_type_hierarchy: PieceTypeHierarchy::new(0),
+        piece_type_masks: HashMap::new(),
+        colors: Arc::new(ColorSystem::new_empty()),
+        can_scramble: false,
+        full_scramble_length: 0,
+        axis_layers: Arc::new(PerAxis::new()),
+        twists: Arc::new(TwistSystem::new_empty()),
+        new: Box::new(move |this| NdEuclidPuzzleState::new(this, Arc::clone(&geom)).into()),
+        random_move: Box::new(move |_rng| None),
+        components,
+    })
+});
 
 #[cfg(test)]
 mod tests {

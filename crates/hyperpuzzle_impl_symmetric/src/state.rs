@@ -7,10 +7,15 @@ use hyperpuzzle_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{
-    NamedTwistsList, NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry,
-    NdEuclidPuzzleStateRenderData, NdEuclidTwistsList,
-};
+use crate::{NamedTwistsList, NdEuclidPuzzleAnimation, NdEuclidPuzzleGeometry, NdEuclidTwistsList};
+
+/// Puzzle render data for an N-dimensional Euclidean puzzle.
+pub struct NdEuclidPuzzleStateRenderData {
+    /// Transform for each piece.
+    pub piece_transforms: PerPiece<pga::Motor>,
+}
+
+impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
 type PerCachedTransform<T> = TiVec<CachedTransform, T>;
 hyperpuzzle_core::typed_index_struct! {

@@ -3,16 +3,10 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::ops::Deref;
-use std::sync::Arc;
 
-use eyre::Result;
 use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
 use rand::SeedableRng;
 use sha2::Digest;
-
-use crate::catalog::CatalogObject;
 
 /// Returns a canonical RNG from a seed value.
 pub fn rng_from_seed(seed: &str) -> chacha20::ChaCha12Rng {
@@ -135,75 +129,6 @@ pub fn vantage_name<'a>(axis_pairs: impl IntoIterator<Item = (&'a str, &'a str)>
 /// The first reference in each pair is typically fixed.
 pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {
     name.split(',').map(|s| s.split_once(':')).collect()
-}
-
-/// Either a fixed object `Arc<T>` from the catalog, or an ad-hoc builder
-/// `Arc<Mutex<T>>` that will be used to construct a catalog object.
-#[derive(Debug)]
-pub enum MaybeAdHoc<T> {
-    /// Fixed object from the catalog.
-    Fixed(Arc<T>),
-    /// Ad-hoc builder that will be used to construct a catalog object.
-    AdHoc(Arc<Mutex<T>>),
-}
-
-impl<T> Clone for MaybeAdHoc<T> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Fixed(f) => Self::Fixed(Arc::clone(f)),
-            Self::AdHoc(a) => Self::AdHoc(Arc::clone(a)),
-        }
-    }
-}
-
-impl<T: CatalogObject> MaybeAdHoc<T> {
-    /// Returns an immutable reference to the contained object, whether fixed or
-    /// ad-hoc.
-    pub fn lock_ref(&self) -> MaybeAdHocRef<'_, T> {
-        match self {
-            MaybeAdHoc::Fixed(f) => MaybeAdHocRef::Fixed(f),
-            MaybeAdHoc::AdHoc(mutex) => MaybeAdHocRef::AdHoc(mutex.lock()),
-        }
-    }
-
-    /// Locks the ad-hoc builder if it is one, or an error otherwise.
-    pub fn lock_mut(&self) -> Result<MutexGuard<'_, T>, ExpectedAdHoc> {
-        match self {
-            MaybeAdHoc::Fixed(_) => Err(ExpectedAdHoc::new::<T>()),
-            MaybeAdHoc::AdHoc(mutex) => Ok(mutex.lock()),
-        }
-    }
-}
-
-pub enum MaybeAdHocRef<'a, T> {
-    Fixed(&'a T),
-    AdHoc(MutexGuard<'a, T>),
-}
-impl<T> Deref for MaybeAdHocRef<'_, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            MaybeAdHocRef::Fixed(f) => f,
-            MaybeAdHocRef::AdHoc(mutex_guard) => mutex_guard,
-        }
-    }
-}
-
-/// Error returned by methods on [`MaybeAdHoc`] when an ad-hoc builder is
-/// expected but there is a fixed catalog object instead.
-#[derive(thiserror::Error, Debug)]
-#[error("cannot modify fixed {type_name}")]
-pub struct ExpectedAdHoc {
-    type_name: &'static str,
-}
-
-impl ExpectedAdHoc {
-    fn new<O: CatalogObject>() -> Self {
-        Self {
-            type_name: O::catalog_type_name(),
-        }
-    }
 }
 
 #[cfg(test)]

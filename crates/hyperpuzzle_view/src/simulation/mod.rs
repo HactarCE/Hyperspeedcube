@@ -6,9 +6,10 @@ use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
-use hyperpuzzle::nd_euclid::{PgaMotorToNearestTwist, TwistToPgaMotor};
 use hyperpuzzle::prelude::*;
-use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
+use hyperpuzzle::symmetric::{
+    PgaMotorToNearestTwist, SymmetricTwistSystemComponent, TwistToPgaMotor,
+};
 use hyperpuzzle_log::{LogEvent, Scramble};
 use hypuz_notation::Invert;
 use itertools::Itertools;

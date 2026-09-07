@@ -31,7 +31,6 @@ use std::sync::{Arc, LazyLock, mpsc};
 
 pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
-pub use hyperpuzzle_impl_nd_euclid as nd_euclid;
 pub use hyperpuzzle_impl_symmetric as symmetric;
 use parking_lot::Mutex;
 pub use prelude::*;
@@ -39,7 +38,7 @@ pub use prelude::*;
 /// Prelude of common imports.
 pub mod prelude {
     pub use hyperpuzzle_core::prelude::*;
-    pub use hyperpuzzle_impl_nd_euclid::prelude::*;
+    pub use hyperpuzzle_impl_symmetric::prelude::*;
 }
 
 /// Global catalog.
@@ -100,11 +99,6 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
         hyperpuzzlescript::builtins::catalog::define_in(builtins, catalog, &eval_tx)
     })
     .expect("error defining HPS catalog built-ins");
-
-    // Add NdEuclid built-ins.
-    hyperpuzzle_impl_nd_euclid::hps::register_hps_engines(&mut rt);
-    rt.with_builtins(hyperpuzzle_impl_nd_euclid::hps::define_in)
-        .expect("error defining HPS euclid built-ins");
 
     hyperpuzzle_impl_symmetric::hps::register_hps_engines(&mut rt);
     rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))
