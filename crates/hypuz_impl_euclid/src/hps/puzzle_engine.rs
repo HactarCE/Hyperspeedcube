@@ -19,9 +19,9 @@ use crate::builder::*;
 use crate::hps::HpsSymmetry;
 use crate::{CutDistances, NamedPointOrbitSpec, PerAxisOrbit};
 
-pub struct SymmetricPuzzleEngine;
+pub struct EuclidPuzzleEngine;
 
-impl HpsEngine for SymmetricPuzzleEngine {
+impl HpsEngine for EuclidPuzzleEngine {
     fn add_catalog_entries(
         &self,
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,

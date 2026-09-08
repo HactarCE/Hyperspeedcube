@@ -71,7 +71,7 @@ add_menu_entry(path = "Solid|4D|Platonic|600-Cell|FT|Shallow", priority = 2, id 
 
 fn add_basic_shape(shape_file, **kwargs) {
     add_puzzle(
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 4,
         colors = kwargs.id,
         build = fn() { @util.build_symmetric_shape(shape_file.new()) },
@@ -91,7 +91,7 @@ add_basic_shape(@shapes/4d/600cell,   id = "600cell@1",   name = ["600-Cell", "H
 //---------------//
 
 add_twist_system(id = "4simplex_fvt@1", name = "FT/VT 4-Simplex",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/4simplex.new()
@@ -111,7 +111,7 @@ add_twist_system(id = "4simplex_fvt@1", name = "FT/VT 4-Simplex",
 )
 
 add_twist_system(id = "hypercube_ft@1", name = "FT Hypercube",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/hypercube.new()
@@ -127,7 +127,7 @@ add_twist_system(id = "hypercube_ft@1", name = "FT Hypercube",
 )
 
 add_twist_system(id = "16cell_ft@1", name = "FT 16-Cell",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/16cell.new()
@@ -142,7 +142,7 @@ add_twist_system(id = "16cell_ft@1", name = "FT 16-Cell",
 )
 
 add_twist_system(id = "24cell_ft@1", name = "FT 24-Cell",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/24cell.new()
@@ -156,7 +156,7 @@ add_twist_system(id = "24cell_ft@1", name = "FT 24-Cell",
 )
 
 add_twist_system(id = "120cell_ft@1", name = "FT 120-Cell",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/120cell.new()
@@ -174,7 +174,7 @@ add_twist_system(id = "120cell_ft@1", name = "FT 120-Cell",
 )
 
 add_twist_system(id = "600cell_ft@1", name = "FT 600-Cell",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     build = fn() {
         shape = @shapes/4d/600cell.new()
@@ -193,7 +193,7 @@ add_twist_system(id = "600cell_ft@1", name = "FT 600-Cell",
 
 common_4simplex = #{
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     colors = "4simplex",
     twists = "4simplex_fvt",
@@ -262,7 +262,7 @@ add_puzzle_list_entry("hypercube_ft(6)")
 add_puzzle_list_entry("hypercube_ft(7)")
 add_puzzle(id = "hypercube_ft@1", name = ["N-Layer FT Hypercube", "n^4", "NxNxNxN FT Hypercube", "N-Layer 4D Rubik's Cube"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 4,
     colors = "hypercube",
     twists = "hypercube_ft",
@@ -288,7 +288,7 @@ add_puzzle(id = "hypercube_ft@1", name = ["N-Layer FT Hypercube", "n^4", "NxNxNx
 fn def_16cell_ft(cut_depths: List[Num], **kwargs) {
     add_puzzle(
         tags = #{ author = "Andrew Farkas" },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 4,
         colors = "16cell",
         twists = "16cell_ft",
@@ -317,7 +317,7 @@ def_16cell_ft([0],    id = "16cell_ft_8@1", name = ["FT 16-Cell 8", "Half-Cut FT
 fn def_24cell_ft(cut_depths: List[Num], **kwargs) {
     add_puzzle(
         tags = #{ author = "Andrew Farkas" },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 4,
         colors = "24cell",
         twists = "24cell_ft",
@@ -350,7 +350,7 @@ def_24cell_ft([2/3, 1/3], id = "24cell_ft_hybrid_1_5@1", name = ["FT 24-Cell 1 +
 fn def_120cell_ft(cut_depths: List[Num], **kwargs) {
     add_puzzle(
         tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 4,
         colors = "120cell",
         twists = "120cell_ft",
@@ -374,7 +374,7 @@ def_120cell_ft([0], id = "120cell_ft_half@1", name = "Half-Cut 120-Cell")
 fn def_600cell_ft(cut_depths: List[Num], **kwargs) {
     add_puzzle(
         tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 4,
         colors = "600cell",
         twists = "600cell_ft",

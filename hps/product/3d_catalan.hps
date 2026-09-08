@@ -29,7 +29,7 @@ add_menu_entry(path = "Solid|3D|Catalan|Rhombic Triacontahedron|Big Kahuna",    
 add_twist_system(
     id = "rhombic_dodecahedron_ft@0",
     name = "FT Rhombic Dodecahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         cube = @shapes/3d/cube.new()
@@ -52,7 +52,7 @@ add_twist_system(
 add_puzzle(
     id = "rhombic_dodecahedron@1",
     name = "Rhombic Dodecahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         cube = @shapes/3d/cube.new()
@@ -65,7 +65,7 @@ add_puzzle(
 fn def_rhombic_dodecahedron(cut_depths, **kwargs) {
     add_puzzle(
         tags = #{ author = "Andrew Farkas" },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         twists = "rhombic_dodecahedron_ft",
         build = fn() {
@@ -93,7 +93,7 @@ def_rhombic_dodecahedron([0],   id = "rhombic_dodecahedron_ft_6@0", name = ["FT 
 add_twist_system(
     id = "rhombic_triacontahedron_ft@0",
     name = "FT Rhombic Triacontahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         dodecahedron = @shapes/3d/dodecahedron.new()
@@ -117,7 +117,7 @@ add_twist_system(
 add_puzzle(
     id = "rhombic_triacontahedron@1",
     name = "Rhombic Triacontahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         dodecahedron = @shapes/3d/dodecahedron.new()
@@ -130,7 +130,7 @@ add_puzzle(
 fn def_rhombic_triacontahedron(cut_depths, **kwargs) {
     add_puzzle(
         tags = #{ author = "Andrew Farkas" },
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         twists = "rhombic_triacontahedron_ft",
         build = fn() {

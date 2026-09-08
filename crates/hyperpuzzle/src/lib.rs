@@ -31,7 +31,7 @@ use std::sync::{Arc, LazyLock, mpsc};
 
 pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
-pub use hypuz_impl_euclid as symmetric;
+pub use hypuz_impl_euclid as euclid;
 use parking_lot::Mutex;
 pub use prelude::*;
 

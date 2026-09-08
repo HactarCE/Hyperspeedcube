@@ -48,7 +48,7 @@ fn def_truncation_twists(
     **kwargs,
 ) {
     add_twist_system(
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         build = fn() {
             shape = shape_file.new()
@@ -93,7 +93,7 @@ def_truncation_twists(
 
 fn def_truncation(shape_file, vertex_cd_point, *, cuts = null, layers = #{}, **kwargs) {
     add_puzzle(
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         build = fn() {
             shape = shape_file.new()

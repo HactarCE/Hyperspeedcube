@@ -3,7 +3,7 @@ use * from euclid
 add_puzzle(
     id = "test_puzzle@0",
     name = "Test Puzzle",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         sym = cd("bc3")

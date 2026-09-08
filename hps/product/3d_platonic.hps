@@ -63,7 +63,7 @@ add_menu_entry(path = "Solid|3D|Platonic|Icosahedron|FT|Hybrid|Eitan's Galaxy (3
 
 fn add_basic_shape(shape_file, **kwargs) {
     add_puzzle(
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         colors = kwargs.id,
         build = fn() { @util.build_symmetric_shape(shape_file.new()) },
@@ -82,7 +82,7 @@ add_basic_shape(@shapes/3d/icosahedron,  id = "icosahedron@1",  name = "Icosahed
 //---------------//
 
 add_twist_system(id = "tetrahedron_fvt@1", name = "FT/VT Tetrahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/tetrahedron.new()
@@ -103,7 +103,7 @@ add_twist_system(id = "tetrahedron_fvt@1", name = "FT/VT Tetrahedron",
 )
 
 add_twist_system(id = "cube_ft@1", name = "FT Cube",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/cube.new()
@@ -122,7 +122,7 @@ add_twist_system(id = "cube_ft@1", name = "FT Cube",
 )
 
 add_twist_system(id = "octahedron_ft@1", name = "FT Octahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/octahedron.new()
@@ -143,7 +143,7 @@ add_twist_system(id = "octahedron_ft@1", name = "FT Octahedron",
 )
 
 add_twist_system(id = "dodecahedron_ft@1", name = "FT Dodecahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/dodecahedron.new()
@@ -164,7 +164,7 @@ add_twist_system(id = "dodecahedron_ft@1", name = "FT Dodecahedron",
 )
 
 add_twist_system(id = "icosahedron_ft@0", name = "FT Icosahedron",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/icosahedron.new()
@@ -196,7 +196,7 @@ add_twist_system(id = "icosahedron_ft@0", name = "FT Icosahedron",
 add_puzzle_list_entry("tetrahedron_a(1)")
 add_puzzle(id = "tetrahedron_a@1", name = "Tetrahedron A Generator",
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "tetrahedron",
     twists = "tetrahedron_fvt",
@@ -217,7 +217,7 @@ add_puzzle(id = "tetrahedron_a@1", name = "Tetrahedron A Generator",
 
 add_puzzle(id = "tetrahedron_b@1", name = ["Tetrahedron B", "Tetraminx"],
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "tetrahedron",
     twists = "tetrahedron_fvt",
@@ -234,7 +234,7 @@ add_puzzle_list_entry("tetrahedron_c(1)")
 add_puzzle_list_entry("tetrahedron_c(4)")
 add_puzzle(id = "tetrahedron_c@1", name = ["Tetrahedron C Generator", "Shallow-Cut FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "tetrahedron",
     twists = "tetrahedron_fvt",
@@ -270,7 +270,7 @@ add_puzzle(id = "tetrahedron_c@1", name = ["Tetrahedron C Generator", "Shallow-C
 add_puzzle_list_entry("pyraminx(3)")
 add_puzzle(id = "pyraminx@1", name = ["Pyraminx Generator", "Layered FT/VT Tetrahedron Generator"],
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "tetrahedron",
     twists = "tetrahedron_fvt",
@@ -306,7 +306,7 @@ add_puzzle_list_entry("cube_ft(6)")
 add_puzzle_list_entry("cube_ft(7)")
 add_puzzle(id = "cube_ft@1", name = ["FT Cube Generator", "NxNxN Generator", "n^3 Generator", "Rubik's Cube Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "cube",
     twists = "cube_ft",
@@ -336,7 +336,7 @@ add_puzzle_list_entry("octahedron_ft_adj(2)")
 add_puzzle_list_entry("octahedron_ft_adj(3)")
 add_puzzle(id = "octahedron_ft_adj@1", name = "Adjacent-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "octahedron",
     twists = "octahedron_ft",
@@ -360,7 +360,7 @@ add_puzzle(id = "octahedron_ft_adj@1", name = "Adjacent-Cut FT Octahedron Genera
 add_puzzle_list_entry("octahedron_ft_shallow(1)")
 add_puzzle(id = "octahedron_ft_shallow@1", name = "Shallow-Cut FT Octahedron Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet", "Luna Harran"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "octahedron",
     twists = "octahedron_ft",
@@ -395,7 +395,7 @@ add_puzzle_list_entry("megaminx(9)")
 add_puzzle_list_entry("megaminx(10)")
 add_puzzle(id = "megaminx@1", name = ["Shallow-Cut FT Docedahedron Generator", "Megaminx Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -420,7 +420,7 @@ add_puzzle(id = "megaminx@1", name = ["Shallow-Cut FT Docedahedron Generator", "
 
 add_puzzle(id = "megaminx_crystal@1", name = "Megaminx Crystal",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -435,7 +435,7 @@ add_puzzle(id = "megaminx_crystal@1", name = "Megaminx Crystal",
 
 add_puzzle(id = "pyraminx_crystal@1", name = ["Pyraminx Crystal", "Adjacent-Cut FT Dodecahedron"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -450,7 +450,7 @@ add_puzzle(id = "pyraminx_crystal@1", name = ["Pyraminx Crystal", "Adjacent-Cut 
 add_puzzle_list_entry("litestarminx(1)")
 add_puzzle(id = "litestarminx@1", name = ["Litestarminx Generator", "Planar Curvy Starminx Generator"],
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -469,7 +469,7 @@ add_puzzle(id = "litestarminx@1", name = ["Litestarminx Generator", "Planar Curv
 
 add_puzzle(id = "starminx@1", name = "Starminx",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -487,7 +487,7 @@ add_puzzle_list_entry("pentultimate(5)")
 add_puzzle_list_entry("pentultimate(7)")
 add_puzzle(id = "pentultimate@1", name = "Pentultimate Generator",
     tags = #{ author = ["Andrew Farkas", "Milo Jacquet"] },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     colors = "dodecahedron",
     twists = "dodecahedron_ft",
@@ -516,7 +516,7 @@ add_puzzle(id = "pentultimate@1", name = "Pentultimate Generator",
 
 fn def_ft_icosahedron(cut_depths: List[Num], **kwargs) {
     add_puzzle(
-        engine = "symmetric",
+        engine = "euclid",
         ndim = 3,
         colors = "icosahedron",
         twists = "icosahedron_ft",

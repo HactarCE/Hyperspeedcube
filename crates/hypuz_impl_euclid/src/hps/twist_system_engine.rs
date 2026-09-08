@@ -21,9 +21,9 @@ use crate::{
     StabilizerTwistOrbitSpec,
 };
 
-pub struct SymmetricTwistSystemEngine;
+pub struct EuclidTwistSystemEngine;
 
-impl HpsEngine for SymmetricTwistSystemEngine {
+impl HpsEngine for EuclidTwistSystemEngine {
     fn add_catalog_entries(
         &self,
         catalog: &hyperpuzzle_core::prelude::CatalogBuilder,

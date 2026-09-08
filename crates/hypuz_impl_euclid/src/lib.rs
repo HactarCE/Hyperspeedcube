@@ -1,4 +1,4 @@
-//! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
+//! Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
 use std::collections::HashMap;
@@ -144,7 +144,7 @@ fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<
     let params = vec![GeneratorParam {
         name: "Factors".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Puzzle {
-            menu: "symmetric".to_string(),
+            menu: "euclid".to_string(),
         })),
         default: CatalogIdValue::List(vec![
             "ngon_ft_shallow(5,3)".parse().unwrap(),

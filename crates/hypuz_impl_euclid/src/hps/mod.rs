@@ -1,4 +1,4 @@
-//! Hyperpuzzlescript interface for the symmetric puzzle engine.
+//! Hyperpuzzlescript interface for the Euclidean puzzle engine.
 
 use std::sync::Arc;
 
@@ -22,18 +22,18 @@ mod symmetry;
 mod twist_system_engine;
 
 pub use orbit_names::{ElementNames, HpsOrbitNames, HpsOrbitNamesComponent};
-use puzzle_engine::SymmetricPuzzleEngine;
+use puzzle_engine::EuclidPuzzleEngine;
 pub use symmetry::HpsSymmetry;
-use twist_system_engine::SymmetricTwistSystemEngine;
+use twist_system_engine::EuclidTwistSystemEngine;
 
 use crate::{NamedPointOrbitSpec, NamedPointSpec, SimpleOrbitSpec};
 
-/// ID for the symmetric puzzle [`Menu`].
-pub const MENU_ID: &str = "symmetric";
+/// ID for the Euclidean puzzle [`Menu`].
+pub const MENU_ID: &str = "euclid";
 
 pub fn register_hps_engines(rt: &mut Runtime) {
-    rt.register_puzzle_engine("symmetric", Arc::new(SymmetricPuzzleEngine));
-    rt.register_twist_system_engine("symmetric", Arc::new(SymmetricTwistSystemEngine));
+    rt.register_puzzle_engine("euclid", Arc::new(EuclidPuzzleEngine));
+    rt.register_twist_system_engine("euclid", Arc::new(EuclidTwistSystemEngine));
 }
 
 /// Adds the built-ins.
@@ -68,7 +68,7 @@ pub fn define_in(
 
     let cat = catalog.clone();
 
-    cat.add_menu(MENU_ID, "Symmetric Puzzles".to_string())
+    cat.add_menu(MENU_ID, "Euclidean Puzzles".to_string())
         .at(BUILTIN_SPAN)?;
 
     builtins.set_fns(hps_fns![

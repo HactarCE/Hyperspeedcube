@@ -7,10 +7,8 @@ use hsc_prefs::{AnimationPreferences, InterpolateFn};
 use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
 use hyperpuzzle::Timestamp;
+use hyperpuzzle::euclid::{PgaMotorToNearestTwist, SymmetricTwistSystemComponent, TwistToPgaMotor};
 use hyperpuzzle::prelude::*;
-use hyperpuzzle::symmetric::{
-    PgaMotorToNearestTwist, SymmetricTwistSystemComponent, TwistToPgaMotor,
-};
 use hypuz_notation::Invert;
 use itertools::Itertools;
 use nd_euclid::{NdEuclidSimState, PartialTwistDragState};

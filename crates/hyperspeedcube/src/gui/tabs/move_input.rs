@@ -1,5 +1,5 @@
+use hyperpuzzle::euclid::SymmetricTwistSystemComponent;
 use hyperpuzzle::notation::Invert;
-use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
 use hypuz_view::ReplayEvent;
 use itertools::Itertools;
 

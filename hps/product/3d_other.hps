@@ -7,7 +7,7 @@ add_menu_entry(path = "Solid|3D|Pyritohedron|1/7|Moth to the Flame", id = "moth_
 add_twist_system(
     id = "pyritohedron_1_7_ft@0",
     name = "FT Pyritohedron (1/7)",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/pyritohedron.new_with_angle(τ/7)
@@ -23,7 +23,7 @@ add_twist_system(
 add_puzzle(
     id = "moth_to_the_flame@0",
     name = "Moth to the Flame (bandaged)",
-    engine = "symmetric",
+    engine = "euclid",
     tags = #{ author = ["SuperSnowman16", "Andrew Farkas"] },
     ndim = 3,
     colors = "dodecahedron",
@@ -38,7 +38,7 @@ add_puzzle(
 add_puzzle(
     id = "cube_ft_4_other@0",
     name = "The Other 4x4x4",
-    engine = "symmetric",
+    engine = "euclid",
     tags = #{ author = "Andrew Farkas", inventor = "Carl Hoff" },
     ndim = 3,
     colors = "cube",

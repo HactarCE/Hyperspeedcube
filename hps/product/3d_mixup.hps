@@ -2,7 +2,7 @@ use * from euclid
 
 add_twist_system(
     id = "mixup_cube_45",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         shape = @shapes/3d/cube.new()
@@ -16,7 +16,7 @@ add_twist_system(
 
 add_puzzle(
     id = "mixup_cube",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     twists = "mixup_cube_45",
     build = fn() {

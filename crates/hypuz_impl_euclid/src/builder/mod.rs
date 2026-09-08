@@ -1,4 +1,4 @@
-//! Symmetric Euclidean puzzle simulation backend and Hyperpuzzlescript API for
+//! Euclidean puzzle simulation backend and Hyperpuzzlescript API for
 //! Hyperspeedcube.
 
 use std::any::Any;

@@ -24,7 +24,7 @@ export fn add_symmetric_ft_twist_system(
     add_twist_system(
         id = id ?? (shape_module.id ++ "_ft"),
         // name = name ?? shape_module.name,
-        engine = "symmetric",
+        engine = "euclid",
         ndim = shape_module.ndim,
         build = fn() {
             #twists.shape = shape_module.new()

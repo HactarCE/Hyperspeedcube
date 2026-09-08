@@ -7,7 +7,7 @@ add_menu_entry(path = "Solid|3D|Chamfered|Chamfered Tetrahedron|Horse Cube", id 
 
 add_twist_system(
     id = "chamfered_tetrahedron_ft",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         cube = @shapes/3d/cube.new()
@@ -29,7 +29,7 @@ add_twist_system(
 
 fn def_chamfered_tetrahedron_ft(cube_depth, **kwargs) {
     add_puzzle(
-        engine = "symmetric",
+        engine = "euclid",
         twists = "chamfered_tetrahedron_ft",
         ndim = 3,
         build = fn() {

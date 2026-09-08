@@ -4,7 +4,7 @@ add_menu_entry(path = "Solid|1D",      next_column = "Shape")
 add_menu_entry(path = "Solid|1D|Line", id = "line", default = true)
 
 add_twist_system(id = "line@1", name = "Line",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 1,
     build = fn() {
         #twists.shape = @shapes/1d/line.new()
@@ -16,7 +16,7 @@ add_twist_system(id = "line@1", name = "Line",
 
 add_puzzle(id = "line@1", name = "Line",
     tags = #{ author = "Andrew Farkas" },
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 1,
     colors = "line",
     twists = "line",

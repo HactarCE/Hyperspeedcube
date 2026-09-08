@@ -2,7 +2,7 @@ use * from euclid
 
 add_twist_system(
     id = "cheese_jumble_test",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     build = fn() {
         polygon = @shapes/2d/polygon.new(12)
@@ -16,7 +16,7 @@ add_twist_system(
 
 add_puzzle(
     id = "cheese_jumble_test",
-    engine = "symmetric",
+    engine = "euclid",
     ndim = 3,
     twists = "cheese_jumble_test",
     build = fn() {
