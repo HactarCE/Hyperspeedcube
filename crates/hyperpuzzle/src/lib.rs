@@ -31,14 +31,14 @@ use std::sync::{Arc, LazyLock, mpsc};
 
 pub use hyperpuzzle_core as core;
 pub use hyperpuzzle_core::*;
-pub use hyperpuzzle_impl_symmetric as symmetric;
+pub use hypuz_impl_euclid as symmetric;
 use parking_lot::Mutex;
 pub use prelude::*;
 
 /// Prelude of common imports.
 pub mod prelude {
     pub use hyperpuzzle_core::prelude::*;
-    pub use hyperpuzzle_impl_symmetric::prelude::*;
+    pub use hypuz_impl_euclid::prelude::*;
 }
 
 /// Global catalog.
@@ -100,10 +100,10 @@ pub fn load_catalog(catalog: &CatalogBuilder) -> eyre::Result<()> {
     })
     .expect("error defining HPS catalog built-ins");
 
-    hyperpuzzle_impl_symmetric::hps::register_hps_engines(&mut rt);
-    rt.with_builtins(|builtins| hyperpuzzle_impl_symmetric::hps::define_in(builtins, catalog))
+    hypuz_impl_euclid::hps::register_hps_engines(&mut rt);
+    rt.with_builtins(|builtins| hypuz_impl_euclid::hps::define_in(builtins, catalog))
         .expect("error defining HPS symmetric built-ins");
-    hyperpuzzle_impl_symmetric::add_catalog_entries(catalog)
+    hypuz_impl_euclid::add_catalog_entries(catalog)
         .expect("error adding symmetric puzzles to catalog");
 
     // Load user files on a new thread in case it panics.

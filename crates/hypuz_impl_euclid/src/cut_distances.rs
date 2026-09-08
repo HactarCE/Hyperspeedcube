@@ -1,6 +1,6 @@
-use eyre::{Result, bail};
+use eyre::{bail, Result};
 use hypermath::collections::NanError;
-use hypermath::{APPROX, Float, RangeMap};
+use hypermath::{Float, RangeMap, APPROX};
 use hyperpuzzle_core::PerLayer;
 use hypuz_notation::Layer;
 use itertools::Itertools;
@@ -37,7 +37,7 @@ impl CutDistances {
     ///
     /// ```rust
     /// # use hypermath::prelude::*;
-    /// # use hyperpuzzle_impl_symmetric::CutDistances;
+    /// # use hypuz_impl_euclid::CutDistances;
     /// # use hypuz_notation::Layer;
     /// let cuts = CutDistances::new(vec![0.5, 0.0, -0.5]).unwrap();
     ///

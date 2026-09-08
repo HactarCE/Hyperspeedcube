@@ -1,6 +1,6 @@
-# hyperpuzzle_impl_symmetric
+# hypuz_impl_euclid
 
-General symmetric puzzle backend for Hyperspeedcube
+General Euclidean puzzle backend for Hyperspeedcube
 
 ## To-do
 

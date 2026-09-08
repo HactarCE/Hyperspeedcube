@@ -2883,8 +2883,8 @@ dependencies = [
  "eyre",
  "hsc_log",
  "hyperpuzzle_core",
- "hyperpuzzle_impl_symmetric",
  "hyperpuzzlescript",
+ "hypuz_impl_euclid",
  "parking_lot",
  "pretty_assertions",
 ]
@@ -2920,30 +2920,6 @@ dependencies = [
  "strum",
  "thiserror 2.0.18",
  "timecheck",
- "tinyset",
-]
-
-[[package]]
-name = "hyperpuzzle_impl_symmetric"
-version = "0.1.0"
-dependencies = [
- "eyre",
- "hypergroup",
- "hypermath",
- "hyperpuzzle_core",
- "hyperpuzzlescript",
- "hypershape",
- "hypuz_notation",
- "hypuz_util",
- "indexmap",
- "itertools 0.14.0",
- "log",
- "parking_lot",
- "proptest",
- "rand 0.10.1",
- "rayon",
- "smallvec",
- "thiserror 2.0.18",
  "tinyset",
 ]
 
@@ -3046,6 +3022,30 @@ dependencies = [
  "web-sys",
  "wgpu",
  "winres",
+]
+
+[[package]]
+name = "hypuz_impl_euclid"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "hypergroup",
+ "hypermath",
+ "hyperpuzzle_core",
+ "hyperpuzzlescript",
+ "hypershape",
+ "hypuz_notation",
+ "hypuz_util",
+ "indexmap",
+ "itertools 0.14.0",
+ "log",
+ "parking_lot",
+ "proptest",
+ "rand 0.10.1",
+ "rayon",
+ "smallvec",
+ "thiserror 2.0.18",
+ "tinyset",
 ]
 
 [[package]]
