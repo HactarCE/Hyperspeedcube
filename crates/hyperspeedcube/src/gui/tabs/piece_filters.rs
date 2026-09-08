@@ -8,7 +8,7 @@ use hsc_prefs::{
     PuzzleFilterPreferences,
 };
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::{PuzzleFiltersState, PuzzleView};
+use hypuz_view::{PuzzleFiltersState, PuzzleView};
 use itertools::Itertools;
 
 use crate::L;

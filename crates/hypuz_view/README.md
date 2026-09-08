@@ -1,3 +1,3 @@
-# hyperpuzzle_view
+# hypuz_view
 
 View controller for Hyperspeedcube

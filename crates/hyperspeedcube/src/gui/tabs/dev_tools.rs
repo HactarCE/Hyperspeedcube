@@ -5,7 +5,7 @@ use hsc_prefs::Preferences;
 use hypermath::RotDir;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::PuzzleView;
+use hypuz_view::PuzzleView;
 use itertools::Itertools;
 
 use crate::L;

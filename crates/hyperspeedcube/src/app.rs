@@ -8,7 +8,7 @@ use hsc_prefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hsc_stats::StatsDb;
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
+use hypuz_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use parking_lot::Mutex;
 
 use crate::L;

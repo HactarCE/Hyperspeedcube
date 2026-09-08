@@ -1,6 +1,6 @@
 use hyperpuzzle::notation::Invert;
 use hyperpuzzle::symmetric::SymmetricTwistSystemComponent;
-use hyperpuzzle_view::ReplayEvent;
+use hypuz_view::ReplayEvent;
 use itertools::Itertools;
 
 use crate::L;

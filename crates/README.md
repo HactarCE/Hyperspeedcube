@@ -10,7 +10,7 @@ Hyperspeedcube consists of many crates, split into several categories and ordere
 ## User interface
 
 - `hyperspeedcube`, which provides a UI frontend using [egui]
-- `hyperpuzzle_view`, which tracks puzzle state, interaction, and animations
+- `hypuz_view`, which tracks puzzle state, interaction, and animations
 - `hsc_draw`, which renders the puzzle to a texture using [wgpu]
 
 [wgpu]: https://wgpu.rs/

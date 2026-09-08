@@ -24,8 +24,8 @@ hsc_prefs.workspace = true
 hsc_stats.workspace = true
 hypermath.workspace = true
 hyperpuzzle = { workspace = true, features = ["oklab"] }
-hyperpuzzle_view.workspace = true
 hyperpuzzlescript = { workspace = true, features = ["hsc_paths"] }
+hypuz_view.workspace = true
 
 arboard.workspace = true
 cgmath.workspace = true

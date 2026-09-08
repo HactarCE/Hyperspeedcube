@@ -14,13 +14,13 @@ members = [
     "crates/hypermath",
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_symmetric",
-    "crates/hyperpuzzle_view",
     "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
     "crates/hypershape",
     "crates/hyperspeedcube",
     "crates/hypuz_notation",
     "crates/hypuz_util",
+    "crates/hypuz_view",
     "crates/timecheck",
 ]
 resolver = "3"
@@ -80,7 +80,7 @@ hsc_prefs = { path = "crates/hsc_prefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_symmetric = { path = "crates/hyperpuzzle_impl_symmetric" }
-hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
+hypuz_view = { path = "crates/hypuz_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
 hsc_cli_types = { path = "crates/hsc_cli_types" }

@@ -16,7 +16,7 @@ use hypermath::prelude::*;
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::catalog::{CatalogError, Request};
 use hyperpuzzle::prelude::*;
-use hyperpuzzle_view::{
+use hypuz_view::{
     DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
 };
 use itertools::Itertools;
@@ -438,21 +438,17 @@ impl PuzzleWidget {
                 let cmd_shift = !mods.alt && mods.shift && mods.command;
 
                 if cmd && input.key_pressed(egui::Key::Z) {
-                    view.sim
-                        .lock()
-                        .do_event(hyperpuzzle_view::ReplayEvent::Undo {
-                            time: Some(Timestamp::now()),
-                        });
+                    view.sim.lock().do_event(hypuz_view::ReplayEvent::Undo {
+                        time: Some(Timestamp::now()),
+                    });
                 }
 
                 if cmd_shift && input.key_pressed(egui::Key::Z)
                     || cmd && input.key_pressed(egui::Key::Y)
                 {
-                    view.sim
-                        .lock()
-                        .do_event(hyperpuzzle_view::ReplayEvent::Redo {
-                            time: Some(Timestamp::now()),
-                        });
+                    view.sim.lock().do_event(hypuz_view::ReplayEvent::Redo {
+                        time: Some(Timestamp::now()),
+                    });
                 }
             });
         }
