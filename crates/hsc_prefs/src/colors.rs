@@ -230,7 +230,7 @@ impl GlobalColorPalette {
         }
     }
 
-    /// Modfies a color scheme if necessary to ensure that it is valid for its
+    /// Modifies a color scheme if necessary to ensure that it is valid for its
     /// color system and the current global palette. Returns `true` if it was
     /// modified.
     #[must_use]

@@ -154,7 +154,7 @@ impl NdEuclidViewState {
                                 .vectors_by_id
                                 .iter()
                                 .filter_map(|(axis, axis_vector)| {
-                                    // TODO: canoncalize axis based on layer mask
+                                    // TODO: canonicalize axis based on layer mask
                                     let layers = puzzle.min_drag_layer_mask(axis, hov.piece)?;
                                     let score1 = target.dot(axis_vector.normalize()?).abs();
                                     if !APPROX.is_pos(score1) {

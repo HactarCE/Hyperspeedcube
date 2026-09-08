@@ -522,16 +522,6 @@ pub enum TwistError {
 ///     ]),
 /// };
 /// ```
-///
-/// ## Deep-Cut FT Icosahedron (Radiolarian )
-///
-/// ```
-/// ```
-///
-/// ## Trianglular bipyramid
-///
-/// ```
-/// ```
 #[derive(Debug, Clone)]
 pub struct AxisOrbitJumbleData {
     /// List of unit clockwise jumble transforms, including the doctrinaire

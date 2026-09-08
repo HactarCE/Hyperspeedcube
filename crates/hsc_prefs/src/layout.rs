@@ -13,7 +13,7 @@ pub struct Layout {
     /// Sidebar style.
     pub sidebar_style: SidebarStyle,
 
-    /// Sidebar utility, serializes as a srting because it uses types that are
+    /// Sidebar utility, serializes as a string because it uses types that are
     /// only defined in the `hyperspeedcube` crate.
     pub sidebar_utility: Option<String>,
 }

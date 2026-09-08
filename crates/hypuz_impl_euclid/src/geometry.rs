@@ -64,7 +64,7 @@ impl PolytopeGeometry {
     /// Returns the number of dimensions of the space containing the polytope.
     ///
     /// This may be larger than the number of dimensions of the polytope itself.
-    /// In fact, this type has no knowldege of the number of dimensions of the
+    /// In fact, this type has no knowledge of the number of dimensions of the
     /// polytope itself.
     pub fn space_ndim(&self) -> u8 {
         self.verts.column_count() as u8

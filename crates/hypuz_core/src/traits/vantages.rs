@@ -317,7 +317,7 @@ pub trait VantageGroupElement: Any + Send + Sync {
 box_dyn_wrapper_struct! {
     /// Wrapper around `Arc<dyn VantageGroupElement>` that can be downcast to a
     /// concrete vantage group element type. This type also implements [`Clone`]
-    /// for conveninence.
+    /// for convenience.
     pub struct BoxDynVantageGroupElement(Box<dyn VantageGroupElement>);
 }
 impl_dyn_clone!(for BoxDynVantageGroupElement);
@@ -391,7 +391,7 @@ pub trait RelativeAxis: Any + Send + Sync {
 box_dyn_wrapper_struct! {
     /// Wrapper around `Arc<dyn RelativeAxis>` that can be downcast to a
     /// concrete relative axis type. This type also implements [`Clone`] for
-    /// conveninence.
+    /// convenience.
     pub struct BoxDynRelativeAxis(Box<dyn RelativeAxis>);
 }
 impl_dyn_clone!(for BoxDynRelativeAxis);
@@ -404,7 +404,7 @@ pub trait RelativeTwist: Any + Send + Sync {
 box_dyn_wrapper_struct! {
     /// Wrapper around `Arc<dyn RelativeTwist>` that can be downcast to a
     /// concrete relative twist type. This type also implements [`Clone`] for
-    /// conveninence.
+    /// convenience.
     pub struct BoxDynRelativeTwist(Box<dyn RelativeTwist>);
 }
 impl_dyn_clone!(for BoxDynRelativeTwist);

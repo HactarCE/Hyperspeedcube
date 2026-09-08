@@ -799,7 +799,7 @@ piece_filters {
   include_previous "**Include** previous filter"
 
   show_n_pieces_with_style "Show **{{n}}** pieces with style"
-  show_remaining_peices_with_style "Show remaining pieces with style"
+  show_remaining_pieces_with_style "Show remaining pieces with style"
   show_remaining_pieces_with_previous_filter "Show remaining pieces with previous filter"
   n_match_previous_rule "(**{{n}}** pieces match a previous rule instead)"
   n_override_previous_rule "(**{{n}}** pieces override a previous rule)"

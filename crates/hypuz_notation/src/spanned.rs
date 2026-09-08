@@ -261,7 +261,7 @@ impl ConstraintSet {
 pub enum Constraint {
     /// Constraint that the transform must take one reference point to another.
     FromTo([Span; 2]),
-    /// Constraint that the transform must swap two referecne points.
+    /// Constraint that the transform must swap two reference points.
     Swap([Span; 2]),
     /// Constraint that the transform must keep a reference point fixed.
     Fix(Span),

@@ -18,7 +18,8 @@ use crate::geometry::PolytopeGeometry;
 /// Constructor for [`super::ProductPuzzleBuilder`] using [`hypershape::Space`]
 /// to cut polytope elements.
 ///
-/// This type cannot be direct-producted.
+/// This type must be converted to a `PuzzleProductShape` before being used as a
+/// factor in a direct product.
 #[derive(Debug)]
 pub(super) struct PuzzleShapeFactorBuilder {
     group: IsometryGroup,

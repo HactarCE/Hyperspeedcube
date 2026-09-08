@@ -67,7 +67,7 @@ impl Deref for Catalog {
 
 impl Catalog {
     /// Requests an object to be built if it has not been built already,
-    /// returning a [`Request`] that can be used to check status and recieve
+    /// returning a [`Request`] that can be used to check status and receive
     /// results.
     ///
     /// It may take time for the object to build. If you want to block the

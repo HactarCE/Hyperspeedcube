@@ -25,7 +25,7 @@ pub trait PuzzleAnimation: Any + Send + Sync {
 box_dyn_wrapper_struct! {
     /// Wrapper around `Box<dyn PuzzleAnimation>` that can be downcast to a
     /// concrete animation type. This type also implements [`Clone`] for
-    /// conveninence.
+    /// convenience.
     pub struct BoxDynPuzzleAnimation(Box<dyn PuzzleAnimation>);
 }
 impl_dyn_clone!(for BoxDynPuzzleAnimation);

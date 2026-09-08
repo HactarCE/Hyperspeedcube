@@ -240,7 +240,7 @@ impl Motor {
     pub fn index_of(&self, axes: Axes) -> Option<usize> {
         (axes.grade() & 1 == self.is_reflection as u8).then(|| axes.bits() as usize >> 1)
     }
-    /// Returns the index of the coefficent for `axes`.
+    /// Returns the index of the coefficient for `axes`.
     ///
     /// # Panics
     ///

@@ -665,7 +665,7 @@ impl From<Box<[Constraint]>> for ConstraintSet {
 pub enum Constraint {
     /// Constraint that the transform must take one reference point to another.
     FromTo([Str; 2]),
-    /// Constraint that the transform must swap two referecne points.
+    /// Constraint that the transform must swap two reference points.
     Swap([Str; 2]),
     /// Constraint that the transform must keep a reference point fixed.
     Fix(Str),

@@ -103,7 +103,7 @@ impl Matrix {
         )
     }
 
-    /// Contructs the matrix rotating in a plane from `u` to `v`. Both vectors
+    /// Constructs the matrix rotating in a plane from `u` to `v`. Both vectors
     /// are assumed to be normalized.
     pub fn from_vec_to_vec(u: impl VectorRef, v: impl VectorRef) -> Self {
         let dim = std::cmp::max(u.ndim(), v.ndim());

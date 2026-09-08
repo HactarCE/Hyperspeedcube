@@ -110,7 +110,7 @@ impl AxisOrbitBuilder {
     }
 
     pub fn axes(&self) -> TypedIndexIter<Axis> {
-        Axis::iter_range(self.id_offset..self.id_offset + self.len) // already checked at constuction
+        Axis::iter_range(self.id_offset..self.id_offset + self.len) // already checked at construction
     }
 
     fn offset_ids_by(

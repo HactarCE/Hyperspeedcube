@@ -82,7 +82,7 @@ impl LayerRange {
     }
 
     /// Returns the single layer in the range if it has only one element, or
-    /// `None` othewise.
+    /// `None` otherwise.
     pub(crate) fn to_single_layer(self) -> Option<Layer> {
         (self.min == self.max).then_some(self.min)
     }

@@ -55,7 +55,7 @@ impl Warning {
                 .note("while the new variable is in scope, the original one will be inaccessible")
                 .notes(blame_milo.then_some(
                     "this may be intentional, but Milo Jacquet asked for \
-                     this warning and currently there's no way to supress it",
+                     this warning and currently there's no way to suppress it",
                 ))
                 .help("try renaming one of them"),
             Self::ShadowedExport((shadowed_name, original_span)) => report_builder

@@ -252,7 +252,7 @@ impl Error {
                         .iter()
                         .map(|span| (span, "\x02this value\x03 was previously exported")),
                 )
-                .note("returing a value and exporting values are mutually exclusive"),
+                .note("returning a value and exporting values are mutually exclusive"),
             Self::ExpectedCollectionType { got_type } => report_builder
                 .main_label(format!("\x02{got_type}\x03 is not a collection type"))
                 .help("try a collection type like `List`"),

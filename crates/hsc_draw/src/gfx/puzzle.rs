@@ -742,7 +742,7 @@ impl NdEuclidPuzzleRenderer {
                 })
                 .collect();
 
-        // Replace absolute opacity with incrmental opacity (difference between
+        // Replace absolute opacity with incremental opacity (difference between
         // opacities of the current bucket and the next bucket).
         for i in 0..buckets.len() - 1 {
             buckets[i].opacity -= buckets[i + 1].opacity;

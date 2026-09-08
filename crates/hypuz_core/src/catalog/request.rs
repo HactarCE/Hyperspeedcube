@@ -65,7 +65,7 @@ impl<T: CatalogObject> Request<T> {
         }
     }
 
-    /// Blocks until the task has completed and then retunrs the result.
+    /// Blocks until the task has completed and then returns the result.
     ///
     /// **Note: The returned object might not have the ID as the request.** When
     /// this happens, it is called an "ID redirect."

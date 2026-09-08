@@ -124,7 +124,7 @@ pub fn vantage_name<'a>(axis_pairs: impl IntoIterator<Item = (&'a str, &'a str)>
 }
 /// Parses a vantage name with the standard format `r1:r2,r3:r4,r5:r6` (using as
 /// many reference pairs as necessary to disambiguate). Returns `None` if the
-/// name is invalid and unparseable.
+/// name is invalid and unparsable.
 ///
 /// The first reference in each pair is typically fixed.
 pub fn parse_vantage_name(name: &str) -> Option<Vec<(&str, &str)>> {

@@ -9,10 +9,10 @@ pub mod prelude {
     pub use crate::flat::*;
 }
 
-/// Default radius for the promordial cube, which determines the maximum extent
+/// Default radius for the primordial cube, which determines the maximum extent
 /// of all vertices along any axis.
 ///
-/// This must be large enough that it contains all geomoetry, but should be
+/// This must be large enough that it contains all geometry, but should be
 /// relatively small to improve precision.
 pub const DEFAULT_PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 64.0; // big power of 2 feels good
 

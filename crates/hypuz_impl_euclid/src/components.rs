@@ -79,7 +79,7 @@ pub struct NdEuclidTwistsList {
     pub ndim: u8,
     /// Axis for each twist.
     pub twist_axes: PerTwist<Axis>,
-    /// Transforation to apply to pieces for each twist.
+    /// Transformation to apply to pieces for each twist.
     pub twist_transforms: PerTwist<pga::Motor>,
     /// Map from transform to twist; inverse of `twist_transforms`.
     pub twist_from_transform: ApproxHashMap<TwistKey, Twist>,

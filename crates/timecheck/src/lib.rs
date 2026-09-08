@@ -13,7 +13,7 @@
 //! [tsa]:
 //!     https://en.wikipedia.org/wiki/Trusted_timestamping#Trusted_(digital)_timestamping
 //!
-//! Start times and end times are generated and verified indepedently. See
+//! Start times and end times are generated and verified independently. See
 //! [`drand`] for start-time verification and [`tsa`] for end-time verification.
 //!
 //! # Example

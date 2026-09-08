@@ -256,7 +256,7 @@ impl<'a> MenuPath<'a> {
         self.str_repr.is_empty()
     }
 
-    /// Returns the number of compenents in the path.
+    /// Returns the number of components in the path.
     pub fn len(self) -> usize {
         self.len
     }

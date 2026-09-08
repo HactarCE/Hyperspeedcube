@@ -323,7 +323,7 @@ fn make_map_using_export(a) -> Map {
     assert_eq(c, 15 + a)
     // `export` supports all the same functionality as `use`
     export d as q, e from #{ d = 35, e = 40, x = 45 }
-    // q and e are exported, but not acessible from the current scope
+    // q and e are exported, but not accessible from the current scope
 }
 fn make_map_using_return(a) {
     fn f(x) { x + a }

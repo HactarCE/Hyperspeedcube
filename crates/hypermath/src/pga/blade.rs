@@ -313,7 +313,7 @@ impl Blade {
     fn axes_at_index(&self, i: usize) -> Axes {
         Axes::from_bits_truncate(super::multivector_term_order(self.ndim, self.grade)[i])
     }
-    /// Returns the index of the coefficent for `axes`.
+    /// Returns the index of the coefficient for `axes`.
     fn index_of(&self, axes: Axes) -> Option<usize> {
         super::multivector_term_order(self.ndim, self.grade)
             .iter()

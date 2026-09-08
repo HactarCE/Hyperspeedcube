@@ -43,7 +43,7 @@ fn strip_suffix_char(s: &str, is_char_allowed: fn(char) -> bool) -> (&str, Optio
     }
 }
 
-/// Removes a sequential lowercase name from the beginnning of `s` if one is
+/// Removes a sequential lowercase name from the beginning of `s` if one is
 /// present, returning the prefix and the remainder of `s`. Returns `None` if
 /// it could not be parsed.
 pub fn strip_sequential_lowercase_prefix(s: &str) -> Option<(SequentialLowercaseName, &str)> {
@@ -53,7 +53,7 @@ pub fn strip_sequential_lowercase_prefix(s: &str) -> Option<(SequentialLowercase
 }
 
 /// Removes an opposite axis prefix from the beginning of `s`. This always
-/// suceeds, because an opposite axis prefix may be empty.
+/// succeeds, because an opposite axis prefix may be empty.
 ///
 /// Returns `Opposite(0)` in case of overflow.
 pub fn strip_opposite_axis_prefix(s: &str) -> (Opposite, &str) {

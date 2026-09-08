@@ -692,7 +692,7 @@ fn show_current_filter_preset_ui_contents(
                         // seems to be a bug in egui.
                         ui.visuals_mut().collapsing_header_frame = true;
                         ui.horizontal(|ui| {
-                            // TODO: singlular vs. plural
+                            // TODO: singular vs. plural
                             let n = affected_piece_count.to_string();
                             let r = ui.checkbox(
                                 &mut rule.enabled,
@@ -804,7 +804,7 @@ fn show_current_filter_preset_ui_contents(
             }
             ui.scope_builder(ui_builder, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(L.piece_filters.show_remaining_peices_with_style);
+                    ui.label(L.piece_filters.show_remaining_pieces_with_style);
                     let r = ui.add(FancyComboBox {
                         combo_box: egui::ComboBox::from_id_salt(unique_id!()),
                         selected: &mut current.inner.fallback_style,

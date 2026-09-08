@@ -3,7 +3,7 @@ use hypuz_core::{Catalog, Puzzle};
 use super::load_new_catalog;
 
 #[rustfmt::skip]
-// # 600-Cell peice count derivation
+// # 600-Cell piece count derivation
 //
 // ## Shallow Icosahedron (Radio 1.5)
 //
