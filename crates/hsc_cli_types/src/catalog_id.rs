@@ -184,13 +184,13 @@ impl fmt::Display for CatalogId {
             subsets,
         } = self;
         write!(f, "{base}")?;
+        for subset in subsets {
+            write!(f, ".{subset}")?;
+        }
         if let Some(args) = args {
             write!(f, "(")?;
             write_comma_sep_list(f, args)?;
             write!(f, ")")?;
-        }
-        for subset in subsets {
-            write!(f, ".{subset}")?;
         }
         Ok(())
     }
@@ -344,6 +344,7 @@ impl FromStr for CatalogIdValue {
             let id = word
                 .then(just('@').padded().ignore_then(int_u32).or_not())
                 .map(|(word, version)| VersionedCatalogWord { word, version })
+                .then(just('.').padded().ignore_then(word).repeated().collect())
                 .then(
                     ast_node
                         .clone()
@@ -352,8 +353,7 @@ impl FromStr for CatalogIdValue {
                         .delimited_by(just('(').padded(), just(')').padded())
                         .or_not(),
                 )
-                .then(just('.').padded().ignore_then(word).repeated().collect())
-                .map(|((base, args), subsets)| {
+                .map(|((base, subsets), args)| {
                     Self::Id(CatalogId {
                         base,
                         args,
@@ -551,18 +551,18 @@ mod tests {
     #[test]
     fn test_catalog_id_roundtrip() {
         for s in [
-            "product@3.rot([ngon_ft@1(7,3).refl,line@2(3)])",
+            "product@3.rot([ngon_ft@1.refl(7,3),line@2(3)])",
             "megaminx_crystal",
             "curvy_copter@5.rot.jumbl",
-            "cube_ft(3).refl",
+            "cube_ft.refl(3)",
         ] {
             assert_eq!(s, CatalogId::from_str(s).unwrap().to_string());
         }
 
         assert_eq!(
-            Ok("product@3.refl.jumbl([ngon_ft@1(7,3).refl,line@2(3)])".to_string()),
+            Ok("product@3.refl.jumbl([ngon_ft@1.refl(7,3),line@2(3)])".to_string()),
             CatalogId::from_str(
-                "  product  @  3  .  refl  .  jumbl  (  [  ngon_ft  @  1  (  7  ,  3  )  .  refl  ,  line  @  2  (  3  )  ]  )  ",
+                "  product  @  3  .  refl  .  jumbl  (  [  ngon_ft  @  1  .  refl  (  7  ,  3  )  ,  line  @  2  (  3  )  ]  )  ",
             )
             .map(|id| id.to_string()),
         );
