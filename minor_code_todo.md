@@ -1,14 +1,9 @@
 - Save program name & version in session events, not overall log file
-- Rename `hyperpuzzle_` crates to `hypuz_`
 - **Include program version in scrambles**
   - this may be more important than puzzle version
 - Check usages of the words "meta" (some should be "puzzle list entry") and "callback" (some should be "engine")
 - Replace old `EguiTempValue` and `EguiTempFlag` with new ones
-- Make sure drag twists work on 3D product puzzles!
-- Make sure 4D twist names are correct!
 - Write tests for log files for various puzzles!
-- Check 4D twist directions (search for "todo" in HPS code)
-- Break ties in twist dragging based on whichever axis it's closest to
 - Actually support twist subsets
-- Infer ±inf cut depths for simple layer list
 - Disallow drag twist if axis/layer is blocked
+- Animate 180° twist directions correctly based on gizmo clicks
