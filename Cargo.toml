@@ -8,6 +8,7 @@ members = [
     "crates/hsc_prefs",
     "crates/hsc_stats",
     "crates/hsc_strings",
+    "crates/hsc_view",
     "crates/hypergroup",
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
@@ -20,7 +21,6 @@ members = [
     "crates/hypuz_impl_euclid",
     "crates/hypuz_notation",
     "crates/hypuz_util",
-    "crates/hypuz_view",
     "crates/timecheck",
 ]
 resolver = "3"
@@ -66,24 +66,24 @@ opt-level = 1
 [workspace.dependencies]
 
 # Crates that are part of the project
+hsc_cli_types = { path = "crates/hsc_cli_types" }
 hsc_draw = { path = "crates/hsc_draw" }
+hsc_leaderboards = { path = "crates/hsc_leaderboards" }
 hsc_log = { path = "crates/hsc_log" }
 hsc_paths = { path = "crates/hsc_paths" }
+hsc_prefs = { path = "crates/hsc_prefs" }
 hsc_stats = { path = "crates/hsc_stats" }
 hsc_strings = { path = "crates/hsc_strings" }
-hsc_leaderboards = { path = "crates/hsc_leaderboards" }
+hsc_view = { path = "crates/hsc_view" }
 hypergroup = { path = "crates/hypergroup" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
 hypermath = { path = "crates/hypermath" }
-hsc_prefs = { path = "crates/hsc_prefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
-hypuz_core = { path = "crates/hypuz_core" }
-hypuz_impl_euclid = { path = "crates/hypuz_impl_euclid" }
-hypuz_view = { path = "crates/hypuz_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
-hsc_cli_types = { path = "crates/hsc_cli_types" }
+hypuz_core = { path = "crates/hypuz_core" }
+hypuz_impl_euclid = { path = "crates/hypuz_impl_euclid" }
 hypuz_notation = { path = "crates/hypuz_notation" }
 hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }

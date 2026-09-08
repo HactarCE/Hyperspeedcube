@@ -2801,6 +2801,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsc_view"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "eyre",
+ "float-ord",
+ "hsc_draw",
+ "hsc_log",
+ "hsc_prefs",
+ "hypermath",
+ "hyperpuzzle",
+ "hypuz_notation",
+ "itertools 0.14.0",
+ "log",
+ "parking_lot",
+ "pretty_assertions",
+ "smallvec",
+ "web-time",
+]
+
+[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2954,10 +2975,10 @@ dependencies = [
  "hsc_prefs",
  "hsc_stats",
  "hsc_strings",
+ "hsc_view",
  "hypermath",
  "hyperpuzzle",
  "hyperpuzzlescript",
- "hypuz_view",
  "indexmap",
  "itertools 0.14.0",
  "js-sys",
@@ -3072,27 +3093,6 @@ dependencies = [
  "itertools 0.14.0",
  "serde",
  "tinyset",
-]
-
-[[package]]
-name = "hypuz_view"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "eyre",
- "float-ord",
- "hsc_draw",
- "hsc_log",
- "hsc_prefs",
- "hypermath",
- "hyperpuzzle",
- "hypuz_notation",
- "itertools 0.14.0",
- "log",
- "parking_lot",
- "pretty_assertions",
- "smallvec",
- "web-time",
 ]
 
 [[package]]

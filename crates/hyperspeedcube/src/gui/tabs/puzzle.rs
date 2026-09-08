@@ -12,13 +12,13 @@ use eyre::Result;
 use hsc_draw::*;
 use hsc_log::Solve;
 use hsc_prefs::{AnimationPreferences, Preferences};
+use hsc_view::{
+    DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
+};
 use hypermath::prelude::*;
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::catalog::{CatalogError, Request};
 use hyperpuzzle::prelude::*;
-use hypuz_view::{
-    DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
-};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -438,7 +438,7 @@ impl PuzzleWidget {
                 let cmd_shift = !mods.alt && mods.shift && mods.command;
 
                 if cmd && input.key_pressed(egui::Key::Z) {
-                    view.sim.lock().do_event(hypuz_view::ReplayEvent::Undo {
+                    view.sim.lock().do_event(hsc_view::ReplayEvent::Undo {
                         time: Some(Timestamp::now()),
                     });
                 }
@@ -446,7 +446,7 @@ impl PuzzleWidget {
                 if cmd_shift && input.key_pressed(egui::Key::Z)
                     || cmd && input.key_pressed(egui::Key::Y)
                 {
-                    view.sim.lock().do_event(hypuz_view::ReplayEvent::Redo {
+                    view.sim.lock().do_event(hsc_view::ReplayEvent::Redo {
                         time: Some(Timestamp::now()),
                     });
                 }

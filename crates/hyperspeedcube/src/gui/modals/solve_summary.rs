@@ -7,10 +7,10 @@ use hsc_log::verify::SolveVerificationError;
 use hsc_log::{LogFile, Solve};
 use hsc_prefs::Preferences;
 use hsc_stats::{NewPbs, PuzzlePBs, StatsDb};
+use hsc_view::PuzzleSimulation;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
 use hyperpuzzle::{CatalogIdValue, FloatMinMaxIteratorExt, Puzzle, chrono};
-use hypuz_view::PuzzleSimulation;
 use parking_lot::Mutex;
 
 use crate::L;
@@ -1098,7 +1098,7 @@ mod tests {
         .inv_deep()
         .unwrap();
         for twist in twists.0 {
-            sim.do_event(hypuz_view::ReplayEvent::Twists(smallvec![
+            sim.do_event(hsc_view::ReplayEvent::Twists(smallvec![
                 twist.into_move().unwrap()
             ]));
         }

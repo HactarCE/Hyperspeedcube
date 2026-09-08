@@ -6,9 +6,9 @@ use hsc_draw::GraphicsState;
 use hsc_log::Solve;
 use hsc_prefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hsc_stats::StatsDb;
+use hsc_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
-use hypuz_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use parking_lot::Mutex;
 
 use crate::L;

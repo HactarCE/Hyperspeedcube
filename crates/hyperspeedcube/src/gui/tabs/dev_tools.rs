@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
 use hsc_prefs::Preferences;
+use hsc_view::PuzzleView;
 use hypermath::RotDir;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
-use hypuz_view::PuzzleView;
 use itertools::Itertools;
 
 use crate::L;

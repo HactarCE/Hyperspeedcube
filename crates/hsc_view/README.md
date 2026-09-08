@@ -1,3 +1,3 @@
-# hypuz_view
+# hsc_view
 
 View controller for Hyperspeedcube

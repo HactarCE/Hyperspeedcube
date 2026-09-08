@@ -1,6 +1,6 @@
+use hsc_view::ReplayEvent;
 use hyperpuzzle::euclid::SymmetricTwistSystemComponent;
 use hyperpuzzle::notation::Invert;
-use hypuz_view::ReplayEvent;
 use itertools::Itertools;
 
 use crate::L;

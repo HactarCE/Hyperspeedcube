@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse};
 use hsc_prefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
+use hsc_view::PuzzleView;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::{ColorSystem, PaletteColor};
-use hypuz_view::PuzzleView;
 use strum::IntoEnumIterator;
 
 use super::{TextEditPopup, TextEditPopupResponse};
