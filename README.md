@@ -26,7 +26,7 @@ See [`crates/README.md`](crates/README.md).
 
 Hyperspeedcube is the pet project of me, Andrew Farkas. My views on LLMs are evolving, and are currently best captured by sixfold's ["There is a Wave on the Horizon"](https://sixfold-origami.com/articles/a-wave-on-the-horizon). Please read that before you judge. I am using Hyperspeedcube to learn how to swim.
 
-That being said, the individual lines of code of Hyperspeedcube are currently and will continue to be almost entirely human-written. My use of LLMs on Hyperspeedcube is likely to be limited to refactoring, debugging, and brainstorming. Documentation will always use my own words; users will never need to read LLM output.
+That being said, the individual lines of code of Hyperspeedcube are currently and will continue to be almost entirely human-written. My use of LLMs on Hyperspeedcube is likely to be limited to refactoring, debugging, and brainstorming. Documentation, including all markdown files in this repository except `AGENTS.md` files, will always use my own words; users and future maintainers will never need to read LLM prose.
 
 There is an abundance of low-quality vibe-coded puzzle simulators, and Hyperspeedcube will not be one of those.
 
