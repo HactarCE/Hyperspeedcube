@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyperpuzzle_core::{TAGS, TagSet, TagType, TagValue};
+use hypuz_core::{TAGS, TagSet, TagType, TagValue};
 
 use crate::{EvalCtx, List, Map, Result, Type, Value, ValueData, Warning};
 

@@ -5,7 +5,7 @@ use super::*;
 /// # Example
 ///
 /// ```rust
-/// # use hyperpuzzle_core::catalog::NotifyWhenDropped;
+/// # use hypuz_core::catalog::NotifyWhenDropped;
 /// let notify_when_dropped = NotifyWhenDropped::new();
 ///
 /// let waiter = notify_when_dropped.waiter();

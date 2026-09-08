@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use hyperpuzzle_core::{
+use hypuz_core::{
     NameSpecBiMapBuilder, Piece, name_spec_matches_name, preferred_name_from_name_spec,
 };
 use itertools::Itertools;

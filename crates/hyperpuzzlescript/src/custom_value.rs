@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use hyperpuzzle_core::{box_dyn_wrapper_struct, impl_dyn_clone};
+use hypuz_core::{box_dyn_wrapper_struct, impl_dyn_clone};
 
 use crate::{
     Error, EvalCtx, FromValue, FromValueRef, Result, Span, Spanned, Type, TypeOf, Value, ValueData,

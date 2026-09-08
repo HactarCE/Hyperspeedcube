@@ -3,7 +3,7 @@
 use std::ops::{Deref, DerefMut};
 
 use ecow::eco_format;
-use hyperpuzzle_core::{CatalogBuilder, Component, Version};
+use hypuz_core::{CatalogBuilder, Component, Version};
 
 mod color_systems;
 mod generators;

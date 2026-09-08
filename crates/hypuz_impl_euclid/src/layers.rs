@@ -2,7 +2,7 @@ use std::fmt;
 
 use hypermath::prelude::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use itertools::Itertools;
 
 /// Layer depths for each axis of a puzzle.

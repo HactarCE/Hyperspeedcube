@@ -1,4 +1,4 @@
-use hyperpuzzle_core::{Axis, Names};
+use hypuz_core::{Axis, Names};
 
 use crate::{NamedPoint, NamedPointSet};
 

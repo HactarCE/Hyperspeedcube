@@ -5,7 +5,7 @@ use std::sync::Arc;
 use eyre::{OptionExt, bail};
 use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector, VectorRef};
-use hyperpuzzle_core::{IndexOutOfRange, Names};
+use hypuz_core::{IndexOutOfRange, Names};
 use hypuz_notation::Str;
 use hypuz_notation::charsets::CharSet;
 use hypuz_notation::family::SequentialLowercaseName;
@@ -358,15 +358,13 @@ impl<I: TypedIndex> ProductNamedPointBasedNames<I> {
         }
     }
 
-    pub fn build_named_point_names(
-        &self,
-    ) -> Result<Names<NamedPoint>, hyperpuzzle_core::NameError> {
+    pub fn build_named_point_names(&self) -> Result<Names<NamedPoint>, hypuz_core::NameError> {
         Names::new_simple(prefixed_if_needed(
             self.factors.iter().map(|f| &f.named_point_names.id_to_str),
         ))
     }
 
-    pub fn build_member_names(&self) -> Result<Names<I>, hyperpuzzle_core::NameError> {
+    pub fn build_member_names(&self) -> Result<Names<I>, hypuz_core::NameError> {
         let needs_prefix = self.factors.len() != 1;
 
         Names::new(

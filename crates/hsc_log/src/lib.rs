@@ -66,8 +66,8 @@ fn remove_kdl_version_number(
 
 #[cfg(test)]
 mod tests {
-    use hyperpuzzle_core::Timestamp;
-    use hyperpuzzle_core::prelude::*;
+    use hypuz_core::Timestamp;
+    use hypuz_core::prelude::*;
     use itertools::Itertools;
 
     use crate::schema::latest::*;

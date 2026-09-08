@@ -7,8 +7,8 @@ use hypergroup::{
     SubgroupConstraintSolver,
 };
 use hypermath::{Float, Matrix, MotorNearestNeighborMap, Point, Vector, VectorRef};
-use hyperpuzzle_core::catalog::BuildCtx;
-use hyperpuzzle_core::{
+use hypuz_core::catalog::BuildCtx;
+use hypuz_core::{
     Axis, AxisSystem, CatalogId, CatalogObject, CatalogWord, ComponentList, IndexOverflow, Names,
     PerAxis, TwistSystem, TypedIndex, TypedIndexIter,
 };

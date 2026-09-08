@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io::Write;
 
-use hyperpuzzle_core::{Catalog, CatalogBuilder};
+use hypuz_core::{Catalog, CatalogBuilder};
 
 mod hps_construction;
 mod precision_balance;

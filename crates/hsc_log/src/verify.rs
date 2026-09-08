@@ -1,7 +1,7 @@
 //! Functions for verifying log files.
 
-use hyperpuzzle_core::prelude::*;
-use hyperpuzzle_core::verification::*;
+use hypuz_core::prelude::*;
+use hypuz_core::verification::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
@@ -100,7 +100,7 @@ pub fn verify(
 
     let scramble_twists: Vec<Move>;
     if options.verify_scramble {
-        if scramble.version != hyperpuzzle_core::CURRENT_SCRAMBLE_VERSION {
+        if scramble.version != hypuz_core::CURRENT_SCRAMBLE_VERSION {
             return Err(SolveVerificationError::UnsupportedScrambleVersion {
                 scramble_version: scramble.version,
                 recommended_software: match scramble.version {

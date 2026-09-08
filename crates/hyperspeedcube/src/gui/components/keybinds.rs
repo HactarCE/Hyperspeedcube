@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::hash::Hash;
 
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;

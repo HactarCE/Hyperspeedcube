@@ -3,7 +3,6 @@ use std::sync::Arc;
 use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
 use hypermath::collections::RangeMap;
-use hyperpuzzle_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
 use hyperpuzzlescript::builtins::catalog::tags::tags_from_map;
 use hyperpuzzlescript::engine::HpsEngineError;
 use hyperpuzzlescript::util::{ListOrVal, pop_map_key_in_special_var};
@@ -11,6 +10,7 @@ use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, Map, Result, Scope, Spanned, SpecialVar,
     Value, ValueData, pop_kwarg, unpack_kwargs,
 };
+use hypuz_core::{CatalogId, Puzzle, PuzzleListEntry, TagSet, TagValue};
 use hypuz_notation::Layer;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -24,7 +24,7 @@ pub struct EuclidPuzzleEngine;
 impl HpsEngine for EuclidPuzzleEngine {
     fn add_catalog_entries(
         &self,
-        catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
+        catalog: &hypuz_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
         ctx: &mut EvalCtx<'_>,
         mut hps_gen: hyperpuzzlescript::engine::HpsGenerator,

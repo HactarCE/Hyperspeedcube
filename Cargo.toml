@@ -12,11 +12,11 @@ members = [
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
     "crates/hypermath",
-    "crates/hyperpuzzle_core",
     "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
     "crates/hypershape",
     "crates/hyperspeedcube",
+    "crates/hypuz_core",
     "crates/hypuz_impl_euclid",
     "crates/hypuz_notation",
     "crates/hypuz_util",
@@ -78,7 +78,7 @@ hyperkdl_derive = { path = "crates/hyperkdl_derive" }
 hypermath = { path = "crates/hypermath" }
 hsc_prefs = { path = "crates/hsc_prefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
-hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
+hypuz_core = { path = "crates/hypuz_core" }
 hypuz_impl_euclid = { path = "crates/hypuz_impl_euclid" }
 hypuz_view = { path = "crates/hypuz_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }

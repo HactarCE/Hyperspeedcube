@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use eyre::{Result, ensure};
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 

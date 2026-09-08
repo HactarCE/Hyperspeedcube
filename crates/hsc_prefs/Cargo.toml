@@ -17,7 +17,7 @@ workspace = true
 
 [dependencies]
 hsc_paths.workspace = true
-hyperpuzzle_core = { workspace = true, features = ["ecolor"] }
+hypuz_core = { workspace = true, features = ["ecolor"] }
 hypuz_util = { workspace = true, features = ["serde"] }
 
 bitvec.workspace = true

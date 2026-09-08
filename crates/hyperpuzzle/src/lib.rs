@@ -1,6 +1,6 @@
 //! Catalog of all official puzzles for Hyperspeedcube.
 //!
-//! For convenience, this crate also re-exports all of `hyperpuzzle_core`.
+//! For convenience, this crate also re-exports all of `hypuz_core`.
 //!
 //! # Example
 //!
@@ -29,15 +29,15 @@
 
 use std::sync::{Arc, LazyLock, mpsc};
 
-pub use hyperpuzzle_core as core;
-pub use hyperpuzzle_core::*;
+pub use hypuz_core as core;
+pub use hypuz_core::*;
 pub use hypuz_impl_euclid as euclid;
 use parking_lot::Mutex;
 pub use prelude::*;
 
 /// Prelude of common imports.
 pub mod prelude {
-    pub use hyperpuzzle_core::prelude::*;
+    pub use hypuz_core::prelude::*;
     pub use hypuz_impl_euclid::prelude::*;
 }
 

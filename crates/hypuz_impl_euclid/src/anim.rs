@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use hypermath::pga;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 
 /// Animation for an N-dimensional Euclidean puzzle.
 #[derive(Debug, Clone)]

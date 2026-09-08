@@ -24,7 +24,7 @@
 use std::sync::Arc;
 
 use ecow::eco_format;
-use hyperpuzzle_core::{
+use hypuz_core::{
     BuildCtx, CatalogBuilder, CatalogObject, Generator, GeneratorParam, GeneratorParamValidation,
     GeneratorSubsetParam, TypedCatalogIdValue, VersionedCatalogWord,
 };

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use eyre::{Result, eyre};
 use hypergroup::IsometryGroup;
 use hypermath::prelude::*;
-use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::ComponentList;
+use hypuz_core::prelude::*;
 use hypuz_notation::Str;
 use hypuz_notation::family::SequentialLowercaseName;
 use indexmap::{IndexMap, IndexSet};
@@ -87,7 +87,7 @@ impl ProductPuzzleShape {
     }
 
     pub fn build_ad_hoc_color_system(&self, puzzle_id: CatalogId) -> Result<Arc<ColorSystem>> {
-        let id = hyperpuzzle_core::ad_hoc_id(puzzle_id);
+        let id = hypuz_core::ad_hoc_id(puzzle_id);
         let name = id.to_string();
         let needs_prefix = self.factor_count != 1;
 
@@ -100,7 +100,7 @@ impl ProductPuzzleShape {
                 .collect(),
         )?;
 
-        let scheme_name = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME;
+        let scheme_name = hypuz_core::DEFAULT_COLOR_SCHEME_NAME;
         let scheme = ColorSystem::new_rainbow_scheme(names.len());
 
         let orbits = self

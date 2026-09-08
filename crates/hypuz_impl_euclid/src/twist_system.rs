@@ -8,9 +8,9 @@ use hypergroup::{
 };
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::Component;
-use hyperpuzzle_core::group::{GroupElementId, IsometryGroup};
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::Component;
+use hypuz_core::group::{GroupElementId, IsometryGroup};
+use hypuz_core::prelude::*;
 use hypuz_notation::family::JumbleSuffix;
 use hypuz_notation::{Str, Transform};
 use hypuz_util::FloatMinMaxByIteratorExt;

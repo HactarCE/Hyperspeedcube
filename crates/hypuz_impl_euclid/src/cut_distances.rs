@@ -1,7 +1,7 @@
-use eyre::{bail, Result};
+use eyre::{Result, bail};
 use hypermath::collections::NanError;
-use hypermath::{Float, RangeMap, APPROX};
-use hyperpuzzle_core::PerLayer;
+use hypermath::{APPROX, Float, RangeMap};
+use hypuz_core::PerLayer;
 use hypuz_notation::Layer;
 use itertools::Itertools;
 use smallvec::SmallVec;

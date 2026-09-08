@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use eyre::{Result, bail};
 use hypermath::{APPROX, ApproxHashMap, MotorNearestNeighborMap, Vector, approx_collections, pga};
-use hyperpuzzle_core::Component;
-use hyperpuzzle_core::notation::Transform;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::Component;
+use hypuz_core::notation::Transform;
+use hypuz_core::prelude::*;
 
 use crate::TwistKey;
 

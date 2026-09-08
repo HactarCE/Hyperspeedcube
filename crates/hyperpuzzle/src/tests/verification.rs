@@ -1,6 +1,6 @@
 use hsc_log::verify::{SolveVerificationError, VerificationOptions, verify};
-use hyperpuzzle_core::chrono::TimeDelta;
-use hyperpuzzle_core::verification::*;
+use hypuz_core::chrono::TimeDelta;
+use hypuz_core::verification::*;
 use pretty_assertions::assert_eq;
 
 use super::{load_new_catalog, time_it};

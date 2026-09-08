@@ -8,13 +8,13 @@ use hypermath::pga::Motor;
 use hypermath::{
     ApproxEq, ApproxHash, ApproxInternable, Ndim, Point, Precision, TransformByMotor, Vector,
 };
-use hyperpuzzle_core::CatalogBuilder;
-use hyperpuzzle_core::catalog::MenuContent;
 use hyperpuzzlescript::util::{expect_end_of_map, pop_map_key};
 use hyperpuzzlescript::{
     BUILTIN_SPAN, Builtins, ErrorExt, EvalCtx, FnValue, Map, Runtime, Spanned, Str, Type, Value,
     ValueData, hps_fns,
 };
+use hypuz_core::CatalogBuilder;
+use hypuz_core::catalog::MenuContent;
 
 mod orbit_names;
 mod puzzle_engine;

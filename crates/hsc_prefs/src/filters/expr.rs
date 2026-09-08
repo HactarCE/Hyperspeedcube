@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::LazyLock;
 
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use itertools::{Itertools, PutBack};
 use regex::Regex;
 
@@ -373,7 +373,7 @@ mod parser {
 
 #[cfg(test)]
 mod tests {
-    use hyperpuzzle_core::prelude::*;
+    use hypuz_core::prelude::*;
 
     use crate::filters::*;
 

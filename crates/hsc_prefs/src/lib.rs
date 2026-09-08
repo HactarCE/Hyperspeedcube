@@ -13,7 +13,7 @@ use std::sync::LazyLock;
 
 use bitvec::vec::BitVec;
 use eyre::{OptionExt, eyre};
-use hyperpuzzle_core::{PerspectiveDim, Puzzle, Rgb};
+use hypuz_core::{PerspectiveDim, Puzzle, Rgb};
 use serde::{Deserialize, Serialize};
 
 mod animation;

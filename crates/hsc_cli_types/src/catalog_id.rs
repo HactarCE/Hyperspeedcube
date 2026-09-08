@@ -142,7 +142,7 @@ impl FromStr for VersionedCatalogWord {
 /// ## Examples
 ///
 /// ```
-/// # use hyperpuzzle_core::CatalogId;
+/// # use hypuz_core::CatalogId;
 /// assert_eq!(
 ///     CatalogId::from_str("megaminx_crystal").unwrap(),
 ///     CatalogId::new("megaminx_crystal", []).unwrap(),

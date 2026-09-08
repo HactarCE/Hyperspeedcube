@@ -5,7 +5,7 @@ use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, Isometr
 use hypermath::collections::RangeMap;
 use hypermath::prelude::*;
 use hypermath::{Float, Subspace};
-use hyperpuzzle_core::CatalogId;
+use hypuz_core::CatalogId;
 use hypuz_notation::family::JumbleSuffix;
 use hypuz_notation::{Layer, Multiplier, Str};
 use itertools::Itertools;

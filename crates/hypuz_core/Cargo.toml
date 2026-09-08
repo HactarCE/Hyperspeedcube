@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzle_core"
+name = "hypuz_core"
 description = "Twisty puzzle API for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

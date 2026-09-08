@@ -3,14 +3,14 @@ use std::sync::Arc;
 use eyre::Result;
 use hypergroup::{GroupElementId, IsometryGroup};
 use hypermath::{APPROX, Vector, pga};
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::TwistKey;
 use crate::components::{NdEuclidAxisVectors, NdEuclidTwistsList};
 
-hyperpuzzle_core::typed_index_struct! {
+hypuz_core::typed_index_struct! {
     /// ID of a reference vector in a vantage group.
     pub struct ReferenceVector(u16);
 }
@@ -156,7 +156,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
     }
 
     fn vantage_name_concrete(&self, vantage: Vantage) -> eyre::Result<String> {
-        Ok(hyperpuzzle_core::util::vantage_name(
+        Ok(hypuz_core::util::vantage_name(
             self.vantage_names[vantage].iter().map(|&(r1, r2)| {
                 (
                     &self.reference_vector_names[r1],
@@ -176,7 +176,7 @@ impl SimpleVantageGroup for NdEuclidVantageGroup {
     }
 
     fn vantage_from_name_concrete(&self, name: &str) -> Option<Vantage> {
-        let reference_vector_mapping = hyperpuzzle_core::util::parse_vantage_name(name)?
+        let reference_vector_mapping = hypuz_core::util::parse_vantage_name(name)?
             .into_iter()
             .map(|(r1, r2)| {
                 Some((

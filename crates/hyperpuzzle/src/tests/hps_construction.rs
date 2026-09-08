@@ -2,7 +2,7 @@ use std::io::Write;
 use std::sync::Arc;
 
 use eyre::Result;
-use hyperpuzzle_core::{Catalog, Puzzle, PuzzleLintOutput, PuzzleListEntry};
+use hypuz_core::{Catalog, Puzzle, PuzzleLintOutput, PuzzleListEntry};
 
 use super::{load_new_catalog, time_it};
 

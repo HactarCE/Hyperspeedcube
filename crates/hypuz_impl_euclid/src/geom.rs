@@ -2,8 +2,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use hypermath::{Float, Hyperplane, Point, RotDir, VectorRef};
-use hyperpuzzle_core::Component;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::Component;
+use hypuz_core::prelude::*;
 
 use crate::PuzzleLayerDepths;
 use crate::components::NdEuclidAxisVectors;

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use hyperpuzzle_core::{
+use hypuz_core::{
     CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit, PaletteColor,
     TypedIndex,
 };
@@ -92,7 +92,7 @@ impl ColorSystemDisjointUnion {
 
         // TODO: implement some fancy thing that distributes colors cleverly?
         //       e.g., 2x blue -> dark blue + light blue
-        let scheme_name = hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME;
+        let scheme_name = hypuz_core::DEFAULT_COLOR_SCHEME_NAME;
         let scheme = if let [t] = self.terms.as_slice() {
             t.default_scheme.clone().into()
         } else {

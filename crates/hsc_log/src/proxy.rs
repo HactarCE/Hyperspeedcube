@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
 use hyperkdl::ValueSchemaProxy;
-use hyperpuzzle_core::{LayerMask, ScrambleType, Timestamp};
+use hypuz_core::{LayerMask, ScrambleType, Timestamp};
 use hypuz_notation::Layer;
 use kdl::*;
 
-/// KDL serialization proxy type for some types defined in `hyperpuzzle_core`.
+/// KDL serialization proxy type for some types defined in `hypuz_core`.
 pub struct KdlProxy;
 
 impl ValueSchemaProxy<LayerMask> for KdlProxy {

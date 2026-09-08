@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use hyperpuzzle_core::PaletteColor;
-use hyperpuzzle_core::notation::Str;
+use hypuz_core::PaletteColor;
+use hypuz_core::notation::Str;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -55,9 +55,9 @@ pub struct PresetsList<T: Default> {
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct GlobalColorPalette {
-    pub custom_colors: IndexMap<String, hyperpuzzle_core::Rgb>,
-    pub builtin_colors: IndexMap<String, hyperpuzzle_core::Rgb>,
-    pub builtin_color_sets: IndexMap<String, Vec<hyperpuzzle_core::Rgb>>,
+    pub custom_colors: IndexMap<String, hypuz_core::Rgb>,
+    pub builtin_colors: IndexMap<String, hypuz_core::Rgb>,
+    pub builtin_color_sets: IndexMap<String, Vec<hypuz_core::Rgb>>,
 }
 
 pub type ColorSystemPreferences = PresetsList<ColorScheme>;

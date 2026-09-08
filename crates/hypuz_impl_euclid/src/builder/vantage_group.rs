@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eyre::{OptionExt, Result, bail};
 use hypergroup::IsometryGroup;
 use hypermath::{APPROX, ApproxHashMap, Vector};
-use hyperpuzzle_core::{Axis, NameSpecBiMapBuilder, Names, PerVantage};
+use hypuz_core::{Axis, NameSpecBiMapBuilder, Names, PerVantage};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -70,7 +70,7 @@ impl VantageGroupBuilder {
             })
             .try_collect()?;
         if let Some(pairs) = vantage_names.iter_values().duplicates().next() {
-            let name = hyperpuzzle_core::util::vantage_name(
+            let name = hypuz_core::util::vantage_name(
                 pairs
                     .iter()
                     .map(|&(a, b)| (&reference_vector_names[a], &reference_vector_names[b])),

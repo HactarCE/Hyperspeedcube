@@ -1,4 +1,4 @@
-use hyperpuzzle_core::CatalogBuilder;
+use hypuz_core::CatalogBuilder;
 
 use crate::{Builtins, EvalRequestTx, Result};
 

@@ -1,7 +1,7 @@
 use eyre::Result;
 use hypergroup::{GroupAction, GroupElementId};
 use hypermath::Vector;
-use hyperpuzzle_core::{IndexOverflow, Names, TiVec, TypedIndex};
+use hypuz_core::{IndexOverflow, Names, TiVec, TypedIndex};
 use itertools::Itertools;
 use smallvec::SmallVec;
 

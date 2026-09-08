@@ -16,9 +16,9 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperkdl.workspace = true
 hyperkdl_derive.workspace = true
-hyperpuzzle_core = { workspace = true, features = [
+hyperkdl.workspace = true
+hypuz_core = { workspace = true, features = [
     "timecheck",
 ] } # TODO: extract types
 hypuz_notation = { workspace = true, features = ["serde"] }

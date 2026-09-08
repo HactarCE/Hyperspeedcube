@@ -8,9 +8,9 @@ use std::sync::{Arc, Weak};
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use hypergroup::AbbrGenSeq;
 use hypermath::prelude::*;
-use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::catalog::BuildCtx;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::ComponentList;
+use hypuz_core::catalog::BuildCtx;
+use hypuz_core::prelude::*;
 
 mod colors;
 mod from_space;
@@ -428,14 +428,13 @@ impl PuzzleProduct {
             move |rng: &mut dyn rand::Rng| {
                 let axis = *axes_with_nontrivial_twists.choose(rng)?;
                 let all_layers = LayerMask::all(axis_layers[axis].max_layer);
-                let layers =
-                    hyperpuzzle_core::util::random_layer_masks(rng, axis_layers[axis].max_layer)
-                        .take(1000) // abort if failed too many times
-                        .find(|layer_mask| {
-                            !layer_mask.is_empty()
-                                && (!axis_layer_maps_ref[axis].covers_whole_space()
-                                    || *layer_mask != all_layers)
-                        })?;
+                let layers = hypuz_core::util::random_layer_masks(rng, axis_layers[axis].max_layer)
+                    .take(1000) // abort if failed too many times
+                    .find(|layer_mask| {
+                        !layer_mask.is_empty()
+                            && (!axis_layer_maps_ref[axis].covers_whole_space()
+                                || *layer_mask != all_layers)
+                    })?;
                 let family = &symmetric_twist_system_component.axes.names[axis];
                 if let Some(unit_twist_order) =
                     symmetric_twist_system_component.unit_twist_order(axis)
@@ -505,7 +504,7 @@ impl PuzzleProduct {
             piece_type_masks,
             colors,
             can_scramble: false,
-            full_scramble_length: hyperpuzzle_core::FULL_SCRAMBLE_LENGTH,
+            full_scramble_length: hypuz_core::FULL_SCRAMBLE_LENGTH,
             axis_layers: Arc::clone(&axis_layers),
             twists,
             new: Box::new(move |ty| {

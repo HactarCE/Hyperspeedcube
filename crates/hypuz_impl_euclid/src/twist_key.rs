@@ -2,7 +2,7 @@ use std::fmt;
 use std::hash::Hash;
 
 use hypermath::{ApproxEq, ApproxHash, ApproxInternable, Precision, pga};
-use hyperpuzzle_core::Axis;
+use hypuz_core::Axis;
 
 /// Unique key for a twist.
 #[derive(Debug, Clone)]

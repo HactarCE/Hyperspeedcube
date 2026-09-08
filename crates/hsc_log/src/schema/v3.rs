@@ -1,5 +1,5 @@
 use hyperkdl::{DocSchema, Warning};
-use hyperpuzzle_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
+use hypuz_core::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use itertools::Itertools;
 use kdl::*;
 use serde::{Deserialize, Serialize};

@@ -4,9 +4,7 @@
 
 use std::sync::Arc;
 
-use hyperpuzzle_core::{
-    GeneratorParam, GeneratorParamType, TypedCatalogIdValue, VersionedCatalogWord,
-};
+use hypuz_core::{GeneratorParam, GeneratorParamType, TypedCatalogIdValue, VersionedCatalogWord};
 use itertools::Itertools;
 
 use crate::engine::{HpsGenerator, HpsGeneratorFn};

@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use ecow::eco_format;
 use eyre::{OptionExt, bail, eyre};
-use hyperpuzzle_core::catalog::CatalogHook;
-use hyperpuzzle_core::{
+use hypuz_core::catalog::CatalogHook;
+use hypuz_core::{
     BuildCtx, CatalogBuilder, Color, ColorSystem, ComponentList, Names, PaletteColor, PerColor,
 };
 use indexmap::{IndexMap, IndexSet};
@@ -198,7 +198,7 @@ fn color_system_from_kwargs(
             return Err("`colors` cannot be a map when `schemes` is also supplied".at(caller_span));
         }
         let m = colors.as_ref()?;
-        schemes.push((hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME.to_string(), m));
+        schemes.push((hypuz_core::DEFAULT_COLOR_SCHEME_NAME.to_string(), m));
         m.keys().map(|s| s.as_str().into()).collect()
     } else {
         return Err(
@@ -209,7 +209,7 @@ fn color_system_from_kwargs(
 
     let default_scheme = default_scheme
         .or_else(|| schemes.first().map(|(k, _)| k.to_string()))
-        .unwrap_or_else(|| hyperpuzzle_core::DEFAULT_COLOR_SCHEME_NAME.to_string());
+        .unwrap_or_else(|| hypuz_core::DEFAULT_COLOR_SCHEME_NAME.to_string());
 
     // Build color schemes.
     let mut ret_schemes = IndexMap::new();

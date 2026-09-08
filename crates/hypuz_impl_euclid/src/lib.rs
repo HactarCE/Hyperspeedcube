@@ -8,10 +8,10 @@ use eyre::{OptionExt, Result};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::catalog::VersionedCatalogWord;
-use hyperpuzzle_core::group::GroupElementId;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::ComponentList;
+use hypuz_core::catalog::VersionedCatalogWord;
+use hypuz_core::group::GroupElementId;
+use hypuz_core::prelude::*;
 
 mod anim;
 mod builder;
@@ -125,7 +125,7 @@ fn make_puzzle_tag_set(ndim: Option<i64>) -> Result<TagSet> {
     Ok(tags)
 }
 
-pub fn add_catalog_entries(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+pub fn add_catalog_entries(catalog: &hypuz_core::CatalogBuilder) -> Result<()> {
     // TODO: redirect when nested; e.g., `product([product(a,b),c])` ->
     // `product([a,b,c])`
     add_puzzles_to_catalog(catalog)?;
@@ -134,7 +134,7 @@ pub fn add_catalog_entries(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result
     Ok(())
 }
 
-fn add_puzzles_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+fn add_puzzles_to_catalog(catalog: &hypuz_core::CatalogBuilder) -> Result<()> {
     let mut product_tags = TagSet::new();
     product_tags.insert_named("generator", true.into())?;
     product_tags.insert_named("doctrinaire", true.into())?;
@@ -244,7 +244,7 @@ fn build_product_puzzle_impl(build_ctx: BuildCtx) -> Result<Arc<Puzzle>> {
     puzzle_product.build(&build_ctx, meta, colors, twists, &mut build_ctx.warn_fn())
 }
 
-fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+fn add_twist_systems_to_catalog(catalog: &hypuz_core::CatalogBuilder) -> Result<()> {
     let params = vec![GeneratorParam {
         name: "Factors".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Id {
@@ -313,7 +313,7 @@ fn add_twist_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> R
     Ok(())
 }
 
-fn add_color_systems_to_catalog(catalog: &hyperpuzzle_core::CatalogBuilder) -> Result<()> {
+fn add_color_systems_to_catalog(catalog: &hypuz_core::CatalogBuilder) -> Result<()> {
     let params = vec![GeneratorParam {
         name: "Terms".to_string(),
         ty: GeneratorParamType::List(Box::new(GeneratorParamType::Id {

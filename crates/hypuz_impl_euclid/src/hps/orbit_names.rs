@@ -6,11 +6,11 @@ use std::sync::Arc;
 use hypergroup::{GenSeq, GeneratorId};
 use hypermath::pga::Motor;
 use hypermath::{APPROX, ApproxHashMap, Point};
-use hyperpuzzle_core::NameSpecMap;
 use hyperpuzzlescript::{
     Builtins, CustomValue, ErrorExt, EvalCtx, FnValue, FromValue, Map, Result, Span, Spanned, Str,
     TryEq, Type, TypeOf, Value, ValueData, hps_fns, impl_simple_custom_type, impl_ty,
 };
+use hypuz_core::NameSpecMap;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -320,7 +320,7 @@ impl LazyCosetMap {
             // Resolve lazy evaluation.
             let coset_names = ApproxHashMap::<_, _>::from_iter(
                 APPROX,
-                hyperpuzzle_core::util::lazy_resolve(
+                hypuz_core::util::lazy_resolve(
                     key_value_dependencies,
                     |t1, t2| t1 * t2,
                     ctx.warnf(),

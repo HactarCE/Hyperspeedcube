@@ -4,8 +4,8 @@ use hypermath::pga::Motor;
 use hypermath::{
     APPROX, ApproxHashMap, Hyperplane, Matrix, Point, Vector, VectorRef, approx_collections,
 };
-use hyperpuzzle_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
 use hypershape::{Cut, Space};
+use hypuz_core::{Axis, Mesh, PerAxis, PerGizmoFace, TiMask};
 use hypuz_notation::{Move, Transform};
 use itertools::Itertools;
 

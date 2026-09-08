@@ -20,7 +20,7 @@ hsc_log.workspace = true
 hsc_paths.workspace = true
 hyperkdl_derive.workspace = true
 hyperkdl.workspace = true
-hyperpuzzle_core.workspace = true
+hypuz_core.workspace = true
 
 eyre.workspace = true
 kdl.workspace = true

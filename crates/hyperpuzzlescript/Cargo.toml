@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 hsc_paths = { workspace = true, optional = true }
 hypermath.workspace = true
-hyperpuzzle_core.workspace = true
+hypuz_core.workspace = true
 hypuz_notation.workspace = true
 
 arcstr.workspace = true

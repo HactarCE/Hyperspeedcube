@@ -2726,7 +2726,7 @@ dependencies = [
  "hex",
  "hyperkdl",
  "hyperkdl_derive",
- "hyperpuzzle_core",
+ "hypuz_core",
  "hypuz_notation",
  "itertools 0.14.0",
  "kdl",
@@ -2757,7 +2757,7 @@ dependencies = [
  "config",
  "eyre",
  "hsc_paths",
- "hyperpuzzle_core",
+ "hypuz_core",
  "hypuz_util",
  "indexmap",
  "itertools 0.14.0",
@@ -2782,7 +2782,7 @@ dependencies = [
  "hsc_paths",
  "hyperkdl",
  "hyperkdl_derive",
- "hyperpuzzle_core",
+ "hypuz_core",
  "kdl",
  "log",
 ]
@@ -2882,45 +2882,11 @@ version = "0.1.0"
 dependencies = [
  "eyre",
  "hsc_log",
- "hyperpuzzle_core",
  "hyperpuzzlescript",
+ "hypuz_core",
  "hypuz_impl_euclid",
  "parking_lot",
  "pretty_assertions",
-]
-
-[[package]]
-name = "hyperpuzzle_core"
-version = "0.1.0"
-dependencies = [
- "base64",
- "chacha20",
- "chrono",
- "criterion",
- "ecolor",
- "eyre",
- "hex",
- "hsc_cli_types",
- "hypergroup",
- "hypermath",
- "hypershape",
- "hypuz_notation",
- "hypuz_util",
- "indexmap",
- "itertools 0.14.0",
- "kdl",
- "log",
- "oklab",
- "parking_lot",
- "proptest",
- "rand 0.10.1",
- "serde",
- "sha2 0.11.0",
- "smallvec",
- "strum",
- "thiserror 2.0.18",
- "timecheck",
- "tinyset",
 ]
 
 [[package]]
@@ -2935,7 +2901,7 @@ dependencies = [
  "eyre",
  "hsc_paths",
  "hypermath",
- "hyperpuzzle_core",
+ "hypuz_core",
  "hypuz_notation",
  "include_dir",
  "indexmap",
@@ -3025,15 +2991,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "hypuz_core"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chacha20",
+ "chrono",
+ "criterion",
+ "ecolor",
+ "eyre",
+ "hex",
+ "hsc_cli_types",
+ "hypergroup",
+ "hypermath",
+ "hypershape",
+ "hypuz_notation",
+ "hypuz_util",
+ "indexmap",
+ "itertools 0.14.0",
+ "kdl",
+ "log",
+ "oklab",
+ "parking_lot",
+ "proptest",
+ "rand 0.10.1",
+ "serde",
+ "sha2 0.11.0",
+ "smallvec",
+ "strum",
+ "thiserror 2.0.18",
+ "timecheck",
+ "tinyset",
+]
+
+[[package]]
 name = "hypuz_impl_euclid"
 version = "0.1.0"
 dependencies = [
  "eyre",
  "hypergroup",
  "hypermath",
- "hyperpuzzle_core",
  "hyperpuzzlescript",
  "hypershape",
+ "hypuz_core",
  "hypuz_notation",
  "hypuz_util",
  "indexmap",

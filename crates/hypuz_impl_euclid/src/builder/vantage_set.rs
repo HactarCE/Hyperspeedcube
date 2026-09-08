@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use eyre::{OptionExt, Result, WrapErr, bail, eyre};
 use hypermath::pga;
-use hyperpuzzle_core::ComponentList;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::ComponentList;
+use hypuz_core::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 

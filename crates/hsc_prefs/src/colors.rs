@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, btree_map};
 use std::hash::Hash;
 
-use hyperpuzzle_core::notation::Str;
-use hyperpuzzle_core::{Color, ColorSystem, PaletteColor, Rgb};
+use hypuz_core::notation::Str;
+use hypuz_core::{Color, ColorSystem, PaletteColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
@@ -259,8 +259,7 @@ impl GlobalColorPalette {
                 .collect();
         }
 
-        changed |=
-            hyperpuzzle_core::ensure_color_scheme_is_valid(scheme.values_mut(), |c| self.has(c));
+        changed |= hypuz_core::ensure_color_scheme_is_valid(scheme.values_mut(), |c| self.has(c));
 
         changed
     }

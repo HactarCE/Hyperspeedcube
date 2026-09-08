@@ -16,8 +16,8 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hyperpuzzle_core.workspace = true
 hyperpuzzlescript.workspace = true
+hypuz_core.workspace = true
 hypuz_impl_euclid.workspace = true
 
 eyre.workspace = true
@@ -30,5 +30,5 @@ pretty_assertions.workspace = true
 eyre.workspace = true
 
 [features]
-ecolor = ["hyperpuzzle_core/ecolor"]
-oklab = ["hyperpuzzle_core/oklab"]
+ecolor = ["hypuz_core/ecolor"]
+oklab = ["hypuz_core/oklab"]

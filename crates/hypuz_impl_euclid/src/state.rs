@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
-use hyperpuzzle_core::prelude::*;
+use hypuz_core::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -18,7 +18,7 @@ pub struct NdEuclidPuzzleStateRenderData {
 impl PuzzleStateRenderData for NdEuclidPuzzleStateRenderData {}
 
 type PerCachedTransform<T> = TiVec<CachedTransform, T>;
-hyperpuzzle_core::typed_index_struct! {
+hypuz_core::typed_index_struct! {
     struct CachedTransform(usize);
 }
 

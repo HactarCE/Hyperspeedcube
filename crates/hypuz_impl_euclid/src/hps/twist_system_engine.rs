@@ -3,13 +3,13 @@ use std::sync::Arc;
 use eyre::{Context, eyre};
 use hypergroup::GenSeq;
 use hypermath::{Float, Ndim};
-use hyperpuzzle_core::{BuildCtx, TwistSystem};
 use hyperpuzzlescript::engine::HpsEngineError;
 use hyperpuzzlescript::util::pop_map_key_in_special_var;
 use hyperpuzzlescript::{
     BUILTIN_SPAN, ErrorExt, EvalCtx, FnValue, HpsEngine, List, Map, NonEmptyVec, Result, Scope,
     Span, Spanned, SpecialVar, Type, Value, ValueData, unpack_kwargs,
 };
+use hypuz_core::{BuildCtx, TwistSystem};
 use hypuz_notation::Str;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -26,7 +26,7 @@ pub struct EuclidTwistSystemEngine;
 impl HpsEngine for EuclidTwistSystemEngine {
     fn add_catalog_entries(
         &self,
-        catalog: &hyperpuzzle_core::prelude::CatalogBuilder,
+        catalog: &hypuz_core::prelude::CatalogBuilder,
         eval_tx: &hyperpuzzlescript::EvalRequestTx,
         _ctx: &mut EvalCtx<'_>,
         hps_gen: hyperpuzzlescript::engine::HpsGenerator,

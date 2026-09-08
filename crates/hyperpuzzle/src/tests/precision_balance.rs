@@ -1,4 +1,4 @@
-use hyperpuzzle_core::{Catalog, Puzzle};
+use hypuz_core::{Catalog, Puzzle};
 
 use super::load_new_catalog;
 

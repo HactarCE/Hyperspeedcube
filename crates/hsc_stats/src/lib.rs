@@ -7,8 +7,8 @@ use std::str::FromStr;
 use eyre::Result;
 use hsc_paths::NoPaths;
 use hyperkdl::{NodeContentsSchema, Warning};
-use hyperpuzzle_core::Timestamp;
-use hyperpuzzle_core::verification::SolveVerification;
+use hypuz_core::Timestamp;
+use hypuz_core::verification::SolveVerification;
 use kdl::{KdlDocument, KdlDocumentFormat, KdlError};
 
 /// Saves the statistics file, overwriting the existing one.
