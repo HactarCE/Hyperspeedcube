@@ -53,8 +53,8 @@ impl PuzzleListEntry {
     }
 
     /// Returns the equivalent CLI type.
-    pub fn to_cli(&self) -> hyperspeedcube_cli_types::puzzle_info::PuzzleListEntry {
-        hyperspeedcube_cli_types::puzzle_info::PuzzleListEntry {
+    pub fn to_cli(&self) -> hsc_cli_types::puzzle_info::PuzzleListEntry {
+        hsc_cli_types::puzzle_info::PuzzleListEntry {
             id: self.id.clone(),
             version: self.version.map(|v| [v.major, v.minor, v.patch]),
             name: self.name.clone(),

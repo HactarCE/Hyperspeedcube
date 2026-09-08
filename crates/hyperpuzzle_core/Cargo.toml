@@ -16,10 +16,10 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hsc_cli_types.workspace = true
 hypergroup.workspace = true
 hypermath.workspace = true
 hypershape.workspace = true
-hyperspeedcube_cli_types.workspace = true
 hypuz_notation = { workspace = true, features = ["typed_index"] }
 hypuz_util.workspace = true
 

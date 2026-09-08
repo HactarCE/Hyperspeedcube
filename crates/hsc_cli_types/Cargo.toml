@@ -1,5 +1,5 @@
 [package]
-name = "hyperspeedcube_cli_types"
+name = "hsc_cli_types"
 description = "Types for interacting with Hyperspeedcube's command-line interface"
 version = "0.1.0"
 authors.workspace = true

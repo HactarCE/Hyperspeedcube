@@ -31,7 +31,7 @@ use entry::*;
 pub use error::*;
 pub use generator::*;
 pub use hook::CatalogHook;
-pub use hyperspeedcube_cli_types::catalog_id::*;
+pub use hsc_cli_types::catalog_id::*;
 pub use list::*;
 pub use menu::*;
 pub use notify::{NotifyWhenDropped, Waiter};

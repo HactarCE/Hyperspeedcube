@@ -112,7 +112,7 @@ impl TagValue {
     }
 
     /// Returns the equivalent CLI type.
-    pub fn to_cli(&self) -> Option<hyperspeedcube_cli_types::puzzle_info::TagValue> {
+    pub fn to_cli(&self) -> Option<hsc_cli_types::puzzle_info::TagValue> {
         match self {
             TagValue::False => Some(false.into()),
             TagValue::True => Some(true.into()),

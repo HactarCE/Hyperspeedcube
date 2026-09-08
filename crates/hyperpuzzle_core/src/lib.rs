@@ -20,12 +20,12 @@ mod version;
 /// Re-export of `chrono`.
 pub use chrono;
 pub use components::{Component, ComponentList, MissingComponent};
+/// Re-export of `hsc_cli_types`.
+pub use hsc_cli_types::*;
 /// Re-export of `hypergroup`
 pub use hypergroup as group;
 /// Re-export of `hypershape`.
 pub use hypershape;
-/// Re-export of `hyperspeedcube_cli_types`.
-pub use hyperspeedcube_cli_types::*;
 /// Re-export of `hypuz_notation`.
 pub use hypuz_notation as notation;
 /// Re-export of `hypuz_util`.

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/hsc_cli_types",
     "crates/hsc_draw",
     "crates/hsc_leaderboards",
     "crates/hsc_log",
@@ -17,7 +18,6 @@ members = [
     "crates/hyperpuzzle",
     "crates/hyperpuzzlescript",
     "crates/hypershape",
-    "crates/hyperspeedcube_cli_types",
     "crates/hyperspeedcube",
     "crates/hypuz_notation",
     "crates/hypuz_util",
@@ -83,7 +83,7 @@ hyperpuzzle_impl_symmetric = { path = "crates/hyperpuzzle_impl_symmetric" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
-hyperspeedcube_cli_types = { path = "crates/hyperspeedcube_cli_types" }
+hsc_cli_types = { path = "crates/hsc_cli_types" }
 hypuz_notation = { path = "crates/hypuz_notation" }
 hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }

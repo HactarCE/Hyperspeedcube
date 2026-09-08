@@ -2675,6 +2675,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hsc_cli_types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "chumsky",
+ "numeric-sort",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "hsc_draw"
 version = "0.1.0"
 dependencies = [
@@ -2889,10 +2900,10 @@ dependencies = [
  "ecolor",
  "eyre",
  "hex",
+ "hsc_cli_types",
  "hypergroup",
  "hypermath",
  "hypershape",
- "hyperspeedcube_cli_types",
  "hypuz_notation",
  "hypuz_util",
  "indexmap",
@@ -3056,17 +3067,6 @@ dependencies = [
  "web-sys",
  "wgpu",
  "winres",
-]
-
-[[package]]
-name = "hyperspeedcube_cli_types"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "chumsky",
- "numeric-sort",
- "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
