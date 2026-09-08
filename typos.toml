@@ -1,0 +1,25 @@
+# typos configuration. See https://github.com/crate-ci/typos
+# (docs: Configuration) for the full schema.
+
+# Domain terms that typos would otherwise flag as misspelled words. These are
+# reported through the *word* dictionary even when they appear glued inside code
+# identifiers (e.g. `nd` in `nd_euclid`), so they must be extended as words
+# rather than identifiers.
+[default.extend-words]
+
+# "N-dimensional" (NdEuclid*, nd_euclid, NDIM_ND)
+nd = "nd"
+Nd = "Nd"
+ND = "ND"
+
+# vector identifiers
+ba = "ba"
+BA = "BA"
+
+# 120-cell named points
+FPR = "FPR"
+IY = "IY"
+
+# other misc
+ist = "ist"     # syllable in test data (name_spec.rs)
+assum = "assum" # intentionally kept (pga/blade.rs comments)

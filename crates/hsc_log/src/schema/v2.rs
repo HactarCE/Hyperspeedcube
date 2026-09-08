@@ -134,7 +134,7 @@ fn migrate_duoprism(s: &str) -> String {
 //         "U" => "F",
 //         "R" => "BR",
 //         "L" => "BL",
-//         // vertexes
+//         // vertices
 //         "l" => "R",
 //         "r" => "L",
 //         "u" => "B",
@@ -153,7 +153,7 @@ fn migrate_4_simplex(s: &str) -> String {
             "F" => "C",
             "BR" => "B",
             "BL" => "A",
-            // vertexes
+            // vertices
             "R" => "βA",
             "L" => "βB",
             "B" => "βC",
