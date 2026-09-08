@@ -1,5 +1,5 @@
 [package]
-name = "hyperdraw"
+name = "hsc_draw"
 description = "Puzzle rendering for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

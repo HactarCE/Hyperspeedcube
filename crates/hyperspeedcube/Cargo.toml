@@ -16,11 +16,11 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hsc_draw.workspace = true
 hsc_log.workspace = true
 hsc_paths.workspace = true
 hsc_stats.workspace = true
 hypercubing_leaderboards_client.workspace = true
-hyperdraw.workspace = true
 hypermath.workspace = true
 hyperprefs.workspace = true
 hyperpuzzle = { workspace = true, features = ["oklab"] }

@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
+use hsc_draw::GraphicsState;
 use hsc_log::Solve;
 use hsc_stats::StatsDb;
-use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;

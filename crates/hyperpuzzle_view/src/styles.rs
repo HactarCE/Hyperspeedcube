@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hyperdraw::PieceStyleValues;
+use hsc_draw::PieceStyleValues;
 use hyperprefs::{Preferences, PresetRef};
 use hyperpuzzle::FloatMinMaxIteratorExt;
 use hyperpuzzle::prelude::*;

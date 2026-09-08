@@ -1,4 +1,4 @@
-use hyperdraw::NdEuclidCamera;
+use hsc_draw::NdEuclidCamera;
 use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
 use hyperpuzzle::prelude::*;
 

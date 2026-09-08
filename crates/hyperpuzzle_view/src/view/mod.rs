@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eyre::bail;
-use hyperdraw::{GraphicsState, NdEuclidCamera, image};
+use hsc_draw::{GraphicsState, NdEuclidCamera, image};
 use hypermath::prelude::*;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
-use hyperdraw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
+use hsc_draw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, InteractionPreferences, Preferences};
 use hyperpuzzle::FloatMinMaxByIteratorExt;

@@ -32,7 +32,7 @@ pub trait IterCyclicPairsExt: Iterator + Sized {
     /// # Example
     ///
     /// ```
-    /// # use hyperdraw::IterCyclicPairsExt;
+    /// # use hsc_draw::IterCyclicPairsExt;
     ///
     /// let mut iter = [1, 2, 3, 4].into_iter().cyclic_pairs();
     /// assert_eq!(Some((1, 2)), iter.next());

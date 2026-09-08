@@ -1,11 +1,11 @@
 [workspace]
 members = [
+    "crates/hsc_draw",
     "crates/hsc_log",
     "crates/hsc_paths",
     "crates/hsc_stats",
     "crates/hsc_strings",
     "crates/hypercubing_leaderboards_client",
-    "crates/hyperdraw",
     "crates/hypergroup",
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
@@ -66,24 +66,24 @@ opt-level = 1
 [workspace.dependencies]
 
 # Crates that are part of the project
+hsc_draw = { path = "crates/hsc_draw" }
+hsc_log = { path = "crates/hsc_log" }
+hsc_paths = { path = "crates/hsc_paths" }
+hsc_stats = { path = "crates/hsc_stats" }
 hsc_strings = { path = "crates/hsc_strings" }
 hypercubing_leaderboards_client = { path = "crates/hypercubing_leaderboards_client" }
-hyperdraw = { path = "crates/hyperdraw" }
 hypergroup = { path = "crates/hypergroup" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
 hypermath = { path = "crates/hypermath" }
-hsc_paths = { path = "crates/hsc_paths" }
 hyperprefs = { path = "crates/hyperprefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_symmetric = { path = "crates/hyperpuzzle_impl_symmetric" }
-hsc_log = { path = "crates/hsc_log" }
 hyperpuzzle_view = { path = "crates/hyperpuzzle_view" }
 hyperpuzzlescript = { path = "crates/hyperpuzzlescript" }
 hypershape = { path = "crates/hypershape" }
 hyperspeedcube_cli_types = { path = "crates/hyperspeedcube_cli_types" }
-hsc_stats = { path = "crates/hsc_stats" }
 hypuz_notation = { path = "crates/hypuz_notation" }
 hypuz_util = { path = "crates/hypuz_util" }
 timecheck = { path = "crates/timecheck" }

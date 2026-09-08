@@ -2675,6 +2675,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hsc_draw"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "cgmath",
+ "eyre",
+ "hypermath",
+ "hyperprefs",
+ "hyperpuzzle",
+ "image",
+ "itertools 0.14.0",
+ "log",
+ "parking_lot",
+ "smallvec",
+ "web-time",
+ "wgpu",
+]
+
+[[package]]
 name = "hsc_log"
 version = "0.1.0"
 dependencies = [
@@ -2768,25 +2787,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "ureq",
-]
-
-[[package]]
-name = "hyperdraw"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "cgmath",
- "eyre",
- "hypermath",
- "hyperprefs",
- "hyperpuzzle",
- "image",
- "itertools 0.14.0",
- "log",
- "parking_lot",
- "smallvec",
- "web-time",
- "wgpu",
 ]
 
 [[package]]
@@ -2943,8 +2943,8 @@ dependencies = [
  "cgmath",
  "eyre",
  "float-ord",
+ "hsc_draw",
  "hsc_log",
- "hyperdraw",
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
@@ -3015,12 +3015,12 @@ dependencies = [
  "eyre",
  "float-ord",
  "hcegui",
+ "hsc_draw",
  "hsc_log",
  "hsc_paths",
  "hsc_stats",
  "hsc_strings",
  "hypercubing_leaderboards_client",
- "hyperdraw",
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
