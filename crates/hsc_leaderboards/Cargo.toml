@@ -1,5 +1,5 @@
 [package]
-name = "hypercubing_leaderboards_client"
+name = "hsc_leaderboards"
 description = "Hypercubing Leaderboards client"
 version = "0.1.0"
 authors.workspace = true

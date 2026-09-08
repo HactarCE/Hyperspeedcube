@@ -2,12 +2,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
 use egui::{NumExt, include_image};
+use hsc_leaderboards::{AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards};
 use hsc_log::verify::SolveVerificationError;
 use hsc_log::{LogFile, Solve};
 use hsc_stats::{NewPbs, PuzzlePBs, StatsDb};
-use hypercubing_leaderboards_client::{
-    AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards,
-};
 use hyperprefs::Preferences;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
@@ -820,12 +818,12 @@ impl SolveMetric {
         }
     }
 
-    fn from_speed_lb_solve(solve: Option<&hypercubing_leaderboards_client::Solve>) -> Self {
+    fn from_speed_lb_solve(solve: Option<&hsc_leaderboards::Solve>) -> Self {
         solve
             .map(|s| Self::new_speed(s.speed_cs).with_url(&s.url))
             .unwrap_or(Self::empty(SolveMetricKind::Time))
     }
-    fn from_fmc_lb_solve(solve: Option<&hypercubing_leaderboards_client::Solve>) -> Self {
+    fn from_fmc_lb_solve(solve: Option<&hsc_leaderboards::Solve>) -> Self {
         solve
             .map(|s| Self::new_move_count(s.move_count).with_url(&s.url))
             .unwrap_or(Self::empty(SolveMetricKind::MoveCount))

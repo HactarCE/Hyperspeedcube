@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use hypercubing_leaderboards_client::{AuthFlow, Leaderboards};
+use hsc_leaderboards::{AuthFlow, Leaderboards};
 use parking_lot::Mutex;
 
 pub const LEADERBOARDS_DOMAIN: &str = if hsc_paths::IS_OFFICIAL_BUILD {
-    hypercubing_leaderboards_client::LEADERBOARDS_DOMAIN
+    hsc_leaderboards::LEADERBOARDS_DOMAIN
 } else {
     "http://localhost:3000"
 };
@@ -23,7 +23,7 @@ pub enum LeaderboardsClientState {
 
     Error {
         token: Option<String>,
-        error: hypercubing_leaderboards_client::Error,
+        error: hsc_leaderboards::Error,
     },
 }
 
@@ -78,8 +78,7 @@ impl LeaderboardsClientState {
                 }
                 Err(e) => {
                     *this.lock() = Self::Error {
-                        token: (!matches!(e, hypercubing_leaderboards_client::Error::BadToken))
-                            .then_some(token),
+                        token: (!matches!(e, hsc_leaderboards::Error::BadToken)).then_some(token),
                         error: e,
                     }
                 }

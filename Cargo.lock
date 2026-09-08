@@ -2694,6 +2694,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsc_leaderboards"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "rand 0.10.1",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "thiserror 2.0.18",
+ "ureq",
+]
+
+[[package]]
 name = "hsc_log"
 version = "0.1.0"
 dependencies = [
@@ -2772,21 +2787,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3944cf8cf766b40e2a1a333ee5e9b563f854d5fa49d6a8ca2764e97c6eddb214"
 dependencies = [
  "typenum",
-]
-
-[[package]]
-name = "hypercubing_leaderboards_client"
-version = "0.1.0"
-dependencies = [
- "base64",
- "chrono",
- "rand 0.10.1",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "thiserror 2.0.18",
- "ureq",
 ]
 
 [[package]]
@@ -3016,11 +3016,11 @@ dependencies = [
  "float-ord",
  "hcegui",
  "hsc_draw",
+ "hsc_leaderboards",
  "hsc_log",
  "hsc_paths",
  "hsc_stats",
  "hsc_strings",
- "hypercubing_leaderboards_client",
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",

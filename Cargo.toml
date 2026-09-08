@@ -1,11 +1,11 @@
 [workspace]
 members = [
     "crates/hsc_draw",
+    "crates/hsc_leaderboards",
     "crates/hsc_log",
     "crates/hsc_paths",
     "crates/hsc_stats",
     "crates/hsc_strings",
-    "crates/hypercubing_leaderboards_client",
     "crates/hypergroup",
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
@@ -71,7 +71,7 @@ hsc_log = { path = "crates/hsc_log" }
 hsc_paths = { path = "crates/hsc_paths" }
 hsc_stats = { path = "crates/hsc_stats" }
 hsc_strings = { path = "crates/hsc_strings" }
-hypercubing_leaderboards_client = { path = "crates/hypercubing_leaderboards_client" }
+hsc_leaderboards = { path = "crates/hsc_leaderboards" }
 hypergroup = { path = "crates/hypergroup" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
