@@ -1,4 +1,4 @@
-use hyperprefs::{DEFAULT_PREFS, PieceStyle, Preferences, StylePreferences};
+use hsc_prefs::{DEFAULT_PREFS, PieceStyle, Preferences, StylePreferences};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::L;
@@ -95,7 +95,7 @@ fn show_custom(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
 
     let mut current = prefs
         .filter_styles
-        .load_last_loaded_or_default(hyperprefs::DEFAULT_CUSTOM_STYLE_NAME);
+        .load_last_loaded_or_default(hsc_prefs::DEFAULT_CUSTOM_STYLE_NAME);
 
     let help_contents = L.help.filter_styles;
     let presets_ui = crate::gui::components::PresetsUi {

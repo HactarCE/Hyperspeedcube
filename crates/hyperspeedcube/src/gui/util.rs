@@ -36,8 +36,8 @@ macro_rules! dummy_presets_ui {
     ($id:expr) => {
         $crate::gui::components::PresetsUi::new(
             $id,
-            &mut hyperprefs::PresetsList::default(),
-            &mut hyperprefs::ModifiedPreset::default(),
+            &mut hsc_prefs::PresetsList::default(),
+            &mut hsc_prefs::ModifiedPreset::default(),
             &mut false,
         )
     };

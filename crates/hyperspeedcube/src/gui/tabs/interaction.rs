@@ -1,4 +1,4 @@
-use hyperprefs::DEFAULT_PREFS;
+use hsc_prefs::DEFAULT_PREFS;
 
 use crate::app::App;
 

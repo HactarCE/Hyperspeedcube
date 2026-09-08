@@ -3,8 +3,8 @@ use std::sync::Arc;
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hsc_draw::{GraphicsState, NdEuclidCamera, NdEuclidPuzzleRenderer};
+use hsc_prefs::{AnimationPreferences, InteractionPreferences, Preferences};
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, InteractionPreferences, Preferences};
 use hyperpuzzle::FloatMinMaxByIteratorExt;
 use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;
@@ -50,7 +50,7 @@ impl NdEuclidViewState {
 
         let view_preset = prefs
             .perspective_view_presets(PerspectiveDim::from_ndim(geom.ndim()))
-            .load_last_loaded_or_default(hyperprefs::DEFAULT_VIEW_PRESET_NAME);
+            .load_last_loaded_or_default(hsc_prefs::DEFAULT_VIEW_PRESET_NAME);
 
         Some(Self {
             renderer,

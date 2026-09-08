@@ -1,4 +1,4 @@
-use hyperprefs::{ColorScheme, GlobalColorPalette};
+use hsc_prefs::{ColorScheme, GlobalColorPalette};
 use hyperpuzzle::ColorSystem;
 
 use crate::L;

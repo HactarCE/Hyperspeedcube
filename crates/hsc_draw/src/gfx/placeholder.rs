@@ -30,9 +30,9 @@ pub fn modify_draw_params(mut draw_params: DrawParams) -> DrawParams {
     draw_params.piece_styles = vec![(
         PieceStyleValues {
             face_opacity: 255,
-            face_color: hyperprefs::StyleColorMode::FromSticker,
+            face_color: hsc_prefs::StyleColorMode::FromSticker,
             outline_opacity: 255,
-            outline_color: hyperprefs::StyleColorMode::FromSticker,
+            outline_color: hsc_prefs::StyleColorMode::FromSticker,
             outline_lighting: true,
             outline_size: 18.0,
         },

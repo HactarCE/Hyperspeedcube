@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use hsc_draw::GraphicsState;
 use hsc_log::Solve;
+use hsc_prefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hsc_stats::StatsDb;
-use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
@@ -40,7 +40,7 @@ impl App {
 
         let animation_prefs = prefs
             .animation
-            .load_last_loaded_or_default(hyperprefs::DEFAULT_ANIMATION_PRESET_NAME);
+            .load_last_loaded_or_default(hsc_prefs::DEFAULT_ANIMATION_PRESET_NAME);
 
         let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("no wgpu render state");
         Self {

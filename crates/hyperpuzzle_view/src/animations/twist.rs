@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use hyperprefs::AnimationPreferences;
+use hsc_prefs::AnimationPreferences;
 use hyperpuzzle::prelude::*;
 use web_time::Duration;
 

@@ -4,13 +4,13 @@ members = [
     "crates/hsc_leaderboards",
     "crates/hsc_log",
     "crates/hsc_paths",
+    "crates/hsc_prefs",
     "crates/hsc_stats",
     "crates/hsc_strings",
     "crates/hypergroup",
     "crates/hyperkdl_derive",
     "crates/hyperkdl",
     "crates/hypermath",
-    "crates/hyperprefs",
     "crates/hyperpuzzle_core",
     "crates/hyperpuzzle_impl_symmetric",
     "crates/hyperpuzzle_view",
@@ -76,7 +76,7 @@ hypergroup = { path = "crates/hypergroup" }
 hyperkdl = { path = "crates/hyperkdl" }
 hyperkdl_derive = { path = "crates/hyperkdl_derive" }
 hypermath = { path = "crates/hypermath" }
-hyperprefs = { path = "crates/hyperprefs" }
+hsc_prefs = { path = "crates/hsc_prefs" }
 hyperpuzzle = { path = "crates/hyperpuzzle" }
 hyperpuzzle_core = { path = "crates/hyperpuzzle_core" }
 hyperpuzzle_impl_symmetric = { path = "crates/hyperpuzzle_impl_symmetric" }

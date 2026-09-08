@@ -13,8 +13,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
 use eyre::{OptionExt, Result, bail, ensure};
+use hsc_prefs::StyleColorMode;
 use hypermath::prelude::*;
-use hyperprefs::StyleColorMode;
 use hyperpuzzle::prelude::*;
 use image::ImageBuffer;
 use itertools::Itertools;

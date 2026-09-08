@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use egui::AtomExt;
-use hyperprefs::SidebarStyle;
+use hsc_prefs::SidebarStyle;
 use hyperpuzzle::FloatMinMaxIteratorExt;
 
 use crate::L;

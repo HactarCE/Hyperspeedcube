@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use hcegui::dnd::Dnd;
+use hsc_prefs::Preferences;
 use hypermath::RotDir;
-use hyperprefs::Preferences;
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle_view::PuzzleView;
@@ -327,7 +327,7 @@ fn puzzle_color_edit_button(
 }
 
 fn color_system_to_hps_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
-    use hyperprefs::MODIFIED_SUFFIX;
+    use hsc_prefs::MODIFIED_SUFFIX;
 
     let id_string_literal =
         hyperpuzzlescript::codegen::to_str_literal(&color_system.id.to_string());

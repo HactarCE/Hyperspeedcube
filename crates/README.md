@@ -18,7 +18,7 @@ Hyperspeedcube consists of many crates, split into several categories and ordere
 
 ## Filesystem
 
-- `hyperprefs`, which manages user preferences
+- `hsc_prefs`, which manages user preferences
 - `hsc_log`, which handles log file serialization & deserialization and verification
 - `hsc_paths`, which finds locations on disk where files should be read from or saved to
 

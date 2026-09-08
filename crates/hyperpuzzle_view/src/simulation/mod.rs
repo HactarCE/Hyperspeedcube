@@ -3,9 +3,9 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, mpsc};
 
 use hsc_log::{LogEvent, Scramble};
+use hsc_prefs::{AnimationPreferences, InterpolateFn};
 use hypermath::pga::Motor;
 use hypermath::{Vector, VectorRef};
-use hyperprefs::{AnimationPreferences, InterpolateFn};
 use hyperpuzzle::Timestamp;
 use hyperpuzzle::prelude::*;
 use hyperpuzzle::symmetric::{

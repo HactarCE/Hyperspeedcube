@@ -1,4 +1,4 @@
-use hyperprefs::StyleColorMode;
+use hsc_prefs::StyleColorMode;
 
 /// Values for how to draw a piece, depending on its style state.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]

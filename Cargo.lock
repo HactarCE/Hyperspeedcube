@@ -2681,8 +2681,8 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "eyre",
+ "hsc_prefs",
  "hypermath",
- "hyperprefs",
  "hyperpuzzle",
  "image",
  "itertools 0.14.0",
@@ -2735,6 +2735,31 @@ dependencies = [
  "directories",
  "log",
  "time",
+]
+
+[[package]]
+name = "hsc_prefs"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "colorous",
+ "config",
+ "eyre",
+ "hsc_paths",
+ "hyperpuzzle_core",
+ "hypuz_util",
+ "indexmap",
+ "itertools 0.14.0",
+ "key-names",
+ "log",
+ "parking_lot",
+ "rand 0.10.1",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_norway",
+ "strum",
+ "winit",
 ]
 
 [[package]]
@@ -2841,31 +2866,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperprefs"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "colorous",
- "config",
- "eyre",
- "hsc_paths",
- "hyperpuzzle_core",
- "hypuz_util",
- "indexmap",
- "itertools 0.14.0",
- "key-names",
- "log",
- "parking_lot",
- "rand 0.10.1",
- "regex",
- "serde",
- "serde_json",
- "serde_norway",
- "strum",
- "winit",
-]
-
-[[package]]
 name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
@@ -2945,8 +2945,8 @@ dependencies = [
  "float-ord",
  "hsc_draw",
  "hsc_log",
+ "hsc_prefs",
  "hypermath",
- "hyperprefs",
  "hyperpuzzle",
  "hypuz_notation",
  "itertools 0.14.0",
@@ -3019,10 +3019,10 @@ dependencies = [
  "hsc_leaderboards",
  "hsc_log",
  "hsc_paths",
+ "hsc_prefs",
  "hsc_stats",
  "hsc_strings",
  "hypermath",
- "hyperprefs",
  "hyperpuzzle",
  "hyperpuzzle_view",
  "hyperpuzzlescript",

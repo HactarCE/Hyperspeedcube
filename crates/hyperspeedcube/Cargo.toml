@@ -20,9 +20,9 @@ hsc_draw.workspace = true
 hsc_leaderboards.workspace = true
 hsc_log.workspace = true
 hsc_paths.workspace = true
+hsc_prefs.workspace = true
 hsc_stats.workspace = true
 hypermath.workspace = true
-hyperprefs.workspace = true
 hyperpuzzle = { workspace = true, features = ["oklab"] }
 hyperpuzzle_view.workspace = true
 hyperpuzzlescript = { workspace = true, features = ["hsc_paths"] }

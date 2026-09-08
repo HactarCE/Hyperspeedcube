@@ -2,9 +2,9 @@ use std::time::Instant;
 
 use cgmath::EuclideanSpace;
 use eyre::{Result, bail};
+use hsc_prefs::{AnimationPreferences, ModifiedPreset, ViewPreferences};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hyperprefs::{AnimationPreferences, ModifiedPreset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;

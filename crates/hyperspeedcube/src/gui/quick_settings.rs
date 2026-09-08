@@ -1,4 +1,4 @@
-use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
+use hsc_prefs::{ModifiedPreset, PresetData, PresetsList};
 
 use crate::L;
 use crate::gui::App;

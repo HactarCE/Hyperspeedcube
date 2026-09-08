@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use hcegui::dnd::Dnd;
-use hyperprefs::{
+use hsc_prefs::{
     ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
     FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
     PuzzleFilterPreferences,

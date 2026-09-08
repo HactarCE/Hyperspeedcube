@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use eyre::bail;
 use hsc_draw::{GraphicsState, NdEuclidCamera, image};
-use hypermath::prelude::*;
-use hyperprefs::{
+use hsc_prefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
 };
+use hypermath::prelude::*;
 use hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME;
 use hyperpuzzle::prelude::*;
 use parking_lot::Mutex;

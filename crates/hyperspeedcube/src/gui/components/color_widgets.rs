@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use hcegui::dnd::{BeforeOrAfter, Dnd, DndMove, DndResponse};
-use hyperprefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
+use hsc_prefs::{ColorScheme, GlobalColorPalette, PaletteGradient};
 use hyperpuzzle::notation::Str;
 use hyperpuzzle::{ColorSystem, PaletteColor};
 use hyperpuzzle_view::PuzzleView;

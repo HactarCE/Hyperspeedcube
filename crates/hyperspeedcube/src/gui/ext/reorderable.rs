@@ -1,5 +1,5 @@
 use hcegui::dnd::{BeforeOrAfter, ReorderDndMove};
-use hyperprefs::{
+use hsc_prefs::{
     FilterPresetName, FilterSeqPreset, PresetData, PresetsList, PuzzleFilterPreferences,
 };
 use indexmap::IndexMap;

@@ -1,5 +1,5 @@
 use hsc_draw::NdEuclidCamera;
-use hyperprefs::{ModifiedPreset, PresetsList, ViewPreferences};
+use hsc_prefs::{ModifiedPreset, PresetsList, ViewPreferences};
 use hyperpuzzle::prelude::*;
 
 use crate::L;

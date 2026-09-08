@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
-use hyperprefs::*;
+use hsc_prefs::*;
 use hyperpuzzle::prelude::*;
 use strum::VariantArray;
 

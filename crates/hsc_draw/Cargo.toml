@@ -16,8 +16,8 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
+hsc_prefs.workspace = true
 hypermath.workspace = true
-hyperprefs.workspace = true
 hyperpuzzle.workspace = true
 
 bytemuck.workspace = true

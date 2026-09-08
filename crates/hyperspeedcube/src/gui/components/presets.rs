@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use hcegui::dnd::{DndStyle, ReorderDnd};
-use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
+use hsc_prefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
 use super::{HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, TextValidationResult};

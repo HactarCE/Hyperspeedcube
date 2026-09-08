@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use hsc_draw::PieceStyleValues;
-use hyperprefs::{Preferences, PresetRef};
+use hsc_prefs::{Preferences, PresetRef};
 use hyperpuzzle::FloatMinMaxIteratorExt;
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;

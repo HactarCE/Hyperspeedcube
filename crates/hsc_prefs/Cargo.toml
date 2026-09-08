@@ -1,5 +1,5 @@
 [package]
-name = "hyperprefs"
+name = "hsc_prefs"
 description = "Preferences for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true

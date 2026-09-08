@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use hyperprefs::{ModifiedPreset, SidebarStyle};
+use hsc_prefs::{ModifiedPreset, SidebarStyle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ pub fn build_layout_presets_ui(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                         return;
                     }
                 };
-            let current_layout = hyperprefs::Layout {
+            let current_layout = hsc_prefs::Layout {
                 dock_state: Some(serialized_dock_state),
                 sidebar_style: app_ui.sidebar_style,
                 sidebar_utility: serde_json::to_string(&app_ui.sidebar_utility).ok(),
@@ -42,7 +42,7 @@ pub fn build_layout_presets_ui(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                     .app
                     .prefs
                     .layout
-                    .last_loaded_or_default(hyperprefs::DEFAULT_LAYOUT_PRESET_NAME),
+                    .last_loaded_or_default(hsc_prefs::DEFAULT_LAYOUT_PRESET_NAME),
                 value: current_layout.clone(),
             };
             let mut changed = false;

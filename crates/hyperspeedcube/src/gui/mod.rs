@@ -41,7 +41,7 @@ pub struct AppUi {
 
     is_ui_layout_window_visible: bool,
     dock_state: egui_dock::DockState<Tab>,
-    sidebar_style: hyperprefs::SidebarStyle,
+    sidebar_style: hsc_prefs::SidebarStyle,
     sidebar_utility: Option<UtilityTab>,
 
     solve_summary_modal: Option<SolveSummaryModal>,
@@ -68,7 +68,7 @@ impl AppUi {
         let layout = app
             .prefs
             .layout
-            .load_last_loaded_or_default(hyperprefs::DEFAULT_LAYOUT_PRESET_NAME)
+            .load_last_loaded_or_default(hsc_prefs::DEFAULT_LAYOUT_PRESET_NAME)
             .value;
 
         let mut ret = AppUi {
@@ -76,7 +76,7 @@ impl AppUi {
 
             is_ui_layout_window_visible: false,
             dock_state: egui_dock::DockState::new(vec![Tab::Puzzle(Some(puzzle_widget))]),
-            sidebar_style: hyperprefs::SidebarStyle::default(),
+            sidebar_style: hsc_prefs::SidebarStyle::default(),
             sidebar_utility: None,
 
             solve_summary_modal: None,
@@ -94,7 +94,7 @@ impl AppUi {
             .filter_map(|(_, tab)| tab.puzzle_widget())
     }
 
-    pub fn load_layout(&mut self, layout: &hyperprefs::Layout, keep_extra_puzzle_views: bool) {
+    pub fn load_layout(&mut self, layout: &hsc_prefs::Layout, keep_extra_puzzle_views: bool) {
         let puzzle_views = self.puzzle_widgets().cloned().collect();
 
         // Restore dock state.
