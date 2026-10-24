@@ -3,6 +3,7 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use arcstr::Substr;
+use ecow::eco_format;
 use hypermath::{APPROX, VectorRef, vector};
 use itertools::Itertools;
 
@@ -74,7 +75,7 @@ impl<'a> EvalCtx<'a> {
                     obj,
                     Box::new(|ctx, obj_span, obj| {
                         let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
-                        ctx.index_set(span, &mut obj, index_arg, new_value)?;
+                        ctx.index_set(&mut obj, index_arg, new_value)?;
                         Ok(obj)
                     }),
                 )
@@ -238,7 +239,7 @@ impl<'a> EvalCtx<'a> {
                         let mut obj = obj.ok_or(Error::Undefined.at(obj_span))?;
                         let old_value = ctx.index_get(&obj, index_arg.clone())?.at(span);
                         let new_value = update_fn(ctx, span, Some(old_value.clone()))?;
-                        ctx.index_set(span, &mut obj, index_arg, new_value)?;
+                        ctx.index_set(&mut obj, index_arg, new_value)?;
                         Ok(obj)
                     }),
                 )
@@ -393,18 +394,29 @@ impl<'a> EvalCtx<'a> {
             _ => Err(Error::CannotIndex(obj.ty()).at(obj.span)),
         }
     }
-    fn index_set(
-        &mut self,
-        span: Span,
-        obj: &mut Value,
-        index: Value,
-        new_value: Value,
-    ) -> Result<()> {
+    fn index_set(&mut self, obj: &mut Value, index: Value, new_value: Value) -> Result<()> {
         match &mut obj.data {
-            ValueData::Str(_) => Err(Error::CannotAssignToExpr {
-                kind: "string indexing expression",
+            ValueData::Str(s) => {
+                let mut char_indices = s.char_indices();
+                let i = index.ref_to::<i64>()?;
+                let (i, c) = match i.into() {
+                    crate::util::FrontBackIndex::Front(i) => char_indices.nth(i),
+                    crate::util::FrontBackIndex::Back(i) => char_indices.nth_back(i),
+                }
+                .ok_or_else(|| {
+                    let bounds = crate::util::FrontBackIndex::bounds(s.chars().count());
+                    Error::IndexOutOfBounds { got: i, bounds }.at(index.span)
+                })?;
+                let j = i + c.len_utf8();
+                *obj = ValueData::Str(eco_format!(
+                    "{}{}{}",
+                    &s[..i],
+                    new_value.as_ref::<str>()?,
+                    &s[j..],
+                ))
+                .at(obj.span);
+                Ok(())
             }
-            .at(span)),
             ValueData::List(list) => {
                 let len = list.len();
                 let list = Arc::make_mut(list);

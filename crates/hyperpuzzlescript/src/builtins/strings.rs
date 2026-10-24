@@ -65,6 +65,9 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("rev", |_, s: Str| -> Str {
             s.chars().rev().collect::<EcoString>()
         }),
+        ("contains", |_, haystack: Str, needle: Str| -> bool {
+            haystack.contains(&*needle)
+        }),
     ])
 }
 
