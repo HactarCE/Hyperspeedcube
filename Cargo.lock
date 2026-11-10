@@ -1735,6 +1735,7 @@ dependencies = [
  "wasm-logger",
  "web-sys",
  "wgpu",
+ "winapi",
  "winit",
  "winres",
 ]

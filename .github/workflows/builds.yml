@@ -38,7 +38,7 @@ jobs:
 
   linux:
     name: Build Linux latest
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v3
@@ -90,11 +90,7 @@ jobs:
             target: x86_64-apple-darwin
             override: true
       - name: Install cargo-bundle
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-bundle
-          version: latest
-          use-tool-cache: true
+        run: cargo install cargo-bundle --version 0.11.0 --locked
       - name: Build Hyperspeedcube (arm64)
         run: cargo build --release
       - name: Build Hyperspeedcube (x86_64)
@@ -102,7 +98,7 @@ jobs:
       - name: Merge universal binary
         run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
       - name: Make app
-        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
+        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release --format osx
       - name: Make tarball
         run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
       - name: Upload app
