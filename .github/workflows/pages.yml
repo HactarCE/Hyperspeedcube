@@ -14,24 +14,16 @@ jobs:
   build-github-pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2 # repo checkout
-      - uses: actions-rs/toolchain@v1 # get rust toolchain for wasm
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Rust Cache # cache the rust build artefacts
-        uses: Swatinem/rust-cache@v1
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Build # build
-        # "/${GITHUB_REPOSITORY#*/}" evaluates into the name of the repository (cutting out the username), preceded by a slash
-        # using --public-url something will allow trunk to modify all the href paths like from favicon.ico to repo_name/favicon.ico .
-        # this is necessary for github pages where the site is deployed to username.github.io/repo_name and all files must be requested
-        # relatively as eframe_template/favicon.ico. if we skip public-url option, the href paths will instead request username.github.io/favicon.ico which
-        # will obviously return error 404 not found.
-        run: ./trunk build --release --public-url "/hyperspeedcube"
+          targets: wasm32-unknown-unknown
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Install Trunk
+        run: cargo install trunk --version 0.22.1 --locked
+      - name: Build
+        run: trunk build --release --locked --public-url "/${GITHUB_REPOSITORY#*/}/"
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
