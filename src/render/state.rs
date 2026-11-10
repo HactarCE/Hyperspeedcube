@@ -52,7 +52,7 @@ impl GraphicsState {
                 .expect("unsupported graphics adapter"),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::AutoNoVsync, // VSync on
+            present_mode: wgpu::PresentMode::AutoNoVsync, // VSync off
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
