@@ -255,7 +255,7 @@ impl<'a> Polytope<'a> {
         self.facets().any(|f| f.is_primordial())
     }
 
-    /// Computes the sticker shrink vectors for a polytope.
+    /// Computes the sticker shrink vectors for a piece polytope.
     ///
     /// Each vertex shrinks along a vector pointing toward the centroid of the
     /// polytope, projected onto whatever sticker facets that vertex is part of.

@@ -186,7 +186,7 @@ impl CoxeterMatrix {
         self.mirrors.as_ref().ok_or(GroupError::HyperbolicCD)
     }
 
-    /// Returns a matrix whose columns for the mirror basis, or an error if the
+    /// Returns a matrix whose columns form the mirror basis, or an error if the
     /// group is not spherical.
     ///
     /// Each `i`th basis vector of the mirror basis is parallel to all mirror
