@@ -401,27 +401,30 @@ impl<'a> Facet<'a> {
         if h.location_of_point(inside_point) == PointWhichSide::Outside {
             Ok(h.flip())
         } else {
-            Ok(h)
+            Ok(h.clone())
         }
     }
     /// Returns the unoriented hyperplane of the facet.
-    pub fn unoriented_hyperplane(self) -> Result<Hyperplane> {
-        // TODO: return ID when possible. in 1D, use vertex IDs as hyperplane IDs?
-        match self.space.polytopes[self.as_element().id] {
-            PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
-                Hyperplane::new(vector![1.0], self.space.get(vertex_id).pos()[0])
-                    .ok_or_eyre("error constructing hyperplane")
-            }
-            PolytopeData::Polytope {
-                hyperplane: Some(hyperplane_id),
-                ..
-            } => Ok(self.space.hyperplanes.get(hyperplane_id)?.clone()),
-            _ => bail!("expected hyperplane"),
-        }
+    pub fn unoriented_hyperplane(self) -> Result<&'a Hyperplane> {
+        Ok(self.space.hyperplanes.get(self.hyperplane_id()?)?)
     }
     /// Returns the pole of the hyperplane of the facet.
     pub fn hyperplane_pole(self) -> Result<Point> {
         Ok(self.unoriented_hyperplane()?.pole())
+    }
+    /// Returns the ID of the hyperplane of the facet.
+    pub fn hyperplane_id(self) -> Result<HyperplaneId> {
+        match self.space.polytopes[self.as_element().id] {
+            PolytopeData::Vertex(vertex_id) if self.space.ndim() == 1 => {
+                // Hyperplane IDs match vertex IDs.
+                Ok(HyperplaneId(vertex_id.0 as u16))
+            }
+            PolytopeData::Polytope {
+                hyperplane: Some(hyperplane_id),
+                ..
+            } => Ok(hyperplane_id),
+            _ => bail!("expected hyperplane"),
+        }
     }
 }
 

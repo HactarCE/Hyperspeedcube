@@ -123,6 +123,21 @@ impl Cut {
         })
     }
 
+    /// Returns the ID of the hyperplane of the cut.
+    ///
+    /// Returns `None` if the hyperplane is infinite.
+    ///
+    /// If previous cuts used the same hyperplane, the ID will be the same.
+    pub fn hyperplane_id(&mut self, space: &mut Space) -> Result<Option<HyperplaneId>> {
+        if self.params.divider.distance().is_infinite() {
+            return Ok(None);
+        }
+
+        Ok(Some(
+            get_or_insert_cache(&mut self.cache, &self.params, space)?.hyperplane_id,
+        ))
+    }
+
     /// Cuts an element.
     #[expect(clippy::too_many_lines)] // it's a complicated algorithm!
     pub fn cut(
@@ -143,9 +158,6 @@ impl Cut {
 
         let cache = get_or_insert_cache(&mut self.cache, &self.params, space)?;
 
-        if cache.space_id != space.id {
-            bail!("cut constructed for a different space");
-        };
         let hyperplane_id = cache.hyperplane_id;
         let new_portal_id = cache.portal_id;
 
@@ -329,8 +341,12 @@ fn get_or_insert_cache<'a>(
     params: &CutParams,
     space: &mut Space,
 ) -> Result<&'a mut CutCache> {
-    if opt_cache.is_none() {
-        let hyperplane_id = space.add_hyperplane(params.divider.clone())?;
+    if let Some(cache) = opt_cache {
+        if cache.space_id != space.id {
+            bail!("cut constructed for a different space");
+        };
+    } else {
+        let hyperplane_id = space.add_hyperplane(&params.divider)?;
         let c = CutCache {
             space_id: space.id,
             hyperplane_id,
