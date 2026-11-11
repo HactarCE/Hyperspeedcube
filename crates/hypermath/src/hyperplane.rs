@@ -172,6 +172,18 @@ impl Hyperplane {
         )
         .expect("invalid hyperplane")
     }
+
+    /// Canonicalizes a hyperplane to have a standard orientation.
+    pub fn canonicalize_unoriented(&self) -> Self {
+        let first_nonzero = std::iter::chain([self.distance], self.normal.iter())
+            .find(|x| APPROX.ne_zero(x))
+            .unwrap_or(0.0);
+        if APPROX.is_neg(first_nonzero) {
+            self.flip()
+        } else {
+            self.clone()
+        }
+    }
 }
 
 /// Intersection of a hyperplane and a line segment.
@@ -183,4 +195,53 @@ pub struct HyperplaneLineIntersection {
     /// Intersection point of the line segment and hyperplane, if the line
     /// segment touches the hyperplane.
     pub intersection: Option<Point>,
+}
+
+#[cfg(test)]
+impl proptest::arbitrary::Arbitrary for Hyperplane {
+    type Parameters = ();
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        use proptest::prelude::*;
+
+        (2..=crate::MAX_NDIM as usize, -1.0..1.0)
+            .prop_flat_map(|(ndim, distance)| {
+                prop::collection::vec(-1.0..1.0, ndim)
+                    .prop_filter_map("normal vector is zero", move |normal| {
+                        Hyperplane::new(&*normal, distance)
+                    })
+            })
+            .boxed()
+    }
+
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn test_canonicalize_hyperplane(h in any::<Hyperplane>()) {
+            let canonical = h.canonicalize_unoriented();
+
+            // Canonicalization either keeps the hyperplane or flips it.
+            prop_assert!(APPROX.eq(&canonical, &h) || APPROX.eq(&canonical, &h.flip()));
+
+            // Canonicalization is idempotent and ignores the initial orientation.
+            assert_approx_eq!(canonical.canonicalize_unoriented(), canonical);
+            assert_approx_eq!(h.flip().canonicalize_unoriented(), canonical);
+
+            // The first nonzero coefficient is non-negative.
+            let first_nonzero =
+                std::iter::chain([canonical.distance], canonical.normal.iter())
+                    .find(|x| APPROX.ne_zero(x));
+            if let Some(x) = first_nonzero {
+                prop_assert!(!APPROX.is_neg(x));
+            }
+        }
+    }
 }
