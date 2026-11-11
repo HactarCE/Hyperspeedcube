@@ -176,7 +176,7 @@ where
 
                 ui.separator();
 
-                egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                egui::Frame::default().show(ui, |ui| {
                     let id = unique_id!(&self.keybind_set);
                     let r = ReorderableList::new(id, &mut keybinds).show(ui, |ui, idx, keybind| {
                         let mut r = ui

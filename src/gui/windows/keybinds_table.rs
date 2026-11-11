@@ -23,29 +23,31 @@ pub(crate) const PUZZLE_KEYBINDS: Window = Window {
     build: |ui, app| {
         let puzzle_type = app.puzzle.ty();
 
-        egui::CollapsingHeader::new("Keybind sets")
-            .default_open(true)
-            .show(ui, |ui| ui.add(KeybindSetsList { app }));
-        ui.separator();
-        egui::CollapsingHeader::new("Include")
-            .default_open(true)
-            .show(ui, |ui| ui.add(KeybindIncludesList { app }));
-        ui.separator();
-        egui::CollapsingHeader::new("Keybinds")
-            .default_open(true)
-            .show(ui, |ui| {
-                let set_name = app.prefs.puzzle_keybinds[puzzle_type].active.clone();
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::CollapsingHeader::new("Keybind sets")
+                .default_open(true)
+                .show(ui, |ui| ui.add(KeybindSetsList { app }));
+            ui.separator();
+            egui::CollapsingHeader::new("Include")
+                .default_open(true)
+                .show(ui, |ui| ui.add(KeybindIncludesList { app }));
+            ui.separator();
+            egui::CollapsingHeader::new("Keybinds")
+                .default_open(true)
+                .show(ui, |ui| {
+                    let set_name = app.prefs.puzzle_keybinds[puzzle_type].active.clone();
 
-                // Show keybinds table.
-                let r = ui.add(KeybindsTable {
-                    app,
-                    keybind_set: PuzzleKeybindsAccessor {
-                        puzzle_type,
-                        set_name,
-                    },
+                    // Show keybinds table.
+                    let r = ui.add(KeybindsTable {
+                        app,
+                        keybind_set: PuzzleKeybindsAccessor {
+                            puzzle_type,
+                            set_name,
+                        },
+                    });
+                    app.prefs.needs_save |= r.changed();
                 });
-                app.prefs.needs_save |= r.changed();
-            });
+        });
     },
     ..Window::DEFAULT
 };

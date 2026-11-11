@@ -15,44 +15,24 @@ jobs:
     name: Build Windows latest
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            override: true
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Upload executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
           path: target/release/hyperspeedcube.exe
 
   linux:
     name: Build Linux latest
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            override: true
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Update apt
         run: sudo apt update
       - name: Install egui dependencies
@@ -66,7 +46,7 @@ jobs:
       - name: Make tarball
         run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz -C target/release hyperspeedcube
       - name: Upload executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
           path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz
@@ -75,26 +55,13 @@ jobs:
     name: Build macOS latest
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            components: clippy
-            target: x86_64-apple-darwin
-            override: true
+          targets: x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
       - name: Install cargo-bundle
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-bundle
-          version: latest
-          use-tool-cache: true
+        run: cargo install cargo-bundle --version 0.11.0 --locked
       - name: Build Hyperspeedcube (arm64)
         run: cargo build --release
       - name: Build Hyperspeedcube (x86_64)
@@ -102,11 +69,11 @@ jobs:
       - name: Merge universal binary
         run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
       - name: Make app
-        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
+        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release --format osx
       - name: Make tarball
         run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
       - name: Upload app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos
           path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz

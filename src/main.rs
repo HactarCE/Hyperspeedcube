@@ -302,9 +302,9 @@ async fn run() {
             }
 
             Event::MainEventsCleared => {
-                // RedrawRequested will only trigger once unless we manually
-                // request it.
-                window.request_redraw();
+                if next_frame_time <= Instant::now() {
+                    window.request_redraw();
+                }
             }
 
             Event::RedrawRequested(window_id) if window_id == window.id() => {
@@ -487,6 +487,10 @@ async fn run() {
                     // TODO: display framerate somewhere
                     printlnd!("FPS: {}", last_fps);
                 }
+            }
+
+            Event::RedrawEventsCleared => {
+                control_flow.set_wait_until(next_frame_time);
             }
 
             // Ignore other events.

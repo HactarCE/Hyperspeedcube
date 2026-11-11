@@ -47,6 +47,10 @@ time = { version = "0.3", features = ["local-offset"] }
 wgpu = { version = "0.14", features = ["webgl"] }
 winit = { version = "0.27", features = ["serde"] }
 
+[target.'cfg(windows)'.dependencies]
+# wgpu-hal 0.14 expects winapi to use the standard library's c_void type.
+winapi = { version = "0.3.9", features = ["std"] }
+
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.20" }
@@ -90,6 +94,6 @@ LegalCopyright = "Copyright © 2022 HactarCE"
 [package.metadata.bundle]
 name = "Hyperspeedcube"
 identifier = "io.github.hactarce.hyperspeedcube"
-icon = ["resources/icon/*.png", "resources/icon/*.ico"]
+icon = ["resources/icon/*.png"]
 copyright = "Copyright © 2022 HactarCE"
 category = "Puzzle Game"
