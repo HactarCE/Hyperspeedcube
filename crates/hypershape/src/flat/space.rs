@@ -19,6 +19,10 @@ pub struct Space {
     /// Every vertex also has an entry in [`Self::polytopes`].
     pub(super) vertex_coordinates: FlatTiVec<VertexId, Float>,
     pub(super) polytopes: TiVec<ElementId, PolytopeData>,
+    /// Cached hyperplanes.
+    ///
+    /// In a 1D space, these use the exact same ID numbers as
+    /// `vertex_coordinates` does.
     pub(super) hyperplanes: TiVec<HyperplaneId, Hyperplane>,
     pub(super) portals: TiVec<PortalId, PortalData>,
 
@@ -264,28 +268,56 @@ impl Space {
         self.polytope_data_to_id[&PolytopeData::from(v)]
     }
 
-    /// Memoizes a hyperplane.
-    pub(super) fn add_hyperplane(&mut self, h: Hyperplane) -> Result<HyperplaneId> {
-        // We could canonicalize the hyperplane's orientation to avoid storing
-        // duplicates but it doesn't really matter.
+    /// Memoizes an unoriented hyperplane.
+    ///
+    /// In 1D, also memoizes an unoriented vertex with the same ID.
+    pub(super) fn add_hyperplane(&mut self, h: &Hyperplane) -> Result<HyperplaneId> {
+        let h = h.canonicalize_unoriented();
+        ensure!(h.ndim() <= self.ndim, "hyperplane is too high-dimensional");
         match self.hyperplane_data_to_id.entry(h) {
             approx_collections::hash_map::Entry::Occupied(e) => Ok(*e.get()),
             approx_collections::hash_map::Entry::Vacant(e) => {
                 let id = self.hyperplanes.push(e.key().clone())?;
-                Ok(*e.insert(id))
+                let pole = e.key().pole();
+                e.insert(id);
+                if self.ndim == 1 {
+                    // vertex ID must equal hyperplane ID
+                    let (vertex_id, _) = self.add_vertex(pole)?;
+                    ensure!(
+                        vertex_id.0 == id.0 as u32,
+                        "vertex ID does not match hyperplane ID",
+                    );
+                }
+                Ok(id)
             }
         }
     }
     /// Memoizes a vertex.
+    ///
+    /// In 1D, also memoizes an unoriented hyperplane with the same ID.
     pub(super) fn add_vertex(&mut self, p: Point) -> Result<(VertexId, ElementId)> {
+        ensure!(p.ndim() <= self.ndim, "point is too high-dimensional");
         let vertex_id = match self.vertex_data_to_id.entry(p) {
             approx_collections::hash_map::Entry::Occupied(e) => *e.get(),
             approx_collections::hash_map::Entry::Vacant(e) => {
+                let x = e.key().as_vector().get(0);
                 let coordinates = e.key().as_vector().iter();
                 let vertex_id = self.vertex_coordinates.push_row(coordinates)?;
                 let vertex_id = *e.insert(vertex_id);
                 // Ensure that the vertex has a polytope ID as well.
                 self.add_polytope(vertex_id.into())?;
+
+                if self.ndim == 1 {
+                    let hyperplane_id = self.add_hyperplane(
+                        &Hyperplane::new(vector![1.0], x)
+                            .expect("bad hyperplane with hard-coded normal"),
+                    )?;
+                    ensure!(
+                        hyperplane_id.0 as u32 == vertex_id.0,
+                        "hyperplane ID does not match vertex ID"
+                    );
+                }
+
                 vertex_id
             }
         };
@@ -400,7 +432,7 @@ impl Space {
                     boundary_portals: BoundaryPortals::EMPTY,
                     hyperplane: match hyperplane {
                         Some(h) => Some(self.add_hyperplane(
-                            portal_plane.reflect_hyperplane(&self.hyperplanes[h]),
+                            &portal_plane.reflect_hyperplane(&self.hyperplanes[h]),
                         )?),
                         None => None,
                     },
