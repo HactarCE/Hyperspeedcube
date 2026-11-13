@@ -299,6 +299,7 @@ impl SimpleOrbitSpec {
     }
 }
 
+/// Specification for a jumbling move defined for an axis orbit.
 #[derive(Debug, Clone)]
 pub struct JumbleMoveSpec {
     /// Name of one axis in the orbit.
@@ -309,14 +310,20 @@ pub struct JumbleMoveSpec {
     pub angle: JumbleAngleSpec,
 }
 
+/// Specification for a jumbling angle.
 #[derive(Debug, Clone)]
 pub enum JumbleAngleSpec {
     /// Transform from one axis to another.
+    ///
+    /// This exists for convenience; it is always possible to use `Angle`
+    /// instead.
     FromTo(Str, Str),
     /// Exact angle.
     Angle(Float),
 }
 
+/// Specification for a jumbling stop defined for an axis orbit, modulo the
+/// doctrinaire move.
 #[derive(Debug, Clone)]
 pub struct JumbleStopSpec {
     /// Name of one axis in the orbit.

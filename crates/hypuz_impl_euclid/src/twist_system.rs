@@ -568,12 +568,6 @@ impl AxisOrbitJumbleData {
             .unwrap_or(TAU)
     }
 
-    #[cfg(test)]
-    fn doctrinaire_order(&self) -> usize {
-        hypermath::util::to_integer(TAU / self.doctrinaire_angle())
-            .expect("doctrinaire twist is not a simple fraction of TAU")
-    }
-
     /// Returns the nearest jumbling stop from an absolute angle.
     pub fn factor_nearest(&self, angle: Float) -> JumbleStop {
         // linear search is fastest because the list is always short
@@ -593,6 +587,7 @@ impl AxisOrbitJumbleData {
             .find(|_, stop_info| APPROX.eq(stop_info.angle, angle))
     }
 
+    /// Returns a sequence of jumble transforms from `start` to `stop`.
     pub fn notation_from_stop_to_stop(
         &self,
         start: JumbleStop,
@@ -642,12 +637,15 @@ impl AxisOrbitJumbleData {
         }
     }
 
+    /// Returns the next (positive) or previous (negative) stop from `stop`.
     pub fn adjacent_stop(&self, stop: JumbleStop, sign: Sign) -> JumbleStop {
         let mut i = stop.0 as i64 + self.stops.len() as i64;
         i += sign.to_num::<i64>();
         JumbleStop((i % self.stops.len() as i64) as u16)
     }
 
+    /// Returns the angle corresponding to a jumble suffix, or `None` if the
+    /// suffix is undefined.
     pub fn suffix_to_angle(&self, suffix: JumbleSuffix) -> Option<Float> {
         self.transforms
             .iter()
@@ -681,25 +679,26 @@ fn find_simple_transform_for_angle(
 #[error("no simple transform for angle {0} rad = {deg}°", deg = .0.to_degrees())]
 struct NoSimpleTransform(Float);
 
+/// Precomputed info about a jumble stop.
 #[derive(Debug, Clone)]
 pub struct JumbleStopInfo {
     /// Angle offset of the jumble stop.
     pub angle: Float,
     /// Single move to a nearby doctrinaire position.
     ///
-    /// If there is a single move to the next jumbling stop _and_ a single move
-    /// to the previous one, then this is the move to the **next** jumbling
-    /// stop.
+    /// If there is a single move to the next doctrinaire jumbling stop _and_ a
+    /// single move to the previous one, then this is the move to the **next**
+    /// jumbling stop.
     ///
-    /// For this is a doctrinaire position, this is [`JumbleTransform::EMPTY`].
+    /// For a doctrinaire position, this is [`JumbleTransform::EMPTY`].
     to_doctrinaire_prefer_next: JumbleTransform,
     /// Single move to a nearby doctrinaire position.
     ///
-    /// If there is a single move to the next jumbling stop _and_ a single move
-    /// to the previous one, then this is the move to the **next** jumbling
-    /// stop.
+    /// If there is a single move to the next doctrinaire jumbling stop _and_ a
+    /// single move to the previous one, then this is the move to the **next**
+    /// jumbling stop.
     ///
-    /// For this is a doctrinaire position, this is [`JumbleTransform::EMPTY`].
+    /// For a doctrinaire position, this is [`JumbleTransform::EMPTY`].
     to_doctrinaire_prefer_prev: JumbleTransform,
 }
 
@@ -716,6 +715,10 @@ impl JumbleStopInfo {
         }
     }
 
+    /// Constructs a jumble stop.
+    ///
+    /// - `transforms` is the set of all the transforms on the axis.
+    /// - `angle` is the absolute angle of this jumble stop.
     pub fn new(transforms: &[JumbleTransform], angle: Float) -> Result<Self> {
         if let Some(duplicate) = transforms.iter().map(|t| t.suffix).duplicates().next() {
             bail!(
@@ -800,6 +803,8 @@ impl JumbleTransform {
         }
     }
 
+    /// Returns a move based on the jumble transform by specifying the layers
+    /// and axis name.
     pub fn on_axis_with_layers(
         &self,
         layers: impl Into<LayerPrefix>,
@@ -824,6 +829,7 @@ impl JumbleTransform {
         })
     }
 
+    /// Returns the reverse transform.
     pub fn rev(&self) -> Result<Self> {
         self.multiply(-1)
     }
