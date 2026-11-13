@@ -2,9 +2,11 @@
 //!
 //! There are five types defined in this module, each containing the next:
 //!
-//! - [`Request`] (appears in the public API)
-//! - [`RequestInner`] (enum to handle the case of an already-completed request)
-//! - [``]
+//! - [`Request`] — appears in the public API
+//! - [`RequestInner`] — enum to handle the case of an already-completed request
+//! - [`GenericRequest`] — struct containing an `Arc` to allow cheap cloning
+//! - [`GenericRequestData`] — allows waiting and tracks cancelation
+//! - [`GenericRequestState`] — shared mutable state (subrequests, diagnostics)
 //!
 //! If you are trying to get your bearings, read the documentation for each of
 //! those types in order.
