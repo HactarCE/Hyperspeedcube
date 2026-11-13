@@ -97,7 +97,9 @@ impl CatalogWord {
 /// - `--1_4-@16`
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VersionedCatalogWord {
+    /// Unversioned ID.
     pub word: CatalogWord,
+    /// Nonnegative integer after `@`, or `None` if there is no `@`.
     pub version: Option<u32>,
 }
 
