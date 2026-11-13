@@ -48,7 +48,7 @@ impl fmt::Display for Langs {
         writeln!(f)?;
 
         // Write schema modules.
-        writeln!(f, "{}", self.schema)?;
+        write!(f, "{}", self.schema)?; // ends with newline
         writeln!(f)?;
 
         // Write lang modules.
