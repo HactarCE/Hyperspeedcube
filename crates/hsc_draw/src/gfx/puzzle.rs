@@ -1393,12 +1393,10 @@ impl<K: PartialEq, T: 'static + Send + Sync> CachedGpuCompute<K, T> {
     }
 }
 
-fn bytes_to_vec_cgmath_vector4_f32<T: bytemuck::AnyBitPattern>(
-    bytes: &[u8],
-) -> Vec<cgmath::Vector4<T>> {
-    bytemuck::cast_slice::<u8, T>(bytes)
-        .chunks_exact(4)
-        .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
+fn bytes_to_vec_cgmath_vector4_f32<T: bytemuck::Pod>(bytes: &[u8]) -> Vec<cgmath::Vector4<T>> {
+    bytemuck::cast_slice::<u8, [T; 4]>(bytes)
+        .iter()
+        .map(|&[x, y, z, w]| cgmath::vec4(x, y, z, w))
         .collect()
 }
 

@@ -1,9 +1,12 @@
+//! Utilities for working with [`TagSet`]s and Hyperpuzzlescript.
+
 use std::sync::Arc;
 
 use hypuz_core::{TAGS, TagSet, TagType, TagValue};
 
 use crate::{EvalCtx, List, Map, Result, Type, Value, ValueData, Warning};
 
+/// Constructs a tag set from a [`Map`].
 pub fn tags_from_map(ctx: &mut EvalCtx<'_>, m: Arc<Map>) -> TagSet {
     let mut tags = TagSet::new();
     unpack_tags_recursive(ctx, &mut tags, Arc::unwrap_or_clone(m), "");

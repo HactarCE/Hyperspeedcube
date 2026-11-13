@@ -14,10 +14,12 @@ pub struct GeneratorParam {
 impl GeneratorParam {
     /// Converts a catalog ID value into a typed value for this parameter, or
     /// returns an error if it is invalid.
+    ///
+    /// The result is boxed for size reasons (`clippy::result_large_err`).
     pub fn typed_value(
         &self,
         arg: CatalogIdValue,
-    ) -> Result<TypedCatalogIdValue, GeneratorParamError> {
+    ) -> Result<TypedCatalogIdValue, Box<GeneratorParamError>> {
         match &self.ty {
             GeneratorParamType::Bool => arg.to_bool().map(TypedCatalogIdValue::Bool),
             GeneratorParamType::Int { .. } => arg.to_int().map(TypedCatalogIdValue::Int),
@@ -29,9 +31,11 @@ impl GeneratorParam {
                 .and_then(|l| l.into_iter().map(|e| inner.typed_value(e)).try_collect())
                 .map(TypedCatalogIdValue::List),
         }
-        .map_err(|inner| GeneratorParamError {
-            param: self.clone(),
-            inner,
+        .map_err(|inner| {
+            Box::new(GeneratorParamError {
+                param: self.clone(),
+                inner,
+            })
         })
     }
 }

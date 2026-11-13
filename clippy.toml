@@ -1,1 +1,2 @@
 semicolon-inside-block-ignore-singleline = true
+check-grouped-late-init = false

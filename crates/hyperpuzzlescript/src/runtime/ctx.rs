@@ -30,6 +30,7 @@ pub struct EvalCtx<'a> {
 }
 
 impl<'a> EvalCtx<'a> {
+    /// Constructs a new evaluation context.
     pub fn new(
         scope: &'a Arc<Scope>,
         runtime: &'a mut Runtime,
@@ -838,8 +839,6 @@ impl<'a> EvalCtx<'a> {
                     .strip_prefix('@')
                     .ok_or(Error::Internal("missing '@'").at(*span))?;
 
-                let resolved_path;
-                let is_relative;
                 if path.starts_with(['^', '/']) {
                     let mut base = self
                         .runtime
@@ -854,14 +853,10 @@ impl<'a> EvalCtx<'a> {
                     }
                     // `base` does not contain a trailing slash.
                     // `path` contains a leading slash.
-                    resolved_path = format!("{base}{path}");
-                    is_relative = true;
+                    Ok(self.import(*span, format!("{base}{path}"), true)?.data)
                 } else {
-                    resolved_path = path.to_owned();
-                    is_relative = false;
-                };
-
-                Ok(self.import(*span, resolved_path, is_relative)?.data)
+                    Ok(self.import(*span, path.to_owned(), false)?.data)
+                }
             }
             ast::NodeContents::NullLiteral => Ok(null),
             ast::NodeContents::BoolLiteral(b) => Ok(ValueData::Bool(*b)),

@@ -137,7 +137,7 @@ impl Drop for GenericRequest {
     }
 }
 
-/// Data for a request, which is always contained in an [`Arc`]`.
+/// Data for a request, which is always contained in an [`Arc`].
 ///
 /// For a given `Arc<GenericRequestData>`, There is at most one [`CacheEntry`]
 /// that holds a reference to it. All other references are held by

@@ -36,7 +36,7 @@ fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {
     ui.add_space(10.0);
     ui.heading("Piece types");
     for piece_type in puz.piece_types.iter_values() {
-        ui.label(format!("• {}", &piece_type.name));
+        ui.label(format!("• {}", piece_type.name));
     }
 
     ui.add_space(10.0);

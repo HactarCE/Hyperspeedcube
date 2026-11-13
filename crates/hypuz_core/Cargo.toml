@@ -20,7 +20,7 @@ hsc_cli_types.workspace = true
 hypergroup.workspace = true
 hypermath.workspace = true
 hypershape.workspace = true
-hypuz_notation = { workspace = true, features = ["typed_index"] }
+hypuz_notation = { workspace = true, features = ["serde", "typed_index"] }
 hypuz_util.workspace = true
 
 chacha20.workspace = true

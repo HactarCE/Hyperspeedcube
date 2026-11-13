@@ -1,13 +1,11 @@
 //! Mathematical constants, operators, and functions.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::{GOLDEN_RATIO, PI, TAU};
 
 use ecow::eco_format;
 use hypermath::APPROX;
 
 use crate::{Builtins, Error, Num, Result};
-
-const PHI: f64 = 1.618_033_988_749_895_f64;
 
 /// Adds the built-in constants, operators, and functions.
 pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
@@ -16,8 +14,8 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
     builtins.set("π", PI)?;
     builtins.set("tau", TAU)?;
     builtins.set("τ", TAU)?;
-    builtins.set("phi", PHI)?;
-    builtins.set("φ", PHI)?;
+    builtins.set("phi", GOLDEN_RATIO)?;
+    builtins.set("φ", GOLDEN_RATIO)?;
     builtins.set("deg", 1.0_f64.to_radians())?;
     builtins.set("inf", f64::INFINITY)?;
     builtins.set("∞", f64::INFINITY)?;

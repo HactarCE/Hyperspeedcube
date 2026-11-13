@@ -35,9 +35,12 @@ use crate::{
     Value, ValueData,
 };
 
+/// Error produced by an HPS engine.
 #[derive(Debug)]
 pub enum HpsEngineError {
+    /// Error originating from HPS code.
     Hps(FullDiagnostic),
+    /// Error originating from non-HPS (Rust) engine code.
     Eyre(eyre::Report),
 }
 
@@ -60,6 +63,7 @@ impl From<HpsThreadPanic> for HpsEngineError {
 }
 
 impl HpsEngineError {
+    /// Converts the error to [`eyre::Report`].
     pub fn to_eyre(self, tx: &EvalRequestTx) -> eyre::Report {
         match self {
             HpsEngineError::Hps(full_diagnostic) => tx
@@ -69,6 +73,7 @@ impl HpsEngineError {
         }
     }
 
+    /// Converts the error to [`FullDiagnostic`]
     pub fn to_full_diagnostic(self, span: Span) -> FullDiagnostic {
         match self {
             HpsEngineError::Hps(full_diagnostic) => full_diagnostic,
@@ -120,9 +125,11 @@ pub trait HpsEngine: Send + Sync {
 /// construct puzzles, twist systems, etc.
 #[derive(Debug, Clone)]
 pub struct HpsGenerator {
+    /// Generator ID.
     pub id: VersionedCatalogWord,
     /// Name and aliases. This may be empty.
     pub names: Vec<String>,
+    /// Keyword arguments from the generator definition.
     pub kwargs: Map,
     /// `gen` function and parameters, or `None` if the generator takes no
     /// parameters.
@@ -134,8 +141,11 @@ pub struct HpsGenerator {
 /// See [`HpsEngine`].
 #[derive(Debug, Clone)]
 pub struct HpsGeneratorFn {
+    /// Generator parameters, whose values will be specified via catalog ID.
     pub params: Vec<GeneratorParam>,
+    /// HPS function to generate additional keyword arguments or an ID redirect.
     pub gen_fn: Arc<FnValue>,
+    /// Span of `gen_fn`, for diagnostics.
     pub gen_fn_span: Span,
 }
 
