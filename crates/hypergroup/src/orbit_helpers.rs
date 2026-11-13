@@ -1,5 +1,4 @@
 use std::collections::{HashSet, VecDeque};
-use std::convert::Infallible;
 use std::hash::Hash;
 
 use hypermath::prelude::*;
@@ -25,7 +24,7 @@ pub fn orbit<E, G>(
     mut apply_generator: impl FnMut(&E, &G) -> Option<E>,
 ) {
     try_orbit(init, generators, |elem, g| Ok(apply_generator(elem, g)))
-        .unwrap_or_else(|e: Infallible| match e {});
+        .unwrap_or_else(|e: !| match e {});
 }
 
 /// Same as [`orbit()`], but returns early with an error if the number of
@@ -100,7 +99,7 @@ pub fn orbit_collect<E, G>(
     try_orbit_collect(init, generators, |i, elem, g| {
         Ok(apply_generator(i, elem, g))
     })
-    .unwrap_or_else(|e: Infallible| match e {})
+    .unwrap_or_else(|e: !| e) // TODO: .into_ok()
 }
 
 /// Same as [`orbit_collect()`], but returns early with an error if the number

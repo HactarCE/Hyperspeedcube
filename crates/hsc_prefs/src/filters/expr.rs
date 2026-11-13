@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fmt;
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 use hypuz_core::prelude::*;
@@ -272,10 +273,13 @@ impl FilterExpr {
             }
         }
     }
+}
 
-    #[expect(clippy::should_implement_trait)] // this method is infallible
-    pub fn from_str(s: &str) -> Self {
-        parser::parse(s)
+impl FromStr for FilterExpr {
+    type Err = !;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(parser::parse(s))
     }
 }
 

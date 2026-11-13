@@ -408,7 +408,10 @@ impl Default for FilterPieceSet {
 impl FilterPieceSet {
     pub fn eval(&self, puz: &Puzzle) -> PieceMask {
         match self {
-            Self::Expr(expr) => expr::FilterExpr::from_str(expr).eval(puz),
+            Self::Expr(expr) => expr
+                .parse::<FilterExpr>()
+                .unwrap_or_else(|e: !| e) // TODO: .into_ok()
+                .eval(puz),
             Self::Checkboxes(checkboxes) => checkboxes.eval(puz),
         }
     }

@@ -3,3 +3,6 @@
 # check status at https://developer.mozilla.org/en-US/docs/Web/API/Clipboard#browser_compatibility
 [build]
 rustflags = ["--cfg=web_sys_unstable_apis"]
+
+[registry]
+global-min-publish-age = "7 days"

@@ -12,7 +12,7 @@ pub type TextEditValidator<'a, 's> = &'a dyn Fn(&str) -> TextValidationResult<'s
 pub type TextValidationResult<'s> = Result<Option<Cow<'s, str>>, Option<Cow<'s, str>>>;
 
 #[derive(Debug, Default, Clone)]
-pub enum TextEditPopupResponse<R = std::convert::Infallible> {
+pub enum TextEditPopupResponse<R = !> {
     Confirm(String),
     Delete,
     #[default]

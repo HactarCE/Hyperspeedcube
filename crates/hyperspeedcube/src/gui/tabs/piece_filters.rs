@@ -488,7 +488,7 @@ fn show_seq_preset_name(
                 });
             }
             if r.clicked() {
-                value.include_previous ^= true;
+                value.include_previous.toggle();
                 value.inner.fallback_style = if value.include_previous {
                     None
                 } else {
@@ -842,7 +842,11 @@ fn show_filter_expr_ui(
     puz: &std::sync::Arc<Puzzle>,
 ) -> egui::Response {
     ui.scope(|ui| {
-        let err = FilterExpr::from_str(expr_string).validate(puz).err();
+        let err = expr_string
+            .parse::<FilterExpr>()
+            .unwrap_or_else(|e: !| e) // TODO: .into_ok()
+            .validate(puz)
+            .err();
         if err.is_some() {
             ui.visuals_mut().selection.stroke.color = ui.visuals().warn_fg_color;
             ui.visuals_mut().widgets.hovered.bg_stroke.color = ui.visuals().warn_fg_color;

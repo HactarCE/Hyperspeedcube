@@ -772,7 +772,7 @@ impl Not for LayerPrefix {
     type Output = Self;
 
     fn not(mut self) -> Self::Output {
-        self.invert = !self.invert;
+        self.invert.toggle();
         self
     }
 }
