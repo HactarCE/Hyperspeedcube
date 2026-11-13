@@ -64,7 +64,7 @@ impl ColorSystemDisjointUnion {
         }
     }
 
-    pub fn terms_with_prefixes(&self) -> Vec<(Str, &ColorSystemTerm)> {
+    fn terms_with_prefixes(&self) -> Vec<(Str, &ColorSystemTerm)> {
         if let [t] = self.terms.as_slice() {
             vec![(Str::new(), t)]
         } else {
@@ -118,7 +118,7 @@ impl ColorSystemDisjointUnion {
 }
 
 #[derive(Debug, Clone)]
-struct ColorSystemTerm {
+pub struct ColorSystemTerm {
     id: CatalogId,
     name: String,
     color_names: Vec<Str>,

@@ -76,6 +76,3 @@ pub const GROUP_PREFIX_CHARS: &str = "!#$%&?^`";
 #[cfg(test)]
 pub(crate) static FAMILY_REGEX: std::sync::LazyLock<&'static str> =
     std::sync::LazyLock::new(|| format!("{FAMILY_CHAR_CLASS}+").leak());
-#[cfg(test)]
-pub(crate) static OPT_FAMILY_REGEX: std::sync::LazyLock<&'static str> =
-    std::sync::LazyLock::new(|| format!("{FAMILY_CHAR_CLASS}*").leak());

@@ -255,9 +255,7 @@ impl PuzzleView {
         height: u32,
     ) -> eyre::Result<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
         match &mut self.specific {
-            SpecificPuzzleView::Empty => {
-                bail!("puzzle backend does not support screenshots")
-            }
+            SpecificPuzzleView::Empty => bail!("puzzle backend does not support screenshots"),
             SpecificPuzzleView::NdEuclid(nd_euclid) => nd_euclid.renderer.screenshot(width, height),
         }
     }

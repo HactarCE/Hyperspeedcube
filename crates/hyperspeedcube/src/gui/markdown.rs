@@ -116,11 +116,11 @@ impl<'a> InlineFormatState<'a> {
             color,
             italics: self.italics,
             underline: match self.underline {
-                true => egui::Stroke::new(1.0, color),
+                true => egui::Stroke::new(1.0_f32, color),
                 false => egui::Stroke::NONE,
             },
             strikethrough: match self.strikethrough {
-                true => egui::Stroke::new(1.0, color),
+                true => egui::Stroke::new(1.0_f32, color),
                 false => egui::Stroke::NONE,
             },
             valign: match (self.superscript, self.subscript) {

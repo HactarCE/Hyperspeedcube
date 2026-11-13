@@ -81,9 +81,6 @@ pub fn get_drand_chain() -> timecheck::drand::Chain {
     timecheck::drand::Chain::quicknet()
 }
 
-/// Maximum number of ID redirects.
-const MAX_ID_REDIRECTS: usize = 15;
-
 /// **This function is deprecated after 2.0.0-zeta.12.**
 ///
 /// Parses the ID of a generated object into its constituent parts: the
@@ -114,8 +111,6 @@ pub fn zeta12_generated_id(
 }
 
 const AD_HOC_ID_STR: &str = "ad_hoc";
-const ROT_ID_STR: &str = "rot";
-const REFL_ID_STR: &str = "rot";
 
 /// Returns the ID for an ad-hoc color system or twist system.
 pub fn ad_hoc_id(puzzle_id: CatalogId) -> CatalogId {

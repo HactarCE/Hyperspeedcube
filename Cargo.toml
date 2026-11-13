@@ -93,7 +93,6 @@ approx_collections = { version = "4.1.0" }
 ball-tree = { version = "0.5.2" }
 bitflags = { version = "2.11.1" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
-disjoint = { version = "0.8.0" }
 ecow = { version = "0.2.5" }
 indexmap = { version = "2.13.0" }                                              # must match serde_norway
 smallvec = { version = "1.15.1", features = ["union"] }
@@ -185,7 +184,6 @@ oklab = { version = "1.0.1" }
 lab = { version = "0.11.0" }                                                     # as required by empfindung
 
 # Async and multithreading
-num_cpus = { version = "1.17.0" }
 parking_lot = { version = "0.12.5" }
 pollster = { version = "0.4.0" }
 rayon = { version = "1.11.0" }

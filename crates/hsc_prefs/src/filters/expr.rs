@@ -377,8 +377,6 @@ mod parser {
 
 #[cfg(test)]
 mod tests {
-    use hypuz_core::prelude::*;
-
     use crate::filters::*;
 
     #[test]
@@ -446,8 +444,8 @@ mod tests {
         let s2 = "A (B + !'c (DE (F + G)) !!H)";
         let s3 = "A (B + !'c DE (F + G) H)";
 
-        let expr1 = FilterExpr::from_str(s1);
-        let expr2 = FilterExpr::from_str(s2);
+        let expr1 = s1.parse::<FilterExpr>().unwrap_or_else(|e: !| e); // TODO: .into_ok()
+        let expr2 = s2.parse::<FilterExpr>().unwrap_or_else(|e: !| e); // TODO: .into_ok()
         println!("Testing {s1:?} = {s2:?}");
         assert_eq!(expr1, expr2);
         println!("Testing {s2:?} identity");

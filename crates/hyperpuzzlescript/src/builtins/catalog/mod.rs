@@ -2,8 +2,7 @@
 
 use std::ops::{Deref, DerefMut};
 
-use ecow::eco_format;
-use hypuz_core::{CatalogBuilder, Component, Version};
+use hypuz_core::{CatalogBuilder, Component};
 
 mod color_systems;
 mod generators;
@@ -11,7 +10,7 @@ mod puzzles;
 pub mod tags;
 mod twist_systems;
 
-use crate::{Builtins, EvalCtx, EvalRequestTx, Map, Result};
+use crate::{Builtins, EvalRequestTx, Map, Result};
 
 /// Adds the built-in functions.
 pub fn define_in(
@@ -23,42 +22,6 @@ pub fn define_in(
     puzzles::define_in(builtins, catalog, eval_tx)?;
     twist_systems::define_in(builtins, catalog, eval_tx)?;
     Ok(())
-}
-
-fn parse_version(ctx: &mut EvalCtx<'_>, thing: &str, s: Option<&str>) -> Result<Version> {
-    let Some(version_string) = s else {
-        ctx.warn(eco_format!("missing `version` for {thing}"));
-        return Ok(Version::PLACEHOLDER);
-    };
-
-    fn parse_component(s: &str) -> Result<u32, String> {
-        s.parse()
-            .map_err(|e| format!("invalid version number: {e}"))
-    }
-
-    // IIFE to mimic try_block
-    let result = (|| {
-        let mut segments = version_string.split('.');
-        let version = Version {
-            major: parse_component(segments.next().ok_or("missing major version")?)?,
-            minor: parse_component(segments.next().unwrap_or("0"))?,
-            patch: parse_component(segments.next().unwrap_or("0"))?,
-        };
-        if segments.next().is_some() {
-            return Err(
-                "too many segments; only the form `major.minor.patch` is accepted".to_owned(),
-            );
-        }
-        Ok(version)
-    })();
-
-    match result {
-        Ok(version) => Ok(version),
-        Err(e) => {
-            ctx.warn(eco_format!("error parsing version string: {e}"));
-            Ok(Version::default())
-        }
-    }
 }
 
 /// Values exported by the Hyperpuzzlescript construction code.

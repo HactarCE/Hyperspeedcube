@@ -614,8 +614,8 @@ fn show_gizmo_face(
 ) {
     let strong_color = egui::Color32::LIGHT_BLUE;
     let weak_color = strong_color.linear_multiply(1.0 / 3.0);
-    let stroke_weak = egui::Stroke::new(2.0, weak_color);
-    let stroke_strong = egui::Stroke::new(2.0, strong_color);
+    let stroke_weak = egui::Stroke::new(2.0_f32, weak_color);
+    let stroke_strong = egui::Stroke::new(2.0_f32, strong_color);
     let fill = weak_color;
 
     let axis = geom.gizmo_axes[gizmo_face];
@@ -973,7 +973,7 @@ fn show_nd_euclid_puzzle_view(
             painter.arrow(
                 start,
                 end - start,
-                egui::Stroke::new(3.0, egui::Color32::WHITE),
+                egui::Stroke::new(3.0_f32, egui::Color32::WHITE),
             );
             Some(())
         })();

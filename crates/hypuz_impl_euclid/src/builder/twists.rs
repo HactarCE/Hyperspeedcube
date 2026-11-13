@@ -19,7 +19,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
-use super::{FactorNamedPointBasedNames, NamedPointOrbit, ProductNamedPointBasedNames};
+use super::{FactorNamedPointBasedNames, ProductNamedPointBasedNames};
 use crate::{
     AxisOrbit, AxisOrbitJumbleData, FactorTwistSystemSpec, JumbleTransform, NamedPoint,
     NamedPointSet, NdEuclidAxisVectors, PerAxisOrbit, PerNamedPoint, PgaMotorToNearestTwist,
@@ -33,7 +33,6 @@ pub struct TwistSystemFactor {
     pub name: String,
     pub names: FactorNamedPointBasedNames<Axis>,
     pub axis_orbits: Vec<AxisOrbitBuilder>,
-    pub named_point_orbits: Vec<NamedPointOrbit>,
 }
 
 impl TwistSystemFactor {
@@ -51,11 +50,6 @@ impl TwistSystemFactor {
                 .axis_orbits
                 .iter()
                 .map(|orbit| orbit.offset_ids_by(axis_id_offset, named_point_id_offset))
-                .try_collect()?,
-            named_point_orbits: self
-                .named_point_orbits
-                .iter()
-                .map(|orbit| orbit.offset_ids_by(named_point_id_offset))
                 .try_collect()?,
         })
     }
@@ -385,7 +379,6 @@ impl TwistSystemProduct {
             name: spec.name.clone(),
             names,
             axis_orbits,
-            named_point_orbits,
         };
 
         Ok(Self {
