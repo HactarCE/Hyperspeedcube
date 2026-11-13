@@ -79,13 +79,15 @@ fn def_truncation_twists(
             p /= p.projected_to(shape.sym.ooox).mag
             for i, k in ["f", "e", "r", "v"] {
                 facet_pole = p.projected_to(elements[k])
-                if @util.cd_element_exists(vertex_cd_point, [i]) {
+                if @util/cd.has_element(vertex_cd_point, i) {
                     #twists.axes ++= [facet_pole]
 
                     // TODO: this algorithm for adding gizmos is insufficient
                     for i2, k2 in ["f", "e", "r", "v"] {
-                        if i != i2 and @util.cd_element_exists(vertex_cd_point, [i, i2]) {
-                            pole_distance = (facet_pole - p.projected_to([elements[k], elements[k2]])).mag
+                        if i != i2 {
+                            // if @util.cd_element_exists(vertex_cd_point, [i, i2]) { ... }
+                            // pole_distance = (facet_pole - p.projected_to([elements[k], elements[k2]])).mag
+                            pole_distance = 0.25
                             print(i, k, i2, k2, axes[k])
                             secondary = axes[k2].filter(fn(x) { x != strcat(axes[k]) })
                             #twists.stabilizer_twists ++= [[[strcat(axes[k]), *secondary], pole_distance]]
@@ -177,9 +179,11 @@ def_truncation(@shapes/4d/120cell, "oxxo", axes_120cell, id = "120cell_bitruncat
 //     twists = "120cell_ft_vt", cuts = #{ f = [0.99], v = [0.99] },
 // )
 
-// def_truncation(@shapes/4d/hypercube, "ooxx", axes_hypercube, id = "hypercube_truncation_test@0", name = "Hypercube Truncation Test (shape)")
-// def_truncation(
-//     @shapes/4d/hypercube, "ooxx", axes_hypercube,
-//     id = "hypercube_truncation_test_ft@0", name = "Hypercube Truncation Test",
-//     twists = "hypercube_test", //cuts = #{ f = [0.99] }
-// )
+def_truncation(@shapes/4d/hypercube, "ooxx", axes_hypercube, id = "hypercube_truncation_test@0", name = "Hypercube Truncation Test (shape)")
+def_truncation(
+    @shapes/4d/hypercube, "ooxx", axes_hypercube,
+    id = "hypercube_truncation_test_ft@0", name = "Hypercube Truncation Test",
+    twists = "hypercube_test", cuts = #{ f = [0.85], v = [0.85] }
+)
+// TODO: figure out proper pole distances
+// TODO: WHY IS ONE OF THE TWISTS REVERSED. WRITE A DAMN TEST FOR THIS OR SOMETHING.

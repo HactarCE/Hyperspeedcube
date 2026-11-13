@@ -1,0 +1,30 @@
+// `o` = unrigned node
+// `x` = ringed node
+// ` ` = removed node
+
+export fn cut(cd_str, indices: List[Nat]) -> Str {
+    for i in indices {
+        cd_str[i] = " "
+    }
+    return cd_str
+}
+
+print(cut("abcdef", [3]))
+
+export fn connected_components(cd_str: Str) -> List[Str] {
+    cd_str.split(" ").filter(fn(s) { s.len() > 0 })
+}
+
+export fn has_ringed_node(cd_str: Str) -> Bool {
+    cd_str.contains("x")
+}
+
+export fn has_element(cd_str: Str, removed_index: Nat) -> Bool {
+    connected_components(cut(cd_str, [removed_index])).all(has_ringed_node)
+}
+
+// /// Returns the connected components of a Coxeter-Dynkin diagram after removing
+// /// the node at index `i`.
+// export fn cut(cd_str: Str, i: Nat) -> List[Str] {
+//     cd_str
+// }
