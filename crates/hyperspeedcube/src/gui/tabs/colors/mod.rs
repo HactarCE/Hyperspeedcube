@@ -1,5 +1,4 @@
 use crate::L;
-use crate::gui::util::EguiTempValue;
 use crate::gui::{App, EguiValue};
 
 mod color_scheme;
@@ -13,10 +12,6 @@ enum ColorsTab {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let id = unique_id!(); // only one instance
-
-    let tab_state = EguiTempValue::<ColorsTab>::new(ui);
-    let mut tab = tab_state.get().unwrap_or_default();
     let mut tab = EguiValue::<ColorsTab>::load_or_default(ui, egui::Id::new(()));
     ui.group(|ui| {
         egui::ScrollArea::horizontal()
@@ -36,6 +31,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
     match *tab {
         ColorsTab::Schemes => color_scheme::show(ui, app),
-        ColorsTab::GlobalPalette => global_color_palette::show(ui, id, app),
+        ColorsTab::GlobalPalette => global_color_palette::show(ui, unique_id!(), app),
     }
 }

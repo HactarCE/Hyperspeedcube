@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::L;
 use crate::app::App;
-use crate::gui::util::EguiTempValue;
+use crate::gui::EguiValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.active_puzzle.with_opt_view(|view| {
@@ -27,13 +27,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
         });
 
-        let move_input_value = EguiTempValue::new(ui);
-        let mut s: String = move_input_value.get().unwrap_or_default();
-        ui.text_edit_multiline(&mut s);
-        let parsed =
-            hyperpuzzle::notation::parse_notation(&s, hyperpuzzle::notation::Features::MAXIMAL)
-                .map_err(|e| e.into_iter().join("\n"));
-        move_input_value.set(Some(s));
+        let mut move_input_value = EguiValue::<String>::load_or_default(ui, unique_id!());
+        ui.text_edit_multiline(&mut *move_input_value);
+        let parsed = hyperpuzzle::notation::parse_notation(
+            &move_input_value,
+            hyperpuzzle::notation::Features::MAXIMAL,
+        )
+        .map_err(|e| e.into_iter().join("\n"));
         ui.scope(|ui| {
             if parsed.is_err() {
                 ui.disable();
@@ -78,23 +78,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
         }
 
-        let seed_value = EguiTempValue::new(ui);
-        let mut s: String = seed_value.get().unwrap_or_default();
+        let mut seed_value = EguiValue::<String>::load_or_default(ui, unique_id!());
         ui.separator();
         ui.horizontal(|ui| {
             ui.label("Seed:");
-            ui.text_edit_singleline(&mut s);
+            ui.text_edit_singleline(&mut *seed_value);
         });
         if ui.button("Set random twists").clicked() {
-            let mut rng = hyperpuzzle::util::rng_from_seed(&s);
+            let mut rng = hyperpuzzle::util::rng_from_seed(&seed_value);
             let twist_count = 10;
-            move_input_value.set(Some(
-                std::iter::from_fn(|| (view.puzzle().random_move)(&mut rng))
-                    .take(twist_count)
-                    .join("\n"),
-            ));
+            *move_input_value = std::iter::from_fn(|| (view.puzzle().random_move)(&mut rng))
+                .take(twist_count)
+                .join("\n");
         }
-        seed_value.set(Some(s));
 
         ui.group(|ui| {
             ui.strong("Axis names");

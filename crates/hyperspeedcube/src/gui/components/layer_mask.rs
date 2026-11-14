@@ -15,7 +15,7 @@ impl egui::Widget for LayerMaskEdit<'_> {
             .scope(|ui| {
                 let get_default_string = || format!("{{{}}}", self.layers);
 
-                let mut text = EguiValue::<String>::load_or(ui, self.id, get_default_string);
+                let mut text = EguiValue::<String>::load_or_else(ui, self.id, get_default_string);
 
                 let r = egui::TextEdit::singleline(&mut *text)
                     .desired_width(LAYER_DESCRIPTION_WIDTH)

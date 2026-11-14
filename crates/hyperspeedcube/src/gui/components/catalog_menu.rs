@@ -359,6 +359,7 @@ impl<'a> MenuUiElement<'a> {
                         *generator_ui = None;
                     }
                     let g = generator_ui.get_or_insert_with(|| {
+                        #[expect(clippy::disallowed_methods)]
                         PuzzleGeneratorUi::new(id.with(selected_path), catalog_id.base.word.clone())
                     });
                     ui.add(&mut *g);

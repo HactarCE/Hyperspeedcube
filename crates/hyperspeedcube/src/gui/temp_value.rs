@@ -27,11 +27,11 @@ impl<T: 'static + Any + Clone + Send + Sync> EguiValue<T> {
     where
         T: Default,
     {
-        Self::load_or(ctx, id, Default::default)
+        Self::load_or_else(ctx, id, Default::default)
     }
 
     /// Loads the value or computes it from a closure if it is missing.
-    pub fn load_or(ctx: &egui::Context, id: egui::Id, default: impl FnOnce() -> T) -> Self {
+    pub fn load_or_else(ctx: &egui::Context, id: egui::Id, default: impl FnOnce() -> T) -> Self {
         Self {
             ctx: ctx.clone(),
             id,

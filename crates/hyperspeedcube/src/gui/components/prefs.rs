@@ -352,6 +352,7 @@ impl<T> PrefsUi<'_, T> {
 
     pub fn interpolation_fn(
         &mut self,
+        id_salt: impl Hash,
         strings: &HoverStrings,
         access: Access<T, InterpolateFn>,
     ) -> egui::Response {
@@ -399,7 +400,6 @@ impl<T> PrefsUi<'_, T> {
                 move |ui: &mut egui::Ui| {
                     let mut changed = false;
 
-                    let id_salt = ui.make_persistent_id("interpolation_fn");
                     let mut r = egui::ComboBox::from_id_salt(id_salt)
                         .width_to_fit(
                             ui,
@@ -489,7 +489,11 @@ pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) 
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.dynamic_twist_speed, access!(.dynamic_twist_speed));
         prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
-        prefs_ui.interpolation_fn(&l.twist_interpolation, access!(.twist_interpolation));
+        prefs_ui.interpolation_fn(
+            unique_id!(),
+            &l.twist_interpolation,
+            access!(.twist_interpolation),
+        );
     });
     let l = &L.prefs.animation.other;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {

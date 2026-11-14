@@ -16,7 +16,7 @@ use crate::gui::components::{
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::temp_value::EguiFlag;
-use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
+use crate::gui::util::{MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
 use crate::gui::{EguiOptionValue, EguiValue};
 
 pub const ID_MATCH_PENALTY: isize = 60;

@@ -4,7 +4,7 @@ use itertools::Itertools;
 use crate::L;
 use crate::app::App;
 use crate::gui::markdown::{md, md_escape};
-use crate::gui::util::EguiTempFlag;
+use crate::gui::temp_value::EguiFlag;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
@@ -54,21 +54,11 @@ fn show_inner(ui: &mut egui::Ui, puz: &Puzzle) {
     ui.add_space(10.0);
     ui.heading("Tags");
 
-    let show_excluded_flag = EguiTempFlag::new(ui);
-    let mut show_excluded = show_excluded_flag.get();
+    let mut show_excluded = EguiFlag::load(ui, unique_id!());
     ui.checkbox(&mut show_excluded, "Show excluded");
-    match show_excluded {
-        true => show_excluded_flag.set(),
-        false => show_excluded_flag.reset(),
-    };
 
-    let show_inherited_flag = EguiTempFlag::new(ui);
-    let mut show_inherited = show_inherited_flag.get();
+    let mut show_inherited = EguiFlag::load(ui, unique_id!());
     ui.checkbox(&mut show_inherited, "Show inherited");
-    match show_inherited {
-        true => show_inherited_flag.set(),
-        false => show_inherited_flag.reset(),
-    };
 
     let markdown_text = puz
         .meta

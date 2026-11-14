@@ -2,7 +2,6 @@
 - **Include program version in scrambles**
   - this may be more important than puzzle version
 - Check usages of the words "meta" (some should be "puzzle list entry") and "callback" (some should be "engine")
-- Replace old `EguiTempValue` and `EguiTempFlag` with new ones
 - Write tests for log files for various puzzles!
 - Actually support twist subsets
 - Disallow drag twist if axis/layer is blocked

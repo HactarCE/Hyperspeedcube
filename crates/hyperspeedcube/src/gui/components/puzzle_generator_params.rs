@@ -35,7 +35,7 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
                 .enumerate()
                 .map(|(i, p)| {
                     GeneratorParamUi::new(
-                        self.id.with(i),
+                        unique_id!(self.id, i),
                         &p.ty,
                         p.default.clone(),
                         Some(p.name.clone()),
@@ -139,7 +139,7 @@ impl GeneratorParamUi {
                     .unwrap_or(vec![])
                     .into_iter()
                     .enumerate()
-                    .map(|(i, e)| Self::new(id.with(i), inner, e, None).1)
+                    .map(|(i, e)| Self::new(unique_id!(id, i), inner, e, None).1)
                     .collect(),
             },
         };

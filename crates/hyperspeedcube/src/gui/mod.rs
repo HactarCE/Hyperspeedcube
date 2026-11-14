@@ -9,7 +9,9 @@ use markdown::md;
 /// location and any provided arguments.
 ///
 /// Prefer this macro over calling [`egui::Id::with()`] on a constant `&str` to
-/// avoid hashing a string at runtime.
+/// avoid hashing a string at runtime. Even when not using a constant `&str`,
+/// [`egui::Id::with()`] runs the risk of overlapping due to different types
+/// hashing similarly.
 macro_rules! unique_id {
     ($($args:tt)*) => {
         egui::Id::new((
@@ -43,12 +45,12 @@ mod temp_value;
 use parking_lot::Mutex;
 pub use tabs::{PuzzleWidget, Query, Tab, about_text};
 pub use temp_value::{EguiOptionValue, EguiValue};
-use util::EguiTempFlag;
 
 use crate::L;
 pub use crate::app::App;
 use crate::gui::modals::SolveSummaryModal;
 use crate::gui::tabs::UtilityTab;
+use crate::gui::temp_value::EguiFlag;
 
 pub struct AppUi {
     pub app: App,
@@ -139,14 +141,9 @@ impl AppUi {
         if !self.app.prefs.eula {
             egui::Modal::new(unique_id!()).show(ui, |ui| {
                 md(ui, L.eula);
-                let flag = EguiTempFlag::new(ui);
-                let mut flag_value = flag.get();
-                ui.checkbox(&mut flag_value, L.eula_checkbox);
-                match flag_value {
-                    true => flag.set(),
-                    false => flag.reset(),
-                };
-                ui.add_enabled_ui(flag_value, |ui| {
+                let mut eula_approved = EguiFlag::load(ui, unique_id!());
+                ui.checkbox(&mut eula_approved, L.eula_checkbox);
+                ui.add_enabled_ui(*eula_approved, |ui| {
                     if ui.button("Ok").clicked() {
                         self.app.prefs.eula = true;
                     }

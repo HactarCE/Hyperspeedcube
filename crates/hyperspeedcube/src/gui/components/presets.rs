@@ -466,7 +466,7 @@ where
         });
         ui.add_space(ui.spacing().item_spacing.y);
         egui::ScrollArea::both()
-            .id_salt(self.id.with(yaml.is_open(ui)))
+            .id_salt((self.id, yaml.is_open(ui)))
             .auto_shrink([false, true])
             .show(ui, |ui| match yaml.is_open(ui) {
                 true => {

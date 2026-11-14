@@ -17,7 +17,7 @@ struct LogViewState {
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     let logger = &hyperpuzzle::catalog().logger;
 
-    let mut state = EguiValue::load_or(ui, unique_id!(), || LogViewState {
+    let mut state = EguiValue::load_or_else(ui, unique_id!(), || LogViewState {
         last_logger: logger.clone(),
         open_indices: HashSet::new(),
     });

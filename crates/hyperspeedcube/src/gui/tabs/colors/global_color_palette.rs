@@ -8,12 +8,12 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::L;
 use crate::app::App;
+use crate::gui::EguiValue;
 use crate::gui::components::{
     HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
     TextValidationResult,
 };
 use crate::gui::ext::{DndReorderExt, ResponseExt};
-use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, id: egui::Id, app: &mut App) {
     let yaml = PlaintextYamlEditor::new(ui, id);
@@ -33,7 +33,7 @@ pub fn show(ui: &mut egui::Ui, id: egui::Id, app: &mut App) {
 
         egui::ScrollArea::both()
             .auto_shrink(false)
-            .id_salt(ui.id().with(yaml.is_open(ui)))
+            .id_salt(unique_id!(id, yaml.is_open(ui)))
             .show(ui, |ui| {
                 match yaml.is_open(ui) {
                     true => {
@@ -104,7 +104,7 @@ fn show_contents(ui: &mut egui::Ui, app: &mut App) {
 fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let (prefs, ui) = prefs_ui.split();
 
-    let mut dnd = Dnd::new(ui, ui.make_persistent_id("custom_colors_dnd"));
+    let mut dnd = Dnd::new(ui, unique_id!());
     let mut to_rename = None;
     let mut to_delete = None;
 
@@ -235,18 +235,14 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
         }
     }
 
-    let sort_method = EguiTempValue::new(ui);
-    let mut sort = sort_method.get().unwrap_or_default();
+    let mut sort_method = EguiValue::load_or_default(ui, unique_id!());
     ui.horizontal(|ui| {
         for s in ColorSetsSortMethod::iter() {
-            if ui.selectable_label(sort == s, s.label()).clicked() {
-                sort = s;
-            }
+            ui.selectable_value(&mut *sort_method, s, s.label());
         }
     });
-    sort_method.set(Some(sort));
 
-    if sort == ColorSetsSortMethod::ByCount {
+    if *sort_method == ColorSetsSortMethod::ByCount {
         default_sets.sort_by_cached_key(|(_, v)| v.len()); // stable sort
     }
 

@@ -4,7 +4,7 @@ use eyre::{OptionExt, Result};
 
 use crate::L;
 use crate::app::App;
-use crate::gui::util::EguiTempValue;
+use crate::gui::{EguiOptionValue, EguiValue};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::both()
@@ -19,7 +19,7 @@ fn show_inner(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    let status = EguiTempValue::new(ui);
+    let mut status = EguiOptionValue::load(ui, unique_id!());
     let can_save_screenshot = has_active_puzzle
         && app.prefs.image_generator.dir.is_some()
         && !app.prefs.image_generator.filename.is_empty();
@@ -44,8 +44,8 @@ fn show_inner(ui: &mut egui::Ui, app: &mut App) {
             && let Some(dir) = &app.prefs.image_generator.dir
         {
             let file_path = dir.join(&app.prefs.image_generator.filename);
-            status.set(Some(
-                if file_path.is_file() && !matches!(status.get(), Some(Status::Exists)) {
+            *status = Some(
+                if file_path.is_file() && !matches!(*status, Some(Status::Exists)) {
                     Status::Exists
                 } else {
                     match save_screenshot(app, &file_path) {
@@ -53,10 +53,10 @@ fn show_inner(ui: &mut egui::Ui, app: &mut App) {
                         Err(e) => Status::Error(e.to_string()),
                     }
                 },
-            ));
+            );
         }
 
-        match status.get() {
+        match &*status {
             None | Some(Status::None) => ui.label(""),
             Some(Status::Exists) => {
                 ui.colored_label(ui.visuals().warn_fg_color, l.already_exists_confirm)

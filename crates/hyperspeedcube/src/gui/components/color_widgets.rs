@@ -10,7 +10,8 @@ use strum::IntoEnumIterator;
 use super::{TextEditPopup, TextEditPopupResponse};
 use crate::L;
 use crate::gui::markdown::md;
-use crate::gui::util::{EguiTempFlag, autosize_font};
+use crate::gui::temp_value::EguiFlag;
+use crate::gui::util::autosize_font;
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;
@@ -43,6 +44,7 @@ pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String
 #[derive(Debug)]
 pub struct ColorsUi<'a> {
     ctx: egui::Context,
+    id: egui::Id,
     palette_color_to_puzzle_color: HashMap<PaletteColor, Str>,
     gradient_totals: HashMap<PaletteGradient, usize>,
     palette: &'a GlobalColorPalette,
@@ -55,9 +57,10 @@ pub struct ColorsUi<'a> {
     clicked_color: Option<PaletteColor>,
 }
 impl<'a> ColorsUi<'a> {
-    pub fn new(ctx: &egui::Context, palette: &'a GlobalColorPalette) -> Self {
+    pub fn new(ctx: &egui::Context, id: egui::Id, palette: &'a GlobalColorPalette) -> Self {
         Self {
             ctx: ctx.clone(),
+            id,
             palette_color_to_puzzle_color: HashMap::new(),
             gradient_totals: HashMap::new(),
             palette,
@@ -77,7 +80,7 @@ impl<'a> ColorsUi<'a> {
     }
     pub fn drag_puzzle_colors(mut self, ui: &mut egui::Ui, drag_puzzle_colors: bool) -> Self {
         if drag_puzzle_colors {
-            self.dnd = Some(Dnd::new(ui, ui.make_persistent_id("drag_puzzle_colors")));
+            self.dnd = Some(Dnd::new(ui, unique_id!(self.id)));
             self.show_puzzle_colors(true)
         } else {
             self.dnd = None;
@@ -409,6 +412,7 @@ impl<'a> ColorsUi<'a> {
             }
 
             let r = ColorButton {
+                id: unique_id!(self.id, gradient),
                 size,
                 tooltip_pos,
 
@@ -453,6 +457,7 @@ impl<'a> ColorsUi<'a> {
         };
 
         ColorButton {
+            id: unique_id!(self.id, palette_color),
             size,
             tooltip_pos,
 
@@ -465,6 +470,7 @@ impl<'a> ColorsUi<'a> {
 }
 
 struct ColorButton {
+    pub id: egui::Id,
     pub size: egui::Vec2,
     pub tooltip_pos: egui::Pos2,
 
@@ -518,6 +524,8 @@ impl ColorButton {
                 if let Some(dnd) = &mut colors_ui.dnd {
                     dnd.draggable(ui, puzzle_color.clone(), put_puzzle_color_label);
                 } else {
+                    // `Id::NULL` is ok because the ID is only used for
+                    // drag-and-drop
                     put_puzzle_color_label(ui, egui::Id::NULL);
                 }
             });
@@ -527,8 +535,6 @@ impl ColorButton {
         if !colors_ui.is_dragging()
             && (r.hovered() || r.has_focus() || r.is_pointer_button_down_on())
         {
-            let id = ui.auto_id_with("hyperspeedcube::color_tooltip");
-
             let mut color_square_size = egui::Vec2::splat(ui.spacing().interact_size.x);
             if self.color.is_gradient() {
                 color_square_size.x *= GRADIENT_WIDTH_MULTIPLIER;
@@ -536,7 +542,7 @@ impl ColorButton {
 
             let left_bottom =
                 self.tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left as f32, -5.0);
-            egui::Area::new(id)
+            egui::Area::new(unique_id!(self.id))
                 .interactable(false)
                 .fixed_pos(left_bottom)
                 .constrain(true)
@@ -771,12 +777,12 @@ pub fn color_edit(
     }
 
     // Left-click to edit
-    let reopen = EguiTempFlag::new(ui);
-    let mut hex_edit_popup = TextEditPopup::new(ui, id);
+    let mut reopen = EguiFlag::load(ui, unique_id!(id));
+    let mut hex_edit_popup = TextEditPopup::new(ui, unique_id!(id));
     if !shift && r.clicked() {
         hex_edit_popup.open(color.to_string());
     }
-    if reopen.reset() {
+    if std::mem::take(&mut *reopen) {
         hex_edit_popup.keep_open(color.to_string());
     }
     let popup_response: Option<TextEditPopupResponse> = hex_edit_popup.if_open(|popup| {
@@ -796,13 +802,13 @@ pub fn color_edit(
                 ui.spacing_mut().slider_width = 220.0;
                 if egui::color_picker::color_picker_color32(ui, &mut egui_color, alpha) {
                     *color = egui_color.into();
-                    reopen.set();
+                    *reopen = true;
                     changed = true;
                 }
                 None
             })
     });
-    if let Some(r) = popup_response.filter(|_| !reopen.get())
+    if let Some(r) = popup_response.filter(|_| !*reopen)
         && let TextEditPopupResponse::Confirm(new_hex_string) = r
         && let Ok(new_color) = new_hex_string.parse()
     {
@@ -823,17 +829,18 @@ fn set_tight_spacing(ui: &mut egui::Ui) {
 
 pub fn color_assignment_popup(
     ui: &mut egui::Ui,
+    id: egui::Id,
     puzzle_view: &mut PuzzleView,
     color_palette: &GlobalColorPalette,
     editing_color: Option<hyperpuzzle::Color>,
 ) {
     let puzzle = puzzle_view.puzzle();
 
-    let Some(id) = editing_color.filter(|id| (id.0 as usize) < puzzle.colors.len()) else {
+    let Some(c) = editing_color.filter(|c| (c.0 as usize) < puzzle.colors.len()) else {
         ui.colored_label(ui.visuals().error_fg_color, "error: no such color");
         return;
     };
-    let color_name = &puzzle.colors.names[id];
+    let color_name = &puzzle.colors.names[c];
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     egui::Sides::new().show(
@@ -857,7 +864,7 @@ pub fn color_assignment_popup(
     let (changed, temp_colors) = egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| {
-            crate::gui::components::ColorsUi::new(ui, color_palette)
+            crate::gui::components::ColorsUi::new(ui, id, color_palette)
                 .clickable(true)
                 .drag_puzzle_colors(ui, true)
                 .show_compact_palette(

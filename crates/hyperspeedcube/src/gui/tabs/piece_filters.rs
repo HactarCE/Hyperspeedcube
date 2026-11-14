@@ -13,6 +13,7 @@ use itertools::Itertools;
 
 use crate::L;
 use crate::app::App;
+use crate::gui::EguiValue;
 use crate::gui::components::{
     FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget, IconButton,
     PRESET_NAME_TEXT_EDIT_WIDTH, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
@@ -20,7 +21,7 @@ use crate::gui::components::{
 };
 use crate::gui::ext::DndReorderExt;
 use crate::gui::markdown::{md, md_inline};
-use crate::gui::util::{EguiTempValue, text_width};
+use crate::gui::util::text_width;
 
 const PRESET_LIST_MIN_WIDTH: f32 = 250.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;
@@ -37,27 +38,25 @@ enum FiltersTab {
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let l = &L.piece_filters.tabs;
 
-    let tab_state = EguiTempValue::<FiltersTab>::new(ui);
-    let mut tab = tab_state.get().unwrap_or_default();
+    let mut tab = EguiValue::load_or_default(ui, unique_id!());
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         egui::ScrollArea::horizontal()
             .id_salt("filters_tab_select")
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
-                    ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
-                    ui.selectable_value(&mut tab, FiltersTab::EditPresets, l.edit_presets);
+                    ui.selectable_value(&mut *tab, FiltersTab::AdHoc, l.ad_hoc);
+                    ui.selectable_value(&mut *tab, FiltersTab::PresetsList, l.presets_list);
+                    ui.selectable_value(&mut *tab, FiltersTab::EditPresets, l.edit_presets);
                     HelpHoverWidget::show_right_aligned(ui, L.help.piece_filters);
                 });
             });
     });
-    tab_state.set(Some(tab));
 
     ui.group(|ui| {
         egui::ScrollArea::both()
             .auto_shrink(false)
-            .show(ui, |ui| match tab {
+            .show(ui, |ui| match *tab {
                 FiltersTab::AdHoc => {
                     app.active_puzzle.with_view(|view| view.filters.base = None);
                     show_current_filter_preset_ui(ui, app, false);
@@ -229,7 +228,9 @@ fn show_filter_presets_list_ui_contents(
 
     // Track whether each `CollapsingHeader`s should be kept open. By default,
     // open them.
-    let saved_collapsing_states = EguiTempValue::<Vec<(PresetRef, ForcedCollapsingState)>>::new(ui);
+    let id = unique_id!(puzzle_type.map(|p| p.id()));
+    let mut saved_collapsing_states =
+        EguiValue::<Vec<(PresetRef, ForcedCollapsingState)>>::load_or_default(ui, id);
     let mut collapsing_states: HashMap<String, ForcedCollapsingState> = filter_prefs
         .sequences
         .user_presets()
@@ -241,8 +242,8 @@ fn show_filter_presets_list_ui_contents(
             (p.name().clone(), default_state)
         })
         .collect();
-    for (k, v) in saved_collapsing_states.get().unwrap_or_default() {
-        collapsing_states.insert(k.name(), v);
+    for (k, v) in &*saved_collapsing_states {
+        collapsing_states.insert(k.name(), *v);
     }
 
     let is_any_dragging = seq_dnd.is_dragging();
@@ -370,16 +371,14 @@ fn show_filter_presets_list_ui_contents(
         });
     }
 
-    saved_collapsing_states.set(Some(
-        collapsing_states
-            .into_iter()
-            .map(|(k, v)| (filter_prefs.sequences.new_ref(&k), v))
-            .map(|(k, mut v)| {
-                v.set |= seq_to_rename.is_some();
-                (k, v)
-            })
-            .collect(),
-    ));
+    *saved_collapsing_states = collapsing_states
+        .into_iter()
+        .map(|(k, v)| (filter_prefs.sequences.new_ref(&k), v))
+        .map(|(k, mut v)| {
+            v.set |= seq_to_rename.is_some();
+            (k, v)
+        })
+        .collect();
 
     if ui.button(l.actions.add).clicked() {
         let seq_name = make_unique_filter_sequence_name(&filter_prefs.sequences);
@@ -668,7 +667,7 @@ fn show_current_filter_preset_ui_contents(
         .show(ui, |ui| {
             let current = &mut view.filters.current;
 
-            let mut dnd = Dnd::new(ui, ui.make_persistent_id("rule_dnd"));
+            let mut dnd = Dnd::new(ui, unique_id!());
             let is_any_dragging = dnd.is_dragging();
 
             let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
@@ -972,7 +971,7 @@ fn show_piece_type_hierarchy(
 ) {
     egui::collapsing_header::CollapsingState::load_with_default_open(
         ui,
-        id.with(hierarchy as *const _),
+        unique_id!(id, hierarchy as *const _),
         is_root,
     )
     .show_header(ui, |ui| {

@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 /// It is safe to use this ID for widgets that store ephemeral state that does
 /// not need to survive layout changes (e.g., drag interactions), but not
 /// longer-lived state (e.g., text edit contents).
+#[expect(clippy::disallowed_methods)]
 pub fn consume_auto_id(ui: &mut egui::Ui) -> egui::Id {
     let id = ui.next_auto_id();
     ui.skip_ahead_auto_ids(1);
@@ -148,70 +149,6 @@ pub fn wrap_if_needed_for_color_button(ui: &mut egui::Ui) {
     }
 }
 
-/// Boolean flag stored in egui temporary memory.
-#[derive(Debug, Clone)]
-pub struct EguiTempFlag(EguiTempValue<()>);
-impl EguiTempFlag {
-    /// Returns a temporary value based on the current position in the UI.
-    pub fn new(ui: &mut egui::Ui) -> Self {
-        Self(EguiTempValue::new(ui))
-    }
-    /// Returns the current value of the flag.
-    pub fn get(&self) -> bool {
-        self.0.get().is_some()
-    }
-    /// Sets the flag to `true`, returning the old value.
-    pub fn set(&self) -> bool {
-        self.0.set(Some(())).is_some()
-    }
-    /// Resets the flag to `false`, returning the old value.
-    pub fn reset(&self) -> bool {
-        self.0.set(None).is_some()
-    }
-}
-
-/// Arbitrary value stored in egui temporary memory.
-#[derive(Debug, Clone)]
-pub struct EguiTempValue<T> {
-    pub ctx: egui::Context,
-    pub id: egui::Id,
-    _marker: PhantomData<T>,
-}
-impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
-    /// Returns a temporary value based on the current position in the UI.
-    pub fn new(ui: &mut egui::Ui) -> Self {
-        let id = ui.make_persistent_id(ui.next_auto_id());
-        ui.skip_ahead_auto_ids(1);
-        Self::from_ctx_and_id(ui, id)
-    }
-    /// Returns a temporary value based on `id_source`.
-    pub fn from_ctx_and_id(ctx: &egui::Context, id_source: impl Hash) -> Self {
-        Self {
-            ctx: ctx.clone(),
-            id: egui::Id::new(id_source),
-            _marker: PhantomData,
-        }
-    }
-    /// Returns the currently stored value.
-    pub fn get(&self) -> Option<T> {
-        self.ctx.data(|data| data.get_temp::<T>(self.id))
-    }
-    /// Sets the value, returning the old value.
-    pub fn set(&self, value: Option<T>) -> Option<T> {
-        self.ctx.data_mut(|data| {
-            let old_value = data.remove_temp::<T>(self.id);
-            if let Some(v) = value {
-                data.insert_temp::<T>(self.id, v);
-            }
-            old_value
-        })
-    }
-    /// Deletes the value, returning the old value.
-    pub fn take(&self) -> Option<T> {
-        self.set(None)
-    }
-}
-
 /// Focuses a text edit and selects all its contents. Returns the ordinary
 /// widget response.
 pub fn focus_and_select_all(
@@ -317,7 +254,7 @@ pub fn hyperlink_to(
 ///
 /// This is stolen shamelessly from `egui::containers::window`.
 pub fn close_button(ui: &mut egui::Ui, rect: egui::Rect) -> egui::Response {
-    let close_id = ui.auto_id_with("window_close_button");
+    let close_id = consume_auto_id(ui); // only used for clicks; ok to depend on layout
     let response = ui.interact(rect, close_id, egui::Sense::click());
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Close window")

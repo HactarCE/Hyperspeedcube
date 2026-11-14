@@ -1,10 +1,12 @@
 check-grouped-late-init = false
 disallowed-methods = [
-    # these methods are error prone and usually don't do what you want.
-    # explicitly allow when you are *sure* it is correct
+    # These methods are error prone and usually don't do what you want.
+    # Explicitly allow them only when you are 100% sure it is correct.
+    "egui::Ui::id",
     "egui::Ui::make_persistent_id",
     "egui::Ui::next_auto_id",
     "egui::Ui::auto_id_with",
     "egui::Ui::skip_ahead_auto_ids",
+    "egui::Id::with",                # prefer `unique_id!()`
 ]
 semicolon-inside-block-ignore-singleline = true

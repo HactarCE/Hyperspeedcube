@@ -26,7 +26,7 @@ use crate::L;
 use crate::gui::components::{IconButton, color_assignment_popup};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
-use crate::gui::util::{EguiTempValue, MDI_STYLE_ICON_ROTATE_SQUARE};
+use crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE;
 use crate::gui::{App, EguiOptionValue, EguiValue};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
@@ -1032,7 +1032,7 @@ fn show_color_edit_popup(
 ) {
     let puzzle = view.puzzle();
 
-    let id = unique_id!(color_to_edit);
+    let id = unique_id!(view.sim.lock().sim_id);
     let mut editing_color = EguiOptionValue::load(ui, id);
     let mut is_first_frame = false;
 
@@ -1051,7 +1051,7 @@ fn show_color_edit_popup(
     .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
     .open_memory(color_to_edit.is_some().then(|| true.into()))
     .show(|ui| {
-        color_assignment_popup(ui, view, &prefs.color_palette, *editing_color);
+        color_assignment_popup(ui, id, view, &prefs.color_palette, *editing_color);
     });
 
     if let Some(popup_inner_response) = opt_popup_response {

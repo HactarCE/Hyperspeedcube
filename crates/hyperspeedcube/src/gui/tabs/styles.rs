@@ -3,8 +3,8 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::L;
 use crate::app::App;
+use crate::gui::EguiValue;
 use crate::gui::markdown::{md, md_bold_user_text};
-use crate::gui::util::EguiTempValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::both()
@@ -167,15 +167,13 @@ fn show_builtin_style_selector<'a>(
         }
     }
 
-    let selected_style_tmp_val = EguiTempValue::new(ui);
-    let mut selected_style = selected_style_tmp_val.get().unwrap_or_default();
+    let mut selected_style = EguiValue::load_or_default(ui, unique_id!());
     ui.horizontal_wrapped(|ui| {
         for style in BuiltInStyle::iter() {
-            ui.selectable_value(&mut selected_style, style, style.name());
+            ui.selectable_value(&mut *selected_style, style, style.name());
         }
     });
-    selected_style_tmp_val.set(Some(selected_style));
-    let current = match selected_style {
+    let current = match *selected_style {
         BuiltInStyle::Basic => &mut style_prefs.basic,
         BuiltInStyle::Gripped => &mut style_prefs.gripped,
         BuiltInStyle::Ungripped => &mut style_prefs.ungripped,
@@ -183,7 +181,7 @@ fn show_builtin_style_selector<'a>(
         BuiltInStyle::Selected => &mut style_prefs.selected_piece,
         BuiltInStyle::Blindfolded => &mut style_prefs.blind,
     };
-    let default = match selected_style {
+    let default = match *selected_style {
         BuiltInStyle::Basic => &DEFAULT_PREFS.styles.basic,
         BuiltInStyle::Gripped => &DEFAULT_PREFS.styles.gripped,
         BuiltInStyle::Ungripped => &DEFAULT_PREFS.styles.ungripped,
@@ -191,16 +189,15 @@ fn show_builtin_style_selector<'a>(
         BuiltInStyle::Selected => &DEFAULT_PREFS.styles.selected_piece,
         BuiltInStyle::Blindfolded => &DEFAULT_PREFS.styles.blind,
     };
-    let mut piece_style_edit = PieceStyleEdit::new(current, unique_id!()).reset_value(default);
-    match selected_style {
+    let mut piece_style_edit = PieceStyleEdit::new(current, unique_id!())
+        .reset_value(default)
+        .default_outline_lighting(default_outline_lighting);
+    match *selected_style {
         BuiltInStyle::Basic => piece_style_edit = piece_style_edit.no_fallthrough(),
         BuiltInStyle::Blindfolded => piece_style_edit = piece_style_edit.blind(),
         _ => (),
     }
-    (
-        selected_style.name(),
-        piece_style_edit.default_outline_lighting(default_outline_lighting),
-    )
+    (selected_style.name(), piece_style_edit)
 }
 
 pub struct PieceStyleEdit<'a> {

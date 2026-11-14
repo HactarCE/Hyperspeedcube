@@ -10,9 +10,10 @@ use itertools::Itertools;
 
 use crate::L;
 use crate::app::App;
+use crate::gui::EguiValue;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::markdown::{md, md_bold_user_text};
-use crate::gui::util::{EguiTempFlag, EguiTempValue};
+use crate::gui::temp_value::EguiFlag;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum DevToolsTab {
@@ -35,9 +36,7 @@ struct DevToolsState {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let egui_stored_state = EguiTempValue::<DevToolsState>::new(ui);
-
-    let mut state = egui_stored_state.get().unwrap_or_default();
+    let mut state = EguiValue::<DevToolsState>::load_or_default(ui, unique_id!());
 
     ui.group(|ui| {
         egui::ScrollArea::horizontal()
@@ -76,8 +75,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             };
         })
     });
-
-    egui_stored_state.set(Some(state));
 }
 
 fn show_hover_info(ui: &mut egui::Ui, view: &PuzzleView) {
@@ -223,19 +220,19 @@ fn show_hps_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
-                .show(ui, |ui| show_orbit_list(ui, app, state));
+                .show(ui, |ui| show_orbit_list(ui, unique_id!(), app, state));
         },
     );
 }
 
-fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+fn show_orbit_list(ui: &mut egui::Ui, id: egui::Id, app: &mut App, state: &mut DevToolsState) {
     let Some(puz) = state.puzzle.as_ref().map(Arc::clone) else {
         return;
     };
 
-    let mut dnd = Dnd::new(ui, ui.make_persistent_id("orbit_list_dnd"));
+    let mut dnd = Dnd::new(ui, id);
     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
-        dnd.reorderable_with_handle(ui, i, |ui, _| {
+        dnd.reorderable_with_handle(ui, i, |ui, idx| {
             let Some(loaded_orbit) = &state.loaded_orbit else {
                 return;
             };
@@ -256,7 +253,8 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
                 }
                 AnyOrbit::Colors(orbit) => {
                     if let Some(color) = orbit.elements[*index] {
-                        show_orbit_color(app, &puz, ui, text_edit, color);
+                        // `id` is ok here because only one popup is open at a time
+                        show_orbit_color(app, &puz, ui, id, text_edit, color);
                     }
                 }
             }
@@ -271,13 +269,14 @@ fn show_orbit_color(
     app: &mut App,
     puz: &Arc<Puzzle>,
     ui: &mut egui::Ui,
+    id: egui::Id,
     text_edit: egui::TextEdit<'_>,
     color: Color,
 ) {
     ui.horizontal(|ui| {
         app.active_puzzle.with_view(|view| {
             if Arc::ptr_eq(&view.puzzle(), puz) {
-                puzzle_color_edit_button(ui, view, &app.prefs, color);
+                puzzle_color_edit_button(ui, id, view, &app.prefs, color);
             }
         });
         let r = ui.add(text_edit);
@@ -309,6 +308,7 @@ fn show_orbit_color(
 
 fn puzzle_color_edit_button(
     ui: &mut egui::Ui,
+    id: egui::Id,
     puzzle_view: &mut PuzzleView,
     prefs: &Preferences,
     color: Color,
@@ -322,7 +322,7 @@ fn puzzle_color_edit_button(
         rgb,
         ui.spacing().interact_size,
         egui::Sense::click(),
-        |ui| color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color)),
+        |ui| color_assignment_popup(ui, id, puzzle_view, &prefs.color_palette, Some(color)),
     );
 }
 
@@ -440,8 +440,7 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
         }
     });
 
-    let show_experimental_saved = EguiTempFlag::new(ui);
-    let mut show_experimental = show_experimental_saved.get();
+    let mut show_experimental = EguiFlag::load(ui, unique_id!());
 
     let mut override_state = None;
     ui.horizontal(|ui| {
@@ -451,21 +450,13 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
         if ui.button("Expand all").clicked() {
             override_state = Some(true);
         }
-        if ui
-            .checkbox(&mut show_experimental, "Show experimental")
-            .changed()
-        {
-            match show_experimental {
-                true => show_experimental_saved.set(),
-                false => show_experimental_saved.reset(),
-            };
-        }
+        ui.checkbox(&mut show_experimental, "Show experimental");
     });
 
     ui.separator();
 
     for lint in &state.lint_results {
-        if !show_experimental && lint.meta.tags.is_experimental() {
+        if !*show_experimental && lint.meta.tags.is_experimental() {
             continue;
         }
 
