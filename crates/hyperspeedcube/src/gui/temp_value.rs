@@ -1,6 +1,18 @@
+//! Temporary values stored in egui data.
+//!
+//! These values are persisted frame-to-frame, but not across restarts.
+
 use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
+/// Value stored in egui memory.
+///
+/// This struct dereferences to `T` via [`Deref`], so it can be used similarly
+/// to smart pointers like `Rc` and `Arc`.
+///
+/// The value is persisted frame-to-frame, but not across restarts. It is
+/// automatically stored in `egui.data()` when dropped. **Do not drop this while
+/// the egui context is locked (such as in a `ui.data()` closure).**
 #[derive(Debug)]
 pub struct EguiValue<T: 'static + Any + Clone + Send + Sync> {
     ctx: egui::Context,
@@ -9,6 +21,8 @@ pub struct EguiValue<T: 'static + Any + Clone + Send + Sync> {
 }
 
 impl<T: 'static + Any + Clone + Send + Sync> EguiValue<T> {
+    /// Loads the value from egui memory, using `Default::default()` if it is
+    /// missing.
     pub fn load_or_default(ctx: &egui::Context, id: egui::Id) -> Self
     where
         T: Default,
@@ -16,6 +30,7 @@ impl<T: 'static + Any + Clone + Send + Sync> EguiValue<T> {
         Self::load_or(ctx, id, Default::default)
     }
 
+    /// Loads the value or computes it from a closure if it is missing.
     pub fn load_or(ctx: &egui::Context, id: egui::Id, default: impl FnOnce() -> T) -> Self {
         Self {
             ctx: ctx.clone(),
@@ -24,6 +39,8 @@ impl<T: 'static + Any + Clone + Send + Sync> EguiValue<T> {
         }
     }
 
+    /// Loads the value, or computes it from a fallible closure if it is
+    /// missing.
     pub fn load_or_try<E>(
         ctx: &egui::Context,
         id: egui::Id,
@@ -39,10 +56,13 @@ impl<T: 'static + Any + Clone + Send + Sync> EguiValue<T> {
         })
     }
 
+    /// Removes the value from egui data.
     pub fn remove(mut this: Self) {
         this.value.take();
+        drop(this); // update egui data
     }
 
+    /// Returns the stored value from egui data.
     fn get(ctx: &egui::Context, id: egui::Id) -> Option<T> {
         ctx.data_mut(|d| d.get_temp::<Option<T>>(id)).flatten()
     }
@@ -71,6 +91,14 @@ impl<T: 'static + Any + Clone + Send + Sync> Drop for EguiValue<T> {
     }
 }
 
+/// Optional value stored in egui memory.
+///
+/// This struct dereferences to `Option<T>` via [`Deref`], so it can be used
+/// similarly to smart pointers like `Rc` and `Arc`.
+///
+/// The value is persisted frame-to-frame, but not across restarts. It is
+/// automatically stored in `egui.data()` when dropped. **Do not drop this while
+/// the egui context is locked (such as in a `ui.data()` closure).**
 #[derive(Debug)]
 pub struct EguiOptionValue<T: 'static + Any + Clone + Send + Sync> {
     ctx: egui::Context,
@@ -79,6 +107,7 @@ pub struct EguiOptionValue<T: 'static + Any + Clone + Send + Sync> {
 }
 
 impl<T: 'static + Any + Clone + Send + Sync> EguiOptionValue<T> {
+    /// Loads the value from egui memory.
     pub fn load(ctx: &egui::Context, id: egui::Id) -> Self {
         Self {
             ctx: ctx.clone(),
@@ -113,6 +142,15 @@ impl<T: 'static + Any + Clone + Send + Sync> Drop for EguiOptionValue<T> {
     }
 }
 
+/// Boolean flag stored in egui memory, which defaults to `false`. Similar to
+/// [`EguiValue`].
+///
+/// This struct dereferences to `bool` via [`Deref`], so it can be used
+/// similarly to smart pointers like `Rc` and `Arc`.
+///
+/// The value is persisted frame-to-frame, but not across restarts. It is
+/// automatically stored in `egui.memory()` when dropped. **Do not drop this
+/// while the egui context is locked (such as in a `ui.memory()` closure).**
 #[derive(Debug)]
 pub struct EguiFlag {
     ctx: egui::Context,
@@ -121,6 +159,7 @@ pub struct EguiFlag {
 }
 
 impl EguiFlag {
+    /// Loads the flag from egui memory.
     pub fn load(ctx: &egui::Context, id: egui::Id) -> Self {
         Self {
             ctx: ctx.clone(),

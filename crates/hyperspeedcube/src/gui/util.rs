@@ -2,6 +2,17 @@ use std::any::Any;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
+/// Returns a globally-unique but layout-unstable ID.
+///
+/// It is safe to use this ID for widgets that store ephemeral state that does
+/// not need to survive layout changes (e.g., drag interactions), but not
+/// longer-lived state (e.g., text edit contents).
+pub fn consume_auto_id(ui: &mut egui::Ui) -> egui::Id {
+    let id = ui.next_auto_id();
+    ui.skip_ahead_auto_ids(1);
+    id
+}
+
 pub struct Access<T, U> {
     pub get_ref: Box<dyn Fn(&T) -> &U>,
     pub get_mut: Box<dyn Fn(&mut T) -> &mut U>,
@@ -169,7 +180,7 @@ pub struct EguiTempValue<T> {
 impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
     /// Returns a temporary value based on the current position in the UI.
     pub fn new(ui: &mut egui::Ui) -> Self {
-        let id = ui.next_auto_id();
+        let id = ui.make_persistent_id(ui.next_auto_id());
         ui.skip_ahead_auto_ids(1);
         Self::from_ctx_and_id(ui, id)
     }

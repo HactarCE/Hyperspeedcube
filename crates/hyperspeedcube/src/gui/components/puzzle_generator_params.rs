@@ -9,6 +9,7 @@ pub const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
 
 #[derive(Debug, Clone)]
 pub struct PuzzleGeneratorUi {
+    pub id: egui::Id,
     pub generator_id: CatalogWord,
     pub param_uis: Vec<(Option<String>, GeneratorParamUi)>,
 }
@@ -31,13 +32,20 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
             self.param_uis = g
                 .params
                 .iter()
-                .map(|p| GeneratorParamUi::new(&p.ty, p.default.clone(), Some(p.name.clone())))
+                .enumerate()
+                .map(|(i, p)| {
+                    GeneratorParamUi::new(
+                        self.id.with(i),
+                        &p.ty,
+                        p.default.clone(),
+                        Some(p.name.clone()),
+                    )
+                })
                 .collect();
         }
 
         ui.scope(|ui| {
             ui.spacing_mut().slider_width = GENERATOR_SLIDER_WIDTH;
-            let egui_id = egui::Id::new(&self.generator_id);
             for (i, (label, param_ui)) in self.param_uis.iter_mut().enumerate() {
                 ui.push_id(i, |ui| {
                     if let Some(l) = label {
@@ -53,15 +61,17 @@ impl egui::Widget for &mut PuzzleGeneratorUi {
 }
 
 impl PuzzleGeneratorUi {
-    pub fn new(generator_id: CatalogWord) -> Self {
+    pub fn new(id: egui::Id, generator_id: CatalogWord) -> Self {
         Self {
+            id,
             generator_id,
             param_uis: vec![],
         }
     }
 
-    pub fn from_generated_id(puzzle_id: CatalogId) -> Self {
+    pub fn from_generated_id(id: egui::Id, puzzle_id: CatalogId) -> Self {
         Self {
+            id,
             generator_id: puzzle_id.base.word,
             param_uis: vec![], // TODO: fill in defaults
         }
@@ -94,6 +104,7 @@ pub enum GeneratorParamUi {
         menu_ui: PuzzleCatalogMenuUi,
     },
     List {
+        id: egui::Id,
         ty: GeneratorParamType,
         elements: Vec<GeneratorParamUi>,
     },
@@ -101,6 +112,7 @@ pub enum GeneratorParamUi {
 
 impl GeneratorParamUi {
     pub fn new(
+        id: egui::Id,
         ty: &GeneratorParamType,
         default: CatalogIdValue,
         mut label: Option<String>,
@@ -116,17 +128,18 @@ impl GeneratorParamUi {
                 current: default.to_int().unwrap_or(min),
             },
             GeneratorParamType::Puzzle { menu } => Self::Puzzle {
-                menu_ui: PuzzleCatalogMenuUi::new(menu.clone(), default.into_id().ok()),
+                menu_ui: PuzzleCatalogMenuUi::new(id, menu.clone(), default.into_id().ok()),
             },
             GeneratorParamType::Id { ty } => todo!("ID parameter"),
             GeneratorParamType::List(inner) => Self::List {
+                id,
                 ty: (**inner).clone(),
                 elements: default
                     .into_list()
                     .unwrap_or(vec![])
                     .into_iter()
                     .enumerate()
-                    .map(|(i, e)| Self::new(inner, e, None).1)
+                    .map(|(i, e)| Self::new(id.with(i), inner, e, None).1)
                     .collect(),
             },
         };
@@ -161,7 +174,7 @@ impl egui::Widget for &mut GeneratorParamUi {
             GeneratorParamUi::Puzzle { menu_ui } => {
                 ui.add(menu_ui);
             }
-            GeneratorParamUi::List { ty, elements } => {
+            GeneratorParamUi::List { id, ty, elements } => {
                 let mut i = 0;
                 elements.retain_mut(|elem| {
                     let mut keep = true;
@@ -176,7 +189,7 @@ impl egui::Widget for &mut GeneratorParamUi {
                     keep
                 });
                 if ui.button("Add").clicked() {
-                    elements.push(GeneratorParamUi::new(ty, CatalogIdValue::Error, None).1);
+                    elements.push(GeneratorParamUi::new(*id, ty, CatalogIdValue::Error, None).1);
                 }
             }
         })

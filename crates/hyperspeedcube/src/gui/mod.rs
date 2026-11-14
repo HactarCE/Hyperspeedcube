@@ -5,10 +5,24 @@ use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{NodeIndex, NodePath, SurfaceIndex, TabIndex, TabPath};
 use markdown::md;
 
-// TODO: use `#[track_caller]` with `std::panic::Location`?
+/// Expands to a call to an [`egui::Id`] containing a hash of the call site
+/// location and any provided arguments.
+///
+/// Prefer this macro over calling [`egui::Id::with()`] on a constant `&str` to
+/// avoid hashing a string at runtime.
 macro_rules! unique_id {
     ($($args:tt)*) => {
-        egui::Id::new((file!(), line!(), column!(), $($args)*))
+        egui::Id::new((
+            // compile-time hash of crate name, file path, line number, and column number
+            const {
+                const_fnv1a_hash::fnv1a_hash_str_64(env!("CARGO_PKG_NAME"))
+                    ^ const_fnv1a_hash::fnv1a_hash_str_64(file!())
+                    ^ ((line!() as u64) << 32)
+                    ^ column!() as u64
+            },
+            // also hash any provided arguments
+            $($args)*
+        ))
     };
 }
 

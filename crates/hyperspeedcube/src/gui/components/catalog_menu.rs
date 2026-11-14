@@ -20,6 +20,7 @@ const BIG_BUTTON_HEIGHT: f32 = 32.0;
 
 #[derive(Debug, Clone)]
 pub struct PuzzleCatalogMenuUi {
+    id: egui::Id,
     menu_id: String,
     puzzle_id: String,
     menu_path: String,
@@ -29,8 +30,9 @@ pub struct PuzzleCatalogMenuUi {
 }
 
 impl PuzzleCatalogMenuUi {
-    pub fn new(menu_id: String, default_selected_puzzle: Option<CatalogId>) -> Self {
+    pub fn new(id: egui::Id, menu_id: String, default_selected_puzzle: Option<CatalogId>) -> Self {
         let mut ret = Self {
+            id,
             menu_id,
             puzzle_id: default_selected_puzzle
                 .map(|id| id.to_string())
@@ -95,6 +97,7 @@ impl egui::Widget for &mut PuzzleCatalogMenuUi {
                         while index <= selected_path.len() {
                             if show_menu_column(
                                 ui,
+                                self.id,
                                 menu,
                                 &mut selected_path,
                                 index,
@@ -110,11 +113,6 @@ impl egui::Widget for &mut PuzzleCatalogMenuUi {
                     });
                 });
             });
-
-        let collapsing_state_id = ui
-            .id()
-            .with(egui::Id::from("child"))
-            .with(egui::Id::new(id_salt));
 
         // Reserve some minimal amount of space for the textedit.
         ui.set_min_width(collapsing_response.header_response.rect.width() + 200.0);
@@ -133,7 +131,7 @@ impl egui::Widget for &mut PuzzleCatalogMenuUi {
             // `CollapsingHeader` provides no way to tell the state directly from
             // the response, so we have to do this instead.
             if let Some(mut collapsing_state) =
-                egui::collapsing_header::CollapsingState::load(ui, collapsing_state_id)
+                egui::collapsing_header::CollapsingState::load(ui, self.id)
             {
                 if text_edit_response.has_focus() && !ui.input(|i| i.pointer.any_down()) {
                     collapsing_state.set_open(false); // TODO: remove this. only set puzzle ID when something changed
@@ -153,6 +151,7 @@ impl egui::Widget for &mut PuzzleCatalogMenuUi {
 /// consumes all the remaining width.
 fn show_menu_column<'a>(
     ui: &mut egui::Ui,
+    id: egui::Id,
     menu: &'a Menu,
     selected_path: &mut MenuPath<'a>,
     index: usize,
@@ -186,7 +185,7 @@ fn show_menu_column<'a>(
             .id_salt(selected_path.truncate(index))
             .show(ui, |ui| {
                 for elem in ui_elements {
-                    elem.show(ui, menu, selected_path, puzzle_id, generator_ui);
+                    elem.show(ui, id, menu, selected_path, puzzle_id, generator_ui);
                 }
             });
     });
@@ -276,8 +275,8 @@ fn layout_menu_column<'a>(
                         let options = menu.children(partial_path).collect();
                         ui_elements.push(MenuUiElement::Inline { label, options });
                     }
-                    MenuContent::End { id } => {
-                        ui_elements.push(MenuUiElement::End { id });
+                    MenuContent::End { catalog_id } => {
+                        ui_elements.push(MenuUiElement::End { catalog_id });
                     }
                 }
                 index += 1;
@@ -298,7 +297,7 @@ enum MenuUiElement<'a> {
         options: Vec<MenuPath<'a>>,
     },
     End {
-        id: &'a CatalogId,
+        catalog_id: &'a CatalogId,
     },
     Error(&'a str),
 }
@@ -329,6 +328,7 @@ impl<'a> MenuUiElement<'a> {
     pub fn show(
         self,
         ui: &mut egui::Ui,
+        id: egui::Id,
         menu: &'a Menu,
         selected_path: &mut MenuPath<'a>,
         puzzle_id: &mut String,
@@ -351,21 +351,22 @@ impl<'a> MenuUiElement<'a> {
                 });
                 ui.separator();
             }
-            MenuUiElement::End { id } => {
-                if id.args().is_empty() {
+            MenuUiElement::End { catalog_id } => {
+                if catalog_id.args().is_empty() {
                     if let Some(g) = generator_ui
-                        && *g.generator_id != *id.base.word
+                        && *g.generator_id != *catalog_id.base.word
                     {
                         *generator_ui = None;
                     }
-                    let g = generator_ui
-                        .get_or_insert_with(|| PuzzleGeneratorUi::new(id.base.word.clone()));
+                    let g = generator_ui.get_or_insert_with(|| {
+                        PuzzleGeneratorUi::new(id.with(selected_path), catalog_id.base.word.clone())
+                    });
                     ui.add(&mut *g);
                     if let Some(new_puzzle_id) = g.generated_id() {
                         *puzzle_id = new_puzzle_id.to_string();
                     }
                 } else {
-                    *puzzle_id = id.to_string();
+                    *puzzle_id = catalog_id.to_string();
                 }
                 ui.vertical_centered_justified(|ui| {
                     let big_button_text = egui::RichText::new("Select puzzle");

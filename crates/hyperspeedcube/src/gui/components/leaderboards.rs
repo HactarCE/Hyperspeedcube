@@ -96,11 +96,11 @@ fn menu_button<'a>(
     label: impl egui::IntoAtoms<'a>,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) -> egui::Response {
+    let spinner_id = unique_id!();
     ui.push_id(id_salt, |ui| {
         let atoms = match spinner {
             true => {
-                let spinner_atom =
-                    egui::Atom::custom(egui::Id::new("spinner_atom"), MDI_SMALL_SIZE);
+                let spinner_atom = egui::Atom::custom(spinner_id, MDI_SMALL_SIZE);
                 (spinner_atom, label).into_atoms()
             }
             false => label.into_atoms(),

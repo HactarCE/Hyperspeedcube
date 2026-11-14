@@ -77,7 +77,7 @@ impl<'a> ColorsUi<'a> {
     }
     pub fn drag_puzzle_colors(mut self, ui: &mut egui::Ui, drag_puzzle_colors: bool) -> Self {
         if drag_puzzle_colors {
-            self.dnd = Some(Dnd::new(ui, ui.auto_id_with("drag_puzzle_colors")));
+            self.dnd = Some(Dnd::new(ui, ui.make_persistent_id("drag_puzzle_colors")));
             self.show_puzzle_colors(true)
         } else {
             self.dnd = None;
@@ -714,6 +714,7 @@ fn paint_colored_rect(
 
 pub fn color_edit(
     ui: &mut egui::Ui,
+    id: egui::Id,
     color: &mut hyperpuzzle::Rgb,
     on_delete: Option<impl FnOnce()>,
 ) -> egui::Response {
@@ -771,7 +772,7 @@ pub fn color_edit(
 
     // Left-click to edit
     let reopen = EguiTempFlag::new(ui);
-    let mut hex_edit_popup = TextEditPopup::new(ui);
+    let mut hex_edit_popup = TextEditPopup::new(ui, id);
     if !shift && r.clicked() {
         hex_edit_popup.open(color.to_string());
     }
@@ -784,7 +785,7 @@ pub fn color_edit(
             .text_edit_align(egui::Align::Center)
             .text_edit_monospace()
             .auto_confirm(true)
-            .confirm_button_validator(&|s| {
+            .confirm_button(&|s| {
                 s.parse::<hyperpuzzle::Rgb>()
                     .map(|_| None)
                     .map_err(|_| None)

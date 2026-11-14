@@ -167,10 +167,9 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         }
 
         comrak::nodes::NodeValue::List(list) => {
-            let id = ui.next_auto_id();
-            ui.skip_ahead_auto_ids(1);
             ui.vertical(|ui| {
-                ui.indent(id, |ui| {
+                // id_salt doesn't matter
+                ui.indent(0, |ui| {
                     match list.list_type {
                         comrak::nodes::ListType::Bullet => {
                             for list_item in node.children() {

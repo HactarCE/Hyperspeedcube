@@ -33,6 +33,7 @@ clap.workspace = true
 clio.workspace = true
 color-eyre.workspace = true
 comrak.workspace = true
+const-fnv1a-hash.workspace = true
 eframe.workspace = true
 egui = { workspace = true, features = ["color-hex"] }
 egui_dock.workspace = true

@@ -1,6 +1,6 @@
 use crate::L;
-use crate::gui::App;
 use crate::gui::util::EguiTempValue;
+use crate::gui::{App, EguiValue};
 
 mod color_scheme;
 mod global_color_palette;
@@ -13,27 +13,29 @@ enum ColorsTab {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    let id = unique_id!(); // only one instance
+
     let tab_state = EguiTempValue::<ColorsTab>::new(ui);
     let mut tab = tab_state.get().unwrap_or_default();
+    let mut tab = EguiValue::<ColorsTab>::load_or_default(ui, egui::Id::new(()));
     ui.group(|ui| {
         egui::ScrollArea::horizontal()
             .id_salt("colors_tab_select")
             .auto_shrink([false, true])
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut tab, ColorsTab::Schemes, L.colors.color_schemes);
+                    ui.selectable_value(&mut *tab, ColorsTab::Schemes, L.colors.color_schemes);
                     ui.selectable_value(
-                        &mut tab,
+                        &mut *tab,
                         ColorsTab::GlobalPalette,
                         L.colors.global_palette,
                     );
                 });
             });
     });
-    tab_state.set(Some(tab));
     ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
-    match tab {
+    match *tab {
         ColorsTab::Schemes => color_scheme::show(ui, app),
-        ColorsTab::GlobalPalette => global_color_palette::show(ui, app),
+        ColorsTab::GlobalPalette => global_color_palette::show(ui, id, app),
     }
 }

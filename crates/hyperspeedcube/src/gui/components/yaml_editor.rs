@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use serde::{Deserialize, Serialize};
 
 use crate::L;
+use crate::gui::EguiValue;
 use crate::gui::components::IconButton;
 use crate::gui::ext::ResponseExt;
 
@@ -14,15 +15,14 @@ struct PlaintextYamlEditorState {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PlaintextYamlEditor<T> {
     pub id: egui::Id,
+    // state: EguiValue<PlaintextYamlEditorState>,
     _marker: PhantomData<T>,
 }
 impl<T> PlaintextYamlEditor<T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Clone,
 {
-    pub fn new(ui: &mut egui::Ui) -> PlaintextYamlEditor<T> {
-        let id = ui.next_auto_id();
-        ui.skip_ahead_auto_ids(1);
+    pub fn new(ui: &mut egui::Ui, id: egui::Id) -> PlaintextYamlEditor<T> {
         Self {
             id,
             _marker: PhantomData,

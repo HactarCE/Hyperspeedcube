@@ -32,6 +32,7 @@ pub use text_edit_popup::*;
 pub use yaml_editor::*;
 
 use crate::L;
+use crate::gui::temp_value::EguiFlag;
 use crate::gui::util::{MDI_MEDIUM, MDI_SMALL};
 
 fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
@@ -43,17 +44,17 @@ fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Resp
 /// time the mouse moved away from the widget. Returns whether the tooltip was
 /// shown.
 pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option<String>) -> bool {
-    let has_been_copied = crate::gui::util::EguiTempFlag::new(ui);
+    let mut has_been_copied = EguiFlag::load(ui, unique_id!(r.id));
     if let Some(text) = text_to_copy {
         ui.copy_text(text);
-        has_been_copied.set();
+        *has_been_copied = true;
     }
-    if has_been_copied.get() {
+    if *has_been_copied {
         if r.hovered() || r.has_focus() {
             r.show_tooltip_text(L.statuses.copied);
             return true;
         } else {
-            has_been_copied.reset(); // Hide the tooltip when the mouse leaves
+            *has_been_copied = false; // Hide the tooltip when the mouse leaves
         }
     }
     false

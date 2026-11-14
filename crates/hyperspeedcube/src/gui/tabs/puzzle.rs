@@ -23,11 +23,11 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::L;
-use crate::gui::App;
 use crate::gui::components::{IconButton, color_assignment_popup};
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::util::{EguiTempValue, MDI_STYLE_ICON_ROTATE_SQUARE};
+use crate::gui::{App, EguiOptionValue, EguiValue};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -1032,25 +1032,26 @@ fn show_color_edit_popup(
 ) {
     let puzzle = view.puzzle();
 
-    let editing_color = EguiTempValue::new(ui);
+    let id = unique_id!(color_to_edit);
+    let mut editing_color = EguiOptionValue::load(ui, id);
     let mut is_first_frame = false;
 
     if let Some(color) = color_to_edit {
-        editing_color.set(Some(color));
+        *editing_color = Some(color);
         is_first_frame = true;
     }
 
     // TODO: Allow moving the popup. This requires a small PR to emilk/egui.
     let opt_popup_response = egui::Popup::new(
-        editing_color.id,
-        ui.clone(),
+        id,
+        ui.ctx().clone(),
         egui::PopupAnchor::PointerFixed,
         ui.layer_id(),
     )
     .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
     .open_memory(color_to_edit.is_some().then(|| true.into()))
     .show(|ui| {
-        color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
+        color_assignment_popup(ui, view, &prefs.color_palette, *editing_color);
     });
 
     if let Some(popup_inner_response) = opt_popup_response {
@@ -1064,7 +1065,7 @@ fn show_color_edit_popup(
         if (clicked_elsewhere && !is_first_frame)
             || ui.input(|input| input.key_pressed(egui::Key::Escape))
         {
-            egui::Popup::close_id(ui, editing_color.id);
+            egui::Popup::close_id(ui, id);
         }
     }
 

@@ -170,9 +170,10 @@ fn show_filter_presets_list_ui_contents(
 
     for preset in filter_prefs.presets.user_presets_mut() {
         let name = FilterPresetName::new(preset.name().clone());
-        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
+        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, i| {
             show_preset_name(
                 ui,
+                unique_id!(i),
                 &taken_preset_names,
                 &current.base,
                 name,
@@ -255,7 +256,7 @@ fn show_filter_presets_list_ui_contents(
         let seq_ptr = seq_preset.new_ref().ptr();
         let seq_name = seq_preset.name().clone();
         let seq_list = &mut seq_preset.value;
-        seq_dnd.reorderable_with_handle(ui, seq_name.clone(), |ui, _| {
+        seq_dnd.reorderable_with_handle(ui, seq_name.clone(), |ui, idx1| {
             let r = egui::CollapsingHeader::new(&seq_name)
                 .id_salt(seq_ptr)
                 .open(
@@ -272,9 +273,10 @@ fn show_filter_presets_list_ui_contents(
                             seq: Some(seq_name.clone()),
                             preset: preset.name().clone(),
                         };
-                        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
+                        preset_dnd.reorderable_with_handle(ui, name.clone(), |ui, idx2| {
                             show_seq_preset_name(
                                 ui,
+                                unique_id!(idx1, idx2),
                                 &taken_preset_names,
                                 &current.base,
                                 name,
@@ -332,7 +334,7 @@ fn show_filter_presets_list_ui_contents(
             });
 
             // Right-click or double-click to rename
-            let mut popup = TextEditPopup::new(ui);
+            let mut popup = TextEditPopup::new(ui, unique_id!(idx1));
             if r.secondary_clicked() || r.double_clicked() {
                 popup.open(seq_name.clone());
             }
@@ -351,8 +353,8 @@ fn show_filter_presets_list_ui_contents(
                 popup
                     .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                     .text_edit_hint(l.new_name_hint)
-                    .confirm_button_validator(&validate_sequence_rename)
-                    .delete_button_validator(&|_| Ok(Some(l.actions.delete.into())))
+                    .confirm_button(&validate_sequence_rename)
+                    .delete_button(&|_| Ok(Some(l.actions.delete.into())))
                     .at(ui, &r, egui::vec2(-17.0, 2.0))
                     .show()
             });
@@ -436,6 +438,7 @@ fn show_filter_presets_list_ui_contents(
 
 fn show_seq_preset_name(
     ui: &mut egui::Ui,
+    id: egui::Id,
     taken_names: &HashSet<String>,
     current: &Option<FilterPresetRef>,
     name: FilterPresetName,
@@ -500,6 +503,7 @@ fn show_seq_preset_name(
 
         show_preset_name(
             ui,
+            id,
             taken_names,
             current,
             name,
@@ -539,6 +543,7 @@ fn show_ad_hoc_preset_name(
 
 fn show_preset_name(
     ui: &mut egui::Ui,
+    id: egui::Id,
     taken_names: &HashSet<String>,
     current: &Option<FilterPresetRef>,
     name: FilterPresetName,
@@ -567,7 +572,7 @@ fn show_preset_name(
     }
 
     // Right-click to rename
-    let mut popup = TextEditPopup::new(ui);
+    let mut popup = TextEditPopup::new(ui, unique_id!(id));
     if r.secondary_clicked() || r.double_clicked() {
         popup.open(name.preset.clone());
     }
@@ -585,8 +590,8 @@ fn show_preset_name(
         popup
             .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
             .text_edit_hint(l.new_name_hint)
-            .confirm_button_validator(&validate_preset_rename)
-            .delete_button_validator(&|_| Ok(Some(l.actions.delete.into())))
+            .confirm_button(&validate_preset_rename)
+            .delete_button(&|_| Ok(Some(l.actions.delete.into())))
             .at(ui, &r, egui::vec2(-3.0, 2.0))
             .show()
     });
@@ -663,7 +668,7 @@ fn show_current_filter_preset_ui_contents(
         .show(ui, |ui| {
             let current = &mut view.filters.current;
 
-            let mut dnd = Dnd::new(ui, ui.auto_id_with("rule_dnd"));
+            let mut dnd = Dnd::new(ui, ui.make_persistent_id("rule_dnd"));
             let is_any_dragging = dnd.is_dragging();
 
             let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
@@ -967,7 +972,7 @@ fn show_piece_type_hierarchy(
 ) {
     egui::collapsing_header::CollapsingState::load_with_default_open(
         ui,
-        egui::Id::new(id.with(hierarchy as *const _)),
+        id.with(hierarchy as *const _),
         is_root,
     )
     .show_header(ui, |ui| {

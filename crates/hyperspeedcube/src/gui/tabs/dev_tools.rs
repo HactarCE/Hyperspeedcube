@@ -233,7 +233,7 @@ fn show_orbit_list(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) 
         return;
     };
 
-    let mut dnd = Dnd::new(ui, ui.auto_id_with("dnd"));
+    let mut dnd = Dnd::new(ui, ui.make_persistent_id("orbit_list_dnd"));
     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
         dnd.reorderable_with_handle(ui, i, |ui, _| {
             let Some(loaded_orbit) = &state.loaded_orbit else {

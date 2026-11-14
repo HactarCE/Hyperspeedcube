@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use super::{HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, TextValidationResult};
 use crate::L;
+use crate::gui::EguiOptionValue;
 use crate::gui::components::{IconButton, PlaintextYamlEditor};
 use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
-use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
 
 pub const PRESETS_UI_MIN_WIDTH: f32 = 150.0;
@@ -19,7 +19,7 @@ pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 pub type NameValidationResult<'a> = Result<(), Cow<'a, str>>;
 
 pub struct PresetsUi<'a, T: PresetData + Default> {
-    /// Unique widget ID.
+    /// Globally unique and stable widget ID.
     pub id: egui::Id,
     /// Presets that the user can add/remove/modify.
     pub presets: &'a mut PresetsList<T>,
@@ -182,11 +182,11 @@ where
         let can_delete = self.presets.len() > 1;
 
         let mut preset_to_activate = None;
-        let preset_to_edit = EguiTempValue::new(ui);
+        let mut preset_to_edit = EguiOptionValue::<String>::load(ui, unique_id!(self.id));
         let mut preset_to_delete = None;
-        let mut edit_popup = TextEditPopup::new(ui);
-        let mut new_popup = TextEditPopup::new(ui);
-        let mut dnd = ReorderDnd::new(ui, self.id.with("dnd")).with_style(DndStyle {
+        let mut edit_popup = TextEditPopup::new(ui, unique_id!(self.id));
+        let mut new_popup = TextEditPopup::new(ui, unique_id!(self.id));
+        let mut dnd = ReorderDnd::new(ui, unique_id!(self.id)).with_style(DndStyle {
             payload_opacity: 0.4,
             ..Default::default()
         });
@@ -235,7 +235,7 @@ where
                     if (r.secondary_clicked() || r.double_clicked())
                         && edit_popup.toggle(preset.name().clone())
                     {
-                        preset_to_edit.set(Some(preset.name().clone()));
+                        *preset_to_edit = Some(preset.name().clone());
                     }
 
                     // Middle-click -> Delete preset
@@ -271,10 +271,10 @@ where
                 .label(self.text.actions.rename)
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint(self.text.new_name_hint)
-                .confirm_button_validator(&|new_name| {
+                .confirm_button(&|new_name| {
                     self.validate_preset_name(new_name, self.text.actions.rename)
                 })
-                .delete_button_validator(&|_| {
+                .delete_button(&|_| {
                     if can_delete {
                         Ok(Some(self.text.actions.delete.into()))
                     } else {
@@ -282,12 +282,12 @@ where
                     }
                 })
                 .show_with(|ui| {
-                    let preset_name = preset_to_edit.get()?;
-                    let builtin_value = self.presets.builtin_presets().get(&preset_name)?;
+                    let preset_name = preset_to_edit.as_ref()?;
+                    let builtin_value = self.presets.builtin_presets().get(preset_name)?;
 
                     let is_modified_from_builtin =
-                        self.presets.is_preset_modified_from_builtin(&preset_name)
-                            || (self.current.base.name() == preset_name
+                        self.presets.is_preset_modified_from_builtin(preset_name)
+                            || (self.current.base.name() == *preset_name
                                 && self.current.value != *builtin_value);
 
                     ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
@@ -344,7 +344,7 @@ where
                 .label(self.text.actions.add)
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint(self.text.new_name_hint)
-                .confirm_button_validator(&|new_name| {
+                .confirm_button(&|new_name| {
                     self.validate_preset_name(new_name, self.text.actions.add)
                 })
                 .show_with(|ui| {
@@ -443,7 +443,7 @@ where
             None => T::default(),
         };
 
-        let yaml = PlaintextYamlEditor::<T>::new(ui);
+        let yaml = PlaintextYamlEditor::<T>::new(ui, self.id);
 
         let base_preset_name = self.current.base.name();
 

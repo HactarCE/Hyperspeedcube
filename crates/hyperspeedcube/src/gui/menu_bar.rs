@@ -144,7 +144,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 
         if save_buttons_scope.response.contains_pointer() {
             egui::Tooltip::always_open(
-                ui.clone(),
+                ui.ctx().clone(),
                 ui.layer_id(),
                 save_buttons_scope.response.id,
                 egui::PopupAnchor::Position(

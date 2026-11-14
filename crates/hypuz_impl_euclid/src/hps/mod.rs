@@ -90,8 +90,8 @@ pub fn define_in(
                     label: label.into(),
                 },
                 (None, None, true, None) => MenuContent::Section,
-                (None, None, false, Some(id)) => MenuContent::End {
-                    id: id
+                (None, None, false, Some(catalog_id)) => MenuContent::End {
+                    catalog_id: catalog_id
                         .parse()
                         .map_err(|e| eyre!("error parsing puzzle ID: {e}"))
                         .at(id_span)?,

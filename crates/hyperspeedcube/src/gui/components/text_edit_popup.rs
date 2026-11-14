@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use crate::gui::components::IconButton;
-use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE};
+use crate::gui::util::MDI_MEDIUM_BUTTON_SIZE;
+use crate::gui::{EguiOptionValue, EguiValue};
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.
@@ -24,7 +25,7 @@ pub enum TextEditPopupResponse<R = !> {
 /// widgets: a label, a confirm button, and a delete button.
 pub struct TextEditPopup<'v, 's, 'p> {
     ctx: egui::Context,
-    new_name: EguiTempValue<String>,
+    new_name: EguiValue<String>,
     is_first_frame: bool,
 
     popup: egui::Popup<'p>,
@@ -42,25 +43,23 @@ pub struct TextEditPopup<'v, 's, 'p> {
     validate_delete: Option<TextEditValidator<'v, 's>>,
 }
 impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
-    pub fn new(ui: &mut egui::Ui) -> Self {
-        let ctx = ui.clone();
-        let new_name = EguiTempValue::new(ui);
-        let popup_id = new_name.id.with("popup");
-        let popup = egui::Popup::new(
-            popup_id,
-            ui.clone(),
-            egui::PopupAnchor::Pointer,
-            egui::LayerId::new(egui::Order::Middle, popup_id),
-        )
-        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-        .open_memory(None);
-
+    /// Constructs a text edit popup.
+    ///
+    /// `id` must be globally unique.
+    pub fn new(ui: &mut egui::Ui, id: egui::Id) -> Self {
         Self {
-            ctx,
-            new_name,
+            ctx: ui.ctx().clone(),
+            new_name: EguiValue::load_or_default(ui, id),
             is_first_frame: false,
 
-            popup,
+            popup: egui::Popup::new(
+                id,
+                ui.ctx().clone(),
+                egui::PopupAnchor::Pointer,
+                egui::LayerId::new(egui::Order::Middle, id),
+            )
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .open_memory(None),
 
             label: None,
 
@@ -135,19 +134,20 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     }
 
     /// If true, "confirms" the result every frame when possible. This is good
-    /// for previewing changes live. Defaults to `false`.
+    /// for previewing changes live (such as when editing colors). Defaults to
+    /// `false`.
     pub fn auto_confirm(mut self, auto_confirm: bool) -> Self {
         self.auto_confirm = auto_confirm;
         self
     }
-    pub fn confirm_button_validator(
-        mut self,
-        confirm_validator: TextEditValidator<'v, 's>,
-    ) -> Self {
+
+    /// Adds a confirm button with a custom [`TextEditValidator`].
+    pub fn confirm_button(mut self, confirm_validator: TextEditValidator<'v, 's>) -> Self {
         self.validate_confirm = Some(confirm_validator);
         self
     }
-    pub fn delete_button_validator(mut self, delete_validator: TextEditValidator<'v, 's>) -> Self {
+    /// Adds a delete button with a custom [`TextEditValidator`].
+    pub fn delete_button(mut self, delete_validator: TextEditValidator<'v, 's>) -> Self {
         self.validate_delete = Some(delete_validator);
         self
     }
@@ -160,7 +160,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     /// Keeps the popup open, assuming it was already open.
     pub fn keep_open(&mut self, initial_value: String) {
         egui::Popup::open_id(&self.ctx, self.popup.get_id());
-        self.new_name.set(Some(initial_value));
+        *self.new_name = initial_value;
     }
     /// Toggles the popup and returns whether it is now open.
     pub fn toggle(&mut self, initial_value: String) -> bool {
@@ -172,6 +172,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
             true
         }
     }
+    /// Returns whether the popup is open.
     pub fn is_open(&self) -> bool {
         egui::Popup::is_id_open(&self.ctx, self.popup.get_id())
     }
@@ -184,7 +185,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     /// Shows the text edit popup if it is open, and calls `inner` to display
     /// extra UI below the text edit component.
     pub fn show_with<R>(
-        self,
+        mut self,
         inner: impl FnOnce(&mut egui::Ui) -> Option<TextEditPopupResponse<R>>,
     ) -> Option<TextEditPopupResponse<R>> {
         let mut response = None;
@@ -196,8 +197,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                     ui.strong(label);
                 }
 
-                let mut s = self.new_name.get().unwrap_or_default();
-                let mut text_edit = egui::TextEdit::singleline(&mut s);
+                let mut text_edit = egui::TextEdit::singleline(&mut *self.new_name);
                 if let Some(align) = self.text_edit_align {
                     text_edit = text_edit.horizontal_align(align);
                 }
@@ -214,20 +214,19 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
                 if self.is_first_frame {
                     crate::gui::util::focus_and_select_all(ui, r);
                 }
-                self.new_name.set(Some(s.clone()));
 
-                let s = if self.text_edit_trim { s.trim() } else { &s };
-                // TODO: proper icon
+                let s = &*self.new_name;
+                let s = if self.text_edit_trim { s.trim() } else { s };
+
                 if let Some(validator) = self.validate_confirm
                     && (self.auto_confirm
                         || validated_button(ui, mdi!(ui, CHECK), validator(s), true))
                 {
-                    response = Some(TextEditPopupResponse::Confirm(s.to_string()));
+                    response = Some(TextEditPopupResponse::Confirm(s.to_owned()));
                     if !self.auto_confirm || ui.input(|input| input.key_pressed(egui::Key::Enter)) {
                         ui.close();
                     }
                 }
-                // TODO: proper icon
                 if let Some(validator) = self.validate_delete
                     && validated_button(ui, mdi!(ui, TRASH_CAN_OUTLINE), validator(s), false)
                 {

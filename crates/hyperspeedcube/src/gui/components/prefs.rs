@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
@@ -215,15 +216,17 @@ impl<T> PrefsUi<'_, T> {
 
     pub fn color(
         &mut self,
+        id: egui::Id,
         strings: &HoverStrings,
         access: Access<T, hyperpuzzle::Rgb>,
     ) -> egui::Response {
-        self.color_with_label(strings.label, access)
+        self.color_with_label(id, strings.label, access)
             .on_i18n_hover_explanation(strings)
     }
 
     pub fn color_with_label(
         &mut self,
+        id: egui::Id,
         label: impl Into<egui::WidgetText>,
         access: Access<T, hyperpuzzle::Rgb>,
     ) -> egui::Response {
@@ -234,12 +237,13 @@ impl<T> PrefsUi<'_, T> {
             value: access.get_mut(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| |ui: &mut egui::Ui| super::color_edit(ui, value, None::<fn()>),
+            make_widget: |value| |ui: &mut egui::Ui| super::color_edit(ui, id, value, None::<fn()>),
         })
     }
 
     pub fn fixed_multi_color(
         &mut self,
+        id: egui::Id,
         label: impl Into<egui::WidgetText>,
         access: Access<T, Vec<hyperpuzzle::Rgb>>,
     ) -> egui::Response {
@@ -255,7 +259,7 @@ impl<T> PrefsUi<'_, T> {
                     let mut r = ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = ui.spacing().item_spacing.y;
                         for value in values {
-                            changed |= super::color_edit(ui, value, None::<fn()>).changed();
+                            changed |= super::color_edit(ui, id, value, None::<fn()>).changed();
                         }
                     });
                     if changed {
@@ -267,8 +271,9 @@ impl<T> PrefsUi<'_, T> {
         })
     }
 
-    pub fn color_mode(
+    pub fn style_color_mode(
         &mut self,
+        id: egui::Id,
         access: Access<T, Option<StyleColorMode>>,
         allow_fallthrough: bool,
         allow_from_sticker_color: bool,
@@ -292,9 +297,6 @@ impl<T> PrefsUi<'_, T> {
             make_widget: |value| {
                 move |ui: &mut egui::Ui| {
                     let mut changed = false;
-
-                    let id = ui.next_auto_id();
-                    ui.skip_ahead_auto_ids(1);
 
                     if !allow_fallthrough {
                         value.get_or_insert(StyleColorMode::FromSticker);
@@ -322,14 +324,19 @@ impl<T> PrefsUi<'_, T> {
                         }
 
                         let r = ui.add(crate::gui::components::FancyComboBox {
-                            combo_box: egui::ComboBox::from_id_salt(id),
+                            combo_box: egui::ComboBox::from_id_salt(unique_id!(id)),
                             selected: value,
                             options,
                         });
                         changed |= r.changed();
 
                         if let Some(StyleColorMode::FixedColor { color }) = value {
-                            let r = crate::gui::components::color_edit(ui, color, None::<fn()>);
+                            let r = crate::gui::components::color_edit(
+                                ui,
+                                unique_id!(id),
+                                color,
+                                None::<fn()>,
+                            );
                             changed |= r.changed();
                         }
                     });
@@ -392,9 +399,8 @@ impl<T> PrefsUi<'_, T> {
                 move |ui: &mut egui::Ui| {
                     let mut changed = false;
 
-                    let id = ui.next_auto_id();
-                    ui.skip_ahead_auto_ids(1);
-                    let mut r = egui::ComboBox::from_id_salt(id)
+                    let id_salt = ui.make_persistent_id("interpolation_fn");
+                    let mut r = egui::ComboBox::from_id_salt(id_salt)
                         .width_to_fit(
                             ui,
                             InterpolateFn::VARIANTS

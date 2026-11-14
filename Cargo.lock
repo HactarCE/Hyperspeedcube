@@ -1260,6 +1260,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-fnv1a-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32b13ea120a812beba79e34316b3942a857c86ec1593cb34f27bb28272ce2cca"
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2960,6 +2966,7 @@ dependencies = [
  "color-eyre",
  "comrak",
  "console_error_panic_hook",
+ "const-fnv1a-hash",
  "eframe",
  "egui",
  "egui_dock",

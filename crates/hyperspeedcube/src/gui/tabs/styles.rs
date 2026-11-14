@@ -53,16 +53,24 @@ fn show_misc(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
     };
     let l = L.styles.misc.background;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        prefs_ui.color(&l.dark_mode, access!(.dark_background_color));
-        prefs_ui.color(&l.light_mode, access!(.light_background_color));
+        prefs_ui.color(unique_id!(), &l.dark_mode, access!(.dark_background_color));
+        prefs_ui.color(
+            unique_id!(),
+            &l.light_mode,
+            access!(.light_background_color),
+        );
     });
     let l = L.styles.misc.internals;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        prefs_ui.color(&l.face_color, access!(.internals_color));
+        prefs_ui.color(unique_id!(), &l.face_color, access!(.internals_color));
     });
     let l = L.styles.misc.blocking_pieces;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        prefs_ui.color(&l.outlines_color, access!(.blocking_outline_color));
+        prefs_ui.color(
+            unique_id!(),
+            &l.outlines_color,
+            access!(.blocking_outline_color),
+        );
         prefs_ui.num(&l.outlines_size, access!(.blocking_outline_size), |dv| {
             outline_size_drag_value(dv)
         });
@@ -121,7 +129,7 @@ fn show_custom(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
             .auto_shrink([false, true])
             .show(ui, |ui| {
                 let r = ui.add(
-                    PieceStyleEdit::new(prefs.current)
+                    PieceStyleEdit::new(prefs.current, unique_id!())
                         .default_outline_lighting(default_outline_lighting),
                 );
                 *prefs.changed |= r.changed();
@@ -183,7 +191,7 @@ fn show_builtin_style_selector<'a>(
         BuiltInStyle::Selected => &DEFAULT_PREFS.styles.selected_piece,
         BuiltInStyle::Blindfolded => &DEFAULT_PREFS.styles.blind,
     };
-    let mut piece_style_edit = PieceStyleEdit::new(current).reset_value(default);
+    let mut piece_style_edit = PieceStyleEdit::new(current, unique_id!()).reset_value(default);
     match selected_style {
         BuiltInStyle::Basic => piece_style_edit = piece_style_edit.no_fallthrough(),
         BuiltInStyle::Blindfolded => piece_style_edit = piece_style_edit.blind(),
@@ -196,6 +204,7 @@ fn show_builtin_style_selector<'a>(
 }
 
 pub struct PieceStyleEdit<'a> {
+    id: egui::Id,
     style: &'a mut PieceStyle,
     allow_fallthrough: bool,
     allow_from_sticker_color: bool,
@@ -203,8 +212,9 @@ pub struct PieceStyleEdit<'a> {
     reset_value: Option<&'a PieceStyle>,
 }
 impl<'a> PieceStyleEdit<'a> {
-    pub fn new(style: &'a mut PieceStyle) -> Self {
+    pub fn new(style: &'a mut PieceStyle, id: egui::Id) -> Self {
         Self {
+            id,
             style,
             allow_fallthrough: true,
             allow_from_sticker_color: true,
@@ -246,7 +256,8 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 prefs_ui.checkbox(&l.interactable, access_option!(true, .interactable));
                 prefs_ui.percent(&l.opacity, access_option!(1.0, .face_opacity));
 
-                prefs_ui.color_mode(
+                prefs_ui.style_color_mode(
+                    unique_id!(self.id),
                     access!(.face_color),
                     self.allow_fallthrough,
                     self.allow_from_sticker_color,
@@ -259,7 +270,8 @@ impl egui::Widget for PieceStyleEdit<'_> {
                     outline_size_drag_value(dv)
                 });
 
-                prefs_ui.color_mode(
+                prefs_ui.style_color_mode(
+                    unique_id!(self.id),
                     access!(.outline_color),
                     self.allow_fallthrough,
                     self.allow_from_sticker_color,

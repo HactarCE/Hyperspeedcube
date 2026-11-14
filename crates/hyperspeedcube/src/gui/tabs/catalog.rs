@@ -11,13 +11,13 @@ use regex::Regex;
 
 use crate::L;
 use crate::app::App;
-use crate::gui::EguiOptionValue;
 use crate::gui::components::{
     IconButton, PuzzleGeneratorUi, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::temp_value::EguiFlag;
 use crate::gui::util::{EguiTempValue, MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
+use crate::gui::{EguiOptionValue, EguiValue};
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
@@ -26,8 +26,7 @@ pub const ADDITIONAL_MATCH_INDENT: &str = "    ";
 pub const PUZZLE_GENERATOR_POPUP_MIN_WIDTH: f32 = 400.0;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let stored_search_query_string = EguiTempValue::new(ui);
-    let mut search_query_string: String = stored_search_query_string.get().unwrap_or_default();
+    let mut search_query_string = EguiValue::<String>::load_or_default(ui, unique_id!());
 
     let catalog = hyperpuzzle::catalog();
 
@@ -120,11 +119,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     new_search_query_string += " ";
                 }
 
-                search_query_string = new_search_query_string.trim().to_owned();
+                *search_query_string = new_search_query_string.trim().to_owned();
             }
 
             let r = ui.add(
-                egui::TextEdit::singleline(&mut search_query_string)
+                egui::TextEdit::singleline(&mut *search_query_string)
                     .desired_width(f32::INFINITY)
                     .hint_text(L.catalog.search_hint)
                     .layouter(&mut Query::text_layouter),
@@ -180,7 +179,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             }
                         }
                         if changed {
-                            search_query_string = query.to_string();
+                            *search_query_string = query.to_string();
                         }
                     } else {
                         // Show puzzles & generators search
@@ -216,8 +215,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 }
                             } else {
                                 if r.clicked() {
-                                    *generator_popup_data =
-                                        Some(PuzzleGeneratorPopupData::new(&obj.name, generator));
+                                    *generator_popup_data = Some(PuzzleGeneratorPopupData::new(
+                                        unique_id!(&generator.id),
+                                        &obj.name,
+                                        generator,
+                                    ));
                                 }
 
                                 if let Some(popup_data) = generator_popup_data
@@ -280,8 +282,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 });
             });
     });
-
-    stored_search_query_string.set(Some(search_query_string.clone()));
 }
 
 pub fn modal_with_sizing_pass<R>(
@@ -330,9 +330,9 @@ struct PuzzleGeneratorPopupData {
     title: String,
 }
 impl PuzzleGeneratorPopupData {
-    fn new(name: &str, puzzle_generator: &Generator<Puzzle>) -> Self {
+    fn new(id: egui::Id, name: &str, puzzle_generator: &Generator<Puzzle>) -> Self {
         Self {
-            widget: PuzzleGeneratorUi::new(puzzle_generator.id.word.clone()),
+            widget: PuzzleGeneratorUi::new(id, puzzle_generator.id.word.clone()),
             title: name.to_string(),
         }
     }

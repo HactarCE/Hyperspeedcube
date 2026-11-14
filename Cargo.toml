@@ -44,6 +44,7 @@ correctness = { level = "deny", priority = -1 }
 
 assigning_clones = "allow"
 comparison_chain = "allow"
+disallowed_methods = "deny"
 doc_markdown = "warn"
 if_then_some_else_none = "warn"
 type_complexity = "allow"
@@ -190,6 +191,7 @@ rayon = { version = "1.11.0" }
 
 # Networking, cryptography, hashing, and PRNG
 chacha20 = { version = "0.10.0" }                 # needs stable output
+const-fnv1a-hash = { version = "1.1.0" }
 drand-verify = { version = "0.6.2" }
 rand = { version = "0.10.1" }                     # must match chacha20
 sha2 = { version = "0.11.0" }

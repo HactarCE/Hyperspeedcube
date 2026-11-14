@@ -15,8 +15,8 @@ use crate::gui::components::{
 use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::util::EguiTempValue;
 
-pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let yaml = PlaintextYamlEditor::new(ui);
+pub fn show(ui: &mut egui::Ui, id: egui::Id, app: &mut App) {
+    let yaml = PlaintextYamlEditor::new(ui, id);
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
@@ -65,13 +65,22 @@ fn show_contents(ui: &mut egui::Ui, app: &mut App) {
 
     let l = &L.colors.misc;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        prefs_ui.color(&l.dark_background, access!(.dark_background_color));
-        prefs_ui.color(&l.light_background, access!(.light_background_color));
+        prefs_ui.color(
+            unique_id!(),
+            &l.dark_background,
+            access!(.dark_background_color),
+        );
+        prefs_ui.color(
+            unique_id!(),
+            &l.light_background,
+            access!(.light_background_color),
+        );
         prefs_ui
-            .color(&l.internal_faces, access!(.internals_color))
+            .color(unique_id!(), &l.internal_faces, access!(.internals_color))
             .on_i18n_hover_explanation(&L.styles.misc.internals.face_color);
         prefs_ui
             .color(
+                unique_id!(),
                 &l.blocking_pieces_outlines,
                 access!(.blocking_outline_color),
             )
@@ -95,7 +104,7 @@ fn show_contents(ui: &mut egui::Ui, app: &mut App) {
 fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let (prefs, ui) = prefs_ui.split();
 
-    let mut dnd = Dnd::new(ui, ui.auto_id_with("dnd"));
+    let mut dnd = Dnd::new(ui, ui.make_persistent_id("custom_colors_dnd"));
     let mut to_rename = None;
     let mut to_delete = None;
 
@@ -133,7 +142,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             continue;
         };
         let name = name.clone();
-        dnd.reorderable_with_handle(ui, name.clone(), |ui, _| {
+        dnd.reorderable_with_handle(ui, name.clone(), |ui, idx| {
             let (_, preset) = prefs
                 .current
                 .custom_colors
@@ -142,14 +151,14 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             let color = &mut preset.value;
 
             let on_delete = Some(|| to_delete = Some(name.clone()));
-            let r = crate::gui::components::color_edit(ui, color, on_delete);
+            let r = crate::gui::components::color_edit(ui, unique_id!(idx), color, on_delete);
             *prefs.changed |= r.changed();
             let label_response = egui::Label::new(&name)
                 .selectable(false)
                 .sense(egui::Sense::click())
                 .ui(ui);
 
-            let mut popup = TextEditPopup::new(ui);
+            let mut popup = TextEditPopup::new(ui, unique_id!(idx));
             if label_response.clicked() || label_response.secondary_clicked() {
                 popup.open(name.clone());
             }
@@ -157,10 +166,10 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                 popup
                     .text_edit_width(150.0)
                     .over(ui, &label_response, egui::vec2(1.0, 4.0)) // overwrite width if wider
-                    .confirm_button_validator(&|new_name| {
+                    .confirm_button(&|new_name| {
                         validate_single_color_name(prefs.current, new_name, L.colors.actions.rename)
                     })
-                    .delete_button_validator(&|_| Ok(Some(L.colors.actions.delete.into())))
+                    .delete_button(&|_| Ok(Some(L.colors.actions.delete.into())))
                     .show()
             });
             if let Some(r) = popup_response {
@@ -198,7 +207,7 @@ fn show_builtin_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         .keys()
         .enumerate()
     {
-        prefs_ui.color_with_label(color_name, access!(.builtin_colors[i]));
+        prefs_ui.color_with_label(unique_id!(), color_name, access!(.builtin_colors[i]));
     }
 }
 
@@ -242,9 +251,11 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
     }
 
     for (set_name, _set_values) in default_sets {
-        prefs
-            .with(ui)
-            .fixed_multi_color(set_name, access!(.builtin_color_sets[set_name]));
+        prefs.with(ui).fixed_multi_color(
+            unique_id!(),
+            set_name,
+            access!(.builtin_color_sets[set_name]),
+        );
     }
 }
 

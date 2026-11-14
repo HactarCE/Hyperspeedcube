@@ -1,6 +1,6 @@
 use hyperpuzzle::notation::{LayerFeatures, LayerPrefix};
 
-use crate::gui::ext::*;
+use crate::gui::{EguiValue, ext::*};
 
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 
@@ -13,16 +13,11 @@ impl egui::Widget for LayerMaskEdit<'_> {
         let mut changed = false;
         let mut r = ui
             .scope(|ui| {
-                let text_id = self.id.with("layer_text");
+                let get_default_string = || format!("{{{}}}", self.layers);
 
-                let default_string = format!("{{{}}}", self.layers);
+                let mut text = EguiValue::<String>::load_or(ui, self.id, get_default_string);
 
-                let mut text: String = ui.data(|data| {
-                    data.get_temp(text_id)
-                        .unwrap_or_else(|| default_string.clone())
-                });
-
-                let r = egui::TextEdit::singleline(&mut text)
+                let r = egui::TextEdit::singleline(&mut *text)
                     .desired_width(LAYER_DESCRIPTION_WIDTH)
                     .show(ui)
                     .response
@@ -37,7 +32,7 @@ impl egui::Widget for LayerMaskEdit<'_> {
                     .unwrap_or_default();
                     changed = true;
                 } else if !r.has_focus() {
-                    text = default_string;
+                    *text = get_default_string();
                 }
 
                 r.on_hover_explanation(
@@ -54,8 +49,6 @@ impl egui::Widget for LayerMaskEdit<'_> {
                      • {1..-1} = whole puzzle\n\
                      • {1..-1,!3} = all except layer 3",
                 );
-
-                ui.data_mut(|data| data.insert_temp(text_id, text));
             })
             .response;
         if changed {

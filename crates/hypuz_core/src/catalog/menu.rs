@@ -52,10 +52,10 @@ impl Menu {
         match self.contents.entry(path.clone()) {
             hash_map::Entry::Occupied(e) => bail!("duplicate menu entry at {:?}", e.key()),
             hash_map::Entry::Vacant(e) => {
-                if let MenuContent::End { id } = &content {
+                if let MenuContent::End { catalog_id } = &content {
                     // This may clobber an existing path. That's ok.
                     self.puzzle_id_to_path
-                        .insert(id.to_string(), menu_path.clone());
+                        .insert(catalog_id.to_string(), menu_path.clone());
                 }
 
                 e.insert(content)
@@ -183,7 +183,7 @@ pub enum MenuContent {
     /// Puzzle or generator at the end of the menu path.
     End {
         /// Puzzle or generator ID.
-        id: CatalogId,
+        catalog_id: CatalogId,
     },
 }
 
