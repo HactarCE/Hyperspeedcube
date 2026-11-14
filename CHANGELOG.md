@@ -12,6 +12,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [1.0.12] - 2026-11-13
+
+### Changed
+
+- Keybind set now resets on puzzle reset ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Moved timer blind mode toggle to interaction settings ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+
+### Fixed
+
+- Removed busy wait in the main loop, cutting CPU usage by ~10x ([@JosieElliston] [#227](https://github.com/HactarCE/Hyperspeedcube/pull/227))
+- Timer is now resizable ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Timer now resets on puzzle reset ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Toggling timer blind mode no longer resets the puzzle ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Keybind set list in puzzle keybinds editor is now scrollable ([@JosieElliston] [#227](https://github.com/HactarCE/Hyperspeedcube/pull/227))
+
 ## [1.0.11] - 2025-01-05
 
 ### Fixed
