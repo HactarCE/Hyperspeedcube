@@ -113,6 +113,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("asinh", |_, x: Num| -> Num { x.asinh() }),
         ("acosh", |_, x: Num| -> Num { x.acosh() }),
         ("atanh", |_, x: Num| -> Num { x.atanh() }),
+        ("atan2", |_, y: Num, x: Num| -> Num { y.atan2(x) }),
         // Inverse trigonometric functions (long names)
         ("arcsin", |_, x: Num| -> Num { x.asin() }),
         ("arccos", |_, x: Num| -> Num { x.acos() }),
@@ -120,6 +121,7 @@ pub fn define_in(builtins: &mut Builtins<'_>) -> Result<()> {
         ("arsinh", |_, x: Num| -> Num { x.asinh() }),
         ("arcosh", |_, x: Num| -> Num { x.acosh() }),
         ("artanh", |_, x: Num| -> Num { x.atanh() }),
+        ("arctan2", |_, y: Num, x: Num| -> Num { y.atan2(x) }),
         // Reciprocal trigonometric functions
         ("csc", |_, x: Num| -> Num { x.sin().recip() }),
         ("sec", |_, x: Num| -> Num { x.cos().recip() }),
