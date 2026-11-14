@@ -168,6 +168,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Smart realign option (always enabled)
 
+## [1.0.12] - 2026-11-13
+
+### Changed
+
+- First non-hidden keybind set is now activated on puzzle load/reset/scramble ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Moved timer blind mode toggle to interaction settings ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+
+### Fixed
+
+- Removed busy wait in the main loop, cutting CPU usage by ~10x ([@JosieElliston] [#227](https://github.com/HactarCE/Hyperspeedcube/pull/227))
+- Timer is now resizable ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Timer now resets on puzzle reset ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Toggling timer blind mode no longer resets the puzzle ([@JosieElliston] [#77](https://github.com/HactarCE/Hyperspeedcube/pull/77))
+- Keybind set list in puzzle keybinds editor is now scrollable ([@JosieElliston] [#227](https://github.com/HactarCE/Hyperspeedcube/pull/227))
+
 ## [1.0.11] - 2025-01-05
 
 ### Fixed
@@ -578,7 +593,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Undo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>)
   - Redo (<kbd>Ctrl</kbd>+<kbd>Y</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>)
 
-[unreleased]: https://github.com/HactarCE/Hyperspeedcube/compare/v1.1.1...HEAD
+[unreleased]: https://github.com/HactarCE/Hyperspeedcube/compare/v1.0.10...HEAD
+[1.0.12]: https://github.com/HactarCE/Hyperspeedcube/releases/tag/v1.0.12
 [1.0.11]: https://github.com/HactarCE/Hyperspeedcube/releases/tag/v1.0.11
 [1.0.10]: https://github.com/HactarCE/Hyperspeedcube/releases/tag/v1.0.10
 [1.0.9]: https://github.com/HactarCE/Hyperspeedcube/releases/tag/v1.0.9
