@@ -1,6 +1,7 @@
 use hyperpuzzle::notation::{LayerFeatures, LayerPrefix};
 
-use crate::gui::{EguiValue, ext::*};
+use crate::gui::EguiValue;
+use crate::gui::ext::*;
 
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 

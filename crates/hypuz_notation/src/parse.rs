@@ -276,7 +276,10 @@ fn uint<'src, U: FromUnsignedInt>() -> impl NotationParser<'src, U> {
         .repeated()
         .at_least(1)
         .to_slice()
-        .try_map_with(|s: &str, e| s.parse().map_err(|err| Rich::custom(e.span(), err)))
+        .try_map_with(|s: &str, e| {
+            s.parse::<U>()
+                .map_err(|err| Rich::custom(e.span(), err.to_string()))
+        })
 }
 
 /// Signed integer parser
@@ -286,7 +289,10 @@ fn sint<'src, I: FromSignedInt>() -> impl NotationParser<'src, I> {
         .or_not()
         .ignore_then(one_of('0'..='9').repeated().at_least(1))
         .to_slice()
-        .try_map_with(|s: &str, e| s.parse().map_err(|err| Rich::custom(e.span(), err)))
+        .try_map_with(|s: &str, e| {
+            s.parse::<I>()
+                .map_err(|err| Rich::custom(e.span(), err.to_string()))
+        })
 }
 
 trait FromUnsignedInt: FromStr<Err: ToString> {}

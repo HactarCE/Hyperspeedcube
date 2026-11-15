@@ -19,16 +19,7 @@ impl LexCtx {
     };
 }
 
-/// Adds a label to an error at `span` saying "inside here".
-// TODO: figure out why this never gets called
-fn inside_here<'src>(
-    mut e: LexError<'src>,
-    span: SimpleSpan,
-    _state: &mut LexState,
-) -> LexError<'src> {
-    chumsky::label::LabelError::<&str, _>::in_context(&mut e, "inside here".to_string(), span);
-    e
-}
+const INSIDE_HERE: &str = "inside here";
 
 /// Returns a [`Span`] from chumsky "extra" data.
 fn span_from_extra<'src>(
@@ -145,7 +136,8 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
 
         let map_literal = tokens
             .clone()
-            .map_err_with_state(inside_here)
+            .labelled(INSIDE_HERE)
+            .as_context_only()
             .with_ctx(LexCtx::IGNORE_NEWLINES)
             .delimited_by(just("#{"), just('}'))
             .map(Token::MapLiteral);
@@ -187,13 +179,15 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
                 .map(Token::Parens),
             tokens
                 .clone()
-                .map_err_with_state(inside_here)
+                .labelled(INSIDE_HERE)
+                .as_context_only()
                 .with_ctx(LexCtx::IGNORE_NEWLINES)
                 .delimited_by(just('['), just(']'))
                 .map(Token::Brackets),
             tokens
                 .clone()
-                .map_err_with_state(inside_here)
+                .labelled(INSIDE_HERE)
+                .as_context_only()
                 .with_ctx(LexCtx::default())
                 .delimited_by(just('{'), just('}'))
                 .map(Token::Braces),
@@ -263,7 +257,8 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Spanned<Token>>, LexExt
         .collect()
         .padded_by(padding)
     })
-    .map_err_with_state(inside_here)
+    .labelled(INSIDE_HERE)
+    .as_context_only()
     .with_ctx(LexCtx::default())
 }
 

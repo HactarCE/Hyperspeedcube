@@ -342,7 +342,7 @@ impl FromStr for CatalogIdValue {
                 .padded();
             let int_u32 = text::digits(10)
                 .to_slice()
-                .try_map(|s, e| u32::from_str(s).map_err(|err| Rich::custom(e, err)));
+                .try_map(|s, e| u32::from_str(s).map_err(|err| Rich::custom(e, err.to_string())));
             let id = word
                 .then(just('@').padded().ignore_then(int_u32).or_not())
                 .map(|(word, version)| VersionedCatalogWord { word, version })
@@ -508,7 +508,7 @@ impl_catalog_id_value_convert!(to_bool -> bool, |b: bool| Self::Id(b.into()));
 impl_catalog_id_value_convert!(to_int -> i64, |i: i64| Self::Id(i.into()));
 
 /// Error produced when parsing a catalog ID.
-#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug)]
 #[expect(missing_docs)]
 pub enum CatalogIdError {
     #[error("catalog ID parse error: {0}")]
@@ -562,11 +562,12 @@ mod tests {
         }
 
         assert_eq!(
-            Ok("product@3.refl.jumbl([ngon_ft@1.refl(7,3),line@2(3)])".to_string()),
+            "product@3.refl.jumbl([ngon_ft@1.refl(7,3),line@2(3)])",
             CatalogId::from_str(
                 "  product  @  3  .  refl  .  jumbl  (  [  ngon_ft  @  1  .  refl  (  7  ,  3  )  ,  line  @  2  (  3  )  ]  )  ",
             )
-            .map(|id| id.to_string()),
+            .unwrap()
+            .to_string(),
         );
     }
 }

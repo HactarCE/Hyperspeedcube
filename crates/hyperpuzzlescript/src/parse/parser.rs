@@ -19,27 +19,6 @@ pub(super) type ParseError<'src> = Rich<'src, Token, Span>;
 pub(super) type ParseState<'src> = extra::SimpleState<&'src str>;
 pub(super) type ParseExtra<'src> = extra::Full<ParseError<'src>, ParseState<'src>, ()>;
 
-/// Adds a label to an error at `span` saying "inside this {thing}".
-fn map_err_inside_this<'src>(
-    thing: &str,
-    span: Span,
-) -> impl Copy + Fn(ParseError<'src>) -> ParseError<'src> {
-    move |mut e| {
-        chumsky::label::LabelError::<ParserInput<'_>, _>::in_context(
-            &mut e,
-            format!("inside this {thing}"),
-            span,
-        );
-        e
-    }
-}
-/// Adds a label to an error at `span` saying "inside this {thing}".
-fn inside_this<'src>(
-    thing: &str,
-) -> impl Copy + Fn(ParseError<'src>, Span, &mut ParseState<'src>) -> ParseError<'src> {
-    move |e, span, _state| map_err_inside_this(thing, span)(e)
-}
-
 /// Converts `&[Spanned<Token>]` to [`ParserInput`].
 pub fn make_input(eoi: Span, toks: &[Spanned<Token>]) -> ParserInput<'_> {
     toks.map(eoi, |(t, s)| (t, s))
@@ -187,9 +166,13 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
             };
         let string_literal = select_ref! {
             Token::StringLiteral(contents) = e => string_literal_contents(contents, e.state())
-                .map_err(map_err_inside_this("string", e.span())),
+                .unwrap_or_else(|err| {
+                    e.emit(err);
+                    ast::NodeContents::Error
+                }),
         }
-        .try_map(|result, _span| result);
+        .labelled("inside this string")
+        .as_context_only();
 
         let literal = select_ref! {
             Token::Null => Ok(ast::NodeContents::NullLiteral),
@@ -208,7 +191,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
 
         let list_literal = expr_list
             .clone()
-            .map_err_with_state(inside_this("list"))
+            .labelled("inside this list")
+            .as_context_only()
             .nested_in(brackets)
             .map(ast::NodeContents::ListLiteral)
             .recover_with(recover_nested!(brackets, |_| ast::NodeContents::Error));
@@ -227,7 +211,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         .separated_by(comma_sep.clone())
         .allow_trailing()
         .collect()
-        .map_err_with_state(inside_this("map"))
+        .labelled("inside this map")
+        .as_context_only()
         .map(ast::NodeContents::MapLiteral)
         .nested_in(map_literal)
         .recover_with(recover_nested!(map_literal, |_| ast::NodeContents::Error));
@@ -247,7 +232,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let fn_expr = just(Token::Fn)
             .ignore_then(fn_contents.clone())
             .map(ast::NodeContents::Fn)
-            .map_err_with_state(inside_this("function"));
+            .labelled("inside this function")
+            .as_context_only();
 
         let paren_expr = boxed_expr_in_parens.map(ast::NodeContents::Paren);
 
@@ -437,7 +423,8 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput<'src>, ast::Node, ParseEx
         let fn_declaration_contents = just(Token::Fn)
             .ignore_then(ident.clone())
             .then(fn_contents.clone().map(Box::new))
-            .map_err_with_state(inside_this("function"));
+            .labelled("inside this function")
+            .as_context_only();
         let fn_declaration = fn_declaration_contents
             .clone()
             .map(|(name, contents)| ast::NodeContents::FnDef { name, contents });

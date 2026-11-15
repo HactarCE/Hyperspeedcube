@@ -5,7 +5,6 @@ use std::fmt;
 use std::ops::RangeInclusive;
 use std::str::FromStr;
 
-use chumsky::container::Seq;
 use smallvec::SmallVec;
 
 pub use crate::charsets::{SHORT_LOWERCASE_GREEK, TALL_LOWERCASE_GREEK, UPPERCASE_GREEK};

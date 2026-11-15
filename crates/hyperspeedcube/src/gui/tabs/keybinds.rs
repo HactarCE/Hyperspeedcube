@@ -1,6 +1,7 @@
 use hcegui::dnd::Dnd;
 
-use crate::{app::App, gui::EguiValue};
+use crate::app::App;
+use crate::gui::EguiValue;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.add_enabled_ui(app.active_puzzle.has_puzzle(), |ui| {
