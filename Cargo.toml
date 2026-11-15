@@ -98,7 +98,7 @@ approx_collections = { version = "4.1.0" }
 ball-tree = { version = "0.5.2" }
 bitflags = { version = "2.11.1" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
-ecow = { version = "0.2.5" }
+ecow = { version = "0.3.1" }
 indexmap = { version = "2.13.0" }                                              # must match serde_norway
 smallvec = { version = "1.15.1", features = ["union"] }
 tinyset = { version = "0.5.1" }

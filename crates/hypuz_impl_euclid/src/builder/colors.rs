@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ecow::string::ToEcoString;
 use eyre::Result;
 use hypuz_core::{
     CatalogId, Color, ColorSystem, ComponentList, IndexOverflow, Names, Orbit, PaletteColor,
@@ -71,7 +72,7 @@ impl ColorSystemDisjointUnion {
             self.terms
                 .iter()
                 .enumerate()
-                .map(|(i, t)| (SequentialLowercaseName(i as u32).to_string().into(), t))
+                .map(|(i, t)| (SequentialLowercaseName(i as u32).to_eco_string(), t))
                 .collect()
         }
     }

@@ -24,6 +24,7 @@
 use std::sync::Arc;
 
 use ecow::eco_format;
+use ecow::string::ToEcoString;
 use hypuz_core::{
     BuildCtx, CatalogBuilder, CatalogObject, Generator, GeneratorParam, GeneratorParamValidation,
     GeneratorSubsetParam, TypedCatalogIdValue, VersionedCatalogWord,
@@ -186,7 +187,7 @@ impl HpsGenerator {
                     let self_kwargs = Arc::clone(&self_kwargs);
 
                     let mut scope = Scope::default();
-                    scope.special.id = Some(build_ctx.id().to_string().into());
+                    scope.special.id = Some(build_ctx.id().to_eco_string());
                     tx.eval_blocking(Arc::new(scope), move |ctx| {
                         let mut return_value = gen_fn.call(gen_fn_span, ctx, args, Map::new())?;
                         if let Ok(m) = return_value.as_map_mut(crate::BUILTIN_SPAN) {
@@ -281,7 +282,7 @@ impl HpsGenerator {
 
 pub(super) fn param_value_into_hps(value: &TypedCatalogIdValue) -> Value {
     match value {
-        TypedCatalogIdValue::Id(id) => ValueData::Str(id.to_string().into()),
+        TypedCatalogIdValue::Id(id) => ValueData::Str(id.to_eco_string()),
         TypedCatalogIdValue::Bool(b) => ValueData::Bool(*b),
         TypedCatalogIdValue::Int(i) => ValueData::Num(*i as Num),
         TypedCatalogIdValue::List(l) => {

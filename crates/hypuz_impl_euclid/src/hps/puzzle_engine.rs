@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ecow::string::ToEcoString;
 use eyre::{OptionExt, eyre};
 use hypergroup::GenSeq;
 use hypermath::collections::RangeMap;
@@ -116,7 +117,7 @@ impl HpsEngine for EuclidPuzzleEngine {
                     .ok_or_eyre("at least one of `ndim` and `twists` is required")?;
 
                 let mut scope = Scope::default();
-                scope.special.id = Some(id.to_string().into());
+                scope.special.id = Some(id.to_eco_string());
                 scope.special.ndim = Some(ndim);
                 scope.special.shape = Arc::new(Mutex::new({
                     let mut m = Map::new();

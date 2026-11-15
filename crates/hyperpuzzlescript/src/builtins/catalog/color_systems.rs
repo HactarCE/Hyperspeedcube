@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use ecow::eco_format;
+use ecow::string::ToEcoString;
 use eyre::{OptionExt, bail, eyre};
 use hypuz_core::catalog::CatalogHook;
 use hypuz_core::{
@@ -92,10 +93,10 @@ pub fn define_in(
                 priority,
                 callback: Box::new(move |color_system, args| {
                     let mut scope = Scope::default();
-                    scope.special.id = Some(color_system.id.to_string().into());
+                    scope.special.id = Some(color_system.id.to_eco_string());
                     let args = args
                         .iter()
-                        .map(|v| ValueData::Str(v.to_string().into()).at(crate::BUILTIN_SPAN))
+                        .map(|v| ValueData::Str(v.to_eco_string()).at(crate::BUILTIN_SPAN))
                         .collect();
                     let callback = Arc::clone(&callback);
 

@@ -23,6 +23,7 @@ hypuz_core.workspace = true
 hypuz_notation.workspace = true
 hypuz_util.workspace = true
 
+ecow.workspace = true
 eyre.workspace = true
 hypershape.workspace = true
 indexmap.workspace = true

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ecow::string::ToEcoString;
 use eyre::{Context, eyre};
 use hypergroup::GenSeq;
 use hypermath::{Float, Ndim};
@@ -46,7 +47,7 @@ impl HpsEngine for EuclidTwistSystemEngine {
                 );
 
                 let mut scope = Scope::default();
-                scope.special.id = Some(id.to_string().into());
+                scope.special.id = Some(id.to_eco_string());
                 scope.special.ndim = Some(ndim);
                 init_twists_in_hps_scope(&mut scope);
                 Ok(Arc::new(tx.eval_blocking(
