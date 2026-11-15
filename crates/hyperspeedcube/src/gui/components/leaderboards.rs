@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::sync::Arc;
 
 use egui::{AtomExt, IntoAtoms};
@@ -91,17 +90,16 @@ impl egui::Widget for LeaderboardsUi<'_> {
 
 fn menu_button<'a>(
     ui: &mut egui::Ui,
-    id_salt: impl Hash,
+    id_salt: impl egui::AsIdSalt,
     spinner: bool,
     label: impl egui::IntoAtoms<'a>,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) -> egui::Response {
-    let spinner_id = unique_id!();
     ui.push_id(id_salt, |ui| {
         let atoms = match spinner {
             true => {
-                let spinner_atom = egui::Atom::custom(spinner_id, MDI_SMALL_SIZE);
-                (spinner_atom, label).into_atoms()
+                let spinner_id_salt = egui::IdSalt::new(0); // doesn't matter
+                (egui::Atom::custom(spinner_id_salt, MDI_SMALL_SIZE), label).into_atoms()
             }
             false => label.into_atoms(),
         };

@@ -606,8 +606,8 @@ struct PolygonsVertexInput {
 struct PolygonsVertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(perspective) normal_xy: vec2<f32>,
-    @location(1) color_id: u32,
-    @location(2) cull: f32, // 0 = no cull. 1 = cull.
+    @location(1) @interpolate(flat) color_id: u32,
+    @location(2) @interpolate(flat) cull: f32, // 0 = no cull. 1 = cull.
 }
 
 @compute

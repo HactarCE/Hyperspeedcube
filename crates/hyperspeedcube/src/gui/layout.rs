@@ -156,7 +156,7 @@ impl UiLayout {
                 .filter_map(|(i, surface)| match surface {
                     egui_dock::Surface::Window(tree, _window_state) => {
                         let surf_index = egui_dock::SurfaceIndex(i);
-                        let id = format!("window {surf_index:?}").into(); // must match egui_dock internals
+                        let id = egui::Id::unique(format!("window {surf_index:?}")); // must match egui_dock internals
                         let area_state = egui::AreaState::load(ctx, id);
                         Some(UiLayoutWindow {
                             pos: area_state.map(|s| s.left_top_pos().into()),

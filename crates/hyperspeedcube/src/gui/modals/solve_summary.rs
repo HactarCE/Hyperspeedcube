@@ -577,14 +577,14 @@ impl SolveSummaryModal {
         let icon = icon!(ui, MDI_STYLE_ICON_ROTATE_SQUARE, 18);
         ui.put(
             cell(1, 0),
-            egui::AtomLayout::new((icon, move_count_header_text))
+            egui::WidgetAtom::new((icon, move_count_header_text))
                 .align2(egui::Align2::RIGHT_CENTER),
         )
         .on_i18n_hover_explanation(&L.status_bar.move_count);
         let icon = mdi!(ui, TIMER, 18);
         ui.put(
             cell(2, 0),
-            egui::AtomLayout::new((icon, speed_header_text)).align2(egui::Align2::RIGHT_CENTER),
+            egui::WidgetAtom::new((icon, speed_header_text)).align2(egui::Align2::RIGHT_CENTER),
         )
         .on_i18n_hover_explanation(if is_blind {
             &L.status_bar.blindsolve_time
@@ -608,20 +608,20 @@ impl SolveSummaryModal {
 
         // New solve
         let row_label = (mdi_big!(ui, NEW_BOX), L.solve_summary.table.this_solve);
-        put_left(ui, cell(0, 1), egui::AtomLayout::new(row_label));
+        put_left(ui, cell(0, 1), egui::WidgetAtom::new(row_label));
         ui.put(cell(1, 1), this_solve_move_count);
         ui.put(cell(2, 1), this_solve_speed);
 
         // Saved personal best
         let row_label = (mdi_big!(ui, HARDDISK), L.solve_summary.table.saved_pb);
-        put_left(ui, cell(0, 2), egui::AtomLayout::new(row_label));
+        put_left(ui, cell(0, 2), egui::WidgetAtom::new(row_label));
         ui.put(cell(1, 2), saved_pb_solve_move_count);
         ui.put(cell(2, 2), saved_pb_solve_speed);
 
         if self.is_leaderboard_eligible {
             // Leaderboard personal best
             let row_label = (mdi_big!(ui, MEDAL), L.solve_summary.table.leaderboard_pb);
-            put_left(ui, cell(0, 3), egui::AtomLayout::new(row_label));
+            put_left(ui, cell(0, 3), egui::WidgetAtom::new(row_label));
             let merged_cell = || cell(1, 3).union(cell(2, 3));
             match &self.leaderboard_pbs {
                 RequestState::Init => (), // should have been handled already
@@ -654,7 +654,7 @@ impl SolveSummaryModal {
 
             // Leaderboard world record
             let row_label = (mdi_big!(ui, TROPHY), L.solve_summary.table.world_record);
-            put_left(ui, cell(0, 4), egui::AtomLayout::new(row_label));
+            put_left(ui, cell(0, 4), egui::WidgetAtom::new(row_label));
             let merged_cell = || cell(1, 4).union(cell(2, 4));
             match &self.leaderboard_wrs {
                 RequestState::Init => (), // should have been handled already

@@ -247,11 +247,7 @@ impl Simplex {
 
     /// Returns all 1-dimensional elements of the simplex.
     pub fn edges(&self) -> impl '_ + Iterator<Item = [VertexId; 2]> {
-        let verts: SmallVec<[VertexId; 8]> = self.0.iter().collect();
-        verts
-            .into_iter()
-            .tuple_combinations()
-            .map(|(v1, v2)| [v1, v2])
+        self.0.iter().array_combinations()
     }
     /// Returns all (N-1)-dimensional elements of the simplex.
     pub fn facets(&self) -> Result<impl '_ + Iterator<Item = Simplex>> {

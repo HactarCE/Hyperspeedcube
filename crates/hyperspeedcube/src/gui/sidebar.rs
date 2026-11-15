@@ -94,7 +94,7 @@ pub fn show(app_ui: &mut AppUi, ui: &mut egui::Ui) {
         .frame(egui::Frame::side_top_panel(ui.style()).inner_margin(0.0))
         .exact_size(sidebar_width)
         .resizable(false)
-        .show_inside(ui, |ui| {
+        .show(ui, |ui| {
             let spacing = ui.spacing_mut();
             spacing.item_spacing = ITEM_SPACING;
             spacing.button_padding.x = spacing.button_padding.y;

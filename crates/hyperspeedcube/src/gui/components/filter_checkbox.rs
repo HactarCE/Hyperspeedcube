@@ -120,7 +120,7 @@ impl egui::Widget for FilterCheckbox<'_> {
             self.state.cycle_state_backward(self.allowed_states);
             response.mark_changed();
         }
-        let ty = egui::WidgetType::Checkbox;
+        let ty = egui::Role::CheckBox;
         response.widget_info(|| match &self.state {
             FilterCheckboxState::Mixed | FilterCheckboxState::Coherent(None) => {
                 egui::WidgetInfo::labeled(ty, ui.is_enabled(), galley.text())

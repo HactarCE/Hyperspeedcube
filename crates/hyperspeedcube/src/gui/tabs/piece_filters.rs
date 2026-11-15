@@ -153,8 +153,8 @@ fn show_filter_presets_list_ui_contents(
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
 
-    let mut preset_dnd = Dnd::new(ui, "preset_dnd");
-    let mut seq_dnd = Dnd::new(ui, "seq_dnd");
+    let mut preset_dnd = Dnd::new(ui, unique_id!());
+    let mut seq_dnd = Dnd::new(ui, unique_id!());
 
     ui.visuals_mut().collapsing_header_frame = true;
 
@@ -876,7 +876,7 @@ fn show_filter_expr_ui(
 }
 
 fn show_filter_checkboxes_ui(
-    id: impl Hash,
+    id: impl egui::AsIdSalt,
     ui: &mut egui::Ui,
     filters: &mut FilterCheckboxes,
     puzzle: &Puzzle,

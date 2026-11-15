@@ -14,7 +14,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     let pipeline_descriptor = RenderPipelineDescriptor {
         vertex_entry_point: "uv_vertex",
         fragment_entry_point: "blit_fragment_unmultiply_alpha",
-        vertex_buffers: &[UvVertex::LAYOUT],
+        vertex_buffers: &[Some(UvVertex::LAYOUT)],
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleStrip,
             ..Default::default()

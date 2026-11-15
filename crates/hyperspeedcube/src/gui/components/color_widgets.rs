@@ -581,7 +581,7 @@ impl ColorButton {
                 });
         }
 
-        r.widget_info(|| egui::WidgetInfo::new(egui::WidgetType::ColorButton));
+        r.widget_info(|| egui::WidgetInfo::new(egui::Role::ColorWell));
         r
     }
 }
@@ -788,7 +788,7 @@ pub fn color_edit(
     let popup_response: Option<TextEditPopupResponse> = hex_edit_popup.if_open(|popup| {
         popup
             .over(ui, &r, egui::vec2(1.0, 2.0))
-            .text_edit_align(egui::Align::Center)
+            .text_edit_align(egui::Align2::CENTER_CENTER)
             .text_edit_monospace()
             .auto_confirm(true)
             .confirm_button(&|s| {

@@ -25,7 +25,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         label: "render_composite_puzzle",
         vertex_entry_point: "uv_vertex",
         fragment_entry_point: "render_composite_puzzle_fragment",
-        vertex_buffers: &[UvVertex::LAYOUT],
+        vertex_buffers: &[Some(UvVertex::LAYOUT)],
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleStrip,
             ..Default::default()

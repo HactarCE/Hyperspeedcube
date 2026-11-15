@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::hash::Hash;
 
 use itertools::Itertools;
 
@@ -10,13 +9,13 @@ const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current grip";
 
 pub struct FancyComboBox<'a, T> {
-    pub combo_box: egui::ComboBox,
+    pub combo_box: egui::ComboBox<'a>,
     pub selected: &'a mut T,
     pub options: Vec<(T, Cow<'a, str>)>,
 }
 impl<'a> FancyComboBox<'a, String> {
     pub fn new_strings<O: 'a + AsRef<str>>(
-        id_salt: impl Hash,
+        id_salt: impl egui::AsIdSalt,
         selected: &'a mut String,
         options: impl IntoIterator<Item = &'a O>,
     ) -> Self {
@@ -33,7 +32,7 @@ impl<'a> FancyComboBox<'a, String> {
 }
 impl<'a, T: Clone> FancyComboBox<'a, T> {
     pub fn new<'b>(
-        id_salt: impl Hash,
+        id_salt: impl egui::AsIdSalt,
         selected: &'a mut T,
         options: impl Into<Cow<'b, [(T, Cow<'a, str>)]>>,
     ) -> Self
@@ -49,7 +48,7 @@ impl<'a, T: Clone> FancyComboBox<'a, T> {
 }
 impl<'a> FancyComboBox<'a, Option<String>> {
     pub fn new_optional<O: 'a + AsRef<str>>(
-        id_salt: impl Hash,
+        id_salt: impl egui::AsIdSalt,
         selected: &'a mut Option<String>,
         options: impl IntoIterator<Item = &'a O>,
     ) -> Self {

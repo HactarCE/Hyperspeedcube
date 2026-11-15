@@ -115,7 +115,7 @@ struct RenderPipelineDescriptor<'a> {
     label: &'a str,
     vertex_entry_point: &'a str,
     fragment_entry_point: &'a str,
-    vertex_buffers: &'a [wgpu::VertexBufferLayout<'a>],
+    vertex_buffers: &'a [Option<wgpu::VertexBufferLayout<'a>>],
     primitive: wgpu::PrimitiveState,
     depth_stencil: Option<wgpu::DepthStencilState>,
     multisample: wgpu::MultisampleState,

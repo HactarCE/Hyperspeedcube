@@ -49,7 +49,7 @@ ecolor = { workspace = true, optional = true }
 oklab = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion.workspace = true
 proptest.workspace = true
 
 [features]

@@ -14,7 +14,7 @@ use markdown::md;
 /// hashing similarly.
 macro_rules! unique_id {
     ($($args:tt)*) => {
-        egui::Id::new((
+        egui::Id::unique((
             // compile-time hash of crate name, file path, line number, and column number
             const {
                 const_fnv1a_hash::fnv1a_hash_str_64(env!("CARGO_PKG_NAME"))
@@ -154,7 +154,7 @@ impl AppUi {
         let dark_mode = ui.style().visuals.dark_mode;
         let background_color = self.app.prefs.background_color(dark_mode);
 
-        egui::Panel::top("menu_bar").show_inside(ui, |ui| menu_bar::build(ui, self));
+        egui::Panel::top("menu_bar").show(ui, |ui| menu_bar::build(ui, self));
 
         sidebar::show(self, ui);
 
@@ -166,7 +166,7 @@ impl AppUi {
                 .min_size(sidebar_utility.min_width())
                 .max_size(ui.content_rect().width() * 0.75)
                 .frame(egui::Frame::side_top_panel(ui.style()).inner_margin(8.0))
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     ui.set_width(ui.available_width().round()); // take all available space, but don't grow ominously
                     ui.vertical_centered(|ui| ui.heading(sidebar_utility.title()));
                     ui.add_space(6.0);
@@ -179,7 +179,7 @@ impl AppUi {
                 let [r, g, b] = background_color.rgb;
                 egui::Color32::from_rgb(r, g, b)
             }))
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.spacing_mut().window_margin.top += 18;
 
                 let mut style = egui_dock::Style::from_egui(ui.style());
@@ -448,10 +448,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
         match tab {
-            Tab::Puzzle(puz) => egui::Id::new(Arc::as_ptr(
+            Tab::Puzzle(puz) => egui::Id::unique(Arc::as_ptr(
                 puz.get_or_insert_with(|| self.app.new_puzzle_widget()),
             )),
-            Tab::Utility(utility) => egui::Id::new(utility),
+            Tab::Utility(utility) => egui::Id::unique(utility),
         }
     }
 

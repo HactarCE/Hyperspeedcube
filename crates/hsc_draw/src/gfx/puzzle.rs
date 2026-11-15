@@ -316,7 +316,7 @@ impl NdEuclidPuzzleRenderer {
             // IIFE to mimic try_block
             let _ = tx.send((|| {
                 result?;
-                let data = output_buffer_ref.slice(..).get_mapped_range();
+                let data = output_buffer_ref.slice(..).get_mapped_range()?;
                 ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, data.to_vec())
                     .ok_or_eyre("error constructing image buffer")
             })());

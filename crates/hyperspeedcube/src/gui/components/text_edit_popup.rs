@@ -32,7 +32,7 @@ pub struct TextEditPopup<'v, 's, 'p> {
 
     label: Option<String>,
 
-    text_edit_align: Option<egui::Align>,
+    text_edit_align: Option<egui::Align2>,
     text_edit_trim: bool,
     text_edit_monospace: bool,
     text_edit_width: Option<f32>,
@@ -107,7 +107,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
         self.label = Some(label.to_string());
         self
     }
-    pub fn text_edit_align(mut self, align: egui::Align) -> Self {
+    pub fn text_edit_align(mut self, align: egui::Align2) -> Self {
         self.text_edit_align = Some(align);
         self
     }
@@ -199,7 +199,7 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
 
                 let mut text_edit = egui::TextEdit::singleline(&mut *self.new_name);
                 if let Some(align) = self.text_edit_align {
-                    text_edit = text_edit.horizontal_align(align);
+                    text_edit = text_edit.align(align);
                 }
                 if self.text_edit_monospace {
                     text_edit = text_edit.font(egui::TextStyle::Monospace);

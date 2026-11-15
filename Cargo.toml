@@ -96,7 +96,7 @@ timecheck = { path = "crates/timecheck" }
 # Data structures
 approx_collections = { version = "4.1.0" }
 ball-tree = { version = "0.5.2" }
-bitflags = { version = "2.11.1" }
+bitflags = { version = "2.13.2" }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 ecow = { version = "0.3.1" }
 indexmap = { version = "2.13.0" }                                              # must match serde_norway
@@ -146,26 +146,20 @@ eyre = { version = "0.6.12" }
 log = { version = "0.4.29" }
 owo-colors = { version = "4.3.0" }
 pretty_assertions = { version = "1.4.1" }
-thiserror = { version = "2.0.18" }
+thiserror = { version = "2.0.21" }
 
 # Command-line interface
 clap = { version = "4.5.60" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
-hcegui = { git = "https://github.com/HactarCE/hcegui.git", rev = "fafff88c4df9962628a33bbe4e0ce5b069ad16b3" }
-ecolor = { version = "0.34.1" }
-eframe = { version = "0.34.1", default-features = false, features = [
-    "accesskit",
-    "default_fonts",
-    "wayland",
-    "web_screen_reader",
-    "wgpu",
-    "x11",
-] }
-egui = { version = "0.34.1" }
-egui_dock = { version = "0.19.1" }
-egui_extras = { version = "0.34.1", features = [
+hcegui = { version = "0.2.0" }
+ecolor = { version = "0.37.0" }
+eframe = { version = "0.37.0" }
+egui = { version = "0.37.0" }
+egui_dock = { git = "https://github.com/crumblingstatue/egui_dock.git", rev = "4bd1dcd90c7a71ed3bf38159f49a2992fa653c2c" } # TODO: egui_dock 0.22, probably
+# egui_dock = { version = "0.19.1" }
+egui_extras = { version = "0.37.0", features = [
     "svg",
     "http", # for discord avatars
     "webp", # for discord avatars
@@ -173,14 +167,14 @@ egui_extras = { version = "0.34.1", features = [
 winit = { version = "0.30.13", features = [
     "serde",
 ] } # must match egui-winit and key-names
-wgpu = { version = "29.0.1", features = ["webgl"] } # must match egui-wgpu
+wgpu = { version = "30.0.1", features = ["webgl"] } # must match egui-wgpu
 
 # Other windowing and UI
 arboard = { version = "3" }       # should match egui
 key-names = { version = "3.0.0" }
 material-design-icons = "7.4.48"
 open_with = { version = "0.1.2" }
-rfd = { version = "0.17.2" }
+rfd = { version = "0.18.0" }
 
 # Colors
 colorous = { version = "1.0.15" }
@@ -189,31 +183,32 @@ oklab = { version = "1.0.1" }
 lab = { version = "0.11.0" }                                                     # as required by empfindung
 
 # Async and multithreading
-parking_lot = { version = "0.12.5" }
-pollster = { version = "0.4.0" }
+parking_lot = { version = "0.13.0" }
+pollster = { version = "1.0.1" }
 rayon = { version = "1.11.0" }
 
 # Networking, cryptography, hashing, and PRNG
-chacha20 = { version = "0.10.0" }                 # needs stable output
+chacha20 = { version = "0.10.2" }                 # needs stable output
 const-fnv1a-hash = { version = "1.1.0" }
 drand-verify = { version = "0.6.2" }
-rand = { version = "0.10.1" }                     # must match chacha20
-sha2 = { version = "0.11.0" }
+rand = { version = "0.10.4" }                     # must match chacha20
+sha2 = { version = "0.11.1" }
 tsp-http-client = { version = "0.1.0" }
-ureq = { version = "3.2.0", features = ["json"] }
+ureq = { version = "3.5.2", features = ["json"] }
 
 # Procedural macro utilities
 proc-macro2 = { version = "1.0.104" }
 quote = { version = "1.0.42" }
-syn = { version = "2.0.117" }
+syn = { version = "3.0.10" }
 
 # Other dependencies
 bytemuck = { version = "1.24.0", features = ["derive"] }
 chrono = { version = "0.4.44", features = ["serde"] }
-itertools = { version = "0.14.0" }
+criterion = { version = "0.8.2", features = ["html_reports"] }
+itertools = { version = "0.15.0" }
 names = { version = "0.14.0", default-features = false }
 proptest = { version = "1.9.0" }
-proptest-derive = { version = "0.8.0" }
+proptest-derive = { version = "0.9.0" }
 semver = { version = "1.0.27" }
 time = { version = "0.3.44", features = ["local-offset"] }
 web-time = { version = "1.1.0" }

@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
@@ -352,7 +351,7 @@ impl<T> PrefsUi<'_, T> {
 
     pub fn interpolation_fn(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl egui::AsIdSalt,
         strings: &HoverStrings,
         access: Access<T, InterpolateFn>,
     ) -> egui::Response {

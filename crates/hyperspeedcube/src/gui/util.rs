@@ -257,7 +257,7 @@ pub fn close_button(ui: &mut egui::Ui, rect: egui::Rect) -> egui::Response {
     let close_id = consume_auto_id(ui); // only used for clicks; ok to depend on layout
     let response = ui.interact(rect, close_id, egui::Sense::click());
     response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Close window")
+        egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), "Close window")
     });
 
     ui.expand_to_include_rect(response.rect);

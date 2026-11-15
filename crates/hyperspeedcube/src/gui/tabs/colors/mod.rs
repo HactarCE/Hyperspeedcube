@@ -12,7 +12,7 @@ enum ColorsTab {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let mut tab = EguiValue::<ColorsTab>::load_or_default(ui, egui::Id::new(()));
+    let mut tab = EguiValue::<ColorsTab>::load_or_default(ui, unique_id!());
     ui.group(|ui| {
         egui::ScrollArea::horizontal()
             .id_salt("colors_tab_select")

@@ -307,7 +307,7 @@ impl PuzzleWidget {
             }
 
             if let Some(sim) = &sim {
-                egui::Panel::bottom(unique_id!(self.id)).show_inside(ui, |ui| {
+                egui::Panel::bottom(unique_id!(self.id)).show(ui, |ui| {
                     egui::ScrollArea::horizontal()
                         .auto_shrink([false, true])
                         .show(ui, |ui| {
@@ -991,7 +991,7 @@ fn show_nd_euclid_puzzle_view(
     // Draw gizmos (TODO: move to GPU?)
     let gizmo_painter = egui::Painter::new(
         painter.ctx().clone(),
-        egui::LayerId::new(egui::Order::Middle, "twist_gizmos".into()),
+        egui::LayerId::new(egui::Order::Middle, unique_id!()),
         painter.clip_rect(),
     );
     if let Some(gizmo_vertex_3d_positions) = nd_euclid.renderer.gizmo_vertex_3d_positions.get() {

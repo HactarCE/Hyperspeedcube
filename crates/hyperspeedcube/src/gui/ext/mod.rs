@@ -65,7 +65,7 @@ pub trait ComboBoxExt {
         options: impl IntoIterator<Item = impl Into<egui::WidgetText>>,
     ) -> Self;
 }
-impl ComboBoxExt for egui::ComboBox {
+impl ComboBoxExt for egui::ComboBox<'_> {
     fn width_to_fit(
         self,
         ui: &egui::Ui,
