@@ -9,6 +9,7 @@ use strum::IntoEnumIterator;
 
 use super::{TextEditPopup, TextEditPopupResponse};
 use crate::L;
+use crate::gui::EguiValue;
 use crate::gui::markdown::md;
 use crate::gui::temp_value::EguiFlag;
 use crate::gui::util::autosize_font;
@@ -25,7 +26,7 @@ const GRADIENT_HEIGHT_MULTIPLIER: f32 = 1.5;
 const GRADIENT_COMPACT_HEIGHT_MULTIPLIER: f32 = 0.5;
 
 /// Rounding of the colored box in the big color preview tooltip.
-const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
+const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 12.0;
 
 const COLOR_PALETTE_POPUP_WIDTH: f32 = 600.0;
 
@@ -499,7 +500,7 @@ impl ColorButton {
                 let text_color = if payload_id == Some(id) {
                     ui.painter().rect_filled(
                         r.rect.expand(2.0),
-                        3.0,
+                        8.0,
                         ui.visuals().window_fill.linear_multiply(0.75),
                     );
                     ui.visuals().strong_text_color()
@@ -556,7 +557,7 @@ impl ColorButton {
                                     ui.allocate_exact_size(color_square_size, egui::Sense::hover());
 
                                 paint_colored_rect(
-                                    ui.painter(),
+                                    ui,
                                     rect,
                                     TOOLTIP_COLOR_RECT_ROUNDING,
                                     self.color,
@@ -654,8 +655,8 @@ fn show_color_button_internal(
             ui.style().interact(&response)
         };
         let rect = rect.expand(visuals.expansion);
-        paint_colored_rect(ui.painter(), rect, 0.0, color.into());
-
+        let corner_radius = ui.visuals().widgets.active.corner_radius;
+        paint_colored_rect(ui, rect, corner_radius, color.into());
         ui.painter().rect_stroke(
             rect,
             visuals.corner_radius,
@@ -667,55 +668,57 @@ fn show_color_button_internal(
 }
 
 fn paint_colored_rect(
-    painter: &egui::Painter,
+    ui: &egui::Ui,
     mut rect: egui::Rect,
-    rounding: f32,
+    corner_radius: impl Into<egui::CornerRadius>,
     color: ColorOrGradient,
 ) {
+    let corner_radius = corner_radius.into();
+    let stroke_kind = egui::StrokeKind::Outside;
+    let painter = ui.painter();
+
     match color {
         ColorOrGradient::Color(c) => {
-            painter.rect_filled(rect, rounding, c);
+            painter.rect_filled(rect, corner_radius, c);
         }
         ColorOrGradient::Gradient(g) => {
-            if rounding > 0.0 {
-                let mut left = rect;
-                left.max.x = left.min.x + rounding * 2.0;
-                let left_color = g.eval_continuous(0.0).to_egui_color32();
-                painter.rect_filled(left, rounding, left_color);
-
-                let mut right = rect;
-                right.min.x = right.max.x - rounding * 2.0;
-                let right_color = g.eval_continuous(1.0).to_egui_color32();
-                painter.rect_filled(right, rounding, right_color);
-
-                rect.min.x += rounding;
-                rect.max.x -= rounding;
-            }
-
-            let block_count = (rect.size().x * painter.pixels_per_point()
-                / GRADIENT_RESOLUTION as f32)
-                .round() as usize;
-            for i in 0..block_count {
-                let sliver = egui::Rect::from_x_y_ranges(
-                    egui::Rangef {
-                        min: hypermath::util::lerp(
-                            rect.min.x,
-                            rect.max.x,
-                            i as f32 / block_count as f32,
-                        ),
-                        max: hypermath::util::lerp(
-                            rect.min.x,
-                            rect.max.x,
-                            (i + 1) as f32 / block_count as f32,
-                        ),
-                    },
-                    rect.y_range(),
-                );
-                let c = g.eval_rational(i, block_count - 1).to_egui_color32();
-                egui::color_picker::show_color_at(painter, c, sliver);
-            }
+            painter.add(
+                egui::epaint::RectShape::new(
+                    rect,
+                    corner_radius,
+                    egui::Color32::WHITE,
+                    egui::Stroke::NONE,
+                    egui::StrokeKind::Outside,
+                )
+                .with_texture(
+                    get_gradient_texture(ui, g),
+                    egui::Rect::from_x_y_ranges(0.0..=1.0, 0.0..=1.0),
+                ),
+            );
         }
     }
+}
+
+fn get_gradient_texture(ui: &egui::Context, gradient: PaletteGradient) -> egui::TextureId {
+    /// Number of pixels in the gradient texture.
+    const WIDTH: usize = 128;
+
+    // Cache texture handles
+    EguiValue::<HashMap<PaletteGradient, egui::TextureHandle>>::load_or_default(ui, unique_id!())
+        .entry(gradient)
+        .or_insert_with(|| {
+            ui.load_texture(
+                gradient.to_string(),
+                egui::ColorImage::new(
+                    [WIDTH, 1],
+                    (0..WIDTH)
+                        .map(|i| gradient.eval_rational(i, WIDTH).to_egui_color32())
+                        .collect(),
+                ),
+                egui::TextureOptions::LINEAR,
+            )
+        })
+        .id()
 }
 
 pub fn color_edit(
@@ -727,7 +730,7 @@ pub fn color_edit(
     let mut changed = false;
 
     let mut size = ui.spacing().interact_size;
-    size.x *= 1.5;
+    size.x *= 1.75;
     let mut r = show_color_button(ui, *color, size, egui::Sense::click());
 
     let contrasting_text_color = crate::util::contrasting_text_color(color.to_egui_color32());

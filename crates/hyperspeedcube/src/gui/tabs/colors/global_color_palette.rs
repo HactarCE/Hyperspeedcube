@@ -109,7 +109,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let mut to_delete = None;
 
     ui.horizontal(|ui| {
-        if ui.button(L.colors.actions.add).clicked() {
+        if ui.button((mdi!(ui, PLUS), L.colors.actions.add)).clicked() {
             let custom_colors = &mut prefs.current.custom_colors;
             let name = custom_colors.make_nonconflicting_funny_name(crate::util::funny_autonames());
             let rgb = rand::rng().random();
@@ -118,7 +118,10 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             *prefs.changed = true;
         }
 
-        ui.menu_button(L.colors.actions.sort, |ui| {
+        if prefs.current.custom_colors.is_empty() {
+            ui.disable();
+        }
+        ui.menu_button((mdi!(ui, SORT), L.colors.actions.sort), |ui| {
             let custom_colors = &mut prefs.current.custom_colors;
 
             let text = L.colors.actions.sort_by_name;
@@ -207,7 +210,7 @@ fn show_builtin_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         .keys()
         .enumerate()
     {
-        prefs_ui.color_with_label(unique_id!(), color_name, access!(.builtin_colors[i]));
+        prefs_ui.color_with_label(unique_id!(i), color_name, access!(.builtin_colors[i]));
     }
 }
 
@@ -248,7 +251,7 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
 
     for (set_name, _set_values) in default_sets {
         prefs.with(ui).fixed_multi_color(
-            unique_id!(),
+            unique_id!(set_name),
             set_name,
             access!(.builtin_color_sets[set_name]),
         );

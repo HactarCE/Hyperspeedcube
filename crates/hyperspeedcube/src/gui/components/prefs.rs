@@ -257,8 +257,10 @@ impl<T> PrefsUi<'_, T> {
                     let mut changed = false;
                     let mut r = ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = ui.spacing().item_spacing.y;
-                        for value in values {
-                            changed |= super::color_edit(ui, id, value, None::<fn()>).changed();
+                        for (i, value) in values.iter_mut().enumerate() {
+                            changed |=
+                                super::color_edit(ui, unique_id!(id, i), value, None::<fn()>)
+                                    .changed();
                         }
                     });
                     if changed {
