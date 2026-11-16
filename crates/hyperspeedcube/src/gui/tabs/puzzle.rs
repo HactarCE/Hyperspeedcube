@@ -63,56 +63,21 @@ fn show_puzzle_load_hint(
     ui: &mut egui::Ui,
     puzzle_widget: &mut PuzzleWidget,
     prefs: &mut Preferences,
-) -> egui::Response {
-    show_centered_with_sizing_pass(ui, true, true, |ui| {
-        ui.spacing_mut().button_padding *= 4.0;
-        ui.spacing_mut().item_spacing *= 4.0;
-        ui.heading(L.puzzle_view.select_a_puzzle);
-        ui.horizontal(|ui| {
+) {
+    ui.vertical_centered(|ui| {
+        egui::Aligned::new(egui::Align2::CENTER_CENTER).show(ui, |ui| {
+            ui.spacing_mut().button_padding *= 4.0;
+            ui.spacing_mut().item_spacing *= 4.0;
+            ui.heading(L.puzzle_view.select_a_puzzle);
             if ui.button(L.puzzle_view.rubiks_3d).clicked() {
                 puzzle_widget.load_puzzle("cube_ft(3)", prefs);
             }
             if ui.button(L.puzzle_view.rubiks_4d).clicked() {
                 puzzle_widget.load_puzzle("hypercube_ft(3)", prefs);
             }
+            ui.label(L.puzzle_view.more_in_catalog);
         });
-        ui.label(L.puzzle_view.more_in_catalog);
-    })
-    .response
-}
-
-fn show_centered_with_sizing_pass<R>(
-    ui: &mut egui::Ui,
-    horizontal: bool,
-    vertical: bool,
-    mut f: impl FnMut(&mut egui::Ui) -> R,
-) -> egui::InnerResponse<R> {
-    let total_rect = ui.max_rect();
-    let mut r = ui.scope_builder(
-        egui::UiBuilder::new()
-            .layout(egui::Layout::top_down(egui::Align::LEFT))
-            .sizing_pass()
-            .invisible(),
-        &mut f,
-    );
-    let size = r.response.rect.size();
-    if !ui.is_sizing_pass() {
-        let mut desired_rect = egui::Rect::from_center_size(total_rect.center(), size);
-        let go_back = total_rect.min - desired_rect.min;
-        if !horizontal {
-            desired_rect = desired_rect.translate(egui::vec2(go_back.x, 0.0));
-        }
-        if !vertical {
-            desired_rect = desired_rect.translate(egui::vec2(0.0, go_back.y));
-        }
-        r = ui.scope_builder(
-            egui::UiBuilder::new()
-                .layout(egui::Layout::top_down(egui::Align::Center))
-                .max_rect(desired_rect),
-            f,
-        );
-    }
-    r
+    });
 }
 
 pub struct PuzzleWidget {
@@ -1048,26 +1013,11 @@ fn show_color_edit_popup(
         egui::PopupAnchor::PointerFixed,
         ui.layer_id(),
     )
-    .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
+    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
     .open_memory(color_to_edit.is_some().then(|| true.into()))
     .show(|ui| {
         color_assignment_popup(ui, id, view, &prefs.color_palette, *editing_color);
     });
-
-    if let Some(popup_inner_response) = opt_popup_response {
-        let popup_response = popup_inner_response.response;
-        // Allow drags but not clicks
-        let any_cursor_input_outside_puzzle =
-            crate::gui::util::clicked_elsewhere(ui, &popup_response)
-                && crate::gui::util::clicked_elsewhere(ui, r);
-        let any_click_inside_puzzle = r.clicked() || r.secondary_clicked() || r.middle_clicked();
-        let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
-        if (clicked_elsewhere && !is_first_frame)
-            || ui.input(|input| input.key_pressed(egui::Key::Escape))
-        {
-            egui::Popup::close_id(ui, id);
-        }
-    }
 
     // Ensure that the color scheme is valid. Ignore whether it actually got
     // modified.

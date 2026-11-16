@@ -305,6 +305,7 @@ pub fn modal_with_sizing_pass<R>(
 
     let frame = egui::Frame::popup(&ctx.global_style());
 
+    // TODO: this is unused?
     let desired_rect = area
         .clone()
         .sizing_pass(true)

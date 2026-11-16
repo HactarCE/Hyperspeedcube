@@ -472,23 +472,8 @@ fn show_seq_preset_name(
             }
 
             let r = ui.add(IconButton::small(icon).selectable(false));
-            if r.hovered() || r.has_focus() {
-                // Unfortunately, egui tries to cache the tooltip size between
-                // frames so we need to pick a widget ahead of time.
-                //
-                // TODO: this problem shows up in other areas as well, such as
-                // the error message on the confirm button in the preset
-                // renaming popup
-                let w = f32::max(
-                    text_width(ui, md_inline(ui, L.piece_filters.include_previous)),
-                    text_width(ui, md_inline(ui, L.piece_filters.ignore_previous)),
-                );
-
-                r.show_tooltip_ui(|ui| {
-                    ui.set_width(w.ceil());
-                    md(ui, hover);
-                });
-            }
+            // Show hover text only when not clicked so that the tooltip
+            // resizes when the state changes.
             if r.clicked() {
                 value.include_previous.toggle();
                 value.inner.fallback_style = if value.include_previous {
@@ -497,6 +482,10 @@ fn show_seq_preset_name(
                     fallback_style.clone()
                 };
                 *changed = true;
+            } else if r.hovered() || r.has_focus() {
+                r.show_tooltip_ui(|ui| {
+                    md(ui, hover);
+                });
             }
         });
 
@@ -863,8 +852,11 @@ fn show_filter_expr_ui(
                 .desired_width(f32::INFINITY)
                 .desired_rows(1),
         );
+        // Hide tooltip for one frame when text edit changes to give it a chance
+        // to resize.
         if let Some(e) = err
             && (r.has_focus() || r.hovered())
+            && !r.changed()
         {
             r.show_tooltip_ui(|ui| {
                 ui.colored_label(ui.visuals().warn_fg_color, e);
