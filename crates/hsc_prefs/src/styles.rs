@@ -39,7 +39,9 @@ pub struct PieceStyle {
     pub outline_lighting: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Display, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq, Hash, strum::Display,
+)]
 #[serde(tag = "mode")]
 pub enum StyleColorMode {
     #[default]

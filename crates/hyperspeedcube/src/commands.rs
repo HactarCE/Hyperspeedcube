@@ -225,16 +225,16 @@ impl PuzzleCommand {
     Serialize,
     Deserialize,
     Debug,
-    Display,
-    AsRefStr,
-    IntoStaticStr,
-    EnumIter,
     Default,
     Copy,
     Clone,
     PartialEq,
     Eq,
     Hash,
+    strum::Display,
+    strum::AsRefStr,
+    strum::IntoStaticStr,
+    strum::EnumIter,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FilterMode {

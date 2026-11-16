@@ -21,7 +21,16 @@ pub mod interpolation {
     /// Function that maps a float from the range 0.0 to 1.0 to another float
     /// from 0.0 to 1.0.
     #[derive(
-        Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq, Hash, VariantArray,
+        Serialize,
+        Deserialize,
+        Debug,
+        Default,
+        Copy,
+        Clone,
+        PartialEq,
+        Eq,
+        Hash,
+        strum::VariantArray,
     )]
     #[serde(rename_all = "snake_case")]
     pub enum InterpolateFn {

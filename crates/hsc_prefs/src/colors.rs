@@ -45,7 +45,18 @@ impl ColorSchemePreferences {
 }
 
 /// Gradient from the global color palette.
-#[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+)]
 pub enum PaletteGradient {
     #[strum(serialize = "Light Rainbow")]
     LightRainbow,

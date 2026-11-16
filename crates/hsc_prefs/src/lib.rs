@@ -5,9 +5,6 @@
 
 #![allow(missing_docs)] // too many things to document
 
-#[macro_use]
-extern crate strum;
-
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 

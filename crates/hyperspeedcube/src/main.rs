@@ -5,9 +5,6 @@
 use std::sync::LazyLock;
 
 #[macro_use]
-extern crate strum;
-
-#[macro_use]
 mod debug;
 mod app;
 mod cli;
