@@ -790,7 +790,7 @@ pub fn color_edit(
     }
     let popup_response: Option<TextEditPopupResponse> = hex_edit_popup.if_open(|popup| {
         popup
-            .over(ui, &r, egui::vec2(1.0, 2.0))
+            .over(ui, &r, egui::vec2(6.5, 1.0)) // align text
             .text_edit_align(egui::Align2::CENTER_CENTER)
             .text_edit_monospace()
             .auto_confirm(true)

@@ -88,13 +88,13 @@ impl<'v, 's, 'p> TextEditPopup<'v, 's, 'p> {
     // TODO: modify `over()` to handle the case where the label is up against
     //       the right side of the UI, then review uses of `at()`
     pub fn at(mut self, ui: &mut egui::Ui, r: &egui::Response, fudge: egui::Vec2) -> Self {
-        let padding = ui.spacing().window_margin.left_top() + ui.spacing().button_padding + fudge;
+        let padding = ui.spacing().window_margin.left_top() + ui.spacing().button_padding - fudge;
         self.popup = self
             .popup
             .anchor(egui::PopupAnchor::Position(r.rect.left_top() - padding));
         self
     }
-    /// Same as `at()` but sets width as well.
+    /// Same as `at()` but sets width as well, if wider.
     pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, fudge: egui::Vec2) -> Self {
         self = self.at(ui, r, fudge);
         if !self.text_edit_width.is_some_and(|w| w > r.rect.width()) {
