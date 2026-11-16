@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
 
 use egui::{NumExt, include_image};
+use hcegui::mdi::{MDI_BIG, MDI_BIG_SIZE};
+use hcegui::rounding::GuiRoundingExtRect;
 use hsc_leaderboards::{AutoVerifySubmission, BestSolves, BestSolvesRequest, Leaderboards};
 use hsc_log::verify::SolveVerificationError;
 use hsc_log::{LogFile, Solve};
@@ -17,9 +19,7 @@ use crate::L;
 use crate::gui::App;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
-use crate::gui::util::{
-    GuiRoundingExtRect, MDI_BIG_SIZE, MDI_STYLE_ICON_ROTATE_SQUARE, text_width,
-};
+use crate::gui::util::{MDI_STYLE_ICON_ROTATE_SQUARE, text_width};
 use crate::leaderboards::LeaderboardsClientState;
 use crate::util::centiseconds_to_string;
 
@@ -185,8 +185,8 @@ impl SolveSummaryModal {
             let button_center =
                 title_rect.right_center() - egui::vec2(title_rect.height() / 2.0, 0.0);
             let button_size = egui::Vec2::splat(ui.spacing().icon_width);
-            let button_rect = egui::Rect::from_center_size(button_center, button_size);
-            let button_rect = button_rect.round_to_pixels_ui_inward(ui);
+            let button_rect = egui::Rect::from_center_size(button_center, button_size)
+                .round_to_pixels_ui_inward(ui);
 
             if crate::gui::util::close_button(ui, button_rect).clicked() {
                 ui.close();
@@ -460,7 +460,7 @@ impl SolveSummaryModal {
             L.solve_summary.table.world_record,
         ]
         .into_iter()
-        .map(|text| text_width(ui, text) + ui.spacing().item_spacing.x + MDI_BIG_SIZE.x)
+        .map(|text| text_width(ui, text) + ui.spacing().item_spacing.x + MDI_BIG)
         .max_float()
         .unwrap_or(0.0);
 

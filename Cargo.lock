@@ -2748,6 +2748,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6804652e38c334f8e2f759ba0478d41a088c37992ba43bbca191a5c3c510ea0"
 dependencies = [
  "egui",
+ "egui_extras",
+ "material-design-icons",
 ]
 
 [[package]]

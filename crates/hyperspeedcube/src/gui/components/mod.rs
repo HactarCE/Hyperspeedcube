@@ -33,7 +33,6 @@ pub use yaml_editor::*;
 
 use crate::L;
 use crate::gui::temp_value::EguiFlag;
-use crate::gui::util::{MDI_MEDIUM, MDI_SMALL};
 
 fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
     ui.colored_label(ui.visuals().error_fg_color, text)
@@ -58,77 +57,4 @@ pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option
         }
     }
     false
-}
-
-pub struct IconButton<'a> {
-    icon: egui::Image<'a>,
-    icon_size: f32,
-    min_button_size: f32,
-    selected: Option<bool>,
-    transparent: bool,
-}
-
-impl<'a> IconButton<'a> {
-    fn new(icon: egui::Image<'a>, icon_size: f32, min_button_size: f32) -> Self {
-        Self {
-            icon,
-            icon_size,
-            min_button_size,
-            selected: None,
-            transparent: false,
-        }
-    }
-
-    pub fn very_small(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, MDI_SMALL, 0.0)
-    }
-
-    pub fn small(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, MDI_SMALL, 18.0)
-    }
-
-    pub fn medium(icon: egui::Image<'a>) -> Self {
-        Self::new(icon, MDI_MEDIUM, 22.0)
-    }
-
-    pub fn min_size(&self) -> f32 {
-        self.min_button_size
-    }
-
-    pub fn selectable(mut self, selected: bool) -> Self {
-        self.selected = Some(selected);
-        self
-    }
-
-    pub fn transparent(mut self) -> Self {
-        self.transparent = true;
-        self
-    }
-}
-
-impl egui::Widget for IconButton<'_> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        ui.scope(|ui| {
-            let spacing = ui.spacing_mut();
-            spacing.button_padding.x = spacing.button_padding.y;
-            spacing.interact_size = egui::vec2(0.0, 0.0);
-
-            let atoms = self
-                .icon
-                .fit_to_exact_size(egui::Vec2::splat(self.icon_size));
-
-            let mut button = match self.selected {
-                Some(selected) => egui::Button::selectable(selected, atoms),
-                None => egui::Button::new(atoms),
-            }
-            .min_size(egui::Vec2::splat(self.min_button_size));
-
-            if self.transparent {
-                button = button.fill(egui::Color32::TRANSPARENT);
-            }
-
-            ui.add(button)
-        })
-        .inner
-    }
 }

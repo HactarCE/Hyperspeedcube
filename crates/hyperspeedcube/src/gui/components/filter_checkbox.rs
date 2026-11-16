@@ -84,12 +84,20 @@ impl<'a> FilterCheckbox<'a> {
 /// This implementation is modified from [`egui::Checkbox::ui()`].
 impl egui::Widget for FilterCheckbox<'_> {
     fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
-        let spacing = &ui.spacing();
+        let spacing = ui.spacing();
         let indent = if self.indent { spacing.indent } else { 0.0 };
         let icon_width = spacing.icon_width;
         let color_spacing = spacing.item_spacing.x;
         let color_size = egui::vec2(spacing.icon_width * 1.5, spacing.icon_width);
         let label_spacing = spacing.icon_spacing;
+
+        // stolen from egui internals to be consistent with `ui.checkbox()`
+        let checkbox_corner_radius = ui
+            .visuals()
+            .widgets
+            .active
+            .corner_radius
+            .at_most((0.3 * spacing.icon_width).round() as u8);
 
         let mut width = indent + icon_width + label_spacing;
         if self.color.is_some() {
@@ -138,7 +146,7 @@ impl egui::Widget for FilterCheckbox<'_> {
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(egui::epaint::RectShape::new(
                 big_icon_rect.expand(visuals.expansion),
-                visuals.corner_radius,
+                checkbox_corner_radius,
                 visuals.bg_fill,
                 visuals.bg_stroke,
                 egui::StrokeKind::Outside,
@@ -191,11 +199,10 @@ impl egui::Widget for FilterCheckbox<'_> {
                 let color_rect =
                     egui::Rect::from_min_size(color_pos, color_size).expand(visuals.expansion);
 
-                egui::color_picker::show_color_at(ui.painter(), color, color_rect);
-
-                ui.painter().rect_stroke(
+                ui.painter().rect(
                     color_rect,
-                    visuals.corner_radius,
+                    3.0,
+                    color,
                     (2.0, visuals.bg_fill),
                     egui::StrokeKind::Outside,
                 );

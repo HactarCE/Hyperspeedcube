@@ -1,11 +1,13 @@
+use hcegui::mdi::{IconButton, MDI_SMALL};
 use hyperpuzzle::ScrambleType;
+use material_design_icons::{THEME_LIGHT_DARK, WEATHER_SUNNY, WHITE_BALANCE_SUNNY};
 
 use super::AppUi;
 use crate::gui::components::PrefsUi;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{MDI_SMALL, menu_button_that_stays_open};
+use crate::gui::util::menu_button_that_stays_open;
 use crate::{L, open_dir};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
@@ -240,7 +242,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         prefs_ui.checkbox(&L.prefs.online_mode, access!(.online_mode));
         prefs_ui.checkbox(&L.prefs.check_for_updates, access!(.check_for_updates));
         ui.separator();
-        egui::global_theme_preference_buttons(ui);
+        theme_preference_buttons(ui);
 
         app_ui.app.prefs.needs_save |= changed;
     });
@@ -313,4 +315,22 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             show_tab_toggle(ui, app_ui, UtilityTab::Debug);
         });
     }
+}
+
+fn theme_preference_buttons(ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().button_padding = egui::vec2(6.0, 2.0);
+        ui.spacing_mut().item_spacing.x = 2.0;
+        use egui::ThemePreference::*;
+        let l = L.menu.settings.theme;
+        let mut theme_preference = ui.options(|opt| opt.theme_preference);
+        for (value, icon, hover_text) in [
+            (System, mdi!(ui, LAPTOP), l.system),
+            (Dark, mdi!(ui, WEATHER_NIGHT), l.dark),
+            (Light, mdi!(ui, WHITE_BALANCE_SUNNY), l.light),
+        ] {
+            ui.selectable_value(&mut theme_preference, value, (icon, hover_text));
+        }
+        ui.set_theme(theme_preference);
+    });
 }

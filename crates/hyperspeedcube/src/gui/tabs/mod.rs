@@ -33,7 +33,6 @@ use serde::{Deserialize, Serialize};
 
 use super::App;
 use crate::L;
-use crate::gui::util::IconTint;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum UtilityTab {
@@ -69,7 +68,7 @@ pub enum UtilityTab {
 }
 impl UtilityTab {
     /// Returns the icon.
-    pub fn icon(self, tint: impl IconTint, size: f32) -> egui::Image<'static> {
+    pub fn icon(self, tint: impl hcegui::mdi::IconTint, size: f32) -> egui::Image<'static> {
         match self {
             Self::Catalog => mdi!(tint, FOLDER, size),
             Self::PuzzleInfo => mdi!(tint, INFORMATION_BOX, size),

@@ -1,13 +1,14 @@
 use std::borrow::Cow;
 
 use hcegui::dnd::{DndStyle, ReorderDnd};
+use hcegui::mdi::IconButton;
 use hsc_prefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
 use super::{HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, TextValidationResult};
 use crate::L;
 use crate::gui::EguiOptionValue;
-use crate::gui::components::{IconButton, PlaintextYamlEditor};
+use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::{DndReorderExt, ResponseExt};
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::locales::PresetStrings;
@@ -206,13 +207,14 @@ where
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
                 for preset in self.presets.user_presets() {
-                    crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
                     // Drag -> Reorder preset
-                    let r = dnd.reorderable(ui, preset.name().clone(), |ui, _| {
-                        let r = self.show_preset_name_selectable_label(ui, preset.name());
-                        (r.clone(), r)
+                    let mut r = hcegui::wrapping::show_on_one_line(ui, |ui| {
+                        dnd.reorderable(ui, preset.name().clone(), |ui, _| {
+                            let r = self.show_preset_name_selectable_label(ui, preset.name());
+                            (r.clone(), r)
+                        })
+                        .inner
                     });
-                    let mut r = r.inner;
                     if !any_popup {
                         r = r.on_hover_ui(|ui| {
                             for action in [
@@ -247,9 +249,9 @@ where
                 if dnd.is_dragging() {
                     ui.disable();
                 }
-                let button = IconButton::small(mdi!(ui, PLUS));
-                crate::gui::util::wrap_if_needed_for_width(ui, button.min_size());
-                let mut r = ui.add(button);
+                let mut r = hcegui::wrapping::show_on_one_line(ui, |ui| {
+                    ui.add(IconButton::small(mdi!(ui, PLUS)))
+                });
                 if !egui::Popup::is_any_open(ui) {
                     r = r.on_hover_text(self.text.actions.add);
                 }
@@ -529,7 +531,6 @@ where
                         ui.add_enabled_ui(is_unsaved, |ui| {
                             if ui.is_enabled() {
                                 let visuals = ui.visuals_mut();
-                                visuals.widgets.inactive.expansion = 2.0;
                                 visuals.widgets.inactive.bg_stroke = egui::Stroke {
                                     width: 2.0,
                                     color: visuals.warn_fg_color,
@@ -537,7 +538,7 @@ where
                             }
 
                             let r = ui
-                                .add(IconButton::medium(mdi!(ui, FLOPPY)))
+                                .add(IconButton::small(mdi!(ui, FLOPPY)))
                                 .on_hover_explanation(L.presets.save_changes, {
                                     let current = md_bold_user_text(self.preset_name);
                                     if overwrite {

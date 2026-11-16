@@ -1,6 +1,5 @@
+use hcegui::mdi::MDI_MEDIUM_SIZE;
 use hyperpuzzle::TagValue;
-
-use crate::gui::util::MDI_MEDIUM_SIZE;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum IconSide {

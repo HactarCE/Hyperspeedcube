@@ -175,7 +175,9 @@ impl<'a> ColorsUi<'a> {
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
                     for color in self.palette.custom_colors.user_presets() {
-                        self.show_single_color(ui, color.name().clone());
+                        hcegui::wrapping::show_on_one_line(ui, |ui| {
+                            self.show_single_color(ui, color.name().clone());
+                        });
                     }
                 });
             });
@@ -187,7 +189,9 @@ impl<'a> ColorsUi<'a> {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
                 for color_name in self.palette.builtin_colors.keys() {
-                    self.show_single_color(ui, color_name.clone());
+                    hcegui::wrapping::show_on_one_line(ui, |ui| {
+                        self.show_single_color(ui, color_name.clone());
+                    });
                 }
             });
         });
@@ -365,8 +369,6 @@ impl<'a> ColorsUi<'a> {
     }
 
     fn show_single_color(&mut self, ui: &mut egui::Ui, color_name: String) {
-        crate::gui::util::wrap_if_needed_for_color_button(ui);
-
         let tooltip_pos = ui.cursor().left_top();
         let color_assignment = PaletteColor::Single { name: color_name };
         let r = self.show_generic_color(ui, &color_assignment, tooltip_pos);

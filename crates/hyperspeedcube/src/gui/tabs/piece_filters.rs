@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use hcegui::dnd::Dnd;
+use hcegui::mdi::IconButton;
 use hsc_prefs::{
     ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
     FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
@@ -15,7 +16,7 @@ use crate::L;
 use crate::app::App;
 use crate::gui::EguiValue;
 use crate::gui::components::{
-    FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget, IconButton,
+    FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
     PRESET_NAME_TEXT_EDIT_WIDTH, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
     TextEditPopupResponse,
 };

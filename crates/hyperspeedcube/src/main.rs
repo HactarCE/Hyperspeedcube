@@ -5,6 +5,9 @@
 use std::sync::LazyLock;
 
 #[macro_use]
+extern crate hcegui;
+
+#[macro_use]
 mod debug;
 mod app;
 mod cli;

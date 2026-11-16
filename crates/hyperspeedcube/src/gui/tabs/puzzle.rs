@@ -9,6 +9,7 @@ use std::time::Duration;
 use egui::Widget;
 use egui::mutex::RwLock;
 use eyre::Result;
+use hcegui::mdi::IconButton;
 use hsc_draw::*;
 use hsc_log::Solve;
 use hsc_prefs::{AnimationPreferences, Preferences};
@@ -23,7 +24,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::L;
-use crate::gui::components::{IconButton, color_assignment_popup};
+use crate::gui::components::color_assignment_popup;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::md;
 use crate::gui::util::MDI_STYLE_ICON_ROTATE_SQUARE;

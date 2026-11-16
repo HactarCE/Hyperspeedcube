@@ -42,7 +42,7 @@ empfindung.workspace = true
 env_logger.workspace = true
 eyre.workspace = true
 float-ord.workspace = true
-hcegui = { workspace = true, features = ["ansi", "dnd"] }
+hcegui = { workspace = true, features = ["ansi", "dnd", "mdi"] }
 indexmap.workspace = true
 itertools.workspace = true
 lab.workspace = true

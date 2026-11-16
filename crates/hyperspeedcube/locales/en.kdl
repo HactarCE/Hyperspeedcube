@@ -71,6 +71,11 @@ menu {
   }
   settings {
     title "Settings"
+    theme {
+      system "System"
+      dark "Dark"
+      light "Light"
+    }
   }
   tools {
     title "Tools"

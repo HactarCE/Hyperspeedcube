@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use egui::AtomExt;
+use hcegui::mdi::MDI_BIG;
 use hsc_prefs::SidebarStyle;
 use hyperpuzzle::FloatMinMaxIteratorExt;
 
@@ -8,7 +9,7 @@ use crate::L;
 use crate::gui::AppUi;
 use crate::gui::markdown::md;
 use crate::gui::tabs::UtilityTab;
-use crate::gui::util::{MDI_BIG, text_width};
+use crate::gui::util::text_width;
 
 const FONT_SIZE: f32 = 15.0;
 const PADDING: f32 = 12.0;

@@ -5,6 +5,7 @@ use std::sync::{Arc, LazyLock};
 
 use egui::NumExt;
 use egui::containers::menu::{MenuButton, MenuConfig};
+use hcegui::mdi::IconButton;
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 use regex::Regex;
@@ -12,11 +13,11 @@ use regex::Regex;
 use crate::L;
 use crate::app::App;
 use crate::gui::components::{
-    IconButton, PuzzleGeneratorUi, escape_tag_value, format_tag_and_value, unescape_tag_value,
+    PuzzleGeneratorUi, escape_tag_value, format_tag_and_value, unescape_tag_value,
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::temp_value::EguiFlag;
-use crate::gui::util::{MDI_MEDIUM_BUTTON_SIZE, hyperlink_to};
+use crate::gui::util::hyperlink_to;
 use crate::gui::{EguiOptionValue, EguiValue};
 
 pub const ID_MATCH_PENALTY: isize = 60;
@@ -30,10 +31,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     let catalog = hyperpuzzle::catalog();
 
+    // TODO: use completion popup when typing tags
+
     ui.group(|ui| {
         ui.horizontal(|ui| {
             if hsc_paths::hps_dir().is_ok() {
-                let r = ui.add(IconButton::medium(mdi!(ui, REFRESH)));
+                let r = ui.add(IconButton::small(mdi!(ui, REFRESH)));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.catalog.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
@@ -42,36 +45,25 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
 
-            let mut tag_action = None;
-            ui.scope(|ui| {
-                ui.set_max_size(MDI_MEDIUM_BUTTON_SIZE);
-                ui.with_layout(
-                    egui::Layout::left_to_right(egui::Align::Center)
-                        .with_cross_justify(true)
-                        .with_main_justify(true),
-                    |ui| {
-                        let query = Query::from_str(&search_query_string);
-
-                        let (r, _) = MenuButton::new(mdi!(ui, TAG))
-                            .config(
-                                MenuConfig::default()
-                                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
-                            )
-                            .ui(ui, |ui| {
-                                tag_action = crate::gui::components::TagMenu::new(
-                                    query.included_tags.iter().map(format_tag_and_value),
-                                    query.excluded_tags.iter().map(format_tag_and_value),
-                                )
-                                .with_experimental(app.prefs.show_experimental_puzzles)
-                                .show(ui)
-                                .inner;
-                            });
-                        r.on_hover_text(L.catalog.filter_by_tag);
-                    },
+            let mut tag_filter_action = None;
+            let query = Query::from_str(&search_query_string);
+            let (r, _) = MenuButton::new((mdi!(ui, TAG), "Tags"))
+                .config(
+                    MenuConfig::default()
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
                 )
-            });
+                .ui(ui, |ui| {
+                    tag_filter_action = crate::gui::components::TagMenu::new(
+                        query.included_tags.iter().map(format_tag_and_value),
+                        query.excluded_tags.iter().map(format_tag_and_value),
+                    )
+                    .with_experimental(app.prefs.show_experimental_puzzles)
+                    .show(ui)
+                    .inner;
+                });
+            r.on_hover_text(L.catalog.filter_by_tag);
 
-            if let Some(action) = tag_action {
+            if let Some(action) = tag_filter_action {
                 let mut found = false;
 
                 let mut new_search_query_string = String::new();
@@ -137,7 +129,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 && ui
                     .put(
                         clear_button_rect,
-                        IconButton::very_small(mdi!(ui, CLOSE)).selectable(false),
+                        IconButton::tiny(mdi!(ui, CLOSE)).selectable(false),
                     )
                     .on_hover_cursor(egui::CursorIcon::Default)
                     .on_hover_text(L.catalog.clear_search)

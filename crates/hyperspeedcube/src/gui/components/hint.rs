@@ -1,23 +1,20 @@
 use egui::NumExt;
-
-use crate::gui::util::MDI_MEDIUM_BUTTON_SIZE;
+use hcegui::mdi::IconButton;
 
 pub struct HelpHoverWidget;
 impl HelpHoverWidget {
     pub fn show_in_top_right(ui: &mut egui::Ui, markdown: &str) -> egui::Response {
         let button_rect =
-            egui::Align2::RIGHT_TOP.align_size_within_rect(MDI_MEDIUM_BUTTON_SIZE, ui.max_rect());
+            egui::Align2::RIGHT_TOP.align_size_within_rect(IconButton::SMALL_SIZE, ui.max_rect());
         let r = ui.place(button_rect, make_widget(ui));
         show_tooltip_if_hovered(&r, markdown);
 
-        ui.set_max_width(
-            ui.max_rect().width() - MDI_MEDIUM_BUTTON_SIZE.x - ui.spacing().item_spacing.x,
-        );
+        ui.set_max_width(ui.max_rect().width() - IconButton::SMALL - ui.spacing().item_spacing.x);
 
         r
     }
     pub fn show_right_aligned(ui: &mut egui::Ui, markdown: &str) -> egui::Response {
-        ui.add_space(MDI_MEDIUM_BUTTON_SIZE.x + ui.spacing().item_spacing.x); // Ensure there's enough space
+        ui.add_space(IconButton::SMALL + ui.spacing().item_spacing.x); // Ensure there's enough space
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             Self::show(ui, markdown)
         })
@@ -33,7 +30,6 @@ impl HelpHoverWidget {
 fn make_widget<'a>(ui: &egui::Ui) -> egui::Button<'a> {
     egui::Button::new(mdi!(ui.visuals().text_color(), HELP))
         .corner_radius(8)
-        .min_size(MDI_MEDIUM_BUTTON_SIZE)
         .fill(egui::Color32::TRANSPARENT)
 }
 

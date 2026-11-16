@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use egui::{AtomExt, IntoAtoms};
+use hcegui::mdi::{MDI_SMALL, MDI_SMALL_SIZE};
 use parking_lot::Mutex;
 
 use crate::L;
 use crate::gui::markdown::md;
-use crate::gui::util::{MDI_SMALL_SIZE, hyperlink_to};
+use crate::gui::util::hyperlink_to;
 use crate::leaderboards::{LEADERBOARDS_DOMAIN, LeaderboardsClientState};
 
 pub struct LeaderboardsUi<'a>(pub &'a Arc<Mutex<LeaderboardsClientState>>);
@@ -119,7 +120,7 @@ fn menu_button<'a>(
                 MDI_SMALL_SIZE,
                 r.rect.shrink2(ui.spacing().button_padding),
             );
-            ui.place(spinner_rect, egui::Spinner::new());
+            egui::Spinner::new().paint_at(ui, spinner_rect);
         }
         r
     })
