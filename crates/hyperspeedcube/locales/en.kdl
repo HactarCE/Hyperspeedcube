@@ -95,7 +95,7 @@ menu {
         Documentation for Hyperpuzzlescript can be found at [dev.hypercubing.xyz](https://dev.hypercubing.xyz/).
       """
     }
-    (HoverStrings)extract_hps "Extra built-in HPS files…" {
+    (HoverStrings)extract_hps "Extract built-in HPS files…" {
       full "Extract built-in Hyperpuzzlescript files"
       desc """
         Hyperspeedcube ships with many built-in HPS files.
