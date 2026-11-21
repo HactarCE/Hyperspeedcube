@@ -246,7 +246,7 @@ impl SymmetricTwistSystemComponent {
                     } else {
                         minimal_stabilizer
                     },
-                    order: unit_twist.order,
+                    period: unit_twist.period,
                 });
             }
         }
@@ -368,17 +368,17 @@ impl SymmetricTwistSystemComponent {
             .solve(hypergroup::ConstraintSet::EMPTY)
     }
 
-    /// Returns the order of the unit twist on an axis, or `None` if the axis
+    /// Returns the period of the unit twist on an axis, or `None` if the axis
     /// does not have a unit twist.
     ///
     /// Typically, only axes on 3D puzzles have unit twists.
-    pub fn unit_twist_order(&self, axis: Axis) -> Option<NonZeroI32> {
+    pub fn unit_twist_period(&self, axis: Axis) -> Option<NonZeroI32> {
         let (_, orbit_index) = self.axis_undeorbiters[axis];
         self.axis_orbits[orbit_index]
             .stabilizer_twists
             .iter()
             .find(|(named_point_set, _unit_twist, _)| named_point_set.is_empty())
-            .map(|(_named_point_set, unit_twist, _)| unit_twist.order)
+            .map(|(_named_point_set, unit_twist, _)| unit_twist.period)
     }
 
     fn constraints_from_notation(
@@ -461,13 +461,13 @@ pub struct UniqueMinimalClockwiseGenerator {
     /// Unique generator for the subgroup that is the smallest clockwise
     /// rotation.
     pub element: GroupElementId,
-    /// [Order] of the group element.
+    /// [Period] of the group element.
     ///
     /// This is always strictly positive, but is stored as `i32` for ease of use
     /// with [`Multiplier`].
     ///
-    /// [order]: https://en.wikipedia.org/wiki/Order_(group_theory)
-    pub order: NonZeroI32,
+    /// [period]: https://en.wikipedia.org/wiki/Order_(group_theory)
+    pub period: NonZeroI32,
 }
 
 impl UniqueMinimalClockwiseGenerator {
@@ -476,7 +476,7 @@ impl UniqueMinimalClockwiseGenerator {
     pub fn new(group: &hypergroup::Group, element: GroupElementId) -> Self {
         Self {
             element,
-            order: NonZeroI32::new(group.period(element) as i32)
+            period: NonZeroI32::new(group.period(element) as i32)
                 .expect("group element period is zero"),
         }
     }

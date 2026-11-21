@@ -436,13 +436,13 @@ impl PuzzleProduct {
                                 || *layer_mask != all_layers)
                     })?;
                 let family = &symmetric_twist_system_component.axes.names[axis];
-                if let Some(unit_twist_order) =
-                    symmetric_twist_system_component.unit_twist_order(axis)
+                if let Some(unit_twist_period) =
+                    symmetric_twist_system_component.unit_twist_period(axis)
                 {
-                    let order = unit_twist_order.get();
-                    let mut multiplier = rng.random_range(1..order); // guaranteed nonempty
-                    if multiplier * 2 > order {
-                        multiplier -= order;
+                    let period = unit_twist_period.get();
+                    let mut multiplier = rng.random_range(1..period); // guaranteed nonempty
+                    if multiplier * 2 > period {
+                        multiplier -= period;
                     }
                     Some(Move::new(layers, family, None, multiplier))
                 } else {

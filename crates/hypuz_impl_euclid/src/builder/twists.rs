@@ -601,7 +601,7 @@ impl TwistSystemProduct {
                     .iter()
                     .find(|(named_point_set, _, _)| named_point_set.is_empty())
                     .map(|(_, min_clockwise_generator, _)| {
-                        let max_multiplier = min_clockwise_generator.order.get() / 2;
+                        let max_multiplier = min_clockwise_generator.period.get() / 2;
                         let unit_motor = self.group.motor(min_clockwise_generator.element);
                         let motors = (-max_multiplier..=max_multiplier)
                             .map(|multiplier| unit_motor.powi(multiplier as i64))
@@ -829,7 +829,7 @@ impl TwistSystemProduct {
                 let doctrinaire_order = stabilizer_twists
                     .iter()
                     .find(|(point_set, _, _)| point_set.is_empty())
-                    .map(|(_, clockwise_generator, _)| clockwise_generator.order.get() as usize);
+                    .map(|(_, clockwise_generator, _)| clockwise_generator.period.get() as usize);
                 if let Some(n) = doctrinaire_order {
                     transforms.insert(0, JumbleTransform::new_unit_doctrinaire(n));
                 }
