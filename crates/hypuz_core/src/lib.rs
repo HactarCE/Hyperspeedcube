@@ -24,6 +24,8 @@ pub use components::{Component, ComponentList, MissingComponent};
 pub use hsc_cli_types::*;
 /// Re-export of `hypergroup`
 pub use hypergroup as group;
+/// Re-export of `hypermath`
+pub use hypermath as math;
 /// Re-export of `hypershape`.
 pub use hypershape;
 /// Re-export of `hypuz_notation`.

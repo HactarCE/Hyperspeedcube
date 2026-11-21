@@ -51,6 +51,8 @@ pub struct NdEuclidPuzzleGeometry {
     /// Also returns a string identifier for the gizmo clicked.
     ///
     /// If multiple moves are returned, they must all be on the same axis.
+    ///
+    /// Returns `None` in case of any error.
     pub get_gizmo_twist: Box<
         dyn Send
             + Sync

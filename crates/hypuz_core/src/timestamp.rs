@@ -20,6 +20,9 @@ impl std::str::FromStr for Timestamp {
     }
 }
 impl Timestamp {
+    /// The Unix Epoch, 1970-01-01 00:00:00 UTC.
+    pub const UNIX_EPOCH: Self = Self(DateTime::UNIX_EPOCH);
+
     /// Returns the UTC timestamp for the present moment, according to the
     /// system clock.
     pub fn now() -> Self {

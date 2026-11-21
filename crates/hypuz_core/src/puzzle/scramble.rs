@@ -51,6 +51,18 @@ impl ScrambleParams {
         }
     }
 
+    /// Constructs a deterministic scramble for use in tests.
+    pub fn new_test_scramble(ty: ScrambleType, seed: &str) -> Self {
+        Self {
+            version: CURRENT_SCRAMBLE_VERSION,
+            ty,
+            time: Timestamp::UNIX_EPOCH,
+            seed: seed.to_string(),
+            #[cfg(feature = "timecheck")]
+            drand_round_v1: None,
+        }
+    }
+
     /// Generates a new scramble based on the current time and the output of a
     /// public randomness beacon.
     ///

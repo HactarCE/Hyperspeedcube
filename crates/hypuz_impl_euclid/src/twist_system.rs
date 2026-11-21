@@ -240,18 +240,79 @@ impl SymmetricTwistSystemComponent {
                 let minimal_stabilizer = self
                     .group
                     .conjugate(coset_representative, unit_twist.element);
+
+                let element = if self.group.is_reflection(coset_representative) {
+                    self.group.inverse(minimal_stabilizer)
+                } else {
+                    minimal_stabilizer
+                };
+
+                #[cfg(any(debug_assertions, test))]
+                self.assert_stabilizer_twist_transform_is_correct(
+                    &stabilizer_family,
+                    element,
+                    unit_twist.period,
+                );
+
                 return Some(UniqueMinimalClockwiseGenerator {
-                    element: if self.group.is_reflection(coset_representative) {
-                        self.group.inverse(minimal_stabilizer)
-                    } else {
-                        minimal_stabilizer
-                    },
+                    element,
                     period: unit_twist.period,
                 });
             }
         }
 
         None
+    }
+
+    #[cfg(any(debug_assertions, test))]
+    fn assert_stabilizer_twist_transform_is_correct(
+        &self,
+        stabilizer_family: &StabilizerFamily,
+        element: GroupElementId,
+        expected_period: NonZeroI32,
+    ) {
+        // Check period
+        let actual_period = self.group.abstract_group().period(element);
+        assert_eq!(actual_period, expected_period.get() as usize);
+        let m = self.group.motor(element);
+
+        // Check primary vector is stabilized.
+        let primary = &self.axis_vectors.vectors_by_id[stabilizer_family.primary];
+        hypermath::assert_approx_eq!(m.transform(primary), primary);
+
+        let mut stabilized_vectors = vec![primary.clone()];
+
+        if !stabilizer_family.secondary.is_empty() {
+            // Check secondary vector is stabilized.
+            let secondary = stabilizer_family
+                .secondary
+                .vector(&self.named_point_vectors);
+            hypermath::assert_approx_eq!(m.transform(&secondary), secondary);
+            stabilized_vectors.push(secondary);
+        }
+
+        let arbitrary_vector_start =
+            Vector::arbitrary_perpendicular_to(self.ndim(), &stabilized_vectors)
+                .expect("no arbitrary perpendicular vector");
+        let arbitrary_vector_end = m.transform(&arbitrary_vector_start);
+
+        // Check twist direction (clockwise vs. counterclockwise).
+        // Negative (clockwise) or zero (ambiguous 180°) are both ok.
+        let sign_indicator_matrix = Matrix::from_cols(
+            std::iter::chain(
+                stabilized_vectors,
+                [arbitrary_vector_start, arbitrary_vector_end],
+            )
+            .collect_vec(),
+        );
+        if actual_period == 2 {
+            assert!(APPROX.eq_zero(sign_indicator_matrix.determinant()));
+        } else {
+            assert!(APPROX.is_neg(sign_indicator_matrix.determinant()));
+        }
+
+        // The only thing we can't check here is whether there is exists a
+        // smaller group element with the same properties.
     }
 
     /// Returns a constraint set specifying a random non-identity transformation
@@ -424,6 +485,13 @@ impl SymmetricTwistSystemComponent {
                 ))
             })
             .collect()
+    }
+
+    /// Returns whether the twist system contains any jumbling twists.
+    pub fn has_jumbling(&self) -> bool {
+        self.axis_orbits
+            .iter()
+            .any(|(_, o)| o.jumble_data.is_some())
     }
 }
 

@@ -4,6 +4,7 @@ use std::io::Write;
 use hypuz_core::{Catalog, CatalogBuilder};
 
 mod hps_construction;
+mod hps_euclid_integration_tests;
 mod precision_balance;
 mod verification;
 

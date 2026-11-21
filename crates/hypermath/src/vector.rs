@@ -9,7 +9,7 @@ use approx_collections::{ApproxEq, ApproxEqZero, ApproxHash, ApproxInternable};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{APPROX, Float, Ndim, util};
+use crate::{APPROX, Float, FloatMinMaxByIteratorExt, Ndim, util};
 
 /// Constructs an N-dimensional vector, using the same syntax as `vec![]`.
 #[macro_export]
@@ -380,9 +380,13 @@ impl Vector {
     /// Returns an arbitrary vector perpendicular to all vectors in `vectors`,
     /// or `None` if there is none within the given number of dimensions.
     pub fn arbitrary_perpendicular_to(ndim: u8, vectors: &[Vector]) -> Option<Self> {
+        // TODO: could be optimized by inlining `rejected_from_all()` and
+        //       pulling the basis construction out of the loop
         (0..ndim)
             .map(Vector::unit)
-            .find_map(|v| v.rejected_from_all(vectors.iter().cloned()).normalize())
+            .map(|v| v.rejected_from_all(vectors.iter().cloned()))
+            .max_by_float_key(|v| v.mag2())
+            .and_then(|v| v.normalize())
     }
 
     /// Resizes the vector in-place, padding with zeros.
@@ -489,6 +493,8 @@ impl<V: VectorRef> Sum<V> for Vector {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     #[test]
@@ -519,5 +525,54 @@ mod tests {
         let v1 = vector![1.0, 2.0, -10.0];
         let v2 = vector![-5.0, 16.0];
         assert_eq!(v1.dot(v2), 27.0);
+    }
+
+    fn simple_float() -> BoxedStrategy<Float> {
+        prop::sample::select((-4..=4).map(|i| i as Float).collect_vec()).boxed()
+    }
+
+    fn simple_vector(ndim: u8) -> BoxedStrategy<Vector> {
+        prop::collection::vec(simple_float(), ndim as usize)
+            .prop_map(Vector::from_iter)
+            .boxed()
+    }
+
+    fn check_arbitrary_perpendicular_to(ndim: u8, vectors: &[Vector]) {
+        let u = Vector::arbitrary_perpendicular_to(ndim, &vectors).unwrap();
+        for v in vectors {
+            assert_approx_eq!(0.0, v.dot(&u));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_arbitrary_perpendicular_vector_2d(
+            v1 in simple_vector(2),
+        ) {
+            let vectors = &[v1];
+            check_arbitrary_perpendicular_to(2, vectors);
+            check_arbitrary_perpendicular_to(3, vectors);
+            check_arbitrary_perpendicular_to(4, vectors);
+        }
+
+        #[test]
+        fn proptest_arbitrary_perpendicular_vector_3d(
+            v1 in simple_vector(3),
+            v2 in simple_vector(3),
+        ) {
+            let vectors = &[v1, v2];
+            check_arbitrary_perpendicular_to(3, vectors);
+            check_arbitrary_perpendicular_to(4, vectors);
+        }
+
+        #[test]
+        fn proptest_arbitrary_perpendicular_vector_4d(
+            v1 in simple_vector(4),
+            v2 in simple_vector(4),
+            v3 in simple_vector(4),
+        ) {
+            let vectors = &[v1, v2, v3];
+            check_arbitrary_perpendicular_to(4, vectors);
+        }
     }
 }
