@@ -7,8 +7,9 @@ use std::any::Any;
 /// trait cannot borrow from the puzzle state.
 pub trait PuzzleStateRenderData: Any + Send + Sync {}
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Box<dyn PuzzleStateRenderData>` that can be downcast to
-    /// a concrete render data type.
+    /// Wrapper around `Box<dyn `[`PuzzleStateRenderData`]`>` that can be
+    /// dereferenced to a `dyn PuzzleStateRenderData` or downcast to a concrete
+    /// render data type.
     pub struct BoxDynPuzzleStateRenderData(Box<dyn PuzzleStateRenderData>);
 }
 impl PuzzleStateRenderData for () {}
@@ -23,9 +24,9 @@ pub trait PuzzleAnimation: Any + Send + Sync {
     fn simultaneous(&self, other: &dyn PuzzleAnimation) -> Option<BoxDynPuzzleAnimation>;
 }
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Box<dyn PuzzleAnimation>` that can be downcast to a
-    /// concrete animation type. This type also implements [`Clone`] for
-    /// convenience.
+    /// Wrapper around `Box<dyn `[`PuzzleAnimation`]`>` that can be dereferenced
+    /// to a `dyn PuzzleAnimation` or downcast to a concrete animation type.
+    /// This type also implements [`Clone`] for convenience.
     pub struct BoxDynPuzzleAnimation(Box<dyn PuzzleAnimation>);
 }
 impl_dyn_clone!(for BoxDynPuzzleAnimation);

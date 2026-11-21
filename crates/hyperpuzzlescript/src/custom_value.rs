@@ -68,8 +68,9 @@ impl<T: PartialEq> TryEq for T {
 }
 
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Box<dyn CustomValue>` that can be downcast to a concrete
-    /// puzzle state type. It also implements `Clone` for convenience.
+    /// Wrapper around `Box<dyn `[`CustomValue`]`>` that can be dereferenced to
+    /// a `dyn CustomValue` or downcast to a concrete puzzle state type. It also
+    /// implements `Clone` for convenience.
     pub struct BoxDynValue(Box<dyn CustomValue>);
 }
 impl_dyn_clone!(for BoxDynValue);

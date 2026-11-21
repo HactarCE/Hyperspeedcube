@@ -304,8 +304,8 @@ pub trait VantageGroup: Any + Send + Sync {
     fn twist_from_name(&self, name: &str) -> Option<BoxDynRelativeTwist>;
 }
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Arc<dyn VantageGroup>` that can be downcast to a
-    /// concrete vantage group type.
+    /// Wrapper around `Box<dyn `[`VantageGroup`]`>` that can be dereferenced to
+    /// a `dyn VantageGroup` or downcast to a concrete vantage group type.
     pub struct BoxDynVantageGroup(Box<dyn VantageGroup>);
 }
 
@@ -315,9 +315,9 @@ pub trait VantageGroupElement: Any + Send + Sync {
     fn clone_dyn(&self) -> BoxDynVantageGroupElement;
 }
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Arc<dyn VantageGroupElement>` that can be downcast to a
-    /// concrete vantage group element type. This type also implements [`Clone`]
-    /// for convenience.
+    /// Wrapper around `Box<dyn `[`VantageGroupElement`]`>` that can be
+    /// dereferenced to a `dyn VantageGroup` or downcast to a concrete vantage
+    /// group element type. This type also implements [`Clone`] for convenience.
     pub struct BoxDynVantageGroupElement(Box<dyn VantageGroupElement>);
 }
 impl_dyn_clone!(for BoxDynVantageGroupElement);
@@ -389,9 +389,9 @@ pub trait RelativeAxis: Any + Send + Sync {
     fn clone_dyn(&self) -> BoxDynRelativeAxis;
 }
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Arc<dyn RelativeAxis>` that can be downcast to a
-    /// concrete relative axis type. This type also implements [`Clone`] for
-    /// convenience.
+    /// Wrapper around `Box<dyn `[`RelativeAxis`]`>` that can be dereferenced to
+    /// a `dyn RelativeAxis` or downcast to a concrete relative axis type. This
+    /// type also implements [`Clone`] for convenience.
     pub struct BoxDynRelativeAxis(Box<dyn RelativeAxis>);
 }
 impl_dyn_clone!(for BoxDynRelativeAxis);
@@ -402,9 +402,9 @@ pub trait RelativeTwist: Any + Send + Sync {
     fn clone_dyn(&self) -> BoxDynRelativeTwist;
 }
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Arc<dyn RelativeTwist>` that can be downcast to a
-    /// concrete relative twist type. This type also implements [`Clone`] for
-    /// convenience.
+    /// Wrapper around `Box<dyn `[`RelativeTwist`]`>` that can be dereferenced
+    /// to a `dyn RelativeTwist` or downcast to a concrete relative twist type.
+    /// This type also implements [`Clone`] for convenience.
     pub struct BoxDynRelativeTwist(Box<dyn RelativeTwist>);
 }
 impl_dyn_clone!(for BoxDynRelativeTwist);

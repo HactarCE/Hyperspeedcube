@@ -94,8 +94,9 @@ pub trait PuzzleState: 'static + fmt::Debug + Any + Send + Sync {
 }
 
 box_dyn_wrapper_struct! {
-    /// Wrapper around `Box<dyn PuzzleState>` that can be downcast to a concrete
-    /// puzzle state type. This type also implements [`Clone`] for convenience.
+    /// Wrapper around `Box<dyn `[`PuzzleState`]`>` that can be dereferenced to
+    /// a `dyn PuzzleState` or downcast to a concrete puzzle state type. This
+    /// type also implements [`Clone`] for convenience.
     pub struct BoxDynPuzzleState(Box<dyn PuzzleState>);
 }
 impl_dyn_clone!(for BoxDynPuzzleState);
