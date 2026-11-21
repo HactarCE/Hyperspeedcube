@@ -656,44 +656,6 @@ fn chain_cloned<'a, T: 'a + Clone, B: FromIterator<T>>(
     std::iter::chain(a, b).cloned().collect()
 }
 
-/// Returns the minimal set of layers that fully contains the range `min..=max`,
-/// and a boolean indicating whether any portion of the range is not contained
-/// in any layer.
-fn layers_containing_range(
-    axis_layers: &PerLayer<[Float; 2]>,
-    range_min: Float,
-    mut range_max: Float,
-) -> (LayerMask, bool) {
-    let mut mask = LayerMask::new();
-    let mut outside_any_layer = false;
-
-    // Iterate from outermost (greatest) to innermost (least)
-    for (layer, &[layer_max, layer_min]) in axis_layers {
-        // Cover `layer_max..=range_max`
-        outside_any_layer |= APPROX.lt(layer_max, range_max);
-
-        // Exit if this layer is completely below the range
-        if APPROX.lt_eq(layer_max, range_min) {
-            return (mask, outside_any_layer);
-        }
-
-        // Cover `layer_min..=layer_max`
-        if APPROX.lt(layer_min, range_max) {
-            mask.insert(layer);
-            // We've covered `layer_min..=range_max`, so the remaining range is
-            // `range_min..=layer_min`
-            range_max = layer_min;
-        }
-
-        // Exit if we have covered all of the range
-        if APPROX.lt_eq(range_max, range_min) {
-            return (mask, outside_any_layer);
-        }
-    }
-
-    (mask, true)
-}
-
 /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
 pub static PLACEHOLDER_PUZZLE: LazyLock<Arc<Puzzle>> = LazyLock::new(|| {
     let mut components = ComponentList::new();
@@ -725,48 +687,3 @@ pub static PLACEHOLDER_PUZZLE: LazyLock<Arc<Puzzle>> = LazyLock::new(|| {
         components,
     })
 });
-
-#[cfg(test)]
-mod tests {
-    use proptest::prelude::*;
-
-    use super::*;
-
-    const TEST_LAYER_COUNT: usize = 10;
-
-    proptest! {
-        #[test]
-        fn proptest_layers_containing_range(
-            mut range in [0..TEST_LAYER_COUNT, 0..TEST_LAYER_COUNT],
-            layers_bitmask in 0..(1_u64 << TEST_LAYER_COUNT),
-        ) {
-            prop_assume!(range[0] != range[1]);
-            range.sort();
-            test_layers_containing_range(range, layers_bitmask);
-        }
-    }
-
-    fn test_layers_containing_range([range_min, range_max]: [usize; 2], layers_bitmask: u64) {
-        let mut layers = PerLayer::new();
-        let mut expected_layer_mask = LayerMask::new();
-        let mut expected_bool = false;
-        for i in (0..TEST_LAYER_COUNT).rev() {
-            if layers_bitmask & (1 << i) != 0 {
-                let layer = layers.push([(i + 1) as Float, i as Float]).unwrap();
-                if (range_min..range_max).contains(&i) {
-                    expected_layer_mask.insert(layer);
-                }
-            } else if (range_min..range_max).contains(&i) {
-                expected_bool = true;
-            }
-        }
-        let actual_result =
-            layers_containing_range(&layers, range_min as Float, range_max as Float);
-        assert_eq!((expected_layer_mask, expected_bool), actual_result);
-    }
-
-    #[test]
-    fn test_repro() {
-        test_layers_containing_range([0, 1], 5);
-    }
-}
