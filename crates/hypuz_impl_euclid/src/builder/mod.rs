@@ -343,6 +343,7 @@ impl PuzzleProduct {
         // `&_` is required to work around https://github.com/rust-lang/rust/issues/58052
         let axis_names = Arc::clone(&twists.axes.names);
         let symmetric_twist_system_component_ref = Arc::clone(&symmetric_twist_system_component);
+        let has_jumbling = symmetric_twist_system_component_ref.has_jumbling();
         let axis_layers_ref = Arc::clone(&axis_layers);
         let get_gizmo_twist = Box::new(
             move |gizmo_face: GizmoFace,
@@ -503,7 +504,7 @@ impl PuzzleProduct {
             piece_type_hierarchy,
             piece_type_masks,
             colors,
-            can_scramble: false,
+            can_scramble: !has_jumbling, // TODO: jumbling scrambling not yet implemented
             full_scramble_length: hypuz_core::FULL_SCRAMBLE_LENGTH,
             axis_layers: Arc::clone(&axis_layers),
             twists,
