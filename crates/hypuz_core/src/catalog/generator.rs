@@ -20,8 +20,9 @@ pub(super) struct BuildCtxInner {
     /// We reference [`GenericRequestState`] instead of [`GenericRequestData`]
     /// to avoid keeping the request alive if all `Request`s are dropped.
     pub(super) request_state: Arc<Mutex<GenericRequestState>>,
-    /// Whether all requests to build the object have been dropped.
-    pub(super) canceled: Arc<AtomicBool>,
+    /// Cancel flag, which indicates whether all requests to build the object
+    /// have been dropped.
+    pub(super) cancel_flag: CancelFlag,
     /// List of parent IDs.
     ///
     /// If this list exceeds [`crate::MAX_ID_REDIRECTS`] or if there is an
@@ -44,7 +45,7 @@ impl BuildCtx {
 
     /// Returns whether all requests to build the object have been dropped.
     pub fn is_canceled(&self) -> bool {
-        self.0.canceled.load(Ordering::Relaxed)
+        self.0.cancel_flag.is_canceled()
     }
 
     /// Returns an error if all requests to build the object have been dropped.

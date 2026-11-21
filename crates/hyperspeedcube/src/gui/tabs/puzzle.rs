@@ -150,13 +150,13 @@ impl PuzzleWidget {
         // TODO: use existing request if possible
         let request = hyperpuzzle::catalog().build::<Puzzle>(&parsed_puzzle_id);
         match request.get() {
-            Err(_) => {
+            CatalogRequestStatus::InProgress(_) => {
                 self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
                     request,
                     solve_to_load: solve,
                 });
             }
-            Ok(Ok(puzzle)) => match solve {
+            CatalogRequestStatus::Done(Ok(puzzle)) => match solve {
                 Some(solve) => {
                     let thread_handle = std::thread::spawn(move || {
                         Ok(PuzzleSimulation::deserialize(&puzzle, &solve))
@@ -168,7 +168,7 @@ impl PuzzleWidget {
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
             },
-            Ok(Err(e)) => {
+            CatalogRequestStatus::Done(Err(e)) => {
                 let view = match std::mem::take(&mut self.contents) {
                     PuzzleWidgetContents::None => None,
                     PuzzleWidgetContents::Ok(view) => {
@@ -299,8 +299,10 @@ impl PuzzleWidget {
                         solve_to_load,
                     } => {
                         match request.get() {
-                            Ok(puzzle) => self.load(request.id().to_string(), solve_to_load, prefs), /* TODO: consider inlining */
-                            Err(task_strings) => {
+                            CatalogRequestStatus::Done(puzzle) => {
+                                self.load(request.id().to_string(), solve_to_load, prefs)
+                            } /* TODO: consider inlining */
+                            CatalogRequestStatus::InProgress(task_strings) => {
                                 loading_heading = Some(
                                     task_strings.iter().map(|s| capitalize(s)).join("\n").into(),
                                 );

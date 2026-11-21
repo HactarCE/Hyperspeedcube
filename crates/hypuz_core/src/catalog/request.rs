@@ -13,15 +13,53 @@
 
 use super::*;
 
+/// Status for a [`CatalogRequest`].
+pub enum CatalogRequestStatus<T> {
+    /// The request has been completed.
+    Done(CatalogResult<T>),
+    /// The request is in progress.
+    ///
+    /// The contained value is a list of in-progress tasks arranged from most
+    /// general to most specific, like a stack trace.
+    InProgress(Vec<String>),
+}
+
+impl<T> CatalogRequestStatus<T> {
+    /// Returns the contents of the `Done` variant, if it done.
+    pub fn as_done(&self) -> Option<&CatalogResult<T>> {
+        match self {
+            CatalogRequestStatus::Done(result) => Some(result),
+            CatalogRequestStatus::InProgress(_) => None,
+        }
+    }
+
+    /// Returns the contents of the `Done` variant, if it done.
+    pub fn into_done(self) -> Option<CatalogResult<T>> {
+        match self {
+            CatalogRequestStatus::Done(result) => Some(result),
+            CatalogRequestStatus::InProgress(_) => None,
+        }
+    }
+}
+
 /// Request to build a catalog object.
 ///
 /// When the last request to build an object is dropped, the task is canceled.
 ///
 /// See [`Catalog::build()`] for more info.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Request<T: CatalogObject> {
     pub(super) requested_id: CatalogId,
     pub(super) inner: RequestInner<T>,
+}
+
+impl<T: CatalogObject> Clone for Request<T> {
+    fn clone(&self) -> Self {
+        Self {
+            requested_id: self.requested_id.clone(),
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl<T: CatalogObject> Request<T> {
@@ -46,22 +84,35 @@ impl<T: CatalogObject> Request<T> {
         &self.requested_id
     }
 
-    /// Returns the result if the task has completed ([`Ok`]), or a list of
-    /// tasks from most general to most specific if it is in progress ([`Err`]).
-    ///
-    /// **Note: The returned object might not have the same ID as the request.**
-    /// When this happens, it is called an "ID redirect."
-    pub fn get(&self) -> Result<CatalogResult<T>, Vec<String>> {
+    /// Returns whether the task is done.
+    pub fn is_done(&self) -> bool {
         match &self.inner {
-            RequestInner::Precomputed(result) => Ok(result.clone()),
+            RequestInner::Precomputed(_) => true,
+            RequestInner::Requested {
+                generic_request, ..
+            } => generic_request.data.is_done(),
+        }
+    }
+
+    /// Returns the result if the task has completed, or a list of tasks if it
+    /// is in progress.
+    ///
+    /// **Note: The returned object might _not_ have the same ID as the
+    /// request.** When this happens, it is called an "ID redirect."
+    pub fn get(&self) -> CatalogRequestStatus<T> {
+        match &self.inner {
+            RequestInner::Precomputed(result) => CatalogRequestStatus::Done(result.clone()),
             RequestInner::Requested {
                 generic_request, ..
             } => {
                 if generic_request.data.is_done() {
-                    Ok(self.get_blocking())
+                    CatalogRequestStatus::Done(self.get_blocking())
                 } else {
-                    // race condition here is ok.
-                    Err(generic_request.data.state.lock().flat_task_stack())
+                    // race condition between `.is_done()` and `.lock()` is ok.
+                    // caller just gets slightly stale state
+                    CatalogRequestStatus::InProgress(
+                        generic_request.data.state.lock().flat_task_stack(),
+                    )
                 }
             }
         }
@@ -103,13 +154,35 @@ impl<T: CatalogObject> Request<T> {
             }
         }
     }
+
+    /// Blocks until the task has been completed or canceled and then returns
+    /// the result, or `None` if it was canceled.
+    ///
+    /// Holding a [`Request`] or calling [`Self::get_blocking()`] prevents it
+    /// from being canceled. In contrast, this method does _not_ keep prevent
+    /// the request from being canceled while it is blocking.
+    pub fn get_blocking_weak(self) -> Option<CatalogResult<T>> {
+        match self.inner {
+            RequestInner::Precomputed(result) => return Some(result),
+            RequestInner::Requested {
+                catalog,
+                generic_request,
+            } => {
+                let id = self.requested_id;
+                let waiter = generic_request.data.waiter.clone();
+                drop(generic_request); // allow cancelation
+                waiter.wait();
+                catalog.try_get(&id)
+            }
+        }
+    }
 }
 
 /// Enum to handle the case where the result of a request is already known at
 /// the time the request is made.
 ///
 /// This is contained within [`Request`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(super) enum RequestInner<T> {
     /// The result of the request is already known at the time the request is
     /// made.
@@ -119,6 +192,21 @@ pub(super) enum RequestInner<T> {
         catalog: Catalog,
         generic_request: GenericRequest,
     },
+}
+
+impl<T> Clone for RequestInner<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Precomputed(result) => Self::Precomputed(result.clone()),
+            Self::Requested {
+                catalog,
+                generic_request,
+            } => Self::Requested {
+                catalog: catalog.clone(),
+                generic_request: generic_request.clone(),
+            },
+        }
+    }
 }
 
 /// Wrapper around [`GenericRequestData`] that cancels a task when it is
@@ -149,11 +237,11 @@ pub(super) struct GenericRequestData {
     pub(super) state: Arc<Mutex<GenericRequestState>>,
     /// Waiter, which can be used to block a thread until the request completes.
     pub(super) waiter: Waiter,
-    /// Whether the task has been canceled.
+    /// Cancel flag for the request.
     ///
     /// Semantically this could be in `state`, but it's probably slightly faster
     /// to check it without having to lock a mutex.
-    pub(super) canceled: Arc<AtomicBool>,
+    pub(super) cancel_flag: CancelFlag,
 
     pub(super) call_when_generic_request_is_dropped: Box<dyn Send + Sync + Fn()>,
 }
@@ -163,7 +251,7 @@ impl fmt::Debug for GenericRequestData {
         f.debug_struct("RequestInner")
             .field("state", &self.state)
             .field("waiter", &self.waiter)
-            .field("canceled", &self.canceled)
+            .field("cancel_flag", &self.cancel_flag)
             .finish_non_exhaustive()
     }
 }
@@ -175,22 +263,17 @@ impl GenericRequestData {
         waiter: Waiter,
     ) -> Arc<Self> {
         let state = Arc::new(Mutex::new(GenericRequestState::default()));
-        let canceled = Arc::new(AtomicBool::new(false));
+        let cancel_flag = CancelFlag::new();
         Arc::new_cyclic(|this| {
             let this = this.clone();
             GenericRequestData {
                 state: Arc::clone(&state),
                 waiter,
-                canceled: Arc::clone(&canceled),
+                cancel_flag: cancel_flag.clone(),
 
                 call_when_generic_request_is_dropped: Box::new(move || {
                     // Cancel the request if this is the last request (not
                     // including the `Arc<RequestData>` inside the subcatalog).
-
-                    // 1 for the Arc being dropped + 1 for the cache entry
-                    if this.strong_count() > 2 {
-                        return; // early exit (optimization)
-                    }
 
                     // Remove cache entry and drop subrequest if there is one
                     if let Some(subcatalog) = catalog.get_subcatalog::<T>()
@@ -205,7 +288,7 @@ impl GenericRequestData {
                         hash_map_entry.remove();
                         let mut data_guard = state.lock();
                         let subrequest = data_guard.subrequest.take();
-                        canceled.store(true, Ordering::Relaxed);
+                        cancel_flag.cancel();
                         drop(data_guard);
                         drop(cache_guard);
                         // Drop the subrequest only after everything has been unlocked again

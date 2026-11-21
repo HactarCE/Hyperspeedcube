@@ -129,15 +129,7 @@ impl<T: CatalogObject> SubCatalog<T> {
         let cache_entry = cache_guard.entry(id.to_string());
         let is_new = matches!(cache_entry, hash_map::Entry::Vacant(_));
         let request_inner = match cache_entry {
-            hash_map::Entry::Occupied(e) => match e.get() {
-                CacheEntry::Building { request_data, .. } => RequestInner::Requested {
-                    catalog: catalog.clone(),
-                    generic_request: GenericRequest {
-                        data: Arc::clone(request_data),
-                    },
-                },
-                CacheEntry::Done(result) => RequestInner::Precomputed(result.clone()),
-            },
+            hash_map::Entry::Occupied(e) => e.get().to_request_inner(catalog),
             hash_map::Entry::Vacant(e) => {
                 let notify = NotifyWhenDropped::new();
                 let request_data =
@@ -162,5 +154,18 @@ impl<T: CatalogObject> SubCatalog<T> {
             },
             is_new,
         )
+    }
+
+    /// Fetches a cache entry for an ID, returning `None` if it is missing.
+    pub(super) fn get_cache_entry(&self, catalog: &Catalog, id: CatalogId) -> Option<Request<T>> {
+        let request_inner = self
+            .cache
+            .lock()
+            .get(&id.to_string())?
+            .to_request_inner(catalog);
+        Some(Request {
+            requested_id: id,
+            inner: request_inner,
+        })
     }
 }

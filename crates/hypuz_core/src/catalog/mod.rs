@@ -6,7 +6,6 @@ use std::collections::{BTreeSet, HashMap, hash_map};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use eyre::{Context, OptionExt, Result, bail, eyre};
 use itertools::Itertools;
@@ -14,6 +13,7 @@ use parking_lot::{Condvar, MappedMutexGuard, Mutex, MutexGuard};
 use serde::Serialize;
 
 mod builder;
+mod cancel;
 mod entry;
 mod error;
 mod generator;
@@ -27,6 +27,7 @@ mod request;
 mod subcatalog;
 
 pub use builder::CatalogBuilder;
+pub use cancel::CancelFlag;
 use entry::*;
 pub use error::*;
 pub use generator::*;
@@ -111,6 +112,22 @@ impl Catalog {
         request.get_blocking()
     }
 
+    /// Returns an object if it has already been built; otherwise returns
+    /// `None`.
+    ///
+    /// Usually [`Catalog::build()`] or [`Catalog::build_blocking()`] are more
+    /// useful.
+    pub fn try_get<T: CatalogObject>(&self, id: &CatalogId) -> Option<CatalogResult<T>> {
+        self.try_get_request(id)?.get().into_done()
+    }
+
+    /// Returns a request for an object if it has already been built or there is
+    /// already an outstanding request.
+    pub fn try_get_request<T: CatalogObject>(&self, id: &CatalogId) -> Option<Request<T>> {
+        self.get_subcatalog::<T>()?
+            .get_cache_entry(self, id.clone())
+    }
+
     fn new_request<T: CatalogObject>(
         &self,
         id: &CatalogId,
@@ -149,7 +166,7 @@ impl Catalog {
                 catalog: self.clone(),
                 id: id.clone(),
                 request_state: Arc::clone(&generic_request.data.state),
-                canceled: Arc::clone(&generic_request.data.canceled),
+                cancel_flag: generic_request.data.cancel_flag.clone(),
                 parent_ids,
             }));
             let id = id.clone();
