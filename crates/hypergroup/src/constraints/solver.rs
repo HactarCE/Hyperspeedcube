@@ -346,19 +346,17 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
     /// satisfies the given constraints.
     ///
     /// When debug assertions are disabled, this does nothing.
+    #[cfg(debug_assertions)]
     fn debug_assert_constraints(
         &self,
         coset: &ConstrainedConjugateCoset<P>,
         expected_constraint_set: &ConstraintSet<P>,
     ) {
-        #[cfg(debug_assertions)]
-        {
-            let arbitrary_elem = self
-                .group()
-                .compose(self.group().inverse(coset.lhs_inv), coset.rhs);
-            for pair in expected_constraint_set {
-                debug_assert_eq!(self.action.act(arbitrary_elem, pair.from), pair.to);
-            }
+        let arbitrary_elem = self
+            .group()
+            .compose(self.group().inverse(coset.lhs_inv), coset.rhs);
+        for pair in expected_constraint_set {
+            debug_assert_eq!(self.action.act(arbitrary_elem, pair.from), pair.to);
         }
     }
 
@@ -369,6 +367,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
         constraint_set: &ConstraintSet<P>,
     ) -> Option<FactorGroupConjugateCoset> {
         let coset = self.solve_coset_impl(constraint_set)?;
+        #[cfg(debug_assertions)]
         self.debug_assert_constraints(&coset, constraint_set);
         Some(FactorGroupConjugateCoset {
             lhs: self.group().inverse(coset.lhs_inv),
@@ -415,6 +414,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             coset = self.constrain_coset(coset, new_constraint)?;
         }
 
+        #[cfg(debug_assertions)]
         self.debug_assert_constraints(&coset, &constraint_set);
 
         let lhs = self.group().inverse(coset.lhs_inv);
@@ -463,6 +463,7 @@ impl<P: TypedIndex> FactorGroupConstraintSolver<P> {
             coset = self.constrain_coset(coset, new_constraint)?;
         }
 
+        #[cfg(debug_assertions)]
         self.debug_assert_constraints(&coset, &additional_constraints);
 
         Some(additional_constraints)

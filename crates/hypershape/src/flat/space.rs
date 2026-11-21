@@ -444,6 +444,7 @@ impl Space {
     }
 
     /// Returns the endpoints of a line, or an error if `line` is not a line.
+    #[cfg(debug_assertions)]
     pub(super) fn line_endpoints(&self, line: ElementId) -> Option<[VertexId; 2]> {
         let mut points = self.polytopes[line]
             .boundary()
