@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use eyre::{Result, bail, ensure};
-use hypergroup::{AbbrGenSeq, CoxeterMatrix, GroupAction, GroupElementId, IsometryGroup};
+use eyre::{OptionExt, Result, bail, ensure};
+use hypergroup::{AbbrGenSeq, CoxeterMatrix, GenSeq, GroupAction, GroupElementId, IsometryGroup};
 use hypermath::collections::RangeMap;
 use hypermath::prelude::*;
 use hypermath::{Float, Subspace};
@@ -144,6 +144,30 @@ impl NamedPointOrbitSpec {
             .map(|point| point.name.as_str())
             .min()
             .unwrap_or("")
+    }
+
+    /// Constructs an orbit of autonamed named points.
+    pub fn from_autonames(
+        generators: &[(GenSeq, pga::Motor)],
+        init_vector: Vector,
+        mut autonames: impl Iterator<Item = Str>,
+    ) -> Result<Self> {
+        let orbit_members = hypergroup::orbit_geometric_with_gen_seq(
+            hypergroup::ORBIT_LIMIT,
+            generators,
+            init_vector,
+        )?
+        .into_iter()
+        .map(|(abbr_gen_seq, _, vector)| {
+            eyre::Ok(NamedPointSpec {
+                vector,
+                name: autonames.next().ok_or_eyre("exhausted autonames")?,
+                abbr_gen_seq,
+            })
+        })
+        .try_collect()?;
+
+        Ok(Self { orbit_members })
     }
 }
 

@@ -4,10 +4,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Weak};
 
+use ecow::eco_format;
 use eyre::{OptionExt, Result};
 use hypergroup::{CoxeterMatrix, IsometryGroup};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hyperpuzzlescript::Str;
 use hypuz_core::ComponentList;
 use hypuz_core::catalog::VersionedCatalogWord;
 use hypuz_core::group::GroupElementId;
@@ -589,10 +591,10 @@ impl ProductPuzzleState {
     }
 }
 
-fn named_point_autonames() -> impl Iterator<Item = String> {
+fn named_point_autonames() -> impl Iterator<Item = Str> {
     (0..)
         .map(hypuz_notation::family::SequentialUppercaseName)
-        .map(|name| format!("ZZ{name}"))
+        .map(|name| eco_format!("ZZ{name}"))
 }
 
 fn lift_vector_by_ndim<V: FromIterator<Float>>(

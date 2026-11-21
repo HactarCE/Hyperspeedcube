@@ -119,7 +119,7 @@ fn named_point_orbit_from_value(
     ctx: &mut EvalCtx<'_>,
     generators: &[(GenSeq, Motor)],
     value: Value,
-    autonames: &mut impl Iterator<Item = String>,
+    autonames: &mut impl Iterator<Item = Str>,
 ) -> hyperpuzzlescript::Result<NamedPointOrbitSpec> {
     if value.is::<Map>() {
         let mut map = value.as_ref::<Map>()?.clone();
@@ -160,20 +160,8 @@ fn named_point_orbit_from_value(
         );
 
         let init_vector = value.to::<Vector>()?;
-        let orbit_members = hypergroup::orbit_geometric_with_gen_seq(
-            hypergroup::ORBIT_LIMIT,
-            generators,
-            init_vector,
-        )
-        .at(ctx.caller_span)?
-        .into_iter()
-        .map(|(abbr_gen_seq, _, vector)| NamedPointSpec {
-            vector,
-            name: autonames.next().expect("exhausted autonames").into(),
-            abbr_gen_seq,
-        })
-        .collect();
-        Ok(NamedPointOrbitSpec { orbit_members })
+        NamedPointOrbitSpec::from_autonames(generators, init_vector, autonames.map(|s| s.into()))
+            .at(ctx.caller_span)
     } else {
         Err(value.type_error(Type::Map | Type::Vec))
     }
