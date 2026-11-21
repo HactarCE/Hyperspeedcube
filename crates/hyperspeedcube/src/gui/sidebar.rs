@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use egui::AtomExt;
 use hcegui::mdi::MDI_BIG;
 use hsc_prefs::SidebarStyle;
-use hyperpuzzle::FloatMinMaxIteratorExt;
+use hypermath::FloatMinMaxIteratorExt;
 
 use crate::L;
 use crate::gui::AppUi;

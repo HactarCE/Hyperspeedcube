@@ -13,7 +13,6 @@ use hypuz_core::group::{GroupElementId, IsometryGroup};
 use hypuz_core::prelude::*;
 use hypuz_notation::family::JumbleSuffix;
 use hypuz_notation::{Str, Transform};
-use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rand::{Rng, RngExt};

@@ -64,6 +64,7 @@ mod point;
 pub mod collections;
 
 pub mod centroid;
+pub mod float_sort;
 pub mod hyperplane;
 pub mod matrix;
 pub mod ndim;
@@ -105,6 +106,7 @@ pub mod traits {
     pub use approx_collections::traits::*;
     pub use tinyset::Fits64;
 
+    pub use crate::float_sort::{FloatMinMaxByIteratorExt, FloatMinMaxIteratorExt, TotalCmp};
     pub use crate::ndim::Ndim;
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;

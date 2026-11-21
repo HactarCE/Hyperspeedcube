@@ -3,8 +3,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use egui::NumExt;
+use hypermath::FloatMinMaxIteratorExt;
+use hyperpuzzle::CatalogId;
 use hyperpuzzle::catalog::{Menu, MenuContent, MenuPath};
-use hyperpuzzle::{CatalogId, FloatMinMaxIteratorExt};
 use parking_lot::Mutex;
 
 use crate::gui::components::{GENERATOR_SLIDER_WIDTH, PuzzleGeneratorUi};

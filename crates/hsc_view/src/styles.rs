@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hsc_draw::PieceStyleValues;
 use hsc_prefs::{Preferences, PresetRef};
-use hyperpuzzle::FloatMinMaxIteratorExt;
+use hypermath::FloatMinMaxIteratorExt;
 use hyperpuzzle::prelude::*;
 use itertools::Itertools;
 

@@ -10,9 +10,10 @@ use hsc_log::{LogFile, Solve};
 use hsc_prefs::Preferences;
 use hsc_stats::{NewPbs, PuzzlePBs, StatsDb};
 use hsc_view::PuzzleSimulation;
+use hypermath::FloatMinMaxIteratorExt;
 use hyperpuzzle::chrono::{TimeDelta, Utc};
 use hyperpuzzle::verification::SolveVerification;
-use hyperpuzzle::{CatalogIdValue, FloatMinMaxIteratorExt, Puzzle, chrono};
+use hyperpuzzle::{CatalogIdValue, Puzzle, chrono};
 use parking_lot::Mutex;
 
 use crate::L;

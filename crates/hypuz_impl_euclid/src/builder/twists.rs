@@ -6,7 +6,9 @@ use hypergroup::{
     ConjugateCoset, GroupAction, GroupElementId, IsometryGroup, SubgroupAction,
     SubgroupConstraintSolver,
 };
-use hypermath::{Float, Matrix, MotorNearestNeighborMap, Point, Vector, VectorRef};
+use hypermath::{
+    Float, FloatMinMaxByIteratorExt, Matrix, MotorNearestNeighborMap, Point, Vector, VectorRef,
+};
 use hypuz_core::catalog::BuildCtx;
 use hypuz_core::{
     Axis, AxisSystem, CatalogId, CatalogObject, CatalogWord, ComponentList, IndexOverflow, Names,
@@ -14,7 +16,6 @@ use hypuz_core::{
 };
 use hypuz_notation::family::SequentialLowercaseName;
 use hypuz_notation::{Move, Multiplier};
-use hypuz_util::FloatMinMaxByIteratorExt;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;

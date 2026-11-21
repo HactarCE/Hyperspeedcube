@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use eyre::{Result, ensure};
 use hypermath::prelude::*;
 use hypuz_core::prelude::*;
-use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 
 hypuz_util::typed_index_struct! {

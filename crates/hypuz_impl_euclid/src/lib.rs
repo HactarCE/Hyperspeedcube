@@ -38,7 +38,6 @@ pub use components::{
 };
 pub use cut_distances::CutDistances;
 pub use geom::NdEuclidPuzzleGeometry;
-use hypuz_util::FloatMinMaxIteratorExt;
 use itertools::Itertools;
 use layer_map::{IntersectedLayers, LayerMap};
 pub use layers::{LayerDepths, PuzzleLayerDepths};
