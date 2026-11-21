@@ -142,7 +142,7 @@ where
 
         let is_current = preset_name == current_name;
 
-        let max_width = ui.available_width() - ui.spacing().button_padding.x * 2.0;
+        let max_width = ui.available_size_before_wrap().x - ui.spacing().button_padding.x * 2.0;
         let elided_preset_name = elide_overflowing_line(ui, preset_name, max_width);
 
         let mut r = ui
@@ -467,7 +467,7 @@ where
             save_preset: &mut save_preset,
         });
         ui.add_space(ui.spacing().item_spacing.y);
-        egui::ScrollArea::both()
+        egui::ScrollArea::new([true, self.vscroll])
             .id_salt((self.id, yaml.is_open(ui)))
             .auto_shrink([false, true])
             .show(ui, |ui| match yaml.is_open(ui) {
@@ -483,11 +483,13 @@ where
                     }
                 }
                 false => {
-                    add_contents(PrefsUi {
-                        ui,
-                        current: &mut self.current.value,
-                        defaults: Some(&defaults),
-                        changed: self.changed,
+                    ui.push_id(unique_id!(self.id), |ui| {
+                        add_contents(PrefsUi {
+                            ui,
+                            current: &mut self.current.value,
+                            defaults: Some(&defaults),
+                            changed: self.changed,
+                        });
                     });
                 }
             });

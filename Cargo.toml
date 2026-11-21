@@ -149,7 +149,7 @@ clap = { version = "4.5.60" }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 
 # Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
-hcegui = { version = "0.2.0" }
+hcegui = { version = "0.2.2" }
 ecolor = { version = "0.37.0" }
 eframe = { version = "0.37.0" }
 egui = { version = "0.37.0" }

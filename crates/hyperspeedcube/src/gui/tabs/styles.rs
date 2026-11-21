@@ -7,7 +7,7 @@ use crate::gui::EguiValue;
 use crate::gui::markdown::{md, md_bold_user_text};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    egui::ScrollArea::both()
+    egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| show_inner(ui, app));
 }
@@ -125,15 +125,11 @@ fn show_custom(ui: &mut egui::Ui, prefs: &mut Preferences, changed: &mut bool) {
     };
     presets_ui.show(ui, None, |mut prefs_ui| {
         let (prefs, ui) = prefs_ui.split();
-        egui::ScrollArea::both()
-            .auto_shrink([false, true])
-            .show(ui, |ui| {
-                let r = ui.add(
-                    PieceStyleEdit::new(prefs.current, unique_id!())
-                        .default_outline_lighting(default_outline_lighting),
-                );
-                *prefs.changed |= r.changed();
-            });
+        let r = ui.add(
+            PieceStyleEdit::new(prefs.current, unique_id!())
+                .default_outline_lighting(default_outline_lighting),
+        );
+        *prefs.changed |= r.changed();
     });
 }
 
