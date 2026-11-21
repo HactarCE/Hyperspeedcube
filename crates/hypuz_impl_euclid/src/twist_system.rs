@@ -140,7 +140,7 @@ impl SymmetricTwistSystemComponent {
                     .split(separator)
                     .map(|s| self.named_point_names.lookup(s))
                     .collect::<Option<_>>()
-                    .and_then(|axes| NamedPointSet::new(axes).ok())
+                    .map(NamedPointSet::new)
                     && let Some(unit_twist) = self
                         .resolve_stabilizer_twist_transform(StabilizerFamily { primary, secondary })
                 {

@@ -27,8 +27,8 @@ impl NamedPointSet {
     pub const EMPTY: Self = NamedPointSet(SmallVec::new_const());
 
     /// Constructs a list of named points.
-    pub fn new(named_points: SmallVec<[NamedPoint; 3]>) -> Result<Self> {
-        Ok(Self(named_points))
+    pub fn new(named_points: SmallVec<[NamedPoint; 3]>) -> Self {
+        Self(named_points)
     }
 
     /// Transforms each named point in a set by a group element.
@@ -88,5 +88,11 @@ impl<'a> IntoIterator for &'a NamedPointSet {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter().copied()
+    }
+}
+
+impl FromIterator<NamedPoint> for NamedPointSet {
+    fn from_iter<I: IntoIterator<Item = NamedPoint>>(iter: I) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }

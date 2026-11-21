@@ -291,7 +291,7 @@ impl TwistSystemProduct {
                     .iter()
                     .map(|s| names.named_point_from_name(s))
                     .try_collect()?,
-            )?;
+            );
             let axis_orbit_index = axis_which_orbit[axis];
             let deorbiter = axis_deorbiters[axis];
             axis_orbits[axis_orbit_index]
@@ -310,7 +310,7 @@ impl TwistSystemProduct {
         // Add a singleton named point set for each named point.
         for orbit in &named_point_orbits {
             named_point_set_orbits.push((
-                NamedPointSet::new(smallvec![orbit.first()?])?,
+                NamedPointSet::new(smallvec![orbit.first()?]),
                 named_point_vectors[orbit.first()?].mag(),
             ));
         }
@@ -321,7 +321,7 @@ impl TwistSystemProduct {
                 .iter()
                 .map(|s| names.named_point_from_name(s))
                 .try_collect()?;
-            named_point_set_orbits.push((NamedPointSet::new(points)?, orbit.gizmo_pole_distance));
+            named_point_set_orbits.push((NamedPointSet::new(points), orbit.gizmo_pole_distance));
             if orbit.gizmo_pole_distance <= 0.0 {
                 bail!("named point set gizmo_pole_distance cannot be negative")
             }
