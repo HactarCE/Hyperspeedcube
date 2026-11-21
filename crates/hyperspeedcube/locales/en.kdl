@@ -3,6 +3,8 @@ lang "en"
 tabs {
   puzzle_loading "Loading {{id}}"
   puzzle_error "Error loading {{id}}"
+  puzzle_loading_log "Loading {{filename}}"
+  puzzle_loading_finalizing "Finalizing puzzle"
 
   (Tab)puzzle "New puzzle view" "No puzzle"
   (Tab)catalog "Catalog" "Catalog"
@@ -1208,7 +1210,9 @@ _crash {
 }
 
 error_dialog {
+  thread_error "Thread error"
   saving_file "Error saving file"
+  building_puzzle "Error building puzzle"
   loading_file "Error loading file"
   opening_folder "Error opening folder"
   extracting_hps_files "Error extracting built-in HPS files"

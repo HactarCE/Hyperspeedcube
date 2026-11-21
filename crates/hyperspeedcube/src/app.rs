@@ -103,14 +103,12 @@ impl App {
         if let Some(puzzle_widget) = self.active_puzzle.widget()
             && self.confirm_discard_puzzles([&puzzle_widget], L.confirm_discard.load_new_puzzle)
         {
-            puzzle_widget.lock().load_puzzle(puzzle_id, &mut self.prefs);
+            puzzle_widget.lock().load_puzzle(puzzle_id);
         }
     }
-    pub(crate) fn load_solve(&mut self, solve: Solve) {
+    pub(crate) fn load_solve(&mut self, solve: Solve, filename: &str) {
         if let Some(puzzle_widget) = self.active_puzzle.widget() {
-            puzzle_widget
-                .lock()
-                .load_solve(Arc::new(solve), &mut self.prefs);
+            puzzle_widget.lock().load_solve(Arc::new(solve), filename);
         }
     }
 
@@ -167,12 +165,16 @@ impl App {
     pub(crate) fn open_file(&mut self) {
         if let Some(path) = Self::prompt_file_load_path() {
             // TODO: handle error
-            if let Ok(contents) = std::fs::read_to_string(path) {
-                self.paste_from_string(&contents);
+            if let Ok(contents) = std::fs::read_to_string(&path) {
+                let filename = match path.file_name() {
+                    Some(s) => s.to_string_lossy(),
+                    None => "file".into(),
+                };
+                self.paste_from_string(&contents, &filename);
             }
         }
     }
-    pub(crate) fn paste_from_string(&mut self, s: &str) {
+    pub(crate) fn paste_from_string(&mut self, s: &str, filename: &str) {
         // TODO: handle error
         match hsc_log::deserialize(s) {
             Ok((log_file, warnings)) => {
@@ -182,7 +184,7 @@ impl App {
 
                 // TODO: load multiple solves at once
                 if let Some(first_solve) = log_file.solves.into_iter().next() {
-                    self.load_solve(first_solve);
+                    self.load_solve(first_solve, filename);
                 }
             }
             Err(e) => log::error!("Error loading log file: {e}"),

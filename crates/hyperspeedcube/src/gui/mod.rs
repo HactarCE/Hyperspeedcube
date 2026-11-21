@@ -224,6 +224,13 @@ impl AppUi {
                     ..base_tab_style.clone()
                 };
 
+                // Update puzzle views
+                for (_, tab) in self.dock_state.iter_all_tabs() {
+                    if let Some(p) = tab.puzzle_widget() {
+                        p.lock().update(ui, &mut self.app.prefs);
+                    }
+                }
+
                 let mut tab_viewer = TabViewer {
                     app: &mut self.app,
                     added_nodes: vec![],

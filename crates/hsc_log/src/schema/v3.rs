@@ -176,7 +176,7 @@ impl Solve {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct LogPuzzle {
     /// Puzzle ID.
-    #[kdl(property("id"))]
+    #[kdl(property("id"))] // TODO: merge version into the ID
     pub id: String,
     /// Puzzle version number.
     ///

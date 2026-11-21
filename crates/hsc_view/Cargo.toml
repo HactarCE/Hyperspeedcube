@@ -30,6 +30,7 @@ itertools.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 smallvec.workspace = true
+thiserror.workspace = true
 web-time.workspace = true
 
 [dev-dependencies]

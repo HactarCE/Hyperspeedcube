@@ -1043,7 +1043,20 @@ impl PuzzleSimulation {
         }
     }
     /// Loads a log file from a string.
-    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hsc_log::Solve) -> Self {
+    pub fn deserialize(
+        puzzle: &Arc<Puzzle>,
+        solve: &hsc_log::Solve,
+    ) -> Result<Self, PuzzleSimLoadError> {
+        Self::deserialize_cancelable(puzzle, solve, CancelFlag::new())
+    }
+    /// Loads a log file from a string.
+    ///
+    /// Stops loading if the cancel flag is set.
+    pub fn deserialize_cancelable(
+        puzzle: &Arc<Puzzle>,
+        solve: &hsc_log::Solve,
+        cancel_flag: CancelFlag,
+    ) -> Result<Self, PuzzleSimLoadError> {
         let hsc_log::Solve {
             replay,
             puzzle: _,
@@ -1064,6 +1077,9 @@ impl PuzzleSimulation {
         ret.replay = is_replay.then(Vec::new);
 
         for event in log {
+            if cancel_flag.is_canceled() {
+                return Err(PuzzleSimLoadError::Canceled);
+            }
             match event {
                 &LogEvent::Scramble { time } => {
                     log::trace!("Applying scramble {scramble:?}");
@@ -1104,21 +1120,19 @@ impl PuzzleSimulation {
                             let group = node_list
                                 .0
                                 .into_iter()
-                                .filter_map(|node| {
-                                    node.into_move().or_else(|| {
-                                        log::error!("Unsupported twist notation");
-                                        None
-                                    })
+                                .map(|node| match node {
+                                    hypuz_notation::Node::Move(m) => Ok(m),
+                                    other => Err(PuzzleSimLoadError::UnsupportedNotation(other)),
                                 })
-                                .collect();
+                                .try_collect()?;
                             log::trace!("Applying twist group {group:?} from {twists_str:?}");
                             ret.replay_event(ReplayEvent::Twists(group), true);
                         }
                         Err(errors) => {
-                            log::error!(
-                                "Error parsing twist group {twists_str:?}: {}",
-                                errors.iter().join(", "),
-                            );
+                            return Err(PuzzleSimLoadError::ErrorParsingTwistGroup {
+                                twists_str: twists_str.clone(),
+                                errors: errors.iter().join(", "),
+                            });
                         }
                     }
                 }
@@ -1178,7 +1192,7 @@ impl PuzzleSimulation {
 
         ret.skip_twist_animations();
 
-        ret
+        Ok(ret)
     }
 
     /// Returns the number of moves applied to the puzzle, measured in Slice
@@ -1229,6 +1243,16 @@ impl PuzzleSimulation {
     pub fn has_been_filterless(&self) -> bool {
         !self.invalidated_filterless
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum PuzzleSimLoadError {
+    #[error("canceled")]
+    Canceled,
+    #[error("unsupported notation {0}")]
+    UnsupportedNotation(hypuz_notation::Node),
+    #[error("error parsing twist group {twists_str:?}: {errors}")]
+    ErrorParsingTwistGroup { twists_str: String, errors: String },
 }
 
 #[cfg(test)]
@@ -1303,7 +1327,7 @@ solve {
         let puzzle = hyperpuzzle::catalog()
             .build_blocking(&original_solve.puzzle.id.parse().unwrap())
             .unwrap();
-        let sim = PuzzleSimulation::deserialize(&puzzle, original_solve);
+        let sim = PuzzleSimulation::deserialize(&puzzle, original_solve).unwrap();
         let mut reserialized_solve = sim.serialize(true);
 
         // Remove the new start-session and end-session events

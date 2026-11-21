@@ -2923,6 +2923,7 @@ dependencies = [
  "parking_lot 0.13.0",
  "pretty_assertions",
  "smallvec",
+ "thiserror 2.0.21",
  "web-time",
 ]
 
@@ -3107,6 +3108,7 @@ dependencies = [
  "smallvec",
  "strum",
  "sublime_fuzzy",
+ "thiserror 2.0.21",
  "tracing-wasm",
  "ureq",
  "wasm-bindgen",

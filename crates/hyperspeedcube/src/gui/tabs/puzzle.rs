@@ -2,19 +2,20 @@ use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use egui::Widget;
 use egui::mutex::RwLock;
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use hcegui::mdi::IconButton;
 use hsc_draw::*;
 use hsc_log::Solve;
 use hsc_prefs::{AnimationPreferences, Preferences};
 use hsc_view::{
-    DragState, HoverMode, NdEuclidViewState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
+    DragState, HoverMode, NdEuclidViewState, PuzzleSimLoadError, PuzzleSimulation, PuzzleView,
+    PuzzleViewInput,
 };
 use hypermath::prelude::*;
 use hyperpuzzle::Timestamp;
@@ -60,21 +61,17 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWi
     }
 }
 
-fn show_puzzle_load_hint(
-    ui: &mut egui::Ui,
-    puzzle_widget: &mut PuzzleWidget,
-    prefs: &mut Preferences,
-) {
+fn show_puzzle_load_hint(ui: &mut egui::Ui, puzzle_widget: &mut PuzzleWidget) {
     ui.vertical_centered(|ui| {
         egui::Aligned::new(egui::Align2::CENTER_CENTER).show(ui, |ui| {
             ui.spacing_mut().button_padding *= 4.0;
             ui.spacing_mut().item_spacing *= 4.0;
             ui.heading(L.puzzle_view.select_a_puzzle);
             if ui.button(L.puzzle_view.rubiks_3d).clicked() {
-                puzzle_widget.load_puzzle("cube_ft(3)", prefs);
+                puzzle_widget.load_puzzle("cube_ft(3)");
             }
             if ui.button(L.puzzle_view.rubiks_4d).clicked() {
-                puzzle_widget.load_puzzle("hypercube_ft(3)", prefs);
+                puzzle_widget.load_puzzle("hypercube_ft(3)");
             }
             ui.label(L.puzzle_view.more_in_catalog);
         });
@@ -134,65 +131,63 @@ impl PuzzleWidget {
         }
     }
 
-    pub(crate) fn load_puzzle(&mut self, puzzle_id: &str, prefs: &mut Preferences) {
-        self.load(puzzle_id.to_owned(), None, prefs);
+    pub(crate) fn load_puzzle(&mut self, puzzle_id: &str) {
+        self.load(PuzzleWidgetLoading::from_puzzle_id(puzzle_id));
     }
-    pub(crate) fn load_solve(&mut self, solve: Arc<Solve>, prefs: &mut Preferences) {
-        let id = solve.puzzle.id.clone();
-        self.load(id, Some(solve), prefs);
+    pub(crate) fn load_solve(&mut self, solve: Arc<Solve>, filename: &str) {
+        self.load(PuzzleWidgetLoading::from_solve(solve, filename));
     }
-    fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
-        let Ok(parsed_puzzle_id) = puzzle_id.parse() else {
-            log::warn!("invalid puzzle ID {puzzle_id:?}");
-            return;
-        };
+    fn load(&mut self, puzzle_widget_loading: Result<PuzzleWidgetLoading>) {
+        if let Some(old_loading) = self.loading.take() {
+            old_loading.cancel_flag.cancel();
+        }
 
-        // TODO: use existing request if possible
-        let request = hyperpuzzle::catalog().build::<Puzzle>(&parsed_puzzle_id);
-        match request.get() {
-            CatalogRequestStatus::InProgress(_) => {
-                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                    request,
-                    solve_to_load: solve,
-                });
-            }
-            CatalogRequestStatus::Done(Ok(puzzle)) => match solve {
-                Some(solve) => {
-                    let thread_handle = std::thread::spawn(move || {
-                        Ok(PuzzleSimulation::deserialize(&puzzle, &solve))
-                    });
-                    self.loading = Some(PuzzleWidgetLoading::LoadingFile {
-                        puzzle_id,
-                        thread_handle,
-                    });
-                }
-                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
-            },
-            CatalogRequestStatus::Done(Err(e)) => {
-                let view = match std::mem::take(&mut self.contents) {
-                    PuzzleWidgetContents::None => None,
-                    PuzzleWidgetContents::Ok(view) => {
-                        (view.puzzle().meta.id.to_string() == puzzle_id).then_some(view)
+        match puzzle_widget_loading {
+            Ok(loading) => self.loading = Some(loading),
+            Err(e) => crate::error_dialog(L.error_dialog.loading_file, format!("{e:#?}")),
+        }
+    }
+    /// Update loading status.
+    pub(crate) fn update(&mut self, ctx: &egui::Context, prefs: &mut Preferences) {
+        // Take from `self.loading`, then replace if still loading.
+        if let Some(loading) = self.loading.take() {
+            if loading.cancel_flag.is_canceled() {
+                // Stop loading.
+            } else if loading.thread_handle.is_finished() {
+                match loading.thread_handle.join() {
+                    Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                    Ok(Err(error)) => {
+                        let puzzle_id = loading.puzzle_request.id().clone();
+                        let view = match std::mem::take(&mut self.contents) {
+                            PuzzleWidgetContents::None => None,
+                            PuzzleWidgetContents::Ok(view) => {
+                                (view.puzzle().meta.id == puzzle_id).then_some(view)
+                            }
+                            PuzzleWidgetContents::Err {
+                                puzzle_id: old_id,
+                                view,
+                                ..
+                            } => (old_id == puzzle_id).then_some(view),
+                        };
+                        let is_placeholder = view.is_none();
+                        self.contents = PuzzleWidgetContents::Err {
+                            puzzle_id,
+                            view: view.unwrap_or_else(|| {
+                                let gfx = &self.gfx;
+                                let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
+                                    &hyperpuzzle::euclid::PLACEHOLDER_PUZZLE,
+                                )));
+                                PuzzleView::new(gfx, &sim, prefs)
+                            }),
+                            is_placeholder,
+                            error,
+                        };
                     }
-                    PuzzleWidgetContents::Err {
-                        puzzle_id: old_id,
-                        view,
-                        ..
-                    } => (old_id == puzzle_id).then_some(view),
-                };
-                let is_placeholder = view.is_none();
-                self.contents = PuzzleWidgetContents::Err {
-                    puzzle_id,
-                    view: view.unwrap_or_else(|| {
-                        let gfx = &self.gfx;
-                        let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
-                            &hyperpuzzle::euclid::PLACEHOLDER_PUZZLE,
-                        )));
-                        PuzzleView::new(gfx, &sim, prefs)
-                    }),
-                    is_placeholder,
-                    error: e,
-                };
+                    Err(e) => crate::error_dialog(L.error_dialog.thread_error, ""),
+                }
+            } else {
+                self.loading = Some(loading);
+                ctx.request_repaint_after_secs(0.2); // try again soon
             }
         }
     }
@@ -204,16 +199,23 @@ impl PuzzleWidget {
 
     pub(crate) fn title(&self) -> String {
         match &self.loading {
-            Some(PuzzleWidgetLoading::BuildingPuzzle { request, .. }) => {
-                L.tabs.puzzle_loading.with(&request.id().to_string())
-            }
-            Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, .. }) => {
-                L.tabs.puzzle_loading.with(puzzle_id)
+            Some(loading) => {
+                if !loading.puzzle_request.is_done() {
+                    L.tabs
+                        .puzzle_loading
+                        .with(&loading.puzzle_request.id().to_string())
+                } else if let Some(filename) = &loading.filename {
+                    L.tabs.puzzle_loading_log.with(filename)
+                } else {
+                    L.tabs.puzzle_loading_finalizing.to_string()
+                }
             }
             None => match &self.contents {
                 PuzzleWidgetContents::None => L.tabs.puzzle.title.to_string(),
                 PuzzleWidgetContents::Ok(view) => view.puzzle().meta.name.clone(),
-                PuzzleWidgetContents::Err { puzzle_id, .. } => L.tabs.puzzle_error.with(puzzle_id),
+                PuzzleWidgetContents::Err { puzzle_id, .. } => {
+                    L.tabs.puzzle_error.with(&puzzle_id.to_string())
+                }
             },
         }
     }
@@ -236,12 +238,12 @@ impl PuzzleWidget {
     }
 
     /// Reloads all files and the current puzzle.
-    pub fn reload(&mut self, prefs: &mut Preferences) {
+    pub fn reload(&mut self) {
         // TODO: keybind should be global, not just in puzzle view
         // TODO: make sure that the old catalog actually gets dropped
         hyperpuzzle::load_global_catalog();
         if let Some(id) = self.contents.puzzle_id().clone() {
-            self.load_puzzle(&id, prefs);
+            self.load_puzzle(&id.to_string());
         }
     }
 
@@ -291,52 +293,16 @@ impl PuzzleWidget {
 
         let mut loading_heading: Option<Cow<'_, str>> = None;
         let mut loading_progress = None;
-        if let Some(loading) = self.loading.take() {
-            crate::gui::util::centered_popup_area(ui, rect, unique_id!(self.id), |ui| {
-                match loading {
-                    PuzzleWidgetLoading::BuildingPuzzle {
-                        request,
-                        solve_to_load,
-                    } => {
-                        match request.get() {
-                            CatalogRequestStatus::Done(puzzle) => {
-                                self.load(request.id().to_string(), solve_to_load, prefs)
-                            } /* TODO: consider inlining */
-                            CatalogRequestStatus::InProgress(task_strings) => {
-                                loading_heading = Some(
-                                    task_strings.iter().map(|s| capitalize(s)).join("\n").into(),
-                                );
-                                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
-                                    request,
-                                    solve_to_load,
-                                });
-                            }
-                        }
-                        ui.request_repaint_after_secs(0.2); // try again soon
-                    }
-                    PuzzleWidgetLoading::LoadingFile {
-                        puzzle_id,
-                        thread_handle,
-                    } => {
-                        loading_heading = Some(L.puzzle_view.loading_log.into());
-                        match thread_handle.is_finished() {
-                            true => match thread_handle.join() {
-                                Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
-                                Ok(Err(())) | Err(_) => {
-                                    crate::error_dialog(L.error_dialog.loading_file, "");
-                                }
-                            },
-                            false => {
-                                self.loading = Some(PuzzleWidgetLoading::LoadingFile {
-                                    puzzle_id,
-                                    thread_handle,
-                                });
-                            }
-                        }
-                    }
-                }
-                ui.request_repaint();
-            });
+        if let Some(loading) = &self.loading {
+            loading_heading = if let CatalogRequestStatus::InProgress(task_strings) =
+                loading.puzzle_request.get()
+            {
+                Some(task_strings.iter().map(|s| capitalize(s)).join("\n").into())
+            } else if loading.filename.is_some() {
+                Some(L.puzzle_view.loading_log.into())
+            } else {
+                Some(L.puzzle_view.finalizing.into())
+            }
         } else if let Some(scramble_progress) = scramble_progress {
             let (done, total) = scramble_progress.fraction();
             loading_heading = Some(L.puzzle_view.scrambling.into());
@@ -357,7 +323,7 @@ impl PuzzleWidget {
                 }
             });
         } else if matches!(self.contents, PuzzleWidgetContents::None) {
-            show_puzzle_load_hint(ui, self, prefs);
+            show_puzzle_load_hint(ui, self);
         }
 
         if let Some(heading_text) = loading_heading {
@@ -393,7 +359,7 @@ impl PuzzleWidget {
 
         if r.has_focus() {
             if ui.input(|input| input.key_pressed(egui::Key::F5)) {
-                self.reload(prefs);
+                self.reload();
                 // Don't even try to redraw the puzzle. Just wait for the next
                 // frame.
                 return;
@@ -658,7 +624,7 @@ fn paint_gizmo_segment(
 }
 
 #[derive(Debug, Default)]
-pub enum PuzzleWidgetContents {
+enum PuzzleWidgetContents {
     /// No puzzle view.
     #[default]
     None,
@@ -667,14 +633,14 @@ pub enum PuzzleWidgetContents {
     /// Error loading the puzzle.
     Err {
         /// ID of the puzzle that tried to load.
-        puzzle_id: String,
+        puzzle_id: CatalogId,
         /// Previous version of the puzzle that worked, or a placeholder model
         /// if there was no successful previous version.
         view: PuzzleView,
         /// Whether `view` contains a placeholder model.
         is_placeholder: bool,
         /// Error message.
-        error: Arc<CatalogError>,
+        error: PuzzleWidgetLoadingError,
     },
 }
 impl PuzzleWidgetContents {
@@ -695,10 +661,10 @@ impl PuzzleWidgetContents {
         }
     }
     /// Returns the ID of the puzzle that is loaded or that tried to load.
-    fn puzzle_id(&self) -> Option<String> {
+    fn puzzle_id(&self) -> Option<CatalogId> {
         match self {
             PuzzleWidgetContents::None => None,
-            PuzzleWidgetContents::Ok(view) => Some(view.puzzle().meta.id.to_string()),
+            PuzzleWidgetContents::Ok(view) => Some(view.puzzle().meta.id.clone()),
             PuzzleWidgetContents::Err { puzzle_id, .. } => Some(puzzle_id.clone()),
         }
     }
@@ -712,17 +678,62 @@ impl PuzzleWidgetContents {
 }
 
 #[derive(Debug)]
-pub enum PuzzleWidgetLoading {
-    /// Waiting for a puzzle to build.
-    BuildingPuzzle {
-        request: Request<Puzzle>,
-        solve_to_load: Option<Arc<Solve>>,
-    },
-    /// Waiting for a log file to load.
-    LoadingFile {
-        puzzle_id: String,
-        thread_handle: JoinHandle<Result<PuzzleSimulation, ()>>,
-    },
+struct PuzzleWidgetLoading {
+    /// Request to build the puzzle.
+    puzzle_request: Request<Puzzle>,
+    /// Filename being loaded, if any.
+    ///
+    /// This might not correspond to an actual file on disk (e.g., "clipboard").
+    filename: Option<String>,
+    /// Cancelation token for the thread.
+    cancel_flag: CancelFlag,
+    /// Handle to the thread responsible for constructing the puzzle simulation.
+    thread_handle: JoinHandle<Result<PuzzleSimulation, PuzzleWidgetLoadingError>>,
+}
+
+impl PuzzleWidgetLoading {
+    pub fn from_puzzle_id(puzzle_id: &str) -> Result<Self> {
+        let puzzle_request = hyperpuzzle::catalog().build(&puzzle_id.parse()?);
+        Ok(Self {
+            puzzle_request: puzzle_request.clone(),
+            filename: None,
+            cancel_flag: CancelFlag::new(), // ignored
+            thread_handle: std::thread::spawn(|| {
+                Ok(PuzzleSimulation::new(
+                    &puzzle_request
+                        .get_blocking_weak()
+                        .ok_or(PuzzleSimLoadError::Canceled)??,
+                ))
+            }),
+        })
+    }
+    pub fn from_solve(solve: Arc<Solve>, filename: &str) -> Result<Self> {
+        let puzzle_request = hyperpuzzle::catalog().build(&solve.puzzle.id.parse()?);
+        let cancel_flag = CancelFlag::new();
+        Ok(Self {
+            puzzle_request: puzzle_request.clone(),
+            filename: Some(filename.to_string()),
+            cancel_flag: cancel_flag.clone(),
+            thread_handle: std::thread::spawn(move || {
+                let puzzle = puzzle_request
+                    .get_blocking_weak()
+                    .ok_or(PuzzleSimLoadError::Canceled)??;
+                Ok(PuzzleSimulation::deserialize_cancelable(
+                    &puzzle,
+                    &solve,
+                    cancel_flag,
+                )?)
+            }),
+        })
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+enum PuzzleWidgetLoadingError {
+    #[error("{0}")]
+    Catalog(#[from] Arc<CatalogError>),
+    #[error("{0}")]
+    SimLoad(#[from] PuzzleSimLoadError),
 }
 
 fn show_nd_euclid_puzzle_view(

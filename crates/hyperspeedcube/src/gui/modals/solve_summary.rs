@@ -1137,7 +1137,7 @@ mod tests {
         verify_solve(&saved_solve);
 
         // Reload simulation and save again
-        let mut new_sim = PuzzleSimulation::deserialize(&puzzle, &saved_solve);
+        let mut new_sim = PuzzleSimulation::deserialize(&puzzle, &saved_solve).unwrap();
         verify_solve(&new_sim.serialize(true));
     }
 
