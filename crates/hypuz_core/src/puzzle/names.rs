@@ -88,6 +88,8 @@ impl<I: TypedIndex> Names<I> {
     ///
     /// `name_to_id(names[i]) == Some(i)` must hold for every index. If it does
     /// not, an error is returned.
+    ///
+    /// `name_to_id` is expected to be relatively fast. It may employ caching.
     pub fn new(
         names: TiVec<I, Str>,
         name_to_id: impl 'static + Send + Sync + Fn(&str) -> Option<I>,
@@ -136,16 +138,13 @@ impl<I: TypedIndex> Names<I> {
     }
 
     /// Returns an element from its name.
-    ///
-    /// This should be fast, but in general it may run arbitrary code and the
-    /// results are not cached.
     pub fn lookup(&self, name: &str) -> Option<I> {
         if name.is_empty() {
             return None;
         }
-        (self.name_to_id)(name).inspect(|&i| {
+        (self.name_to_id)(name).inspect(|&_i| {
             #[cfg(debug_assertions)]
-            let _ = &self.list[i]; // panic if index is out of bounds
+            let _ = &self.list[_i]; // panic if index is out of bounds
         })
     }
 
