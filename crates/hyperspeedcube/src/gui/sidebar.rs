@@ -188,7 +188,7 @@ impl SidebarItem {
                     if docked_tabs.contains(tab) {
                         ui.painter().rect(
                             r.rect.shrink(1.0),
-                            2.0,
+                            8.0,
                             ui.visuals().faint_bg_color,
                             (1.5, ui.visuals().weak_text_color()),
                             egui::StrokeKind::Inside,
